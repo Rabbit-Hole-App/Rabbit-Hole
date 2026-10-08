@@ -107,7 +107,7 @@ await check('dock §1 §6 §15: main and inspector end exactly at the dock\'s to
 });
 await check('inspector §1 §2: a sticky object header - icon, title, breadcrumb, path:line, Open source, close - and Overview | Source underline tabs only', async () => {
   // Files shows train.py in the reader, so the inspector does not repeat its code (owner, 2026-10-08): no preview, no Source tab.
-  assert.equal(await panel.getByRole('tab').count(), 0); assert.equal(await panel.locator('[data-inspector-preview]').count(), 0);
+  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Overview', 'Chat']); assert.equal(await panel.locator('[data-inspector-preview]').count(), 0);
   assert.ok(await panel.locator('[data-inspector-open-source]').isVisible(), 'Open source on GitHub stays: a link, not the code');
   // The graph does not show the code: the same file picked there keeps the preview and both tabs.
   await page.locator('[data-project-tabs]').getByRole('tab', { name: 'Graph', exact: true }).click();
@@ -118,7 +118,7 @@ await check('inspector §1 §2: a sticky object header - icon, title, breadcrumb
   assert.match(await header.innerText(), /train\.py:1\s*·\s*Python file/);
   assert.equal(await header.locator('[data-inspector-open-source]').getAttribute('href'), `https://github.com/karpathy/nanoGPT/blob/${COMMIT}/train.py`);
   assert.ok(await header.locator('[data-map-panel-close]').isVisible());
-  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Overview', 'Source']);
+  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Overview', 'Source', 'Chat']);
   assert.equal(await panel.locator('[role="tablist"]').evaluate((n) => getComputedStyle(n).borderRadius), '0px', 'no pill track');
 });
 await check('inspector §3 §6 §7 §10 §21: Purpose and Why it matters say what is missing in one line with an ask; no debug copy, no empty sections', async () => {
@@ -152,8 +152,13 @@ await check('inspector §11 §12: two actions, Ask about this (secondary) and Le
   assert.equal(asks.length, sent, 'still nothing sent');
   await input.fill('');
 });
-await check('inspector §9: an empty conversation is one row, Ask about train.py →', async () => {
-  assert.match(await panel.locator('[data-inspector-section="conversation"]').innerText(), /Conversation\s*Ask about train\.py →/);
+// Owner, 2026-10-08: the object's conversation is its Chat tab - Overview | Source | Chat; Overview has no Conversation row.
+await check('inspector §9: Overview | Source | Chat; an empty Chat says so with an ask; Overview carries no Conversation row', async () => {
+  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Overview', 'Source', 'Chat']);
+  assert.equal(await panel.locator('[data-inspector-section="conversation"]').count(), 0);
+  await panel.locator('[data-inspector-chat-tab]').click();
+  assert.match(await panel.locator('[data-inspector-chat]').innerText(), /No messages yet\. Ask about this →/);
+  await panel.getByRole('tab', { name: 'Overview' }).click();
 });
 await shot('dock-A-desktop-inspector-composer');
 await shot('dock-D-repo-file-chips');
@@ -161,26 +166,25 @@ await shot('insp-B-file-no-explanation-yet');
 await page.locator('[data-in-context]').scrollIntoViewIfNeeded();
 await shot('insp-F-in-context');
 
-await check('dock §5 §17: type naturally - Auto sends the question with train.py as context, no slash; the answer lands in the bar\'s window', async () => {
+await check('dock §5 §17: type naturally - Auto sends the question with train.py as context, no slash; the answer streams into train.py\'s Chat, which Send opens; the window stays shut', async () => {
   await input.fill('Why does this exist?');
   await input.press('Enter');
-  await page.locator('[data-result-sheet]').getByText(ANSWER).waitFor({ timeout: 10000 });
+  await panel.locator('[data-inspector-chat]').getByText(ANSWER).waitFor({ timeout: 10000 });
+  assert.equal(await panel.locator('[data-inspector-chat-tab]').getAttribute('data-state'), 'active', 'Send opened the Chat tab');
+  assert.equal(await page.locator('[data-result-sheet]').count(), 0, 'a node answer never opens the window');
   const sent = asks.at(-1);
   assert.equal(sent.message, 'Why does this exist?');
   assert.deepEqual(sent.repository_context, { commit: COMMIT, path: 'train.py', label: 'train.py' });
+  assert.equal(sent.node, 'file:train.py', 'the object\'s own conversation');
   assert.equal(sent.scope.app, REPO);
-  const sheet = await box(page.locator('[data-result-sheet] > div')), side = await box(panel);
-  assert.ok(sheet.right <= side.left + 1, `the window sits over the workspace, not the inspector: ${sheet.right} > ${side.left}`);
 });
-await shot('dock-K-answer-in-the-window');
-await page.getByRole('button', { name: 'Collapse results' }).click();
-await check('inspector §9: the conversation about train.py counts and opens its messages', async () => {
-  const conv = panel.locator('[data-inspector-section="conversation"]');
-  assert.match(await conv.locator('summary').innerText(), /Conversation\s*2 messages/);
-  await fold('conversation');
-  assert.match(await conv.innerText(), /Why does this exist\?[\s\S]*training loop/);
+await shot('dock-K-answer-in-the-chat');
+await check('inspector §9: the Chat tab counts its messages, Chat 2, and shows them', async () => {
+  assert.equal((await panel.locator('[data-inspector-chat-tab]').innerText()).replace(/\s+/g, ' ').trim(), 'Chat 2');
+  assert.match(await panel.locator('[data-inspector-chat]').innerText(), /Why does this exist\?[\s\S]*training loop/);
 });
 await shot('insp-D-conversation-with-messages');
+await panel.getByRole('tab', { name: 'Overview' }).click();
 
 await check('dock §10 §18, §11: closing the inspector keeps the context; the workspace widens and the dock still spans', async () => {
   const before = await box(section());
@@ -258,7 +262,7 @@ await check('inspector §4: an external dependency is its own object - no file, 
   await panel.locator('[data-relation="Imports"] button').filter({ hasText: /^torch$/ }).click();
   assert.equal(await title(), 'torch');
   assert.match(await panel.locator('[data-inspector-header]').innerText(), /External dependency/);
-  assert.equal(await panel.getByRole('tab').count(), 0); assert.equal(await panel.locator('[data-inspector-open-source], [data-inspector-preview]').count(), 0);
+  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Overview', 'Chat'], 'no file, no Source tab'); assert.equal(await panel.locator('[data-inspector-open-source], [data-inspector-preview]').count(), 0);
   assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'torch']);
   const importers = await panel.locator('[data-relation="Imported by"] button').allInnerTexts();
   assert.deepEqual(importers, [...new Set(importers)], 'each file once');

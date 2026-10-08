@@ -4,11 +4,11 @@ import { api } from './api.js';
 import { Button, IconBtn, Pill, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
 import RepositorySource from './RepositorySource.jsx';
 import { repositoryUrl } from './card-sources.js';
-import { getTurns, subscribeTurns } from './agent/bar.js';
+import { getTurns, nodeTurnsKey, setTurns, subscribeTurns, threadIds } from './agent/bar.js';
 import { Turn } from './agent/ResultSheet.jsx';
 import { memoryFor } from './map-memory.js';
 import { askBar, FIXTURE, MemoryEntity, Starters } from './MapMemory.jsx';
-import { relationshipGroups, symbolsIn, turnsAbout, typeOf } from './inspector.js';
+import { relationshipGroups, symbolsIn, typeOf } from './inspector.js';
 import { rangeTitle } from './agent/scope.js';
 
 // The Map's learning inspector (owner, 2026-10-06, docs/features/inspector.md): a sticky object header, Overview | Source,
@@ -20,6 +20,10 @@ const ROW = 'flex w-full cursor-pointer items-center gap-2 rounded-sm px-1.5 py-
 const LINK = 'cursor-pointer text-accent hover:underline';
 const FOLD = 'group flex cursor-pointer list-none items-center gap-2 rounded-sm py-2 focus-visible:outline-2 focus-visible:outline-accent/35 [&::-webkit-details-marker]:hidden';
 const TAB = 'data-[state=active]:border-accent';
+
+const NONE = [];
+// The saved conversations already read this session, per object and commit: each is read once, never over turns streaming in.
+const read = new Set();
 
 function Empty({ text, action, onAction }) {
   return <p className="text-sm text-ink-3">{text} <button type="button" onClick={onAction} className={LINK}>{action} →</button></p>;
@@ -48,8 +52,22 @@ function Preview({ app, path, line, commit }) {
 // `codeInView`: the main pane (the Files reader) is showing this object's file, so the inspector does not repeat its code -
 // no preview and no Source tab (owner, 2026-10-08: "we see the code file in the main window but we also see it in the right
 // window"). A node picked in the graph, or a file the reader is not showing, keeps both.
+// Chat (owner, 2026-10-08): the object's own conversation, the third tab. A question sent with the object in context streams
+// here (AgentBar.jsx, bound to the object at Send) and Send opens this tab; the saved conversation is read from the server
+// (repositories.js, the object's own thread at this commit) when the object is first shown, so it survives a reload.
 export default function MapInspector({ app, snapshot, memory, object, inContext, view, onView, onSelect, onPick, onBack, backLabel, onClose, onAsk, onWhy, onLearn, conversationKey, codeInView = false }) {
-  const turns = useSyncExternalStore(subscribeTurns, () => getTurns(conversationKey));
+  const chatKey = object && !object.record ? nodeTurnsKey(conversationKey, object.id) : null;
+  const turns = useSyncExternalStore(subscribeTurns, () => (chatKey ? getTurns(chatKey) : NONE));
+  useEffect(() => {
+    const once = chatKey && `${chatKey}@${snapshot.commit}`;
+    if (!once || read.has(once)) return;
+    read.add(once);
+    // A GET of saved messages only: opening or selecting an object never asks the model (owner decision 3).
+    api(`/api/repositories/${app.name}/threads?node=${encodeURIComponent(object.id)}&commit=${snapshot.commit}`).then((d) => {
+      if (d.id) threadIds.set(chatKey, d.id);
+      if (d.messages?.length && !getTurns(chatKey).length) setTurns(chatKey, d.messages.map((m, i) => ({ id: `${d.id}:${i}`, kind: m.role === 'user' ? 'user' : 'answer', text: m.content, done: true })));
+    }).catch(() => read.delete(once));
+  }, [chatKey, snapshot.commit]); // eslint-disable-line react-hooks/exhaustive-deps
   const close = <IconBtn data-map-panel-close aria-label="Close the inspector" title="Close the inspector" onClick={onClose}><PanelRightClose size={16} /></IconBtn>;
   if (!object) return <>
     <header className="flex shrink-0 items-center gap-2 border-b border-line px-4 py-3"><h2 className="min-w-0 flex-1 text-[15px] font-semibold">Inspector</h2>{close}</header>
@@ -57,6 +75,7 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
   </>;
   const record = object.record, graph = snapshot.graph, Icon = ICONS[object.kind] || Box;
   const file = object.path, source = !record && !!file, tabs = source && !codeInView;
+  const chatted = turns.filter((t) => t.kind === 'user' || t.kind === 'answer').length;
   // A line range from the code reader (repository-browser.md): titled model.py:115–122, its whole range in the link and the
   // Source tab; it has no graph node, so no relationships are shown for it, never its file's.
   const range = object.kind === 'range', title = range ? rangeTitle(object) : object.label;
@@ -64,8 +83,8 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
   const crumbs = [app.repo, file, object.kind !== 'file' && file ? object.label : null].filter(Boolean);
   const groups = record ? [] : relationshipGroups(graph, object.nodeId), linked = groups.reduce((n, g) => n + g.items.length, 0);
   const symbols = object.kind === 'file' ? symbolsIn(graph, file) : [];
-  const about = turnsAbout(turns, object.id), mine = memory && object.nodeId ? memoryFor(memory, object.nodeId) : null;
-  const header = <header data-inspector-header className={`shrink-0 px-4 pt-3 ${tabs ? '' : 'border-b border-line pb-3'}`}>
+  const mine = memory && object.nodeId ? memoryFor(memory, object.nodeId) : null;
+  const header = <header data-inspector-header className={`shrink-0 px-4 pt-3 ${record ? 'border-b border-line pb-3' : ''}`}>
     <div className="flex items-center gap-1.5">
       {onBack && <IconBtn data-inspector-back aria-label="Back" title={`Back to ${backLabel}`} onClick={onBack} className="-ml-1.5"><ArrowLeft size={15} /></IconBtn>}
       <Icon size={16} strokeWidth={1.75} className="shrink-0 text-ink-2" aria-hidden="true" />
@@ -78,7 +97,7 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
       {file && <span className="truncate font-mono">{file}:{range && object.end > object.start ? `${object.start}–${object.end}` : object.line || 1}</span>}{file && <span aria-hidden="true">·</span>}<span className="shrink-0">{record ? 'Fixture record' : range ? `${object.end - object.start + 1} selected line${object.end > object.start ? 's' : ''}` : typeOf(object)}</span>
       {inContext && <span data-in-context title="The composer below asks about this" className="ml-auto inline-flex shrink-0 items-center gap-1 text-ink-2"><span className="h-1.5 w-1.5 rounded-full bg-accent" />In context</span>}
     </p>
-    {tabs && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className={TAB}>Overview</TabsTrigger><TabsTrigger value="source" className={TAB}>Source</TabsTrigger></TabsList>}
+    {!record && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className={TAB}>Overview</TabsTrigger>{tabs && <TabsTrigger value="source" className={TAB}>Source</TabsTrigger>}<TabsTrigger value="chat" data-inspector-chat-tab className={TAB}>Chat{chatted > 0 && <span className="ml-1 tabular-nums text-ink-3">{chatted}</span>}</TabsTrigger></TabsList>}
   </header>;
   const overview = record ? <MemoryEntity node={object} memory={memory} graph={graph} onPick={onPick} onCode={onSelect} /> : <>
     {file && !codeInView && <Preview app={app.name} path={file} line={object.line || 1} commit={snapshot.commit} />}
@@ -91,19 +110,19 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
       <p className="px-1.5 pt-1.5 pb-0.5 text-xs text-ink-3">{g.label}</p>
       {g.items.map(({ node, inferred }, i) => <button key={`${node.id}-${i}`} type="button" className={ROW} onClick={() => onSelect(node)}><span className="min-w-0 flex-1 truncate">{node.label}</span>{inferred && <span title="Inferred by the indexer, not read from the code" className="text-xs text-ink-3">inferred</span>}</button>)}
     </div>)}</Fold>}
-    {about.length || mine?.questions.length || mine?.sessions.length
-      ? <Fold name="conversation" title="Conversation" count={about.length ? `${about.length} message${about.length === 1 ? '' : 's'}` : ''}>
-        <div className="flex flex-col gap-2">{about.map((t) => <Turn key={t.id} t={t} />)}</div>
-        {!!(mine?.questions.length || mine?.sessions.length) && <div className="pt-2"><Pill className="mb-1">{FIXTURE}</Pill>
-          {mine.questions.map((q) => <button key={q.id} type="button" className={ROW} onClick={() => askBar(q.question)}>{q.question}</button>)}
-          {mine.sessions.map((s) => <button key={s.id} type="button" className={ROW} onClick={() => onPick(s.id)}>{s.title} <span className="text-xs text-ink-3">{s.at}</span></button>)}</div>}
-      </Fold>
-      : <section data-inspector-section="conversation" className="flex items-center gap-2 border-t border-line py-2"><h3 className={HEAD}>Conversation</h3><button type="button" onClick={onAsk} className={`ml-auto text-sm ${LINK}`}>Ask about {object.label} →</button></section>}
   </>;
-  return <Tabs value={tabs ? view : 'overview'} onValueChange={onView} className="flex min-h-0 flex-1 flex-col">
+  const chat = <div data-inspector-chat className="flex flex-col gap-2">
+    {turns.map((t) => <Turn key={t.id} t={t} />)}
+    {!turns.length && <Empty text="No messages yet." action="Ask about this" onAction={onAsk} />}
+    {!!(mine?.questions.length || mine?.sessions.length) && <div className="pt-2"><Pill className="mb-1">{FIXTURE}</Pill>
+      {mine.questions.map((q) => <button key={q.id} type="button" className={ROW} onClick={() => askBar(q.question)}>{q.question}</button>)}
+      {mine.sessions.map((s) => <button key={s.id} type="button" className={ROW} onClick={() => onPick(s.id)}>{s.title} <span className="text-xs text-ink-3">{s.at}</span></button>)}</div>}
+  </div>;
+  return <Tabs value={record ? 'overview' : view === 'source' && !tabs ? 'overview' : view} onValueChange={onView} className="flex min-h-0 flex-1 flex-col">
     {header}
     <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{overview}</TabsContent>
     {tabs && <TabsContent value="source" className="flex min-h-0 flex-1 flex-col px-4 pt-2"><RepositorySource appName={app.name} path={file} line={object.line || 1} lineEnd={object.end} commit={snapshot.commit} repo={app.repo} /></TabsContent>}
+    {!record && <TabsContent value="chat" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{chat}</TabsContent>}
     {/* Two actions, one of them primary (inspector brief §11-12); the Tutor picks the pedagogy once the learner says what they want. */}
     {!record && <footer data-inspector-actions className="flex shrink-0 gap-2 border-t border-line px-4 py-3">
       <Button size="sm" variant="secondary" onClick={onAsk}>Ask about this</Button>

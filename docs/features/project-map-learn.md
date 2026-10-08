@@ -27,8 +27,8 @@ row ([repository-browser.md](repository-browser.md)); "the Map" below means thos
 
 Since 2026-10-06 it is the learning inspector: [inspector.md](inspector.md), with the composer contract in
 [workspace-dock.md](workspace-dock.md). It still starts closed (`data-map-panel-close`, `data-map-panel-open`) and opens
-for a selected node, file, record or cited source. Answers no longer land in it: they open in the bar's window, as
-everywhere else, and the inspector keeps the conversation about the selected object. The Selected | Conversation |
+for a selected node, file, record or cited source. An answer about the selected object streams into the inspector's Chat
+tab, saved per object on the server (owner, 2026-10-08; inspector.md, Chat); any other answer opens in the bar's window. The Selected | Conversation |
 Source pills and the accent outline are gone.
 
 ## The composers

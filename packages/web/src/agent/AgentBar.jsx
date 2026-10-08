@@ -8,7 +8,7 @@ import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
 import {
   aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, modeAvailability, modeQuery, modesFor, shortcutsFor,
-  offerFor, panelHosts, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, subscribeTurns, threadIds, updateTurn, widen,
+  nodeKey, offerFor, panelHosts, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, subscribeTurns, threadIds, updateTurn, widen,
 } from './bar.js';
 import { kindLabel, titleOf } from './catalog.js';
 import { COMMANDS, ctxOf, executeCommand, prepareCommand } from './commands.js';
@@ -22,9 +22,9 @@ import { chipsFor, contextWithout, crumbsShown, endpointFor, scopeKey, scopeOf }
 import { getSurface, useSurface } from './surface.js';
 
 const nameOf = (scope) => labelOf(scope);
-const add = (scope, entry) => {
+const add = (scope, entry, key = resultsKey(scope)) => {
   const id = crypto.randomUUID();
-  pushTurn(resultsKey(scope), { id, scope, label: nameOf(scope), ...entry });
+  pushTurn(key, { id, scope, label: nameOf(scope), ...entry });
   return id;
 };
 // A choose pill reads '<title> · <Kind>' (Figma F6), as the router's options do.
@@ -348,20 +348,31 @@ export default function AgentBar({ page }) {
     // App asks would write the old apps agent's chat history (bar.js modeAvailability): refuse, keep the draft.
     const can = modeAvailability('ask', scope.kind);
     if (!can.ok) return refuse(scope, can);
-    const key = resultsKey(scope);
+    // A question about a selected object streams into that object's Chat in the inspector (owner, 2026-10-08), bound to
+    // the object captured here at Send; the window over the bar keeps clarifying questions, errors and status. A question
+    // with no selection, and every other scope, lands in the window as before.
+    const node = nodeKey(scope), key = node || resultsKey(scope);
+    // Sent from elsewhere (a draft held off the project): the window says where the answer is, never shows it.
+    const land = () => {
+      const page = getSurface();
+      if (!node) return showResults(scope);
+      if (page.resource?.slug === scope.slug && page.handlers?.onNodeAsk) return page.handlers.onNodeAsk(scope.selected);
+      add(scope, { kind: 'note', text: `The answer about ${scope.selected.label} is in its Chat on ${nameOf(scope)}.`, open: () => navigate(`/apps/${scope.slug}?tab=map`) });
+      return showResults(scope);
+    };
     // WP6 two truths: the page may answer an exact fixture prompt itself (the Map's labelled fixtures), with no
     // request; that answer is wholly fixture and labelled, and every other question goes to the model.
     const local = getSurface().handlers?.answerLocally?.(text, scope);
     if (local) {
-      add(scope, { kind: 'user', text });
-      add(scope, { kind: 'answer', done: true, fixture: true, text: local.text, evidence: local.evidence });
+      add(scope, { kind: 'user', text }, key);
+      add(scope, { kind: 'answer', done: true, fixture: true, text: local.text, evidence: local.evidence }, key);
       clearDraft(from, raw);
-      return showResults(scope);
+      return land();
     }
-    add(scope, { kind: 'user', text });
-    const id = add(scope, { kind: 'answer', text: '' });
+    add(scope, { kind: 'user', text }, key);
+    const id = add(scope, { kind: 'answer', text: '' }, key);
     clearDraft(from, raw);
-    showResults(scope);
+    land();
     const controller = new AbortController();
     abort.current = controller;
     setStreaming(nameOf(scope));
@@ -392,10 +403,12 @@ export default function AgentBar({ page }) {
     if (failed) {
       updateTurn(key, id, (t) => ({ ...t, done: true, error: failed, retry: () => ask(text, raw, scope, only, from) }));
       keepDraft(from, raw); // Your message is kept (§13)
+      // An object's failed answer says so in its Chat and in the window: errors and status belong to the window.
+      if (node) { add(scope, { kind: 'note', text: `✗ ${failed}`, error: true }); showResults(scope); }
     }
     if (graph) {
       // auto: the answer's own highlight, which a page may skip (Overview has no graph); a click is explicit.
-      const show = (auto = false) => { const page = getSurface(); if (resultsKey(scopeOf(page)) === key) page.handlers?.onGraph?.(graph, { auto }); };
+      const show = (auto = false) => { const page = getSurface(); if (resultsKey(scopeOf(page)) === resultsKey(scope)) page.handlers?.onGraph?.(graph, { auto }); };
       updateTurn(key, id, (t) => ({ ...t, showGraph: () => show() }));
       show(true);
     }
@@ -482,7 +495,9 @@ export default function AgentBar({ page }) {
             {chips.map((chip, i) => (
               <span key={chip.key} className="contents">
                 {i > 0 && <ChevronRight size={12} aria-hidden="true" className="shrink-0 text-ink-3" />}
-                <span data-scope-chip={chip.key} title={chip.title} className="inline-flex h-6 max-w-full items-center gap-1 rounded-full bg-hover pr-1.5 pl-2.5 text-xs text-ink">
+                {/* The object the question is about stands out (owner, 2026-10-08): the inspector's In context dot and an accent ring. */}
+                <span data-scope-chip={chip.key} title={chip.key === 'selected' ? `Asking about ${chip.label}` : chip.title} className={cn('inline-flex h-6 max-w-full items-center gap-1 rounded-full pr-1.5 pl-2.5 text-xs text-ink', chip.key === 'selected' ? 'bg-accent/10 ring-1 ring-accent/40' : 'bg-hover')}>
+                  {chip.key === 'selected' && <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
                   <span className="truncate">{chip.label}</span>
                   {own && <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => remove(chip.key)} className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button>}
                 </span>

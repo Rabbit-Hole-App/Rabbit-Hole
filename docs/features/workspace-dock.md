@@ -23,11 +23,13 @@ is unchanged. The live (small) build has no Agent Bar.
   Nothing scrolls under it: cards, files, graph nodes and inspector content all stay above.
 - The dock is chrome, not a floating box: one top divider (`border-line`), a white surface, no gradient. The input keeps
   its rounded frame and a hairline shadow (`ChatComposer` `flat`); the Learn composer keeps its popover float.
-- The input spans the dock (no 780px centred column). It never resizes on its own: it follows whatever width the
-  inspector leaves.
+- The dock spans the workspace; the input is half the dock's width, centred, and never under 28rem (owner, 2026-10-08;
+  full width on a phone). It never resizes on its own: it follows whatever width the inspector leaves.
 - The input starts one line high and grows upward to five lines (`max-h-33`), then scrolls inside. The dock grows with it
   and the workspace above shrinks, so it never covers content.
-- The answer window (`ResultSheet`) still opens over the dock, as everywhere. While the Map's inspector is open it centres
+- The answer window (`ResultSheet`) still opens over the dock, as everywhere, for answers with no object selected and for
+  clarifying questions, errors and status. An answer about a selected object streams into that object's Chat tab in the
+  inspector instead (owner, 2026-10-08; inspector.md, Chat). While the Map's inspector is open the window centres
   over the workspace pane, never over the inspector: the inspector publishes its on-screen width as `--inspector-w`
   (`ResizableSidePanel` `edgeVar`).
 
@@ -50,6 +52,7 @@ The chips above the input are what Auto will ask about. A project reads **reposi
 - The chips are the project's breadcrumb, shown only on that project's own page (owner, 2026-10-08: "if we are not in a
   particular project, the breadcrumbs disappear"; `scope.js` `crumbsShown`). An app page shows none, and neither does any
   page after you leave the project with a draft held: the offer row ("Keep karpathy/nanoGPT") still names its scope.
+- The selected object's chip stands out (owner, 2026-10-08): an accent ring and the inspector's In context dot.
 - A click on the graph's white space deselects (owner, 2026-10-08): the node, the inspector's object and the context, so
   the chips fall back to the repository. It replaces the rule that only an explicit × clears the context.
 

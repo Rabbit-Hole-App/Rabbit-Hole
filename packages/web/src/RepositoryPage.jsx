@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, GitBranch, Info, Layers, PanelRightOpen, RefreshCw, Search } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ExpandedPageFrame, IconBtn, Input, Menu, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
@@ -31,6 +31,8 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   // read and write it. `opened` is only the file the Files reader shows; it stays when a chip's x widens the context.
   const [inspected,setInspected]=useState(null),[trail,setTrail]=useState([]),[context,setContext]=useState(null),[opened,setOpened]=useState(null);
   const [graphView,setGraphView]=useState(null),[view,setView]=useState('overview');
+  // Send with an object in context opens that object's Chat tab (owner, 2026-10-08); set below, once the inspector exists.
+  const nodeAsk=useRef(null);
   // The inspector starts closed (owner, 2026-10-04) and opens for what is selected.
   const [panelOpen,setPanelOpen]=useState(false),[infoOpen,setInfoOpen]=useState(false),[layersOpen,setLayersOpen]=useState(false);
   // WP6 checkpoint 2: work memory exists only as labelled fixtures (?fixtures=1, karpathy/nanoGPT), filtered to what this viewer may see.
@@ -62,7 +64,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   // Map answer must not navigate the reader out of Learn.
   const path=window.location.pathname+window.location.search;
   const reading=['queued','indexing'].includes(app.status)&&!!app.commit_sha;
-  useEffect(()=>{if(tab!=='learn')patchSurface({resource:{kind:'project',slug:app.name,title:titleOf(app),status:app.status},selected:tab==='map'?context:null,activity:reading?[{id:'repository',label:app.status==='queued'?'Waiting to read the repository…':'Reading repository…'}]:[],handlers:{onGraph,answerLocally,setContext,onFile}});},[path,app.name,app.repo,app.status,context,snapshot?.commit,memory]);
+  useEffect(()=>{if(tab!=='learn')patchSurface({resource:{kind:'project',slug:app.name,title:titleOf(app),status:app.status},selected:tab==='map'?context:null,activity:reading?[{id:'repository',label:app.status==='queued'?'Waiting to read the repository…':'Reading repository…'}]:[],handlers:{onGraph,answerLocally,setContext,onFile,onNodeAsk:s=>nodeAsk.current?.(s)}});},[path,app.name,app.repo,app.status,context,snapshot?.commit,memory]);
   const key=resultsKey({org:getSurface().org,kind:'project',slug:app.name}); // the bar's results key for this project, selection excluded
   // One navigation, Files · Graph · Learn (owner brief §1): views, as restrained underline tabs; blue stays for primary actions.
   // Files and Graph are two views of the page; Learn is the project's canvas (?tab=learn).
@@ -96,6 +98,13 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   // Graph and Files are two views of one selection: the graph lights the context's node, or its file's (a range has no node).
   const lit=inspected?.record?{id:inspected.id}:context&&(context.nodeId||context.path)?{id:context.nodeId||fileObject(snapshot.graph,context.path).nodeId}:null;
   const askWhy=object=>askAbout(object,whyQuestion);
+  // The object the question was sent about, in the inspector on its Chat tab: the one shown, else found again by its id.
+  nodeAsk.current=s=>{
+    const node=s.kind==='range'?null:snapshot.graph.nodes.find(n=>n.id===(s.nodeId||s.id));
+    const object=inspected?.id===s.id?inspected:s.kind==='range'?s:s.kind==='file'?fileObject(snapshot.graph,s.path,s.line):node&&objectOf(snapshot.graph,node);
+    if(!object)return;
+    if(inspected?.id===object.id){setView('chat');setPanelOpen(true);}else inspect(object,'chat');
+  };
   return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>
       <div className="flex items-center gap-1"><h1 className="min-w-0 truncate text-2xl font-semibold">{app.repo}</h1>

@@ -65,6 +65,7 @@ test('a project question carries the selected node and the commit it was selecte
   assert.deepEqual(askBody({ scope: { ...NANOGPT, selected }, message: 'Why the mask?', threadId: 'repochat-1' }), {
     scope: { app: 'repo-1a2b3c4d-nanogpt' },
     repository_context: { commit: '3f2a1c9', nodeId: 'model_causalselfattention', label: 'CausalSelfAttention' },
+    node: 'model_causalselfattention', // the object's own conversation (owner, 2026-10-08; repositories.js nodeScope)
     message: 'Why the mask?', thread_id: 'repochat-1',
   });
   assert.deepEqual(askBody({ scope: NANOGPT, message: 'What is this?' }), { scope: { app: 'repo-1a2b3c4d-nanogpt' }, message: 'What is this?', thread_id: null });

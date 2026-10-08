@@ -2,7 +2,8 @@
 // and the conversation asked about an object while it was in context.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { contextOf, fileObject, languageOf, objectOf, relationshipGroups, symbolsIn, turnsAbout, typeOf } from './inspector.js';
+import { contextOf, fileObject, languageOf, objectOf, relationshipGroups, symbolsIn, typeOf } from './inspector.js';
+import { nodeKey, nodeTurnsKey, resultsKey } from './agent/bar.js';
 
 // Graphify's shape as the indexer stores it (index_repository.py): a file node named after its file, symbols, an external.
 const graph = {
@@ -58,15 +59,17 @@ test('relationships keep the graph\'s relation names, grouped by direction, infe
   assert.deepEqual(relationshipGroups({ nodes: [], edges: [{ source: 'a', target: 'b', relation: 'wraps' }] }, 'b'), [{ label: 'Wraps (incoming)', items: [{ node: { id: 'a', label: 'a' }, inferred: true }] }]);
 });
 
-test('conversation about an object is the questions and answers asked while it was in context', () => {
-  const at = (id) => ({ selected: id ? { id } : null });
-  const turns = [
-    { id: 1, kind: 'user', scope: at('file:train.py') }, { id: 2, kind: 'answer', scope: at('file:train.py') },
-    { id: 3, kind: 'user', scope: at(null) }, { id: 4, kind: 'answer', scope: at(null) },
-    { id: 5, kind: 'note', scope: at('file:train.py') }, { id: 6, kind: 'user', scope: at('model') },
-  ];
-  assert.deepEqual(turnsAbout(turns, 'file:train.py').map((t) => t.id), [1, 2]);
-  assert.deepEqual(turnsAbout(turns, 'torch'), []);
+// The object's Chat (owner, 2026-10-08): a project question with an object in context is that object's conversation, keyed
+// by the object captured at Send - the inspector reads the same key, so a later selection never moves it.
+test('an object conversation is keyed by the object at Send; no selection, or another scope, belongs to the window', () => {
+  const project = { org: 'gmail-com', kind: 'project', slug: 'repo-1a2b3c4d-nanogpt', title: 'karpathy/nanoGPT' };
+  const sent = { ...project, selected: { id: 'file:train.py' } };
+  assert.equal(nodeKey(sent), 'gmail-com|project:repo-1a2b3c4d-nanogpt#file:train.py');
+  assert.equal(nodeKey(sent), nodeTurnsKey(resultsKey(project), 'file:train.py'), 'the inspector key for train.py');
+  assert.notEqual(nodeKey(sent), nodeKey({ ...project, selected: { id: 'model' } }));
+  assert.equal(nodeKey({ ...project, selected: null }), null, 'a project question with nothing selected stays in the window');
+  assert.equal(nodeKey({ org: 'gmail-com', kind: 'workspace', slug: null, selected: null }), null);
+  assert.equal(nodeKey({ org: 'gmail-com', kind: 'canvas', slug: 'canvas-1', selected: { id: 'b1' } }), null, 'only project objects');
 });
 
 test('a node shows once per group even when two edges say the same thing, extracted winning over inferred', () => {

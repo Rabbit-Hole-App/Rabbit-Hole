@@ -30,6 +30,10 @@ export function setTurns(key, entries) { lists.set(key, entries); emit({ key, pu
 
 // Threads stay per scope: one agent visually, separate conversations.
 export const threadIds = new Map();
+// A project question about a selected object is that object's conversation (owner, 2026-10-08): its turns live under the
+// project's key plus the object id, captured at Send, and show in the inspector's Chat tab, never in the window over the bar.
+export const nodeTurnsKey = (projectKey, id) => `${projectKey}#${id}`;
+export const nodeKey = (scope) => (scope.kind === 'project' && scope.selected ? nodeTurnsKey(resultsKey(scope), scope.selected.id) : null);
 export function resetThread(key) { threadIds.delete(key); setTurns(key, EMPTY); }
 
 const withSources = (answer, more) => ({ ...answer, sources: [...(answer.sources || []), ...more] });

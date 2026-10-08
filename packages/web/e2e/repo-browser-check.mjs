@@ -66,8 +66,14 @@ const symbolRow = (id) => tree.locator(`[data-symbol-row="${id}"]`);
 const line = (n) => reader.locator(`[data-source-line="${n}"]`);
 const lit = () => reader.locator('[data-highlighted]').evaluateAll((all) => all.map((n) => Number(n.dataset.sourceLine)));
 const graphNode = async (id) => { await page.locator(`[data-graph-node="${id}"]`).focus(); await page.keyboard.press('Enter'); await panel.locator('[data-inspector-title]').waitFor(); };
-// Each stubbed answer is numbered, so a send waits for its own answer, never an earlier one still in the window.
-const send = async (text) => { const n = asks.length; await input.fill(text); await input.press('Enter'); await page.locator('[data-result-sheet]').getByText(`${ANSWER} #${n + 1}`).waitFor({ timeout: 10000 }); assert.equal(asks.length, n + 1, 'one stubbed ask'); await page.getByRole('button', { name: 'Collapse results' }).click(); return asks.at(-1); };
+// Each stubbed answer is numbered, so a send waits for its own answer, never an earlier one. With something selected it
+// streams into that object's Chat in the inspector; with nothing selected, into the window (owner, 2026-10-08).
+const send = async (text) => {
+  const n = asks.length; await input.fill(text); await input.press('Enter');
+  await page.locator('[data-inspector-chat], [data-result-sheet]').getByText(`${ANSWER} #${n + 1}`).waitFor({ timeout: 10000 }); assert.equal(asks.length, n + 1, 'one stubbed ask');
+  if (await page.locator('[data-result-sheet]').count()) await page.getByRole('button', { name: 'Collapse results' }).click();
+  return asks.at(-1);
+};
 const inView = (n) => line(n).evaluate((row) => { const r = row.getBoundingClientRect(), box = row.closest('.overflow-auto').getBoundingClientRect(); return r.top >= box.top && r.bottom <= box.bottom; });
 // A real mouse drag over the text of lines a..b, as a learner selects code (never a scripted selection).
 const drag = async (a, b) => {
@@ -202,7 +208,7 @@ await check('I §13: the inspector shows the selected range - title, breadcrumb,
   assert.equal(await panel.locator('[data-inspector-section="relationships"]').count(), 0, 'a range shows no relationships, never its file\'s');
   // The reader already shows model.py, so the inspector does not repeat the code: no preview, no Source tab (owner, 2026-10-08).
   assert.equal(await panel.locator('[data-inspector-preview]').count(), 0);
-  assert.equal(await panel.getByRole('tab').count(), 0);
+  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Overview', 'Chat']);
 });
 await shot('I-inspector-selected-range');
 
@@ -213,13 +219,14 @@ await check('7 context survives follow-up prompts: five questions in a row, the 
     assert.deepEqual(sent.repository_context, { commit: COMMIT, range: { path: 'model.py', start: 177, end: 179 }, label: 'model.py:177–179' });
     assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
   }
-  await bar.locator('[data-result-open]').click();
-  const sheet = page.locator('[data-result-sheet]');
-  await sheet.getByText('Show me the data flow.').waitFor();
-  assert.equal(await sheet.getByText('No matches.').count(), 0);
+  // All five are the range's conversation, in its Chat (owner, 2026-10-08), and none was a No matches search.
+  const chat = panel.locator('[data-inspector-chat]');
+  await chat.getByText('Show me the data flow.').waitFor();
+  assert.equal(await chat.getByText('No matches.').count(), 0);
+  assert.equal(await page.locator('[data-result-sheet]').count(), 0, 'no node answer opened the window');
+  assert.ok(asks.slice(-5).every((a) => a.node === 'range:model.py:177-179'), 'one conversation, for the range');
 });
 await shot('G2-show-me-routed-to-ask');
-await page.getByRole('button', { name: 'Collapse results' }).click();
 
 await check('12 the selected source reaches the existing repository handoff: /api/learn/ask in project scope with identity and range, no source text', async () => {
   const sent = asks.at(-1);
