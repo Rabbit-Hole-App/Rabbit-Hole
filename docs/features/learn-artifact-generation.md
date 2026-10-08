@@ -126,6 +126,15 @@ composer.
   scrolled to its end.
 - A typed prefix (or a typed `/more`) lists every Learn command that can do
   something now.
+- **Auto** (and a command pill's name) opens the same palette with a one-line
+  search field at its top (owner, 2026-10-08), focused on open; typing `/`
+  searches from the composer as before and shows no field. The field matches
+  name and description like the sheet's search (`searchSections`, More learning
+  tools included), ignoring a leading `/`. Up and down move, Enter takes the
+  highlighted command, "No commands match" shows when nothing does, and Esc
+  clears a typed search first, then closes and gives back what was typed. The
+  palette keeps its height while it filters. Its keys never reach the composer
+  or the canvas's shortcuts. The shared canvas composer has no palette.
 - View → Slash commands (`SlashCommandsSheet.jsx`) shows the same sections,
   each command with an example. A family shows only if it has a ready or direct primitive; a command
   typed by name still says what is unavailable.

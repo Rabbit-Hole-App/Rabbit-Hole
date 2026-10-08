@@ -422,7 +422,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (value === '' && stash.current !== null) { setInput(stash.current); stash.current = null; return; }
     setInput(value);
   };
-  const openPalette = () => { if (!input.startsWith('/')) { stash.current = input; setInput('/'); } inputRef.current?.focus(); };
+  // Auto (and a pill's name) open the palette on its own search field (LearnSlash.jsx); typing / searches from the composer.
+  const openPalette = () => { if (!input.startsWith('/')) { stash.current = input; setInput('/'); } slashRef.current?.search(); };
   // A click outside the composer closes the command palette the way Escape does (LearnSlash.jsx):
   // the command search is dropped and what was typed before it comes back.
   const composerBox = useRef(null);
@@ -856,7 +857,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           className={cn(dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
       </span>
     : <button type="button" aria-label="Auto" title="Auto: Rabbit Hole picks the action. Choose a command" aria-expanded={input.startsWith('/')} disabled={voiceOn}
-        onMouseDown={event => event.preventDefault()} onClick={() => (input.startsWith('/') ? setComposerInput('') : openPalette())}
+        onMouseDown={event => event.preventDefault()} onClick={() => { if (!input.startsWith('/')) return openPalette(); setComposerInput(''); inputRef.current?.focus(); }}
         className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>Auto</button>);
   const chatControl = learnChat ? slashControl : modelControl;
   if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
@@ -1128,7 +1129,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {dock && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);

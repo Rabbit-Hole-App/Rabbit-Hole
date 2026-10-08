@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ChevronRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
-import { parseSlash, pickerSections, releaseLine } from './learn-slash.js';
+import { parseSlash, pickerSections, releaseLine, searchSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CommandMark } from './CommandTone.jsx';
+import { CommandSearch } from './CommandList.jsx';
 
 // The Learn composer's / picker and its results (docs/features/
 // learn-artifact-generation.md). The composer owns the text; this reads it,
 // offers commands for a leading /, and runs a sent command through `run`
 // (runLearnCommand, bound to this canvas by the page). apiRef gives the
-// composer its key handler and send interception.
-export default function LearnSlash({ apiRef, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null }) {
+// composer its key handler, send interception and search (the Auto button
+// opens the palette with its own search field; composerRef takes focus back).
+export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null }) {
   const [active, setActive] = useState(0);
   const [catalog, setCatalog] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -21,11 +23,13 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
   // to the bottom of the list. It is a way in, not a command.
   const [moreOpen, setMoreOpen] = useState(false);
   const moreHeader = useRef(null);
-  const sections = busy ? null : pickerSections(input, { catalog });
+  // The search field's text, or null when the palette was opened by typing / (the composer is its search then).
+  const [query, setQuery] = useState(null);
+  const sections = busy ? null : query ? searchSections(query) : pickerSections(input, { catalog });
   // Keyboard order: every visible command, with the collapsible section's
   // header in its place so Enter can open it.
   const items = sections?.flatMap(section => (section.collapsible ? [{ name: '__more', toggle: true }, ...(moreOpen ? section.items : [])] : section.items)) || [];
-  useEffect(() => { setActive(0); if (!input.startsWith('/')) { setCatalog(false); setMoreOpen(false); } }, [input]);
+  useEffect(() => { setActive(0); if (!input.startsWith('/')) { setCatalog(false); setMoreOpen(false); setQuery(null); } }, [input]);
 
   const choose = name => {
     // Opening by click or Enter brings the new tools into view.
@@ -33,6 +37,7 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
     if (name === 'more') { setCatalog(true); setInput('/'); return; }
     setCatalog(false);
     setInput(`/${name} `);
+    if (query !== null) composerRef?.current?.focus(); // the search field goes; the command's details are typed in the composer
   };
   const exec = async raw => {
     const name = parseSlash(raw)?.name || '';
@@ -68,11 +73,15 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
         setInput(''); setCatalog(false);
       }
     },
+    search: () => setQuery(''),
     // A sent line that starts with / is a command, never a chat message.
     intercept: raw => { if (busy) { held.current = raw; return true; } exec(raw); return true; },
   };
 
   const tone = { error: 'text-red-700', question: 'text-ink', done: 'text-ink-2', info: 'text-ink-2', busy: 'text-ink-2' };
+  // The full Slash commands view (View > Slash commands), one click from the palette.
+  const help = onHelp && <button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-slash-help onMouseDown={event => event.preventDefault()} onClick={onHelp}
+    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button>;
   let index = -1;
   return (
     <>
@@ -94,11 +103,21 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
         </div>
       )}
       {sections && (
-        <div role="listbox" aria-label="Commands" data-slash-picker className="absolute bottom-full left-0 z-30 mb-1 max-h-80 w-80 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-pop"
-          onScroll={event => { const box = event.currentTarget; if (!moreOpen && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setMoreOpen(true); }}>
-          {/* The full Slash commands view (View > Slash commands), one click from the palette. */}
-          {onHelp && <div className="sticky top-0 z-10 -mb-7 flex justify-end"><button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-slash-help onMouseDown={event => event.preventDefault()} onClick={onHelp}
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button></div>}
+        <div className={`absolute bottom-full left-0 z-30 mb-1 flex w-80 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-pop ${query === null ? 'max-h-80' : 'h-80'}`}>
+          {/* Auto's search (owner, 2026-10-08): one line over the list, which keeps the box's height while it filters, so
+              nothing jumps. Its keys stay in the field: never the composer's, and the canvas's shortcuts stand down in an input. */}
+          {query !== null && <div className="flex shrink-0 items-center gap-1 p-1 pb-0">
+            <CommandSearch className="flex-1" value={query} onChange={event => { setQuery(event.target.value); setActive(0); }}
+              onKeyDown={event => {
+                if (event.key !== 'Escape') return apiRef.current.onKeyDown(event); // up/down move, Enter takes the highlighted command
+                event.preventDefault(); // Esc clears a typed search first, then closes as the composer's Esc does
+                if (query) setQuery(''); else { setInput(''); composerRef?.current?.focus(); }
+              }} />
+            {help}
+          </div>}
+          <div role="listbox" aria-label="Commands" data-slash-picker className="min-h-0 flex-1 overflow-y-auto p-1"
+            onScroll={event => { const box = event.currentTarget; if (!moreOpen && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setMoreOpen(true); }}>
+          {query === null && help && <div className="sticky top-0 z-10 -mb-7 flex justify-end">{help}</div>}
           {items.length ? sections.map((section, sectionIndex) => (
             <div key={section.title || sectionIndex}>
               {sectionIndex > 0 && <div className="mx-2 my-1 border-t border-line" />}
@@ -126,7 +145,8 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
                 );
               })}
             </div>
-          )) : <p className="px-2 py-1.5 text-xs text-ink-2">No command matches. Type / to see them.</p>}
+          )) : <p data-slash-none className="px-2 py-1.5 text-xs text-ink-2">{query ? 'No commands match' : 'No command matches. Type / to see them.'}</p>}
+          </div>
         </div>
       )}
     </>

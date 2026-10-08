@@ -4,6 +4,15 @@ import { Input } from './ui.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { filterSections } from './command-search.js';
 
+// The one-line command search field: these sheets' and the composers' Auto palettes (LearnSlash.jsx, agent/AgentBar.jsx).
+// Focused when it mounts. An input, so the canvas's keyboard shortcuts stand down while it is typed in.
+export const CommandSearch = ({ className = '', ...props }) => (
+  <label className={`relative block ${className}`}>
+    <Search size={14} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
+    <Input type="search" autoFocus data-slash-search aria-label="Search commands" placeholder="Search commands" className="pl-8" {...props} />
+  </label>
+);
+
 // The command list both Slash commands sheets share: the canvas's (SlashCommandsSheet.jsx) and the Agent Bar's
 // (agent/BarCommandsSheet.jsx). A search over the picker's own sections, focused when the sheet opens: it filters by
 // name and description as you type (a leading / is ignored), Enter takes the first match, and Esc clears a typed search
@@ -23,13 +32,8 @@ export default function CommandList({ sections, current, onChoose, onClose, row,
   const shown = filterSections(sections, query);
   return (
     <div className={`flex shrink-0 flex-col ${className}`}>
-      <label className="relative mb-2 block shrink-0">
-        <Search size={14} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
-        <Input type="search" autoFocus data-slash-search aria-label="Search commands" placeholder="Search commands" value={query}
-          onChange={event => setQuery(event.target.value)}
-          onKeyDown={event => { if (event.key === 'Enter' && shown.length) { event.preventDefault(); onChoose(shown[0].items[0].name); } }}
-          className="pl-8" />
-      </label>
+      <CommandSearch className="mb-2 shrink-0" value={query} onChange={event => setQuery(event.target.value)}
+        onKeyDown={event => { if (event.key === 'Enter' && shown.length) { event.preventDefault(); onChoose(shown[0].items[0].name); } }} />
       <nav aria-label="Commands" className="min-h-0 flex-1 overflow-y-auto pr-1">
         {shown.length ? shown.map(section => (
           <section key={section.title} aria-label={section.title} className="mb-3">

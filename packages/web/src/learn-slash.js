@@ -6,6 +6,7 @@
 import { LEARN_MENU, commandsFor, descFor, learnRequest } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { arxivId } from '../../control-plane/src/arxiv.js';
+import { filterSections } from './command-search.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
 // action), or a family with a ready or direct primitive. A command typed by
@@ -37,6 +38,10 @@ export function pickerSections(text, { catalog = false, motionDev } = {}) {
     { title: 'More learning tools', collapsible: true, items: rest },
   ];
 }
+
+// The Auto palette's search field (LearnSlash.jsx): the bare / menu matched by name or description, as the
+// Slash commands sheet searches (command-search.js); More learning tools' matches show open, under their title.
+export const searchSections = query => filterSections(pickerSections('/'), query).map(section => ({ ...section, collapsible: false }));
 
 // One use per command for the View > Slash commands sheet. Each one asks for
 // exactly the card or answer the sheet previews beside it, and works as typed.
