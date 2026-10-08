@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowDownToLine, Link2 } from 'lucide-react';
+import { ArrowDownToLine, FolderGit2, Link2, X } from 'lucide-react';
+import { navigate } from '../api.js';
 import ForkButton from '../ForkButton.jsx';
 import LearningCard, { CARD_GRID, menuAt } from './LearningCard.jsx';
 import { cardModel } from './provenance.js';
@@ -26,7 +27,9 @@ export default function PublicCards({ cards, me, attr }) {
       <ul data-public-cards className={CARD_GRID}>
         {cards.map(card => {
           const mine = !!me && card.creator?.handle === me;
-          const m = cardModel({ kind: 'canvas', name: card.url, title: card.title, description: card.description, fork_count: mine ? card.fork_count : null, updated_at: card.updated_at, owner_handle: card.creator?.handle, owner_name: card.creator?.name });
+          // One card per published canvas, its own fork count (FORK_COUNT counts forks of this canvas only) and, when it is
+          // in a project with a public repository, that project's label (project-canvases.md).
+          const m = cardModel({ kind: 'canvas', name: card.url, title: card.title, description: card.description, fork_count: mine ? card.fork_count : null, updated_at: card.updated_at, owner_handle: card.creator?.handle, owner_name: card.creator?.name, project_label: card.project });
           return (
             <LearningCard key={card.url} kind="canvas" m={m} attrs={{ [attr]: '' }} href={card.url} onOpen={() => go(card.url)} mine={mine} access="public"
               creatorHref={card.creator?.handle ? `/@${card.creator.handle}` : null}
@@ -46,6 +49,21 @@ export default function PublicCards({ cards, me, attr }) {
         <MenuItem icon={Link2} data-menu-copy-link onClick={() => copy(menu.card)}>Copy link</MenuItem>
       </Menu>
     </>
+  );
+}
+
+// Explore's project filter (?project=owner/repo, opened from a card's project label; project-canvases.md): one chip naming
+// it, whose × drops only that filter, and a line when the project has no published canvas (gone, private or none yet).
+export function ProjectFilter({ project, empty }) {
+  const clear = () => { const url = new URL(window.location.href); url.searchParams.delete('project'); navigate(`${url.pathname}${url.search}`); };
+  return (
+    <div data-project-filter className="flex flex-wrap items-center gap-2 pb-4">
+      <span className="inline-flex h-6 min-w-0 items-center gap-1 rounded-md bg-active pl-2 pr-1 text-xs text-ink">
+        <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span className="truncate">From {project}</span>
+        <button type="button" aria-label={`Remove filter From ${project}`} onClick={clear} className="cursor-pointer rounded-sm p-0.5 text-ink-2 hover:bg-hover hover:text-ink"><X size={11} /></button>
+      </span>
+      {empty && <span data-project-empty className="text-sm text-ink-3">No published canvases from {project}.</span>}
+    </div>
   );
 }
 

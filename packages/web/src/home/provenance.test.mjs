@@ -55,8 +55,14 @@ test('a standalone canvas has no provenance, no check and no fork count; real ro
   assert.equal(plain.creator.sourceOwner, false);
   assert.equal(plain.forks, null);
   const real = cardModel({ kind: 'repository', name: 'repo-1', repo: 'karpathy/nanoGPT' });
-  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', sourceUrl: 'https://github.com/karpathy/nanoGPT', description: null, forkedFrom: null, forks: null, forkCount: null, canvases: null, updated: null });
+  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', sourceUrl: 'https://github.com/karpathy/nanoGPT', description: null, forkedFrom: null, forks: null, forkCount: null, canvases: null, project: null, updated: null });
   assert.equal(plain.sourceUrl, null);
+});
+
+test('a published canvas names its project, which opens Explore filtered to it; the label never comes from a Library row\'s project id', () => {
+  assert.deepEqual(cardModel({ kind: 'canvas', name: '/e/tok', title: 'Attention', project_label: 'karpathy/nanoGPT@dev' }).project,
+    { label: 'karpathy/nanoGPT@dev', href: '/explore?project=karpathy%2FnanoGPT%40dev' });
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-00000015', title: 'x', project: 'repo-1a2b3c4d-nanogpt' }).project, null);
 });
 
 test('a project card counts its canvases, Main canvas included; a canvas card never does', () => {

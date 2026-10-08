@@ -29,7 +29,7 @@ function setup(t) {
   sqlite.prepare("INSERT INTO repository_apps (org, name, owner_email, repo, branch, status) VALUES ('ana-ws', ?, 'ana@test', 'karpathy/nanoGPT', 'master', 'ready')").run(REPO);
   const call = async (method, path, { as, body } = {}) => {
     const req = new Request(`https://app.test${path}`, { method, headers: { 'Content-Type': 'application/json', ...(as ? { cookie: `small_session=${as}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
-    const response = canvasRoute(new URL(req.url)) ? await canvasesFetch(req, env) : await learnBoardsRoute(path, req, env);
+    const response = canvasRoute(new URL(req.url)) ? await canvasesFetch(req, env) : await learnBoardsRoute(new URL(req.url).pathname, req, env);
     return { status: response.status, body: await response.json() };
   };
   const create = (as, title, project = REPO) => call('POST', '/api/canvases', { as, body: { title, project } });
@@ -80,4 +80,51 @@ test('the project row counts its Main canvas and the owner\'s live canvases in i
   f.sqlite.prepare("INSERT INTO canvas_dives (org, owner_email, child, parent_app, origin_block_id, dive_json) VALUES ('ana-ws', 'ana@test', 'canvas-0be1e5ac', ?, 'b1', '{}')").run(c.name);
   f.sqlite.prepare("INSERT INTO canvases (org, name, owner_email, title, project) VALUES ('ana-ws', 'canvas-0ccc0ccc', 'ann@test', 'Not ana''s', ?)").run(REPO);
   assert.equal(await f.count(), 3);
+});
+
+// Explore (owner, 2026-10-08): one card per published canvas, each with its own fork count, naming its parent project by
+// a repository confirmed public - never a private or unknown one - and a project filter over published canvases only.
+test('Explore names each published canvas\'s project by its public repository, one card and one fork count per canvas; the project filter returns only published canvases of public projects', async t => {
+  const f = setup(t);
+  for (const [email, handle] of [['ana@test', 'ana'], ['ben@test', 'ben']]) {
+    f.sqlite.prepare("INSERT INTO user_profiles (email, name) VALUES (?, '')").run(email);
+    f.sqlite.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?)').run(email, handle);
+  }
+  const SECRET = 'repo-0c0c0c0c-secret', DEV = 'repo-0d0d0d0d-nanogpt';
+  f.sqlite.prepare("INSERT INTO repository_apps (org, name, owner_email, repo, branch, status) VALUES ('ana-ws', ?, 'ana@test', 'acme/secret', 'main', 'ready')").run(SECRET);
+  const markPublic = name => f.sqlite.prepare("INSERT INTO repository_visibility (app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = ?").run(name);
+  markPublic(REPO); // acme/secret has no row: unknown, so private
+  const made = async (title, project = REPO, as = 'ana') => (await f.create(as, title, project)).body.name;
+  const publish = async (name, as = 'ana') => assert.equal((await f.call('POST', `/api/apps/${name}/publish`, { as, body: {} })).status, 200);
+  const a1 = await made('Attention'), a2 = await made('Softmax'), unlisted = await made('Unlisted notes'), secret = await made('Secret lab', SECRET), plain = await made('Standalone', null);
+  await made('Private notes');
+  for (const name of [a1, a2, secret, plain]) await publish(name);
+  for (const app of [unlisted, REPO]) assert.equal((await f.call('POST', `/api/learn/boards/${app}/main/share`, { as: 'ana', body: { shared: true, view: true, state: BOARD } })).status, 200);
+  // ben forked Attention once; Softmax has none.
+  f.sqlite.prepare("INSERT INTO canvases (org, name, owner_email, title) VALUES ('ben-ws', 'canvas-0f0f0f0f', 'ben@test', 'Attention')").run();
+  f.sqlite.prepare("INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, forked_from_owner_id, forked_from_title) VALUES ('ben-ws', 'canvas-0f0f0f0f', 'ben@test', 'k1', 'ana-ws', ?, 'ana@test', 'Attention')").run(a1);
+  const explore = async query => {
+    const r = await f.call('GET', `/api/learn/boards/published${query}`);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    return Object.fromEntries(r.body.canvases.map(c => [c.title, [c.project, c.fork_count]]));
+  };
+  const project = { Attention: ['karpathy/nanoGPT', 1], Softmax: ['karpathy/nanoGPT', 0] };
+  assert.deepEqual(await explore(''), { ...project, 'Secret lab': [null, 0], Standalone: [null, 0] }, 'unlisted, private and the shared Main board stay out; a private repository is never named');
+  assert.deepEqual(await explore('?project=karpathy/nanoGPT'), project);
+  assert.deepEqual(await explore('?project=KARPATHY/nanogpt'), project, 'GitHub names compare without case');
+  assert.deepEqual(await explore('?project=acme/secret'), {}, 'a private repository matches nothing');
+  assert.deepEqual(await explore('?project=karpathy/nanoGPT&q=soft'), { Softmax: project.Softmax }, 'with search');
+  // ben's project of the same repository on another branch: labels name the branch, and the filter can take one.
+  f.sqlite.prepare("INSERT INTO repository_apps (org, name, owner_email, repo, branch, status) VALUES ('ben-ws', ?, 'ben@test', 'karpathy/nanoGPT', 'dev', 'ready')").run(DEV);
+  markPublic(DEV);
+  await publish(await made('Dev tour', DEV, 'ben'), 'ben');
+  assert.deepEqual(await explore('?project=karpathy/nanoGPT@master'), { Attention: ['karpathy/nanoGPT@master', 1], Softmax: ['karpathy/nanoGPT@master', 0] });
+  assert.deepEqual(Object.keys(await explore('?project=karpathy/nanoGPT')).sort(), ['Attention', 'Dev tour', 'Softmax'], 'every creator, every branch');
+  // ana's project in Trash, then its repository found private: its canvases stay published, unlabelled and unmatched.
+  f.sqlite.prepare("INSERT INTO library_trash (org, name, trashed_at) VALUES ('ana-ws', ?, '2026-10-08')").run(REPO);
+  assert.deepEqual((await explore('')).Attention, [null, 1]);
+  f.sqlite.prepare('DELETE FROM library_trash').run();
+  f.sqlite.prepare('DELETE FROM repository_visibility WHERE app_id = (SELECT id FROM repository_apps WHERE name = ?)').run(REPO);
+  assert.deepEqual(Object.keys(await explore('?project=karpathy/nanoGPT')), ['Dev tour']);
+  assert.equal((await f.call('GET', '/api/learn/boards/published?project=not%20a%20repo')).status, 400);
 });

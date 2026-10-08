@@ -1,6 +1,7 @@
 // Project canvases (docs/features/project-canvases.md) end to end, against the LOCAL stack only: it writes to local D1 and
 // fresh browser profiles; never point it at a deployed worker. No model is called and nothing presses Send: every non-GET
-// the browser makes is aborted except creating, saving and renaming this check's own canvases. Prints no secrets.
+// the browser makes is aborted except creating, saving and renaming this check's own canvases; publishing one goes through
+// the API. Then Explore: one card per published canvas naming its project, and the project filter. Prints no secrets.
 // The project is a repository row seeded in local D1 (importing needs the indexer), as shared-canvas-ask-check.mjs does.
 //   build, app and control plane: as in shared-canvas-ask-check.mjs (VITE_RABBIT_HOLE=true build, wrangler dev on 8848/8849,
 //   --persist-to .small/fork-local); PERSIST overrides that directory.
@@ -19,7 +20,7 @@ const SHOTS = process.argv[2] || null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
-const owner = { session: (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `pc-owner-${run}@example.com`, secret }) })).json()).session };
+const owner = { session: (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `pc-owner-${run}@example.com`, secret, handle: `pc_${run}` }) })).json()).session };
 const api = async (path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'application/json' } }); return { status: r.status, body: await r.json().catch(() => null) }; };
 
 const results = [];
@@ -28,7 +29,7 @@ const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ?
 // ---- the owner's project, seeded ready in local D1; not nanoGPT, so no supplied course or Tutor is involved ----
 const catalog = (await api('/api/apps')).body;
 const REPO = `repo-${run.slice(-8).padStart(8, '0')}-pcheck`, SHA = 'c'.repeat(40);
-execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to ${PERSIST} -c packages/web/wrangler.dev.jsonc --command "INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${REPO}','${catalog.email}','acme/project-canvases','main','${SHA}','ready')"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
+execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to ${PERSIST} -c packages/web/wrangler.dev.jsonc --command "INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${REPO}','${catalog.email}','acme/project-canvases','main','${SHA}','ready'); INSERT INTO repository_visibility(app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = '${REPO}'"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
 const projectRow = async () => (await api('/api/apps')).body.apps.find(a => a.name === REPO);
 const projectCanvases = async () => (await api('/api/apps')).body.apps.filter(a => a.kind === 'canvas' && a.project === REPO);
 check('a new project counts its Main canvas only', (await projectRow())?.canvas_count === 1);
@@ -126,6 +127,27 @@ await page.locator('[data-learn-map]').click();
 await page.waitForURL(/[?]tab=map$/);
 await page.locator('[data-project-tabs]').waitFor({ timeout: 30000 });
 check('the Map icon still leaves Learn for the project\'s Files / Graph / Learn tabs', await page.locator('[data-project-tabs]').getByRole('tab').count() === 3);
+
+// ---- Explore: one card per published canvas, naming its project; the label opens Explore filtered to that project ----
+const LABEL = 'acme/project-canvases'; // the repository import confirmed public above (repository_visibility)
+check('publishing the renamed canvas', (await api(`/api/apps/${made}/publish`, { method: 'POST', body: '{}' })).status === 200);
+const published = (await api(`/api/learn/boards/published?project=${encodeURIComponent(LABEL)}`)).body.canvases;
+check('the project filter lists only the published canvas, never the unpublished one or the Main canvas', published.length === 1 && published[0].title === `Renamed ${run}` && published[0].project === LABEL, JSON.stringify(published));
+await page.goto(`${BASE}/explore`);
+const ours = page.locator('[data-explore-card]').filter({ has: page.locator('[data-card-title]', { hasText: `Renamed ${run}` }) });
+await ours.locator('[data-card-project]').waitFor({ timeout: 60000 });
+const y = async sel => (await ours.locator(sel).first().boundingBox()).y;
+check('the card reads its title, then the creator, then From acme/project-canvases', await y('[data-card-title]') < await y('[data-creator-link]') && await y('[data-creator-link]') < await y('[data-card-project]') && (await ours.locator('[data-card-project]').innerText()).trim() === `From ${LABEL}`);
+await shot('05-explore-card');
+await ours.locator('[data-card-project]').click();
+await page.waitForURL(/\/explore\?project=acme%2Fproject-canvases$/);
+await page.locator('[data-project-filter]').waitFor({ timeout: 30000 });
+await page.locator('[data-explore-card]').first().waitFor({ timeout: 30000 });
+check('Explore filtered to the project: its chip, and only its published canvas', (await page.locator('[data-project-filter]').innerText()).includes(`From ${LABEL}`) && await page.locator('[data-explore-card]').count() === 1);
+await shot('06-explore-project-filter');
+await page.getByRole('button', { name: `Remove filter From ${LABEL}` }).click();
+await page.waitForURL(/\/explore$/);
+check('the chip x clears the filter', await page.locator('[data-project-filter]').count() === 0);
 
 await browser.close();
 // Untouched canvases delete (no threads); the seeded project row stays in local D1 with the session's throwaway account.

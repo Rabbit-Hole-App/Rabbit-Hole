@@ -4,7 +4,7 @@ import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
-import PublicCards, { CreatorChip } from './home/PublicCards.jsx';
+import PublicCards, { CreatorChip, ProjectFilter } from './home/PublicCards.jsx';
 import { EXPLORE_SORTS } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
@@ -140,13 +140,15 @@ function Explore() {
   const [term, setTerm] = useState('');
   useEffect(() => { const t = setTimeout(() => setTerm(typed.trim()), 250); return () => clearTimeout(t); }, [typed]);
   const q = term ? `q=${encodeURIComponent(term)}` : '';
+  // ?project=owner/repo: a card's project label opened Explore on that project's published canvases (PublicCards ProjectFilter).
+  const project = new URLSearchParams(window.location.search).get('project');
   useEffect(() => { let live = true; loadProfile().then((p) => { if (live) setMe(p?.handle || null); }); return () => { live = false; }; }, []);
   useEffect(() => {
     let live = true;
-    fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
+    fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}${project ? `&project=${encodeURIComponent(project)}` : ''}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
       .then(data => { if (live) setCards(data.canvases || []); }).catch(() => { if (live) setCards([]); });
     return () => { live = false; };
-  }, [order, q]);
+  }, [order, q, project]);
   useEffect(() => {
     let live = true;
     fetch(`/api/learn/creators${q && `?${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { creators: [] }))
@@ -179,6 +181,7 @@ function Explore() {
           {term ? <h2 className={`${label} pb-0`}>Explainers</h2> : <span />}
           {cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
         </div>
+        {project && <ProjectFilter project={project} empty={cards?.length === 0 && !term} />}
         {cards === null && <SkeletonRows rows={3} />}
         {cards?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>}
         {cards?.length > 0 && <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>}

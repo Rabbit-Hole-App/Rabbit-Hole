@@ -100,6 +100,21 @@ No new endpoint. What already exists:
 - it is the owner's literal ask;
 - it tells the reader that a project holds canvases.
 
+## Explore stays canvas-level
+
+Owner, 2026-10-08: "Explore's Explainers tab should show one card per published canvas, even when several canvases belong to the same project … Keep 'N canvases' on the project's Library card for navigating the project's contents. Explore cards remain canvas-level."
+
+- Each published project canvas is its own Explore card. The card reads:
+  1. its title;
+  2. its creator;
+  3. "From owner/repo", the parent project;
+  4. its description, which is the card's preview (cards have no thumbnail);
+  5. its own fork count and Fork, which act on that canvas only.
+- "N canvases" stays on the Library's project card only; Explore never shows a project total.
+- The label appears only for a repository confirmed public. It links to `/explore?project=owner/repo`, which lists only published canvases from public projects of that repository.
+- Details, the private-repository rule and the import finding are in explore-publish.md, Explore.
+- **Coordination.** The Home.jsx edit is confined to the Explainers feed: it reads `?project=`, adds it to the fetch, and shows the `ProjectFilter` chip (PublicCards.jsx). The UI lane's Explainers/Creators tabs (ui/repo-browser-polish) merge around it.
+
 ## Out of scope (deliberately)
 
 - **A journey on Main canvas,** and repository-grounded journeys or Tutor v2 turns on project canvases. They stay LP-T.
@@ -123,7 +138,8 @@ Parallel decided these on 2026-10-08, under the owner's standing grant.
   - create in a project, with its board and owner checks;
   - the count: live only, owner only, review boards and holes excluded;
   - a separate board per canvas, the Main canvas untouched;
-  - rename.
+  - rename;
+  - Explore: one card and one fork count per canvas; the label only for a public repository (with @branch when two branches share it); the filter excluding unlisted, private and Trash; a malformed filter is a 400.
   - Chat and journeys are keyed by the canvas's own name, as for every canvas; their existing tests cover them.
 - `packages/control-plane/test/learn-chat.test.js`, "a project canvas asks with its own project's repository":
   - the project's context, system note and code tools ride, and the Learn tools stay;
@@ -131,9 +147,11 @@ Parallel decided these on 2026-10-08, under the owner's standing grant.
   - another person's project in the same workspace, or none, gives a general canvas;
   - `askStream` is the recording stub and the live DB throws, so no model call is made.
 - `packages/web/src/project-canvases.test.mjs`: the switcher's list, labels, hrefs and the "Canvas N" default (pure).
-- `packages/web/src/home/provenance.test.mjs`: the card's "N canvases" label.
+- `packages/web/src/home/provenance.test.mjs`: the card's "N canvases" label, and a published canvas's project label and its Explore link.
+- `packages/web/src/explore-publish.test.mjs`: the card order (title, creator, project label) and nothing adding counts up by project.
 - `packages/web/e2e/project-canvases-check.mjs` runs against the local stack only and is not run yet:
-  - it seeds a ready project row in local D1;
-  - it checks the switcher, New canvas, the URL, a reload, the Library count and that each canvas has its own board.
+  - it seeds a ready project row, confirmed public, in local D1;
+  - it checks the switcher, New canvas, the URL, a reload, the Library count and that each canvas has its own board;
+  - then it publishes one canvas and checks the Explore card order, the label link, the filter chip with its single card, and the ×.
 - `packages/web/e2e/rabbit-hole-check.mjs` `wp6-learn` drives the switcher instead of the old `<select>`.
   - Its not-in-this-browser step is gone. A canvas is now made with its board, so that gate opens only for canvases older than that, which no API can make.

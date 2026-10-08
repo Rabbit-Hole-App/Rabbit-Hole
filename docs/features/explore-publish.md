@@ -59,7 +59,17 @@ Owner rules, 2026-10-06. Sharing and publishing are different actions.
 
 - `GET /api/learn/boards/published` is public and readable signed out.
 - It lists published, live, top-level canvases whose owner has a handle, newest first (`published_at DESC`, then publication order). There is no ranking, engagement weighting or personalization. The limit is 100.
-- Each card is `{ title, creator: { handle, name }, fork_count, url: /e/<token>, published_at }`. The Explore page renders the title, `@handle` and the cards' fork component, and a card opens `/e/<token>`.
+- Each card is `{ title, creator: { handle, name }, project, fork_count, url: /e/<token>, published_at }`. The Explore page renders the title, `@handle` and the cards' fork component, and a card opens `/e/<token>`.
+- **One card per published canvas** (owner, 2026-10-08), also when several canvases belong to one project. Each card shows:
+  - its own fork count: `FORK_COUNT` counts direct forks of that canvas only, never a project total;
+  - its own Fork, on that canvas's publication token.
+- **`project`:** the parent project's label, when the canvas is a project canvas (project-canvases.md). The card shows it under the `@handle` as "From owner/repo".
+  - The label is the repository (`owner/repo`); projects have no title of their own. It adds `@branch` only when public projects of that repository sit on more than one branch.
+  - It is `null` unless the repository is confirmed public (`repository_visibility`, the publication boundary above) and the project is not in Trash. A private or unknown repository is never named.
+- **`?project=owner/repo`** (or `owner/repo@branch`) returns only published canvases from public projects of that repository, from every creator. It never returns a private or unlisted canvas or a project's Main canvas, which cannot be published.
+  - A private or unknown repository matches nothing. A malformed value is a 400. It combines with `sort` and `q`.
+- **The label is a link** to `/explore?project=<label>`. Explore shows a "From owner/repo" chip whose × drops only that filter, and says so when the project has no published canvas.
+- **Import finding:** repository import accepts public GitHub repositories only (`parseRepository`, an anonymous `git ls-remote`; learn-repositories.md). A repository can still turn private, vanish, or predate `repository_visibility`, so the label follows the confirmed-public row and not the import.
 
 ## Owner controls
 
@@ -70,5 +80,7 @@ The canvas Share panel has a separate "Publish to Explore" section, outside the 
 ## Tests
 
 - Server: `packages/control-plane/test/canvas-publications.test.js` covers the visibility matrix, the publish rules, signed-out `/e`, Fork and Start Rabbit Hole, unpublish and archive, the private repository boundary, and the listing order and isolation.
-- Web: `packages/web/src/explore-publish.test.mjs`.
+- Server, project labels and the filter: `packages/control-plane/test/project-canvases.test.js` (one card and one count per canvas, private repositories never named, unlisted and private canvases excluded, branches, Trash).
+- Web: `packages/web/src/explore-publish.test.mjs` (the card order: title, creator, project label; nothing adds counts up by project).
+- Browser, project label and filter: `packages/web/e2e/project-canvases-check.mjs` (local stack, not run yet).
 - Browser: `packages/web/e2e/explore-check.mjs` covers private, unlisted and public from the Share panel, the Explore card, Explore to the canvas, signed-out `/e`, Fork and Start Rabbit Hole signing in and resuming, and Remove from Explore.
