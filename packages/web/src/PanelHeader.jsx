@@ -4,17 +4,19 @@ import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): three icon tabs grouped
 // left in one rounded control - Find, Table of contents, Comments - then Pin and Close on the right. Icons only:
-// the label is the tooltip and the accessible name. Comments is on hold, so its slot is a placeholder that
-// never selects (aria-disabled, skipped by the arrow keys); it holds no state.
+// the label is the tooltip and the accessible name. Comments (docs/features/canvas-comments.md) selects on a saved
+// top-level canvas (commentsOn); anywhere else its slot never selects (aria-disabled, skipped by the arrow keys).
 // The active tab is the /teach violet (--cmd-teach-fg, #5b21b6) with a white icon.
 export const PANEL_TABS = [
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   { id: 'toc', label: 'Table of contents', Icon: BookOpen },
-  { id: 'comments', label: 'Comments', title: 'Comments (coming later)', Icon: MessageCircle, disabled: true },
+  { id: 'comments', label: 'Comments', Icon: MessageCircle },
 ];
-const ENABLED = PANEL_TABS.filter(entry => !entry.disabled).map(entry => entry.id);
+const OFF_TITLE = 'Comments are on saved canvases';
 
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose }) {
+export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false }) {
+  const off = id => id === 'comments' && !commentsOn;
+  const ENABLED = PANEL_TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
   const arrow = event => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -26,14 +28,14 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose }) {
   return (
     <div data-panel-header className="-mx-5 mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-line px-5 pb-2.5">
       <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex items-center gap-0.5 rounded-lg border border-line bg-hover p-0.5">
-        {PANEL_TABS.map(({ id, label, title, Icon, disabled }) => (
-          <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={label} title={title || label}
+        {PANEL_TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label; return (
+          <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}
             className={`flex h-7 w-8 items-center justify-center rounded-md ${tab === id ? 'bg-[#5b21b6] text-white shadow-sm' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-white hover:text-ink'}`}>
             <Icon size={15} strokeWidth={1.8} aria-hidden />
           </button>
-        ))}
+        ); })}
       </div>
       <div className="flex items-center gap-0.5">
         <button type="button" data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open" aria-pressed={pinned} onClick={() => onPin(!pinned)}

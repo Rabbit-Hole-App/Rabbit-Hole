@@ -33,6 +33,8 @@ import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotI
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { pasteKind } from './canvas-paste.js';
+import CommentPins from './comments/CommentPins.jsx';
+import { anchorAt, objectLabel } from './comments/anchors.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -1198,7 +1200,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -3441,6 +3443,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           ))}
         </div>
         </div>
+        {/* Comment pins (docs/features/canvas-comments.md): over the camera at a constant size; never while presenting. */}
+        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={{ bounds, items, shapes }} onPin={onCommentPin} />}
         {menuAt && presenting === null && (() => {
           const grouped = selection.map(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId).filter(Boolean);
           const row = 'flex w-full items-center rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent';
@@ -3492,11 +3496,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const startHole = !block ? null
             : divePortals?.open && !readOnly ? () => (portal ? divePortals.enter(portal.name) : divePortals.open(block.id, undefined, 'learner_menu'))
             : readOnly && onStartRabbitHole ? () => onStartRabbitHole(block.id) : null;
+          // Add comment (docs/features/canvas-comments.md section 5): the pin goes where the right-click was, on the object
+          // under it (card-relative, so it follows the card) or on the canvas. Only the page's panel saves anything.
+          const addComment = onAddComment && (() => {
+            const entry = [...exchanges, ...blocks, ...items, ...shapes].find(candidate => candidate.id === menuAt.id);
+            const kind = !entry ? null : exchanges.includes(entry) ? 'exchange' : blocks.includes(entry) ? 'block' : items.includes(entry) ? 'item' : 'shape';
+            onAddComment(anchorAt({ x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z }, entry && { id: entry.id, kind, label: objectLabel(entry) }, { bounds, items, shapes }));
+          });
           return (
             <div ref={menuBox} role="menu" aria-label="Canvas actions" data-canvas-menu style={{ left: menuPos?.x ?? menuAt.x, top: menuPos?.y ?? menuAt.y, maxHeight: menuPos?.maxH, visibility: menuPos ? undefined : 'hidden' }}
               className="absolute z-40 w-52 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
               onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
+              {addComment && !menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment here</button>}
               {startHole && <button type="button" role="menuitem" data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)} className={row}>Start Rabbit Hole</button>}
+              {addComment && menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment</button>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
               {described && <button type="button" role="menuitem" onClick={act(() => askBlock(block))} className={row}>Ask about this</button>}

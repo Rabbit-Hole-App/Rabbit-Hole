@@ -1,5 +1,5 @@
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): Find, Table of contents and
-// a Comments placeholder as icon tabs, then Pin and Close; the find matching and the pin preference as pure code.
+// Comments (live on a saved top-level canvas) as icon tabs, then Pin and Close; the find matching and the pin preference as pure code.
 // The rendered header, a real find and the unpinned close are e2e/panel-header-check.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,14 +15,14 @@ test('the tabs are Find, Table of contents, Comments in that order, then Pin and
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'in the owner\'s order');
   assert.match(header, /\{ id: 'find', label: 'Find text on canvas', Icon: Search \}/);
   assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: BookOpen \}/);
-  assert.match(header, /\{ id: 'comments', label: 'Comments', title: 'Comments \(coming later\)', Icon: MessageCircle, disabled: true \}/);
+  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \}/);
   assert.match(header, /data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open"[\s\S]{0,300}?<Pin /);
   assert.match(header, /data-panel-close aria-label="Close sidebar" title="Close sidebar"[\s\S]{0,300}?<X /);
 });
 
 test('icons only: a tooltip and an accessible name, no visible text, one tablist of tabs', () => {
   assert.match(header, /role="tablist"/);
-  assert.match(header, /role="tab" data-panel-tab=\{id\} aria-label=\{label\} title=\{title \|\| label\}/);
+  assert.match(header, /role="tab" data-panel-tab=\{id\} aria-label=\{label\} title=\{title\}/);
   assert.match(header, /<Icon size=\{15\} strokeWidth=\{1\.8\} aria-hidden \/>\n\s+<\/button>/, 'the icon is the tab\'s only child');
 });
 
@@ -36,12 +36,14 @@ test('exactly one tab is active: aria-selected, the violet with a white icon, an
   assert.match(page, /<CanvasFind hidden=\{panelTab !== 'find'\}/);
 });
 
-test('Comments is a placeholder: aria-disabled, never selectable, skipped by the arrows, and holds no state', () => {
+test('Comments selects only on a saved top-level canvas; elsewhere it is aria-disabled and skipped by the arrows', () => {
+  assert.match(header, /const off = id => id === 'comments' && !commentsOn;/);
   assert.match(header, /aria-disabled=\{disabled \|\| undefined\}/);
   assert.match(header, /onClick=\{disabled \? undefined : \(\) => onTab\(id, true\)\}/);
-  assert.match(header, /const ENABLED = PANEL_TABS\.filter\(entry => !entry\.disabled\)/);
+  assert.match(header, /const ENABLED = PANEL_TABS\.filter\(entry => !off\(entry\.id\)\)/);
   assert.match(header, /ENABLED\[\(ENABLED\.indexOf\(tab\) \+ \(event\.key === 'ArrowRight' \? 1 : ENABLED\.length - 1\)\) % ENABLED\.length\]/);
-  assert.doesNotMatch(page, /comment/i, 'no Comments state, route or storage on the page');
+  assert.match(page, /<PanelHeader tab=\{panelTab\} commentsOn=\{comments\.active\}/, 'the page decides where Comments is live');
+  assert.match(page, /if \(!comments\.active && panelTab === 'comments'\) setPanelTab\('toc'\);/, 'and never leaves it selected where it is not');
 });
 
 test('pinned by default, and the choice lasts in this browser; storage that throws keeps the default', () => {
