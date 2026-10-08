@@ -41,12 +41,13 @@ function setup(t) {
 }
 
 // The Library sends localBoard(), null when this browser holds no copy (owner bug, 2026-10-08: "state must be a board object").
-test('Duplicate with no browser copy (state: null) copies the server copy, or says where the content is', async t => {
+test('Duplicate with no browser copy (state: null) copies the server copy, which exists from creation', async t => {
   const f = setup(t);
   const src = await f.create('ana', 'Attention Playground');
-  const none = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: src.name }, state: null } });
-  assert.equal(none.status, 409);
-  assert.match(none.body.error, /nothing to copy here/);
+  // A canvas is saved at creation (canvas-persistence.md, owner 2026-10-08): a never-opened one duplicates as empty.
+  const empty = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: src.name }, state: null } });
+  assert.equal(empty.status, 201);
+  assert.deepEqual((await f.call('GET', `/api/learn/boards/${empty.body.name}/main`, { as: 'ana' })).body.state.blocks, []);
   await f.call('PUT', `/api/learn/boards/${src.name}/main`, { as: 'ana', body: { state: BOARD } });
   const made = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: src.name }, state: null } });
   assert.equal(made.status, 201);
