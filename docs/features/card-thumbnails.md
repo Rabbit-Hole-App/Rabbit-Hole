@@ -20,7 +20,7 @@ actions                                                 └───────
 [fork] N forks · Updated 2h ago                  Open →
 ```
 
-- **One card per row** (`CARD_ROWS`) on Home's Continue and Recent, the Library and Explore, and the creator profile. At 1440 px two per row left the picture at about 180 × 90 px, too small to make out. One per row shows it at about 350 × 175 px.
+- **One card per row** (`CARD_ROWS`) on Home's Continue and Recent, the Library and Explore, and the creator profile. At 1440 px two per row left the picture at about 180 × 90 px, too small to make out. One per row shows it at about 350 × 175 px (about 205 × 102 px at 1024 px with the sidebar open).
   - Shared with you keeps its small cards on `CARD_GRID`.
 - **Every card is the same size.** From `md`, the card is a fixed 228 px high (`CARD_HEIGHT`).
   - The title clamps to two lines.
@@ -46,7 +46,7 @@ actions                                                 └───────
   - Wide content is centred.
   - A tall column keeps its top, widened by at most half again, so it still reads.
   - The region is never smaller than 400 canvas px wide, so the zoom is at most 2x.
-- **How it is drawn:** with `html-to-image`, which is already the canvas's area-ask and sketch capture. The camera layer is restyled onto the region and drawn at 800 × 400, then saved as WebP (PNG where WebP encoding is missing). The snapshot is typically 20-60 KB.
+- **How it is drawn:** with `html-to-image`, which is already the canvas's area-ask and sketch capture. The camera layer is restyled onto the region and drawn at 800 × 400, then saved as WebP (PNG where WebP encoding is missing). The check's three-card canvas came to about 11 KB.
   - Iframes and videos are left out, because their pixels are cross-origin.
   - Toolbars, hover-only connection ports and card tools, and a selected shape's outline and handles are left out.
   - The app font is skipped: the system font reads the same at this size.
