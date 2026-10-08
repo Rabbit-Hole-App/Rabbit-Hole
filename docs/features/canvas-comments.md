@@ -1,10 +1,13 @@
 # Canvas comments and members (V1 design)
 
 Status: **IN IMPLEMENTATION on `feature/comments-v1` (owner GO 2026-10-07: "start building comments mvp"), local only: no
-merge, dev migration or deploy without the owner. Increment 1 works locally: migration 0011 (Home reviewed the shape),
-both route families with one `can()`, and on an owned canvas Add comment / Add comment here, the Comments view, pins,
-replies, resolve, edit and delete. Next: the published page and Share settings, then invitations and members, then
-mentions, unread counts, `C` and the Library.**
+merge, dev migration or deploy without the owner. Built: migration 0011 (Home reviewed the shape); both route families
+with one `can()`; the owned canvas's Comments view, pins, replies, resolve, edit, delete, Add comment / Add comment here,
+the Comment tool and `C`; Allow comments and Public comments in Share; the published page; members and recipient-only
+invitations (H7, Home's code review applied) with `/i`, `/c` and People with access; mentions; unread dots, Library news
+and Shared with you; thread links, paging, Show comments, Block / Unblock; the members panel on share links.
+Not built yet: Start Rabbit Hole and Fork on `/c` (they need a member-source provenance contract beside the share-link
+one, in dives and canvases), the phone bottom sheet check, and Home's cards.**
 
 **Revision 5 (targeted corrections after the revision 4 review):**
 - moderation keys on the author's account id, so blocking works without handles;
