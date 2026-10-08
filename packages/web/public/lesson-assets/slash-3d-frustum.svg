@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="A camera frustum with a cube inside it and a ray from the camera to the cube">
+<rect width="640" height="400" fill="#f4f5f7"/>
+<g fill="none" stroke="#2383e2" stroke-width="2" stroke-linejoin="round">
+<polygon points="239,216.6 514.1,362.2 608,77.2 234.2,37.8" fill="#2383e2" fill-opacity=".07"/><polyline points="118.9,260.4 239,216.6"/><polyline points="118.9,260.4 514.1,362.2"/><polyline points="118.9,260.4 608,77.2"/><polyline points="118.9,260.4 234.2,37.8"/><polygon points="141.2,252.3 166.8,272.8 163.5,243.7 137.4,224.8" fill="#2383e2" fill-opacity=".15"/></g>
+<line x1="118.9" y1="260.4" x2="308.9" y2="189.9" stroke="#b42318" stroke-width="2.5" stroke-linecap="round"/><polygon points="249.8,211.8 239.1,223.3 234.3,210.1" fill="#b42318"/>
+<polygon points="339.9,208 344.2,157.1 333.7,176.3 329.5,231.8" fill="#f59e0b" stroke="#b45309" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="290,151.5 273.7,169.3 333.7,176.3 344.2,157.1" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="273.1,223.2 329.5,231.8 333.7,176.3 273.7,169.3" fill="#d97706" stroke="#b45309" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="118.9" y1="260.4" x2="160.9" y2="297.7" stroke="#e5484d" stroke-width="3" stroke-linecap="round"/><line x1="118.9" y1="260.4" x2="106" y2="183.7" stroke="#30a46c" stroke-width="3" stroke-linecap="round"/><line x1="118.9" y1="260.4" x2="73.1" y2="277.5" stroke="#1e40af" stroke-width="3" stroke-linecap="round"/>
+</svg>

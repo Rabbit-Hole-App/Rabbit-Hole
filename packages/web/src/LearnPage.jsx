@@ -556,6 +556,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
           release: id => canvasApi.current?.release(id),
           insertPaper: ({ id }) => addPaper({ id }),
           dive: args => dive.run(args),
+          // /source: the selected card's Sources & evidence, opened where the card sits.
+          openSources: id => {
+            const evidence = id && document.querySelector(`[data-block-id="${CSS.escape(id)}"] details[data-sources]`);
+            if (!evidence) return { notice: { tone: 'info', text: id ? 'This card lists no sources.' : 'Select a card, then /source opens its sources.' } };
+            evidence.open = true;
+            canvasApi.current?.revealBlock(id);
+            return {};
+          },
         },
         openSearch: seed => { setSearchSeed(seed); setSearchOpen(true); },
         post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }),

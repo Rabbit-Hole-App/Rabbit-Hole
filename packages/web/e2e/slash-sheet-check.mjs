@@ -2,14 +2,15 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
 
-// View > Slash commands on the parallel clone: choosing a command shows the
-// real card it makes (the canvas's own card component) at its canvas size and
-// working; paid Generate is off; chat-only commands show an example exchange.
-// No model calls, nothing generated.
+// View > Slash commands on the parallel clone: the search is focused on open and
+// filters by name and description; choosing a command shows the real card it
+// makes (the canvas's own card component) at its canvas size and working; paid
+// media shows a committed finished clip or a labelled picture, never Generate;
+// /source opens a card's Sources & evidence; chat-only commands show an example
+// exchange. Every command shows a demo. No model calls, nothing generated.
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
 // A local stack instead: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> node e2e/slash-sheet-check.mjs [dir] - a fresh
-// canvas, a session minted with packages/control-plane/.dev.vars, and the finished-media checks skipped (a fresh local stack has
-// no rendered Manim, Blender or FAL samples), as is /graph's card (a keyless build has no Desmos key).
+// canvas, a session minted with packages/control-plane/.dev.vars, and /graph's card skipped (a keyless build has no Desmos key).
 const LOCAL = process.env.BASE || null;
 if (LOCAL && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(LOCAL)) throw Error('BASE must be a local stack');
 const BASE = LOCAL || 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
@@ -25,7 +26,7 @@ if (LOCAL) {
 }
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
-const skip = (name, why = 'no rendered sample') => console.log(`SKIP  ${name}  (local stack: ${why})`);
+const skip = (name, why) => console.log(`SKIP  ${name}  (local stack: ${why})`);
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -41,10 +42,31 @@ await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', {
 await page.getByRole('menuitem', { name: 'Slash commands' }).click();
 const sheet = page.getByRole('dialog', { name: 'Slash commands' });
 await sheet.waitFor();
+// The search: focused on open; a leading / is ignored; Enter takes the first match; Esc clears it before it closes the sheet.
+const search = sheet.locator('[data-slash-search]');
+const rows = sheet.locator('[data-slash-help]');
+const all = await rows.count();
+ok('the search is focused when the sheet opens', await search.evaluate(node => node === document.activeElement));
+await search.fill('/flash');
+ok('typing filters by command name, ignoring the leading /', await rows.count() === 1 && await rows.first().getAttribute('data-slash-help') === 'flashcards');
+await search.press('Enter');
+ok('Enter selects the first match', await sheet.locator('[data-slash-card="flashcards"]').waitFor({ timeout: 15000 }).then(() => true).catch(() => false));
+await search.fill('evidence');
+ok('typing filters by description', await rows.count() === 1 && await rows.first().getAttribute('data-slash-help') === 'source');
+await search.fill('zzz');
+ok('no match says so', await rows.count() === 0 && await sheet.getByText('No commands match').count() === 1);
+await page.keyboard.press('Escape');
+ok('Esc clears the search and keeps the sheet open', await search.inputValue() === '' && await sheet.isVisible() && await rows.count() === all, `${all} rows`);
+// Every command shows a demo: a card, the card /source opens, or an example exchange.
+const missing = [];
+for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))) {
+  await sheet.locator(`[data-slash-help="${command}"]`).click();
+  if (!await sheet.locator('[data-slash-card], [data-slash-chat]').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false)) missing.push(command);
+}
+ok('every command shows a demo', missing.length === 0, missing.join(' '));
 // The card a command makes: [data-slash-card] and a readiness hint per card type.
 const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', animate: 'video[data-lesson-video]', explain: 'p', notebook: 'iframe', walkthrough: 'svg, button', code: 'pre, code' };
 for (const [command, ready] of Object.entries(expect)) {
-  if (LOCAL && command === 'animate') { skip('/animate shows its real card'); continue; }
   if (LOCAL && command === 'graph') { skip('/graph shows its real card', 'no Desmos key in a keyless build'); continue; }
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   const card = sheet.locator('[data-slash-card]');
@@ -62,28 +84,31 @@ for (const [command, ready] of Object.entries(expect)) {
 await sheet.locator('[data-slash-help="quiz"]').click();
 await sheet.locator('[data-slash-card="quiz"]').getByRole('button').first().click();
 ok('the quiz card works: choosing an option answers it', await sheet.locator('[data-slash-card="quiz"]').innerText().then(text => /differentiate|σ|sigma/i.test(text)));
-// Generated media shows a finished result: the Manim clip rendered on the clone plays; no Generate card.
-if (LOCAL) ['/animate shows the finished Manim clip', '/3d shows the finished Blender scene', '/video shows the finished FAL clip'].forEach(skip);
-else {
+// Paid media always shows a finished example from committed files, on any stack: /animate plays the softmax clip; /3d
+// and /video show a labelled picture of the finished card. No Generate card.
 await sheet.locator('[data-slash-help="animate"]').click();
 const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
 const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
-ok('/animate shows the finished Manim clip, not a Generate card', plays > 0 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
+ok('/animate plays the finished softmax clip, not a Generate card', plays > 0 && await sheet.locator('[data-slash-card]').getByText('Softmax shares the whole by score').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
 await sheet.screenshot({ path: `${SHOTS}/sheet-animate.png` });
-// Blender and FAL have each produced their sample on the clone (2026-09-29): the finished results show.
-await sheet.locator('[data-slash-help="3d"]').click();
-ok('/3d shows the finished Blender scene in the 3D viewer', await sheet.locator('[data-slash-card="scene"] canvas').waitFor({ timeout: 20000 }).then(() => true).catch(() => false) && await sheet.locator('[data-slash-card] [data-generate-scene]').count() === 0);
-await sheet.screenshot({ path: `${SHOTS}/sheet-3d.png` });
-await sheet.locator('[data-slash-help="video"]').click();
-ok('/video shows the finished FAL clip', await sheet.locator('[data-slash-card="videoGenerate"] video[data-lesson-video]').waitFor({ timeout: 20000 }).then(() => true).catch(() => false));
+for (const [command, type] of [['3d', 'scene'], ['video', 'videoGenerate']]) {
+  await sheet.locator(`[data-slash-help="${command}"]`).click();
+  const picture = sheet.locator(`[data-slash-card="${type}"] img[data-slash-illustration]`);
+  const drawn = await picture.waitFor({ timeout: 15000 }).then(() => picture.evaluate(node => node.complete && node.naturalWidth > 0)).catch(() => false);
+  ok(`/${command} shows a labelled picture of the finished card, not a Generate card`, drawn && await sheet.locator(`[data-slash-card="${type}"]`).getByText('Illustration.').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video], [data-slash-card] [data-generate-scene]').count() === 0);
+  await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
 }
+// /source opens the Sources & evidence of a card: here the sheet's own /explain card, its list open.
+await sheet.locator('[data-slash-help="source"]').click();
+ok('/source opens the Sources & evidence of a card', await sheet.locator('[data-slash-sources] [data-slash-card="explanation"] details[data-sources][open]').count() === 1 && await sheet.locator('[data-slash-sources]').getByText('model.py:127').count() > 0);
+await sheet.screenshot({ path: `${SHOTS}/sheet-source.png` });
 await sheet.locator('[data-slash-help="compare"]').click();
 ok('/compare explains the tutor picks one, and shows a real comparison', await sheet.getByText('The tutor picks one:').count() === 1 && await sheet.locator('[data-slash-card="table"]').getByText('Sigmoid vs tanh').count() === 1);
 await sheet.screenshot({ path: `${SHOTS}/sheet-compare.png` });
 // /research and /do are Home, Library and Project workflows, never Canvas commands (Professor Next Steps contract §1.7).
 ok('the sheet offers no /research or /do', await sheet.locator('[data-slash-help="research"], [data-slash-help="do"]').count() === 0);
 await sheet.screenshot({ path: `${SHOTS}/sheet-commands.png` });
-for (const command of ['deeper', 'simplify', 'example', 'ask', 'teach', 'source']) {
+for (const command of ['deeper', 'dive', 'simplify', 'example', 'ask', 'teach']) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   const chat = sheet.locator(`[data-slash-chat="${command}"]`);
   ok(`/${command} shows an example exchange and adds no card`, await sheet.locator('[data-slash-card]').count() === 0 && await chat.locator('.katex, p').count() > 0 && (await chat.innerText()).includes(`/${command}`));
@@ -92,6 +117,9 @@ for (const command of ['deeper', 'simplify', 'example', 'ask', 'teach', 'source'
 await sheet.locator('[data-slash-help="diagram"]').click();
 await sheet.getByRole('tab', { name: 'Mermaid diagram' }).click();
 ok('a command with several cards switches between them', await sheet.locator('[data-slash-card="mermaid"]').count() === 1);
+await search.focus();
+await page.keyboard.press('Escape');
+ok('Esc with an empty search closes the sheet', await sheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
 ok('no page errors and no paid request', errors.length === 0 && paid.length === 0, `${errors.join(' | ')} ${paid.join(' ')}`);
 await browser.close();
 process.exit(failed ? 1 : 0);

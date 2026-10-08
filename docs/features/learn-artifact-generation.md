@@ -129,6 +129,32 @@ composer.
 - View → Slash commands (`SlashCommandsSheet.jsx`) shows the same sections,
   each command with an example. A family shows only if it has a ready or direct primitive; a command
   typed by name still says what is unavailable.
+- The sheet's search sits at the top of the command list and is focused when
+  the sheet opens. It filters as you type by command name and description,
+  ignoring a leading `/`. Enter selects the first match, and "No commands
+  match" shows when nothing does. Esc clears a typed search first, then closes
+  the sheet.
+- Every command in the sheet shows a demo (`slash-sheet.js`, pinned by
+  `slash-sheet.test.mjs`):
+  - a command that makes cards shows the real card at its canvas size, with a
+    tab for each card it can make;
+  - `/source` shows the sheet's `/explain` card with its Sources & evidence
+    open;
+  - a chat command (`/deeper`, `/dive`, `/simplify`, `/example`, `/ask`,
+    `/teach`) shows an example exchange that asks exactly its e.g. line.
+- The demos keep one thread (the sigmoid, softmax and nanoGPT), and each e.g.
+  line asks for exactly the card or answer shown. Every `/compare` tab compares
+  sigmoid and tanh.
+- Paid media never shows Generate in the sheet and never calls a model or
+  provider. It shows committed files:
+  - `/animate` plays `public/landing/softmax-overview-v1.mp4` in the real Maths
+    animation card;
+  - `/video` and `/3d` have no committed finished file, so they show a labelled
+    picture of the finished card (`public/lesson-assets/slash-video-prism.svg`,
+    `slash-3d-frustum.svg`).
+  `/video` and `/3d` keep their prism and camera-frustum subjects: generated
+  footage and 3D scenes need a physical or spatial subject, which the thread's
+  maths does not have.
 
 Execution:
 
@@ -141,8 +167,9 @@ Execution:
   existing Learn ask as their prompt.
 - Family commands call the endpoint above.
 
-`/source` reports that the Source inspector is not reachable from a command
-yet.
+`/source` opens the Sources & evidence of the selected card where it sits on
+the canvas, and brings the card into view. With no card selected, or a card
+without sources, it says so in one line.
 
 ## Storage
 
