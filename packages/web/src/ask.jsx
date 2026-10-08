@@ -360,9 +360,27 @@ export function MaterialIcon({ type }) {
 // shows a spinner and no second click goes through. The step itself is never read or shown here.
 // r29 (owner 2026-10-08): the next-section hook names where it goes; when this section's evidence is not met it skips it.
 const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
+// HOOK_ROW: one option's height, two lines of hook text, so the skeleton and the three hooks are the same size.
+const HOOK_ROW = 'min-h-14 rounded-lg border border-line';
 export function NextStepsCard({ steps, onPick }) {
   const [working, setWorking] = useState(null);
-  if (!steps || !['ready', 'stale'].includes(steps.status) || steps.options.length !== 3) return null;
+  // The last set's height: the skeleton that replaces it keeps it, so the card does not change size while the next set loads.
+  const frame = useRef(null), height = useRef(0);
+  useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
+  if (!steps) return null;
+  // A set on its way for this basis, loading or stale (owner, 2026-10-08: "if the questions are still being loaded just show
+  // the skeleton and a spinner and not the previous question"): the same card with three placeholder rows and a spinner,
+  // never the previous hooks (contract §1.2). Unavailable, whatever its reason, draws nothing.
+  if (steps.status === 'loading' || steps.status === 'stale') {
+    return (
+      <section data-next-steps={steps.status} data-next-steps-skeleton aria-label="Curious where this goes?" aria-busy="true" style={height.current ? { minHeight: height.current } : undefined} className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
+        <h2 className="flex items-center gap-1.5 text-xs font-medium text-ink-2">Curious where this goes?<Loader2 size={12} aria-hidden="true" className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" /></h2>
+        <span className="sr-only">Loading suggestions</span>
+        {[0, 1, 2].map(row => <div key={row} aria-hidden="true" data-next-step-placeholder className={`${HOOK_ROW} flex-1 bg-hover motion-safe:animate-pulse`} />)}
+      </section>
+    );
+  }
+  if (steps.status !== 'ready' || steps.options.length !== 3) return null;
   const pick = async hook => {
     if (working) return;
     const r = steps.select(hook.id);
@@ -371,11 +389,11 @@ export function NextStepsCard({ steps, onPick }) {
     try { await onPick(r.selected_next_step, hook); } finally { setWorking(null); }
   };
   return (
-    <section data-next-steps={steps.status} aria-label="Curious where this goes?" className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
+    <section ref={frame} data-next-steps={steps.status} aria-label="Curious where this goes?" className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
       <h2 className="text-xs font-medium text-ink-2">Curious where this goes?</h2>
       {steps.options.map(hook => (
-        <button key={hook.id} type="button" data-next-step={hook.id} data-next-section={hook.section?.id} aria-label={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : undefined} disabled={steps.status === 'stale' || !!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
-          className="flex w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2 text-left text-sm text-ink hover:border-[#b42318]/40 hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:border-line disabled:hover:bg-transparent">
+        <button key={hook.id} type="button" data-next-step={hook.id} data-next-section={hook.section?.id} aria-label={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : undefined} disabled={!!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
+          className="flex min-h-14 w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2 text-left text-sm text-ink hover:border-[#b42318]/40 hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:border-line disabled:hover:bg-transparent">
           {working === hook.id ? <Loader2 size={14} className="mt-0.5 shrink-0 animate-spin text-ink-3" /> : <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" />}
           <span className="min-w-0">{hook.hook}{hook.section && <span data-next-section-note className="block text-xs text-ink-3">{sectionNote(hook.section)}</span>}</span>
         </button>

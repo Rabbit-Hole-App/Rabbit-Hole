@@ -41,10 +41,25 @@ test('the hook card: exactly the 3 hooks of a ready set, verbatim and in order, 
   assert.doesNotMatch(html, /disabled=""/, 'a ready set is clickable');
 });
 
-test('the hook card: a stale set stays with its buttons disabled; loading, unavailable or not exactly 3 draws nothing', () => {
-  assert.equal((card(set('stale')).match(/<button [^>]*disabled=""/g) || []).length, 3);
-  assert.match(card(set('stale')), /data-next-steps="stale"/);
-  for (const status of ['loading', 'unavailable']) assert.equal(card({ ...set(status), options: [] }), '', status);
+// Owner, 2026-10-08: "if the questions are still being loaded just show the skeleton and a spinner and not the previous
+// question" (contract §1.2): loading and stale draw the same skeleton - the header, a spinner, three placeholder rows of an
+// option's height - never a hook; unavailable draws nothing.
+test('the hook card: loading and stale draw a skeleton with a spinner, never the previous hooks; unavailable or not exactly 3 draws nothing', () => {
+  for (const status of ['stale', 'loading']) {
+    const html = card(status === 'stale' ? set('stale') : { ...set('loading'), options: [] });
+    assert.match(html, new RegExp(`^<section data-next-steps="${status}" data-next-steps-skeleton="true" aria-label="Curious where this goes\\?" aria-busy="true"`), status);
+    assert.match(html, /<h2[^>]*>Curious where this goes\?<svg[^>]*animate-spin[^>]*motion-reduce:animate-none/, 'a spinner, still for reduced motion');
+    assert.match(html, /<span class="sr-only">Loading suggestions<\/span>/);
+    assert.equal((html.match(/data-next-step-placeholder="true"/g) || []).length, 3);
+    assert.doesNotMatch(html, /<button|data-next-step="|bread|dough|yeast/, `${status}: never a hook, never a button`);
+  }
+  // No layout jump: a placeholder row and a hook button are both at least two lines (min-h-14).
+  assert.match(ask, /const HOOK_ROW = 'min-h-14 rounded-lg border border-line';/);
+  // The skeleton keeps the last set's height, so a stale card does not change size while the next set loads.
+  assert.match(ask, /useEffect\(\(\) => \{ if \(steps\?\.status === 'ready' && frame\.current\) height\.current = frame\.current\.offsetHeight; \}\);/);
+  assert.match(ask, /aria-busy="true" style=\{height\.current \? \{ minHeight: height\.current \} : undefined\}/);
+  assert.match(ask, /className="flex min-h-14 w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2/);
+  assert.equal(card({ ...set('unavailable'), options: [] }), '', 'unavailable');
   assert.equal(card(set('ready', HOOKS.slice(0, 2))), '', 'never fewer than 3');
   assert.equal(card(null), '', 'not mounted: nothing');
 });
@@ -76,8 +91,10 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a dock compose
   assert.match(page, /composer=\{\(app\.hosting !== 'aws' \|\| app\.app_chat\) \? <div data-learn-dock/);
   assert.match(page, /<NextStepsHost on=\{nextStepsHere\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
   assert.match(page, /function NextStepsHost\(\{ on, children, \.\.\.props \}\) \{\n\s+return on \? <NextStepsMounted \{\.\.\.props\}>\{children\}<\/NextStepsMounted> : children\(null\);\n\}\nfunction NextStepsMounted\(\{ children, \.\.\.props \}\) \{\n\s+return children\(useNextSteps\(props\)\);/);
-  // The card and Voice Mode's caption share the canvas's lower-left stack (tutor.extras stay drawn there while Voice is on).
-  assert.match(page, /leftRail=\{voiceOn \|\| steps \? <>\n\s+<NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(step\.section \? journey\?\.nextSection\?\.\(\) : nextStepSend\.current\?\.\(step, hook\.hook\)\)\} \/>\n\s+\{voiceOn && <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/>\}/);
+  // Voice Mode's caption keeps the canvas's lower-left stack (tutor.extras stay drawn there while Voice is on); the hook card is
+  // the bottom strip's lower right, beside the composer (owner, 2026-10-08).
+  assert.match(page, /leftRail=\{voiceOn \? <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/> : null\}\n\s+hooks=\{steps \? <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(step\.section \? journey\?\.nextSection\?\.\(\) : nextStepSend\.current\?\.\(step, hook\.hook\)\)\} \/> : null\}/);
+  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot className="w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\]">\{hooks\}<\/div>\}/);
   assert.match(page, /tray=\{journey\.trayProps\} voice=\{voice\} nextStepRef=\{nextStepSend\}/);
   assert.match(canvas, /<div data-left-stack className="absolute bottom-3 left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
 });
@@ -96,7 +113,7 @@ test('LearnPage: canvasVersion, graded, /ask and /teach, the repository detach a
 
 test('SharedBoardPage: the shared hooks start the private hole with the step; stale restarts without it; signed out it waits for this link and hook', () => {
   assert.match(shared, /function SharedNextSteps\(\{ token, card, version, signedIn, startRef \}\) \{\n\s+const steps = useSharedNextSteps\(\{ token, card, version, signedIn \}\);\n\s+return <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => startRef\.current\?\.\(card, step, hook\.id\)\} \/>;/);
-  assert.match(shared, /leftRail=\{<SharedNextSteps token=\{token\} card=\{card\?\.id \|\| null\} version=\{shared\.version\} signedIn=\{!!shared\.viewer\} startRef=\{rabbitStart\} \/>\}/);
+  assert.match(shared, /hooks=\{<SharedNextSteps token=\{token\} card=\{card\?\.id \|\| null\} version=\{shared\.version\} signedIn=\{!!shared\.viewer\} startRef=\{rabbitStart\} \/>\}/);
   assert.match(shared, /let made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\), step \}\);\n\s+if \(made\.stale\) made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\) \}\);/);
   assert.match(shared, /if \(made\.signIn\) \{\n\s+if \(step\) keepPendingStep\(sessionStorage, token, step\);\n\s+window\.location\.href = resumeHref\(window\.location\.pathname, cardId, step \? hookId : null\);/);
   assert.match(shared, /if \(made\.next_step\) carryStep\(sessionStorage, made\.name, made\.next_step\);\n\s+window\.location\.href = made\.url;/);

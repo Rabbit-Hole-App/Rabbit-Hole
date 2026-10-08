@@ -38,7 +38,7 @@ test('the shared page puts Learn\'s composer shell in the canvas composer slot, 
   // readOnly may be followed by onState (the selected card a Rabbit Hole starts from, shared-canvas-rabbit-hole.md) and
   // onStartRabbitHole (the card right-click menu starts it from the card it was opened on), then the read-only Rabbit
   // Holes Map (gutterTop, dive-v1.md "Shared map").
-  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+leftRail=\{<SharedNextSteps [^\n]*\/>\})?\n\s+onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\}\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>\} \/>/);
+  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+hooks=\{<SharedNextSteps [^\n]*\/>\})?\n\s+onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\}\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>\} \/>/);
   assert.match(page, /import ChatComposer from '\.\/ChatComposer\.jsx';/);
   assert.match(composer, /<ChatComposer dock value=\{input\} onChange=\{setInput\} onSubmit=\{send\}/);
   assert.match(composer, /data-context-pill="repository"[^\n]*\n[^\n]*\{repository\.repo\} · \{repository\.commit\.slice\(0, 7\)\}/);

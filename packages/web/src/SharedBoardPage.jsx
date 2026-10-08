@@ -143,7 +143,7 @@ export default function SharedBoardPage({ token }) {
         <Suspense fallback={null}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
           <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
             gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
-            leftRail={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
+            hooks={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
             onAskTarget={setTarget} askTargetId={target?.id ?? null}
             composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} />} />
         </DivePortals.Provider></Suspense>
