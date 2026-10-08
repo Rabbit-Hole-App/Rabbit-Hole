@@ -185,7 +185,9 @@ async function main() {
   git('fetch', '-q', 'origin', 'main');
   if (!isAncestor(sha, 'origin/main')) stop(`${sha.slice(0, 8)} is not on origin/main`);
   if (git('rev-parse', 'HEAD') !== sha) stop(`this checkout is not at ${sha.slice(0, 8)}; deploy builds the exact commit`);
-  if (git('status', '--porcelain', '--untracked-files=no') || git('ls-files', '--others', '--exclude-standard', 'packages/web/src', 'packages/web/public', 'packages/web/index.html')) stop('this checkout has local changes under the build');
+  // Content, not stat: npm ci rewrites a bin's line endings (packages/cli/bin/small.js), which git status reports
+  // though the normalized content is unchanged.
+  if (git('diff', '--name-only', 'HEAD') || git('ls-files', '--others', '--exclude-standard', 'packages/web/src', 'packages/web/public', 'packages/web/index.html')) stop('this checkout has local changes under the build');
   const record = join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl');
 
   // The gate record is the candidate's own, or (policy A, --reuse) that of the gated main commit it builds on.
@@ -231,6 +233,9 @@ async function main() {
     const build = buildHash(join(web, 'dist-dev'));
     const entry = entryScript(readFileSync(join(web, 'dist-dev/index.html'), 'utf8'));
     if (!entry) stop('dist-dev/index.html has no module entry script; nothing deployed');
+    // The Worker also packages dist/index.html (the control plane's shell import). Built with the same env from the same
+    // commit it is identical to dist-dev/index.html, so the dist-dev hash is the identity of everything uploaded.
+    if (!readFileSync(join(web, 'dist/index.html')).equals(readFileSync(join(web, 'dist-dev/index.html')))) stop('dist/index.html differs from dist-dev/index.html, so the build hash would not cover the packaged shell; nothing deployed');
     if (gatedBuild && build !== gatedBuild) stop(`policy A: this build ${build} differs from the gated build ${gatedBuild}, so a build input changed; a full gate is needed`);
     say(`✓ built dist-dev ${build}${gatedBuild ? ' (identical to the gated build)' : ''}`);
 
