@@ -429,7 +429,8 @@ await check('10d a code reference in an answer opens the Files panel at that ran
   assert.equal(await page.locator('[data-code-ref^="nanogpt/missing.py"]').count(), 0, 'an unknown path is no link');
   assert.ok(await page.getByText(/nanogpt\/missing\.py:1-2 does not exist/).count() > 0, 'it stays as text');
   // Closed panel: the click opens it on Files, model.py, lines 177-179 selected (the toolbar Ask in chat and Copy act on).
-  if (await page.locator('[data-panel-close]').isVisible()) await page.locator('[data-panel-close]').click();
+  // A closed panel slides off the right edge but stays in the page, so isVisible() is true there: test it is on screen.
+  if (await page.locator('[data-panel-close]').evaluate((n) => n.getBoundingClientRect().right <= innerWidth)) await page.locator('[data-panel-close]').click();
   await link.click();
   await page.locator('[data-learn-files]').waitFor({ timeout: 10000 });
   assert.equal(await page.locator('[data-panel-tab="files"]').getAttribute('aria-selected'), 'true');
