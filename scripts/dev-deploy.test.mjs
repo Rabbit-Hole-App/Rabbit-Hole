@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, deployedSha, decide, learnTables, servedRecord, entryScript } from './dev-deploy.mjs';
+import { gateVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript } from './dev-deploy.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -72,14 +72,41 @@ test('the Learn tables the smoke expects are exactly what the learn migrations c
   assert.ok(['user_handles', 'canvas_publications', 'library_trash'].every(t => wanted.includes(t)));
 });
 
-test('a secret change is not a code deploy: the served sha comes from the last upload, rollback from the current version', () => {
-  const upload = (message, version) => ({ annotations: { 'workers/triggered_by': 'upload', 'workers/message': message }, versions: [{ version_id: version }] });
-  const secret = version => ({ annotations: { 'workers/triggered_by': 'secret' }, versions: [{ version_id: version }] });
-  // The real history of 2026-10-08: the gated deploy, then the Access secrets.
-  assert.deepEqual(servedRecord([upload('main 42f5a4f0 (gated tree 192b10f3)', 'c5b0a07d'), secret('0d4b3a6c')]), { message: 'main 42f5a4f0 (gated tree 192b10f3)', version: '0d4b3a6c', unrecorded: false });
-  assert.equal(servedRecord([upload('main 42f5a4f0', 'a'), upload(undefined, 'b')]).unrecorded, true, 'a hand upload with no message stops the pipeline');
-  assert.equal(servedRecord([secret('a')]).unrecorded, false, 'secrets alone are not an unrecorded upload');
-  assert.deepEqual(servedRecord([]), {});
+test('the served sha comes from the version chain: secret versions inherit, rollbacks serve their version again', () => {
+  // The real clone history to 2026-10-08, newest first, with each version's own annotations.
+  const versions = {
+    c5b0a07d: { trigger: 'upload', message: 'main 42f5a4f0 (gated tree 192b10f3)' },
+    '0d4b3a6c': { trigger: 'secret' },
+    b48e07aa: { trigger: 'version_upload', message: `main ${'e'.repeat(40)} build 5acc0f6ba69c` },
+  };
+  const d = id => ({ versions: [id] });
+  const history = [d('c5b0a07d')];
+  assert.equal(servedSha(history, versions), '42f5a4f0', 'the gated upload');
+  history.unshift(d('0d4b3a6c'));
+  assert.equal(servedSha(history, versions), '42f5a4f0', 'the Access secrets kept 42f5a4f0 code');
+  history.unshift(d('b48e07aa'));
+  assert.equal(servedSha(history, versions), 'e'.repeat(40), 'the e03a7a53 deploy');
+  history.unshift(d('0d4b3a6c'));
+  assert.equal(servedSha(history, versions), '42f5a4f0', 'the rollback to the secret version serves 42f5a4f0 again, whatever its message said');
+  versions.f1 = { trigger: 'secret' };
+  assert.equal(servedSha([d('f1'), ...history], versions), '42f5a4f0', 'a secret change after the rollback inherits the rollback');
+  versions.h1 = { trigger: 'upload' };
+  assert.equal(servedSha([d('h1'), ...history], versions), null, 'a hand upload without the message is unknown');
+  assert.equal(servedSha([{ versions: ['b48e07aa', 'c5b0a07d'] }, ...history], versions), null, 'a split rollout is unknown');
+  assert.equal(servedSha([], versions), null);
+});
+
+test('an unknown served commit refuses: forward-only cannot be checked against it', () => {
+  const r = decide({ candidate: 'b'.repeat(40), deployed: null, deployedIsAncestor: true, hasDeployments: true });
+  assert.equal(r.action, 'refuse'); assert.match(r.why, /unknown/);
+  assert.equal(decide({ candidate: 'b'.repeat(40), deployed: null, deployedIsAncestor: true, hasDeployments: false }).action, 'deploy', 'a first deploy');
+});
+
+test('policy A: only docs and the deploy and release scripts reuse a gate; app, deps, config, schema and lesson Markdown do not', () => {
+  assert.deepEqual(notReusable(['docs/features/dev-auto-deploy.md', 'CLAUDE.md', 'scripts/dev-deploy.mjs', 'scripts/dev-deploy.test.mjs', 'scripts/prod-release.mjs', 'scripts/prod-release.test.mjs']), []);
+  const app = ['packages/web/src/App.jsx', 'packages/web/package-lock.json', 'packages/web/wrangler.dev.jsonc', 'packages/control-plane/learn-migrations/0011-x.sql',
+    'packages/web/dev-access-worker.js', 'packages/web/src/lessons/nanogpt.md', 'run.sh', 'scripts/rabbit-hole-dev-verify.mjs', 'packages/web/vite.config.js'];
+  assert.deepEqual(notReusable(app), app);
 });
 
 test('the smoke waits for the built entry script, in the form the dev build emits it', () => {

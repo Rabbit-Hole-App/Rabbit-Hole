@@ -1,10 +1,13 @@
 # Stable testing URL: gated main deploys itself to dev
 
-**Owner:** Parallel (integration owner), with Home for environment verification.
-**Status (2026-10-07):** the pipeline is built. Two things are still blocked:
-- **Signed-in flows** wait on the separate migration request: `rabbit-hole-learn-dev` lacks learn migrations 0004–0010.
-- **Access sign-in** waits on owner actions. Zero Trust is on with team `rabbit-hole.cloudflareaccess.com`, but the
-  rabbit-hole API token can only read Access, and the Google OAuth client still needs the Access callback.
+**Owner:** Home (stable-preview infrastructure, from 2026-10-08). Parallel runs the trigger as the last step of its merge procedure and owns the app gate.
+
+**Status (2026-10-08):**
+- The pipeline is built.
+- Access is configured. Home verified it read-only on 2026-10-07: it admits the owner's email and the smoke service token, and production is untouched.
+- The first automated run, for main `e03a7a53`, rolled itself back. Its smoke looked for `/assets/` instead of `/static/`. That is fixed.
+- The clone serves `42f5a4f0` until the next run.
+- **Signed-in flows** are blocked on the dev Learn schema request, which is prepared and not approved: [Dev Learn schema](#dev-learn-schema-0004-0010-prepared-not-approved).
 
 Production release is a separate, held job: [prod-release.md](prod-release.md) (Home).
 
@@ -36,7 +39,10 @@ serving):
    
    A failed or unfinished gate deploys nothing, so the last passing deployment stays.
 3. **Forward only.**
-   - The Worker's current deployment message names the sha it serves.
+   - The sha the clone serves is read from its version chain (Cloudflare API, `servedSha`):
+     - each version's own upload message names its sha (`main <sha> build <hash>`), so a rollback serves that version again under its original record;
+     - a version made by a secret change (an Access setting) carries the code that served when it was made, so it resolves through the deployment before it;
+     - an upload without the message, or a split rollout, is **unknown**. The run then refuses, because an unknown commit could be newer than the candidate.
    - The candidate must descend from that sha. The same sha is a no-op; an older or diverged one is refused.
    - The check runs twice, before the build and again just before the deploy.
    - A lock file stops two local runs from overlapping.
@@ -46,7 +52,10 @@ serving):
    - The entrypoint is the dev worker with the Access bridge in front; see [Access](#access).
 5. **Record.**
    - The Worker's deployment history (`wrangler deployments list --name …`) is the record of what is deployed.
-   - Each run also appends `{"sha","gates","smoke","worker","version","at"}` to `<git common dir>/rabbit-hole-dev-deploys.jsonl`. This is the green dev record that `prod-release.mjs prepare` reads.
+   - Each run also appends a line to `<git common dir>/rabbit-hole-dev-deploys.jsonl`:
+     `{"sha","gates","build","smoke","worker","version","at"}`.
+   - `gates` is `"pass"` for the commit's own full gate. It is `"reused"` with `app_gate_sha` under [policy A](#policy-a-reusing-a-gate).
+   - `prod-release.mjs prepare` reads this record and accepts only `gates: "pass"` with `smoke: "pass"`.
 6. **Smoke and rollback.**
    - The smoke waits until the URL serves this build, then checks:
      - `/` and `/library` return 200;
@@ -61,7 +70,34 @@ serving):
 1. List the versions with `npx wrangler deployments list --name rabbit-hole-web-dev-small-parallel`.
 2. Roll back with `npx wrangler rollback <version-id> --name rabbit-hole-web-dev-small-parallel -m "rollback to main <sha>: <why>"`.
 
-Run both from `packages/web`, with the rabbit-hole token. Keep the `main <sha>` wording in the message, so that the next forward-only check knows what the URL serves.
+Run both from `packages/web`, with the rabbit-hole token. A rollback serves an earlier version, and that version's own upload message still names its sha, so the forward-only check keeps working. Keep `main <sha>` in the rollback message anyway, for people reading the history.
+
+## Policy A: reusing a gate
+
+Owner policy, 2026-10-08:
+- A docs-only change gets doc checks only.
+- A deploy or pipeline change gets focused checks.
+- An app, Worker, control-plane, dependency or config change gets the full gate.
+
+`dev-deploy.mjs` enforces the reuse case:
+
+```bash
+node scripts/dev-deploy.mjs --sha <main commit> --reuse <gated main commit> --gate <the gated commit's gate record>
+```
+
+The run refuses unless all of these hold:
+1. The gate record passes for the **gated** commit's tree.
+2. The gated commit is an ancestor of the candidate.
+3. Every path changed between the two is reusable: `docs/**`, a top-level `*.md`, or `scripts/dev-deploy(.test).mjs` / `scripts/prod-release(.test).mjs`.
+   - Markdown under `packages/` is not reusable: lesson Markdown ships in the bundle.
+   - `run.sh`, configs, migrations, lockfiles and every other script also need their own gate.
+4. The focused tests (`scripts/dev-deploy.test.mjs`, `scripts/prod-release.test.mjs`) pass on the exact tree.
+5. **The dev build is byte-identical to the gated commit's recorded build.**
+   - This is the proof that no build input changed, including through a change to `dev-deploy.mjs` itself.
+   - The dev build is deterministic: a clean rebuild of `e03a7a53` on 2026-10-08 reproduced its deployed hash, `5acc0f6ba69c`.
+   - A gated commit with no recorded build cannot be reused.
+
+The record says `gates: "reused"` and `app_gate_sha`, so it is never mistaken for a fresh gate.
 
 **Not automated, on purpose.**
 - **No remote migration.** Migrations are always a separate owner approval.
@@ -105,7 +141,7 @@ Without `ACCESS_AUD`, the worker behaves exactly as before. With `ACCESS_AUD` se
 - if any other key above is missing, the worker answers 503 and never mints a session;
 - any other host is refused, including the clone's version-preview hosts, which sit outside the Access application.
 
-**Setup.**
+**Setup (done 2026-10-07; Home verified it the same day).**
 1. **Owner (dashboard):**
    - turn on Zero Trust on the rabbit-hole account and pick the team name;
    - give the rabbit-hole API token the Access permissions below;
@@ -130,3 +166,41 @@ Without `ACCESS_AUD`, the worker behaves exactly as before. With `ACCESS_AUD` se
 - without `ACCESS_AUD`, nothing changes.
 
 `dev-barrier.test.js` still pins two things: the guard is the handler's first statement, and the barrier is its last line.
+
+## Dev Learn schema 0004-0010 (prepared, NOT approved)
+
+Signed-in flows on the stable URL return 500 until `rabbit-hole-learn-dev` has the learn migrations main already uses (`no such table: user_handles`). The smoke reports them as **blocked**. Applying the migrations needs the owner's explicit GO, and this document does not give it.
+
+**Rehearsal (2026-10-08, local only).**
+- Method: copy the live schema of `rabbit-hole-learn-dev` (and of `rabbit-hole-learn-prod`, for comparison) by SELECT from `sqlite_master` into in-memory SQLite. Then apply 0004-0010 in order, twice.
+- Starting state: both databases were at 0001-0003, with 15 objects each.
+- Result:
+  - every file applied, and the second pass was a no-op;
+  - 14 new objects were created: 10 tables and 4 indexes;
+  - every existing object was unchanged.
+- The files contain only `CREATE ... IF NOT EXISTS` statements: no `ALTER`, `DROP`, `UPDATE`, `DELETE` or `INSERT`. No data changes.
+
+| File | Creates |
+|---|---|
+| `0004-canvas-forks.sql` | `canvas_forks` + index |
+| `0005-shared-canvas-v1.sql` | `board_repository_pins`, `repository_visibility`, `shared_ask_events` + 2 indexes |
+| `0006-learning-journeys.sql` | `learning_journeys` + unique index, `learning_path_versions` |
+| `0007-canvas-publications.sql` | `canvas_publications` |
+| `0008-user-handles.sql` | `user_handles` |
+| `0009-canvas-metadata.sql` | `canvas_metadata` |
+| `0010-library-trash.sql` | `library_trash` |
+
+**Commands (at the owner's GO, dev only).** Run them from `packages/control-plane` with the rabbit-hole token. `wrangler.rabbit-hole-dev.jsonc` binds `rabbit-hole-learn-dev` (028f800f):
+
+```bash
+for f in learn-migrations/0004-*.sql learn-migrations/0005-*.sql learn-migrations/0006-*.sql learn-migrations/0007-*.sql          learn-migrations/0008-*.sql learn-migrations/0009-*.sql learn-migrations/0010-*.sql; do
+  npx wrangler d1 execute rabbit-hole-learn-dev --remote --config wrangler.rabbit-hole-dev.jsonc --file "$f" -y || break
+done
+npx wrangler d1 execute rabbit-hole-learn-dev --remote --config wrangler.rabbit-hole-dev.jsonc --json   --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+```
+
+- **Check:** all ten tables are listed. Then re-run `dev-deploy.mjs` on the current main, or open the stable URL signed in: `/api/apps` and `/api/profile` return 200, and the smoke turns `pass`.
+- **Rollback:** not needed. The migrations are additive, and the code that predates them never reads the new tables.
+
+Production `rabbit-hole-learn-prod` is at the same 0003 level. It is a separate GO, and the [release job](prod-release.md) refuses to release main until it is migrated.
+

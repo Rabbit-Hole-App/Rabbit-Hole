@@ -55,8 +55,34 @@ export const learnTables = repo => {
 // The built page's module entry (Vite emits it as /static/app-<hash>.js): the served page names it once the new build is live.
 export const entryScript = html => html.match(/<script[^>]*type="module"[^>]*src="([^"]+\.js)"/)?.[1] ?? null;
 
+// Which main commit the clone serves. deployments: newest first, [{ versions: [version id] }]; versions: id ->
+// { message, trigger }, the version's own annotations. A version names its commit in its upload message
+// ("main <sha> build <hash>"), and a rollback serves that same version again, so deployment messages are not needed.
+// A version made by a secret change (an Access setting) carries the code that served when it was made: it resolves
+// through the deployment before the one that introduced it. Anything else (a split rollout, an upload without the
+// message) is unknown: null, and the pipeline stops rather than guess.
+export function servedSha(deployments, versions) {
+  const at = (i, depth) => {
+    const d = deployments[i];
+    if (!d || d.versions.length !== 1 || depth > deployments.length) return null;
+    const id = d.versions[0], v = versions[id];
+    const sha = deployedSha(v?.message);
+    if (sha || v?.trigger !== 'secret') return sha;
+    return at(deployments.findLastIndex(x => x.versions.length === 1 && x.versions[0] === id) + 1, depth + 1);
+  };
+  return at(0, 0);
+}
+
+// Owner policy A (2026-10-08): a main commit whose changes since a fully gated main commit are only docs or the
+// deploy and release scripts reuses that commit's app gate. App source, dependencies, build inputs, runtime config
+// and schema need a gate of their own. Markdown under packages/ is not here: lesson Markdown ships in the bundle.
+const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|prod-release)(\.test)?\.mjs$/];
+export const notReusable = changed => changed.filter(p => !REUSABLE.some(r => r.test(p)));
+
 // deploy | noop | refuse
-export function decide({ candidate, deployed, deployedIsAncestor }) {
+export function decide({ candidate, deployed, deployedIsAncestor, hasDeployments }) {
+  // Forward-only needs to know what serves now; an unknown commit could be newer than the candidate.
+  if (hasDeployments && !deployed) return { action: 'refuse', why: 'the clone serves a version whose main commit is unknown (an upload without its "main <sha>" message); redeploy a gated commit by hand' };
   if (deployed && candidate.startsWith(deployed)) return { action: 'noop', why: `${deployed.slice(0, 8)} is already deployed` };
   if (deployed && !deployedIsAncestor) return { action: 'refuse', why: `the clone serves ${deployed.slice(0, 8)}, which is not an ancestor of ${candidate.slice(0, 8)} (an older run never overwrites a newer deployment)` };
   return { action: 'deploy', why: deployed ? `${candidate.slice(0, 8)} descends from deployed ${deployed.slice(0, 8)}` : 'no recorded deployment' };
@@ -69,19 +95,40 @@ const isAncestor = (a, b) => { try { execFileSync('git', ['merge-base', '--is-an
 const fromEnvFile = key => { try { return readFileSync(join(root, '.env'), 'utf8').match(new RegExp(`^${key}=(.*)$`, 'm'))?.[1]?.trim().replace(/^"|"$/g, ''); } catch { return undefined; } };
 const wrangler = (args, extra = {}) => execFileSync('npx', ['wrangler', ...args], { cwd: web, encoding: 'utf8', shell: true, env: { ...process.env, CI: 'true', ...extra }, stdio: ['ignore', 'pipe', 'pipe'] });
 const say = line => console.log(line);
-const stop = line => { console.error(`✗ ${line}`); process.exit(1); };
+// Throws, so the lock's finally still runs; the entry point prints it and exits 1.
+class Stop extends Error {}
+const stop = line => { throw new Stop(line); };
 
-// What the clone serves, from its deployment history (oldest first): the version to roll back to is the current one;
-// the sha is the last code upload's message. A secret change (an Access setting) deploys the same code under no
-// message, so it is skipped; a code upload without a "main <sha>" message is unrecorded and stops the pipeline.
-export function servedRecord(list) {
-  const current = list.at(-1);
-  if (!current) return {};
-  const upload = [...list].reverse().find(d => d.annotations?.['workers/triggered_by'] !== 'secret');
-  const message = upload?.annotations?.['workers/message'];
-  return { message, version: current.versions?.[0]?.version_id, unrecorded: !!upload && !deployedSha(message) };
+const script = async path => {
+  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/scripts/${WORKER}${path}`, { headers: { ...UA, Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` } });
+  const j = await r.json().catch(() => ({}));
+  if (!j.success) stop(`Cloudflare ${path}: ${r.status} ${JSON.stringify(j.errors ?? [])}`);
+  return j.result;
+};
+
+// What the clone serves now: the version to roll back to and, through the version chain, its main commit.
+async function serving() {
+  const deployments = (await script('/deployments')).deployments.map(d => ({ versions: d.versions.map(v => v.version_id) }));
+  const versions = {};
+  for (const id of new Set(deployments.flatMap(d => d.versions))) {
+    const v = await script(`/versions/${id}`);
+    versions[id] = { message: v.annotations?.['workers/message'], trigger: v.annotations?.['workers/triggered_by'] };
+  }
+  return { sha: servedSha(deployments, versions), version: deployments[0]?.versions[0], any: deployments.length > 0 };
 }
-const latestDeployment = () => servedRecord(JSON.parse(wrangler(['deployments', 'list', '--name', WORKER, '--json'])));
+
+// The dev build a commit was deployed with: its line in the dev record, else its version's upload message.
+async function recordedBuild(sha, recordPath) {
+  let text = '';
+  try { text = readFileSync(recordPath, 'utf8'); } catch {}
+  const line = text.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).findLast(r => r?.sha === sha && r.build);
+  if (line) return line.build;
+  for (const v of (await script('/versions')).items ?? []) {
+    const m = v.annotations?.['workers/message']?.match(/^main ([0-9a-f]{40}) build ([0-9a-f]+)$/);
+    if (m?.[1] === sha) return m[2];
+  }
+  return null;
+}
 
 function buildHash(dir) {
   const files = (function walk(d) { return readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]); })(dir).sort();
@@ -127,24 +174,44 @@ async function smoke(entry) {
   return results;
 }
 
+
 async function main() {
   const arg = k => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
   if (process.env.CLOUDFLARE_ACCOUNT_ID !== ACCOUNT) stop('CLOUDFLARE_ACCOUNT_ID must be the rabbit-hole account');
   const sha = git('rev-parse', `${arg('sha') ?? stop('--sha <main commit> is required')}^{commit}`);
-  const tree = git('rev-parse', `${sha}^{tree}`);
   git('fetch', '-q', 'origin', 'main');
   if (!isAncestor(sha, 'origin/main')) stop(`${sha.slice(0, 8)} is not on origin/main`);
   if (git('rev-parse', 'HEAD') !== sha) stop(`this checkout is not at ${sha.slice(0, 8)}; deploy builds the exact commit`);
   if (git('status', '--porcelain', '--untracked-files=no') || git('ls-files', '--others', '--exclude-standard', 'packages/web/src', 'packages/web/public', 'packages/web/index.html')) stop('this checkout has local changes under the build');
+  const record = join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl');
+
+  // The gate record is the candidate's own, or (policy A, --reuse) that of the gated main commit it builds on.
+  const reuse = arg('reuse') && git('rev-parse', `${arg('reuse')}^{commit}`);
+  const gated = reuse || sha, tree = git('rev-parse', `${gated}^{tree}`);
   const verdict = gateVerdict(readFileSync(arg('gate') ?? stop('--gate <gate record> is required'), 'utf8'), tree);
   if (verdict) stop(`gate: ${verdict} - the last passing deployment stays`);
-  say(`✓ gate passed for ${sha.slice(0, 8)} (tree ${tree.slice(0, 8)})`);
+  say(`✓ gate passed for ${gated.slice(0, 8)} (tree ${tree.slice(0, 8)})`);
+  let gatedBuild = null;
+  if (reuse) {
+    if (reuse === sha) stop('--reuse names the candidate itself; deploy it without --reuse');
+    if (!isAncestor(reuse, sha)) stop(`the gated ${reuse.slice(0, 8)} is not an ancestor of ${sha.slice(0, 8)}`);
+    const changed = git('diff', '--name-only', reuse, sha).split('\n').filter(Boolean);
+    const outside = notReusable(changed);
+    if (outside.length) stop(`policy A: ${outside.join(', ')} changed since the gated ${reuse.slice(0, 8)}; this commit needs its own full gate`);
+    // The focused checks, on this exact tree: failed-gate rejection, exact sha, stale runs, environment targeting.
+    try { execFileSync(process.execPath, ['--test', 'scripts/dev-deploy.test.mjs', 'scripts/prod-release.test.mjs'], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] }); }
+    catch { stop('policy A: the focused deploy and release tests failed'); }
+    // The dev build must be byte-identical to the gated one: proof that no build input changed.
+    gatedBuild = await recordedBuild(reuse, record);
+    if (!gatedBuild) stop(`policy A: no recorded dev build for the gated ${reuse.slice(0, 8)} to compare this build with`);
+    say(`✓ policy A: reusing the app gate of ${reuse.slice(0, 8)}; changed since: ${changed.join(', ')}; focused tests passed`);
+  }
 
   const lock = join(tmpdir(), `${WORKER}.deploy.lock`);
   try { mkdirSync(lock); } catch { stop(`another deploy holds ${lock} (remove it only if no deploy is running)`); }
   try {
-    const before = latestDeployment();
-    const check = d => { if (d.unrecorded) stop(`the clone serves an unrecorded upload (${d.message ?? 'no message'}); redeploy a gated commit by hand`); const deployed = deployedSha(d.message); return decide({ candidate: sha, deployed: deployed && git('rev-parse', deployed), deployedIsAncestor: deployed ? isAncestor(deployed, sha) : true }); };
+    const before = await serving();
+    const check = d => decide({ candidate: sha, deployed: d.sha && git('rev-parse', d.sha), deployedIsAncestor: d.sha ? isAncestor(d.sha, sha) : true, hasDeployments: d.any });
     let plan = check(before);
     say(`${plan.action === 'deploy' ? '✓' : '!'} ${plan.action}: ${plan.why}`);
     if (plan.action !== 'deploy') { process.exitCode = plan.action === 'noop' ? 0 : 1; return; }
@@ -156,9 +223,10 @@ async function main() {
     const build = buildHash(join(web, 'dist-dev'));
     const entry = entryScript(readFileSync(join(web, 'dist-dev/index.html'), 'utf8'));
     if (!entry) stop('dist-dev/index.html has no module entry script; nothing deployed');
-    say(`✓ built dist-dev ${build}`);
+    if (gatedBuild && build !== gatedBuild) stop(`policy A: this build ${build} differs from the gated build ${gatedBuild}, so a build input changed; a full gate is needed`);
+    say(`✓ built dist-dev ${build}${gatedBuild ? ' (identical to the gated build)' : ''}`);
 
-    plan = check(latestDeployment()); // again: another machine may have deployed during the build
+    plan = check(await serving()); // again: another machine may have deployed during the build
     if (plan.action !== 'deploy') { say(`! ${plan.action}: ${plan.why}`); process.exitCode = plan.action === 'noop' ? 0 : 1; return; }
     // The Access entrypoint (dev-access-worker.js): the dev worker with the Access sign-in bridge in front.
     const out = wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--message', `"main ${sha} build ${build}"`]);
@@ -167,17 +235,20 @@ async function main() {
 
     const results = await smoke(entry);
     for (const [state, line] of results) say(`${state === 'pass' ? '✓' : state === 'blocked' ? '!' : '✗'} ${state === 'blocked' ? 'blocked: ' : ''}${line}`);
-    const verdict = results.some(([state]) => state === 'fail') ? 'fail' : results.some(([state]) => state === 'blocked') ? 'blocked' : 'pass';
-    appendFileSync(join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl'), `${JSON.stringify({ sha, gates: 'pass', smoke: verdict, worker: WORKER, version, at: new Date().toISOString() })}
-`);
-    if (verdict === 'fail') {
+    const smokeVerdict = results.some(([state]) => state === 'fail') ? 'fail' : results.some(([state]) => state === 'blocked') ? 'blocked' : 'pass';
+    // Reused gate evidence is recorded apart from a fresh gate: prod-release prepare accepts only gates "pass".
+    const gates = reuse ? { gates: 'reused', app_gate_sha: reuse } : { gates: 'pass' };
+    appendFileSync(record, `${JSON.stringify({ sha, ...gates, build, smoke: smokeVerdict, worker: WORKER, version, at: new Date().toISOString() })}\n`);
+    if (smokeVerdict === 'fail') {
       if (before.version) {
-        wrangler(['rollback', before.version, '--name', WORKER, '-y', '-m', `"rollback to main ${deployedSha(before.message)}: smoke failed for ${sha.slice(0, 8)}"`]);
-        say(`✗ smoke failed: rolled back to version ${before.version} (${before.message})`);
+        wrangler(['rollback', before.version, '--name', WORKER, '-y', '-m', `"rollback to main ${before.sha}: smoke failed for ${sha.slice(0, 8)}"`]);
+        say(`✗ smoke failed: rolled back to version ${before.version} (main ${before.sha.slice(0, 8)})`);
       } else say('✗ smoke failed and there is no earlier version to roll back to');
       process.exitCode = 1;
     }
   } finally { rmSync(lock, { recursive: true, force: true }); }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main().catch(e => { if (!(e instanceof Stop)) throw e; console.error(`✗ ${e.message}`); process.exitCode = 1; });
+}
