@@ -39,6 +39,9 @@ export function anchorText(anchor, live) {
   return `on ${anchor.label || noun}`;
 }
 
+// What a pin says (owner, 2026-10-08): its thread's live message count, capped so it fits the pin without resizing it.
+export const pinCount = count => (count > 99 ? '99+' : String(count));
+
 // A card's title for its anchor label: what the reader sees on it first.
 export function objectLabel(entry) {
   if (!entry) return '';

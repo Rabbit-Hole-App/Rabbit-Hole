@@ -57,7 +57,11 @@ await context.route(/\/api\/learn\/(tutor|artifact|home-ask|journeys?)\b/, route
 const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message));
 const results = [];
-const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
+// A failing check leaves a screenshot of the page as it was.
+const check = async (label, fn) => {
+  try { await fn(); } catch (error) { await page.screenshot({ path: `${SHOTS}/fail-${label.split(' ')[0]}.png` }).catch(() => {}); throw error; }
+  results.push(label); console.log(`ok ${label}`);
+};
 const shot = async (name, clip = null) => {
   await page.waitForTimeout(400);
   const box = clip ? await clip.boundingBox() : null;
@@ -370,7 +374,138 @@ await check('17 C with a selection: a card, a shape and a group each get a draft
   await shot('17-c-on-group');
 });
 
-await check('18 no model call, no stray write, no page error', async () => {
+// Owner, 2026-10-08: a pin is a canvas object - orange and solid by default with its live count, picked and opened by a
+// click that keeps the keyboard on it, recoloured from the shapes' palette, deleted with Del by whoever may delete it.
+const shapesApi = `/api/learn/c/${(await api(`/api/learn/boards/${shapesCanvas.name}/main`)).body.board_id}`;
+const threadOn = async objectId => (await api(`${shapesApi}/threads`)).body.threads.find(thread => thread.anchor.object_id === objectId);
+const pinFor = id => page.locator(`[data-comment-pin="${id}"]`);
+const styleOf = (locator, name) => locator.evaluate((node, property) => getComputedStyle(node)[property], name);
+const freshList = async () => { await page.evaluate(() => window.dispatchEvent(new Event('focus'))); await page.waitForTimeout(600); };
+const ORANGE = 'rgb(245, 158, 11)';
+// A reload or a close waits for quiet: the local dev proxy has dropped when a page went away mid-request.
+const quiet = tab => tab.waitForLoadState('networkidle').catch(() => {});
+
+await check('18 a pin is orange with a solid outline and shows its count; the + and the count are white in light mode, dark in dark mode', async () => {
+  const thread = await threadOn('s-box');
+  const pin = pinFor(thread.id);
+  assert.deepEqual([await styleOf(pin, 'borderTopStyle'), await styleOf(pin, 'backgroundColor'), await styleOf(pin, 'borderTopColor')], ['solid', ORANGE, ORANGE]);
+  assert.deepEqual([await pin.locator('[data-pin-count]').textContent(), await pin.getAttribute('aria-label')], ['1', '1 comment']);
+  // The theme is read when the page loads (main.jsx applyTheme), so dark mode is a fresh tab with the dark scheme.
+  const draftOn = async (tab, scheme) => {
+    const box = await tab.locator('[data-shape-id="s-box"]').boundingBox();
+    await tab.mouse.click(box.x + box.width / 2, box.y + box.height / 2 + 30, { button: 'right' });
+    await tab.locator('[data-menu-add-comment]').click();
+    const ghost = tab.locator('[data-comment-pin="draft"]');
+    await ghost.waitFor();
+    const seen = { border: await styleOf(ghost, 'borderTopStyle'), fill: await styleOf(ghost, 'backgroundColor'), plus: await styleOf(ghost.locator('svg'), 'color'),
+      count: await styleOf(tab.locator(`[data-comment-pin="${thread.id}"] [data-pin-count]`), 'color') };
+    await tab.screenshot({ path: `${SHOTS}/18-draft-${scheme}.png` }); console.log(`shot 18-draft-${scheme}`);
+    await tab.locator('[data-comments-panel]').getByRole('button', { name: 'Cancel' }).click();
+    return seen;
+  };
+  assert.deepEqual(await draftOn(page, 'light'), { border: 'solid', fill: ORANGE, plus: 'rgb(255, 255, 255)', count: 'rgb(255, 255, 255)' });
+  const dark = await context.newPage();
+  dark.on('pageerror', error => errors.push(error.message));
+  await dark.emulateMedia({ colorScheme: 'dark' });
+  await dark.goto(`${BASE}/apps/${shapesCanvas.name}`);
+  await dark.locator('[data-shape-id="s-box"]').waitFor({ timeout: 60000 });
+  await dark.waitForTimeout(1200);
+  await dark.evaluate(() => document.activeElement?.blur?.()); await dark.keyboard.press('Shift+Digit1'); await dark.waitForTimeout(800);
+  assert.equal(await dark.evaluate(() => document.documentElement.classList.contains('dark')), true, 'the app took the dark scheme');
+  await dark.locator(`[data-comment-pin="${thread.id}"]`).waitFor();
+  assert.deepEqual(await draftOn(dark, 'dark'), { border: 'solid', fill: ORANGE, plus: 'rgb(25, 25, 25)', count: 'rgb(25, 25, 25)' });
+  await quiet(dark);
+  await dark.close();
+});
+
+await check('19 a click on a pin opens its thread in the panel and keeps the focus on the pin; its count follows a reply and a deleted reply', async () => {
+  const thread = await threadOn('s-box');
+  await pinFor(thread.id).click();
+  await panel().locator('[data-comment-thread-view]').waitFor();
+  assert.match(await panel().innerText(), /Is this the ice or the brine\?/);
+  assert.equal(await page.evaluate(() => document.activeElement?.dataset?.commentPin), thread.id, 'the pin keeps the focus');
+  assert.equal(await pinFor(thread.id).getAttribute('data-picked'), '', 'picked: the selection ring');
+  await shot('19-pin-picked-open');
+  await send('Neither: it is the salt.');
+  await page.waitForFunction(id => document.querySelector(`[data-comment-pin="${id}"] [data-pin-count]`)?.textContent === '2', thread.id, { timeout: 15000 });
+  const reply = (await api(`${shapesApi}/threads/${thread.id}`)).body.messages[1].id;
+  assert.equal((await api(`${shapesApi}/comments/${reply}`, { method: 'DELETE', headers: { origin: BASE } })).status, 200);
+  await freshList();
+  await page.waitForFunction(id => document.querySelector(`[data-comment-pin="${id}"] [data-pin-count]`)?.textContent === '1', thread.id, { timeout: 15000 });
+});
+
+await check('20 a picked pin takes a colour from the shapes\' palette; it stays after a reload and never touches the board', async () => {
+  const before = (await api(`/api/learn/boards/${shapesCanvas.name}/main`)).body.version;
+  const thread = await threadOn('s-box');
+  await pinFor(thread.id).click();
+  const style = page.locator('[role="group"][aria-label="Style"]');
+  await style.waitFor();
+  assert.equal(await style.locator('button').count(), 6, 'the six colours, nothing else');
+  assert.ok((await style.boundingBox()).width >= 64, 'the swatches show side by side, not clipped to a sliver');
+  await shot('20-pin-colour', style);
+  await style.getByRole('button', { name: 'Color #2383e2' }).click();
+  await page.waitForFunction(id => getComputedStyle(document.querySelector(`[data-comment-pin="${id}"]`)).backgroundColor === 'rgb(35, 131, 226)', thread.id);
+  await quiet(page);
+  await page.reload();
+  await shape('s-box').waitFor({ timeout: 60000 });
+  await page.waitForTimeout(1000);
+  await pinFor(thread.id).waitFor();
+  assert.equal(await styleOf(pinFor(thread.id), 'backgroundColor'), 'rgb(35, 131, 226)', 'after a reload');
+  assert.equal((await threadOn('s-box')).color, '#2383e2');
+  assert.equal((await api(`/api/learn/boards/${shapesCanvas.name}/main`)).body.version, before, 'the board version is unchanged');
+});
+
+await check('21 Del right after a click deletes the pin\'s thread; Backspace on a thread with replies asks first', async () => {
+  await fit();
+  const group = await threadOn('g-ice');
+  await pinFor(group.id).click();
+  await page.keyboard.press('Delete');
+  await pinFor(group.id).waitFor({ state: 'detached' });
+  assert.equal((await api(`${shapesApi}/threads/${group.id}`)).status, 404, 'gone on the server');
+  const thread = await threadOn('s-box');
+  assert.equal((await api(`${shapesApi}/threads/${thread.id}/comments`, { method: 'POST', body: JSON.stringify({ id: crypto.randomUUID(), body: 'One more.', mentions: [] }), headers: { origin: BASE } })).status, 201);
+  await freshList();
+  await pinFor(thread.id).click();
+  await page.keyboard.press('Backspace');
+  const ask = page.locator('[data-pin-ask][role="dialog"]');
+  await ask.waitFor();
+  assert.match(await ask.innerText(), /Delete the thread and its 1 reply\?/);
+  await shot('21-delete-asks', page.locator('[data-comment-pins]'));
+  await ask.getByRole('button', { name: 'Delete' }).click();
+  await pinFor(thread.id).waitFor({ state: 'detached' });
+  assert.equal((await api(`${shapesApi}/threads/${thread.id}`)).status, 404);
+});
+
+await check('22 a member presses Del on the owner\'s pin: refused, with a line by the pin, and the pin stays', async () => {
+  const guest = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  await guest.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); if (!route.request().url().endsWith('/api/learn/tutor/next-steps')) stray.push(route.request().url()); return route.abort(); });
+  await guest.addCookies([{ name: 'small_session', value: member.session, url: BASE }]);
+  const tab = await guest.newPage();
+  tab.on('pageerror', error => errors.push(error.message));
+  await tab.goto(`${BASE}/c/${boardId}`);
+  await tab.locator('[data-block-id="k-exp"]').waitFor({ timeout: 60000 });
+  // The member page opens with Comments showing; close it, so the click on the pin opens it again.
+  await tab.locator('[data-member-comments]').waitFor();
+  await tab.locator('[data-comments-button]').click();
+  await tab.locator('[data-member-comments]').waitFor({ state: 'detached' });
+  const owners = (await memberApi(`/api/learn/c/${boardId}/threads`)).body.threads.find(thread => thread.preview?.startsWith('Add a diagram'));
+  const pin = tab.locator(`[data-comment-pin="${owners.id}"]`);
+  await pin.waitFor();
+  await pin.click();
+  await tab.locator('[data-member-comments] [data-comment-thread-view]').waitFor();
+  assert.equal(await tab.evaluate(id => document.activeElement?.dataset?.commentPin, owners.id), owners.id, 'picked from a closed panel, the pin keeps the focus');
+  await tab.keyboard.press('Delete');
+  const note = tab.locator('[data-pin-ask][role="status"]');
+  await note.waitFor();
+  assert.equal((await note.innerText()).trim(), "You can't delete this thread.");
+  await tab.screenshot({ path: `${SHOTS}/22-member-refused.png` }); console.log('shot 22-member-refused');
+  assert.equal(await pin.count(), 1, 'the pin stays');
+  assert.equal((await memberApi(`/api/learn/c/${boardId}/threads/${owners.id}`)).status, 200);
+  await quiet(tab);
+  await guest.close();
+});
+
+await check('23 no model call, no stray write, no page error', async () => {
   assert.deepEqual([asks, stray, errors], [[], [], []]);
 });
 

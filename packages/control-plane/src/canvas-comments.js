@@ -203,14 +203,22 @@ async function limited(env, ctx) {
     ? refuse("You've posted a lot in a short time. Try again in a few minutes.", 'limited', 429, { limited: true }) : null;
 }
 
-const THREAD_COLUMNS = `t.id, t.audience, t.anchor_json, t.created_by, t.created_at, t.resolved_at, t.last_activity_at, t.message_count, ${PERSON('t.created_by_email', 'a_')}`;
+const THREAD_COLUMNS = `t.id, t.audience, t.anchor_json, t.created_by, t.created_at, t.resolved_at, t.last_activity_at, t.message_count, ${PERSON('t.created_by_email', 'a_')},
+  (SELECT c.color FROM canvas_comment_colors c WHERE c.thread_id = t.id) AS color,
+  (SELECT count(*) FROM canvas_comments m WHERE m.thread_id = t.id AND m.deleted_at IS NULL) AS live,
+  (SELECT count(*) FROM canvas_comments m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND m.author_id <> t.created_by) AS others`;
+// A pin's colour: the canvas's six swatches (AdaptiveCanvas COLORS); no row is the default orange (CommentPins PIN_DEFAULT).
+export const PIN_COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'];
+// Deleting a whole thread: the canvas owner always; the starter only while every live message in it is theirs.
+const mayDeleteThread = (ctx, row) => allowed(ctx, 'delete_any', row.audience)
+  || (!!ctx.actor.uid && row.created_by === ctx.actor.uid && !row.others && allowed(ctx, 'delete_own', row.audience));
 function threadShape(ctx, row) {
   const starter = !!ctx.actor.uid && row.created_by === ctx.actor.uid;
   return {
-    id: row.id, audience: row.audience, anchor: JSON.parse(row.anchor_json), status: row.resolved_at ? 'resolved' : 'open', author: person(row, 'a_'),
-    created_at: row.created_at, last_activity_at: row.last_activity_at, replies: Math.max(0, row.message_count - 1),
+    id: row.id, audience: row.audience, anchor: JSON.parse(row.anchor_json), color: row.color || null, status: row.resolved_at ? 'resolved' : 'open', author: person(row, 'a_'),
+    created_at: row.created_at, last_activity_at: row.last_activity_at, replies: Math.max(0, row.message_count - 1), comments: row.live,
     hidden_from_public: row.audience === 'public' && ctx.mode === 'off',
-    can: { reply: allowed(ctx, 'post', row.audience), resolve: allowed(ctx, 'resolve', row.audience, starter) },
+    can: { reply: allowed(ctx, 'post', row.audience), resolve: allowed(ctx, 'resolve', row.audience, starter), color: allowed(ctx, 'resolve', row.audience, starter), delete: mayDeleteThread(ctx, row) },
   };
 }
 const MESSAGE_COLUMNS = `m.id, m.author_id, m.body, m.created_at, m.edited_at, m.deleted_at, m.deleted_by, ${PERSON('m.author_email', 'a_')}`;
@@ -441,6 +449,38 @@ async function deleteComment(env, ctx, id) {
   return commentReply(env, ctx, found.thread, id, 200);
 }
 
+// A pin's colour (section 8, owner 2026-10-08): the palette only, by whoever may resolve the thread; never the board.
+async function setColor(req, env, ctx, id) {
+  const thread = await threadIn(env, ctx, id);
+  if (!thread) return missingThread();
+  if (!allowed(ctx, 'resolve', thread.audience, thread.created_by === ctx.actor.uid)) return refuse("You can't change this comment's colour.", 'forbidden', 403);
+  const input = await readJson(req);
+  if (!PIN_COLORS.includes(input?.color)) return refuse('Pick a colour from the palette.', 'bad_color', 400);
+  await env.LEARN_DB.prepare('INSERT INTO canvas_comment_colors (thread_id, color, updated_by, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (thread_id) DO UPDATE SET color = excluded.color, updated_by = excluded.updated_by, updated_at = excluded.updated_at')
+    .bind(thread.id, input.color, ctx.actor.uid, new Date().toISOString()).run();
+  return json({ thread: threadShape(ctx, await threadIn(env, ctx, id)) });
+}
+
+// Del on a pin (owner, 2026-10-08): the whole thread, permanently - messages, mentions, read marks and colour.
+// ponytail: a deleted thread's messages leave the rate-limit counts; keep tombstones if delete-and-repost floods a canvas.
+async function deleteThread(env, ctx, id) {
+  const thread = await threadIn(env, ctx, id);
+  if (!thread) return missingThread();
+  if (!mayDeleteThread(ctx, thread)) {
+    const theirs = thread.created_by === ctx.actor.uid && thread.others;
+    return refuse(theirs ? 'Others have replied, so only the canvas owner can delete this thread.' : "You can't delete this thread.", 'forbidden', 403);
+  }
+  const db = env.LEARN_DB;
+  await db.batch([
+    db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id = ?)').bind(thread.id),
+    db.prepare('DELETE FROM canvas_comments WHERE thread_id = ?').bind(thread.id),
+    db.prepare('DELETE FROM canvas_comment_reads WHERE thread_id = ?').bind(thread.id),
+    db.prepare('DELETE FROM canvas_comment_colors WHERE thread_id = ?').bind(thread.id),
+    db.prepare('DELETE FROM canvas_comment_threads WHERE id = ?').bind(thread.id),
+  ]);
+  return json({ deleted: thread.id });
+}
+
 async function resolve(env, ctx, id, open) {
   const thread = await threadIn(env, ctx, id);
   if (!thread) return missingThread();
@@ -573,7 +613,8 @@ export async function canvasCommentsRoute(path, req, env) {
   if (family === 'member' && rest === '/board') return method === 'GET' ? readBoard(env, ctx) : not();
   if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? getAsset(env, ctx.board, decodeURIComponent(part[1])) : not();
   if (rest === '/threads') return method === 'GET' ? listThreads(env, ctx, url.searchParams) : method === 'POST' ? startThread(req, env, ctx) : not();
-  if ((part = rest.match(/^\/threads\/([^/]+)$/))) return method === 'GET' ? readThread(env, ctx, part[1], url.searchParams) : not();
+  if ((part = rest.match(/^\/threads\/([^/]+)$/))) return method === 'GET' ? readThread(env, ctx, part[1], url.searchParams) : method === 'DELETE' ? deleteThread(env, ctx, part[1]) : not();
+  if ((part = rest.match(/^\/threads\/([^/]+)\/color$/))) return method === 'PUT' ? setColor(req, env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/comments$/))) return method === 'POST' ? reply(req, env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/(resolve|reopen|read)$/))) {
     if (method !== 'POST') return not();

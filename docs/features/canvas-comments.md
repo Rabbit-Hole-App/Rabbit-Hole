@@ -370,11 +370,22 @@ Send; Esc or × removes the ghost.
 
 ### Pins
 
-The author's avatar in a speech-bubble pin at a constant screen size.
-- **Unread:** accent ring.
-- **Selected:** filled, and the object gets a soft outline.
+A speech-bubble pin at a constant screen size showing its thread's live message count (owner, 2026-10-08): the starter
+plus replies, deleted ones excluded, `99+` above 99; accessible name "N comments". Only the new-comment draft shows a +.
+- **Look:** filled with its colour and outlined solid in it; orange (the canvas palette's `#f59e0b`) unless recoloured.
+  The count and the + use the `white` token: white in light mode, the dark surface in dark mode.
+- **Unread:** accent ring. **Open in the panel:** an ink ring. **Picked:** the selection ring.
 - **Resolved:** shown only under Resolved or All.
 - View → Show comments toggles all pins; pins hide while presenting.
+- **A pin is a canvas object (owner, 2026-10-08).** A click picks it (the selection ring and the keyboard focus, never the
+  board selection) and opens its thread in the Comments panel, which leaves the focus on the pin. A press on the canvas or
+  Esc lets it go.
+  - **Colour:** a picked pin shows the shapes' colour control with only its six swatches, for whoever may resolve the thread.
+    Stored per thread (`canvas_comment_colors`, learn 0014), visible to everyone who sees the pin; the board is never written.
+  - **Del or Backspace:** deletes the whole thread, permanently (messages, mentions, read marks, colour; no undo). The
+    canvas owner always may; the starter only while every live message in it is theirs. A thread with replies asks first,
+    by the pin: "Delete the thread and its N replies?" [Cancel] [Delete]. A refusal shows the server's line by the pin.
+    The keys keep C's guards: typing in an input, the composer or a dialog never reaches them.
 
 ### Mentions [3, 8]
 
@@ -856,6 +867,8 @@ thread, and `thread_id` for a comment.
 | `POST …/threads/:id/comments` `{id, body, mentions}` | per section 3 | 201 / 200 / 409 `id_conflict` / 409 `thread_full` |
 | `PATCH …/comments/:id` `{body, mentions}` | the author, per section 3 | the edited message; mentions replaced |
 | `DELETE …/comments/:id` | the author (Q23) or the owner | soft delete |
+| `PUT …/threads/:id/color` `{color}` | whoever may resolve the thread | one of the six palette colours; `{thread}` |
+| `DELETE …/threads/:id` | the owner; the starter while every live message is theirs | the whole thread, permanently; `{deleted}` |
 | `POST …/threads/:id/resolve` · `/reopen` | per section 3 | |
 | `POST …/threads/:id/read` | anyone who can read the thread (Closed and blocked included) | mark read |
 | `GET …/people?audience=members\|public&q=` | anyone who can post in that audience | up to 8 `{name, handle, avatar_url}` from that audience's suggestion set; for a **new thread** (no thread id yet) |

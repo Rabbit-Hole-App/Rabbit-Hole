@@ -35,7 +35,7 @@ import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { looksLikeCode, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
-import CommentPins from './comments/CommentPins.jsx';
+import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel } from './comments/anchors.js';
 import { MathText } from './MathText.jsx';
 import { EQUATION_SIZE, newEquation, scaledSize, typingIn } from './canvas-equation.js';
@@ -1108,17 +1108,19 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing 
 // shown only while a drawing tool is armed or something styleable is selected.
 // Text swaps the thickness row for Notion's heading ladder.
 // It opens from the tools' gutter, beside the toolbar on whichever side it docks.
-function StylePanel({ side = 'right', text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
+function StylePanel({ colorOnly = false, side = 'right', text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
   const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
     <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
-      className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-24'} z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:top-auto @max-[640px]:left-auto @max-[640px]:right-0 @max-[640px]:bottom-full @max-[640px]:mb-2 @max-[640px]:max-h-[60vh] @max-[640px]:translate-y-0`}>
+      className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-24'} z-20 grid w-max max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:top-auto @max-[640px]:left-auto @max-[640px]:right-0 @max-[640px]:bottom-full @max-[640px]:mb-2 @max-[640px]:max-h-[60vh] @max-[640px]:translate-y-0`}>
       {COLORS.map(value => (
         <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
           className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
           <span style={{ background: value }} className={`h-3.5 w-3.5 rounded-full ${color === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
         </button>
       ))}
+      {/* A comment pin has a colour and nothing else (owner, 2026-10-08). */}
+      {!colorOnly && <>
       {showFill && rule}
       {showFill && (
         <>
@@ -1196,6 +1198,7 @@ function StylePanel({ side = 'right', text, showFill, corners, order, route = fa
             className="flex h-6 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><BringToFront size={14} strokeWidth={1.7} /></button>
         </>
       )}
+      </>}
     </div>
   );
 }
@@ -1250,12 +1253,18 @@ const CARDS_COPIED = 'rabbit-hole:copied-cards';
 // menu's MenuItem, its icon at 16px beside the label. A new row passes only its icon.
 const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPasteCode = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
   // The C key's way in to Add comment (set each render where comments are on; null elsewhere).
   const commentKeyRef = useRef(null);
+  // A picked comment pin (owner, 2026-10-08): not a board object, so it never joins the selection - picking one clears
+  // the selection and any board pick lets it go. pinAsk: the line by it (a delete to confirm, or a refusal). pinKeyRef:
+  // its keys (Enter, Del, Backspace, Esc), set each render while a pin is picked.
+  const [pinPick, setPinPick] = useState(null);
+  const [pinAsk, setPinAsk] = useState(null);
+  const pinKeyRef = useRef(null);
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
   const [dropHover, setDropHover] = useState(false);
@@ -2182,15 +2191,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // C (docs/features/canvas-comments.md, Q14): comment on the one selected or focused card, else arm the Comment tool,
       // on any board where you may comment. It stands down while typing, inside an embedded editor or widget (focus
       // inside a card), in a dialog or the composer, with Ctrl, Alt or Meta held (Ctrl+C still copies), and while presenting.
-      if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey && !event.altKey && commentKeyRef.current && presentingRef.current === null) {
-        const held = document.activeElement;
-        const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
-          || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
-        if (!busy) {
-          event.preventDefault();
-          if (!commentKeyRef.current.selection(focusedCard ? [focusedCard] : selectedRef.current)) commentKeyRef.current.arm();
-          return;
-        }
+      const held = document.activeElement;
+      const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
+        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
+      if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey && !event.altKey && commentKeyRef.current && presentingRef.current === null && !busy) {
+        event.preventDefault();
+        if (!commentKeyRef.current.selection(focusedCard ? [focusedCard] : selectedRef.current)) commentKeyRef.current.arm();
+        return;
+      }
+      // A picked comment pin: Enter opens its thread, Del or Backspace deletes it, Esc lets go - with C's guards, so typing
+      // in an input, the composer or a dialog never reaches it.
+      if (pinKeyRef.current && ['Enter', 'Delete', 'Backspace', 'Escape'].includes(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey && !busy) {
+        event.preventDefault();
+        pinKeyRef.current(event.key);
+        return;
       }
       // A view-only board's one tool besides the hand is Comment: Esc puts the hand back, and lets go of the selected card
       // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
@@ -2579,6 +2593,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return true;
     },
     arm: () => setTool('comment'),
+  } : null;
+  const pickedPin = pinPick ? commentPins?.find(pin => pin.id === pinPick && !pin.ghost) || null : null;
+  const dropPin = () => { setPinPick(null); setPinAsk(null); };
+  useEffect(() => { if (selection.length || (pinPick && !pickedPin)) dropPin(); }, [selection, pinPick, pickedPin]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickPin = id => { setSelection([]); setPinAsk(null); setPinPick(id); };
+  // The server decides; a refusal stays by the pin for a few seconds.
+  const notePin = note => { setPinAsk({ note }); setTimeout(() => setPinAsk(current => (current?.note === note ? null : current)), 4000); };
+  const deletePin = async id => { const refused = await onPinDelete(id); if (refused) notePin(refused); else dropPin(); };
+  const colorPin = async value => { const refused = await onPinColor(pinPick, value); if (refused) notePin(refused); };
+  // Del on a thread with replies asks first; one the server will refuse goes straight to it, for its answer.
+  pinKeyRef.current = pickedPin ? key => {
+    if (key === 'Escape') dropPin();
+    else if (key === 'Enter') onCommentPin?.(pickedPin.id);
+    else if (onPinDelete) { if (pickedPin.can.delete && pickedPin.comments > 1) setPinAsk({ replies: pickedPin.comments - 1 }); else deletePin(pickedPin.id); }
   } : null;
   const portPosition = (id, side) => {
     const shape = shapesRef.current.find(entry => entry.id === id);
@@ -2983,6 +3011,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // A press on the canvas dismisses the floating chrome - the style island
     // and the dev insert menu - the way it already dismisses a menubar menu.
     if (showStyle) setStyleOpen(false);
+    if (pinPick) dropPin();
     setInsertOpen(false); setMenuAt(null);
     if ((event.ctrlKey || event.metaKey) && tool === 'select' && (event.button === 0 || event.button === 2)
       && !event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) {
@@ -3608,7 +3637,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
         </div>
         {/* Comment pins (docs/features/canvas-comments.md): over the camera at a constant size; never while presenting. */}
-        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={commentBoard} onPin={onCommentPin} />}
+        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={commentBoard} onPin={onCommentPin} picked={pinPick} onPick={pickPin} ask={pinAsk} onConfirm={() => deletePin(pinPick)} onCancel={() => setPinAsk(null)} />}
         {menuAt && presenting === null && (() => {
           const grouped = selection.map(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId).filter(Boolean);
           const act = action => () => { action(); setMenuAt(null); };
@@ -3817,6 +3846,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }}
             onOrder={toFront => reorderSelection(toFront, panel.targets)} />
         )}
+        {!showStyle && pickedPin?.can.color && onPinColor && presenting === null && <StylePanel colorOnly side={toolSide} color={pickedPin.color || PIN_DEFAULT} onColor={colorPin} />}
         </div>
       )}
       </div>

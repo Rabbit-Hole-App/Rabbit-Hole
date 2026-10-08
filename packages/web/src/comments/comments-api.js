@@ -19,6 +19,8 @@ export const commentsApi = base => ({
   people: (q, scope) => api(`${base}/people?q=${encodeURIComponent(q)}&${scope.thread ? `thread=${scope.thread}` : `audience=${scope.audience}`}`),
   remove: id => api(`${base}/comments/${id}`, { method: 'DELETE' }),
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
+  color: (id, color) => send(`${base}/threads/${id}/color`, { color }, 'PUT'),
+  removeThread: id => api(`${base}/threads/${id}`, { method: 'DELETE' }),
   read: id => send(`${base}/threads/${id}/read`),
   block: (commentId, removeComments = false) => send(`${base}/blocks`, { comment_id: commentId, remove_comments: removeComments }),
   blocks: () => api(`${base}/blocks`),

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { anchorAt, anchorText, objectOrigin, pinPoint } from './anchors.js';
+import { anchorAt, anchorText, objectOrigin, pinCount, pinPoint } from './anchors.js';
 import { displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, when } from './comments-api.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -20,6 +20,21 @@ test('a card-relative anchor follows its object; a point stays put; a deleted ob
   assert.deepEqual(objectOrigin('i1', board), { x: -20, y: 10 });
   assert.deepEqual(anchorAt({ x: 5.4, y: 9.6 }, null, board), { kind: 'point', x: 5, y: 10 }, 'the empty canvas');
   assert.deepEqual([anchorText(anchor, true), anchorText(anchor, false), anchorText({ kind: 'point' }, true)], ['on Why scale?', 'Card deleted · Why scale?', 'on the canvas']);
+});
+
+test('a pin (owner, 2026-10-08): its live count, capped to fit; orange and solid by default; a click picks it and opens its thread', () => {
+  assert.deepEqual([1, 2, 9, 99, 100, 1500].map(pinCount), ['1', '2', '9', '99', '99+', '99+']);
+  const pins = read('./CommentPins.jsx'), canvas = read('../AdaptiveCanvas.jsx'), hook = read('./useCanvasComments.js');
+  assert.match(pins, /export const PIN_DEFAULT = '#f59e0b'/, "the palette's orange");
+  assert.doesNotMatch(pins, /border-dashed/, 'no dotted or dashed outline');
+  assert.match(pins, /style=\{\{ left, top, width: SIZE, height: SIZE, background: color, borderColor: color \}\}/, 'filled and outlined in its colour');
+  assert.match(pins, /border border-solid text-white/, 'the + and the count: white in light mode, the dark surface in dark mode');
+  assert.match(pins, /aria-label=\{pin\.ghost \? 'New comment' : `\$\{pin\.comments\} \$\{pin\.comments === 1 \? 'comment' : 'comments'\}`\}/);
+  assert.match(pins, /\{pin\.ghost \? <Plus [^\n]*: <span data-pin-count [^\n]*>\{pinCount\(pin\.comments\)\}<\/span>\}/, 'the + only on the draft');
+  assert.match(pins, /event\.currentTarget\.focus\(\);\n\s+onPick\?\.\(pin\.id\);\n\s+onPin\?\.\(pin\.id\);/, 'a click: the focus, the pick, the thread');
+  assert.match(canvas, /\{!showStyle && pickedPin\?\.can\.color && onPinColor && presenting === null && <StylePanel colorOnly /, "the shapes' colour control, colour only");
+  assert.match(canvas, /if \(pinPick\) dropPin\(\);/, 'a press on the canvas lets the pin go');
+  assert.match(hook, /comments: thread\.comments \?\? 1/);
 });
 
 test('a group anchor follows its members together; a shape anchor its box; each says what it is on', () => {
@@ -131,7 +146,9 @@ test('entry points: the Comment tool in the rail, C with its guards, the shortcu
   const canvas = read('../AdaptiveCanvas.jsx'), sheet = read('../ShortcutsSheet.jsx'), page = read('../LearnPage.jsx'), header = read('../PanelHeader.jsx');
   assert.match(canvas, /\{onAddComment && <ToolButton value="comment" Icon=\{MessageCircle\} label="Comment {2}C"/, 'tooltip "Comment  C"');
   assert.match(canvas, /onPointerDownCapture=\{tool === 'askArea' \? startArea : tool === 'comment' \? placeComment : undefined\}/);
-  const key = canvas.slice(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')"), canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"));
+  const key = canvas.slice(canvas.indexOf('const busy = held && held !== document.body'), canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"));
+  assert.match(key, /if \(\(event\.key === 'c' \|\| event\.key === 'C'\)[^\n]*&& !busy\) \{/, 'C uses the busy test');
+  assert.match(key, /if \(pinKeyRef\.current && \['Enter', 'Delete', 'Backspace', 'Escape'\]\.includes\(event\.key\) && !event\.ctrlKey && !event\.metaKey && !event\.altKey && !busy\) \{/, 'a picked pin\'s keys: the same guards');
   assert.match(key, /!event\.ctrlKey && !event\.metaKey && !event\.altKey/, 'Ctrl+C still copies');
   assert.match(key, /presentingRef\.current === null/, 'never while presenting');
   assert.match(key, /isContentEditable \|\| \['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'\]\.includes/, 'never while typing');

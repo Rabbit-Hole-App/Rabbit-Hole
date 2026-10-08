@@ -10,6 +10,7 @@ import { canvasCommentsRoute, can, anchorOf, BODY_MAX } from '../src/canvas-comm
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../learn-migrations/0011-canvas-comments.sql', import.meta.url), 'utf8');
+const colors = readFileSync(new URL('../learn-migrations/0014-canvas-comment-colors.sql', import.meta.url), 'utf8');
 const IDS = ['u-ana-5d1e', 'u-ben-9a2b', 'u-cara-71f0'];
 const EMAILS = ['ana@test', 'ben@test', 'cara@test'];
 const handle = (f, email, h, name = null) => {
@@ -47,6 +48,14 @@ test('0011 is additive, re-runnable and exactly what repository-schema.sql appli
   assert.doesNotMatch(migration, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
   const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(r => r.name);
   assert.deepEqual(tables, ['canvas_comment_blocks', 'canvas_comment_mentions', 'canvas_comment_reads', 'canvas_comment_settings', 'canvas_comment_threads', 'canvas_comments', 'canvas_invite_codes', 'canvas_invite_sends', 'canvas_members']);
+});
+
+test('0014 is additive, re-runnable and exactly what repository-schema.sql applies', t => {
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(colors); sqlite.exec(colors);
+  assert.ok(schema.replace(/\r/g, '').includes(colors.replace(/\r/g, '').trim()));
+  assert.doesNotMatch(colors, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
+  assert.deepEqual(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name), ['canvas_comment_colors']);
 });
 
 test('can(): the section 3 tables, including Allow comments off and blocks', () => {
@@ -201,6 +210,62 @@ test('edit and delete: authors edit their own; delete-own always; the owner remo
   assert.deepEqual(thread.body.messages.map(m => [m.deleted, m.segments]), [['author', []], ['owner', []]]);
   assert.doesNotMatch(JSON.stringify(thread.body), /typo here|spam/);
   assert.equal((await comments(f, 'GET', `${base}/threads`, { as: 'ana' })).body.threads[0].preview, null);
+});
+
+test("a pin's colour: the palette only, by whoever may resolve; members see it; the board never changes", async t => {
+  const f = setup(t);
+  const { name, base } = await canvas(f);
+  const version = async () => (await f.call('GET', `/api/learn/boards/${name}/main`, { as: 'ana' })).body.version;
+  const before = await version();
+  const tid = (await start(f, base, 'ana', 'Mark this')).body.thread.id;
+  const color = (as, id, value) => comments(f, 'PUT', `${base}/threads/${id}/color`, { as, body: { color: value } });
+  assert.deepEqual([(await color('ana', tid, 'red')).status, (await color('ana', tid, '#ffffff')).status], [400, 400], 'the palette only');
+  assert.equal((await color('ben', tid, '#b42318')).status, 403, "a member can't recolour the owner's thread");
+  assert.equal((await color('cara', tid, '#b42318')).status, 404, 'nor can anyone outside');
+  const set = await color('ana', tid, '#b42318');
+  assert.deepEqual([set.status, set.body.thread.color, set.body.thread.can.color], [200, '#b42318', true]);
+  assert.equal((await color('ana', tid, '#2383e2')).body.thread.color, '#2383e2', 'set again');
+  const seen = (await comments(f, 'GET', `${base}/threads`, { as: 'ben' })).body.threads.find(thread => thread.id === tid);
+  assert.deepEqual([seen.color, seen.can.color], ['#2383e2', false], 'members see it');
+  const mine = (await start(f, base, 'ben', 'Mine')).body.thread;
+  assert.deepEqual([mine.color, (await color('ben', mine.id, '#1a7f37')).status], [null, 200], "the starter recolours their own; none is the default");
+  assert.equal(await version(), before, 'colours never write the board');
+});
+
+test('deleting a whole thread: the owner always; the starter while every message is theirs; gone for good', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const reply = (id, as, body) => comments(f, 'POST', `${base}/threads/${id}/comments`, { as, body: { id: crypto.randomUUID(), body } });
+  const remove = (id, as) => comments(f, 'DELETE', `${base}/threads/${id}`, { as });
+  const own = (await start(f, base, 'ben', 'only mine')).body.thread;
+  await reply(own.id, 'ben', 'still mine');
+  assert.equal((await comments(f, 'GET', `${base}/threads/${own.id}`, { as: 'ben' })).body.thread.can.delete, true);
+  assert.deepEqual([(await remove(own.id, 'ben')).status, (await comments(f, 'GET', `${base}/threads/${own.id}`, { as: 'ana' })).status], [200, 404], 'the starter deletes it; it is gone');
+  const answered = (await start(f, base, 'ben', 'please answer')).body.thread;
+  await reply(answered.id, 'ana', 'answered');
+  assert.equal((await comments(f, 'GET', `${base}/threads/${answered.id}`, { as: 'ben' })).body.thread.can.delete, false);
+  const refused = await remove(answered.id, 'ben');
+  assert.deepEqual([refused.status, refused.body.error], [403, 'Others have replied, so only the canvas owner can delete this thread.']);
+  const owners = (await start(f, base, 'ana', 'owner note')).body.thread;
+  assert.deepEqual([(await remove(owners.id, 'ben')).status, (await remove(owners.id, 'cara')).status], [403, 404], "not someone else's thread");
+  await comments(f, 'PUT', `${base}/threads/${answered.id}/color`, { as: 'ana', body: { color: '#7c3aed' } });
+  await comments(f, 'POST', `${base}/threads/${answered.id}/read`, { as: 'ben' });
+  assert.equal((await remove(answered.id, 'ana')).status, 200, 'the owner deletes a thread with replies');
+  for (const [table, column] of [['canvas_comment_threads', 'id'], ['canvas_comments', 'thread_id'], ['canvas_comment_colors', 'thread_id'], ['canvas_comment_reads', 'thread_id']])
+    assert.equal(f.sqlite.prepare(`SELECT count(*) AS n FROM ${table} WHERE ${column} = ?`).get(answered.id).n, 0, `${table} has nothing left`);
+  assert.equal((await remove(answered.id, 'ana')).status, 404, 'a second delete finds nothing');
+});
+
+test("a thread's live count: the starter and its replies, without deleted ones; members and the published page see it", async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const tid = (await start(f, base, 'ana', 'one')).body.thread.id;
+  const count = async as => (await comments(f, 'GET', `${base}/threads`, { as })).body.threads.find(thread => thread.id === tid).comments;
+  assert.equal(await count('ana'), 1);
+  const second = (await comments(f, 'POST', `${base}/threads/${tid}/comments`, { as: 'ben', body: { id: crypto.randomUUID(), body: 'two' } })).body.comment.id;
+  assert.deepEqual([await count('ana'), await count('ben')], [2, 2]);
+  await comments(f, 'DELETE', `${base}/comments/${second}`, { as: 'ben' });
+  assert.equal(await count('ana'), 1, 'a deleted reply leaves the count');
 });
 
 test('Allow comments off: only the owner posts; members still read, mark read and delete their own', async t => {
