@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type, Download, Paperclip } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn } from 'lucide-react';
 import { Md } from './ask.jsx';
-import { IconBtn, toast } from './ui.jsx';
+import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
@@ -1200,6 +1200,10 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 }
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
+
+// One row of the canvas right-click menu (owner, 2026-10-08: "each options should have an icon next to it"): the card ⋮
+// menu's MenuItem, its icon at 16px beside the label. A new row passes only its icon.
+const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
 export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPasteCode = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
@@ -3518,7 +3522,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={{ bounds, items, shapes }} onPin={onCommentPin} />}
         {menuAt && presenting === null && (() => {
           const grouped = selection.map(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId).filter(Boolean);
-          const row = 'flex w-full items-center rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent';
           const act = action => () => { action(); setMenuAt(null); };
           // What was actually clicked decides the top rows; the core set below
           // acts on the whole selection.
@@ -3526,37 +3529,37 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const chat = exchanges.find(entry => entry.id === menuAt.id) || null;
           const attached = sourceId => (attachedIds ? attachedIds.includes(sourceId) : true);
           const attachRow = (sourceId, label) => (
-            <button key={sourceId} type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('attach-toggle', { sourceId }))} className={row}>
+            <MenuRow key={sourceId} icon={attached(sourceId) ? Unlink : Paperclip} onClick={act(() => onCardActionRef.current?.('attach-toggle', { sourceId }))}>
               {attached(sourceId) ? `Detach ${label} from tutor` : `Attach ${label} to tutor`}
-            </button>
+            </MenuRow>
           );
           const typed = [];
           if (block?.type === 'wiki') {
-            typed.push(<button key="wr" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('wiki-reader', { title: block.title, section: block.section || 0 }))} className={row}>Open in reader</button>);
-            typed.push(<button key="ww" type="button" role="menuitem" onClick={act(() => window.open(`https://en.wikipedia.org/wiki/${encodeURIComponent(block.title)}`, '_blank', 'noopener'))} className={row}>Open on Wikipedia</button>);
+            typed.push(<MenuRow key="wr" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('wiki-reader', { title: block.title, section: block.section || 0 }))}>Open in reader</MenuRow>);
+            typed.push(<MenuRow key="ww" icon={ExternalLink} onClick={act(() => window.open(`https://en.wikipedia.org/wiki/${encodeURIComponent(block.title)}`, '_blank', 'noopener'))}>Open on Wikipedia</MenuRow>);
             typed.push(attachRow(`wiki:${block.id}`, 'article'));
           }
           if (block?.type === 'video') {
-            typed.push(<button key="vy" type="button" role="menuitem" onClick={act(() => window.open(`https://www.youtube.com/watch?v=${block.videoId}${block.start ? `&t=${Math.floor(block.start)}s` : ''}`, '_blank', 'noopener'))} className={row}>Open on YouTube</button>);
+            typed.push(<MenuRow key="vy" icon={ExternalLink} onClick={act(() => window.open(`https://www.youtube.com/watch?v=${block.videoId}${block.start ? `&t=${Math.floor(block.start)}s` : ''}`, '_blank', 'noopener'))}>Open on YouTube</MenuRow>);
             typed.push(attachRow(`video:${block.id}`, 'video'));
           }
           if (block?.type === 'paper' && block.paper?.id) {
-            typed.push(<button key="pp" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('paper-reader', { id: block.paper.id, title: block.title, page: block.paper.page || 1 }))} className={row}>Open in reader</button>);
+            typed.push(<MenuRow key="pp" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('paper-reader', { id: block.paper.id, title: block.title, page: block.paper.page || 1 }))}>Open in reader</MenuRow>);
             typed.push(attachRow(`paper:${block.paper.id}`, 'paper'));
           }
           if (block?.type === 'pdf' && block.assetKey?.startsWith('pdf:')) {
-            typed.push(<button key="pr" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('pdf-reader', { id: block.assetKey.slice(4), title: block.label }))} className={row}>Open in reader</button>);
+            typed.push(<MenuRow key="pr" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('pdf-reader', { id: block.assetKey.slice(4), title: block.label }))}>Open in reader</MenuRow>);
           }
           if (block?.type === 'file' && block.kind === 'image' && block.mediaId) {
-            typed.push(<button key="ia" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('image-attach', { blockId: block.id, mediaId: block.mediaId, label: block.label }))} className={row}>Show the tutor this image</button>);
+            typed.push(<MenuRow key="ia" icon={Eye} onClick={act(() => onCardActionRef.current?.('image-attach', { blockId: block.id, mediaId: block.mediaId, label: block.label }))}>Show the tutor this image</MenuRow>);
             typed.push(attachRow(`image:${block.id}`, 'image'));
           }
           if (block?.type === 'heading') {
-            typed.push(<button key="hd" type="button" role="menuitem" onClick={act(() => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === block.id ? { ...entry, done: !entry.done } : entry)); })} className={row}>{block.done ? 'Mark not done' : 'Mark done'}</button>);
-            typed.push(<button key="hp" type="button" role="menuitem" onClick={act(() => presentFrom(block.id))} className={row}>Present from here</button>);
+            typed.push(<MenuRow key="hd" icon={block.done ? Circle : CircleCheck} onClick={act(() => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === block.id ? { ...entry, done: !entry.done } : entry)); })}>{block.done ? 'Mark not done' : 'Mark done'}</MenuRow>);
+            typed.push(<MenuRow key="hp" icon={Play} onClick={act(() => presentFrom(block.id))}>Present from here</MenuRow>);
           }
           if (chat) {
-            typed.push(<button key="ct" type="button" role="menuitem" onClick={act(() => navigator.clipboard?.writeText([chat.question, chat.answer].filter(Boolean).join('\n\n')))} className={row}>Copy text</button>);
+            typed.push(<MenuRow key="ct" icon={Copy} onClick={act(() => navigator.clipboard?.writeText([chat.question, chat.answer].filter(Boolean).join('\n\n')))}>Copy text</MenuRow>);
           }
           const described = block ? describeBlock(block) : null;
           // Start Rabbit Hole (owner, 2026-10-07): from the right-clicked card, even when other cards are selected,
@@ -3572,25 +3575,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const addComment = onAddComment && (() => commentAt({ x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z }, menuAt.id));
           return (
             <div ref={menuBox} role="menu" aria-label="Canvas actions" data-canvas-menu style={{ left: menuPos?.x ?? menuAt.x, top: menuPos?.y ?? menuAt.y, maxHeight: menuPos?.maxH, visibility: menuPos ? undefined : 'hidden' }}
-              className="absolute z-40 w-52 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
+              className="absolute z-40 w-60 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
               onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
-              {addComment && !menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment here</button>}
-              {startHole && <button type="button" role="menuitem" data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)} className={row}>Start Rabbit Hole</button>}
-              {addComment && menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment</button>}
+              {addComment && !menuAt.id && <MenuRow icon={MessageCircle} data-menu-add-comment onClick={act(addComment)}>Add comment here</MenuRow>}
+              {/* Start Rabbit Hole's own mark, as on the shared page's header and the Explore card. */}
+              {startHole && <MenuRow icon={ArrowDownToLine} data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)}>Start Rabbit Hole</MenuRow>}
+              {addComment && menuAt.id && <MenuRow icon={MessageCircle} data-menu-add-comment onClick={act(addComment)}>Add comment</MenuRow>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
-              {described && <button type="button" role="menuitem" onClick={act(() => askBlock(block))} className={row}>Ask about this</button>}
+              {described && <MenuRow icon={CircleHelp} onClick={act(() => askBlock(block))}>Ask about this</MenuRow>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
-              <button type="button" role="menuitem" disabled={!selection.length} onClick={act(() => pasteIds(selection))} className={row}>Duplicate</button>
-              <button type="button" role="menuitem" disabled={!selection.length} onClick={act(zoomToSelection)} className={row}>Zoom to selection</button>
+              <MenuRow icon={CopyPlus} disabled={!selection.length} onClick={act(() => pasteIds(selection))}>Duplicate</MenuRow>
+              <MenuRow icon={ZoomIn} disabled={!selection.length} onClick={act(zoomToSelection)}>Zoom to selection</MenuRow>
               <div className="my-1 h-px bg-line" />
-              <button type="button" role="menuitem" disabled={selection.length < 2} onClick={act(groupSelection)} className={row}>Group</button>
-              <button type="button" role="menuitem" disabled={!grouped.length} onClick={act(ungroupSelection)} className={row}>Ungroup</button>
-              <button type="button" role="menuitem" disabled={!grouped.length} onClick={act(() => setChipEdit(grouped[0]))} className={row}>Rename group</button>
+              <MenuRow icon={Group} disabled={selection.length < 2} onClick={act(groupSelection)}>Group</MenuRow>
+              <MenuRow icon={Ungroup} disabled={!grouped.length} onClick={act(ungroupSelection)}>Ungroup</MenuRow>
+              <MenuRow icon={Pencil} disabled={!grouped.length} onClick={act(() => setChipEdit(grouped[0]))}>Rename group</MenuRow>
               <div className="my-1 h-px bg-line" />
-              <button type="button" role="menuitem" onClick={act(selectAll)} className={row}>Select all</button>
-              <button type="button" role="menuitem" disabled={!selection.length} onClick={act(deleteSelection)} className={row}>Delete</button>
+              <MenuRow icon={BoxSelect} onClick={act(selectAll)}>Select all</MenuRow>
+              <MenuRow icon={Trash2} disabled={!selection.length} onClick={act(deleteSelection)}>Delete</MenuRow>
               </>}
             </div>
           );

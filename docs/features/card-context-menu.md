@@ -22,6 +22,28 @@ Opening, Escape or an outside click never creates anything. Only clicking the it
 
 On a shared board the menu shows only **Start Rabbit Hole**, and only on a card. The editing rows (Duplicate, Group, Select all, Delete…) are owner-only, and a right-click off a card opens no menu. The board presses through the hand tool, so the card is found by its bounds, as its click selection does.
 
+## Every item has an icon
+
+Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc... each options should have an icon next to it". Every item of the menu, on a card, a chat card, a note or shape, a group and the empty canvas, has a lucide icon left of its label, in the card ⋮ menu's style (`ui.jsx` `MenuItem`: 16 px, strokeWidth 1.5, `text-ink-2`, dimmed with a disabled item). Each row is one `MenuRow` (`AdaptiveCanvas.jsx`), so a new item only passes its `icon`. The menu is 240 px wide so the longest label fits beside its icon.
+
+| Item | Icon |
+|---|---|
+| Add comment, Add comment here | MessageCircle |
+| Start Rabbit Hole | ArrowDownToLine (its mark on the shared header and the Explore card) |
+| Ask about this | CircleHelp (the /ask mark) |
+| Open in reader | BookOpen |
+| Open on Wikipedia, Open on YouTube | ExternalLink |
+| Attach … to tutor / Detach … from tutor | Paperclip / Unlink |
+| Show the tutor this image | Eye |
+| Mark done / Mark not done | CircleCheck / Circle |
+| Present from here | Play |
+| Copy text | Copy |
+| Duplicate | CopyPlus |
+| Zoom to selection | ZoomIn |
+| Group, Ungroup, Rename group | Group, Ungroup, Pencil |
+| Select all | BoxSelect |
+| Delete | Trash2 |
+
 ## Placement
 
 The menu opens at the cursor and is measured after it renders, before paint:
@@ -41,6 +63,7 @@ Card dragging, editing and controls are unchanged: the menu only adds a row and 
 
 `packages/web/e2e/card-context-menu-check.mjs` (12 checks, local stack, no model) covers:
 - the exact label and origin with another card selected;
+- an icon left of every item's label, on the card, empty-canvas, sticky-note and view-only menus (`src/card-selection.test.mjs` pins one `MenuRow` with an icon per item);
 - no hole from opening, Escape or an outside click;
 - the right, bottom and corner edges at 1440×900 and 820×560;
 - the origin with A+B selected;

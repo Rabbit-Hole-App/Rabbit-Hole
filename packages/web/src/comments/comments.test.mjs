@@ -59,8 +59,8 @@ test('names: display name, else @handle, else the neutral label; times are short
 
 test('seams: the canvas menu offers Add comment (card) and Add comment here (canvas); the panel and pins are wired on the owner page', () => {
   const canvas = read('../AdaptiveCanvas.jsx'), page = read('../LearnPage.jsx'), panel = read('./CommentsPanel.jsx');
-  assert.match(canvas, /\{addComment && !menuAt\.id && <button [^\n]*data-menu-add-comment[^\n]*>Add comment here<\/button>\}\n\s+\{startHole && /, 'empty canvas: first');
-  assert.match(canvas, /Start Rabbit Hole<\/button>\}\n\s+\{addComment && menuAt\.id && <button [^\n]*>Add comment<\/button>\}/, 'a card: right after Start Rabbit Hole');
+  assert.match(canvas, /\{addComment && !menuAt\.id && <MenuRow icon=\{MessageCircle\} data-menu-add-comment[^\n]*>Add comment here<\/MenuRow>\}\n[^\n]*\n\s+\{startHole && /, 'empty canvas: first');
+  assert.match(canvas, /Start Rabbit Hole<\/MenuRow>\}\n\s+\{addComment && menuAt\.id && <MenuRow icon=\{MessageCircle\} [^\n]*>Add comment<\/MenuRow>\}/, 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
   assert.match(page, /\{comments\.active && <CommentsPanel hidden=\{panelTab !== 'comments'\} \{\.\.\.comments\.panelProps\} \/>\}/);

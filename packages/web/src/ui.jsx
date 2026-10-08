@@ -699,10 +699,10 @@ export function fmtBytes(n) {
 export function MenuItem({ icon: Icon, className, children, ...props }) {
   return (
     <button
-      className={cn('flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink hover:bg-hover', className)}
+      className={cn('group flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent', className)}
       {...props}
     >
-      {Icon && <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
+      {Icon && <Icon size={16} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-ink-2 group-disabled:text-ink-3" />}
       <span className="min-w-0 flex-1 truncate">{children}</span>
     </button>
   );
