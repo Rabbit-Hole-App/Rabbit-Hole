@@ -95,20 +95,36 @@ function logs {
     small logs "$@"
 }
 
+# node --test exits 0 when its globs match no file (it reports "tests 0"), so a suite that ran nothing would pass the gate.
+# Runs one test command, shows its output, and fails it when it ran no test.
+function nonzero-tests {
+    local log code
+    log="$(mktemp)"
+    "$@" 2>&1 | tee "$log"
+    code=${PIPESTATUS[0]}
+    if [ "$code" = 0 ] && ! grep -Eq '^(ℹ|#) tests [1-9]' "$log"; then
+        echo "✗ ran 0 tests: $*" >&2
+        code=1
+    fi
+    rm -f "$log"
+    return "$code"
+}
+
 # fast tests only (no network): Python guard proxy, plus both JS suites.
-# run.sh sets -e, so the first failing suite stops the run with its own exit code.
+# run.sh sets -e, so the first failing suite stops the run with its own exit code; a suite that ran 0 tests fails too
+# (pytest exits 5 on its own, the node --test suites through nonzero-tests).
 function test:unit {
     uv run pytest "$THIS_DIR/tests/unit_tests/"
-    (cd "$THIS_DIR/packages/web" && npm run test:unit)
-    (cd "$THIS_DIR/packages/control-plane" && npm test)
+    (cd "$THIS_DIR/packages/web" && nonzero-tests npm run test:unit)
+    (cd "$THIS_DIR/packages/control-plane" && nonzero-tests npm test)
     node --test "$THIS_DIR/viz-benchmarks/check-synthetic-fixtures.test.mjs"
     node --test "$THIS_DIR/viz-benchmarks/critic-packet-isolation.test.mjs"
     # Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
-    (cd "$THIS_DIR" && node --test "tests/evals/learn-grade/*.test.mjs")
-    (cd "$THIS_DIR" && node --test "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
-    (cd "$THIS_DIR" && node --test "tests/evals/tutor-session/*.test.mjs")
+    (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/learn-grade/*.test.mjs")
+    (cd "$THIS_DIR" && nonzero-tests node --test "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
+    (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/tutor-session/*.test.mjs")
     # Every script test: dev-deploy and prod-release.
-    (cd "$THIS_DIR" && node --test "scripts/*.test.mjs")
+    (cd "$THIS_DIR" && nonzero-tests node --test "scripts/*.test.mjs")
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)
