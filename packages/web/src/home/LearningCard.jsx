@@ -88,10 +88,10 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
   const repo = kind === 'repository' && m.sourceUrl;
   return (
     <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
-      className={`group select-card flex min-h-[220px] min-w-0 flex-col rounded-lg border border-line bg-white p-5 ${onOpen ? 'lift-card' : ''}`}>
+      className={`group select-card flex min-h-[186px] min-w-0 flex-col rounded-lg border border-line bg-white p-4 ${onOpen ? 'lift-card' : ''}`}>
       <div className="flex min-w-0 items-start gap-3">
         <TypeIcon kind={kind} schedule={schedule} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           {href && onOpen ? <a data-card-title href={href} onClick={(e) => { e.stopPropagation(); if (plain(e)) { e.preventDefault(); onOpen(); } }} className={`${TITLE} self-start text-accent hover:underline`}>{m.title}</a>
             : onOpen ? <button type="button" data-card-title onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
             : <span data-card-title className={`${TITLE} text-ink`}>{m.title}</span>}
@@ -113,7 +113,7 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
         )}
       </div>
       {(repo || m.description) && (
-        <div className="flex min-w-0 flex-col gap-1.5 pt-3">
+        <div className="flex min-w-0 flex-col gap-1 pt-2">
           {repo && (
             <a data-source-link href={m.sourceUrl} target="_blank" rel="noreferrer" title="Open the repository on GitHub" onClick={(e) => e.stopPropagation()}
               className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-accent hover:underline">
@@ -123,10 +123,10 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
           {m.description && <p data-card-description className="line-clamp-3 break-words text-[13px] leading-5 text-ink-2">{m.description}</p>}
         </div>
       )}
-      {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-3 text-xs text-ink-3">{note}</div>}
-      {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">{actions}</div>}
+      {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-ink-3">{note}</div>}
+      {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">{actions}</div>}
       {learning && (
-        <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-3' : 'mt-auto pt-4'}`}>
+        <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-2' : 'mt-auto pt-3'}`}>
           {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
           <Forks m={m} />
           {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}

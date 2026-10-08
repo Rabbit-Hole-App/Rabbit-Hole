@@ -36,7 +36,12 @@ Owner changes, 2026-10-08:
 - **A canvas is `Shapes`, not a pen** ("choose another symbol for Canvas instead of that pen"), on the card tile, the
   kind icon (Search, sidebar rows) and the Library's Filters.
 
-- **Size:** at 1440×900 a card is about 471 × 220-255 px, two columns (`CARD_GRID`: `minmax(min(100%, 380px), 1fr)`, 16px gap). The 1150px pages leave room for two. A phone gets one column. Three would need a page genuinely wider than today's.
+- **Size:** at 1440×900 a card is about 471 × 186-205 px, two columns (`CARD_GRID`: `minmax(min(100%, 380px), 1fr)`, 16px gap). An Explore card with its actions row is up to about 240 px. The 1150px pages leave room for two. A phone gets one column. Three would need a page genuinely wider than today's.
+  - About 15% shorter (owner, 2026-10-08: "reduce the height of the card a bit", on Home, Library and Explore):
+    - the floor is 186 px, from 220;
+    - the padding is 16 px, from 20;
+    - the gaps above the description, actions and footer are each 4 px tighter.
+  - Nothing else changed: the title still clamps to two lines and the description to three, and the footer is still the last line.
 - **Type icons:** a project is `FolderGit2` on a purple tile and a canvas is `Shapes` on a green tile (2026-10-08; it was `PenLine`). Jobs and servers keep `KindIcon` on a neutral tile. There is no textual Canvas, Project or Standalone pill. A screen reader hears the type from the tile's label.
 - **Colour:** blue is navigation and the primary action: the title, the GitHub link, the owner badge, Start Rabbit Hole and Home's Continue →. Everything else is neutral: the @handle, description, times, forks, visibility and ⋮. Fork on others' cards is the soft accent fill (2026-10-08), below the primary.
 - **Owner badge:** the existing `OwnerCheck` drawing, with `owned`. It sits beside the @handle on the viewer's own cards, with the tooltip "Owned by you · This is yours. It does not verify identity." (`data-owned-badge`). The source-owner check is unchanged.

@@ -108,12 +108,12 @@ const lib = await contextFor(owner, { project: true, legacy: [tides.name, away.n
 await lib.goto(`${BASE}/library`);
 await lib.locator('[data-library-card="project"]').first().waitFor({ timeout: 60000 });
 await lib.locator('[data-library-card="canvas"]').first().waitFor();
-await check('1 Library at 1440x900: cards 420-500 x 210-260 px, two columns', async () => {
+await check('1 Library at 1440x900: cards 420-500 x 180-230 px (owner, 2026-10-08: about 15% shorter), two columns', async () => {
   await lib.goto(`${BASE}/library?type=canvases`);
   await titled(lib, '[data-library-card]', T.tides).waitFor({ timeout: 60000 });
   const all = await boxes(lib.locator('[data-library-card]'));
   assert.ok(all.length >= 4, `${all.length} cards`);
-  for (const b of all) { assert.ok(b.w >= 420 && b.w <= 500, `width ${b.w}`); assert.ok(b.h >= 210 && b.h <= 260, `height ${b.h}`); }
+  for (const b of all) { assert.ok(b.w >= 420 && b.w <= 500, `width ${b.w}`); assert.ok(b.h >= 180 && b.h <= 230, `height ${b.h}`); }
   const columns = new Set(all.map(b => b.x));
   assert.equal(columns.size, 2, `columns at x ${[...columns]}`);
   assert.equal(all[0].y, all[1].y); assert.ok(all[2].y > all[0].y, 'the third card starts the second row');
@@ -302,7 +302,7 @@ await check('12 Home Continue: the canonical card, "Continue learning", where it
   assert.equal((await link.innerText()).trim(), 'Continue');
   assert.equal(await rgb(link, 'background-color'), 'rgba(0, 0, 0, 0)', 'a text link, not a filled button');
   const [b] = await boxes(card);
-  assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 210 && b.h <= 260, JSON.stringify(b));
+  assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 180 && b.h <= 230, JSON.stringify(b));
   assert.deepEqual(await typeWords(home.locator('[data-continue-card], [data-recent-card]')), []);
 });
 await check('13 Home Recent: the same card; the away canvas keeps On another device and the stored-only line, and does not open; a saved board has no note', async () => {
@@ -380,7 +380,8 @@ await check('15 Explore, as the owner: own card badged, no Start/Fork, its read-
   assert.ok(foot.y > start.y + start.h - 1, `footer ${JSON.stringify(foot)} under the actions ${JSON.stringify(start)}`);
   assert.deepEqual(await typeWords(ex.locator('[data-explore-card]')), []);
   const all = await boxes(ex.locator('[data-explore-card]'));
-  for (const b of all) assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 210 && b.h <= 260, JSON.stringify(b));
+  // An Explore card has its actions row too, so its ceiling is that row higher (owner, 2026-10-08: about 15% shorter).
+  for (const b of all) assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 180 && b.h <= 250, JSON.stringify(b));
   assert.equal(new Set(all.map(b => b.x)).size, 2);
 });
 await shot(ex, '08-explore-owner');
