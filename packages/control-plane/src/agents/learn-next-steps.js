@@ -57,7 +57,7 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- concept_ids and claim_ids only from scope, at most 3 each, no duplicates; at least one id when the scope has any concept or claim; both empty only when the scope is empty.',
     '- Completed-section claims only to repair a misconception, a prerequisite gap or an uncertain claim. Upcoming sections come later: never a hook into their content, except at most one hook into path.next when it is given, with section_id path.next.id (its ids may be empty).',
     '- The other hooks stay on recent.tutor\'s example and on what is still missing (scope.claims[].missing_ideas), never another example or a covered idea.',
-    '- Three meaningfully different hooks with different goals; the same claims are fine only with a different goal. Never repeat previous.hooks or a previous goal.',
+    '- Three meaningfully different hooks with different goals; the same claims are fine only with a different goal. Never repeat previous.hooks or a previous goal; only the path.next hook may stay as it was.',
     '- A blank canvas (mode canvas, no cards, empty scope): with a goal, three hooks into three different sides of it; with no goal, three starter hooks into three different subjects a curious person might pick, never three takes on one topic. ids empty.',
     '- Never label, level or score the learner, and never say they have understood or mastered something.',
     '- reason_internal: one short line of plain words, without angle brackets, on why this hook fits the evidence; it is never shown.',
@@ -175,7 +175,9 @@ export function nextStepsOutput(out, input) {
   if (value.filter(o => o.section_id).length > 1) errors.push('section');
   if (new Set(hooks).size < hooks.length) errors.push('duplicate_hook');
   if (value.some((a, i) => value.some((b, j) => j > i && jaccard(a.learning_goal, b.learning_goal) >= SAME_GOAL))) errors.push('duplicate_goal');
-  if (hooks.some(h => before.includes(h)) || value.some(o => goals.some(g => jaccard(o.learning_goal, g) >= SAME_GOAL))) errors.push('repeat');
+  // r29 (Tutor eval, 2026-10-08): the one next-section hook is the way forward, not a content hook, so it may stay as it was while
+  // its section does; every other hook still never repeats.
+  if (hooks.some((h, i) => !value[i].section_id && before.includes(h)) || value.some(o => goals.some(g => jaccard(o.learning_goal, g) >= SAME_GOAL))) errors.push('repeat');
   return errors.length ? { ok: false, errors } : { ok: true, value };
 }
 
