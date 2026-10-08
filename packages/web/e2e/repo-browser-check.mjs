@@ -47,7 +47,8 @@ await context.route('**/api/learn/ask', (route) => {
 page = await context.newPage();
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
-page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && /^\/api\/(ask|learn\/(tutor|journey|teach))/.test(p)) learnRequests.push(p); });
+// Next Steps (contract §1.3) posts its own hook request when a canvas with cards opens; that is not the learner asking.
+page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && /^\/api\/(ask|learn\/(tutor|journey|teach))/.test(p) && p !== '/api/learn/tutor/next-steps') learnRequests.push(p); });
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async (name) => { await page.waitForTimeout(400); await page.mouse.move(0, 0); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
