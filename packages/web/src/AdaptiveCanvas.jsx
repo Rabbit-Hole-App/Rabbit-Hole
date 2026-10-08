@@ -222,7 +222,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         opener.open(id, 'learner_dblclick');
       } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
       {selected && opens && opener.single === id && (
         <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
@@ -239,7 +239,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       </div>
       {children}
       {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => dive.enter(portal.name)}
-        className={`pointer-events-auto absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] shadow-sm ${portal.pending ? 'border-[#e5484d]/60 text-[#912018] hover:bg-[#fef3f2]' : 'border-[#b42318]/40 text-[#912018] hover:bg-[#fef3f2]'}`}>
+        className={`pointer-events-auto absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] shadow-sm ${portal.pending ? 'border-dashed border-hole-pending text-hole hover:bg-hole/10' : 'border-hole/40 text-hole hover:bg-hole/10'}`}>
         <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
       {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
         data-node-tool
@@ -3535,7 +3535,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   Ctrl presses and non-select tools fall through to the canvas. */}
               <div data-group-box={group.id}
                 style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
-                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} cursor-grab active:cursor-grabbing`}
+                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} cursor-grab active:cursor-grabbing`}
                 onDoubleClick={divePortals ? () => (portal ? divePortals.enter(portal.name) : divePortals.open?.(group.id, group.label || `${members.length} items`)) : undefined}
                 onPointerDown={event => {
                   if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;
@@ -3550,7 +3550,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
                 {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => divePortals.enter(portal.name)}
-                  className="pointer-events-auto flex max-w-60 items-center gap-1 rounded-sm border border-[#b42318]/40 bg-white px-2 py-0.5 text-[11px] text-[#912018] shadow-sm hover:bg-[#fef3f2]">
+                  className={`pointer-events-auto flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] text-hole shadow-sm hover:bg-hole/10 ${portal.pending ? 'border-dashed border-hole-pending' : 'border-hole/40'}`}>
                   <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
               </div>
               {/* The same pill every card shows when selected, in the same

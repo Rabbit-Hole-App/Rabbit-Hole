@@ -9,7 +9,7 @@ const map = {
   children: [{ title: 'Deeper', href: '/b/deep-token', origin_block_id: 'b7' }],
 };
 
-test('the shared map becomes the navigator\'s tree and the red portals, every level a link of its own', () => {
+test('the shared map becomes the navigator\'s tree and the hole portals, every level a link of its own', () => {
   const { tree, portals } = sharedTree(map);
   assert.deepEqual(tree.path.map(l => [l.title, l.href, l.kind]), [['Attention', '/b/root-token', 'view'], ['Softmax', '/b/soft-token', 'view']]);
   assert.deepEqual(tree.children, [{ name: '/b/deep-token', title: 'Deeper' }]);

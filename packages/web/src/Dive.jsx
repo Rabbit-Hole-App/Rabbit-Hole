@@ -11,7 +11,7 @@ import { deviceId } from './home/canvas-local.js';
 import { resolveTarget } from './learn-target.js';
 import { anchorBlock, diveRecord, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
-// The red portal outline on an originating card, read by the canvas's card chrome.
+// The green portal outline on an originating card, read by the canvas's card chrome.
 export const DivePortals = createContext(null);
 
 // A pending hole lives only while the learner is inside it. Leaving it while it is still empty,
@@ -275,12 +275,12 @@ function Name({ level, className, onOpen, onRename, active = false }) {
   if (draft !== null) return <input autoFocus value={draft} aria-label="Rename this Rabbit Hole" maxLength={120}
     onChange={event => setDraft(event.target.value)} onBlur={() => setDraft(null)}
     onKeyDown={event => { if (event.key === 'Enter') { onRename(level, draft); setDraft(null); } if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); } }}
-    className="w-full rounded-sm border border-line bg-white px-1 py-0.5 text-center text-[11px] text-ink outline-none focus:border-[#b42318]/50" />;
+    className="w-full rounded-sm border border-line bg-white px-1 py-0.5 text-center text-[11px] text-ink outline-none focus:border-hole/50" />;
   const renamable = level.kind === 'canvas';
   // One line, never wrapped: the full name is in the tooltip.
   return <Tip label={level.title} info={renamable ? 'Double-click to rename' : level.kind === 'shared' ? 'Shared canvas this hole started from (view only)' : null} align="end">
     <button type="button" data-dive-level={level.app} onClick={onOpen} onDoubleClick={renamable ? () => setDraft(level.title) : undefined}
-      className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-[#b42318] px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
+      className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-hole px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
   </Tip>;
 }
 
@@ -311,9 +311,9 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
         {row.role === 'fold' && <span title={`${row.count} more levels`} className="px-1 text-ink-3">⋯ {row.count}</span>}
         {row.role === 'ancestor' && <Name level={row} className="text-ink-3 hover:text-ink" onOpen={() => climb(tree.path.findIndex(level => level.app === row.app && level.board === row.board))} onRename={rename} />}
         {row.role === 'current' && <div className="group relative flex w-full flex-col items-center" aria-current="location">
-          {/* The hole you are in: a red square and a red label with white text, unmistakable at a glance. */}
+          {/* The hole you are in: a green square (dashed while it is not kept yet) and a green label with white text. */}
           <span aria-hidden="true" title={pending ? 'Empty: kept once you add something' : undefined}
-            className="mb-1 h-2 w-2 bg-[#b42318]" />
+            className={`mb-1 h-2 w-2 ${pending ? 'border border-dashed border-hole-pending' : 'bg-hole'}`} />
           <Name level={current} active className={`font-semibold ${pending ? 'italic' : ''}`} onOpen={() => {}} onRename={rename} />
           {index > 0 && askDelete && <button type="button" aria-label={`Delete ${current.title}`} title={pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => askDelete(current)}
             className="absolute -right-1 bottom-0 hidden h-5 w-5 items-center justify-center rounded-sm text-ink-3 group-hover:flex hover:bg-hover hover:text-[#b42318] focus:flex"><Trash2 size={11} /></button>}
@@ -336,7 +336,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
           <p className="px-2 pt-1 pb-1.5 text-[11px] text-ink-3">Below {current.title}</p>
           {children.map(child => <div key={child.name} className="group flex items-center rounded-sm hover:bg-hover">
             <button type="button" role="menuitem" onClick={() => { setPicking(false); enter(child.name); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-sm text-ink">
-              <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${child.pending ? 'border border-dashed border-[#b42318]' : 'bg-[#b42318]/70'}`} /><span title={child.title} className={`truncate ${child.pending ? 'italic' : ''}`}>{child.title}</span>
+              <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${child.pending ? 'border border-dashed border-hole-pending' : 'bg-hole/70'}`} /><span title={child.title} className={`truncate ${child.pending ? 'italic' : ''}`}>{child.title}</span>
             </button>
             {askDelete && <button type="button" aria-label={`Delete ${child.title}`} title={child.pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => { setPicking(false); askDelete({ ...child, app: child.name, kind: 'canvas' }); }}
               className="mr-1 hidden h-6 w-6 items-center justify-center rounded text-ink-3 group-hover:flex hover:text-[#b42318]"><Trash2 size={12} /></button>}
@@ -350,7 +350,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
 // The agent's suggestion, anchored to one card: dive, or keep it here. Structure only in v1.
 export function DiveSuggestion({ topic, onDive, onKeep }) {
   return (
-    <div data-dive-suggestion role="group" aria-label="Suggested Rabbit Hole" className="flex flex-wrap items-center gap-2 rounded-xl border border-[#b42318]/25 bg-white px-3 py-2 text-sm shadow-md">
+    <div data-dive-suggestion role="group" aria-label="Suggested Rabbit Hole" className="flex flex-wrap items-center gap-2 rounded-xl border border-hole/25 bg-white px-3 py-2 text-sm shadow-md">
       <span className="text-ink-2">This needs <span className="font-medium text-ink">{topic}</span> first.</span>
       <Button size="sm" variant="secondary" onClick={onDive}>Go down a Rabbit Hole</Button>
       <Button size="sm" variant="ghost" onClick={onKeep}>Keep it on this canvas</Button>

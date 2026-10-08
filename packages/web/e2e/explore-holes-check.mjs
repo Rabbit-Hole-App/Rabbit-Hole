@@ -70,7 +70,7 @@ await shot(anon, '01-shared-map');
 await anon.locator('[data-dive-portal]').click();
 await anon.waitForURL(new RegExp(`/b/${holeToken}$`));
 await anon.locator('[data-dive-navigator]').waitFor({ timeout: 60000 });
-check('the red portal opens the hole\'s own shared view, its map showing the canvas above', (await anon.locator('[data-dive-navigator]').innerText()).includes(TITLE));
+check('the hole portal opens the hole\'s own shared view, its map showing the canvas above', (await anon.locator('[data-dive-navigator]').innerText()).includes(TITLE));
 await shot(anon, '02-shared-hole');
 await anon.locator(`[data-dive-level="/b/${rootToken}"]`).click();
 await anon.waitForURL(new RegExp(`/b/${rootToken}$`));
