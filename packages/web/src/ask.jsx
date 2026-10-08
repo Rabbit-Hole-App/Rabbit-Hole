@@ -8,7 +8,7 @@ import { FILE_TOKEN, INLINE_PARTS, citedSources, sourceReference, singleSourcePa
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, BookOpen, Eraser, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, CornerDownRight, Eraser, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
@@ -340,7 +340,35 @@ function MaterialIcon({ type }) {
   return <Icon size={13} aria-hidden="true" className="shrink-0 text-ink-3" />;
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null }) {
+// Professor Next Steps (docs/features/professor-next-steps.md §1.2, §1.6): the one hook card, on owned and shared canvases.
+// Exactly the 3 hooks of a set, verbatim and in order: ready, or stale (kept on screen, its buttons disabled, until the new set
+// lands); any other status draws nothing. A click validates through select() and hands the step on once: the clicked hook
+// shows a spinner and no second click goes through. The step itself is never read or shown here.
+export function NextStepsCard({ steps, onPick }) {
+  const [working, setWorking] = useState(null);
+  if (!steps || !['ready', 'stale'].includes(steps.status) || steps.options.length !== 3) return null;
+  const pick = async hook => {
+    if (working) return;
+    const r = steps.select(hook.id);
+    if (!r.ok) return;
+    setWorking(hook.id);
+    try { await onPick(r.selected_next_step, hook); } finally { setWorking(null); }
+  };
+  return (
+    <section data-next-steps={steps.status} aria-label="Curious where this goes?" className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
+      <h2 className="text-xs font-medium text-ink-2">Curious where this goes?</h2>
+      {steps.options.map(hook => (
+        <button key={hook.id} type="button" data-next-step={hook.id} disabled={steps.status === 'stale' || !!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
+          className="flex w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2 text-left text-sm text-ink hover:border-[#b42318]/40 hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:border-line disabled:hover:bg-transparent">
+          {working === hook.id ? <Loader2 size={14} className="mt-0.5 shrink-0 animate-spin text-ink-3" /> : <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" />}
+          <span className="min-w-0">{hook.hook}</span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -711,12 +739,50 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     }
   };
 
+  // Professor Next Steps (docs/features/professor-next-steps.md §1.4): a hook the learner clicked (NextStepsCard), or one
+  // carried into a new hole. The step travels as structured data, never as typed text: one tutor.askStep turn, drawn in the
+  // dock's sheet as a selection chip (visibly a choice, not a learner bubble) with the Tutor's reply under it, and no canvas
+  // card. Voice Mode on: the spoken session's turn (say with nextStep), never askStep - a typed reply would not be spoken and
+  // old audio would keep playing; a refusal (a turn is thinking) reads as busy. Resolves to whether the turn was taken.
+  const sendStep = async (step, hook) => {
+    if (voice?.on) return voice.say('', { nextStep: step, selectedAt: new Date().toISOString() });
+    if (busy || !tutor?.askStep) return false;
+    boardContext?.pause();
+    boardContext?.setAnswering(true);
+    setBusy(true);
+    const flight = new AbortController();
+    answerFlight.current = flight;
+    const replyId = crypto.randomUUID();
+    let begun = false;
+    const begin = () => {
+      if (begun) return;
+      begun = true;
+      setSheetOpen(true); setSheetHistory(false);
+      setMsgs(m => [...m, { role: 'step', content: hook }, { role: 'assistant', content: '', id: replyId }]);
+    };
+    const reply = text => { begin(); setMsgs(m => m.map(item => (item.id === replyId ? { ...item, content: item.content + text } : item))); };
+    try {
+      const answer = await tutor.askStep({ selected_next_step: step, signal: flight.signal, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+      if (!answer?.handled) reply(answer);
+    } catch (e) {
+      reply(`✗ ${e.message}`);
+    } finally {
+      if (answerFlight.current === flight) answerFlight.current = null;
+      boardContext?.setAnswering(false);
+      setBusy(false);
+    }
+    return true;
+  };
+  if (nextStepRef) nextStepRef.current = sendStep; // the page's hook card sends through the dock (LearnPage)
+
   // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question - from the dock only
   // (final review C-I1: a journey hole's block composers get the same Tutor and would each send it again).
   const openedHole = useRef(null);
   useEffect(() => {
     if (!dock || !tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
     openedHole.current = tutor.opening.key;
+    // A hook carried from a shared canvas (contract §1.4): the hole opens on it once, as the step, keyed by opening.key.
+    if (tutor.opening.next_step) { sendStep(tutor.opening.next_step, tutor.opening.next_step.hook); return; }
     // Voice Mode: the opening is a voice turn - spoken, in the Tutor caption only, never a chat bubble.
     if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;
     send(tutor.opening.question, undefined, { opening: true });
@@ -892,8 +958,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           </div>
         )}
         {!(sheetMode && sheetHistory) && msgs.map((m, i) => (sheetMode && m.card) ? null : (
-          <div key={i} className={cn('py-1.5', m.role === 'user' && 'flex justify-end')}>
-            {m.role === 'user' ? (
+          <div key={i} className={cn('py-1.5', (m.role === 'user' || m.role === 'step') && 'flex justify-end')}>
+            {m.role === 'step' ? (
+              // A chosen next step (sendStep): the hook the learner clicked, drawn as a choice - never as their own words.
+              <div data-step-chip title="A next step you chose" className="inline-flex max-w-[85%] items-start gap-1.5 rounded-lg border border-[#b42318]/25 bg-[#b42318]/[0.04] px-3 py-1.5 text-sm text-ink">
+                <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" /><span className="min-w-0">{m.content}</span>
+              </div>
+            ) : m.role === 'user' ? (
               <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
                 {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
                 {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}

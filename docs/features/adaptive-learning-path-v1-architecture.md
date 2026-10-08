@@ -293,6 +293,11 @@ It runs on the Home teach path and on the Learn composer of a canvas that has no
 Tutor. A broad intent on a board that already has a live journey opens a `clarification` tray: "Continue <topic>
 or start <new topic>?".
 
+Superseded on canvases (Professor Next Steps Task 11b): every canvas now has the Auto Tutor, so this word gate no
+longer runs from a canvas composer and a second broad intent is a Tutor turn, not continue-or-start. The Tutor may
+offer a learning path instead (`suggest_journey`, a Start a learning path chip); the current statement is
+[professor-next-steps.md](professor-next-steps.md) §4.5. Home's teach path keeps the gate.
+
 ### 6.2 Intake (deterministic bank, no model call)
 
 - **Slots:**

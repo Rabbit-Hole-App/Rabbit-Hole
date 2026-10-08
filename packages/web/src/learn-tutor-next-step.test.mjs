@@ -247,7 +247,7 @@ test('modalityOf: the product names; a card is the block type it is shown or ins
   assert.equal(modalityOf({ type: 'focus_part', card: NANOGPT.cards[0], part_id: 'p' }, { domain: NANOGPT }), 'animation', 'an authored card is inserted as an animation block');
 });
 
-test('typed turns are unchanged: no next_step key, intent as before', () => {
+test('a typed turn carries no next_step key: its words give its intent kind', () => {
   assert.equal(learnerIntent(turnOf({ raw_user_message: 'why?' })).kind, 'question');
   assert.equal('selected_next_step' in learnerIntent(turnOf({ raw_user_message: 'why?' })), false);
 });

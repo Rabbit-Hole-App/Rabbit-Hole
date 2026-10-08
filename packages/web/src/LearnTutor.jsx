@@ -63,7 +63,7 @@ export const hookContext = (where, read, recordPending = false) => (recordPendin
 // Given, the Tutor may offer suggest_research (a Research this chip that calls it); absent, it never offers one. Nothing is
 // researched inside a Tutor turn. repository (Task 11c-B): whether the turn may hand off to repository_context; the page may pass
 // false when the learner detached the repository source (LearnPage repoAttached), else it is the app's own (canvasRepository).
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null }) {
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -218,7 +218,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // The reply does not wait for the cards. Task 14 B-I1: the turn's selected card is the target, as a typed command's armed
     // card is (its selection, and its text as context); a hook click has none (block null).
     runMaterials(result.actions, {
-      app: app.name, openSearch: () => {}, offer, target: block ? { id: block.id, title: block.title, text: cardContext(block) } : null,
+      app: app.name, openSearch: () => {}, offer, target: block ? { id: block.id, ...(describe?.(block) || { title: block.title, text: cardContext(block) }) } : null,
       // What could not be made says so (an error, a clarification, an unsupported command); a made card is its own notice.
       // ponytail: a slow command's notice can land after the next turn began, under that reply (informative, accepted for
       // v1); tag notices with their turn id and drop stale ones if that ever confuses.

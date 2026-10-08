@@ -311,8 +311,10 @@ async function n6() {
 // /api/ request is aborted unless it is one of the stack's own keyless routes (canvases, boards, the journey route, dives, the
 // evaluator and the hook planner, which answer from their fixtures or without a call).
 // The keyless stack's own resource errors on every page load, with or without the flag, and nothing else: the dev worker
-// refuses /auth/session (the P0-B barrier) and BYOC is not configured. Any other console error fails N7.
-const STACK_NOISE = [['/auth/session', 403], ['/api/byoc/connection', 503]];
+// refuses /auth/session (the P0-B barrier) and BYOC is not configured. Any other console error fails N7. With the hooks mounted
+// (LearnPage, Parallel wiring) a traced page emits hook events, and the harness sink's one /api/me read is refused by the same
+// barrier (the dev worker serves no /api/me), so its user_id stays null on this stack.
+const STACK_NOISE = [['/auth/session', 403], ['/api/byoc/connection', 503], ['/api/me', 403]];
 // Owned board saves (boards/<app>/<board>, never boards/shared/..., whose ask is a model route), canvases and their dives, the
 // journey route, the evaluator and the hook planner. Everything else non-GET is aborted.
 const LOCAL_WRITES = /^\/api\/(canvases|learn\/(boards\/(?!shared\/)[^/]+\/[^/]+$|journey$|tutor\/(evaluate|next-steps)$))/;

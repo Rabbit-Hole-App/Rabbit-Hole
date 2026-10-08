@@ -87,8 +87,8 @@ const RESEARCH_OFF = 'Research here would call the live model, so it is off on t
 const TEACH_OFF = 'Learn on an app would ask through live chat history, so it is off on this preview.';
 export function reviewOff(name, kind, { askLive = false } = {}) {
   if (name === 'ask' && !askLive && (kind === 'workspace' || kind === 'app')) return { reason: ASK_OFF, short: 'Off on this preview' };
-  // Only canvas research runs on the preview's own LEARN_DB; elsewhere it reaches the live model.
-  if (name === 'research' && kind !== 'canvas') return { reason: RESEARCH_OFF, short: 'Off on this preview' };
+  // Research reaches the live model, and a canvas never offers it (a Home, Library and Project workflow, owner 2026-10-06).
+  if (name === 'research') return { reason: RESEARCH_OFF, short: 'Off on this preview' };
   // The preview mounts Learn only for canvases (SharePage, D7), so /teach on an app would land nowhere.
   if (name === 'teach' && kind === 'app') return { reason: TEACH_OFF, short: 'Off on this preview' };
   return null;
