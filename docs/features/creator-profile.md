@@ -59,6 +59,18 @@ so a link from a private view reveals nothing the handle did not already name. H
 | Fork provenance ("Forked from … · @alice", Library cards and the canvas top bar) | the original creator's @handle, whatever the original's state (`provenance.js` `creatorUrl`) |
 | Library and Home cards | the @handle, through `cardModel`'s `creator.url` (yours opens your own profile) |
 
+## Copy profile link
+
+Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
+
+- **Where:** on every creator card (Explore's Creators tab, its Recommended creators and creator search: one `CreatorChip`), as an icon button at the square card's top right, beside the card's link and outside it; and on `/@handle`, in the name and handle row, labelled "Copy profile link". The profile's button is there for every viewer, signed out included.
+- **What it copies:** the absolute profile URL, `${location.origin}/@handle` (`provenance.js` `profileUrl`) - the handle only, never an email or an internal id.
+- **Feedback:** in place, never a corner toast, and it reverts after 1.6 seconds.
+  - **On the profile** (the full button) it says "Profile link copied" (or "Couldn't copy the link") on the button itself.
+  - **On the creator card** (`compact`) the button stays icon-sized so nothing spreads over the name: the link icon becomes a check, and the words go to a screen-reader live region (`sr-only`, `aria-live="polite"`), the button's accessible name and its tooltip.
+- **It never navigates:** the click stops before the card's link (`preventDefault`, `stopPropagation`), and the button is not inside it.
+- `CopyProfileLink` (`home/PublicCards.jsx`) is the one button for both places.
+
 ## Explore: creator discovery and search
 
 - **Two tabs** (owner, 2026-10-08; it replaces the "Creators to explore" row above the feed): **Explainers** (the default, the card feed, with Sort) and **Creators** (`/explore?tab=creators`), which lists creator cards that open `/@handle`. Without a search it lists up to 8 creators, ordered by latest publication. There is no ranking, follower count or reputation.
@@ -133,11 +145,13 @@ CREATE TABLE IF NOT EXISTS user_profile_descriptions (
 
   Every JSON answer is checked for emails.
 - **Server, the description:** `test/profile.test.js` covers `PUT /api/profile`'s description (one line, the 160 cap in code and in the database, markup kept as text, an empty one deletes the row, owner only) and 0013 (additive, applied twice, mirrored in `repository-schema.sql`, the foreign key).
-- **Web unit:** `src/creator-profile.test.mjs` covers the route, the owner-only parts, the public-only links, the analytics typed states, the square creator card (description, counts, the grid on the Creators tab and Recommended) and the description in Settings and on `/@handle` (the cap matches the server's; no `dangerouslySetInnerHTML`). `src/explore-publish.test.mjs` follows the card list into `home/PublicCards.jsx`, and `src/routes.test.mjs` checks that a profile lights Explore.
-- **Browser:** `e2e/creator-profile-check.mjs` (local stack only) covers:
+- **Web unit:** `src/creator-profile.test.mjs` covers the route, the owner-only parts, the public-only links, the analytics typed states, the square creator card (description, counts, the grid on the Creators tab and Recommended), the description in Settings and on `/@handle` (the cap matches the server's; no `dangerouslySetInnerHTML`), and Copy profile link (`profileUrl`, the card and profile wiring, the compact icon swap that never widens, no toast, no navigation). `src/explore-publish.test.mjs` follows the card list into `home/PublicCards.jsx`, and `src/routes.test.mjs` checks that a profile lights Explore.
+- **Browser:** `e2e/creator-profile-check.mjs` (16 checks, local stack only) covers:
   - the Explore tabs (Explainers default, Creators, the tab in the URL); the creator cards are square, with the description and "0 projects · 3 canvases" (private, unlisted and archived never count);
+  - Copy profile link on a creator card (the check icon and the live text, the button no wider), on the profile and signed out (the button's own words): the clipboard holds origin + `/@handle`, it reverts, nothing navigates (`e2e/explore-check.mjs` checks the card too);
   - the description under the name on `/@handle`, none for the minimal creator;
-  - Edit profile → Settings → a new description (with markup) saved shows at once under the name and on the creator card, as text;  - the card's @handle link;
+  - Edit profile → Settings → a new description (with markup) saved shows at once under the name and on the creator card, as text;
+  - the card's @handle link;
   - Explore → @handle → profile → explainer → `/e` → back;
   - another creator with no check;
   - the sorts;

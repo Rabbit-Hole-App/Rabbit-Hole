@@ -25,6 +25,8 @@ const browser = await chromium.launch();
 const errors = [];
 const contextFor = async (p, init = null) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  // Copy profile link writes the clipboard; the check reads it back.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   if (p) await context.addCookies([{ name: 'small_session', value: p.session, url: BASE }]);
   if (init) await context.addInitScript(init.fn, init.arg);
   // A new hole's opening question is a Tutor turn (#46): answered here, as shared-rabbit-hole-check does; the planner's real
@@ -86,6 +88,27 @@ check('Explore opens on the Explainers tab, with Sort, searching explainers only
   && await viewer.page.locator('[data-creator-chip]').count() === 0);
 check('the Explore card shows the creator\'s @handle and the fork count, no email', (await card.locator('[data-creator]').innerText()).trim() === `@${H.owner}` && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '04-explore');
+// Copy profile link on the Creators tab (owner, 2026-10-08): the absolute /@handle on the clipboard; the card's compact
+// button stays icon-sized (a check replaces the link icon, the words are its sr-only live text), then reverts; Explore
+// stays where it is.
+await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
+const creatorCard = viewer.page.locator(`[data-explore-creators] [data-creator-card="${H.owner}"]`);
+await creatorCard.waitFor({ timeout: 30000 });
+const copyProfile = creatorCard.locator('[data-copy-profile]');
+const before = viewer.page.url();
+const iconWidth = (await copyProfile.boundingBox()).width;
+await copyProfile.click();
+await viewer.page.waitForTimeout(300);
+const said = (await copyProfile.locator('[data-copy-status][aria-live="polite"]').textContent()).trim();
+const swapped = await copyProfile.locator('svg.lucide-check').count() === 1 && (await copyProfile.boundingBox()).width === iconWidth;
+const clip = await viewer.page.evaluate(() => navigator.clipboard.readText());
+await shot(viewer.page, '04b-explore-copy-profile', creatorCard);
+await viewer.page.waitForTimeout(1800);
+check('Copy profile link on a creator card: the clipboard holds origin + /@handle, a check icon and the live text Profile link copied, no wider, then reverts; nothing navigates',
+  clip === `${BASE}/@${H.owner}` && said === 'Profile link copied' && swapped && viewer.page.url() === before && (await copyProfile.getAttribute('aria-label')) === 'Copy profile link',
+  `${clip} | ${said} | ${swapped} | ${viewer.page.url()}`);
+await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Explainers' }).click();
+await card.waitFor({ timeout: 30000 });
 // A click on the card body only selects it (owner, 2026-10-08); its title opens it.
 await card.click();
 await viewer.page.waitForTimeout(500);
@@ -169,14 +192,14 @@ check('a profile description saves through Settings\' route', (await api(who.oth
 await api(who.other, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Private sketch (explore ${run})` }) });
 const people = await contextFor(who.viewer);
 await people.page.goto(`${BASE}/explore?tab=creators`);
-const creatorCard = people.page.locator(`[data-explore-creators] [data-creator-card="${H.other}"]`);
-await creatorCard.waitFor({ timeout: 30000 });
-const square = async () => { const b = await creatorCard.boundingBox(); return Math.abs(b.width - b.height) <= 1; };
-const about = creatorCard.locator('[data-creator-description]');
-const counts = (await creatorCard.locator('[data-creator-counts]').innerText()).trim();
+const otherCard = people.page.locator(`[data-explore-creators] [data-creator-card="${H.other}"]`);
+await otherCard.waitFor({ timeout: 30000 });
+const square = async () => { const b = await otherCard.boundingBox(); return Math.abs(b.width - b.height) <= 1; };
+const about = otherCard.locator('[data-creator-description]');
+const counts = (await otherCard.locator('[data-creator-counts]').innerText()).trim();
 check('a creator card is square, shows the description as text (never HTML) and N projects · M canvases of published canvases only',
   await square() && (await about.innerText()).trim() === ABOUT && await about.locator('*').count() === 0 && counts === '0 projects · 1 canvas', counts);
-await shot(people.page, '09-creator-card', creatorCard);
+await shot(people.page, '09-creator-card', otherCard);
 await people.page.setViewportSize({ width: 390, height: 844 });
 await people.page.waitForTimeout(400);
 const tops = await people.page.locator('[data-explore-creators] [data-creator-card]').evaluateAll(cards => cards.slice(0, 2).map(c => Math.round(c.getBoundingClientRect().top)));

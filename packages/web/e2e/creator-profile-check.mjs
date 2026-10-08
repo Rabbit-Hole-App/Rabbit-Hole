@@ -36,6 +36,8 @@ const browser = await chromium.launch();
 const errors = [];
 const contextFor = async p => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  // Copy profile link writes the clipboard; the checks read it back.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   if (p) await context.addCookies([{ name: 'small_session', value: p.session, url: BASE }]);
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
@@ -120,6 +122,31 @@ await check('1 Explore: Explainers by default with no creator row; the Creators 
   await noEmail(viewer, EMAIL.viewer);
 });
 await shot(viewer, 'C-explore-creator-row');
+// Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
+// The profile's full button says it on itself; the creator card's compact one stays icon-sized (it never spreads over the
+// name): its link icon becomes a check, and the words go to its sr-only live region and tooltip.
+const copied = async (page, button, handle, compact = false) => {
+  const url = page.url();
+  const width = (await button.boundingBox()).width;
+  await button.click();
+  await page.waitForTimeout(300);
+  if (compact) {
+    assert.deepEqual([await button.locator('svg.lucide-check').count(), await button.locator('svg.lucide-link-2').count()], [1, 0], 'the link icon swaps to a check');
+    assert.equal((await button.locator('[data-copy-status][aria-live="polite"]').textContent()).trim(), 'Profile link copied', 'announced, not shown');
+    assert.equal(await button.getAttribute('title'), 'Profile link copied', 'and in the tooltip');
+    assert.equal((await button.boundingBox()).width, width, 'no wider than the icon');
+  } else assert.equal((await button.innerText()).trim(), 'Profile link copied', 'the button says it, in place');
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${BASE}/@${handle}`, 'origin + /@handle, nothing else');
+  assert.equal(page.url(), url, 'the click opens nothing');
+  await page.waitForTimeout(1800);
+  assert.equal(await button.getAttribute('aria-label'), 'Copy profile link', 'then it reverts');
+  if (compact) assert.equal(await button.locator('svg.lucide-link-2').count(), 1, 'the link icon is back');
+};
+await check('1b a creator card copies its profile link: origin + /@handle on the clipboard, a check icon and the live text, no navigation', async () => {
+  await copied(viewer, viewer.locator(`[data-creator-card="${H.full}"] [data-copy-profile]`), H.full, true);
+  await copied(viewer, viewer.locator(`[data-creator-card="${H.min}"] [data-copy-profile]`), H.min, true);
+  await noEmail(viewer, EMAIL.viewer);
+});
 await check('2 the Explore card\'s @handle is a neutral link to /@handle; the title still opens /e', async () => {
   // Check 1 ends on the Creators tab (kept in the URL); the cards are on Explainers, the default.
   await viewer.goto(`${BASE}/explore`);
@@ -143,7 +170,12 @@ await check('3 Explore → @handle → the creator profile: name, @handle, expla
   assert.equal(await viewer.locator('[data-creator-profile] img').first().getAttribute('src').then(s => s.startsWith(`/api/learn/creators/${H.full}/avatar`)), true);
   assert.equal((await viewer.locator('[data-profile-description]').innerText()).trim(), DESC, 'the description under the name');
   assert.equal(await viewer.locator('[data-category]').count(), 0, 'no category storage: no empty row');
+  // Copy profile link beside the name and handle.
+  const button = viewer.locator('[data-creator-profile] header [data-copy-profile]');
+  assert.equal((await button.innerText()).trim(), 'Copy profile link');
+  await copied(viewer, button, H.full);
 });
+await shot(viewer, 'B2-profile-copy-link');
 await check('4 another creator\'s profile: no blue check anywhere, no Edit profile or Analytics; their cards offer Start Rabbit Hole and Fork', async () => {
   assert.equal(await viewer.locator('[data-owner-badge]').count(), 0);
   assert.equal(await viewer.locator('[data-own-profile], [data-edit-profile], [data-creator-analytics-open]').count(), 0);
@@ -272,6 +304,8 @@ await check('12 signed out, /@handle opens on its own, with the cards and no ema
   assert.equal(await anon.locator('[data-shared-brand]').count(), 1);
   assert.equal(await anon.locator('[data-owner-badge], [data-edit-profile]').count(), 0);
   assert.equal(await anon.locator('[data-profile-card] [data-card-start-rabbit-hole]').count(), 3, 'Start Rabbit Hole signs in, then resumes');
+  // Signed out, Copy profile link works the same.
+  await copied(anon, anon.locator('[data-creator-profile] header [data-copy-profile]'), H.full);
   await noEmail(anon);
 });
 await shot(anon, 'A-full-creator-signed-out');
@@ -299,5 +333,5 @@ await check('13 a changed handle moves the profile and every attribution at once
 });
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/15 checks passed`);
-process.exit(results.length === 15 ? 0 : 1);
+console.log(`${results.length}/16 checks passed`);
+process.exit(results.length === 16 ? 0 : 1);

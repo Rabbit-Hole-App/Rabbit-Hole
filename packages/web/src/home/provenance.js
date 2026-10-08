@@ -17,6 +17,10 @@ export function forkLabel(n) {
 // fixture's creator is a name only.
 export const creatorLabel = c => (c?.handle ? `${c.name ? `${c.name} · ` : ''}@${c.handle}` : c?.name || null);
 
+// A creator's profile link to copy (owner, 2026-10-08: "a copy profile url button"): the absolute /@handle - the handle
+// only, never an email or an internal id. No handle, no link.
+export const profileUrl = (origin, handle) => (handle ? `${origin}/@${handle}` : null);
+
 export function cardModel(a) {
   const title = a.title || (a.kind === 'repository' ? (a.repo || a.name).split('/').pop() : a.name);
   // A real canvas or project names its owner by handle, read by reference on the server (owner_handle, owner_name).

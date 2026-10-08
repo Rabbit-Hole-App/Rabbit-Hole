@@ -117,3 +117,28 @@ test('the profile description: edited in Settings > Profile (160 characters, as 
   // Escaped by React as a text child: no HTML injection, and no linkifying of the description anywhere it shows.
   for (const file of ['./CreatorProfile.jsx', './home/PublicCards.jsx', './Sidebar.jsx']) assert.doesNotMatch(read(file), /dangerouslySetInnerHTML/, file);
 });
+
+// Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
+test('Copy profile link: the absolute /@handle only, on every creator card and on the profile beside the name; in place, no navigation', async () => {
+  const { profileUrl } = await import('./home/provenance.js');
+  assert.equal(profileUrl('https://digrabbithole.com', 'ada_l'), 'https://digrabbithole.com/@ada_l');
+  assert.equal(profileUrl('http://127.0.0.1:8848', null), null, 'no handle, no link - never an email or an id');
+  const cards = read('./home/PublicCards.jsx'), profile = read('./CreatorProfile.jsx');
+  // The button copies profileUrl(origin, handle), says so on itself, reverts, and stops the click from reaching the card.
+  assert.match(cards, /event\.preventDefault\(\); event\.stopPropagation\(\);\n\s+try \{ await navigator\.clipboard\.writeText\(profileUrl\(window\.location\.origin, handle\)\); setCopied\('Profile link copied'\); \}/);
+  assert.match(cards, /timer\.current = setTimeout\(\(\) => setCopied\(null\), 1600\);/);
+  const button = cards.slice(cards.indexOf('export function CopyProfileLink'), cards.indexOf('function CreatorChip'));
+  assert.doesNotMatch(button, /toast\(/, 'no corner toast');
+  // Compact (the creator card): the same icon-sized button whatever it says - the link icon swaps to a check, the words
+  // go to an sr-only live region and the tooltip, never over the name. The full button (the profile) keeps its label.
+  assert.match(button, /const Icon = copied \? Check : Link2;\n\s+const label = copied \|\| 'Copy profile link';/);
+  assert.match(button, /aria-label=\{label\} title=\{label\}/);
+  assert.match(button, /className=\{`shrink-0 \$\{compact \? 'w-7 justify-center px-0' : ''\} \$\{className\}`\}/, 'compact never widens');
+  assert.match(button, /\{compact \? <span data-copy-status aria-live="polite" className="sr-only">\{copied \|\| ''\}<\/span> : <span aria-live="polite">\{label\}<\/span>\}/);
+  // On the creator card, at its top right, beside the profile link and outside it, so copying never opens the profile.
+  const chip = cards.slice(cards.indexOf('function CreatorChip'));
+  assert.match(chip, /<\/a>\n\s+<CopyProfileLink handle=\{c\.handle\} compact className="absolute right-2 top-2" \/>\n\s+<\/div>/);
+  // On the profile, in the name and handle row, for every viewer (no own or signed-in condition).
+  assert.match(profile, /\{p\.name && <span data-profile-handle>@\{p\.handle\}<\/span>\}\n[\s\S]{0,400}<CopyProfileLink handle=\{p\.handle\} \/>/);
+  assert.doesNotMatch(profile, /\{own && <CopyProfileLink|\{me && <CopyProfileLink/);
+});
