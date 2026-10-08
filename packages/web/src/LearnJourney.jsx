@@ -172,10 +172,11 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
     } catch { return { status: 0, d: {} }; } finally { set({ busy: null }); }
   };
   // ok is a 200. A failure gets the tray's error line, whose retry re-sends the same action, unless the reply already
-  // shows where the journey is: a 409, a replay after a re-read, or a planner failure's own error tray.
+  // shows where the journey is: a 409, a replay after a re-read, or a planner failure's own error tray. A replacement's
+  // line (message) always shows: the reply's tray is the old journey's, and its error is not this failure (D2).
   const settle = (out, again, message = null) => {
     const ok = out.status === 200;
-    if (!ok && out.status !== 409 && !out.reread && !out.d?.tray?.error) set({ error: { message: message || (out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.'), again } });
+    if (!ok && out.status !== 409 && !out.reread && (message || !out.d?.tray?.error)) set({ error: { message: message || (out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.'), again } });
     return { ...out, ok };
   };
   const act = async (body, again = () => act(body)) => {
