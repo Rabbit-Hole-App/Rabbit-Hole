@@ -1457,7 +1457,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The Rabbit Hole navigator shares the gutter above it (Dive.jsx); with it the column is
       // full, so the overview button below (32px and its gap) is reserved too.
       const slot = bar.parentElement.querySelector('[data-gutter-top]');
-      const room = bar.parentElement.clientHeight - 16 - (slot ? slot.offsetHeight + 48 : 0), pad = 4; // p-1
+      // Less the gutter's bottom padding: the floating strip's column on the tools' side (--chrome-left/right).
+      const room = bar.parentElement.clientHeight - parseFloat(getComputedStyle(bar.parentElement).paddingBottom || 0) - 16 - (slot ? slot.offsetHeight + 48 : 0), pad = 4; // p-1
       if (shell.current?.clientWidth < 640 || bar.scrollHeight <= room) { setToolCap(null); return; }
       // Measured from the bar's own top: the gutter is the offset parent, and the navigator moves the bar down in it.
       const ends = [...bar.children].map(child => child.offsetTop - bar.offsetTop + child.offsetHeight).filter(end => end + pad <= room);
@@ -1500,14 +1501,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!element || !boxes.length) return;
     const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
     const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
-    const z = Math.max(0.2, Math.min(maxZoom, (element.clientWidth - pad * 2) / Math.max(1, right - left), (element.clientHeight - pad * 2) / Math.max(1, bottom - top)));
+    const w = element.clientWidth;
+    const fit = h => Math.max(0.2, Math.min(maxZoom, (w - pad * 2) / Math.max(1, right - left), (h - pad * 2) / Math.max(1, bottom - top)));
+    const across = z => (w - (right - left) * z) / 2 - left * z;
+    // The floating bottom chrome over the framed span is a bottom inset: nothing is framed under the composer, the
+    // minimap and zoom, or the hooks. A refit only narrows the span, so the first span's inset still holds.
+    let z = fit(element.clientHeight);
+    const h = Math.min(element.clientHeight, chromeTop(across(z) + left * z, across(z) + right * z));
+    z = fit(h);
     // Centred horizontally; vertically too when the section is short enough to
     // sit in the middle of the screen, which is what reads as a slide.
     const height = (bottom - top) * z;
     setView({
       z,
-      x: (element.clientWidth - (right - left) * z) / 2 - left * z,
-      y: (height + pad * 2 < element.clientHeight ? (element.clientHeight - height) / 2 : pad) - top * z,
+      x: across(z),
+      y: (height + pad * 2 < h ? (h - height) / 2 : pad) - top * z,
     });
   };
   // Frame everything on the canvas. An infinite surface you can pan forever needs
@@ -1982,7 +1990,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const surface = useRef(null);
-  const gutter = useRef(null), shell = useRef(null);
+  const gutter = useRef(null), shell = useRef(null), bottomStrip = useRef(null);
+  // The floating strip's side columns, as CSS lengths on the shell from its bottom edge: the Voice caption sits above the
+  // left one (--chrome-left), the tools' gutter pads its side's one (--chrome-left / --chrome-right).
+  useLayoutEffect(() => {
+    const strip = bottomStrip.current, host = shell.current;
+    if (!strip || !host || typeof ResizeObserver === 'undefined') return undefined;
+    const sync = () => {
+      const bottom = host.getBoundingClientRect().bottom;
+      host.style.setProperty('--chrome-left', `${Math.max(0, bottom - strip.firstElementChild.getBoundingClientRect().top)}px`);
+      host.style.setProperty('--chrome-right', `${Math.max(0, bottom - strip.lastElementChild.getBoundingClientRect().top)}px`);
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    for (const column of strip.children) observer.observe(column);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [presenting]);
   const [shellWidth, setShellWidth] = useState(0);
   // null follows the width (open from 1400px of canvas); a click makes it the learner's choice.
   const [overview, setOverview] = useState(null);
@@ -2002,12 +2026,25 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!box || !surface.current) return false;
     // Both axes: after a sideways pan the column is off to one side, and a
     // card inserted into it landed off screen.
-    const current = viewRef.current, next = panInto(box, current, visibleArea(), centre);
+    const current = viewRef.current, area = visibleArea(), first = panInto(box, current, area, centre);
+    // The floating bottom chrome over the card's span is a floor too (24: freeArea's margin).
+    const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
+    const next = floor < area.bottom ? panInto(box, current, { ...area, bottom: Math.max(area.top + 1, floor) }, centre) : first;
     if (next.x === current.x && next.y === current.y) return true;
     if (smooth) setGlide(true);
     autoView.current = next;
     setView(next);
     return true;
+  };
+  // The floating bottom strip's controls over a span of the surface (surface px; owner, 2026-10-08: "in the canvas above
+  // the chat composer you are cutting the canvas too much"): the top of the highest one there, else the surface's
+  // height. Fit, focus and a new card's reveal stop above it; panning still brings anything out from under it.
+  const chromeTop = (x0, x1) => {
+    const at = surface.current.getBoundingClientRect();
+    return Math.min(at.height, ...[...(shell.current?.querySelectorAll('[data-canvas-bottom] > * > *') || [])]
+      .map(node => node.getBoundingClientRect())
+      .filter(rect => rect.width && rect.height && rect.left - at.left < x1 && rect.right - at.left > x0)
+      .map(rect => rect.top - at.top));
   };
   // What the learner can see of the surface: less what floats over it - the chat sheet above the composer, the
   // Voice caption, the page's contents rail (edgeInset) - and a margin (canvas-slots.js freeArea).
@@ -2528,9 +2565,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // An open chat sheet covers the lower part of the view: centre above it.
     // The shell, not the surface's parent: the tools gutter wraps the surface in its own row.
     const sheet = (shell.current || element.parentElement)?.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
-    const h = sheet?.height ? Math.max(120, sheet.top - element.getBoundingClientRect().top) : element.clientHeight;
-    // The canvas's own move, not the learner's (autoView).
-    setView(v => (autoView.current = { ...v, x: element.clientWidth / 2 - (box.x + box.w / 2) * v.z, y: h / 2 - (box.y + Math.min(box.h, h / v.z) / 2) * v.z }));
+    const open = sheet?.height ? Math.max(120, sheet.top - element.getBoundingClientRect().top) : element.clientHeight;
+    // The canvas's own move, not the learner's (autoView); above the floating chrome over the card too.
+    setView(v => {
+      const x = element.clientWidth / 2 - (box.x + box.w / 2) * v.z;
+      const h = Math.max(120, Math.min(open, chromeTop(x + box.x * v.z, x + (box.x + box.w) * v.z)));
+      return (autoView.current = { ...v, x, y: h / 2 - (box.y + Math.min(box.h, h / v.z) / 2) * v.z });
+    });
   };
   useEffect(() => {
     for (const exchange of exchanges) {
@@ -3249,7 +3290,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setBlocks(previous => [...previous, added]);
     setInsertOpen(false);
     setInsertFilter('');
-    if (element) setView(v => ({ ...v, y: Math.min(v.y, element.clientHeight - 280 - (24 + flowY + dy) * v.z) }));
+    if (element) setView(v => ({ ...v, y: Math.min(v.y, chromeTop(v.x, v.x + COLUMN * v.z) - 280 - (24 + flowY + dy) * v.z) }));
   };
   const changeItem = (id, text) => {
     if (present.current.items.some(item => item.id === id && item.text !== text)) snapshot();
@@ -3395,7 +3436,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           The stack stays left of the centred dock (780 px) and the answer sheet above it, down to 208 px wide. */}
       {leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-[640px]:w-full"
         onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
-        <div data-left-stack className="absolute bottom-3 left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
+        <div data-left-stack className="absolute bottom-[calc(var(--chrome-left,0px)+0.75rem)] left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
       </div>}
       <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : tool === 'comment' ? placeComment : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
@@ -3739,7 +3780,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
           style={{ '--edge': `${edgeInset || 0}px` }}
-          className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? `order-first items-start pl-2 ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}` : `items-end pr-2 mr-(--edge) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}`} @max-[640px]:order-none @max-[640px]:mr-0 @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2 @max-[640px]:pl-0`}>
+          className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? `order-first items-start pl-2 pb-(--chrome-left) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}` : `items-end pr-2 mr-(--edge) pb-(--chrome-right) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}`} @max-[640px]:order-first @max-[640px]:pb-0 @max-[640px]:mr-0 @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2 @max-[640px]:pl-0`}>
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator when the tools dock right. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
@@ -3870,11 +3911,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       {/* The bottom strip (owner, 2026-10-08: "move the minimap to the left bottom above the zoom buttons. so that they are
           all in one together" and "move the 3 hooks options window to the bottom right aligned with the lower of the chat
           composer"): lower left, the minimap above the zoom row, one group on one left edge; the composer in the middle;
-          lower right, the Next Steps hooks, their bottom level with the composer's. All in flow: the strip grows to hold
-          them, so no chrome ever covers the canvas, and the side columns grow equally, keeping the composer centred while
-          there is room. On a phone the zoom row, then the hooks at the right, then a full-width composer, one per row (the
-          overview lives in the tools' strip there). */}
-      {presenting === null && <div data-canvas-bottom className={`relative flex min-h-11 shrink-0 flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD}`}>
+          lower right, the Next Steps hooks, their bottom level with the composer's. The side columns grow equally, keeping
+          the composer centred while there is room. On a phone the zoom row, then the hooks at the right, then a full-width
+          composer, one per row (the overview lives in the tools' strip, at the top there).
+          It floats (owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much"): the
+          canvas runs to the bottom, the strip is transparent and lets the pointer through, and only its controls (the
+          strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
+          fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
+      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
         <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
         {/* The page's own lower-left control (Learn: the feedback button). */}
         {bottomLeft}

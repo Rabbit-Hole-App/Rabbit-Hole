@@ -1,7 +1,10 @@
 // Canvas utilities never cover canvas content (docs/features/learn-canvas-blocks.md), on the restored
 // shell (2026-09-30): the tools in the left gutter, the Rabbit Hole navigator in the right gutter, Home in the top-left
 // corner, and the bottom strip (owner, 2026-10-08): the minimap lower left directly above the zoom row, one group on one
-// left edge, left of the composer.
+// left edge, left of the composer. The strip floats (owner, 2026-10-08: "in the canvas above the chat composer you are
+// cutting the canvas too much"): the canvas runs to the bottom under it, the empty strip passes the pointer to the canvas,
+// and zoom to fit frames every card clear of it. Chrome may float over the canvas but never hides what the learner cannot
+// reach, so the edge probes stop above the strip, and on a phone the tools' strip sits above the canvas.
 // Desktop (the review viewport, 1720 x 1100): the widest card is panned hard right, then hard left; the
 // card is on top all along each canvas edge, the tools, navigator and minimap sit wholly outside the
 // canvas surface, the minimap clears the composer. A wheel over empty gutter space pans the canvas;
@@ -55,6 +58,8 @@ const geometry = page => page.evaluate(() => {
     home: box(document.querySelector('[data-learn-home]')),
     zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim(),
     zoomRow: box(document.querySelector('[data-zoom]')),
+    strip: box(document.querySelector('[data-canvas-bottom]')),
+    stack: box(document.querySelector('[data-zoom-stack]')),
   };
 });
 const utilities = '[role="toolbar"],[data-tool-gutter],[data-dive-gutter],[data-dive-navigator],[data-canvas-minimap]';
@@ -92,7 +97,8 @@ async function probeEdge(page, card, title, label, side = 'right') {
   const xs = side === 'right' ? [g.surface.right - 2, g.surface.right - 30, g.surface.right - 60] : [g.surface.x + 2, g.surface.x + 30, g.surface.x + 60];
   for (const x of xs) {
     for (const f of [0.2, 0.4, 0.5, 0.6, 0.8]) {
-      const y = Math.max(g.surface.y + 4, Math.min(g.surface.bottom - 4, box.y + box.height * f));
+      // Above the floating strip: under it is reached by panning, not a card the probe must find on top.
+      const y = Math.max(g.surface.y + 4, Math.min(Math.min(g.surface.bottom, g.strip?.y ?? Infinity) - 4, box.y + box.height * f));
       probes += 1;
       const hit = await page.evaluate(([px, py, t, u]) => {
         const el = document.elementFromPoint(px, py);
@@ -124,12 +130,20 @@ async function probeEdge(page, card, title, label, side = 'right') {
   if (g.navigator && !(g.navigator.x >= g.surface.right - 0.5)) fail(`desktop: the navigator ${JSON.stringify(round(g.navigator))} is not in the right gutter`);
   if (!g.minimap) fail('desktop: no minimap in the lower left');
   else {
-    if (!(g.minimap.y >= g.surface.bottom - 0.5)) fail(`desktop: the minimap ${JSON.stringify(round(g.minimap))} is not below the canvas`);
+    if (!(g.surface.bottom >= g.strip.bottom - 2 && g.surface.bottom >= g.composer.bottom)) fail(`desktop: the canvas ${JSON.stringify(round(g.surface))} stops above the strip ${JSON.stringify(round(g.strip))}`);
     if (!disjoint(g.minimap, g.composer) || g.minimap.right > g.composer.x) fail('desktop: the minimap does not clear the composer on its left');
     if (!(g.minimap.bottom <= g.zoomRow.y + 0.5) || Math.abs(g.minimap.x - g.zoomRow.x) > 1.5 || g.zoomRow.y - g.minimap.bottom > 12) fail(`desktop: the minimap ${JSON.stringify(round(g.minimap))} is not directly above the zoom row ${JSON.stringify(round(g.zoomRow))} on its left edge`);
     if (g.minimap.w < 150) fail(`desktop: the minimap is only ${Math.round(g.minimap.w)}px wide`);
   }
   if (g.overview) fail('desktop: the gutter overview is open; the desktop minimap is the bottom strip\'s');
+  {
+    const at = await page.evaluate(([gx, gy]) => {
+      const r = document.querySelector('[title="Reset zoom"]').getBoundingClientRect();
+      return { gap: !!document.elementFromPoint(gx, gy)?.closest('[data-canvas-surface]'), reset: !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest('[title="Reset zoom"]') };
+    }, [(g.stack.right + g.composer.x) / 2, g.zoomRow.y + g.zoomRow.h / 2]);
+    if (!at.gap) fail('desktop: the empty strip between the zoom stack and the composer does not reach the canvas');
+    if (!at.reset) fail('desktop: the zoom row does not take the pointer');
+  }
   if (!g.home || g.home.x > 24 || g.home.y > 24) fail('desktop: no Home button in the top-left corner');
   if (g.zoom !== '100%') fail(`desktop: zoom is ${g.zoom}, not 100%`);
   const right = { surface: round(g.surface), toolbar: round(g.toolbar), minimap: round(g.minimap), ...(await probeEdge(page, card, widest.block.title, 'desktop, right edge')) };
@@ -165,6 +179,15 @@ async function probeEdge(page, card, title, label, side = 'right') {
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
   await page.getByRole('button', { name: 'Select and move', exact: true }).click();
   if (armed !== 'true') fail('desktop: the pen tool did not arm');
+  // Zoom to fit (the minimap's Back to content) frames every card clear of the floating strip.
+  await page.getByRole('button', { name: 'Back to content' }).first().click();
+  await page.waitForTimeout(500);
+  {
+    const fit = await geometry(page);
+    const under = await page.evaluate(chrome => [...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => el.getBoundingClientRect())
+      .filter(r => r.width && chrome.some(c => c && r.right > c.x && c.right > r.x && r.bottom > c.y && c.bottom > r.y)).length, [fit.composer, fit.stack]);
+    if (under) fail(`desktop: after zoom to fit, ${under} card(s) under the composer or the minimap and zoom`);
+  }
   results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, right, left: opened, penArmed: armed === 'true' };
   console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past both edges; tools left, navigator right, minimap lower left above the zoom row, all outside the canvas (right ${right.onCard}/${right.probes}, left ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);
   await context.close();
@@ -174,7 +197,7 @@ async function probeEdge(page, card, title, label, side = 'right') {
 {
   const { context, page } = await open({ width: 2200, height: 1200 });
   const g = await geometry(page);
-  if (!g.minimap || !(g.minimap.y >= g.surface.bottom - 0.5) || g.minimap.right > g.composer.x || !(g.minimap.bottom <= g.zoomRow.y + 0.5)) fail('wide: no minimap below the canvas in the lower left, above the zoom row');
+  if (!g.minimap || !(g.surface.bottom >= g.composer.bottom) || g.minimap.right > g.composer.x || !(g.minimap.bottom <= g.zoomRow.y + 0.5)) fail('wide: the canvas stops above the strip, or no minimap in the lower left above the zoom row');
   if (!disjoint(g.toolbar, g.surface) || (g.navigator && !disjoint(g.navigator, g.surface))) fail('wide: a utility overlaps the canvas');
   results.wide = { surface: round(g.surface), minimap: round(g.minimap), toolbar: round(g.toolbar), navigator: round(g.navigator) };
   console.log('wide: tools left, navigator right, minimap lower left above the zoom row, all outside the canvas');
@@ -186,7 +209,8 @@ async function probeEdge(page, card, title, label, side = 'right') {
   const { context, page, canvas } = await open({ width: 390, height: 844 });
   let g = await geometry(page);
   if (g.surface.h < 0.45 * 844) fail(`phone: the canvas is only ${Math.round(g.surface.h)}px tall`);
-  if (!disjoint(g.toolbar, g.surface) || g.toolbar.y < g.surface.bottom - 1) fail('phone: the tool strip is not below the canvas');
+  if (!disjoint(g.toolbar, g.surface) || g.toolbar.bottom > g.surface.y + 1) fail('phone: the tool strip is not above the canvas');
+  if (!(g.surface.bottom >= g.composer.bottom)) fail(`phone: the canvas ${JSON.stringify(round(g.surface))} stops above the composer ${JSON.stringify(round(g.composer))}`);
   if (g.toolbar.x < 0 || g.toolbar.right > 390) fail('phone: the tool strip runs off screen');
   if (g.overview) fail('phone: the overview is open by default');
   // The zoom controls never sit on the composer: the input's centre reaches the input.
@@ -200,7 +224,9 @@ async function probeEdge(page, card, title, label, side = 'right') {
   if (!dock.zoom || !dock.form) fail('phone: the zoom controls or the composer are missing');
   if (!disjoint(dock.zoom, dock.form)) fail(`phone: the zoom controls ${JSON.stringify(round(dock.zoom))} overlap the composer ${JSON.stringify(round(dock.form))}`);
   if (!dock.onInput) fail(`phone: a tap on the composer input lands on ${dock.hit}, not the input`);
-  if (!disjoint(dock.zoom, dock.surface)) fail('phone: the zoom controls overlap the canvas');
+  // The zoom row floats over the canvas now; the empty strip right of it passes the pointer to the canvas.
+  const through = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-canvas-surface]'), [(dock.zoom.right + dock.surface.right) / 2, dock.zoom.y + dock.zoom.h / 2]);
+  if (!through) fail('phone: the empty strip beside the zoom row does not reach the canvas');
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
   if (armed !== 'true') fail('phone: the pen tool did not arm');

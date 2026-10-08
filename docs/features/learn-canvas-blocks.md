@@ -82,7 +82,17 @@ FAL), 3D scene (Blender), audio narration.
 Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanvas.jsx`):
 
 - Canvas utilities — the drawing toolbar, canvas home, the minimap and the Rabbit Hole navigator —
-  never permanently obscure authored canvas content. None of them sits on `[data-canvas-surface]`.
+  never permanently obscure authored canvas content. The toolbar, home and navigator never sit on
+  `[data-canvas-surface]`.
+- The bottom strip floats (owner, 2026-10-08: "in the canvas above the chat composer you are cutting
+  the canvas too much"). The canvas runs to the bottom of its area; the strip (`[data-canvas-bottom]`:
+  the composer, the minimap and zoom, the hooks card) floats over its lower edge, transparent, and
+  lets the pointer through except on its controls. The rule for it: chrome may float over the canvas
+  but never hides content the learner cannot reach. Zoom to fit, zoom to selection, a section's
+  frame, focusing an asked card, a new card's reveal and a dev-inserted block all stop above the
+  chrome over their span (`chromeTop`, a bottom inset), so nothing lands or is framed under it;
+  panning still brings anything out from under it. The tools' gutter pads its side's floating
+  column (`--chrome-left` / `--chrome-right`), and the Voice caption sits above the left one.
 - The desktop shell was restored on 2026-09-30 after integration lost Parallel's layout
   (`caca1c2b`):
   - **Top left:** canvas home (`[data-canvas-home]`, back to the start, Shift 0).
@@ -92,11 +102,11 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
     top of the tools gutter when the tools dock right.
   - **Lower left** (owner, 2026-10-08): the minimap directly above the zoom row, one group on one left
     edge in the bottom strip's left column (`[data-zoom-stack]` holding `[data-canvas-minimap]` then
-    `[data-zoom]`), in flow, so the strip grows to hold it. Hidden below `md` and on canvases under
+    `[data-zoom]`), in the strip's flow. Hidden below `md` and on canvases under
     640px, where the overview stays the tools row's toggle.
   - **Lower right** (owner, 2026-10-08): the Professor Next Steps hook card (`[data-hooks-slot]` in
-    `[data-canvas-lower-right]`), right of the composer with its bottom on the composer's bottom, in
-    flow, never over the canvas or the composer; same width rule as before. Below `md` it sits above
+    `[data-canvas-lower-right]`), right of the composer with its bottom on the composer's bottom,
+    never over the composer; same width rule as before. Below `md` it sits above
     the composer, at the right, `min(100%, 300px)` wide. Owned and shared canvases place it the same
     way. Voice Mode's caption keeps the lower-left stack on the canvas.
   - **Bottom:** the composer.
@@ -105,18 +115,23 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
     and shared, by `e2e/canvas-chrome-check.mjs` (local keyless stack).
 - No card- or scene-specific padding or layout for any utility; cards do not know the utilities
   exist.
-- On a canvas narrower than 640px the tools become one row under the canvas (toolbar scrolling in
-  it), and the overview is that row's toggle, opening on the next row.
+- On a canvas narrower than 640px the tools become one row above the canvas (toolbar scrolling in
+  it; above since 2026-10-08, so the composer floats at the bottom), and the overview is that row's
+  toggle, opening on the next row.
 - On phones and tablets (below `lg`) the lesson canvas gets a viewport-relative height (`75dvh`)
   and the page scrolls, so the table of contents stays reachable underneath.
 - Toolbar and overview stay functional at 100% zoom; wheel over empty gutter space pans the canvas,
   while toolbar controls, menus and the overview keep their own wheel.
-- The zoom controls never cover the composer or the canvas (NC10, 2026-09-29): below 1024px of
-  canvas width they take their own line above the composer instead of sitting beside it.
+- The zoom controls never cover the composer (NC10, 2026-09-29): below 1024px of canvas width they
+  take their own line above the composer instead of sitting beside it. They float over the canvas
+  with the rest of the strip since 2026-10-08.
 
 Regression check: `node e2e/canvas-toolbar-check.mjs <deployed-base> nanogpt-depth-ladder <outDir>`
 (desktop 1720×1100 with the widest card pushed past the edge, a 2200px wide screen, and 390×844,
-where a tap on the composer input must land on the input, not the zoom controls).
+where a tap on the composer input must land on the input, not the zoom controls). Both it and
+`e2e/canvas-chrome-check.mjs` assert the floating strip: the canvas reaches the strip's bottom, the
+empty strip passes the pointer to the canvas, the controls take it, and after zoom to fit no card
+is under the composer, the hooks, or the minimap and zoom.
 
 The same rule holds inside a card: sections under an animation's frame — Sources & evidence and
 the practice section, collapsed or open — grow the card by their measured height and never shrink
