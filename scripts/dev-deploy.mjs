@@ -17,6 +17,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const WORKER = 'rabbit-hole-web-dev-small-parallel';
+export const CONFIRMATIONS = 5; // consecutive serves of the new build before the smoke
 export const URL_BASE = `https://${WORKER}.tryrabbithole.workers.dev`;
 const ACCOUNT = 'c08d3dbdc53a3afd3cb09a536ac42318';
 const LEARN_DEV_DB = '028f800f-ce8e-4461-adb2-827f417492eb';
@@ -204,8 +205,14 @@ async function smoke(entry) {
   const token = id && idSecret ? { 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': idSecret } : {};
   const get = (p, init = {}) => fetch(`${URL_BASE}${p}`, { redirect: 'manual', ...init, headers: { ...UA, ...token, ...init.headers } });
   // Rollout lag: the new version serves some seconds after deploy returns; wait for this build's entry script.
-  let served = false;
-  for (let i = 0; i < 24 && !served; i++) { served = (await (await get('/library')).text()).includes(entry); if (!served) await new Promise(r => setTimeout(r, 5000)); }
+  // One hit is not enough: on 2026-10-08 /library already showed the new entry while / still came from the old version,
+  // twice. CONFIRMATIONS consecutive hits, 2 s apart, before any check runs.
+  let served = false, streak = 0;
+  for (let i = 0; i < 40 && !served; i++) {
+    streak = (await (await get('/library')).text()).includes(entry) ? streak + 1 : 0;
+    served = streak >= CONFIRMATIONS;
+    if (!served) await new Promise(r => setTimeout(r, streak ? 2000 : 5000));
+  }
   results.push([served ? 'pass' : 'fail', `the clone serves this build (${entry})`]);
   const library = (await get('/library')).status;
   results.push([library === 200 ? 'pass' : 'fail', `GET /library ${library}`]);
