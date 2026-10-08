@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, materialCommands, pickerSections, parseSlash, runLearnCommand, runMaterials } from './learn-slash.js';
+import { cardsFor, holdsLine, materialCommands, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
 import { newNotebookBlock } from './learn-notebook.js';
@@ -279,4 +280,26 @@ test('runMaterials: each notice reaches onNotice as its command answers, before 
   runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: () => new Promise(() => {}), onNotice: notice => notices.push(notice) });
   await ticks(() => notices.length === 1);
   assert.deepEqual(notices, [{ tone: 'info', text: 'Not here yet.' }], 'the unsupported notice, while the paid proposal still waits');
+});
+
+// #46 review finding (card-context-menu): a /command sent while the dock is busy (a Tutor turn, a hole's opening turn) or
+// while another command still runs was dropped. It is held and runs once that ends, if the composer still shows it.
+test('held commands: only a /command line is held; it is released only while the composer still shows that line', () => {
+  assert.deepEqual(['/whiteboard Bulge sketch', '/teach tides', '  /dive ', 'what is a tide?', '', 'see /whiteboard'].map(holdsLine), [true, true, true, false, false, false]);
+  assert.equal(releaseLine('/whiteboard Bulge sketch', '/whiteboard Bulge sketch'), '/whiteboard Bulge sketch');
+  assert.equal(releaseLine('/whiteboard Bulge sketch', '/whiteboard Bulge sketch '), '/whiteboard Bulge sketch', 'a trailing space is the same line');
+  assert.equal(releaseLine('/whiteboard Bulge sketch', ''), null, 'a cleared composer is a change of mind');
+  assert.equal(releaseLine('/whiteboard Bulge sketch', '/whiteboard Tides'), null, 'an edited line waits for its own Enter');
+  assert.equal(releaseLine(null, '/whiteboard Bulge sketch'), null);
+});
+
+// Effects never run here, so the wiring is pinned in source; the browser run is e2e/card-context-menu-check.mjs check 5.
+test('held commands: the dock holds a /command Enter while busy and sends it when busy clears; LearnSlash holds one sent while a command runs', () => {
+  const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const ask = read('ask.jsx'), picker = read('LearnSlash.jsx');
+  const release = run => new RegExp(String.raw`useEffect\(\(\) => \{\n\s+if \(busy \|\| held\.current == null\) return;\n\s+const line = releaseLine\(held\.current, input\);\n\s+held\.current = null;\n\s+if \(line\) ${run}\(line\);\n\s+\}, \[busy\]\);`);
+  assert.match(ask, /if \(busy && !event\.defaultPrevented && composerKey\(event\.nativeEvent\) === 'send' && holdsLine\(input\)\) \{ event\.preventDefault\(\); held\.current = input; \}/);
+  assert.match(ask, release('send'));
+  assert.match(picker, /intercept: raw => \{ if \(busy\) \{ held\.current = raw; return true; \} exec\(raw\); return true; \}/);
+  assert.match(picker, release('exec'));
 });

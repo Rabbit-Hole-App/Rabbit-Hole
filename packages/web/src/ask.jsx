@@ -17,6 +17,8 @@ import { canvasTargetField } from './learn-ask-target.js';
 import { CommandIcon, commandTone } from './CommandTone.jsx';
 import { waitingText } from './waiting-text.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
+import { composerKey } from './composer-keys.js';
+import { holdsLine, releaseLine } from './learn-slash.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -512,8 +514,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   }, [msgs]);
 
   // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
-  // command, never as a chat message.
-  const slashRef = useRef(null);
+  // command, never as a chat message. held: a /command Enter while busy (learn-slash.js holdsLine), sent when busy clears.
+  const slashRef = useRef(null), held = useRef(null);
   // Stop (the docked shell): aborts the answer being streamed.
   const answerFlight = useRef(null);
   const send = async (raw, scopeOverride, { opening = false, skipJourney = false } = {}) => {
@@ -787,6 +789,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;
     send(tutor.opening.question, undefined, { opening: true });
   }, [tutor?.opening?.key, busy, voice?.on]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A /command Enter while busy (held, below in onKeyDown) runs once the turn ends, if the composer still shows it.
+  useEffect(() => {
+    if (busy || held.current == null) return;
+    const line = releaseLine(held.current, input);
+    held.current = null;
+    if (line) send(line);
+  }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const modelControl = (
           <div className="relative shrink-0">
@@ -1089,7 +1098,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {dock && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
-          onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event); } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
+          onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
+            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}
           leading={<>
           <div className="relative shrink-0">
