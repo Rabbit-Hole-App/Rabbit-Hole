@@ -32,6 +32,7 @@ async function realSession({ answers = stubAnswers(), maxDecisions = 4, learner 
     const world = await productWorld({ topic, ids: simulatedIds({ runId: 'real', topic, profile }), boundary });
     try {
       const bundle = await runSession({ topic, profile, profiles, tutor: world.tutor, hooks: world.hooks, hookStart: world.hookStart, hookDelayMs: HOOK_DEBOUNCE_MS, materialize: world.materialize, learner, runId: 'real', maxDecisions });
+      bundle.next_steps_rows = await world.plannerRows();
       return { bundle, boundary, world };
     } finally { world.close(); }
   } finally { boundary.restore(); }
@@ -290,6 +291,15 @@ test("the Next Steps report reads the product's own hook traces: escalations and
   assert.equal(report.by_role.tutor_next_steps_escalation.calls, report.sets_requested);
   assert.equal(report.by_role.tutor_next_steps.calls, report.sets_requested - (report.escalations['escalated:contradictory'] ?? 0));
   assert.ok(report.cost_usd > 0);
+  // The product's stored rows (learn-migrations 0012), when the schema has them: one per planned set, failed ones included,
+  // never a hook; each validator escalation keeps the rejected reply's word counts.
+  const stored = readFileSync(new URL('../../../packages/control-plane/repository-schema.sql', import.meta.url), 'utf8').includes('next_steps_telemetry');
+  assert.equal(report.stored.rows, stored ? report.sets_requested : 0);
+  if (stored) {
+    assert.equal(report.stored.failed, report.unavailable.failed ?? 0);
+    assert.equal(Object.values(report.stored.rejected_words).reduce((a, b) => a + b, 0), 3 * validator);
+    for (const row of bundle.next_steps_rows) assert.ok(!('hook' in row) && !('options' in row) && !('input' in row));
+  }
   const shown = bundle.events.filter(event => event.type === 'next_steps_ready').flatMap(event => event.options);
   assert.deepEqual([report.hook_words.n, report.hook_words.max], [shown.length, Math.max(...shown.map(option => option.text.trim().split(/\s+/).length))]);
   assert.deepEqual(report.by_session[profile.id], { decisions: bundle.steps.length, sets_requested: report.sets_requested, sets_shown: report.sets_shown });
