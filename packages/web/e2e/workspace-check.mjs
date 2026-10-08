@@ -315,7 +315,8 @@ await check('dock §16 I, inspector §19: a tablet shows the inspector as a righ
   const a = await box(panel), b = await box(bar), form = await box(bar.locator('[data-chat-composer]'));
   assert.equal(await panel.evaluate((n) => getComputedStyle(n).position), 'absolute');
   near(a.right, 820, 'drawer at the right edge'); near(a.bottom, b.top, 'drawer ends at the dock'); near(a.width, 416, 'drawer width');
-  assert.ok(form.width > 500, `composer not squeezed: ${form.width}`);
+  // Half the dock, never under its 28rem floor (AgentBar md:min-w-[min(100%,28rem)]; owner, 2026-10-08).
+  assert.ok(form.width >= 446, `composer squeezed under its 28rem floor: ${form.width}`);
 });
 await shot('dock-I1-tablet-drawer');
 await check('dock §16 I, inspector §19: a phone shows it as a full-width sheet between the top strip and the dock; the composer keeps its width', async () => {
