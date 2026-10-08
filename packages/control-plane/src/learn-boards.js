@@ -44,7 +44,7 @@ async function putAsset(req, env, row, key) {
   return json({ key, size: bytes.byteLength });
 }
 
-async function getAsset(env, row, key) {
+export async function getAsset(env, row, key) {
   if (!learnMedia(env) || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
   const object = await learnMedia(env).get(await assetObject(row, key));
   if (!object) return json({ error: 'No such file on this board' }, 404);

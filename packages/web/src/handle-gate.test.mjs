@@ -18,7 +18,7 @@ test('who sees the step: a signed-in profile without a handle; never the signed 
 test('the step sits in front of every Rabbit Hole page, in place, and resumes the same URL', () => {
   const main = read('./main.jsx'), gate = read('./HandleGate.jsx');
   assert.match(main, /return learnPreview \? <HandleGate>\{page\}<\/HandleGate> : page;/);
-  assert.match(main, /const page = sharedBoard \? <Suspense[^\n]*<SharedBoardPage token=\{sharedBoard\[1\]\} \/>[^\n]*\n\s+: creator \? <Suspense[^\n]*<CreatorProfilePage handle=\{creator\[1\]\} \/>[^\n]* : <AppRoot \/>;/, 'shared links, creator profiles and the app alike');
+  assert.match(main, /const page = sharedBoard \? <Suspense[^\n]*<SharedBoardPage token=\{sharedBoard\[1\]\} \/>[^\n]*(?:\n\s+: (?:memberBoard|invitation) \?[^\n]*)*\n\s+: creator \? <Suspense[^\n]*<CreatorProfilePage handle=\{creator\[1\]\} \/>[^\n]* : <AppRoot \/>;/, 'shared links, creator profiles and the app alike');
   // Claimed, it renders the page it was given: no navigation, no reload, nothing that drops ?fork=1 or ?rabbit=.
   assert.match(gate, /return state === 'needed' \? <ChooseHandle onDone=\{\(\) => setState\('ok'\)\} \/> : children;/);
   assert.doesNotMatch(gate, /location\.|navigate\(|history\./);

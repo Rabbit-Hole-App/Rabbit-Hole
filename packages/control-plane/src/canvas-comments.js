@@ -10,6 +10,7 @@ import { repositoryIdentity } from './repositories.js';
 import { HANDLE_OF, NAME_OF } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { sha256Hex } from './learn-grade-jev.js';
+import { getAsset } from './learn-boards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const refuse = (error, code, status, extra = {}) => json({ error, code, ...extra }, status);
@@ -416,6 +417,27 @@ async function removeBlock(env, ctx, id) {
   return listBlocks(env, ctx);
 }
 
+// The member page (/c/<board id>): the board read-only, for the owner and active members. Never through the public family.
+async function readBoard(env, ctx) {
+  const row = await env.LEARN_DB.prepare('SELECT state_json, version, updated_at FROM learn_boards WHERE id = ?').bind(ctx.board.id).first();
+  // The owner is sent to their own page; only they learn its name here.
+  return json({ title: ctx.board.title, owner: person(ctx.board, 'owner_'), role: ctx.actor.owner ? 'owner' : 'member', ...(ctx.actor.owner ? { canvas: ctx.board.canvas } : {}), version: row.version, updated_at: row.updated_at, state: JSON.parse(row.state_json) });
+}
+
+// Library → Shared with you (section 5): canvases where I am an active member, with their owner, last change and how many
+// threads have news for me. A canvas in Trash is suspended, so it is not listed.
+async function sharedWithMe(req, env) {
+  const viewer = await viewerOf(req, env);
+  if (!viewer?.userId) return refuse('Sign in to see what is shared with you.', 'sign_in', 401, { signIn: true });
+  const { results } = await env.LEARN_DB.prepare(`SELECT b.id AS board_id, c.title, COALESCE(md.updated_at, c.created_at) AS updated_at, ${PERSON('c.owner_email', 'owner_')},
+      (SELECT count(*) FROM canvas_comment_threads t WHERE t.board_id = b.id AND ${unreadSql(false)}) AS unread
+    FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
+    JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'
+    LEFT JOIN canvas_metadata md ON md.org = c.org AND md.canvas = c.name
+    WHERE m.member_user_id = ?1 AND m.status = 'active' AND ${NOT_TRASHED('c.org', 'c.name')} ORDER BY updated_at DESC`).bind(viewer.userId).all();
+  return json({ canvases: results.map(row => ({ board_id: row.board_id, title: row.title, owner: person(row, 'owner_'), updated_at: row.updated_at, unread: row.unread })) });
+}
+
 function about(ctx) {
   const { owner, member, signedIn } = ctx.actor;
   const audience = ctx.family === 'public' ? 'public' : 'members';
@@ -427,6 +449,7 @@ function about(ctx) {
 }
 
 export async function canvasCommentsRoute(path, req, env) {
+  if (path === '/api/learn/c/shared-with-me') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? sharedWithMe(req, env) : json({ error: 'Method not allowed' }, 405);
   let match = path.match(/^\/api\/learn\/c\/([^/]+)(\/.*)?$/), family = 'member';
   if (!match) { match = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/comments(\/.*)?$/); family = 'public'; }
   if (!match) return null;
@@ -442,8 +465,10 @@ export async function canvasCommentsRoute(path, req, env) {
   const { method } = req;
   const not = () => json({ error: 'Method not allowed' }, 405);
   if (rest === '' || rest === '/') return method === 'GET' ? about(ctx) : not();
-  if (rest === '/threads') return method === 'GET' ? listThreads(env, ctx, url.searchParams) : method === 'POST' ? startThread(req, env, ctx) : not();
   let part;
+  if (family === 'member' && rest === '/board') return method === 'GET' ? readBoard(env, ctx) : not();
+  if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? getAsset(env, ctx.board, decodeURIComponent(part[1])) : not();
+  if (rest === '/threads') return method === 'GET' ? listThreads(env, ctx, url.searchParams) : method === 'POST' ? startThread(req, env, ctx) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)$/))) return method === 'GET' ? readThread(env, ctx, part[1], url.searchParams) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/comments$/))) return method === 'POST' ? reply(req, env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/(resolve|reopen|read)$/))) {

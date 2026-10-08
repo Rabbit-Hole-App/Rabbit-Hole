@@ -24,6 +24,7 @@ import { buildRunbook, renderMarkdown, scrubPlatformVars } from './runbook-schem
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 import { learnMedia } from './learn-storage.js';
+import { canvasMembersRoute, membersPath } from './canvas-members.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, MODEL_NOT_CONFIGURED } from './learn-models.js';
 
@@ -2344,6 +2345,8 @@ export default {
       if (path === '/api/cli/login' && req.method === 'POST') return await apiLogin(req, env);
       if (path === '/api/cli/verify' && req.method === 'POST') return await apiVerify(req, env);
       if (path === '/api/runtime/aws-creds' && req.method === 'POST') return await apiAwsCreds(req, env);
+      // Canvas invitations and members (docs/features/canvas-comments.md section 6): session only, before any /api user resolution.
+      if (membersPath(path)) return await canvasMembersRoute(req, env, path, { sendEmail });
       if (path.startsWith('/api/')) {
         const runLog = path.match(/^\/api\/runs\/([\w-]+)\/log$/);
         if (runLog && req.method === 'POST') return await apiRunLog(req, env, ctx, runLog[1]); // runner auth, not CLI auth

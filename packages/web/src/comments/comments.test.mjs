@@ -72,10 +72,33 @@ test('seams: the canvas menu offers Add comment (card) and Add comment here (can
 test('increment 2 seams: Share carries the comment settings; the published page reads the public family; view-only menus open for commenters', () => {
   const share = read('../SharePanel.jsx'), page = read('../LearnPage.jsx'), shared = read('../SharedBoardPage.jsx'), canvas = read('../AdaptiveCanvas.jsx'), settings = read('./CommentSettings.jsx');
   assert.match(share, /\{onPublish && <ExploreRow [^\n]*\/>\}\n\s+\{comments\}/, 'one slot, under Publish to Explore');
-  assert.match(page, /comments=\{comments\.active \? <CommentSettings base=\{memberBase\(commentBoard\)\} published=\{!!sharing\?\.published\} \/> : null\}/);
+  assert.match(page, /comments=\{comments\.active \? <><PeopleWithAccess base=\{memberBase\(commentBoard\)\} \/><CommentSettings base=\{memberBase\(commentBoard\)\} published=\{!!sharing\?\.published\} \/><\/> : null\}/);
   assert.match(settings, /<Switch on=\{enabled\} label="Allow comments"/, 'labelled exactly Allow comments');
   assert.match(settings, /disabled=\{busy \|\| !enabled\}/, 'the public setting is disabled while comments are off');
   assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && publicBase\(token\), canAdd: !!commentsInfo\?\.can\.post,/, 'posting only for those the server lets post');
   assert.match(shared, /if \(!published\) return undefined;/, 'a share link (/b) never asks the public family');
   assert.match(canvas, /if \(readOnlyRef\.current && !onAddComment && \(!onStartRabbitHole/);
+});
+
+test('/i keeps the token out of the address: fragment to session storage, then the address is plain /i', async () => {
+  const { takeInviteToken, waitText } = await import('./InvitePage.jsx').catch(() => ({}));
+  if (!takeInviteToken) return; // JSX: the page itself is checked by e2e/comments-check.mjs; the source rules below still run
+  const store = new Map(), replaced = [];
+  const storage = { setItem: (k, v) => store.set(k, v), getItem: k => store.get(k) ?? null };
+  const token = 'AbCdEfGhIjKlMnOpQrStUvWxYz012345';
+  assert.equal(takeInviteToken({ hash: `#${token}` }, { replaceState: (...args) => replaced.push(args[2]) }, storage), token);
+  assert.deepEqual([...store.entries()], [['rh_invite', token]]);
+  assert.deepEqual(replaced, ['/i']);
+  assert.deepEqual([waitText(42), waitText(61), waitText(3 * 3600)], ['42 seconds', '2 minutes', '3 hours']);
+});
+
+test('increment 3 seams: /i and /c routes, served no-referrer and no-store; the invitation page never puts the token anywhere else', () => {
+  const main = read('../main.jsx'), worker = read('../../dev-worker.js'), invite = read('./InvitePage.jsx');
+  assert.match(main, /: memberBoard \? <Suspense fallback=\{null\}><MemberBoardPage boardId=\{memberBoard\[1\]\} \/>/);
+  assert.match(main, /: invitation \? <Suspense fallback=\{null\}><InvitePage \/><\/Suspense>/);
+  assert.match(worker, /if \(path === '\/i' \|\| [^\n]+\{\n\s+return new Response\(SHELL, \{ headers: \{ 'Content-Type': 'text\/html;charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' \} \}\);/);
+  assert.match(invite, /history\.replaceState\(null, '', '\/i'\)/);
+  assert.match(invite, /window\.location\.href = '\/sign-in\?next=\/i'/, 'sign-in comes back to /i, the token never in next');
+  assert.doesNotMatch(invite, /localStorage|document\.cookie|\?token=|console\./, 'the token stays in this tab');
+  assert.match(invite, /sessionStorage\.removeItem\(KEY\)/);
 });

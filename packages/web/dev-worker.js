@@ -241,6 +241,11 @@ export default {
     if (path === '/api/learn/board') return boardFetch(req, env);
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
+    // /c/<board id> (a member's canvas) and /i (an invitation, its token only ever in the fragment): never cached, and
+    // never a Referer (docs/features/canvas-comments.md C2).
+    if (path === '/i' || /^\/c\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) {
+      return new Response(SHELL, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+    }
     // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
     // anyone, the page decides what they may see. /@<handle> is a creator's public profile (docs/features/creator-profile.md).
     if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
