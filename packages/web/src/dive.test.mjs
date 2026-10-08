@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { anchorBlock, anchorTitle, diveRecord, diveTopic, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
+import { anchorBlock, anchorTitle, canvasObjects, diveRecord, diveTopic, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 const memory = () => { const map = new Map(); return { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), removeItem: k => map.delete(k), key: i => [...map.keys()][i], get length() { return map.size; }, map }; };
 const local = () => { const store = memory(); return new Proxy(store, { ownKeys: () => [...store.map.keys()], getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }) }); };
@@ -44,6 +44,38 @@ test('only canvas objects make a hole worth keeping; chat alone does not', () =>
   assert.equal(meaningful({ content: 0 }), false);
   assert.equal(meaningful(undefined), false);
   assert.equal(meaningful({ content: 1 }), true);
+});
+
+// Owner r29: the empty hint stayed over a chat card added to the canvas, and leaving then discarded the hole with the
+// card. Every kind of canvas object hides the hint and keeps the hole; chat left in the dock's sheet is no object.
+test('every kind of canvas object counts, each on its own', () => {
+  const kinds = {
+    card: { blocks: [{ id: 'b', type: 'explanation' }] },
+    image: { blocks: [{ id: 'i', type: 'image' }] },
+    equation: { blocks: [{ id: 'e', type: 'equation' }] },
+    'chat card on the canvas': { exchanges: [{ id: 'x', question: 'why?', answer: 'because' }] },
+    'drawing stroke': { strokes: [{ points: [{ x: 0, y: 0 }, { x: 4, y: 4 }] }] },
+    shape: { shapes: [{ id: 's', kind: 'rect' }] },
+    text: { items: [{ id: 't', kind: 'text', text: '' }] },
+    'sticky note': { items: [{ id: 'n', kind: 'sticky', text: '' }] },
+    'asked-about area': { areas: [{ id: 'a', x: 0, y: 0, w: 10, h: 10 }] },
+  };
+  for (const [kind, lists] of Object.entries(kinds)) {
+    assert.equal(canvasObjects(lists), 1, kind);
+    assert.equal(meaningful({ content: canvasObjects(lists) }), true, kind);
+  }
+  assert.equal(canvasObjects({}), 0);
+  assert.equal(canvasObjects(), 0);
+  assert.equal(meaningful({ content: canvasObjects({ blocks: [], exchanges: [], strokes: [], shapes: [], items: [], areas: [] }) }), false, 'an empty canvas');
+});
+
+test('the canvas reports every object through the one count, and the hint and the keep rule read the one predicate', async () => {
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const dive = readFileSync(new URL('./Dive.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /content = canvasObjects\(\{ blocks, exchanges, strokes, shapes, items, areas \}\)/);
+  assert.match(dive, /if \(!pending \|\| saving\.current \|\| !meaningful\(canvasState\)\) return;/, 'the keep rule');
+  assert.match(dive, /emptyHint: pending && !meaningful\(canvasState\) && tree &&/, 'the empty hint');
 });
 
 test('a pending hole lives in the tab; leaving it empty discards its record and its local keys', () => {

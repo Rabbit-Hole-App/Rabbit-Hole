@@ -93,9 +93,14 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
     sessionStorage.
   - The name is a real canvas slug, so the hole's local keys never move.
   - Leaving its part of the tree (the hole and its parent board) while it is empty discards the record and every local key, and its temporary outline.
-- **Persisting.** The first canvas object persists the hole: any card, drawing, shape, note or text.
-  Chat alone does not (the canvas `content` count excludes chat). The URL then moves in place
-  without a remount.
+- **Persisting.** The first canvas object persists the hole, and the same rule hides the empty-hole
+  hint (owner r29: one predicate, `dive.js` `meaningful` over the canvas's `content`, which is
+  `canvasObjects`). Any object counts: a card (images, equations and code are cards), a chat card added
+  to the canvas, a pen stroke, a shape, text, a sticky note or an asked-about area. Chat that stays in
+  the dock's sheet does not, since it is not on the canvas. Comment pins are off in a pending hole.
+  Before r29 the count left chat cards out, so a hole whose only object was a chat card added from the
+  sheet kept its hint over the card and was discarded, card and all, on leaving; shapes, text and
+  strokes always counted. The URL then moves in place without a remount.
 - **Portal.** The red outline and the "↓ title" tab on the originating card are derived from the
   parent's `children`, through the `DivePortals` context read by `CanvasNode`. No card data changes.
 - **Navigator.**

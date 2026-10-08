@@ -62,7 +62,7 @@ test('slots never reach the save, the undo snapshot or the content count', async
   const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(source, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas \};/);
   assert.match(source, /present\.current = \{ strokes, shapes, items, links, blocks \};/);
-  assert.match(source, /content = strokes\.length \+ shapes\.length \+ items\.length \+ blocks\.length;/);
+  assert.match(source, /content = canvasObjects\(\{ blocks, exchanges, strokes, shapes, items, areas \}\);/);
   assert.match(source, /const \[slots, setSlots\] = useState\(\[\]\);/, 'component state, never read from storage or boardState');
   assert.doesNotMatch(source, /setBlocks\([^)]*slot:/);
 });

@@ -2,18 +2,19 @@
 //   npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.jsonc --local --persist-to .small/dive-local --port 8788
 // It writes to local D1 and this browser profile; never point it at a deployed worker.
 // Usage: node e2e/dive-check.mjs [outDir]
+// On a lane stack (e2e/journey-local-stack.md): BASE=http://127.0.0.1:8868 SMALL_CP=http://127.0.0.1:8869 TEST_BYPASS_SECRET=<that stack's>.
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const BASE = 'http://127.0.0.1:8788';
+const BASE = process.env.BASE || 'http://127.0.0.1:8788';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('dive-check runs against the local stack only');
 const OUT = process.argv[2] || 'dive-shots';
 mkdirSync(OUT, { recursive: true });
 // Sessions are minted on the control plane's own origin (the app origin's P0-B barrier refuses /test/session):
 // the standalone local control plane, SMALL_CP (default http://127.0.0.1:8790).
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8790';
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = process.env.TEST_BYPASS_SECRET || readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 const cookie = `small_session=${session}`;
 const get = async path => (await fetch(`${BASE}${path}`, { headers: { cookie } })).json();
@@ -347,6 +348,54 @@ await page.waitForTimeout(600);
 assert.equal(url().searchParams.get('hole'), null);
 await shot('14-ctrl-k-no-card-search');
 await page.keyboard.press('Escape');
+
+// ---- J: one rule for the empty hint and for keeping the hole (owner r29). A shape, text, or a chat card added to the
+// canvas from the dock's sheet each hides the hint at once and keeps the hole; leaving and coming back finds it. ----
+const hint = () => page.locator('[data-dive-empty]').count();
+const tool = name => page.locator('[data-tool-gutter]').getByRole('button', { name, exact: true }).click();
+const surface = () => page.locator('[aria-label="Lesson canvas"]').boundingBox();
+const firstObjects = {
+  shape: async () => {
+    await tool('Rectangle');
+    const box = await surface();
+    await page.mouse.move(box.x + 520, box.y + 260); await page.mouse.down(); await page.mouse.move(box.x + 700, box.y + 380, { steps: 6 }); await page.mouse.up();
+  },
+  text: async () => {
+    await tool('Text');
+    const box = await surface();
+    await page.mouse.click(box.x + 520, box.y + 260); await page.waitForTimeout(300);
+    await page.keyboard.type('a first note'); await page.keyboard.press('Escape');
+  },
+  // The bug the owner saw: the card was on the canvas, the hint stayed over it, and leaving discarded both.
+  'chat card': async () => {
+    await composer().click(); await composer().fill('Why does this matter?'); await composer().press('Enter');
+    const add = page.getByRole('button', { name: 'Add to canvas' }).last();
+    await add.waitFor(); await add.click();
+    await page.locator('[data-chat-block]').first().waitFor();
+  },
+};
+for (const [kind, add] of Object.entries(firstObjects)) {
+  await open(ROOT_URL);
+  await deselect();
+  await slash(`/dive first ${kind}`);
+  await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
+  assert.equal(await hint(), 1, `${kind}: a new hole shows the hint`);
+  if (kind === 'shape') await shot('15-new-hole-hint');
+  await add();
+  await page.waitForFunction(() => !document.querySelector('[data-dive-empty]'), null, { timeout: 5000 });
+  await waitPersisted();
+  const name = url().pathname.split('/').pop();
+  await shot(`15-${kind.replace(' ', '-')}-hides-hint`);
+  await up();
+  assert.ok((await tree(root.name, BOARD)).children.some(child => child.name === name), `${kind}: leaving keeps the hole`);
+  await page.locator(`[data-dive-portal="${name}"]`).scrollIntoViewIfNeeded();
+  await page.locator(`[data-dive-portal="${name}"]`).click();
+  await page.waitForFunction(n => location.pathname.endsWith(n), name); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
+  assert.equal(await hint(), 0, `${kind}: back in the kept hole, no hint`);
+  const kept = { shape: '[data-shape-id]', text: '[data-item-id]', 'chat card': '[data-chat-block]' }[kind];
+  assert.ok(await page.locator(kept).count() > 0, `${kind}: its object is still there`);
+}
+console.log('flow J ok');
 console.log('all flows ok; root', ROOT_URL);
 await browser.close();
 if (errors.length) { console.log('page errors:', errors); process.exit(1); }

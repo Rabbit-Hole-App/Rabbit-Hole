@@ -26,9 +26,13 @@ export function holeHref(parent, name) {
   return `${path}?${query}`;
 }
 
-// What makes a hole worth keeping: any canvas object - a card, diagram, note, equation, drawing,
-// image. Chat alone, suggestion chips and the empty shell do not (the canvas's `content` count
-// leaves chat out).
+// Every object on a canvas, as AdaptiveCanvas reports it in `content`: cards (images, equations and code are cards),
+// chat cards placed on the canvas, pen strokes, shapes, text, sticky notes and asked-about areas. Chat that stays in
+// the dock's sheet is not on the canvas, so it counts for nothing.
+export const canvasObjects = ({ blocks = [], exchanges = [], strokes = [], shapes = [], items = [], areas = [] } = {}) =>
+  blocks.length + exchanges.length + strokes.length + shapes.length + items.length + areas.length;
+// One rule for a pending hole (owner r29): its empty hint shows, and leaving it discards the hole, only while this is
+// false. The first canvas object of any kind hides the hint and keeps the hole.
 export const meaningful = state => (state?.content || 0) > 0;
 
 
