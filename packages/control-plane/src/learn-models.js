@@ -6,6 +6,12 @@
 import { sha256 } from './token.js';
 
 export const MODEL = 'claude-opus-5';
+// No Anthropic key on this deployment (a preview without one): no model request leaves the worker, and every AI
+// feature says so in these words (owner, 2026-10-08). anthropic() and review.js return or throw it before any fetch.
+export const MODEL_NOT_CONFIGURED = 'AI answers aren’t configured on this preview.';
+export const notConfiguredReply = () => Response.json({ type: 'error', error: { type: 'not_configured', message: MODEL_NOT_CONFIGURED } }, { status: 503 });
+// That reply, read back from a failed response: the message to show, or null for any real upstream failure.
+export const notConfiguredMessage = async response => (response.status === 503 && (await response.clone().json().catch(() => null))?.error?.type === 'not_configured' ? MODEL_NOT_CONFIGURED : null);
 // Model picker allowlist - "Auto" resolves to the default.
 export const ASK_MODELS = { auto: MODEL, 'opus-5': 'claude-opus-5', 'sonnet-5': 'claude-sonnet-5', 'haiku-4.5': 'claude-haiku-4-5-20251001' };
 

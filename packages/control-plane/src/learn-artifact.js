@@ -13,7 +13,7 @@ import { learnRequest, primitive as contract } from '../../web/src/agent/slash.j
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { PRIMITIVES, isReady, artifactBlock } from './learn-primitives.js';
 import { planModel } from './ask.js';
-import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel } from './learn-models.js';
+import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 
@@ -51,7 +51,7 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   const ask = async history => {
     const response = await callModel(env, { max_tokens: LEARN_TASKS.artifact.maxTokens, system: ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
-    if (!response.ok) throw new Error(`Artifact generation unavailable (model HTTP ${response.status}). Try again.`);
+    if (!response.ok) throw new Error((await notConfiguredMessage(response)) || `Artifact generation unavailable (model HTTP ${response.status}). Try again.`);
     const result = await response.json();
     const calls = result.content?.filter(part => part.type === 'tool_use') || [];
     if (calls.length !== 1) throw new Error('The model returned no artifact.');

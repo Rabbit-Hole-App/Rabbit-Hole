@@ -2,7 +2,7 @@ import { subscriptionTransport } from './subscription-transport.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { base64 } from './token.js';
-import { MODEL, planUsesOpenAI, loggedModel } from './learn-models.js';
+import { MODEL, planUsesOpenAI, loggedModel, notConfiguredReply } from './learn-models.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
@@ -313,6 +313,8 @@ export async function anthropic(env, body, model, org) {
   // whiteboard) sends neither. The recorded reason, that the API 400s on an
   // explicit model with fallbacks, is unverified: Auto itself names
   // claude-opus-5 explicitly (models-9 in docs/features/learn-cleanup.md).
+  // No key here: answer for Anthropic without asking it (zero outbound requests).
+  if (!env.ANTHROPIC_API_KEY) return notConfiguredReply();
   const chosen = model || ai?.model || null;
   // body.betas (the Tutor planner's fast mode, Decision 5B) goes in the anthropic-beta header, not the body.
   const { betas = [], ...payload } = body;

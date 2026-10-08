@@ -25,7 +25,7 @@ import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 import { learnMedia } from './learn-storage.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from './ask.js';
-import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, MODEL_NOT_CONFIGURED } from './learn-models.js';
 
 const orgOf = (email) => email.split('@')[1].toLowerCase().replace(/\./g, '-');
 // apps.schedule may hold several crons separated by ';' (dashboard "+" adds them)
@@ -975,7 +975,7 @@ function b64(bytes) {
 // LEARN_DB thread store, so that turn writes nothing to env.DB. It still reads env.DB for
 // @-mentioned apps (appForUser, appContext); the moment log goes through learnMomentsDb.
 export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam = null) {
-  if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: 'ask is not configured on this control plane' }, 503);
+  if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   // JSON, or multipart when a file rides along (images/PDFs as model blocks, CSVs as text)
   let extraBlocks = [], attachedName = null, uploadNote = null;
   const { body, file } = await readAskRequest(req);

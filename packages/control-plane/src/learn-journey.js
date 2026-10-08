@@ -11,6 +11,7 @@
 // small-cp identity fallback) the route fails closed. The id is never logged or answered (toClient drops it). The learner's
 // words are never logged; start stores them once, through createJourney.
 import { authorizedBoardApp } from './learn-board.js';
+import { MODEL_NOT_CONFIGURED } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
 import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
@@ -50,7 +51,7 @@ const goodTray = t => t != null && typeof t === 'object' && typeof t.prompt === 
 // Only a planner's own verdicts reach the learner: a rejected plan, or the model's HTTP failure (modelFailure's message).
 // Anything else is internal: the generic message, and one log line with ids only (never learner text).
 function plannerMessage(error, journeyId, op) {
-  if (error instanceof PlannerInvalid || /\(model HTTP \d{3}/.test(error?.message)) return error.message;
+  if (error instanceof PlannerInvalid || /\(model HTTP \d{3}/.test(error?.message) || error?.message === MODEL_NOT_CONFIGURED) return error.message;
   console.error(JSON.stringify({ event: 'learn_journey_planner_error', journey_id: journeyId, op, error: error?.name || 'Error' }));
   return FAILED;
 }
