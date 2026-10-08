@@ -69,7 +69,7 @@ Portals are navigation, not material, so they keep direct single-click open. The
 
 **Every kind of card has the strip** (owner, 2026-10-08: "when we click on a card meaning it is selected we should have a pill above the chat composer"):
 - Lesson cards, YouTube moments, papers, slides and notebooks are described by `describeBlock`.
-- Chat cards, text boxes and sticky notes, and the Wikipedia, PDF, file and section cards are described by `learn-ask-target.js` `describeCanvasObject`. A dropped image also rides as `image_context`, as "Show the tutor this image" does.
+- Chat cards, text boxes and sticky notes, equations (by their LaTeX, [canvas-equations.md](canvas-equations.md)), and the Wikipedia, PDF, file and section cards are described by `learn-ask-target.js` `describeCanvasObject`. A dropped image also rides as `image_context`, as "Show the tutor this image" does.
 - Only a divider and a drawn shape have no strip: there is nothing to ask about.
 - On the Tutor path a card the Tutor would read no words from (a chat card, a note, a reader, file or slide card, a quiz) rides as its description (the canvas API's `objectCard`).
 

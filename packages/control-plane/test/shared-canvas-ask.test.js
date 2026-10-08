@@ -144,11 +144,13 @@ test('the board text is capped, and so is each entry', () => {
 // Owner, 2026-10-08: the card a viewer selects rides with the question - by id only, worded from the shared board.
 test('the selected card is found on the board by id and rides as the canvas target; its text never comes from the request', async t => {
   const board = { blocks: [{ id: 'b1', type: 'explanation', title: 'Why scale?', body: 'Keeps logits small.', more: [{ text: 'Variance grows.' }] }, { id: 'w1', type: 'wiki', title: 'Softmax function' }],
-    items: [{ id: 'n1', text: 'remember the mask' }], shapes: [{ id: 's1', text: 'Softmax box' }], exchanges: [{ id: 'q1', question: 'Why exp?', answer: 'Positive weights.', replies: [{ question: 'Max?', answer: 'Subtract it.' }] }] };
+    items: [{ id: 'n1', text: 'remember the mask' }, { id: 'e1', kind: 'equation', latex: '\\frac{a}{b}', size: 24 }], shapes: [{ id: 's1', text: 'Softmax box' }], exchanges: [{ id: 'q1', question: 'Why exp?', answer: 'Positive weights.', replies: [{ question: 'Max?', answer: 'Subtract it.' }] }] };
   assert.deepEqual(selectedCard(board, 'b1'), { id: 'b1', kind: 'explanation', text: 'Why scale?\nKeeps logits small.\nVariance grows.' });
   assert.deepEqual(selectedCard(board, 'w1'), { id: 'w1', kind: 'wiki', text: 'Softmax function' });
   assert.deepEqual(selectedCard(board, 'n1'), { id: 'n1', kind: 'Note', text: 'remember the mask' });
   assert.deepEqual(selectedCard(board, 's1'), { id: 's1', kind: 'Note', text: 'Softmax box' });
+  assert.deepEqual(selectedCard(board, 'e1'), { id: 'e1', kind: 'Equation', text: '\\frac{a}{b}' }, 'an equation is its LaTeX');
+  assert.ok(boardText(board).includes('[Equation] \\frac{a}{b}'));
   assert.deepEqual(selectedCard(board, 'q1'), { id: 'q1', kind: 'Chat', text: 'Q: Why exp?\nA: Positive weights.\nQ: Max?\nA: Subtract it.' });
   assert.equal(selectedCard(board, 'nope'), null);
   const f = setup(t), sent = scriptModel(t);

@@ -101,7 +101,8 @@ export function boardText(state) {
     else if (block?.type === 'explanation') add('Explanation', block.title, block.body, ...list(block.more).map(section => section?.text));
     else if (!['video', 'wiki', 'paper'].includes(block?.type)) add(text(block?.type) || 'Card', block?.title, block?.question, block?.prompt, block?.text, block?.brief, block?.caption, block?.code);
   }
-  for (const note of [...list(state?.items), ...list(state?.shapes)]) add('Note', note?.text);
+  // An equation is its LaTeX (canvas-equations.md).
+  for (const note of [...list(state?.items), ...list(state?.shapes)]) add(note?.kind === 'equation' ? 'Equation' : 'Note', note?.kind === 'equation' ? note.latex : note?.text);
   for (const exchange of list(state?.exchanges)) {
     for (const turn of [exchange, ...list(exchange?.replies)]) {
       if ((turn?.status ?? 'done') === 'done' && text(turn?.answer)) add('Earlier chat', `Q: ${text(turn.question)}`, `A: ${text(turn.answer)}`);
@@ -119,11 +120,11 @@ export function selectedCard(state, id) {
   const note = !block && [...list(state?.items), ...list(state?.shapes)].find(entry => entry?.id === id);
   const exchange = !block && !note && list(state?.exchanges).find(entry => entry?.id === id);
   const parts = block ? [block.title, block.label, block.question, block.prompt, block.text, block.body, block.brief, block.caption, block.code, ...list(block.more).map(section => section?.text)]
-    : note ? [note.text]
+    : note ? [note.kind === 'equation' ? note.latex : note.text]
     : exchange ? [exchange, ...list(exchange.replies)].flatMap(turn => [text(turn?.question) && `Q: ${text(turn.question)}`, text(turn?.answer) && `A: ${text(turn.answer)}`])
     : null;
   if (!parts) return null;
-  const kind = block ? text(block.type) || 'Card' : note ? 'Note' : 'Chat';
+  const kind = block ? text(block.type) || 'Card' : note ? (note.kind === 'equation' ? 'Equation' : 'Note') : 'Chat';
   return { id, kind, text: clip(parts.map(text).filter(Boolean).join('\n') || kind, ENTRY_CHARS) };
 }
 

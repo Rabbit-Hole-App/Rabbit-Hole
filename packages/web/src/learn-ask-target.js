@@ -15,7 +15,7 @@ export function canvasTargetField(target) {
 
 // The selected objects describeBlock (LearningBlocks.jsx) leaves out, for the composer's pill and canvas_target (owner,
 // 2026-10-08: "when we click on a card meaning it is selected we should have a pill above the chat composer"): a chat
-// card, a text box or sticky note, and the Wikipedia, PDF, file and section cards. A divider has nothing to ask about.
+// card, a text box or sticky note, an equation, and the Wikipedia, PDF, file and section cards. A divider has nothing to ask about.
 // material: the card's icon on the pill. image: an uploaded image's media id, which rides as image_context.
 export function describeCanvasObject(object) {
   if (!object) return null;
@@ -28,6 +28,11 @@ export function describeCanvasObject(object) {
       const kind = object.kind === 'sticky' ? 'Sticky note' : 'Text';
       const words = String(object.text || '').trim();
       return { kind, title: words.split('\n')[0] || `Empty ${kind.toLowerCase()}`, text: `${kind} on the canvas: ${words || '(empty)'}`, material: 'note' };
+    }
+    // An equation is its LaTeX source (canvas-equations.md): the pill shows it, the question carries it.
+    if (object.kind === 'equation') {
+      const latex = String(object.latex || '').trim();
+      return { kind: 'Equation', title: latex || 'Empty equation', text: `Equation on the canvas, in LaTeX: ${latex || '(empty)'}`, material: 'equation' };
     }
     return null;
   }
@@ -45,6 +50,8 @@ export function describeCanvasObject(object) {
 // its title, a group as a whole; the card or group itself rides as canvas_target.
 export const cardQuestion = (title) => (title ? `Can you explain "${title}"?` : 'Can you explain this card?');
 export const GROUP_QUESTION = 'Can you explain how these cards fit together?';
+// An equation's own LaTeX rides as the context (and shows on the pill), so its question stays plain words.
+export const EQUATION_QUESTION = 'Can you explain this equation?';
 
 // A group Ask (K5): members in order, a chat answer cut at 600 characters, and the members with
 // no text description named, each cut or omission marked so the tutor knows what it lacks.
