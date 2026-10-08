@@ -15,7 +15,7 @@ export const pricingFor = (date, pricing = PRICING) => pricing.versions.filter(v
 
 // Provider usage -> the telemetry's names (Anthropic reports cache_read_input_tokens / cache_creation_input_tokens).
 // thinking_tokens only when a provider exposes it; Anthropic bills thinking inside output_tokens, so it is never added.
-export const normalizeUsage = (usage = {}) => ({
+export const normalizeUsage = (usage) => (usage ??= {}, {
   input_tokens: usage.input_tokens ?? null,
   output_tokens: usage.output_tokens ?? null,
   cache_read_tokens: usage.cache_read_tokens ?? usage.cache_read_input_tokens ?? 0,

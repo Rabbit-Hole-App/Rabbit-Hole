@@ -1,29 +1,31 @@
 # Tutor decision evaluation (offline session simulator)
 
 **Owner:** Tutor Decision Evaluation agent.
-**Branch:** `feature/tutor-decision-eval`, worktree `workspace/tutor-decision-eval`, based on main `f4b99a3b`.
-**Local backup:** `backup/tutor-decision-eval-b1023a53`.
+**Branch:** `feature/tutor-decision-eval`, worktree `workspace/tutor-decision-eval`, rebased onto the Learning baseline
+`08c95bee` (`origin/feature/professor-next-steps`; contract: `docs/features/professor-next-steps.md` at that SHA).
+**Local backups:** `backup/tutor-decision-eval-b1023a53`, `backup/tutor-decision-eval-4488ae35` (the four commits before the rebase).
 
 This is an evaluation project only. It does not change Tutor behaviour, has made no model calls and has spent nothing.
 
 ## Status
 
-This branch holds only the interface-independent scaffolding, and it stays local until it is rebased onto the Learning
-checkpoint. The paid 20-minute simulations wait for that checkpoint, which brings:
-- Professor Next Steps / HookSet;
-- `selected_next_step`;
-- TutorDecisionTrace.
+Rebased onto the Learning baseline `08c95bee` with all four evaluator commits, then integrated with the real interfaces
+(the post-rebase commit on this branch):
+- `product.mjs` runs the real product behind the harness: the LP1 journey route, `runTurn`, the worker's evaluate, plan and
+  next-steps routes, the hook controller and input builder, the stopping-point rule, `turnOffers` and the TutorDecisionTrace
+  builders, all imported (§8).
+- Free tests stub only the provider boundary: `globalThis.fetch` answers Anthropic and JEV from a script and refuses every
+  other host (§16).
+- A1-A12 are reconciled (§9); creator analytics and the 10-learner cohort rule are validated offline (§17).
+- No paid run: the proposed real-model evaluation and the phrasing comparison wait for the owner's review (§18).
 
-When the exact SHA and `docs/features/professor-next-steps.md` arrive, the steps are:
-1. Rebase onto that SHA, then push once.
-2. Replace the provisional adapters with the real interfaces.
-3. Prove the harness calls the real `runTurn` / planner path and copies no Tutor logic.
-4. Report the integration map, and stop before any paid run.
+**Implemented, not deployed.** Everything the eval reads at this baseline is implemented on the Learning feature branch,
+not on main and not deployed. The TutorDecisionTrace has no production sink (contract §3.3: v1 registers only a harness
+sink; persistence is a separate, owner-approved migration), so no event from a real learner exists anywhere yet.
+Passing on this feature baseline does not certify the later integrated tree: the gates run again on Parallel's integrated
+SHA (§19).
 
-Every field marked PROVISIONAL below is the eval's own normalized view. Nothing more is built on those fields until
-the checkpoint replaces them.
-
-## 1. The production path the simulator must call (audit of main f4b99a3b)
+## 1. The production path the simulator calls (audit of main f4b99a3b, updated for 08c95bee in §8)
 
 One learner turn in the product runs through `packages/web/src/learn-tutor.js` `runTurn` (line 323):
 
@@ -52,6 +54,10 @@ Node.
 - The planner's output is a `strategy` plus actions from `ACTION_TYPES` (`agents/learn-tutor.js:130`) and `suggest_avatar_clip`.
 - It has no modality, reason codes, expected evidence or estimated learning time.
 - There are no Professor Next Steps hooks.
+
+All of these are filled at the Learning baseline `08c95bee`: action contracts with modality and `cost_tier`, generic
+reason codes, expected evidence, estimated learning seconds, HookSets and the TutorDecisionTrace (contract §1-§3).
+§8 maps what the harness now calls.
 
 ## 2. Owner decisions (2026-10-06)
 
@@ -100,8 +106,14 @@ The timeline records background work that overlaps learner activity.
 - **Active exercise.** The state is stable only once the answer is evaluated and committed.
   - The remaining evaluation and generation time is blocking.
 
-When a hook set starts is the product's recompute policy, so it is injected as `hookStart({ decision })`. Until the
-Learning contract defines it, the default (`after_evidence`) treats every set as blocking.
+When a hook set starts is the product's recompute policy, so it is injected as `hookStart({ decision, decided })`.
+
+Reconciled with the contract (§2.3, §1.2). The product requests hooks only at a stopping point, 1200 ms (`debounce_ms`)
+after a finished turn changed the basis, while the learner reads. It never waits for evidence first: a Tutor question
+waiting for an answer is not a stopping point, and the learner's answer is itself a turn whose end recomputes the hooks.
+- The real adapter's `hookStart` is the product's `stoppingPoint`: `with_material` (after `HOOK_DEBOUNCE_MS`) or `none`.
+- The fake world keeps a blocking policy, renamed `after_consumption` (hooks once the learner is done), so blocking waits
+  stay testable. `after_evidence` is gone: no product path waits for evidence before hooks.
 
 Per step:
 - `hook_backend_generation_ms` and `hook_perceived_wait_ms`;
@@ -126,8 +138,14 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 | `harness.mjs` | Fixtures, the hidden-profile guard, the session loop on the session timeline (with a cost meter per stage), learner and reviewer views, prompts, reply schemas and strict parsers, the cost ledger, and `freshLearnDb`. Every product dependency is injected. |
 | `metrics.mjs` | Every metric as a pure function over segments (lists of folded steps). One implementation serves a session, canvas, board, user×canvas, journey, section, source resource, planner version and the global aggregate. Also `aggregate.json`, the terminal table and the steps CSV. |
 | `run.mjs` | Free CLI. `aggregate <dir>` writes `aggregate.json`, `steps.csv` and the table; `events <file.jsonl>` prints grouped metrics for any event stream. |
-| `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.provisional.json` (modalities, reason codes, relations, review thresholds) and `cost-roles.provisional.json`. |
-| `tutor-session.test.mjs` | 35 tests, run by `make test-unit`. |
+| `product.mjs` | The real product behind the injected interface (§8) and the provider boundary (§16). It only wires and renames: no Tutor logic. |
+| `creator.mjs` | Creator analytics with the 10-learner cohort rule at every level (§17). |
+| `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.json` (the eval's labels over the product's modality names, its reason-code checks, relations, review thresholds) and `cost-roles.json` (product roles; the material roles still provisional). |
+| `tutor-session.test.mjs` | 35 tests on the scripted fake world (the generic harness, metrics, cost, materials, graph). |
+| `product.test.mjs` | 8 tests on the real product path: the end-to-end path, provider isolation, tracing on/off, the production validators, the stopping point, no copied logic, taxonomy names, mapping. |
+| `creator.test.mjs` | 7 tests: suppression, the cohort at every cut, no double counting, no learner identity, the public profile, impressions from the product's events. |
+
+All 50 run in `make test-unit`.
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -139,8 +157,14 @@ There is no topic or profile branch in the code, and a test enforces it:
 The session's source of truth is append-only events. The session file bundles the events, plus the folded steps for
 reading. `aggregate.json` is always recomputed from the events.
 
+**Two streams, kept apart.** The product emits only the three TutorDecisionTrace events (contract §3: `tutor_decision`,
+`next_steps_computed`, `next_steps_shown`, `trace_schema_version: 1`). The eval's stream carries each one verbatim as
+`trace` on the event that records it (`tutor_action_ready`, `next_steps_ready`, `next_steps_shown`); `validateEvent`
+checks its version and exact top-level keys. Everything else in the stream is eval-only: the learner simulation, the
+materials, the learning graph, the cost lines and the publication events.
+
 **Envelope (every event):**
-- `trace_schema_version` (`tutor-trace-eval-0`, provisional), `event_id`, `seq`, `type`, `t_ms`;
+- `eval_schema_version` (`tutor-session-eval-1`, the eval's own stream), `event_id`, `seq`, `type`, `t_ms`;
 - `session_id`, `user_id`, `canvas_id`;
 - when known: `board_id`, `canvas_version`, `journey_id`, `section_id`, `dive_id`, `source_resource_id`.
 
@@ -151,7 +175,7 @@ reading. `aggregate.json` is always recomputed from the events.
 **Types:**
 - Session: `session_started`, `session_ended {reason}`.
 - Canvas: `canvas_context_changed`.
-- Hooks: `next_steps_generation_started {hook_set_id}`, `next_steps_ready {hook_set_id, options}`, `next_step_selected {hook_set_id, option_id, position}`.
+- Hooks: `next_steps_generation_started {hook_set_id}`, `next_steps_ready {hook_set_id, options, trace?}`, `next_steps_shown {hook_set_id, trace?}` (the impression), `next_step_selected {hook_set_id, option_id, position}`.
 - Learner:
   - `learner_consumption_started/finished {decision_id, timing_source}`: `estimated` when the reading time is the Tutor's estimate, `measured` for real users.
   - `learner_message {kind, input, decision_id?}`: the `decision_id` is present when it answers that decision's material.
@@ -164,6 +188,7 @@ reading. `aggregate.json` is always recomputed from the events.
   - learner side: `material_visibility {visible}`, `material_interaction {interaction, meaningful, control_id?, result?, active_ms?, position_seconds?, played_seconds?}`, `material_completed`, `material_abandoned`.
 - Cost: `model_call_started`, `model_call_completed`, `model_call_failed` (§12).
 - Graph: `material_node_created`, `material_link_created`, `material_link_removed`, `rabbit_hole_opened`, `rabbit_hole_returned` (§14).
+- EVAL-ONLY publication events (§17; the product has none): `publication_opened {publication: {org, canvas, creator_id}, source_access_mode}`, `canvas_forked {publication}`.
 
 **Concurrency:**
 - Events are appended in the order they are written but are not serial. Background hook generation is appended with its own earlier `t_ms`.
@@ -210,6 +235,16 @@ reading. `aggregate.json` is always recomputed from the events.
 - A latency built on an estimated part is itself estimated. For example, a perceived hook wait that depends on simulated reading time is `estimated`.
 - Statistics are per source and never pooled. `not_run` is only counted.
 - Each step also records `cache_status` (`miss`, `hit`, `partial`, `not_applicable`) and `cache_origin` (`fresh`, `product_cache`, `canonical_asset`, `session_asset`).
+
+**One learner move per decision (the product's rule, contract §1.4).** After a Tutor turn the learner reads or attempts its
+material, then either clicks a hook shown (the next turn is a `next_step` turn: no words, no evidence) or types (the next
+turn is a typed turn, whose words are evaluated before they are planned). Never both: a click is never evidence and never
+a faked message. The provisional loop sent a typed reply and a click in one step; the contract forbids that.
+- The simulator moves once it is done and has seen the options it is given, so a typed reply after visible options
+  overrides them, and waiting for them is a wait (`t_learner_ready` is when it finished reading; `t_learner_message` when
+  it sent its words; the after-click wait of a typed turn runs from the message).
+- A typed turn's evaluation is part of that turn: blocking evaluation ends before the plan starts (t4), so the decision
+  was made on it; evaluation off the critical path lands during the turn.
 
 **The simulator's session timeline:**
 - Backend calls advance it by their measured duration.
@@ -275,7 +310,8 @@ without a schema change.
 **Learner simulator** (`claude-sonnet-5-5`; not called yet):
 - **Sees:** its hidden profile, the topic goal, the material summary, the hook texts and its own past exchange.
 - **Never sees:** reasons, rationale, expected evidence, evidence state, hidden goals or answers.
-- **Reply format:** `LEARNER_REPLY_SCHEMA` is used as `output_config.format`.
+- **Reply format:** `LEARNER_REPLY_SCHEMA` is used as `output_config.format`: one move, an offered option id (a click) or
+  null with typed words.
 - **Reply checks:** `parseLearnerReply` re-checks every reply. It refuses an option that wasn't offered and any profile label.
 
 **Session reviewer** (`claude-opus-5-5`, one call per session; not called yet):
@@ -286,42 +322,58 @@ without a schema change.
 **Hidden profile:** `assertNoProfileLeak` checks every learner-originated payload and the adapter's reported planner
 input. A hit ends the session (`profile_leak`).
 
-## 8. Interfaces this eval expects to consume (from the Learning checkpoint)
+## 8. Interfaces consumed (the real product at 08c95bee)
 
-Each injected function also gets a `meter`:
-- `meter.guard()` checks the ceiling before a call.
-- `meter.call()` records the call after it.
-- The meter stamps the attribution (decision, hook set or material) and writes the cost event.
+`product.mjs` `productWorld({ topic, ids, boundary })` gives the harness its injected functions. Each one runs production
+code. The adapter only wires the browser half to the worker half in one Node process, as `e2e/tutor-corpus-run.mjs` and
+`e2e/next-steps-check.mjs` do, and renames fields.
 
-| Injected | Needs from the product |
+| Injected | Production code it runs |
 |---|---|
-| `tutor.start(meter)` | A fresh LP1 journey for the topic in this session's own `LEARN_DB`, through the real intake/path flow. The journey-creation calls are session-level cost. Its starting claim states (`deriveClaimStates` shape) and context: journey, section, board and canvas version. |
-| `tutor.decide(input, meter)` | One real `runTurn` / `planTurn` decision on learner-visible input. Fields: action type, modality, card type, generic `reason_codes`, rationale summary, target concepts, `expected_evidence`, `recent_modality_history`, `estimated_learning_seconds`, available modalities, planner version. Also the exact planner input (for the leak check) and any Dive record it opened (`rabbit_hole`). |
-| `tutor.observe(response, meter)` | The real evidence path (deterministic → JEV → larger evaluator) and the resulting claim states. The next `decide` must not re-evaluate it. JEV calls are metered with `provider: typesafe`. |
-| `hooks(…, meter)` | The validated HookSet: 3 options (id, position, hook text, `learning_goal`) and a set id. |
-| `hookStart()` | The product's recompute policy for when a hook set starts. |
-| `selected_next_step` | How a picked hook reaches the next decision. |
-| `materialize(…, marks, meter)` | The production material generator, up to a validated learner-facing payload. It returns `timing_source`, `cache_status`, `material_type`, `modality`, concept/claim ids, `descriptors`, subcard `structure` (counts only), `links` (the product's own edges) and `node_id`. |
-| Taxonomy | The product's modality list, reason codes and link relation vocabulary, replacing `taxonomy.provisional.json`. |
-| Cost roles | The product's task names for hooks, material generation and Motion/Avatar stages, replacing `cost-roles.provisional.json`. |
+| `tutor.start` | `journeyRoute` (`control-plane/src/learn-journey.js`). It sends `start` with the topic's opening message, then the setup steps the learner skips (intake and diagnostic, so no level ever reaches the Tutor), then `accept` of the drafted path. The LP1 planners run (`journey_diagnostic`, `journey_path`, `journey_section`), all in the session's own LEARN_DB (O1). |
+| `tutor.decide` | `runTurn` (`web/src/learn-tutor.js`) over `tutorContext` (`learn-tutor-domains.js`, the journey domain). It takes `turnOffers` from `LearnTutor.jsx` (bundled with esbuild, as next-steps-check does) and `trace: { identity, blocks, next_step_options }`. Its `post` goes to the worker's `tutorRoute`: `/evaluate` runs `journeyEvaluate`, then `evaluateFreeText`, then the real `askJev`, with the larger evaluator on escalation; `/plan` runs `planTurn` (the fast tier and Opus, `plannerRequest`, the validator). A hook click is the `nextStep` from the controller's `select()`. |
+| `hooks` | `nextStepsController` with `nextStepsBasis` and `nextStepsInput` (`web/src/learn-next-steps.js`): one request per basis, the no-repeat memory and the `select()` goal memory. It posts to `tutorRoute` `/next-steps`, which runs `ownedNextSteps`, then `planNextSteps` (its validator and escalation), then `mintSet`. `hooksEvent` and `shownEvent` (`learn-tutor-trace.js`) build the two hook events. |
+| `hookStart` | `stoppingPoint` (contract §1.2) after each turn. When it is a stopping point, the set is requested `HOOK_DEBOUNCE_MS` (the product's `debounce_ms`, 1200) into the learner's reading. |
+| `materialize` | The turn's `create_material` contracts (the product's materials; several per turn are allowed). Generation is not wired yet: each is `not_run` (§19). |
+| evidence snapshot | `deriveClaimStates` over the Tutor store (journey events adopted from the server), as the page derives it. |
+| decision fields | The `tutor_decision` event itself, carried verbatim. `decisionOf` renames its fields (§9 A2). |
+| available modalities | `modalityOf` over every action the route allowed, every material offered and every card the domain shows. |
+| cost lines | One per provider request at the boundary. The role is read from the request (`roleOf`: the one tool the product sends, and its model to tell the routine hook role from the escalation role). |
+| taxonomy | `REASON_CODES`, the product's modality names (§3.2) and `actionContract`'s expected evidence (checked by test). |
 
-## 9. Provisional assumptions to reconcile
+The adapter repeats only this page glue:
+- the `lastTurn` object `LearnTutor.jsx` keeps for the hook input (`setLastTurn`: turn id, intent kind, the question words, transitions);
+- the journey view `{ journey, path, start }`;
+- the canvas session id from `newSessionId`.
 
-- **A1.** `next_steps_ready.options` items are `{ id, position, text, learning_goal }`. The learner view drops `learning_goal`.
-- **A2.** `tutor_action_ready.decision` is `{ action_type, modality, card_type, reason_codes, rationale_summary, target_concepts, expected_evidence }`.
-- **A3.** The reason codes and modality list are the owner's examples.
-- **A4.** `hookStart` defaults to `after_evidence` until the product's recompute policy is known.
-- **A5.** The first decision has no hooks; the opening message leads.
-- **A6.** `evidence_updated` carries a full claim-state snapshot.
-- **A7.** `trace_schema_version` becomes the Learning agent's TutorDecisionTrace version.
-- **A8.** Cost roles: `next_steps`, `material_generation`, `material_repair`, `material_review`, `provider_asset` and `render_compute` are placeholders. The `LEARN_TASKS` names (`tutor`, `tutor_evaluator`, `journey_*`, `avatar_*`) and `jev` are the product's.
-- **A9.** Link relations: the product reuses card-plan `RELATIONSHIPS` and the depth-card links, plus the owner's generic list. Hook selections are recorded as `next_step_selection`, `created_by: learner`.
-- **A10.** Cardinality is NOT fixed. One decision may give one material (with subcards) or several related materials.
-  - The schema, the fold and the runner support `decision → materials[] → subcards[]`; `materialize` may return `{ materials: [...] }`.
-  - The fake world in the tests uses one material for most decisions and two for one.
-  - The real cardinality waits for the Learning contract.
-- **A11.** Material descriptors and subcard field names (`content_duration_seconds`, `question_count`, `option_count`, …) follow the owner's lists until the product's payloads are mapped.
-- **A12.** `rabbit_hole_opened.opened_by` maps from the Dive record's `created_by` (`taxonomy.rabbit_hole_opened_by`): `tutor_confirmed` → `tutor_suggestion`, `learner_*` → `learner`, `shared_start` → `shared_canvas_hook`. An unknown value is recorded as `unknown`, never guessed.
+## 9. Assumptions A1-A12, reconciled at 08c95bee
+
+Every row marked "confirmed" or "mapped" is confirmed by the implementation at `08c95bee`, which is a feature branch. None
+of it is on main or deployed, and no production sink collects these events (see Status).
+
+| # | Assumption | Now | Classification |
+|---|---|---|---|
+| A1 | `next_steps_ready.options` items are `{ id, position, text, learning_goal }`; the learner view drops `learning_goal`. | The HookSet option `{ id, hook, selected_next_step }` goes through `optionOf`: `id`; `position` (screen order 1-3, as the trace's `next_step_options`); `text` = `hook`, verbatim; `set_id`; and `learning_goal`, `concept_ids`, `claim_ids` from `selected_next_step`. The learner sees `id`, `position` and `text` only (contract §1.6 confirms: never `learning_goal`). | Renamed / mapped to production fields |
+| A2 | `tutor_action_ready.decision` is `{ action_type, modality, card_type, reason_codes, rationale_summary, target_concepts, expected_evidence }`. | The `tutor_decision` event is carried as `trace`. `decisionOf` renames: `chosen_action` (`action_type`, `command`, `capability`, `modality`, `cost_tier`, target ids); `actions`; `reason_codes`; `reason_source`; `rationale_summary`; `expected_evidence` (`[{ claim_id, via }]`); the route row; and the intent fields. `card_type` has no product field: a card's modality is its block type (§3.2), so `card_type` is that modality on a card action. | Renamed / mapped; `card_type` removed as a separate field |
+| A3 | Reason codes and modality list are the owner's examples. | Now `REASON_CODES` (13 generic codes) and the product's modality names. `taxonomy.json` keeps only the eval's own labels over those names and its evidence checks for four codes. Active/passive is checked against `actionContract`; effort, family and expensive are the eval's labels. A test keeps every key a product code. | Removed (replaced by production) |
+| A4 | `hookStart` defaults to `after_evidence`. | The product's policy (O3): a stopping point after a finished turn, a 1200 ms debounce, one request per basis, and never while a Tutor question waits. | Replaced by production (`stoppingPoint`, `nextStepsController`) |
+| A5 | The first decision has no hooks; the opening message leads. | The opening is the first typed turn. Hooks need a finished turn (a basis) and a stopping point. | Confirmed by production |
+| A6 | `evidence_updated` carries a full claim-state snapshot. | The trace carries only the turn's claims (`evidence_summary`) and its `evidence_transitions`. The eval derives the snapshot with the product's own `deriveClaimStates` over the Tutor store; it never computes one itself. | Safely derivable (eval event built from a production function) |
+| A7 | `trace_schema_version` becomes the Learning agent's version. | Each carried event keeps the product's `trace_schema_version: 1` (checked). The eval's own stream is renamed `eval_schema_version: tutor-session-eval-1`. | Renamed / mapped |
+| A8 | Cost roles: `next_steps`, `material_*`, `provider_asset`, `render_compute` are placeholders. | `tutor`, `tutor_evaluator`, `tutor_next_steps`, `tutor_next_steps_escalation`, `journey_*` (LEARN_TASKS) and `jev` are read from each request. `material_generation`, `material_repair`, `material_review`, `provider_asset` and `render_compute` stay placeholders: the artifact route and the Motion/Avatar stages are not exercised. | Partly confirmed; the material roles are still provisional |
+| A9 | Link relations reuse card-plan `RELATIONSHIPS`, the depth-card links and the owner's list; a hook selection is `next_step_selection`. | The product emits no node or link events and has no link vocabulary. `next_step_selection` is the eval's edge, built from `selected_next_step_id`. | Still provisional: no production link telemetry |
+| A10 | Cardinality is not fixed: decision -> materials[] -> subcards[]. | Contract §2.5 allows several `create_material` actions per turn (distinct commands, within the 3-action cap), so a decision's materials are its `create_material` contracts. No product payload is mapped for subcards. | Confirmed for materials; subcards still provisional |
+| A11 | Material descriptors and subcard field names follow the owner's lists. | The artifact payloads are not mapped, and generation is not run. | Still provisional |
+| A12 | `rabbit_hole_opened.opened_by` maps from the Dive record's `created_by`. | The values are the product's: `tutor_confirmed`, `learner_slash`, `learner_ctrl_k`, `learner_dblclick` (`Dive.jsx`) and `shared_start` (`learn-boards.js`). The category mapping is the eval's. Holes are not exercised in the free path. | Values confirmed; the mapping is the eval's; not exercised |
+
+**Still provisional:**
+- A8 (material roles);
+- A9 (links);
+- A10 (subcards);
+- A11 (material payloads);
+- the A12 mapping.
+
+They wait for the material generator to be wired (§19) and for product link telemetry.
 
 ## 10. Cost and models
 
@@ -330,12 +382,12 @@ See §12. The ceiling applies to Anthropic spend only, with the learner simulato
 ## 11. Commands
 
 ```bash
-node --test tests/evals/tutor-session/*.test.mjs        # free, part of make test-unit
+node --test "tests/evals/tutor-session/*.test.mjs"      # free, from the repository root; part of make test-unit
 node tests/evals/tutor-session/run.mjs aggregate <dir>  # session files -> aggregate.json, steps.csv, table
 node tests/evals/tutor-session/run.mjs events <jsonl>   # any event stream -> grouped metrics
 ```
 
-No paid simulation is wired.
+No paid simulation is wired: `product.mjs` installs only the stub provider boundary (§16).
 
 ## 12. Cost / API usage
 
@@ -487,3 +539,191 @@ The ledger never infers a remaining account balance. A provider balance API, if 
 The owner's 15-frame review section, "Tutor Evaluation + Telemetry — Architecture Review" in Figma file
 `ef9SfiemEsPQF2bd8B1os3`, is built only after the rebase onto the real Professor Next Steps + TutorDecisionTrace
 checkpoint and the reconciliation of A1–A12. It uses synthetic sample traces and no paid run.
+
+## 16. Isolation and the proofs (free tests)
+
+**The provider boundary.** `providerBoundary(answers)` replaces `globalThis.fetch` for the run:
+- Requests to `https://api.anthropic.com/v1/messages` and to the JEV origins (`JEV_TRANSPORTS`) are answered from a
+  script. The product's own `anthropic()` transport, `loggedModel`, `askJev` and every caller above them run unchanged.
+- Any other host throws `OUTBOUND_BLOCKED` and is recorded.
+- A missing key alone would not stop a request. The boundary does, and a test puts a tripwire `fetch` under it and
+  proves the tripwire is never reached in a whole session.
+- Only request bodies are recorded, never headers. The worker env holds placeholder strings, never a key.
+- The script answers:
+  - the Tutor planner from a test's `plan(context)`;
+  - the hook planner and the LP1 planners from the product's own keyless fixtures (`fixtureFor`, the
+    `JOURNEY_MODEL_STUB=fixtures` replies);
+  - JEV from a test's `jev(request)`.
+- Every cost line says `transport: stub`, so stub usage can never be read as spend.
+- The meter never fails a product call. A meter error is kept and asserted empty: one such error, a JEV reply with no
+  usage, once made the real JEV client report the provider unreachable.
+
+**What the tests prove** (`product.test.mjs`):
+- **The real path, end to end.**
+  - The LP1 journey is created by its route's planners.
+  - Typed turns are evaluated by JEV through the real client before the plan.
+  - A hook click is a `next_step` turn with no words and no JEV request.
+  - Hook sets come through the controller and the owned route.
+  - Each `tutor_decision`'s `prompt_version` equals the hash of the request the planner really sent.
+  - Hooks start `HOOK_DEBOUNCE_MS` into the reading.
+- **Tracing on or off.**
+  - Randomness and the clock are seeded.
+  - The trace module draws its ids from its own stream; with one shared stream they would shift the product's ids.
+  - Three turns and a hook set give identical provider requests byte for byte, identical product results (actions,
+    contracts, text, reason codes, readings, states, transitions, route, store) and identical hook sets, ids included.
+  - With tracing off, no event is built.
+- **Production validators and escalations run,** as no eval copy could:
+  - a planned action the route does not allow is dropped (`validation.dropped_actions`, `ok: false`);
+  - a routine hook reply that opens with a command and has no ids escalates (`escalated:validator`, rule names
+    `command`, `ungrounded`, 2 calls, the escalation role).
+- **The stopping point.** A Tutor question waiting for an answer gets no hook set, and the learner types.
+- **No Tutor logic is copied.**
+  - The real functions are imported from `packages/` (checked by import).
+  - No eval source defines a function with a production name (35 names checked).
+  - No eval source pastes a product prompt line (`PLANNER_SYSTEM`, `NEXT_STEPS_SYSTEM`), the action list or the
+    reason-code list.
+
+**A gate fix found here.** On Windows, `node --test "$THIS_DIR/tests/evals/.../*.test.mjs"` (an absolute `/c/...` glob)
+matches nothing and passes with 0 tests. This eval's line in `run.sh` now runs a relative glob from the repository root.
+- The same pattern on the `learn-grade` line also ran 0 tests on this machine (26 tests exist).
+- That line is not this lane's, so it is reported to Parallel rather than changed here.
+
+## 17. Creator analytics (validated offline)
+
+The product persists and aggregates nothing yet (contract §5). `creator.mjs` is the eval's aggregator over its own event
+stream, so the owner's rules can be proven before any store exists.
+
+**Cohort rule.**
+- A protected metric needs at least 10 unique learners at every level it is cut by: publication, creator and global, and
+  each concept, hook, position and time-range filter. Below that it is
+  `{ value: null, suppressed: true, suppression_reason: 'insufficient_cohort', minimum_unique_learners: 10 }`, never 0.
+- Protected metrics:
+  - average active learning time (client `active_ms` only; unknown for simulated learners);
+  - concept exploration rate (the share of learners who reached two or more concepts);
+  - deeper-branch rate (the share who clicked a hook or opened a Rabbit Hole);
+  - Start Rabbit Hole and fork conversion rates;
+  - the highest-friction concept;
+  - the Next Steps selection rate, overall and by position;
+  - per-concept friction and per-hook selection.
+- Friction is never measured from dwell time. It counts a misconception or prerequisite-gap state (from the product's
+  derived states), a repair reason code, or a clarification the Tutor asked.
+
+**Always visible, as plain counts:**
+- total opens;
+- the public fork count;
+- raw Rabbit Hole starts;
+- the published canvas count;
+- unique learners: a bare count below the cohort, with no percentage built on it.
+
+**No double counting.**
+- A session belongs to exactly one publication (a session naming two is refused) and is counted once at every level.
+- A learner is counted once per level: a creator's unique learners are deduplicated across their canvases, and opens are
+  summed.
+
+**Identity and privacy.**
+- Publication identity is the canonical Explore key: `canvas_publications` on main (`0007`) is `(org, canvas)`, plus the
+  owner's internal creator id.
+- It is never a `share:<shareKey>` and never the publication's read token, which changes on every publish. An event
+  carrying any other publication field, or an email as creator id, is refused.
+- The output carries no learner id, email or handle, no evidence row, no individual misconception, no Rabbit Hole path
+  and no hook history.
+- A hook is keyed by a one-way hash of its structured identity (`learning_goal` and ids, §5.2). Its goal and a
+  representative wording are shown only once the cohort stands behind it.
+
+**Public creator profile.** It reads plain counts over listed explainers only: `public_explainer_count`,
+`aggregate_unique_learners`, `aggregate_fork_count`. A removed or trashed publication counts toward nothing public.
+
+**The events these metrics need**, as the product stands at `08c95bee`:
+
+| Needed | Status | Where |
+|---|---|---|
+| Next Steps shown (impression, position) | Available, not persisted | `next_steps_shown` (trace v1); harness sink only |
+| Next Step selected | Available, not persisted | `tutor_decision.selected_next_step_id`, `selected_at` |
+| Concepts touched, repair reasons, clarification | Available, not persisted | `tutor_decision` decision fields |
+| Evidence states (misconception, prerequisite gap) | Safely derivable | `deriveClaimStates` over the learner's store; the trace has transitions only |
+| Hole return | Partly derivable | `return_from_dive` action, route row `returned`; no explicit return event |
+| Fork | Safely derivable as rows | `canvas_forks` (`0004`): rows, not events; no publication identity on them |
+| Publication opened / session on a publication | Needs production telemetry | no event; Explore `/e/<token>` (main) logs no open |
+| Start Rabbit Hole from a publication | Needs production telemetry | a shared start records the share key (`source.share_key`), which must not identify a publication |
+| Creator / publication identity on events | Needs production telemetry | the trace carries `canvas_id` and a shared `source`, not a publication key |
+| Active learning time | Needs production telemetry | no client `active_ms` event |
+
+`publication_opened` and `canvas_forked` are EVAL-ONLY shapes, marked as such in `events.mjs`. No production telemetry is
+added by this lane. The Explore publication table is on main, not in this baseline, so the identity is re-checked on
+the integrated SHA.
+
+## 18. Proposed real-model runs (not run; for review)
+
+**A. Three-profile session evaluation (logistic regression).**
+- **Profiles.** One session per profile: novice, intermediate, advanced. The labels stay in the simulator.
+- **Path.** Each session runs on the real LP1 journey path and its own LEARN_DB. The budget is 20 minutes of the
+  Tutor's estimated learning time, capped at 15 decisions.
+- **Models.**
+  - Learner simulator: Sonnet 5.5, one call per decision.
+  - Reviewer: Opus 5.5, one call per session.
+- **Transport.** The same `providerBoundary`, with the stub replaced by the real Anthropic and JEV transports. The
+  ledger's guard prices every request's worst case (its own `max_tokens`, input at chars/3) before it is sent.
+- **Ceiling.**
+  - Hard ceiling: $4.00 of Anthropic spend, with a $1.30 sub-ceiling per session so all three profiles get coverage.
+  - A session whose next worst case does not fit stops with `cost_ceiling` and keeps every event.
+  - JEV is logged apart, its cost unknown unless the provider reports one.
+- **Materials.** `create_material` stays `not_run` in this first run; material generation is a separate approval.
+- **Sizing.** From the request sizes recorded in a free 15-decision run, at the 2026-09-25 price table:
+
+| Per session | Worst case | Expected |
+|---|---|---|
+| LP1 start: `journey_diagnostic`, `journey_path`, `journey_section` | $0.39 | $0.15 |
+| Tutor planner, 15 turns (worst: every fast plan escalates to Opus, 2000 output tokens) | $1.41 | $0.30 |
+| Larger evaluator (worst: every typed turn, 2400 output tokens) | $0.78 | $0.06 |
+| Hooks, up to 14 sets (worst: every set escalates, 1500 + 4000 output tokens) | $1.59 | $0.20 |
+| Learner simulator, 15 calls | $0.15 | $0.10 |
+| Reviewer, 1 call | $0.10 | $0.08 |
+| **Session** | **$4.42** | **about $0.90** |
+
+- **Expected total:** about $2.70 for three sessions. The worst case (about $13) is not reachable, because the guard
+  stops at $4.00.
+- **Before any paid call:**
+  - wire the real transport in the boundary, with the guard;
+  - wire the simulator and reviewer calls (their prompts, schemas and strict parsers exist);
+  - add a run command;
+  - pass the free gates on Parallel's integrated SHA.
+
+**B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
+- **Pairs:**
+  - `Teach me X` vs `Explain X`;
+  - `thanks` / `ok` vs a question;
+  - a statement vs the same content asked as a question;
+  - `I still don't get X. Show me another way.` vs `Show me another way to see X.`
+- **Contexts.** A plain canvas and an active LP1 journey, on two topics (no topic overfitting).
+- **Free half (ready, not run).** Intent kind, router row, planner tier and allowed actions per phrasing. These are
+  deterministic, because the planner's tier is tagged by the real `plannerTier` with stubbed providers.
+- **Paid half.**
+  - Each phrasing is one real Tutor turn on the same state: 6 pairs × 2 variants × 2 contexts × 2 topics × 1 repeat =
+    48 turns.
+  - Measured: tier, `planner_ms`, `first_text_ms`, `blocking_wait_ms`, tokens and cost (trace usage), actions, modality,
+    intent and clarification.
+  - A blind Opus judge compares each pair (24 judgments) on a fixed rubric: did it answer the learner's need, was the
+    pedagogy fitting, was nothing expensive done that was not needed.
+- **Cost.** Expected about $1.70; cap $2.00, separate from A.
+
+## 19. Gaps and unresolved
+
+1. **Integration.** This is a feature baseline. Parallel's integrated SHA needs the free gates rerun there, and that run
+   alone certifies the integrated tree.
+2. **Materials.** Generation is not run (`runMaterials`, `/api/learn/artifact`), so `create_material` decisions are
+   `not_run` and record no material events. A8 (material roles), A10 (subcards) and A11 (payloads) stay provisional.
+3. **Section blocks.** Section materialization is not run either. The journey canvas has no blocks, so hooks ground on
+   the journey goal and `canvas_summary` is empty.
+4. **The tray resolver.** LP1's tray resolver (`live.handleText`) is not run before typed turns. It matters only inside
+   an open tray or setup, which the eval skips.
+5. **Streaming.** Turns are not streamed (no `onSpeakable`), so the fast-tier first-sentence release is not measured.
+6. **Not exercised:** Rabbit Holes and returns, shared canvases, Voice, the repository handoff, and the owned reply edge
+   cache (no `caches.default` in Node, as on `*.workers.dev`).
+7. **Stopped turns.** A stopped turn leaves no decision event (contract §4.7.2), so the eval cannot see Stop.
+8. **No production sink.** The decision trace has none: nothing from real learners exists, and persistence is a
+   separate, owner-approved migration.
+9. **Creator-analytics events.** The production events of §17 are missing (publication opened, publication identity on
+   holes and forks, active time). They are modelled as eval-only shapes.
+10. **The `learn-grade` gate line** in `run.sh` runs 0 tests on Windows (§16). Reported to Parallel.
+11. **The keyless hook fixture** repeats itself after a few sets, so free sessions see later hook sets fail validation as
+    repeats. That is the product's validator doing its job on a stub, not a product finding.

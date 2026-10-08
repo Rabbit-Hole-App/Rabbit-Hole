@@ -1,17 +1,18 @@
-// Tutor decision evaluation harness (docs/features/tutor-decision-eval.md): the generic, interface-independent half.
+// Tutor decision evaluation harness (docs/features/tutor-decision-eval.md): the generic half.
 // Fixtures, the hidden-profile guard, the session loop that writes the event stream (events.mjs), the learner and
 // reviewer views, prompts and reply schemas, the cost ledger, and the throwaway per-session LEARN_DB. Everything
-// that talks to the product - the Tutor turn, the hooks, the material generator, the evidence path - is injected, so
-// the loop never knows a topic, a profile or a model. No model is called from this file.
+// that talks to the product - the Tutor turn, the hooks, the material generator, the evidence path - is injected
+// (product.mjs is the real product; the tests also use a scripted fake), so the loop never knows a topic, a profile
+// or a model. No model is called from this file.
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { TRACE_SCHEMA_VERSION, createEmitter, foldSession, round, stats, sum } from './events.mjs';
+import { EVAL_SCHEMA_VERSION, createEmitter, foldSession, round, stats, sum } from './events.mjs';
 import { money, priceCall } from './cost.mjs';
 import { graphMetrics, learningGraph } from './graph.mjs';
 
 const HERE = new URL('.', import.meta.url);
-export const HARNESS_VERSION = 'tutor-session-eval-0';
+export const HARNESS_VERSION = 'tutor-session-eval-1';
 
 // ---------- Fixtures (data, never code branches) ----------
 
@@ -35,8 +36,8 @@ export function loadProfiles(path = new URL('fixtures/profiles.json', HERE)) {
   return profiles;
 }
 
-export const loadTaxonomy = (path = new URL('fixtures/taxonomy.provisional.json', HERE)) => readJson(path);
-export const loadRoles = (path = new URL('fixtures/cost-roles.provisional.json', HERE)) => readJson(path);
+export const loadTaxonomy = (path = new URL('fixtures/taxonomy.json', HERE)) => readJson(path);
+export const loadRoles = (path = new URL('fixtures/cost-roles.json', HERE)) => readJson(path);
 
 export const configHash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 16);
 
@@ -62,8 +63,8 @@ export function assertNoProfileLeak(payload, terms) {
 
 // ---------- Views: what each model may see ----------
 
-// The learner simulator sees the material summary, the hook texts and its own past exchange - never reason codes,
-// rationale, expected evidence, evidence state, hidden learning goals or answers.
+// The learner simulator sees the material summary, the hook texts and its own past exchange (learner null where it
+// clicked a hook) - never reason codes, rationale, expected evidence, evidence state, hidden learning goals or answers.
 export const learnerView = ({ material = null, options = [] }, history) => ({
   material,
   options: options.map(({ id, position, text }) => ({ id, position, text })),
@@ -119,7 +120,8 @@ export function learnerPrompt({ topic, profile, view, terms }) {
     ...(topic.simulator_misconceptions?.length ? [`Mistakes a learner like you may make, only if they fit what you know: ${topic.simulator_misconceptions.join('; ')}`] : []),
     `Never describe yourself with a skill-level label (for example ${terms.join(', ')}). Show your level only through what you say.`,
     'You do not know the answers to the tutor\'s questions unless your knowledge above covers them. Never grade yourself.',
-    'Reply with one JSON object: selected_option_id is one of the offered option ids, or null when there are none; response.kind is what you are doing; response.text is what you type; response.choice_id is the option you choose in a multiple-choice activity, or null.',
+    'Each turn you make one move: either click one of the offered options to explore it next, or type a reply. Clicking sends no words.',
+    'Reply with one JSON object: selected_option_id is the offered option id you click, or null when you type instead (always null when none are offered); response.kind is what you are doing (acknowledge when you click); response.text is what you type (empty when you click); response.choice_id is the option you choose in a multiple-choice activity, or null.',
   ].join('\n');
   return { system, user: JSON.stringify(view) };
 }
@@ -133,12 +135,13 @@ const jsonIn = text => {
 export function parseLearnerReply(text, view, terms) {
   const reply = jsonIn(text);
   const ids = view.options.map(option => option.id);
-  if (ids.length && !ids.includes(reply.selected_option_id)) throw Error(`selected_option_id ${reply.selected_option_id} is not one of ${ids.join(', ')}`);
+  // One move: an offered option (a click) or null (typed words); an option that was not offered is refused.
+  if (reply.selected_option_id != null && !ids.includes(reply.selected_option_id)) throw Error(`selected_option_id ${reply.selected_option_id} is not one of ${ids.join(', ') || 'the (no) offered options'}`);
   const response = reply.response || {};
   if (!RESPONSE_KINDS.includes(response.kind)) throw Error(`response.kind ${response.kind} is not one of ${RESPONSE_KINDS.join(', ')}`);
   if (typeof response.text !== 'string') throw Error('response.text must be a string');
   assertNoProfileLeak(response.text, terms);
-  return { selected_option_id: ids.length ? reply.selected_option_id : null, response: { kind: response.kind, text: response.text.trim(), choice_id: response.choice_id ?? null } };
+  return { selected_option_id: reply.selected_option_id ?? null, response: { kind: response.kind, text: response.text.trim(), choice_id: response.choice_id ?? null } };
 }
 
 export function reviewerPrompt(view) {
@@ -221,23 +224,35 @@ export async function freshLearnDb() {
 
 // ---------- The session loop ----------
 
-// Injected (each one a product adapter, or a fake in tests). Each gets a `meter` for its provider calls:
-// meter.guard({ model_id, inputChars, maxOutputTokens }) before a call (the ceiling), meter.call({ provider, model_id,
-// model_role, usage, provider_reported_cost_usd, latency_ms, outcome, retry_number, escalation, fallback,
-// output_accepted, request_id }) after it. The meter stamps the attribution (decision, hook set, material) and writes
-// the cost event. model_role is the product's task name (LEARN_TASKS) or a provider role.
+// Injected (each one a product adapter - product.mjs is the real one - or a fake in tests). Each gets a `meter` for its
+// provider calls: meter.guard({ model_id, inputChars, maxOutputTokens }) before a call (the ceiling), meter.call({ provider,
+// model_id, model_role, usage, provider_reported_cost_usd, latency_ms, outcome, retry_number, escalation, fallback,
+// output_accepted, request_id, transport }) after it. The meter stamps the attribution (decision, hook set, material) and
+// writes the cost event. model_role is the product's task name (LEARN_TASKS) or a provider role.
 //   tutor.start(meter) -> { evidence, context }                 starting evidence and canvas context (journey creation)
-//   tutor.decide(input, meter) -> { decision, estimated_learning_seconds, available_modalities, planner,
-//     planner_version, material_summary, context, rabbit_hole, tutor_input }   tutor_input: what the planner was sent
-//   tutor.observe({ response }, meter) -> { evidence }           the real evidence path on the learner's response
-//   hooks({ decisions, history }, meter) -> { options: [{ id, position, text, learning_goal }] }
-//   hookStart({ decision }) -> 'with_material' | 'after_evidence'   the product's hook recompute policy (default:
-//     every hook set waits for evidence)
-//   learner.choose({ view }, meter) / learner.respond({ view }, meter)   the simulator (eval-only calls)
+//   tutor.decide(input, meter) -> { decision, trace, estimated_learning_seconds, available_modalities, planner,
+//     planner_version, material_summary, context, rabbit_hole, tutor_input, evaluated }
+//     input: { kind: 'typed', text } (the learner's words; the opening first) or { kind: 'hook', option } (a hook click: no
+//     words, no evidence - contract §1.4). trace: the product's tutor_decision event, carried verbatim. evaluated:
+//     { evidence, ms, blocking } when the turn evaluated the learner's words first (the product's typed turn); blocking
+//     means the planner waited for it (else it ran beside the planner). tutor_input: what the planner was sent.
+//   tutor.observe({ response }, meter) -> { evidence }   optional: an adapter whose evidence path is separate from its turns
+//     (the fake world) evaluates a typed reply here; the product evaluates it inside the next turn instead.
+//   hooks({ decisions, history }, meter) -> { options: [{ id, position, text, learning_goal, ... }], trace, shown }
+//   hookStart({ decision, decided }) -> 'with_material' (requested while the learner reads) | 'after_consumption' (once
+//     the learner is done: blocking) | 'none' (no hooks after this decision: the product's not-a-stopping-point). The
+//     product never waits for evidence first: a Tutor question waiting for an answer is not a stopping point (none), and
+//     the answer is a turn whose end recomputes the hooks.
+//   hookDelayMs: the product's recompute debounce, added before a hook set starts
+//   learner.reply({ view }, meter) -> { selected_option_id, response }   the simulator's one move per decision: pick an
+//     offered hook (a click: its words are never sent) or type (selected_option_id null)
 //   materialize({ decision, material_id }, marks, meter) -> { timing_source, cache_status, cache_origin,
 //     asset_applicable, durations, material_type, modality, concept_ids, claim_ids, expected_evidence, descriptors,
-//     structure, node_id, links, fresh_generation_cost_usd, error_code }   marks.started() / first() / asset() stamp
-//     t6 / t7 / t9 while it runs; never called when the material is not run. It resolves at t8.
+//     structure, node_id, links, fresh_generation_cost_usd, error_code } or { materials: [...] }   marks.started() / first()
+//     / asset() stamp t6 / t7 / t9 while it runs; never called when the material is not run. It resolves at t8.
+// One learner move per decision, as in the product: after the Tutor's turn the learner reads or attempts its material, then
+// either clicks one of the hooks shown (the next turn is a next_step turn with no words) or types (the next turn is a typed
+// turn, whose words are evaluated before they are planned). Never both: a click is never evidence and never a faked message.
 // The session timeline: backend calls advance it by their measured duration; the learner's reading or attempt advances
 // it by the Tutor's estimated learning time (every learner-side event says `estimated`); the learner simulator's own
 // latency never enters it, and a selection is instant once options are visible and the learner is done. Background
@@ -246,10 +261,10 @@ export async function freshLearnDb() {
 // (previous node -> the node the Tutor made from it). Offered hooks stay candidate options, never nodes.
 // Stops when the Tutor's estimated learning time reaches the budget, or at max_decisions (the safety cap). A thrown
 // error (cost ceiling, profile leak, adapter failure) ends the session with what was recorded so far.
-const CALL_EVENT_FIELDS = ['provider', 'model_id', 'model_version', 'model_role', 'decision_id', 'hook_set_id', 'material_id', 'usage', 'provider_reported_cost_usd', 'computed_cost_usd', 'cost_usd', 'cost_status', 'pricing_version', 'pricing_effective_date', 'prompt_cache_saved_usd', 'latency_ms', 'retry_number', 'escalation', 'fallback', 'output_accepted', 'speed', 'request_id', 'error_code'];
+const CALL_EVENT_FIELDS = ['provider', 'transport', 'model_id', 'model_version', 'model_role', 'decision_id', 'hook_set_id', 'material_id', 'usage', 'provider_reported_cost_usd', 'computed_cost_usd', 'cost_usd', 'cost_status', 'pricing_version', 'pricing_effective_date', 'prompt_cache_saved_usd', 'latency_ms', 'retry_number', 'escalation', 'fallback', 'output_accepted', 'speed', 'request_id', 'error_code'];
 const MATERIAL_EVENT_FIELDS = ['material_type', 'modality', 'concept_ids', 'claim_ids', 'expected_evidence', 'estimated_learning_seconds', 'descriptors', 'structure', 'parent_material_id', 'material_group_id', 'fresh_generation_cost_usd', 'material_signature'];
 const LEARNER_INTERACTION = { answer: 'attempt', explanation: 'attempt', activity: 'attempt', question: 'ask_about_this', confusion: 'message', acknowledge: 'message' };
-export async function runSession({ topic, profile, profiles, hooks, hookStart = () => 'after_evidence', learner, tutor, materialize, ledger = null, taxonomy = loadTaxonomy(), runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
+export async function runSession({ topic, profile, profiles, hooks, hookStart = () => 'after_consumption', hookDelayMs = 0, learner, tutor, materialize = async () => null, ledger = null, taxonomy = loadTaxonomy(), runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
   const terms = profileTerms(profiles);
   const ids = simulatedIds({ runId, topic, profile });
   const context = {};
@@ -269,7 +284,8 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
     },
   });
   const history = [];
-  let elapsed = 0, decisions = 0, stop = 'max_decisions', error = null, message = topic.opening_message, selected = null, lastNode = null;
+  let elapsed = 0, decisions = 0, stop = 'max_decisions', error = null, lastNode = null;
+  let input = { kind: 'typed', text: topic.opening_message };
   const applyContext = (next = {}, hole = null) => {
     const changed = Object.entries(next).filter(([key, value]) => context[key] !== value);
     if (!changed.length) return;
@@ -280,13 +296,15 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
     // Who opened it comes from the product's Dive record (created_by); never invented.
     if (dive?.[1]) emit('rabbit_hole_opened', { ...(hole || {}), rabbit_hole_id: dive[1], opened_by: hole?.opened_by ?? 'unknown' });
   };
-  // One hook set generated from `at` on the timeline: its options and when they were ready.
+  // One hook set generated from `at` on the timeline: its options, when they were ready, and the product's own
+  // next_steps_computed / next_steps_shown events (carried verbatim when the adapter has them).
   const hookSet = async at => {
     const hookSetId = `${ids.session_id}:h${decisions + 1}`;
     emit('next_steps_generation_started', { hook_set_id: hookSetId }, at);
     const [set, ms] = await timed(() => hooks({ decisions, history }, meter({ hook_set_id: hookSetId }, () => at)));
     const options = set?.options || [];
-    emit('next_steps_ready', { hook_set_id: hookSetId, options }, at + ms);
+    emit('next_steps_ready', { hook_set_id: hookSetId, options, ...(set?.unavailable ? { unavailable: set.unavailable } : {}), ...(set?.trace ? { trace: set.trace } : {}) }, at + ms);
+    if (options.length) emit('next_steps_shown', { hook_set_id: hookSetId, ...(set?.shown ? { trace: set.shown } : {}) }, at + ms);
     return { hookSetId, options, ready: at + ms };
   };
   try {
@@ -294,19 +312,27 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
     const started = await tutor.start(meter({}));
     applyContext(started.context);
     emit('evidence_updated', { claims: started.evidence ?? [], cause: 'session_start' });
-    assertNoProfileLeak(message, terms);
-    emit('learner_message', { kind: 'opening', input: 'typed', chars: message.length, ...debug({ text: message }) });
+    assertNoProfileLeak(input.text, terms);
+    emit('learner_message', { kind: 'opening', input: 'typed', chars: input.text.length, ...debug({ text: input.text }) });
     while (decisions < maxDecisions) {
-      // 1. The Tutor's validated decision (the real planner behind the adapter), on learner-visible input only.
+      // 1. The Tutor's turn (the real runTurn behind the adapter) on learner-visible input only.
       const decisionId = `${ids.session_id}:d${decisions + 1}`;
-      const input = { message, selected_option: selected && { id: selected.id, text: selected.text }, history: history.map(({ material, learner: said }) => ({ material, learner: said })) };
-      assertNoProfileLeak({ message: input.message, history: input.history.map(entry => entry.learner) }, terms);
-      emit('tutor_decision_started', { decision_id: decisionId, trigger: selected ? 'hook' : decisions ? 'typed' : 'opening' });
-      const [decided, decideMs] = await timed(() => tutor.decide(input, meter({ decision_id: decisionId })));
-      now += decideMs;
+      const sent = { ...input, history: history.map(({ material, learner: said }) => ({ material, learner: said })) };
+      assertNoProfileLeak({ text: sent.text ?? null, history: sent.history.map(entry => entry.learner) }, terms);
+      const startAt = now, trigger = input.kind === 'hook' ? 'hook' : decisions ? 'typed' : 'opening';
+      let decided, decideMs;
+      try { [decided, decideMs] = await timed(() => tutor.decide(sent, meter({ decision_id: decisionId }, () => startAt))); }
+      catch (thrown) { emit('tutor_decision_started', { decision_id: decisionId, trigger }, startAt); throw thrown; } // recorded as incomplete
       assertNoProfileLeak(decided.tutor_input ?? '', terms);
+      // A typed turn evaluates the words first. Evaluation the planner waited for ends before the plan starts (t4), so the
+      // decision was made on it; one that ran beside the planner lands during the turn, after the decision began.
+      const evaluated = decided.evaluated ?? null, evaluatedAt = startAt + (evaluated?.ms ?? 0);
+      if (evaluated?.blocking) emit('evidence_updated', { claims: evaluated.evidence, cause: 'learner_message' }, evaluatedAt);
+      emit('tutor_decision_started', { decision_id: decisionId, trigger }, evaluated?.blocking ? evaluatedAt : startAt);
+      if (evaluated && !evaluated.blocking) emit('evidence_updated', { claims: evaluated.evidence, cause: 'learner_message' }, evaluatedAt);
+      now = startAt + decideMs;
       applyContext(decided.context, decided.rabbit_hole);
-      emit('tutor_action_ready', { decision_id: decisionId, decision: decided.decision, estimated_learning_seconds: decided.estimated_learning_seconds ?? null, available_modalities: decided.available_modalities ?? null, planner: decided.planner ?? null, planner_version: decided.planner_version ?? null, ...debug({ material_summary: decided.material_summary ?? null }) });
+      emit('tutor_action_ready', { decision_id: decisionId, decision: decided.decision, estimated_learning_seconds: decided.estimated_learning_seconds ?? null, available_modalities: decided.available_modalities ?? null, planner: decided.planner ?? null, planner_version: decided.planner_version ?? null, ...(decided.trace ? { trace: decided.trace } : {}), ...debug({ material_summary: decided.material_summary ?? null }) });
       decisions++;
       elapsed += decided.estimated_learning_seconds || 0;
       const last = elapsed >= budgetSeconds || decisions >= maxDecisions;
@@ -321,7 +347,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
         first: () => { firstReady ??= at(); emit('material_first_ready', tag, firstReady); },
         asset: () => emit('provider_asset_generated', tag, at()),
       };
-      const material = await materialize({ decision: decided.decision, material_id: materialId }, marks, meter(tag, at));
+      const material = await materialize({ decision: decided.decision, decided, material_id: materialId }, marks, meter(tag, at));
       now = at();
       // One decision may produce one material or several related ones ({ materials: [...] }): each keeps its own id,
       // events, node and links; the cardinality is the product's, never assumed here. A material's subcards stay its
@@ -341,7 +367,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
         let edges = 0;
         const link = fields => emit('material_link_created', { edge_id: `${nodeId}:e${++edges}`, to_node_id: nodeId, decision_id: decisionId, ...fields });
         // The learner's selection leads to the decision's first material; the product links the rest.
-        if (firstNode && selected && lastNode) link({ from_node_id: lastNode, relation_type: 'next_step_selection', created_by: 'learner' });
+        if (firstNode && input.kind === 'hook' && lastNode) link({ from_node_id: lastNode, relation_type: 'next_step_selection', created_by: 'learner' });
         for (const edge of item.links || []) link({ reason_codes: [], ...edge });
         firstNode = false;
         lastNode = nodeId;
@@ -352,41 +378,47 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       emit('learner_consumption_started', { decision_id: decisionId, timing_source: 'estimated' }, consumeFrom);
       // The first material is visible from its first ready payload; the others once they are complete.
       made.forEach((item, i) => emit('material_visibility', { material_id: item.material_id, visible: true, timing_source: 'estimated' }, i ? now : consumeFrom));
-      // ponytail: the last decision's background hooks are skipped; nobody would see them.
-      const background = !last && hookStart({ decision: decided.decision }) === 'with_material' ? await hookSet(consumeFrom) : null;
-      const { response } = await learner.respond({ view: learnerView({ material: decided.material_summary ?? null }, history) }, meter({ decision_id: decisionId }));
-      assertNoProfileLeak(response.text, terms);
       const done = consumeFrom + (decided.estimated_learning_seconds || 0) * 1000;
       emit('learner_consumption_finished', { decision_id: decisionId, timing_source: 'estimated' }, done);
-      emit('learner_message', { decision_id: decisionId, kind: response.kind, input: response.kind === 'activity' ? 'activity' : 'typed', chars: response.text.length, ...(response.choice_id != null ? { choice_id: response.choice_id } : {}), ...debug({ text: response.text }) }, done);
-      if (generated) {
-        // ponytail: the simulated reply is attributed to the decision's last material (the one that asks for it).
-        const target = made.at(-1).material_id;
-        const interaction = LEARNER_INTERACTION[response.kind] ?? 'message';
-        emit('material_interaction', { material_id: target, interaction, meaningful: true, timing_source: 'estimated' }, done);
-        // Only an attempt completes a material; reading time alone is exposure, never completion.
-        if (interaction === 'attempt') emit('material_completed', { material_id: target, timing_source: 'estimated' }, done);
-        for (const item of made) emit('material_visibility', { material_id: item.material_id, visible: false, timing_source: 'estimated' }, done);
+      // 4. Professor Next Steps after this turn, as the product decides: requested while the learner reads, once they are
+      // done, or not at all (not a stopping point). None after the last decision: nobody would see them.
+      const policy = last ? 'none' : hookStart({ decision: decided.decision, decided });
+      const set = policy === 'with_material' ? await hookSet(consumeFrom + hookDelayMs) : policy === 'after_consumption' ? await hookSet(done + hookDelayMs) : null;
+      // 5. The learner's one move: a hook click, or typed words. The simulator moves once it is done and has seen the
+      // options it is given, so a typed reply after visible options overrides them, and waiting for them is a wait.
+      const options = set?.options || [];
+      const moveAt = set ? Math.max(set.ready, done) : done;
+      const { selected_option_id, response } = await learner.reply({ view: learnerView({ material: decided.material_summary ?? null, options }, history) }, meter({ decision_id: decisionId }));
+      const picked = selected_option_id != null ? options.find(option => option.id === selected_option_id) : null;
+      if (selected_option_id != null && !picked) throw Error(`the learner chose ${selected_option_id}, not an offered option`);
+      if (generated) for (const item of made) emit('material_visibility', { material_id: item.material_id, visible: false, timing_source: 'estimated' }, done);
+      if (picked) {
+        emit('next_step_selected', { hook_set_id: set.hookSetId, option_id: picked.id, position: picked.position }, moveAt);
+        now = Math.max(now, moveAt);
+        history.push({ material: decided.material_summary ?? null, learner: null });
+        input = { kind: 'hook', option: { id: picked.id, position: picked.position, text: picked.text } };
+      } else {
+        assertNoProfileLeak(response.text, terms);
+        emit('learner_message', { decision_id: decisionId, kind: response.kind, input: response.kind === 'activity' ? 'activity' : 'typed', chars: response.text.length, ...(response.choice_id != null ? { choice_id: response.choice_id } : {}), ...debug({ text: response.text }) }, moveAt);
+        if (generated) {
+          // ponytail: the simulated reply is attributed to the decision's last material (the one that asks for it).
+          const target = made.at(-1).material_id;
+          const interaction = LEARNER_INTERACTION[response.kind] ?? 'message';
+          emit('material_interaction', { material_id: target, interaction, meaningful: true, timing_source: 'estimated' }, done);
+          // Only an attempt completes a material; reading time alone is exposure, never completion.
+          if (interaction === 'attempt') emit('material_completed', { material_id: target, timing_source: 'estimated' }, done);
+        }
+        now = Math.max(now, moveAt);
+        // An adapter with a separate evidence path evaluates the reply now; the product evaluates it in the next turn.
+        if (tutor.observe) {
+          const [observed, observeMs] = await timed(() => tutor.observe({ response }, meter({ decision_id: decisionId }, () => moveAt)));
+          emit('evidence_updated', { claims: observed.evidence ?? [], cause: 'learner_message', ...(observed.evaluators ? { evaluators: observed.evaluators } : {}) }, moveAt + observeMs);
+          now = Math.max(now, moveAt + observeMs);
+        }
+        history.push({ material: decided.material_summary ?? null, learner: response.text });
+        input = { kind: 'typed', text: response.text };
       }
-      // 4. The real evidence path reads what they did.
-      const [observed, observeMs] = await timed(() => tutor.observe({ response }, meter({ decision_id: decisionId }, () => done)));
-      emit('evidence_updated', { claims: observed.evidence ?? [], cause: 'learner_message', ...(observed.evaluators ? { evaluators: observed.evaluators } : {}) }, done + observeMs);
-      now = Math.max(now, done + observeMs);
-      history.push({ material: decided.material_summary ?? null, learner: response.text });
-      message = response.text;
-      selected = null;
       if (elapsed >= budgetSeconds) { stop = 'learning_budget'; break; }
-      if (decisions >= maxDecisions) break;
-      // 5. Professor Next Steps for the next decision, and the learner's pick (instant once visible and done reading).
-      const set = background ?? await hookSet(now);
-      if (set.options.length) {
-        const { selected_option_id } = await learner.choose({ view: learnerView({ material: decided.material_summary ?? null, options: set.options }, history) }, meter({ hook_set_id: set.hookSetId }));
-        selected = set.options.find(option => option.id === selected_option_id);
-        if (!selected) throw Error(`the learner chose ${selected_option_id}, not an offered option`);
-        const click = Math.max(set.ready, done);
-        emit('next_step_selected', { hook_set_id: set.hookSetId, option_id: selected.id, position: selected.position }, click);
-        now = Math.max(now, click);
-      } else now = Math.max(now, set.ready);
     }
   } catch (thrown) {
     stop = thrown.code === 'COST_CEILING' ? 'cost_ceiling' : thrown.code === 'PROFILE_LEAK' ? 'profile_leak' : 'error';
@@ -396,7 +428,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
   const folded = foldSession(events);
   const graph = learningGraph(events);
   return {
-    trace_schema_version: TRACE_SCHEMA_VERSION,
+    eval_schema_version: EVAL_SCHEMA_VERSION,
     harness_version: HARNESS_VERSION,
     // Simulator-only: never sent to the Tutor, the hooks, or the reviewer.
     simulator: { topic: topic.id, profile: profile.id, run_id: runId, config_hash: configHash({ topic, profile }), budget_seconds: budgetSeconds, max_decisions: maxDecisions, stop_reason: stop, ...(error ? { error } : {}) },

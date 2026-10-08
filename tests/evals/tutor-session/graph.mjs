@@ -135,7 +135,7 @@ export function graphMetrics(graph, { steps = [], records = [], taxonomy = {}, s
   const firstBranchAt = Math.min(...branchNodes.map(node => out[node.node_id].map(edge => edge.created_at).sort((a, b) => a - b)[1]));
   const firstChoiceAt = Math.min(...sets.filter(set => set.selected).map(set => set.selected.selected_at), ...graph.edges.filter(edge => edge.created_by === 'learner').map(edge => edge.created_at));
   const nodesBefore = t => (Number.isFinite(t) ? byTime.filter(node => node.created_at < t).length : null);
-  const reasonCodes = node => [...new Set([...into[node.node_id].flatMap(edge => edge.reason_codes), ...(stepOf[node.decision_id]?.tutor_decision?.reason_codes || [])])];
+  const nodeReasonCodes = node => [...new Set([...into[node.node_id].flatMap(edge => edge.reason_codes), ...(stepOf[node.decision_id]?.tutor_decision?.reason_codes || [])])];
   const flags = [];
   const flag = (kind, value, threshold, extra = {}) => flags.push({ id: `graph-${flags.length + 1}`, kind, value, threshold, justified: null, ...extra });
   if (longestRun >= (limits.linear_chain_length ?? 6) && !runNodes.some(id => into[id].some(edge => edge.created_by === 'learner'))) flag('deep_linear_chain_without_learner_choice', longestRun, limits.linear_chain_length ?? 6, { node_ids: runNodes });
@@ -189,7 +189,7 @@ export function graphMetrics(graph, { steps = [], records = [], taxonomy = {}, s
     topology_by: {
       material_type: topologyBy(nodes, node => [node.material_type ?? 'unknown'], { out, into, depth, position }),
       modality: topologyBy(nodes, node => [node.modality ?? 'unknown'], { out, into, depth, position }),
-      reason_code: topologyBy(nodes, node => reasonCodes(node), { out, into, depth, position }),
+      reason_code: topologyBy(nodes, node => nodeReasonCodes(node), { out, into, depth, position }),
       concept: topologyBy(nodes, node => node.concept_ids, { out, into, depth, position }),
       section: topologyBy(nodes, node => [node.section_id ?? 'none'], { out, into, depth, position }),
       planner_version: topologyBy(nodes, node => [node.planner_version ?? 'unknown'], { out, into, depth, position }),

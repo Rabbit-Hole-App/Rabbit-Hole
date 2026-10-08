@@ -4,11 +4,14 @@
 // writes these events; real sessions will too, and the metrics read only folded events, never the simulator.
 // Events are append-only but NOT serial: background work (hooks generated while the learner reads) overlaps
 // learner activity, so an event may be appended after one with a later t_ms. The fold orders by (t_ms, seq).
-// PROVISIONAL: the payloads of next_steps_ready (hook options) and tutor_action_ready (decision) are the eval's
-// normalized view until the Learning agent's HookSet / TutorDecisionTrace land; the envelope and event types are
-// the owner's.
+// This stream is the eval's own (eval_schema_version): the product emits only the three TutorDecisionTrace events
+// (docs/features/professor-next-steps.md §3), and the stream carries each one verbatim as `trace` on the event that
+// records it - tutor_action_ready (tutor_decision), next_steps_ready (next_steps_computed) and next_steps_shown. The
+// normalized fields beside them (decision, options) are renamed product fields (product.mjs decisionOf, optionOf);
+// everything else - learner simulation, materials, the learning graph, cost lines - is eval-only telemetry.
+import { TRACE_SCHEMA_VERSION as PRODUCT_TRACE_SCHEMA_VERSION } from '../../../packages/control-plane/src/agents/learn-tutor.js';
 
-export const TRACE_SCHEMA_VERSION = 'tutor-trace-eval-0';
+export const EVAL_SCHEMA_VERSION = 'tutor-session-eval-1';
 
 // ---------- Shared helpers (every module imports these from here) ----------
 
@@ -49,6 +52,7 @@ export const EVENT_TYPES = {
   canvas_context_changed: [],
   next_steps_generation_started: ['hook_set_id'],
   next_steps_ready: ['hook_set_id', 'options'],
+  next_steps_shown: ['hook_set_id'],
   next_step_selected: ['hook_set_id', 'option_id', 'position'],
   learner_message: ['kind', 'input'],
   learner_consumption_started: ['decision_id', 'timing_source'],
@@ -77,24 +81,42 @@ export const EVENT_TYPES = {
   material_link_removed: ['edge_id'],
   rabbit_hole_opened: ['rabbit_hole_id', 'opened_by'],
   rabbit_hole_returned: ['rabbit_hole_id'],
+  // EVAL-ONLY (creator.mjs): the product has no publication or fork events yet. publication is the canonical Explore key
+  // ({ org, canvas } of canvas_publications, and the owner's internal creator_id), never a share key or the read token.
+  publication_opened: ['publication', 'source_access_mode'],
+  canvas_forked: ['publication'],
   session_ended: ['reason'],
 };
-const ENVELOPE = ['trace_schema_version', 'event_id', 'seq', 'type', 't_ms', 'session_id', 'user_id', 'canvas_id'];
+const ENVELOPE = ['eval_schema_version', 'event_id', 'seq', 'type', 't_ms', 'session_id', 'user_id', 'canvas_id'];
 const CONTEXT = ['board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source_resource_id'];
 const IDS = ['session_id', 'user_id', 'canvas_id', 'board_id'];
 // Never in an event, at any depth: credentials, hidden model reasoning, and email (never an analytics identity).
 const FORBIDDEN_KEY = /token|api_?key|secret|password|authorization|cookie|thinking|chain_of_thought|e_?mail/i;
-const ALLOWED_TOKEN_KEYS = new Set(['input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens', 'thinking_tokens']);
+const ALLOWED_TOKEN_KEYS = new Set(['input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens', 'thinking_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens']);
+// A product TutorDecisionEvent carried as `trace`: its own version and its exact top-level keys (contract §3.1).
+const PRODUCT_TRACE_KEYS = ['trace_schema_version', 'event', 'decision_id', 'step_id', 'generated_at', 'identity', 'versions', 'decision', 'runtime', 'flags'];
+const PRODUCT_TRACE_EVENTS = { tutor_action_ready: 'tutor_decision', next_steps_ready: 'next_steps_computed', next_steps_shown: 'next_steps_shown' };
 
 export function validateEvent(event) {
   const problems = [];
   for (const key of ENVELOPE) if (event[key] == null) problems.push(`missing ${key}`);
-  if (event.trace_schema_version && event.trace_schema_version !== TRACE_SCHEMA_VERSION) problems.push(`trace_schema_version ${event.trace_schema_version}`);
+  if (event.eval_schema_version && event.eval_schema_version !== EVAL_SCHEMA_VERSION) problems.push(`eval_schema_version ${event.eval_schema_version}`);
+  if (event.trace != null) {
+    const trace = event.trace;
+    if (PRODUCT_TRACE_EVENTS[event.type] !== trace.event) problems.push(`${event.type} cannot carry a ${trace.event} trace`);
+    if (trace.trace_schema_version !== PRODUCT_TRACE_SCHEMA_VERSION) problems.push(`trace_schema_version ${trace.trace_schema_version}, not the product's ${PRODUCT_TRACE_SCHEMA_VERSION}`);
+    if (JSON.stringify(Object.keys(trace)) !== JSON.stringify(PRODUCT_TRACE_KEYS)) problems.push('trace is not a TutorDecisionEvent as the product built it');
+  }
   for (const key of IDS) if (typeof event[key] === 'string' && event[key].includes('@')) problems.push(`${key} looks like an email; use the internal id`);
   const required = EVENT_TYPES[event.type];
   if (!required) problems.push(`unknown type ${event.type}`);
   else for (const key of required) if (event[key] == null) problems.push(`${event.type} needs ${key}`);
   if (event.type === 'learner_message' && 'text' in event) problems.push('learner text belongs under debug');
+  if (event.publication != null) {
+    const keys = Object.keys(event.publication).sort().join(',');
+    if (keys !== 'canvas,creator_id,org') problems.push(`publication is { org, canvas, creator_id }, not { ${keys} }`);
+    if (String(event.publication.creator_id).includes('@')) problems.push('creator_id looks like an email; use the internal id');
+  }
   const walk = (value, path) => {
     if (!value || typeof value !== 'object') return;
     for (const [key, inner] of Object.entries(value)) {
@@ -115,7 +137,7 @@ export function createEmitter({ session_id, user_id, canvas_id, clock, context =
   const emit = (type, fields = {}, at = clock()) => {
     const seq = events.length + 1;
     const extra = Object.fromEntries(Object.entries(context()).filter(([key, value]) => CONTEXT.includes(key) && value != null));
-    const event = { trace_schema_version: TRACE_SCHEMA_VERSION, event_id: `${session_id}:${seq}`, seq, type, t_ms: Math.round((at - origin) * 10) / 10, session_id, user_id, canvas_id, ...extra, ...fields };
+    const event = { eval_schema_version: EVAL_SCHEMA_VERSION, event_id: `${session_id}:${seq}`, seq, type, t_ms: Math.round((at - origin) * 10) / 10, session_id, user_id, canvas_id, ...extra, ...fields };
     const problems = validateEvent(event);
     if (problems.length) throw Error(`event ${type}: ${problems.join('; ')}`);
     events.push(event);
@@ -134,8 +156,9 @@ const overlap = (a1, a2, b1, b2) => ([a1, a2, b1, b2].some(x => x == null) ? nul
 const nonNegative = ms => (ms == null ? null : Math.max(0, ms));
 
 // The step's timeline (ms on the session timeline) -> backend latencies and what the learner perceived.
-//   t_learner_ready: when the learner finished the previous material (or sent the message this decision answers);
-//   t_prev_consumption_started: when they started it. t0..t9 as in the brief.
+//   t_learner_ready: when the learner finished the previous material (the opening: when they sent it);
+//   t_learner_message: when they sent the words this decision answers (a typed turn), after any options they saw;
+//   t_prev_consumption_started: when they started the previous material. t0..t9 as in the brief.
 // Backend time and perceived wait are different numbers: hooks generated while the learner reads cost backend time
 // but no wait. A phase timed on the timeline is `measured`; the material reports its own source, and cached or
 // estimated material carries durations instead of timestamps; not_run leaves them null - nothing is fabricated. A
@@ -147,8 +170,8 @@ export function deriveTiming(tl, material = null) {
   const first = pick('first_ms', span(tl.t6_material_generation_start, tl.t7_first_material_ready ?? tl.t8_material_complete));
   const complete = pick('complete_ms', span(tl.t6_material_generation_start, tl.t8_material_complete));
   const asset = material?.asset_applicable ? pick('asset_ms', span(tl.t6_material_generation_start, tl.t9_asset_ready)) : null;
-  // The click: a hook selection; without one, the moment the learner was ready (their message, or the end of the material).
-  const anchor = tl.t3_hook_selected ?? tl.t_learner_ready ?? tl.t0_state_ready;
+  // The click: a hook selection; without one, the learner's message (a typed turn), else the moment they were ready.
+  const anchor = tl.t3_hook_selected ?? tl.t_learner_message ?? tl.t_learner_ready ?? tl.t0_state_ready;
   const start = (source === 'measured' ? tl.t6_material_generation_start : null) ?? tl.t5_tutor_action_ready;
   const after = from => ms => (ms == null || start == null ? null : Math.round((span(from, start) + ms) * 10) / 10);
   const sinceAnchor = after(anchor), sinceDecision = after(tl.t4_tutor_plan_start);
@@ -199,7 +222,7 @@ export function stepWaits(timing, tl) {
   const waits = [];
   if (timing.options_blocking_ms != null) waits.push({ kind: 'before_options', ms: timing.options_blocking_ms, hook_ms: timing.hook_perceived_wait_ms, state_ms: timing.state_wait_before_options_ms, source: timing.sources.hook_wait });
   if (timing.click_to_first_material_ms != null) waits.push({ kind: 'after_click', ms: timing.click_to_first_material_ms, lower_bound: false, source: timing.timing_source });
-  else if (tl.t5_tutor_action_ready != null) waits.push({ kind: 'after_click', ms: span(tl.t3_hook_selected ?? tl.t_learner_ready ?? tl.t0_state_ready, tl.t5_tutor_action_ready), lower_bound: true, source: timing.timing_source });
+  else if (tl.t5_tutor_action_ready != null) waits.push({ kind: 'after_click', ms: span(tl.t3_hook_selected ?? tl.t_learner_message ?? tl.t_learner_ready ?? tl.t0_state_ready, tl.t5_tutor_action_ready), lower_bound: true, source: timing.timing_source });
   return waits;
 }
 
@@ -223,7 +246,7 @@ export function foldSession(input) {
   const meta = { session_id: first.session_id, user_id: first.user_id, canvas_id: first.canvas_id, board_id: first.board_id ?? null, started_t_ms: first.t_ms, end: null, journey_ids: [], section_ids: [], incomplete_decisions: [], session_calls: [] };
   const steps = [], open = {}, calls = new Map(), materials = new Map();
   let evidence = null, ready = first.t_ms, hooks = null, current = null, elapsed = 0;
-  let learnerReady = null, consumptionStart = null, consumptionSource = null;
+  let learnerReady = null, learnerMessage = null, consumptionStart = null, consumptionSource = null;
   const close = () => {
     if (!current) return;
     // A decision that never produced a validated action (planner error, cost stop) is not a step: it is listed apart.
@@ -257,7 +280,10 @@ export function foldSession(input) {
       case 'learner_consumption_started': if (step) { step.consumption.started = event.t_ms; step.consumption.source = event.timing_source; consumptionStart = event.t_ms; consumptionSource = event.timing_source; } break;
       case 'learner_consumption_finished': if (step) step.consumption.finished = event.t_ms; learnerReady = event.t_ms; break;
       case 'learner_message':
-        learnerReady = event.t_ms;
+        // The opening has no material before it: the learner is ready when they send it. After a material they were ready
+        // when they finished it (learner_consumption_finished); the message may come later, after the options they saw.
+        if (!step && !current) learnerReady = event.t_ms;
+        learnerMessage = event.t_ms;
         if (step && !step.learner_response) { step.learner_response = { kind: event.kind, input: event.input, ...(event.debug?.text != null ? { text: event.debug.text } : {}) }; step.response_t = event.t_ms; }
         break;
       case 'tutor_decision_started': {
@@ -276,13 +302,14 @@ export function foldSession(input) {
           timeline: {
             t0_state_ready: shown?.t0 ?? ready,
             ...(learnerReady != null ? { t_learner_ready: learnerReady } : {}),
+            ...(learnerMessage != null ? { t_learner_message: learnerMessage } : {}),
             ...(consumptionStart != null ? { t_prev_consumption_started: consumptionStart, prev_consumption_source: consumptionSource } : {}),
             ...(shown ? { t1_hooks_start: shown.t1, t2_hooks_ready: shown.t2, ...(shown.t3 != null ? { t3_hook_selected: shown.t3 } : {}) } : {}),
             t4_tutor_plan_start: event.t_ms,
           },
         };
         open[event.decision_id] = current;
-        hooks = null; consumptionStart = null; consumptionSource = null;
+        hooks = null; learnerMessage = null; consumptionStart = null; consumptionSource = null;
         break;
       }
       case 'tutor_action_ready':
@@ -290,7 +317,7 @@ export function foldSession(input) {
         step.timeline.t5_tutor_action_ready = event.t_ms;
         // The decision may move the learner (a new section, into or out of a Rabbit Hole): its context is the one it ends in.
         Object.assign(step, Object.fromEntries(['journey_id', 'section_id', 'dive_id', 'canvas_version', 'source_resource_id'].map(key => [key, event[key] ?? null])));
-        Object.assign(step, { tutor_decision: event.decision, estimated_learning_seconds: event.estimated_learning_seconds ?? null, available_modalities: event.available_modalities ?? null, planner: event.planner ?? null, planner_version: event.planner_version ?? null, canvas_summary: event.debug?.material_summary ?? null });
+        Object.assign(step, { tutor_decision: event.decision, ...(event.trace ? { trace: event.trace } : {}), estimated_learning_seconds: event.estimated_learning_seconds ?? null, available_modalities: event.available_modalities ?? null, planner: event.planner ?? null, planner_version: event.planner_version ?? null, canvas_summary: event.debug?.material_summary ?? null });
         break;
       // A decision's timing follows its first material; every material keeps its own lifecycle.
       case 'material_generation_started': material(event).started_at = event.t_ms; if (step) step.timeline.t6_material_generation_start ??= event.t_ms; break;

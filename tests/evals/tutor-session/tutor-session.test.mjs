@@ -29,14 +29,14 @@ const claim = (id, concept, state, extra = {}) => ({ claim: id, concept, state, 
 // One scripted Tutor step: the decision, its estimated time, and the evidence after the learner's response.
 const say = (modality, codes, targets, seconds, after, extra = {}) => ({
   decision: { action_type: extra.action_type ?? 'respond_text', modality, card_type: extra.card_type ?? modality, reason_codes: codes, rationale_summary: `because ${codes.join(', ')}`, target_concepts: targets, expected_evidence: extra.expected ?? null },
-  seconds, after, material: extra.material ?? 'measured', signature: extra.signature ?? null,
+  seconds, after, material: extra.material ?? 'measured', signature: extra.signature ?? null, click: !!extra.click,
 });
 const HOOKS = [
   [{ id: 'h1', position: 1, text: 'What if every score were identical?', learning_goal: 'g1' }, { id: 'h2', position: 2, text: 'Learn softmax', learning_goal: 'g2' }, { id: 'h3', position: 3, text: 'Why does a bigger input push the output toward one?', learning_goal: 'g3' }],
 ];
 // Provider usage the fake product reports per call (the meter prices it).
 const PLANNER = { provider: 'anthropic', model_id: 'claude-opus-5-5', model_role: 'tutor', usage: { input_tokens: 3000, output_tokens: 400, cache_read_input_tokens: 1000 }, latency_ms: 4000 };
-const HOOKER = { provider: 'anthropic', model_id: 'claude-sonnet-5-5', model_role: 'next_steps', usage: { input_tokens: 2000, output_tokens: 300 }, latency_ms: 1500 };
+const HOOKER = { provider: 'anthropic', model_id: 'claude-sonnet-5-5', model_role: 'tutor_next_steps', usage: { input_tokens: 2000, output_tokens: 300 }, latency_ms: 1500 };
 const AUTHOR = { provider: 'anthropic', model_id: 'claude-sonnet-5-5', model_role: 'material_generation', usage: { input_tokens: 2500, output_tokens: 800 }, latency_ms: 2000 };
 const JEV = { provider: 'typesafe', model_id: 'jev-1.13.0', model_role: 'jev', latency_ms: 500 };
 const SIM = { provider: 'anthropic', model_id: 'claude-sonnet-5-5', model_role: 'learner_simulator', usage: { input_tokens: 1500, output_tokens: 200 } };
@@ -46,29 +46,36 @@ const text = i => `Step ${i}: the score becomes a probability. A larger score mo
 const sub = (type, body, index) => ({ subcard_type: type, index, ...describeText(body), content_hash: contentHash(body) });
 const LONG = 'word '.repeat(260).trim();
 
-function world({ script, start = [], hookSets = HOOKS, chooseId = 'h1', leakAt = null, debugText = true }) {
+// The learner makes one move per decision, as in the product: it clicks the first hook after a row marked click (or after
+// every decision with follow: true; the next decision is a hook turn, and nothing is evaluated), else it types an answer
+// that the fake evidence path (observe) reads.
+function world({ script, start = [], hookSets = HOOKS, leakAt = null, debugText = true, follow = false }) {
   const time = { now: 0 };
   const advance = ms => { time.now += ms; };
   const seen = [], made = [];
-  let index = 0, evidence = start;
+  let index = -1, evidence = start;
   const tutor = {
     start: async () => ({ evidence: start, context: { journey_id: 'j1', section_id: 's1', canvas_version: 1 } }),
     decide: async (input, meter) => {
       seen.push(input);
+      index++;
       advance(4000);
       meter.call(PLANNER);
       const row = script[index];
       // Decision 3 moves to section s2; decision 6 is in a Rabbit Hole the learner opened; decision 7 is back.
       const context = index === 2 ? { section_id: 's2' } : index === 5 ? { dive_id: 'hole-1' } : index === 6 ? { dive_id: null } : {};
       const rabbit_hole = index === 5 ? { opened_by: 'learner', origin_action: 'learner_slash', origin_node_id: made[4], origin_concept_ids: ['c2'] } : null;
-      return { decision: row.decision, estimated_learning_seconds: row.seconds, available_modalities: Object.keys(taxonomy.modalities).filter(m => !taxonomy.modalities[m].expensive), planner: { model: 'planner-x', version: 'v1' }, planner_version: 'planner-x@v1', material_summary: `material ${index + 1} ${row.decision.modality}`, context, rabbit_hole, tutor_input: { message: input.message } };
+      return { decision: row.decision, estimated_learning_seconds: row.seconds, available_modalities: Object.keys(taxonomy.modalities).filter(m => !taxonomy.modalities[m].expensive), planner: { model: 'planner-x', version: 'v1' }, planner_version: 'planner-x@v1', material_summary: `material ${index + 1} ${row.decision.modality}`, context, rabbit_hole, tutor_input: { text: input.text ?? null } };
     },
-    observe: async (_, meter) => { advance(500); meter.call(JEV); evidence = script[index].after; index++; return { evidence }; },
+    observe: async (_, meter) => { advance(500); meter.call(JEV); evidence = script[index].after; return { evidence }; },
   };
   const hooks = async ({ decisions }, meter) => { advance(1500); meter.call(HOOKER); return { options: hookSets[(decisions - 1) % hookSets.length] }; };
   const learner = {
-    choose: async (_, meter) => { advance(5000); meter.call(SIM); return { selected_option_id: chooseId }; },
-    respond: async (_, meter) => { advance(30000); meter.call(SIM); return { response: { kind: 'answer', text: index === leakAt ? 'As an advanced learner I know this.' : `answer ${index + 1}` } }; },
+    reply: async ({ view }, meter) => {
+      advance(30000); meter.call(SIM);
+      if ((follow || script[index].click) && view.options.length) return { selected_option_id: view.options[0].id, response: { kind: 'acknowledge', text: '' } };
+      return { selected_option_id: null, response: { kind: 'answer', text: index === leakAt ? 'As an advanced learner I know this.' : `answer ${index + 1}` } };
+    },
   };
   const materialize = async ({ decision, material_id }, marks, meter) => {
     const kind = script[index].material;
@@ -94,7 +101,7 @@ function world({ script, start = [], hookSets = HOOKS, chooseId = 'h1', leakAt =
 const REPAIR = [
   say('explanation', ['advance_goal'], ['c1'], 120, [claim('k1', 'c1', 'uncertain'), claim('k2', 'c2', 'not_yet_observed')]),
   say('quiz', ['advance_goal'], ['c1'], 90, [claim('k1', 'c1', 'misconception', { misconception_id: 'm1' }), claim('k2', 'c2', 'not_yet_observed')]),
-  say('explanation', ['repair_misconception'], ['c1'], 150, [claim('k1', 'c1', 'misconception', { misconception_id: 'm1' }), claim('k2', 'c2', 'not_yet_observed')], { material: 'not_run' }),
+  say('explanation', ['repair_misconception'], ['c1'], 150, [claim('k1', 'c1', 'misconception', { misconception_id: 'm1' }), claim('k2', 'c2', 'not_yet_observed')], { material: 'not_run', click: true }),
   say('explanation', ['repair_misconception'], ['c1'], 150, [claim('k1', 'c1', 'understood'), claim('k2', 'c2', 'not_yet_observed')], { material: 'cache_hit' }),
   say('explanation', ['advance_goal'], ['c1'], 120, [claim('k1', 'c1', 'understood'), claim('k2', 'c2', 'prerequisite_gap', { prerequisite: 'c0' })]),
   say('explanation', ['vary_modality', 'fill_prerequisite_gap'], ['c2'], 300, [claim('k1', 'c1', 'understood'), claim('k2', 'c2', 'uncertain')], { material: 'estimated' }),
@@ -112,8 +119,9 @@ test('topic and profile fixtures are data: a second topic loads through the same
     assert.ok(loaded.session_budget_seconds > 0 && loaded.max_decisions > 0);
   }
   assert.deepEqual(profiles.map(profile => profile.id), ['novice', 'intermediate', 'advanced']);
-  assert.equal(taxonomy.provisional, true);
-  assert.equal(roles.provisional, true);
+  // Reconciled at the Learning checkpoint: product names, with the eval's own labels; the material roles stay provisional.
+  assert.equal(taxonomy.provisional, undefined);
+  assert.deepEqual(roles.provisional_roles, ['material_generation', 'material_repair', 'material_review', 'provider_asset', 'render_compute']);
   assert.throws(() => loadTopic('no-such-topic'));
 });
 
@@ -185,10 +193,15 @@ test('timeline and derived latencies on a measured material', async () => {
   assert.equal(one.timing.timing_source, 'measured');
   assert.equal(one.timing.asset_generation_ms, null);
   assert.ok(!('asset' in one.timing.sources)); // no expensive asset: no t9 invented
+  // Decision 2 answers the learner's typed reply to decision 1: they waited 1.5 s for the hooks, typed over them, and the
+  // reply was evaluated (0.5 s) before it was planned (4 s); the 0.8 s to the first material follows.
   assert.equal(two.timing.hook_backend_generation_ms, 1500);
-  assert.equal(two.timing.hook_to_tutor_start_ms, 0);
-  assert.equal(two.timing.click_to_first_material_ms, 4800); // the learner's 5 s of reading is not a wait
-  assert.deepEqual(two.waits.map(wait => [wait.kind, wait.ms]), [['before_options', 2000], ['after_click', 4800]]);
+  assert.equal(two.hooks_overridden, true);
+  assert.equal(two.timing.hook_to_tutor_start_ms, null); // a typed turn: no click
+  assert.equal(two.timing.click_to_first_material_ms, 5300); // the learner's reading is not a wait
+  assert.deepEqual(two.waits.map(wait => [wait.kind, wait.ms]), [['before_options', 1500], ['after_click', 5300]]);
+  // Decision 4 is a hook click (after decision 3): nothing is evaluated, the plan starts at the click.
+  assert.deepEqual([steps[3].trigger, steps[3].timing.hook_to_tutor_start_ms, steps[2].timing.evaluation_ms, steps[3].learner_selected_option.id], ['hook', 0, null, 'h1']);
 });
 
 test('not_run and estimated material are never reported as measured', async () => {
@@ -197,10 +210,10 @@ test('not_run and estimated material are never reported as measured', async () =
   assert.equal(notRun.timing_source, 'not_run');
   assert.equal(notRun.material_complete_ms, null);
   assert.equal(notRun.click_to_complete_material_ms, null);
-  assert.deepEqual(steps[2].waits.at(-1), { kind: 'after_click', ms: 4000, lower_bound: true, source: 'not_run' });
+  assert.deepEqual(steps[2].waits.at(-1), { kind: 'after_click', ms: 4500, lower_bound: true, source: 'not_run' }); // evaluation + plan
   assert.equal(estimated.timing_source, 'estimated');
   assert.equal(estimated.material_complete_ms, 600000);
-  assert.equal(estimated.click_to_complete_material_ms, 604000);
+  assert.equal(estimated.click_to_complete_material_ms, 604500);
   assert.equal(estimated.sources.asset, 'estimated');
   assert.equal(estimated.sources.tutor_decision, 'measured');
 });
@@ -219,7 +232,7 @@ test('modality diversity, repetition and the flagged boring run', async () => {
   const m = groupMetrics([steps], taxonomy);
   assert.deepEqual(m.modality.counts, { explanation: 5, quiz: 1, explain_back: 1 });
   assert.equal(m.modality.distinct, 3);
-  assert.equal(m.modality.available, 6); // expensive media were not available: not held against diversity
+  assert.equal(m.modality.available, 25); // the product's 27 modality names less the expensive media, which were not available
   assert.equal(m.modality.max_run.length, 4);
   assert.deepEqual([m.modality.max_run.from.step, m.modality.max_run.to.step], [3, 6]);
   assert.equal(m.modality.switch_rate, 0.5);
@@ -272,8 +285,9 @@ test('hooks: curiosity vs generic commands, answer leaks, position, staleness, i
   const { steps } = await session();
   const h = groupMetrics([steps], taxonomy).hooks;
   assert.equal(h.sets, 6);
-  assert.equal(h.selection_rate, 1);
-  assert.deepEqual(h.selected_position, { 1: 6 });
+  assert.equal(h.selection_rate, round3(1 / 6)); // one click (after decision 3); the learner typed over the other five
+  assert.equal(h.overridden_by_typed_request, 5);
+  assert.deepEqual(h.selected_position, { 1: 1 });
   assert.equal(h.generic_command_rate, round3(6 / 18));
   assert.equal(h.curiosity_rate, round3(12 / 18));
   assert.equal(h.stale_suggestion_rate, 1); // the same set every time
@@ -291,7 +305,7 @@ test('latency: waits, buckets, wait fraction, time to first active learning', as
   assert.equal(l.complete_material.measured.n, 5);
   assert.equal(l.by_cache_status.hit.measured.n, 1);
   assert.equal(l.lower_bound_waits, 1);
-  assert.equal(l.longest_wait_ms, 60000 + 4000); // the estimated first material, never mistaken for measured
+  assert.equal(l.longest_wait_ms, 500 + 4000 + 60000); // the estimated first material, never mistaken for measured
   // Step 1's wait (4.8 s) + 120 s learning + step 2's waits (2 s + 4.8 s).
   assert.deepEqual(l.time_to_first_active_learning, { seconds: 131.6, wait_seconds: 11.6, learning_seconds: 120 });
   assert.equal(l.estimated_learning_seconds, 1330);
@@ -301,8 +315,8 @@ test('latency: waits, buckets, wait fraction, time to first active learning', as
 
 // ---------- Background work: backend time is not learner waiting ----------
 
-// Hooks start with the material when it is passive (the learner only reads), after evidence when it is active.
-const byMode = ({ decision }) => (taxonomy.modalities[decision.modality]?.mode === 'passive' ? 'with_material' : 'after_evidence');
+// Hooks start with the material when it is passive (the learner only reads), once the learner is done when it is active.
+const byMode = ({ decision }) => (taxonomy.modalities[decision.modality]?.mode === 'passive' ? 'with_material' : 'after_consumption');
 
 test('hooks generated while the learner reads cost backend time but no wait', async () => {
   const { steps, events } = await session({ hookStart: byMode });
@@ -312,10 +326,10 @@ test('hooks generated while the learner reads cost backend time but no wait', as
   assert.equal(two.hook_background_overlap_ms, 1500);
   assert.equal(two.options_blocking_ms, 0);
   assert.equal(two.sources.hook_wait, 'estimated'); // it depends on the simulated reading time
-  assert.equal(two.hook_to_tutor_start_ms, 500); // the click came before the answer was committed
-  assert.equal(steps[1].hook_state_changed_after_start, true); // the answer then changed the evidence
-  const three = steps[2].timing; // hooks after decision 2's active quiz: after the evidence, fully blocking
-  assert.deepEqual([three.hook_backend_generation_ms, three.hook_perceived_wait_ms, three.state_wait_before_options_ms, three.options_blocking_ms, three.sources.hook_wait], [1500, 1500, 500, 2000, 'measured']);
+  assert.equal(two.hook_to_tutor_start_ms, null); // the learner typed over them: no click
+  assert.equal(steps[1].hook_state_changed_after_start, true); // the typed answer then changed the evidence
+  const three = steps[2].timing; // hooks after decision 2's active quiz: once the learner is done, fully blocking
+  assert.deepEqual([three.hook_backend_generation_ms, three.hook_perceived_wait_ms, three.state_wait_before_options_ms, three.options_blocking_ms, three.sources.hook_wait], [1500, 1500, 0, 1500, 'measured']);
   // Appended out of time order (background), folded in time order.
   assert.ok(events.some((event, i) => i && event.t_ms < events[i - 1].t_ms));
   const l = groupMetrics([steps], taxonomy).latency;
@@ -324,9 +338,9 @@ test('hooks generated while the learner reads cost backend time but no wait', as
   // Every background set was ready before the learner was; the estimated blocking left is the estimated material (step 6).
   assert.deepEqual(steps.flatMap(step => step.waits).filter(wait => wait.kind === 'before_options' && wait.source === 'estimated').map(wait => wait.ms), [0, 0, 0, 0, 0]);
   assert.equal(l.blocking_wait_seconds_by_source.estimated, 64.5);
-  // Hook sets 2, 5, 6 and 7 were generated before the learner's answer changed the evidence.
-  assert.equal(groupMetrics([steps], taxonomy).hooks.generated_before_evidence_changed, 4);
-  // Same backend work as when every hook set waits for evidence; less of it is waiting.
+  // Hook sets 2, 3, 5, 6 and 7 were generated before the learner's typed reply changed the evidence (4 was clicked).
+  assert.equal(groupMetrics([steps], taxonomy).hooks.generated_before_evidence_changed, 5);
+  // Same backend work as when every hook set waits for the learner; less of it is waiting.
   const serial = groupMetrics([(await session()).steps], taxonomy).latency;
   assert.equal(l.total_backend_generation_seconds, serial.total_backend_generation_seconds);
   assert.ok(l.total_learner_blocking_wait_seconds < serial.total_learner_blocking_wait_seconds);
@@ -335,8 +349,9 @@ test('hooks generated while the learner reads cost backend time but no wait', as
 test('session totals keep backend generation and learner blocking apart', async () => {
   const { steps } = await session();
   const l = groupMetrics([steps], taxonomy).latency;
-  // Backend: 7 decisions x 4 s, 6 hook sets x 1.5 s, 7 evaluations x 0.5 s, 5 measured materials x 2 s = 50.5 s.
-  assert.equal(l.total_backend_generation_seconds, 50.5);
+  // Backend: 7 decisions x 4 s, 6 hook sets x 1.5 s, 6 evaluations x 0.5 s (a click is never evaluated), 5 measured
+  // materials x 2 s = 50 s.
+  assert.equal(l.total_backend_generation_seconds, 50);
   assert.equal(l.total_learner_blocking_wait_seconds, l.waiting_time_seconds);
   assert.notEqual(l.total_learner_blocking_wait_seconds, l.total_backend_generation_seconds);
 });
@@ -380,10 +395,10 @@ test('cost is attributed once per call: decision, hook set, material, session; t
   assert.deepEqual([c.decision_costs[0].decision_shared_cost_usd, c.decision_costs[0].decision_material_cost_usd, c.decision_costs[0].unknown_cost_calls], [planner, author, 1]); // JEV: unknown, counted
   assert.equal(c.decision_costs[1].decision_shared_cost_usd, round6(planner + hooks)); // a hook set belongs to the decision that used it
   assert.equal(c.total_usd, round6(7 * planner + 6 * hooks + 5 * author));
-  assert.deepEqual([c.unknown_cost_calls, c.lower_bound, c.cost_status], [7, true, 'partial']);
-  assert.deepEqual([c.by_model['jev-1.13.0'].usd, c.by_model['jev-1.13.0'].unknown_cost_calls], [null, 7]);
+  assert.deepEqual([c.unknown_cost_calls, c.lower_bound, c.cost_status], [6, true, 'partial']); // six typed replies were evaluated
+  assert.deepEqual([c.by_model['jev-1.13.0'].usd, c.by_model['jev-1.13.0'].unknown_cost_calls], [null, 6]);
   assert.equal(c.by_model['claude-opus-5-5'].materials_influenced, 6);
-  assert.equal(c.eval_only_cost_usd, round6(13 * sim)); // 7 answers + 6 picks, never product cost
+  assert.equal(c.eval_only_cost_usd, round6(7 * sim)); // one learner move per decision, never product cost
   // The invalid draft still cost money: attempted counts it, wasted names it.
   assert.deepEqual([c.wasted_cost_usd, c.successful_output_cost_usd], [author, round6(c.total_usd - author)]);
   assert.equal(c.highest_cost_decision.step, 5);
@@ -431,7 +446,7 @@ test('real-user material events: playback, attempts, hints and dwell, measured',
   emit('session_started');
   emit('evidence_updated', { claims: [claim('k1', 'c1', 'misconception')], cause: 'session_start' });
   emit('tutor_decision_started', { decision_id: 'd1', trigger: 'opening' });
-  t = 3000; emit('tutor_action_ready', { decision_id: 'd1', decision: { action_type: 'show', modality: 'motion', reason_codes: ['repair_misconception'], target_concepts: ['c1'] }, estimated_learning_seconds: 60, planner_version: 'p@1' });
+  t = 3000; emit('tutor_action_ready', { decision_id: 'd1', decision: { action_type: 'show', modality: 'video', reason_codes: ['repair_misconception'], target_concepts: ['c1'] }, estimated_learning_seconds: 60, planner_version: 'p@1' });
   emit('material_generation_started', { decision_id: 'd1', material_id: 'm-video' });
   t = 423000; emit('material_complete', { decision_id: 'd1', material_id: 'm-video', timing_source: 'measured', cache_status: 'miss', material_type: 'motion', modality: 'motion', descriptors: { content_duration_seconds: 15, renderer: 'remotion', repair_count: 1 } });
   emit('material_complete', { decision_id: 'd1', material_id: 'm-quiz', timing_source: 'measured', cache_status: 'miss', material_type: 'quiz', modality: 'quiz', descriptors: { question_count: 1 } });
@@ -489,7 +504,7 @@ test('content shape: subcards are structure, not decisions; reading load before 
 });
 
 test('the runner takes several materials from one decision without a schema change', async () => {
-  const w = world({ script: REPAIR, start: START });
+  const w = world({ script: REPAIR.map((row, i) => (i ? row : { ...row, click: true })), start: START });
   const base = w.args.materialize;
   let calls = 0;
   w.args.materialize = async (input, marks, meter) => {
@@ -512,7 +527,7 @@ test('the runner takes several materials from one decision without a schema chan
 // ---------- Graph ----------
 
 test('the learning graph: explicit edges, offered hooks as candidates, Rabbit Holes, topology', async () => {
-  const bundle = await session();
+  const bundle = await runSession(world({ script: REPAIR, start: START, follow: true }).args); // the learner follows every hook
   const g = bundle.learning_graph;
   assert.equal(g.nodes.length, 6);
   assert.ok(!g.nodes.some(node => ['h1', 'h2', 'h3'].includes(node.node_id))); // unselected hooks never become nodes
@@ -568,7 +583,7 @@ test('events of many sessions aggregate by user, canvas, user x canvas, journey,
 });
 
 test('privacy: no credentials, hidden reasoning or email; learner words only under debug', async () => {
-  const base = { trace_schema_version: 'tutor-trace-eval-0', event_id: 'x:1', seq: 1, t_ms: 0, session_id: 'x', user_id: 'u', canvas_id: 'c' };
+  const base = { eval_schema_version: 'tutor-session-eval-1', event_id: 'x:1', seq: 1, t_ms: 0, session_id: 'x', user_id: 'u', canvas_id: 'c' };
   assert.deepEqual(validateEvent({ ...base, type: 'session_ended', reason: 'done' }), []);
   assert.match(validateEvent({ ...base, type: 'tutor_action_ready', decision_id: 'd', decision: { thinking: '...' } }).join(), /forbidden field decision.thinking/);
   assert.match(validateEvent({ ...base, type: 'session_started', api_key: 'k' }).join(), /forbidden field api_key/);
@@ -694,7 +709,7 @@ test('session files round-trip; aggregate.json has every section; table and CSV 
   assert.equal(agg.modality_histogram.all.explanation, 15);
   assert.equal(agg.notable_sequences.length, 3);
   assert.equal(agg.graph_comparison.novice.total_nodes, 6);
-  assert.equal(agg.taxonomy.provisional, true);
+  assert.match(agg.taxonomy.source, /product's modality names/);
   assert.ok(bundles[0].cost.anthropic.total_usd > 0 && bundles[0].learning_graph.nodes.length === 6);
   const table = terminalTable(agg);
   assert.equal(table.split('\n').length, 4);

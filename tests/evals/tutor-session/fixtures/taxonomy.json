@@ -1,11 +1,55 @@
 {
-  "provisional": true,
-  "source": "Owner brief 2026-10-06 examples only. Replace with the modality and reason-code taxonomy of the Learning agent's TutorDecisionTrace checkpoint before any paid run.",
+  "source": "The eval's own classification over the product's modality names (docs/features/professor-next-steps.md \u00a73.2: a reply, a question, an Explain Back, practice, a depth step, a Rabbit Hole, the avatar, and a shown or made card's block type). mode follows the product's expected_evidence (active: the action or card expects an answer, an explanation, practice or interaction - checked against actionContract by the tests); effort, family and expensive are the eval's labels for its sequence metrics, never product truth. Reason codes: the product's REASON_CODES; reason_codes below holds only the eval's evidence checks for some of them (the tests keep every key a product code).",
   "modalities": {
+    "text": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "explanation"
+    },
     "explanation": {
       "mode": "passive",
       "effort": "low",
       "family": "explanation"
+    },
+    "snippet": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "explanation"
+    },
+    "table": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "explanation"
+    },
+    "flow": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "diagram"
+    },
+    "mermaid": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "diagram"
+    },
+    "image": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "media"
+    },
+    "paper": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "reading"
+    },
+    "knowledge": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "reading"
+    },
+    "audio": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "media"
     },
     "video": {
       "mode": "passive",
@@ -19,11 +63,20 @@
       "family": "media",
       "expensive": true
     },
-    "motion": {
+    "depth": {
       "mode": "passive",
       "effort": "low",
-      "family": "media",
-      "expensive": true
+      "family": "navigation"
+    },
+    "rabbit_hole": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "navigation"
+    },
+    "question": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "question"
     },
     "quiz": {
       "mode": "active",
@@ -35,17 +88,52 @@
       "effort": "high",
       "family": "quiz"
     },
+    "flashcards": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "quiz"
+    },
     "explain_back": {
       "mode": "active",
       "effort": "high",
       "family": "explain_back"
     },
-    "interactive": {
+    "practice": {
+      "mode": "active",
+      "effort": "high",
+      "family": "practice"
+    },
+    "scene": {
       "mode": "active",
       "effort": "medium",
       "family": "interactive"
     },
-    "code_activity": {
+    "animation": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "interactive"
+    },
+    "graph": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "interactive"
+    },
+    "model3d": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "interactive"
+    },
+    "whiteboard": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "interactive"
+    },
+    "code": {
+      "mode": "active",
+      "effort": "high",
+      "family": "code"
+    },
+    "notebook": {
       "mode": "active",
       "effort": "high",
       "family": "code"
@@ -78,7 +166,7 @@
   "boring_run_length": 4,
   "duplicate_threshold": 0.6,
   "hook_repeat_threshold": 0.8,
-  "relations_source": "Generic relations from the owner brief; product vocabularies reused as-is: card-plan.js RELATIONSHIPS (prerequisite, deepens, alternative_explanation, practice_for) and the nanoGPT depth-card links (deepens_to, simplifies_to, prerequisite, related). Replace with the Learning checkpoint's link vocabulary when it has one.",
+  "relations_source": "PROVISIONAL (A9): the product emits no node or link events and has no link vocabulary at this checkpoint. Generic relations from the owner brief; product vocabularies reused as-is: card-plan.js RELATIONSHIPS (prerequisite, deepens, alternative_explanation, practice_for) and the nanoGPT depth-card links (deepens_to, simplifies_to, prerequisite, related). next_step_selection is the eval's edge from a decision's selected_next_step_id.",
   "relations": {
     "continues": {
       "category": "pedagogical"
@@ -171,5 +259,6 @@
     "wide_branch": 4,
     "nested_holes": 2,
     "side_exploration_share": 0.5
-  }
+  },
+  "rabbit_hole_opened_by_source": "The keys are the Dive record's created_by values in the product (Dive.jsx: tutor_confirmed, learner_slash, learner_ctrl_k, learner_dblclick; learn-boards.js: shared_start); the categories are the eval's."
 }

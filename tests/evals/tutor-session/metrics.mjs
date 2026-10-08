@@ -31,9 +31,9 @@ export function jaccard(a, b) {
   return both / (x.size + y.size - both);
 }
 const decisionOf = step => step.tutor_decision || {};
-const modalityOf = step => decisionOf(step).modality ?? 'unknown';
+const stepModality = step => decisionOf(step).modality ?? 'unknown';
 const classOf = (taxonomy, modality) => taxonomy.modalities?.[modality] || null;
-const isActive = (taxonomy, step) => classOf(taxonomy, modalityOf(step))?.mode === 'active';
+const isActive = (taxonomy, step) => classOf(taxonomy, stepModality(step))?.mode === 'active';
 const targetsOf = step => new Set(decisionOf(step).target_concepts || []);
 const ref = step => ({ session_id: step.session_id, step: step.step });
 
@@ -79,16 +79,16 @@ const crossTab = (steps, rowOf, colOf) => steps.reduce((acc, step) => { const ro
 // available_modalities, else the taxonomy's), so an unavailable Avatar or Motion never counts against diversity.
 export function modalityMetrics(segments, taxonomy) {
   const steps = segments.flat(), n = steps.length;
-  const counts = tally(steps.map(modalityOf));
+  const counts = tally(steps.map(stepModality));
   const available = new Set(steps.flatMap(step => step.available_modalities || []));
   const k = available.size || Object.keys(taxonomy.modalities || {}).length;
   const entropy = -Object.values(counts).reduce((h, c) => h + (c / n) * Math.log(c / n), 0);
-  const lists = segments.map(segment => segment.map(modalityOf));
+  const lists = segments.map(segment => segment.map(stepModality));
   const pairs = sum(lists.map(list => Math.max(0, list.length - 1)));
   const switches = sum(lists.map(list => list.filter((m, i) => i && m !== list[i - 1]).length));
-  const runs = segments.flatMap(segment => runsOf(segment.map(modalityOf)).map(run => ({ ...run, segment })));
+  const runs = segments.flatMap(segment => runsOf(segment.map(stepModality)).map(run => ({ ...run, segment })));
   const run = longest(runs);
-  const modes = steps.map(step => classOf(taxonomy, modalityOf(step))?.mode ?? 'unclassified');
+  const modes = steps.map(step => classOf(taxonomy, stepModality(step))?.mode ?? 'unclassified');
   const active = modes.filter(mode => mode === 'active').length, passive = modes.filter(mode => mode === 'passive').length;
   return {
     counts,
@@ -103,8 +103,8 @@ export function modalityMetrics(segments, taxonomy) {
     most_common_percent: n ? pct(Math.max(...Object.values(counts)), n) : null,
     active, passive, unclassified: n - active - passive,
     active_passive_ratio: passive ? round(active / passive) : null,
-    after_evidence_state: crossTab(steps, targetState, modalityOf),
-    outcome_by_modality: crossTab(steps, modalityOf, evidenceOutcome),
+    after_evidence_state: crossTab(steps, targetState, stepModality),
+    outcome_by_modality: crossTab(steps, stepModality, evidenceOutcome),
   };
 }
 
@@ -120,7 +120,7 @@ export function repetitionMetrics(segments, taxonomy) {
   const same = (a, b) => (a.material_signature && b.material_signature ? a.material_signature === b.material_signature
     : a.canvas_summary && b.canvas_summary ? jaccard(a.canvas_summary, b.canvas_summary) >= threshold : false);
   for (const segment of segments) {
-    const modalities = segment.map(modalityOf);
+    const modalities = segment.map(stepModality);
     const at = run => segment.slice(run.start, run.start + run.length).map(ref);
     const flag = (kind, run, pattern) => { if (run.length >= minRun && !flagged.some(entry => JSON.stringify(entry.steps) === JSON.stringify(at(run)))) flagged.push({ id: `seq-${flagged.length + 1}`, kind, steps: at(run), pattern, justified: null }); };
     const truthRuns = test => runsOf(modalities.map(test)).filter(run => run.value);
@@ -133,7 +133,7 @@ export function repetitionMetrics(segments, taxonomy) {
     maxCard = Math.max(maxCard, longest(runsOf(segment.map(step => decisionOf(step).card_type ?? 'unknown')))?.length ?? 0);
     within3 += modalities.filter((m, i) => modalities.slice(Math.max(0, i - 3), i).includes(m)).length;
     segment.forEach((step, i) => {
-      const earlier = segment.slice(0, i).find(other => modalityOf(other) === modalityOf(step) && same(other, step));
+      const earlier = segment.slice(0, i).find(other => stepModality(other) === stepModality(step) && same(other, step));
       if (earlier) duplicates.push({ ...ref(step), duplicates: earlier.step });
     });
   }
@@ -219,7 +219,7 @@ const PREDICATES = {
   // fill_prerequisite_gap: a prerequisite gap on, or for, a targeted concept.
   prerequisite_gap: step => claimsIn(step.evidence_before).some(entry => entry.state === 'prerequisite_gap' && (targetsOf(step).has(entry.concept) || targetsOf(step).has(entry.prerequisite))),
   // vary_modality: the previous three decisions actually repeat a modality.
-  recent_modality_repetition: (step, i, segment) => { const recent = segment.slice(Math.max(0, i - 3), i).map(modalityOf); return recent.length >= 2 && new Set(recent).size < recent.length; },
+  recent_modality_repetition: (step, i, segment) => { const recent = segment.slice(Math.max(0, i - 3), i).map(stepModality); return recent.length >= 2 && new Set(recent).size < recent.length; },
   // advance_goal: some targeted concept is not yet understood.
   unfinished_target: step => targetState(step) !== 'understood' && targetState(step) !== 'no_target',
 };
@@ -237,7 +237,7 @@ export function reasonConsistency(segments, taxonomy) {
 
 // ---------- Evidence ----------
 
-const signature = step => JSON.stringify([decisionOf(step).action_type, modalityOf(step), [...targetsOf(step)].sort()]);
+const signature = step => JSON.stringify([decisionOf(step).action_type, stepModality(step), [...targetsOf(step)].sort()]);
 // Tutor steps from the first evidence_after holding `state` on a claim to the first later one where it no longer does.
 function repairLatency(segments, state) {
   const repaired = [], unresolved = [];
@@ -334,7 +334,7 @@ export function latencyMetrics(segments, taxonomy) {
     first_material: bySource(steps, s => t(s).click_to_first_material_ms, s => t(s).timing_source),
     complete_material: bySource(steps, s => t(s).click_to_complete_material_ms, s => t(s).timing_source),
     asset: bySource(steps.filter(s => t(s).sources?.asset), s => t(s).asset_generation_ms, s => t(s).sources.asset),
-    by_modality: group(modalityOf),
+    by_modality: group(stepModality),
     by_action_type: group(step => decisionOf(step).action_type ?? 'unknown'),
     by_cache_status: Object.fromEntries(Object.entries(Object.groupBy(steps, step => t(step).cache_status ?? 'not_applicable')).map(([key, list]) => [key, bySource(list, s => t(s).material_complete_ms, s => t(s).timing_source)])),
     total_backend_generation_seconds: round(sum(steps.map(s => t(s).backend_generation_ms || 0)) / 1000, 1),
@@ -446,7 +446,7 @@ export function aggregate(bundles, taxonomy, { cost = null, roles = {} } = {}) {
   const by = fn => Object.fromEntries(rows.map(row => [row.profile, fn(row)]));
   const reasonByModality = {};
   for (const { session } of rows) for (const step of session.steps) for (const code of decisionOf(step).reason_codes || []) {
-    const modality = modalityOf(step);
+    const modality = stepModality(step);
     reasonByModality[modality] = { ...reasonByModality[modality], [code]: (reasonByModality[modality]?.[code] || 0) + 1 };
   }
   const reviewed = rows.filter(row => row.review);
