@@ -106,8 +106,9 @@ bearer secret `SCENE_WORKER_TOKEN`. The renderer compares the bearer to its own
   error page). A 4xx with a reason (such as no public repository) keeps 400 and that reason. Never 401,
   which the web app reads as signed out. Nothing is written in any of these cases.
 
-**Rotation** (last run 2026-10-01, owner-approved: a fresh value on `rabbit-hole-lesson-renderer-dev` and
-`small-cp-dev`). One new value goes to every side, never printed. Git Bash, repo root, with a `rabbit-hole`
+**Rotation** (last run 2026-10-08, owner-approved: a fresh value on `rabbit-hole-lesson-renderer-dev`,
+`small-cp-dev` and the stable URL `rabbit-hole-web-dev-small-parallel`; verified by a branch lookup through both Workers
+and one import through each). One new value goes to every side, never printed. Git Bash, repo root, with a `rabbit-hole`
 Fly-org token and a rabbit-hole Cloudflare credential loaded
 (`wrangler.dev.jsonc` pins `account_id`).
 
@@ -116,7 +117,7 @@ t=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url')
 # Fly reads NAME=VALUE from stdin, so the value never sits in argv. Without --stage this
 # updates (restarts) the app's machines; a stopped machine picks the value up on its next start.
 printf 'SCENE_WORKER_TOKEN=%s\n' "$t" | flyctl secrets import -a rabbit-hole-lesson-renderer-dev
-# Repeat for each dev-worker.js Worker that exists (small-cp-dev today).
+# Repeat for each dev-worker.js Worker that calls the dev renderer (small-cp-dev and rabbit-hole-web-dev-small-parallel today).
 (cd packages/web && printf '%s' "$t" | npx wrangler secret put SCENE_WORKER_TOKEN --config wrangler.dev.jsonc --name small-cp-dev)
 unset t
 ```
