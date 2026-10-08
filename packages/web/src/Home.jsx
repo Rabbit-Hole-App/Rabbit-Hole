@@ -5,13 +5,13 @@ import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
 import PublicCards, { CreatorChip } from './home/PublicCards.jsx';
-import { EXPLORE_SORTS } from './home/card-sort.js';
+import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { isMine } from './library-filter.js';
 import { loadProfile } from './session-display.js';
 import Shell from './Shell.jsx';
-import { Button, Input, SkeletonRows, toast } from './ui.jsx';
+import { Button, Input, SkeletonRows, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
 
 // Home (T02 §3, preview build only): Continue, Recent, Start - three blocks, no others.
 // Composition follows Gate B (Figma F1): Continue as a callout, Recent as a gallery of compact
@@ -132,9 +132,11 @@ export function ExplorePreview() {
 // server's for the chosen sort (§17: Newest by default, Recently updated, Most forked); the page never reorders.
 // Others' cards offer Start Rabbit Hole (blue) and [Fork | N] (neutral, its confirm-and-rename dialog in place), signed
 // out resuming on the published page (?rabbit=root, ?fork=1); your own carry the Owned-by-you badge instead (PublicCards.jsx).
-// Card-first (creator profile brief §8): a small "Creators to explore" row sits above the feed, never in it. Search
-// (§9) answers Creators and Explainers from the server: @handle, display name, title, description.
+// Search answers from the server (@handle, display name, title, description). Two tabs (owner, 2026-10-08): Explainers (the default, the published canvas cards, with Sort) and Creators (profiles).
+// The search applies to the active tab only, and the tab is in the URL (/explore?tab=creators) so a reload keeps it.
+
 function Explore() {
+  const [tab, setTab] = useState(() => exploreTab(window.location.search));
   const [order, setOrder] = useState('newest');
   const [cards, setCards] = useState(null);
   const [creators, setCreators] = useState(null);
@@ -143,48 +145,52 @@ function Explore() {
   const [term, setTerm] = useState('');
   useEffect(() => { const t = setTimeout(() => setTerm(typed.trim()), 250); return () => clearTimeout(t); }, [typed]);
   const q = term ? `q=${encodeURIComponent(term)}` : '';
+  const choose = (next) => {
+    setTab(next);
+    window.history.replaceState(window.history.state, '', next === 'creators' ? '/explore?tab=creators' : '/explore');
+  };
   useEffect(() => { let live = true; loadProfile().then((p) => { if (live) setMe(p?.handle || null); }); return () => { live = false; }; }, []);
   useEffect(() => {
+    if (tab !== 'explainers') return;
     let live = true;
     fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
       .then(data => { if (live) setCards(data.canvases || []); }).catch(() => { if (live) setCards([]); });
     return () => { live = false; };
-  }, [order, q]);
+  }, [tab, order, q]);
   useEffect(() => {
+    if (tab !== 'creators') return;
     let live = true;
     fetch(`/api/learn/creators${q && `?${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { creators: [] }))
       .then(data => { if (live) setCreators(data.creators || []); }).catch(() => { if (live) setCreators([]); });
     return () => { live = false; };
-  }, [q]);
-  const label = 'pb-2 text-xs text-ink-2';
+  }, [tab, q]);
+  const searchLabel = tab === 'creators' ? 'Search creators' : 'Search explainers';
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
         <p className="pb-6 pt-1 text-sm text-ink-2">Discover rabbit holes, projects, and learning resources shared beyond your library.</p>
-        <label className="relative mb-6 block">
-          <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
-          <Input type="search" data-explore-search aria-label="Search creators and explainers" placeholder="Search creators and explainers" value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
-        </label>
-        {term ? (
-          <section data-search-creators aria-label="Creators" className="pb-8">
-            <h2 className={label}>Creators</h2>
-            {creators?.length ? <div className="flex flex-wrap gap-2">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>
-              : creators && <p className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
-          </section>
-        ) : creators?.length > 0 && (
-          <section data-creator-row aria-label="Creators to explore" className="pb-8">
-            <h2 className={label}>Creators to explore</h2>
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>
-          </section>
-        )}
-        <div className="flex items-end justify-between gap-3 pb-4">
-          {term ? <h2 className={`${label} pb-0`}>Explainers</h2> : <span />}
-          {cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
+        <Tabs value={tab} onValueChange={choose}>
+          <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id}>{name}</TabsTrigger>)}</TabsList>
+        </Tabs>
+        <div className="flex items-center gap-3 pb-6">
+          <label className="relative block min-w-0 flex-1">
+            <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+            <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
+          </label>
+          {tab === 'explainers' && cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
         </div>
-        {cards === null && <SkeletonRows rows={3} />}
-        {cards?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>}
-        {cards?.length > 0 && <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>}
+        {tab === 'creators' ? (
+          <section data-explore-creators aria-label="Creators">
+            {creators === null && <SkeletonRows rows={2} />}
+            {creators?.length > 0 && <div className="flex flex-wrap gap-2">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>}
+            {creators?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
+          </section>
+        ) : <>
+          {cards === null && <SkeletonRows rows={3} />}
+          {cards?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>}
+          {cards?.length > 0 && <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>}
+        </>}
       </div>
     </main>
   );

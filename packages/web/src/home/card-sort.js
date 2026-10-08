@@ -38,3 +38,7 @@ export function readLibrarySort(storage, org, email) {
 export function saveLibrarySort(storage, org, email, id) {
   try { storage.setItem(key(org, email), id); } catch { /* not kept */ }
 }
+
+// Explore's two tabs (owner, 2026-10-08): Explainers is the default; the tab rides in the URL (/explore?tab=creators).
+export const EXPLORE_TABS = [['explainers', 'Explainers'], ['creators', 'Creators']];
+export const exploreTab = (search) => (new URLSearchParams(search).get('tab') === 'creators' ? 'creators' : 'explainers');

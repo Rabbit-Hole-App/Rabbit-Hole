@@ -6,7 +6,7 @@ Owner briefs, 2026-10-06 (#63: the creator profile, and the rule that any user b
 
 - Any Rabbit Hole user, automatically, from their first successful Publish to Explore (explore-publish.md). There is no creator account, application, approval or verification.
 - No creator record is written on publish. The profile is read from the canonical identity: `user_handles.handle`, `user_profiles.name` and `avatar`, by reference. Nothing is copied onto canvases or publications.
-- A handle with no live publication still resolves at `/@handle`, with no explainers. Its user profile is never deleted. It drops out of Explore's creator row and creator search, which list only people with at least one live publication.
+- A handle with no live publication still resolves at `/@handle`, with no explainers. Its user profile is never deleted. It drops out of Explore's Creators tab and creator search, which list only people with at least one live publication.
 
 ## The page: /@handle
 
@@ -59,20 +59,20 @@ so a link from a private view reveals nothing the handle did not already name. H
 
 ## Explore: creator discovery and search
 
-- **Card-first.** The feed is unchanged. Above it, a small "Creators to explore" row of chips shows each creator's picture or initials, name, @handle and explainer count, and opens `/@handle`. It lists up to 8 creators, ordered by latest publication. There is no ranking, follower count or reputation.
-- **Search** (one field, "Search creators and explainers"), answered by the server:
+- **Two tabs** (owner, 2026-10-08; it replaces the "Creators to explore" row above the feed): **Explainers** (the default, the card feed, with Sort) and **Creators** (`/explore?tab=creators`), whose chips show each creator's picture or initials, name, @handle and explainer count, and open `/@handle`. Without a search it lists up to 8 creators, ordered by latest publication. There is no ranking, follower count or reputation.
+- **Search** (one field, for the active tab only: "Search explainers" or "Search creators"), answered by the server:
   - **Creators:** by @handle or display name. An exact @handle comes first, then @handle prefixes, then latest publication. A leading `@` is accepted.
   - **Explainers:** by title, description, @handle or display name, on the canonical cards, in the chosen Explore sort.
   - **Never by email:** no query reads an email column.
   - **Safe input:** LIKE wildcards are escaped, so `_` and `%` are plain characters. The term is capped at 60 characters.
-  - While searching, the creator row gives way to "Creators" and "Explainers" results.
+  - Each tab searches its own list; switching tabs keeps the typed text and applies it to the new tab.
 
 ## Click paths
 
 - Explore card title or card → `/e/<token>`. Its @handle → `/@handle`.
 - `/e/<token>` header @handle → `/@handle`.
 - Profile card title or card → the canonical `/e/<token>`.
-- Creator chip (row or search) → `/@handle`.
+- Creator chip (the Creators tab) → `/@handle`.
 
 ## API (public, read-only, signed out included)
 
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS user_profile_bios (
   Every JSON answer is checked for emails.
 - **Web unit:** `src/creator-profile.test.mjs` covers the route, the owner-only parts, the public-only links and the analytics typed states. `src/explore-publish.test.mjs` follows the card list into `home/PublicCards.jsx`, and `src/routes.test.mjs` checks that a profile lights Explore.
 - **Browser:** `e2e/creator-profile-check.mjs` (14 checks, local stack only) covers:
-  - the creator row;
+  - the Explore tabs (Explainers default, Creators, the tab in the URL);
   - the card's @handle link;
   - Explore → @handle → profile → explainer → `/e` → back;
   - another creator with no check;
