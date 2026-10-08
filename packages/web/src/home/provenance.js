@@ -39,5 +39,10 @@ export function cardModel(a) {
   // the canonical fork count as a number (null where the row has none: projects); updated_at, else created_at (0009).
   const description = (a.kind === 'repository' ? a.summary : a.description || a.summary) || null;
   const forkCount = typeof a.fork_count === 'number' ? a.fork_count : null;
-  return { title, creator, source, sourceUrl, description, forkedFrom, forks: forkLabel(a.fork_count), forkCount, updated: a.updated_at || a.created_at || null };
+  // A project's canvases, its Main canvas included (docs/features/project-canvases.md): "1 canvas", "3 canvases".
+  const canvases = a.kind === 'repository' && a.canvas_count ? `${a.canvas_count} canvas${a.canvas_count === 1 ? '' : 'es'}` : null;
+  // A published canvas's parent project, as Explore names it (owner/repo, public repositories only): it opens Explore
+  // filtered to that project's other published canvases (project-canvases.md, owner 2026-10-08).
+  const project = a.project_label ? { label: a.project_label, href: `/explore?project=${encodeURIComponent(a.project_label)}` } : null;
+  return { title, creator, source, sourceUrl, description, forkedFrom, forks: forkLabel(a.fork_count), forkCount, canvases, project, updated: a.updated_at || a.created_at || null };
 }

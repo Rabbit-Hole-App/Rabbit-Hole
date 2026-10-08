@@ -20,10 +20,12 @@ test('a project is Files · Graph · Learn: no Overview, one restrained tab row,
   // /apps/<repo> (and ?tab=map, ?tab=overview) lands on Graph, as the Map did; Learn keeps whichever view was open.
   assert.match(page, /\[mode,setMode\]=useState\('graph'\)/);
   assert.match(page, /<Tabs value=\{tab==='learn'\?'learn':mode\} onValueChange=\{v=>v==='learn'\?go\('learn'\):setMode\(v\)\}>/);
-  // The Learn view renders no tabs: only the canvas picker, and only when there are canvases.
+  // The Learn view renders no tabs: its canvas switcher sits in Learn's own header, on the Main canvas and on every
+  // project canvas alike (docs/features/project-canvases.md).
   const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('// A fixture record is only looked at'));
-  assert.doesNotMatch(learnView, /\{tabs\}/);
-  assert.match(learnView, /canvases\.length>0&&<div/);
+  assert.doesNotMatch(learnView, /\{tabs\}|<select/);
+  assert.equal(learnView.match(/switcher=\{switcher\}/g).length, 2);
+  assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{switcher\}/);
   // The canvas reaches the Map by one icon.
   assert.match(learnView, /onMap=\{\(\)=>go\('map'\)\}/);
   assert.match(learn, /\{onMap && <button type="button" data-learn-map title="Map: this repository's code graph" aria-label="Map" onClick=\{onMap\}/);

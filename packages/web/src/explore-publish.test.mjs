@@ -49,8 +49,10 @@ test('Publish pushes the board first, only for a top-level canvas, and a missing
 test('Explore lists the published canvases on the canonical card: title, the creator @handle, the fork count, and the /e link', () => {
   const home = read('./Home.jsx');
   const explore = home.slice(home.indexOf('function Explore()'));
-  assert.match(explore, /fetch\(`\/api\/learn\/boards\/published\?sort=\$\{order\}\$\{q && `&\$\{q\}`\}`/, 'the server sorts (and searches)');
+  assert.match(explore, /fetch\(`\/api\/learn\/boards\/published\?sort=\$\{order\}\$\{q && `&\$\{q\}`\}\$\{project \? `&project=\$\{encodeURIComponent\(project\)\}` : ''\}`/, 'the server sorts, searches and filters by project');
   assert.match(explore, /<PublicCards cards=\{cards\} me=\{me\} attr="data-explore-card" \/>/);
+  // A card's project label opens Explore on ?project=; the chip names it and clears it (project-canvases.md).
+  assert.match(explore, /\{project && <ProjectFilter project=\{project\} empty=\{cards\?\.length === 0 && !term\} \/>\}/);
   // The card list Explore and the creator profile share (docs/features/creator-profile.md).
   const all = read('./home/PublicCards.jsx'), cards = all.slice(0, all.indexOf('export const CreatorAvatar'));
   assert.match(cards, /<LearningCard key=\{card\.url\} kind="canvas" m=\{m\} attrs=\{\{ \[attr\]: '' \}\} href=\{card\.url\}/);
@@ -59,9 +61,16 @@ test('Explore lists the published canvases on the canonical card: title, the cre
   // Library shows it, on your own card only once someone forked it.
   assert.match(cards, /fork_count: mine \? card\.fork_count : null/, 'the same Forks the Library cards show, on your own card');
   assert.match(cards, /count=\{card\.fork_count\}/, 'others\' cards: the count inside Fork');
+  // One card per published canvas (owner, 2026-10-08): its own label, count and fork source, never a project total.
+  assert.match(cards, /project_label: card\.project \}\);/);
+  assert.match(cards, /source=\{\{ token: card\.url\.split\('\/'\)\.pop\(\) \}\}/, 'Fork acts on this card\'s canvas');
+  assert.doesNotMatch(cards, /reduce\(|groupBy|project_count|canvas_count/, 'nothing adds counts up by project');
   for (const text of [explore, cards]) assert.doesNotMatch(text, /email|ranking|\.sort\(/i, 'no email; the server\'s order, no client reordering');
   const card = read('./home/LearningCard.jsx');
   assert.match(card, /<Forks m=\{m\} \/>/);
+  // The hierarchy: title, then the creator, then the project label, then provenance, the description and the actions.
+  const order = ['data-card-title', 'data-creator-link', 'data-card-project', '<ForkedFrom', 'data-card-description', '{actions &&'].map(s => card.indexOf(s));
+  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), `card order ${order}`);
 });
 
 // Every owned board is on the server now (docs/features/canvas-persistence.md), so its files and notebook workspaces are

@@ -40,7 +40,7 @@ test('/@handle resolves the right creator: identity by reference, public explain
   assert.deepEqual([p.handle, p.name, p.explainer_count, p.fork_count], ['ana', 'Ana Lima', 2, 2]);
   assert.match(p.avatar, /^\/api\/learn\/creators\/ana\/avatar\?v=/);
   assert.deepEqual(titles(p.explainers), ['Volcanoes', 'Tides'], 'Newest by default');
-  assert.deepEqual(Object.keys(p.explainers[0]).sort(), ['creator', 'description', 'fork_count', 'published_at', 'title', 'updated_at', 'url'], 'exactly Explore\'s card');
+  assert.deepEqual(Object.keys(p.explainers[0]).sort(), ['creator', 'description', 'fork_count', 'project', 'published_at', 'title', 'updated_at', 'url'], 'exactly Explore\'s card');
   assert.equal(p.explainers.find(c => c.title === 'Tides').url, `/e/${tok}`, 'an explainer opens its canonical /e route');
   assert.deepEqual((await get(f, '/api/learn/creators/cara')).body.explainers.map(c => c.creator), [{ handle: 'cara', name: null }]);
   // The picture is its own URL, the PNG's bytes; no picture, no URL and a 404.

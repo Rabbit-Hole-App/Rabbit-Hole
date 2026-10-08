@@ -9,6 +9,7 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 // Explore render it - and the creator profile will - through props, never a per-surface variant:
 //   [type]  Title (blue, opens)                        Visibility  ⋮
 //           @handle [Owned by you]
+//           From owner/repo                          (a published canvas in a project: Explore filtered to it)
 //           Forked from "…" · @alice
 //   github.com/owner/repo ↗          (a project only)
 //   Description, clamped to three lines
@@ -98,6 +99,10 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
           {m.creator && <span className="flex min-w-0 items-center gap-1">{creatorHref
             ? <a data-creator-link href={creatorHref} title="Open the creator's profile" onClick={(e) => e.stopPropagation()} className="min-w-0 rounded-sm outline-none focus-visible:bg-accent/15 [&:hover_[data-creator]]:text-ink [&:hover_[data-creator]]:underline"><Creator m={m} /></a>
             : <Creator m={m} />}{mine && <OwnerCheck owned />}</span>}
+          {/* A published canvas's parent project (project-canvases.md): Explore filtered to that project's published canvases. */}
+          {m.project && <a data-card-project href={m.project.href} title="Explore published canvases from this project" onClick={(e) => e.stopPropagation()}
+            className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-ink-2 hover:text-ink hover:underline">
+            <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span className="truncate">From {m.project.label}</span></a>}
           <ForkedFrom m={m} onOpen={onForkedFromOpen} />
         </div>
         {(access || onMore) && (
@@ -124,6 +129,8 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
         <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-3' : 'mt-auto pt-4'}`}>
           {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
           <Forks m={m} />
+          {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}
+          {m.canvases && <span data-canvas-count className="inline-flex shrink-0 items-center gap-1"><Shapes size={12} strokeWidth={1.5} />{m.canvases}</span>}
           {m.updated && <span data-updated className="shrink-0">Updated {ago(m.updated)}</span>}
           <span className="flex-1" />
           {cta || (onOpen && (

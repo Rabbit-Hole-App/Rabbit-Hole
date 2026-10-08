@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, GitBranch, Info, Layers, PanelRightOpen, RefreshCw, Search } from 'lucide-react';
+import { Check, ChevronDown, GitBranch, Info, Layers, PanelRightOpen, Plus, RefreshCw, Search, Shapes } from 'lucide-react';
 import { api, navigate } from './api.js';
-import { Button, ExpandedPageFrame, IconBtn, Input, Menu, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
+import { Button, ConfirmDialog, ExpandedPageFrame, IconBtn, Input, Menu, MenuItem, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
+import { deviceId } from './home/canvas-local.js';
+import { canvasHref, newCanvasTitle, projectCanvases } from './project-canvases.js';
 import LearnPage from './LearnPage.jsx';
 import { CanvasLearn } from './CanvasPage.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
@@ -22,7 +24,8 @@ import { learnAction } from './agent/learn-hook.js';
 import { getSurface, patchSurface } from './agent/surface.js';
 import { askDraft, askQuestion, whyQuestion, wireContext } from './agent/scope.js';
 
-export default function RepositoryPage({ app: initial, catalog = [] }) {
+// `onCatalog`: reloads the shell's catalog (Shell load), so a canvas made or renamed shows in the switcher.
+export default function RepositoryPage({ app: initial, catalog = [], onCatalog = null }) {
   const [app,setApp]=useState(initial),[snapshot,setSnapshot]=useState(null),[error,setError]=useState(''),[mode,setMode]=useState('graph'),[query,setQuery]=useState('');
   // Two states, kept apart (owner, 2026-10-06, docs/features/workspace-dock.md): what the inspector shows, and what the
   // composer asks about (the one context, published as surface.selected). Selecting sets both; closing the inspector clears
@@ -48,7 +51,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   const asked=projectTab(window.location.search),tab=asked==='learn'&&!app.commit_sha?'map':asked,go=t=>navigate(`/apps/${app.name}?tab=${t}`);
   // ...and says so in its URL, so the shell (sidebar, bar) treats it as the Map too.
   useEffect(()=>{if(tab!==asked){window.history.replaceState(window.history.state,'',`/apps/${app.name}?tab=map`);window.dispatchEvent(new PopStateEvent('popstate'));}},[tab,asked,app.name]);
-  const canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name),picked=tab==='learn'&&canvases.find(c=>c.name===new URLSearchParams(window.location.search).get('canvas')); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Project canvas
+  const canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name),picked=tab==='learn'&&canvases.find(c=>c.name===new URLSearchParams(window.location.search).get('canvas')); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Main canvas
   const root=`/api/repositories/${app.name}`;
   function onFile(filePath,line){if(snapshot?.files.some(f=>f.path===filePath))inspect(fileObject(snapshot.graph,filePath,line||1),'source');}
   useEffect(()=>{
@@ -71,12 +74,10 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   const tabs=<Tabs value={tab==='learn'?'learn':mode} onValueChange={v=>v==='learn'?go('learn'):setMode(v)}><TabsList data-project-tabs className="border-b-0!">
     <TabsTrigger value="files">Files</TabsTrigger><TabsTrigger value="graph">Graph</TabsTrigger><TabsTrigger value="learn" disabled={!app.commit_sha}>Learn</TabsTrigger>
   </TabsList></Tabs>;
+  // The project's canvases in Learn's header (docs/features/project-canvases.md): Main canvas, its canvases, New canvas.
+  const switcher=<CanvasSwitcher project={app.name} entries={projectCanvases(app.name,catalog,picked?.name)} onCatalog={onCatalog}/>;
   if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
-    {canvases.length>0&&<div className="flex shrink-0 flex-wrap items-center gap-x-3 pt-3 pr-8 pl-14 max-md:px-4">
-      {/* a native select: ui.jsx's Select is string-only and would collide on duplicate canvas titles */}
-      <select aria-label="Canvas" value={picked?.name||''} onChange={e=>navigate(`/apps/${app.name}?tab=learn${e.target.value?`&canvas=${e.target.value}`:''}`)} className="mb-4 h-8 rounded-sm border border-line bg-transparent px-2 text-xs"><option value="">Project canvas</option>{canvases.map(c=><option key={c.name} value={c.name}>{c.title}</option>)}</select>
-    </div>}
-    {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')}/>:<LearnPage app={app} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}}/>}
+    {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} switcher={switcher}/>}
   </div>;
   // A fixture record is only looked at: the bar keeps asking about code, so no fixture id ever reaches the model.
   // Inspector history is local (inspector brief §15): Back returns the inspector to the previous object, never the URL or the context.
@@ -149,4 +150,29 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
           the context travels as repositoryContext; the fallback line is for a typed prompt, so a click shows none. */}
     </ResizableSidePanel>}
   </main>;
+}
+
+// The canvas switcher (docs/features/project-canvases.md). The title field beside it names the open canvas, so the trigger
+// is the canvas icon and a chevron. Opening it reloads the catalog (a rename made elsewhere shows); New canvas is a canvas
+// row in this project with its own board (POST /api/canvases), opened once the catalog has it.
+function CanvasSwitcher({ project, entries, onCatalog }) {
+  const [open,setOpen]=useState(false),[naming,setNaming]=useState(null),[busy,setBusy]=useState(false);
+  const create=async()=>{
+    const title=naming.trim();if(!title||busy)return;setBusy(true);
+    try{const made=await api('/api/canvases',{method:'POST',body:JSON.stringify({title,project,device_id:deviceId(localStorage)})});await onCatalog?.();setNaming(null);navigate(canvasHref(project,made.name));}
+    catch(e){toast(e.message,{tone:'error'});}finally{setBusy(false);}
+  };
+  return <span className="relative">
+    <button type="button" data-canvas-switcher aria-label="Switch canvas" title={`${entries.length} canvas${entries.length===1?'':'es'} in this project`} aria-haspopup="menu" aria-expanded={open}
+      onClick={()=>{if(!open)onCatalog?.();setOpen(!open);}} className={`flex h-8 items-center gap-0.5 rounded-lg px-1.5 ${open?'bg-hover text-ink':'text-ink-2 hover:bg-hover hover:text-ink'}`}><Shapes size={15} strokeWidth={1.8}/><ChevronDown size={13}/></button>
+    <Menu open={open} onClose={()=>setOpen(false)} className="top-full left-0 mt-1 w-64">
+      <div className="px-2 pb-1 pt-2 text-xs text-ink-3">Canvases</div>
+      {entries.map(e=><MenuItem key={e.name||'main'} role="menuitemradio" aria-checked={e.current} data-canvas-option={e.name||'main'} onClick={()=>{setOpen(false);if(!e.current)navigate(e.href);}}>
+        <span className="flex w-full min-w-0 items-center justify-between gap-2"><span className="min-w-0 truncate">{e.label}</span>{e.current&&<Check size={14} strokeWidth={2} className="shrink-0"/>}</span></MenuItem>)}
+      <div className="my-1 border-t border-line"/>
+      <MenuItem icon={Plus} data-new-canvas onClick={()=>{setOpen(false);setNaming(newCanvasTitle(entries));}}>New canvas</MenuItem>
+    </Menu>
+    {naming!==null&&<ConfirmDialog title="New canvas" confirmLabel="Create" confirmVariant="primary" confirmDisabled={busy||!naming.trim()} onCancel={()=>setNaming(null)} onConfirm={create}
+      body={<Input autoFocus aria-label="Canvas name" maxLength={120} value={naming} onFocus={e=>e.currentTarget.select()} onChange={e=>setNaming(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')create();}}/>}/>}
+  </span>;
 }

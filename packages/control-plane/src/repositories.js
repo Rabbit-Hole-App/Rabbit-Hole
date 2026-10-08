@@ -54,7 +54,8 @@ export function repositoryApp(row,user) {
 export async function ownerRepositories(env,user){
   // The owner's @handle and display name by reference (docs/features/user-handles.md), as on canvas cards; never an email.
   // board_saved: its Learn main board (LearnPage boardPath /api/learn/boards/<repo>/main) is on the server (canvas-persistence.md, step 8).
-  const {results}=await env.LEARN_DB.prepare(`SELECT r.*,(SELECT handle FROM user_handles WHERE email=r.owner_email) AS owner_handle,(SELECT name FROM user_profiles WHERE email=r.owner_email) AS owner_name,EXISTS(SELECT 1 FROM learn_boards b WHERE b.org=r.org AND b.owner_email=r.owner_email AND b.app=r.name AND b.board='main') AS board_saved FROM repository_apps r WHERE r.org=? AND r.owner_email=? AND ${NOT_TRASHED('r.org','r.name')} ORDER BY r.created_at DESC`).bind(user.org,user.email).all();
+  // canvas_count (docs/features/project-canvases.md): its Main canvas plus the owner's live canvases in it - the switcher's list.
+  const {results}=await env.LEARN_DB.prepare(`SELECT r.*,(SELECT handle FROM user_handles WHERE email=r.owner_email) AS owner_handle,(SELECT name FROM user_profiles WHERE email=r.owner_email) AS owner_name,EXISTS(SELECT 1 FROM learn_boards b WHERE b.org=r.org AND b.owner_email=r.owner_email AND b.app=r.name AND b.board='main') AS board_saved,1+(SELECT count(*) FROM canvases c WHERE c.org=r.org AND c.owner_email=r.owner_email AND c.project=r.name AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org','c.name')}) AS canvas_count FROM repository_apps r WHERE r.org=? AND r.owner_email=? AND ${NOT_TRASHED('r.org','r.name')} ORDER BY r.created_at DESC`).bind(user.org,user.email).all();
   return results.map(row=>repositoryApp(row,user));
 }
 // D1 occasionally throws a transient internal error ("object to be reset");

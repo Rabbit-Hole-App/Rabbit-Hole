@@ -8,6 +8,7 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
+import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from '../src/learn-ask-context.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream, CAP_CHARS } from '../src/ask.js';
@@ -717,6 +718,52 @@ test('canvas Learn asks keep their threads in LEARN_DB and never touch the live 
   assert.equal((await ask('canvas-0a1b2c3d', { message: 'Not mine', thread_id: first.threadId }, { ...owner, email: 'colleague@example.test' })).status, 404);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM threads WHERE scope_ref='canvas-0a1b2c3d'").get().n, 2);
   assert.equal(env.answers.length, 3);
+});
+
+// Project canvases (docs/features/project-canvases.md): a canvas in a project asks with that project's repository - its
+// context, system note and code tools - checked again on every ask, and only as the caller's own project. askStream is
+// the recording stub above and the live DB throws, so no model call and no live read can happen.
+test('a project canvas asks with its own project\'s repository, re-checked on every ask; another person\'s project or a lost one leaves a general canvas', async t => {
+  const env = fixture(t);
+  env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  const SHA = 'a'.repeat(40), snapshot = { repo: 'acme/lab', commit: SHA, graph: { nodes: [], edges: [] }, files: { 'lab.py': 'import torch\nprint(1)' } };
+  env.REPOSITORY_SNAPSHOTS = { get: async key => (key === 'snap/lab' ? { json: async () => snapshot } : null) };
+  sqlite.exec(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('workspace-a','repo-0a0a0a0a-lab','owner@example.test','acme/lab','main','${SHA}','ready'),('workspace-a','repo-0b0b0b0b-theirs','colleague@example.test','acme/theirs','main','${SHA}','ready')`);
+  sqlite.exec("INSERT INTO repository_versions(app_id,commit_sha,storage_key) SELECT id,commit_sha,'snap/lab' FROM repository_apps");
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title,project) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention','repo-0a0a0a0a-lab'),('workspace-a','canvas-0c0c0c0c','owner@example.test','Borrowed','repo-0b0b0b0b-theirs'),('workspace-a','canvas-0d0d0d0d','owner@example.test','Alone',NULL)");
+  const seamOf = name => canvasAskSeam(env, canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name=?').get(name), owner));
+  const ask = async (name, seam = seamOf(name)) => { assert.equal((await handlers.apiAsk(request({ scope: { app: name }, message: 'What does lab.py do?' }), env, {}, owner, 'learn', seam)).status, 200); return env.answers.at(-1); };
+  const repositoryTools = answer => answer.research.tools.filter(tool => REPOSITORY_TOOLS.some(r => r.name === tool.name)).map(tool => tool.name);
+
+  const seam = seamOf('canvas-0a1b2c3d');
+  const asked = await ask('canvas-0a1b2c3d', seam);
+  assert.match(asked.context, /canvas "Attention" in the project acme\/lab/);
+  assert.match(asked.context, new RegExp(`"commit":"${SHA}"`));
+  assert.deepEqual(repositoryTools(asked), REPOSITORY_TOOLS.map(tool => tool.name), 'the Main canvas\'s code tools');
+  assert.ok(asked.research.system.includes(REPOSITORY_SYSTEM));
+  assert.match((await asked.research.runTool('read_source', { path: 'lab.py', start: 1, end: 2 })).content, /1: import torch/);
+  assert.equal((await asked.research.runTool('search_wikipedia', { query: 'x' }))[0].title, 'Machine_learning', 'its Learn tools stay');
+  // The same canvas, its project now in Trash: the next ask on the same seam reads that and asks as a general canvas.
+  sqlite.exec("INSERT INTO library_trash(org,name,trashed_at) VALUES('workspace-a','repo-0a0a0a0a-lab','2026-10-08')");
+  const lost = await ask('canvas-0a1b2c3d', seam);
+  assert.match(lost.context, /a standalone learning canvas/);
+  assert.deepEqual(repositoryTools(lost), []);
+  sqlite.exec('DELETE FROM library_trash; DELETE FROM repository_versions');
+  assert.deepEqual(repositoryTools(await ask('canvas-0a1b2c3d', seam)), [], 'a snapshot that will not load is a general canvas too');
+  // A canvas naming someone else's project in the same workspace, and a standalone canvas, get no repository.
+  for (const name of ['canvas-0c0c0c0c', 'canvas-0d0d0d0d']) {
+    const answer = await ask(name);
+    assert.match(answer.context, /a standalone learning canvas/, name);
+    assert.deepEqual(repositoryTools(answer), [], name);
+  }
 });
 
 // C1: the same canvas turn with the real askStream and findVideoMoments, the video tools called

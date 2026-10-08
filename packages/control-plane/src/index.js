@@ -1011,15 +1011,19 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   // show_video may only point at one of these, and only with a window when its
   // passages were actually readable - the show_paper bargain, for video.
   const videos = videoMomentTools(env, user.org, findVideoMoments);
+  // A project canvas asks with its project's repository, as the Main canvas does: read again on every ask, so a project
+  // the caller lost falls back to a general canvas (canvases.js projectRepository, docs/features/project-canvases.md).
+  const repository = conversation === 'learn' && seam?.repository ? await seam.repository() : null;
   const research = conversation === 'learn' ? {
     papers: [],
     // Shared with the context assembly below: an article already on the
     // learner's screen counts as read, so the tutor can point at another of
     // its sections without fetching it twice.
     articles,
-    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : [])],
-    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null].filter(Boolean).join('\n'),
+    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : []), ...(repository?.tools || [])],
+    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null, repository?.system].filter(Boolean).join('\n'),
     runTool: async (name, input) => {
+      if (repository?.tools.some(tool => tool.name === name)) return repository.runTool(name, input);
       if (name === SEARCH_WIKIPEDIA_TOOL.name) return searchWikipedia(input?.query);
       if (name === READ_WIKIPEDIA_TOOL.name) {
         if (articles.size >= 3 && !articles.has(wikiTitle(input?.title).title)) throw new Error('Use the articles already read');
@@ -1082,7 +1086,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     if (!app.canView) return json({ error: 'no access' }, 403);
     scopedApp = app;
     // appContext reads live runs/members by app.id, and LEARN_DB canvas ids overlap live ids.
-    context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : seam ? seam.context : await appContext(env, app, useSet);
+    context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : seam ? repository?.context ?? seam.context : await appContext(env, app, useSet);
     context = appendOutline(context, body.outline);
     canAct = !lessonSnapshot && !!app.canEdit;
     scopeKind = conversation === 'learn' ? 'learn' : 'app';

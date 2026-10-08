@@ -546,25 +546,40 @@ const EXPLORE_SORTS = {
 };
 // The published set, one definition for Explore, the creator profile and search (creators.js): live, top-level canvases
 // not in Trash whose owner has a handle (`h`). Callers add `AND ...` conditions after it.
+// `r` is the canvas's parent project (docs/features/project-canvases.md, owner 2026-10-08), only when its repository is
+// confirmed public (repository_visibility, as linkSource reads it for a publication) and the project is not in Trash: an
+// unknown or private repository is never named on a card and never matches a project filter. A project has no title of
+// its own, so the label is its repository, with @branch only when public projects of that repository sit on two branches.
 export const PUBLISHED_CARDS = `SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count,
-    m.description, COALESCE(m.updated_at, c.created_at) AS updated_at`;
+    m.description, COALESCE(m.updated_at, c.created_at) AS updated_at, r.repo AS project_repo, r.branch AS project_branch,
+    (SELECT count(DISTINCT r2.branch) FROM repository_apps r2 JOIN repository_visibility v2 ON v2.app_id = r2.id AND v2.visibility = 'public' WHERE r2.repo = r.repo COLLATE NOCASE) AS project_branches`;
 export const PUBLISHED = `FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
     LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
     JOIN user_handles h ON h.email = c.owner_email
+    LEFT JOIN repository_apps r ON r.org = c.org AND r.name = c.project AND r.owner_email = c.owner_email AND ${NOT_TRASHED('r.org', 'r.name')}
+      AND EXISTS (SELECT 1 FROM repository_visibility v WHERE v.app_id = r.id AND v.visibility = 'public')
     WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name) AND ${NOT_TRASHED('c.org', 'c.name')}`;
-export const exploreCard = r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at });
+const projectLabel = r => (r.project_repo ? (r.project_branches > 1 ? `${r.project_repo}@${r.project_branch}` : r.project_repo) : null);
+export const exploreCard = r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, project: projectLabel(r), fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at });
+// Explore's project filter (?project=owner/repo, or owner/repo@branch as a label names it): the published canvases of
+// public projects of that repository, every creator's - the same `r` the label comes from, so nothing else ever matches.
+const PROJECT_KEY = /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})(?:@(.{1,250}))?$/;
 // Explore search (creator profile brief §9): `q` matches the title, the description, the creator's @handle or display
 // name - never an email. LIKE with its wildcards escaped, so a typed _ or % is a plain character.
 // ponytail: a '%term%' LIKE scans the published set on every search; fine at hundreds of publications, add an FTS5 index
 // (or a debounce-and-cache) when Explore holds thousands.
 export const likeOf = q => `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
 export const searchTerm = raw => String(raw || '').trim().replace(/^@/, '').slice(0, 60);
-async function explore(env, sort, q = '') {
+async function explore(env, sort, q = '', project = null) {
   if (!Object.hasOwn(EXPLORE_SORTS, sort)) return json({ error: 'Sort Explore by newest, updated or forks' }, 400);
+  const key = project ? String(project).match(PROJECT_KEY) : null;
+  if (project && !key) return json({ error: 'Filter Explore by a project as owner/repo' }, 400);
   const term = searchTerm(q);
   const match = term ? `AND (c.title LIKE ?1 ESCAPE '\\' OR m.description LIKE ?1 ESCAPE '\\' OR h.handle LIKE ?1 ESCAPE '\\' OR ${NAME_OF('c.owner_email')} LIKE ?1 ESCAPE '\\')` : '';
-  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} ${match}
-    ORDER BY ${EXPLORE_SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`).bind(...(term ? [likeOf(term)] : [])).all();
+  const n = term ? 2 : 1;
+  const from = key ? `AND r.repo = ?${n} COLLATE NOCASE ${key[2] ? `AND r.branch = ?${n + 1}` : ''}` : '';
+  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} ${match} ${from}
+    ORDER BY ${EXPLORE_SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`).bind(...(term ? [likeOf(term)] : []), ...(key ? [key[1], ...(key[2] ? [key[2]] : [])] : [])).all();
   return json({ canvases: results.map(exploreCard) });
 }
 
@@ -601,7 +616,7 @@ export async function learnBoardsRoute(path, req, env) {
     return json({ error: 'Method not allowed' }, 405);
   }
   // Explore: the published canvases (docs/features/explore-publish.md).
-  if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q')) : json({ error: 'Method not allowed' }, 405); }
+  if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q'), p.get('project')) : json({ error: 'Method not allowed' }, 405); }
   const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share(?:\/repository)?|\/assets(?:\/([^/]+))?)?$/);
   if (!own) return null;
   const [, app, rawBoard, suffix, rawKey] = own;

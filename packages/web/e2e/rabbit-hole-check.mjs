@@ -1871,26 +1871,30 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await phone.context().close();
   });
 
-  if (ready) await check('wp6-learn: the canvas picker lists the Project canvas and this project canvases; a pick stays in the project frame at ?tab=learn&canvas=; one from another browser shows the not-in-this-browser state there', async () => {
+  // The canvas switcher in Learn's header (docs/features/project-canvases.md) replaced the plain picker. A canvas made in
+  // another browser now opens too: its board is made with its row (canvas-persistence.md), so the not-in-this-browser gate
+  // is reachable only by canvases older than that, which no API can make (project-canvases-check.mjs covers the rest locally).
+  if (ready) await check('wp6-learn: the canvas switcher lists Main canvas and this project canvases; a pick stays in the project frame at ?tab=learn&canvas=, from this browser or another', async () => {
     const page = await open();
     await noAsks(page);
     await loaded(page, `/apps/${ready.name}`);
     const owned = await canvas6(page, { title: 'wp6 learn owned', project: ready.name });
     const away = await canvas6(page, { title: 'wp6 learn away', project: ready.name, device_id: 'rabbit-hole-check-device' });
+    const pick = async (name) => { await page.locator('[data-canvas-switcher]').click(); await page.locator(`[data-canvas-option="${name}"]`).click(); };
     try {
       await loaded(page, `/apps/${ready.name}?tab=learn`);
-      const picker = page.getByLabel('Canvas', { exact: true });
-      await picker.waitFor({ timeout: 30000 });
-      const options = await picker.locator('option').allInnerTexts();
-      for (const t of ['Project canvas', 'wp6 learn owned', 'wp6 learn away']) must(options.includes(t), `picker: ${options.join(' | ')}`);
-      await picker.selectOption(owned.name);
-      await page.waitForURL(new RegExp(`[?]tab=learn&canvas=${owned.name}$`));
-      await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
-      await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the canvas
-      must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1, 'the pick left the project frame');
-      await picker.selectOption(away.name);
-      await page.locator('[data-canvas-gate]').getByRole('heading', { name: NOT_HERE }).waitFor({ timeout: 20000 });
-      must(await ptab(page, 'Learn').count() === 1 && await composers(page) === 0, 'the gate left the frame or mounted Learn');
+      await page.locator('[data-canvas-switcher]').waitFor({ timeout: 30000 });
+      await page.locator('[data-canvas-switcher]').click();
+      const options = (await page.locator('[data-canvas-option]').allInnerTexts()).map((t) => t.trim());
+      for (const t of ['Main canvas', 'wp6 learn owned', 'wp6 learn away']) must(options.includes(t), `switcher: ${options.join(' | ')}`);
+      await page.keyboard.press('Escape');
+      for (const c of [owned, away]) {
+        await pick(c.name);
+        await page.waitForURL(new RegExp(`[?]tab=learn&canvas=${c.name}$`));
+        await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
+        await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the canvas
+        must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await page.locator('[data-learn-map]').count() === 1, `${c.title} left the project frame`);
+      }
     } finally { await drop6(page, owned.name); await drop6(page, away.name); await page.context().close(); }
   });
 

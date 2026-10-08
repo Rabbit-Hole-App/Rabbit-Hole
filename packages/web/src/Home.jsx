@@ -4,7 +4,7 @@ import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
-import PublicCards, { CreatorChip } from './home/PublicCards.jsx';
+import PublicCards, { CreatorChip, ProjectFilter } from './home/PublicCards.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
@@ -146,14 +146,16 @@ function Explore() {
     setTab(next);
     window.history.replaceState(window.history.state, '', next === 'creators' ? '/explore?tab=creators' : '/explore');
   };
+  // ?project=owner/repo: a card's project label opened Explore on that project's published canvases (PublicCards ProjectFilter).
+  const project = new URLSearchParams(window.location.search).get('project');
   useEffect(() => { let live = true; loadProfile().then((p) => { if (live) setMe(p?.handle || null); }); return () => { live = false; }; }, []);
   useEffect(() => {
     if (tab !== 'explainers') return;
     let live = true;
-    fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
+    fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}${project ? `&project=${encodeURIComponent(project)}` : ''}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
       .then(data => { if (live) setCards(data.canvases || []); }).catch(() => { if (live) setCards([]); });
     return () => { live = false; };
-  }, [tab, order, q]);
+  }, [tab, order, q, project]);
   useEffect(() => {
     if (tab !== 'creators') return;
     let live = true;
@@ -184,6 +186,7 @@ function Explore() {
             {creators?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
           </section>
         ) : <>
+          {project && <ProjectFilter project={project} empty={cards?.length === 0 && !term} />}
           {cards === null && <SkeletonRows rows={3} />}
           {cards?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>}
           {cards?.length > 0 && <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>}
