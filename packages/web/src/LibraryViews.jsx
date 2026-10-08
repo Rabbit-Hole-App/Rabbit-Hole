@@ -4,7 +4,8 @@ import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { browserOnly, onAnotherDevice, readRecent } from './home/continue.js';
 import { cardModel } from './home/provenance.js';
-import LearningCard, { CARD_GRID, IN_THIS_BROWSER, ON_ANOTHER_DEVICE } from './home/LearningCard.jsx';
+import LearningCard, { CARD_ROWS, IN_THIS_BROWSER, ON_ANOTHER_DEVICE } from './home/LearningCard.jsx';
+import { cardThumbnail } from './card-thumbnail.js';
 import { useCardMenu } from './home/CardMenu.jsx';
 import { sortCards } from './home/card-sort.js';
 import { chipHref, isMine, libraryHref, librarySections, ofType, SCOPES, SECTION_LIMIT, TYPES } from './library-filter.js';
@@ -33,7 +34,7 @@ export default function LibraryViews({ apps, type, data, sort, onType, onArchive
   const sections = librarySections(apps, recent).map((s) => (s.key === 'apps' ? s : { ...s, items: sortCards(ofType(apps, s.key), sort).slice(0, SECTION_LIMIT) }));
   return (
     <>
-      {type ? <ul className={CARD_GRID}>{sortCards(ofType(apps, type), sort).map(card)}</ul> : (
+      {type ? <ul className={CARD_ROWS}>{sortCards(ofType(apps, type), sort).map(card)}</ul> : (
         <div className="space-y-10">
           {sections.filter((s) => s.items.length).map((s) => (
             <section key={s.key} aria-label={s.label}>
@@ -43,7 +44,7 @@ export default function LibraryViews({ apps, type, data, sort, onType, onArchive
               </div>
               {s.key === 'apps'
                 ? <ul>{s.items.map((a) => <AppRow key={a.name} a={a} running={runningOf(a)} onRun={(x) => guard(x, () => onRun(x))()} />)}</ul>
-                : <ul className={CARD_GRID}>{s.items.map(card)}</ul>}
+                : <ul className={CARD_ROWS}>{s.items.map(card)}</ul>}
             </section>
           ))}
         </div>
@@ -116,7 +117,7 @@ function LibraryCard({ a, ctx, onMore }) {
   return (
     <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas' }}
       href={a.fixture ? null : `/apps/${a.name}`} onOpen={() => open(a)} mine={!a.fixture && isMine(a, ctx.email)}
-      access={a.kind === 'canvas' && !a.fixture ? a.access : null} onMore={onMore} note={note}
+      access={a.kind === 'canvas' && !a.fixture ? a.access : null} onMore={onMore} note={note} thumbnail={cardThumbnail(a)}
       onForkedFromOpen={(id) => open({ name: id, fixture: a.fixture })} />
   );
 }

@@ -3,7 +3,8 @@ import { ArrowRight, ArrowUpRight, Search } from 'lucide-react';
 import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
-import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
+import LearningCard, { CARD_ROWS, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
+import { cardThumbnail } from './card-thumbnail.js';
 import PublicCards, { CreatorCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
@@ -65,7 +66,7 @@ function HomeContent({ data, load }) {
             {items.length > 0 && (
               <section aria-label="Recent">
                 <h2 className={HEADING}>Recent</h2>
-                <ul className={CARD_GRID}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} email={data.email} onMore={cardMenu.onMore(a)} />)}</ul>
+                <ul className={CARD_ROWS}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} email={data.email} onMore={cardMenu.onMore(a)} />)}</ul>
               </section>
             )}
             {cardMenu.element}
@@ -85,8 +86,8 @@ function Continue({ item, app, email }) {
   return (
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue learning</h2>
-      <ul className={CARD_GRID}>
-        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go}
+      <ul className={CARD_ROWS}>
+        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)}
           mine={isMine(a, email)} access={a.kind === 'canvas' ? a.access : null}
           note={(
             <>
@@ -114,7 +115,7 @@ function RecentCard({ app, card, email, onMore }) {
     : meta.join(' · ');
   const link = 'inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline';
   return (
-    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }}
+    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
       mine={!app.fixture && isMine(app, email)} access={app.kind === 'canvas' && !app.fixture ? app.access : null} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}

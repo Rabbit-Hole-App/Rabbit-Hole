@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
 import { ago } from '../api.js';
 import { ACCESS } from '../canvas-visibility.js';
@@ -16,6 +16,7 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 //   this browser's content state     (only a canvas or project whose board is not on the server)
 //   actions                          (Start Rabbit Hole and [Fork | N] on others' cards)
 //   [fork] N forks · Updated 2h ago                  Open →   (one footer line; Continue → on Home instead of Open)
+// with the canvas's picture beside it on the right (card-thumbnails.md), above it on a phone.
 // A click on the card selects it, never opens it (owner, 2026-10-08): the title link, the Open button and Enter on the
 // selected card open it, Open showing on hover or selection (always on touch). N forks is read-only and only when someone
 // forked it; Fork itself lives in actions.
@@ -23,8 +24,16 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 // Hole. Everything else - description, times, forks, visibility, ⋮, secondary buttons - stays neutral.
 
 // Two columns on a typical desktop (the 1150px pages leave ~958px: two ~471px cards), one on a phone; three only on a
-// page genuinely wider than today's.
+// page genuinely wider than today's. Shared with you's small cards keep it.
 export const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,380px),1fr))] gap-4';
+// The learning cards, one per row (owner, 2026-10-08: "you can show one card per row", distill.pub's list): two per row
+// left their picture about 180 x 90, too small to make out; one per row shows it about 350 x 175.
+export const CARD_ROWS = 'grid grid-cols-1 gap-4';
+// Every card the same size (owner, 2026-10-08: "each card should be same size but also allow enough space to show an
+// image that can be seen"): a fixed height beside the picture; on a phone the picture is on top and the text below it has
+// the fixed height. Text clamps (title two lines, description three, two beside actions or a note) and never grows it.
+export const CARD_HEIGHT = 'md:h-[228px]';
+const CARD_TEXT_PHONE = 'max-md:h-[196px] max-md:flex-none';
 
 // Type icons (§14): one tile per kind, the same on every surface - a project its repository, a canvas its pen; never a
 // word and never a colour by topic. The tints stay off the primary blue, which belongs to navigation.
@@ -32,12 +41,34 @@ const TYPES = {
   repository: { label: 'Project', Icon: FolderGit2, tone: 'bg-[#f1ebfa] text-[#6b3fb0] dark:bg-[#2e2440] dark:text-[#c2a6f0]' },
   canvas: { label: 'Canvas', Icon: Shapes, tone: 'bg-[#e6f4ea] text-[#22744a] dark:bg-[#1d3226] dark:text-[#86d2a3]' },
 };
+// The picture's quiet stand-in while there is none yet (or it is loading): the canvas's own dot grid on a faint tint of the
+// type, with its icon - never an empty grey box.
+const PLACEHOLDER = {
+  repository: 'bg-[#faf7fd] text-[#6b3fb0]/45 dark:bg-[#211b2b] dark:text-[#c2a6f0]/45',
+  canvas: 'bg-[#f5fbf7] text-[#22744a]/45 dark:bg-[#18221b] dark:text-[#86d2a3]/45',
+};
 export function TypeIcon({ kind, schedule }) {
   const t = TYPES[kind];
   return (
     <span data-type-icon={kind} role="img" aria-label={t?.label || 'App'} className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${t?.tone || 'bg-hover text-ink-2'}`}>
       {t ? <t.Icon size={18} strokeWidth={1.75} /> : <KindIcon kind={kind} schedule={schedule} size={18} />}
     </span>
+  );
+}
+
+// The card's picture (card-thumbnails.md): 2:1, right of the text from md (38% of the card, at most 500px), full width
+// above it on a phone. The server answers 204 when there is none yet, so the <img> errors quietly and the placeholder stays.
+export function CardThumbnail({ kind, src }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => { if (!src) setShown(false); }, [src]);
+  const Icon = TYPES[kind]?.Icon || Shapes;
+  return (
+    <div data-card-thumbnail={shown ? 'image' : 'placeholder'} aria-hidden="true"
+      className={`relative grid aspect-[2/1] w-full max-w-[500px] shrink-0 place-items-center self-start overflow-hidden rounded-md border border-line md:order-last md:w-[38%] ${PLACEHOLDER[kind] || PLACEHOLDER.canvas} bg-[radial-gradient(var(--color-line)_1px,transparent_1px)] bg-[size:14px_14px]`}>
+      {!shown && <Icon size={22} strokeWidth={1.5} />}
+      {src && <img src={src} alt="" loading="lazy" decoding="async" draggable={false} onLoad={() => setShown(true)} onError={() => setShown(false)}
+        className={`absolute inset-0 h-full w-full bg-white object-cover ${shown ? '' : 'invisible'}`} />}
+    </div>
   );
 }
 
@@ -81,64 +112,68 @@ const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leadin
 // `href`: the title's link, so it opens in a new tab too. `mine`: the viewer owns it. `onMore`: the ⋮. `note`: this
 // browser's content state. `actions`: the surface's buttons, in their own row. `cta`: a small text link at the footer's end
 // (Home's Continue →). `onForkedFromOpen`: a review fixture's original. `creatorHref`: the creator's public profile
-// (/@handle; docs/features/creator-profile.md), else the card's own @handle's (cardModel), on every surface.
-export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given }) {
+// (/@handle; docs/features/creator-profile.md), else the card's own @handle's (cardModel), on every surface. `thumbnail`:
+// the picture's address (card-thumbnail.js); a canvas or project without one shows the placeholder.
+export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null }) {
   const learning = kind === 'repository' || kind === 'canvas';
   const creatorHref = given || m.creator?.url; // every surface's @handle opens the profile (owner, 2026-10-08)
   const repo = kind === 'repository' && m.sourceUrl;
   return (
     <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
-      className={`group select-card flex min-h-[186px] min-w-0 flex-col rounded-lg border border-line bg-white p-4 ${onOpen ? 'lift-card' : ''}`}>
-      <div className="flex min-w-0 items-start gap-3">
-        <TypeIcon kind={kind} schedule={schedule} />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {href && onOpen ? <a data-card-title href={href} onClick={(e) => { e.stopPropagation(); if (plain(e)) { e.preventDefault(); onOpen(); } }} className={`${TITLE} self-start text-accent hover:underline`}>{m.title}</a>
-            : onOpen ? <button type="button" data-card-title onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
-            : <span data-card-title className={`${TITLE} text-ink`}>{m.title}</span>}
-          {/* the badge sits beside the @handle, outside data-creator: the attribution line reads exactly @handle */}
-          {m.creator && <span className="flex min-w-0 items-center gap-1">{creatorHref
-            ? <a data-creator-link href={creatorHref} title="Open the creator's profile" onClick={(e) => e.stopPropagation()} className="min-w-0 rounded-sm outline-none focus-visible:bg-accent/15 [&:hover_[data-creator]]:text-ink [&:hover_[data-creator]]:underline"><Creator m={m} /></a>
-            : <Creator m={m} />}{mine && <OwnerCheck owned />}</span>}
-          {/* A published canvas's parent project (project-canvases.md): Explore filtered to that project's published canvases. */}
-          {m.project && <a data-card-project href={m.project.href} title="Explore published canvases from this project" onClick={(e) => e.stopPropagation()}
-            className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-ink-2 hover:text-ink hover:underline">
-            <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span className="truncate">From {m.project.label}</span></a>}
-          <ForkedFrom m={m} onOpen={onForkedFromOpen} />
+      className={`group select-card flex min-w-0 gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 max-md:flex-col ${CARD_HEIGHT} ${onOpen ? 'lift-card' : ''}`}>
+      {learning && <CardThumbnail kind={kind} src={thumbnail} />}
+      <div data-card-text className={`flex min-h-0 min-w-0 flex-1 flex-col ${CARD_TEXT_PHONE}`}>
+        <div className="flex min-w-0 items-start gap-3">
+          <TypeIcon kind={kind} schedule={schedule} />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            {href && onOpen ? <a data-card-title href={href} onClick={(e) => { e.stopPropagation(); if (plain(e)) { e.preventDefault(); onOpen(); } }} className={`${TITLE} self-start text-accent hover:underline`}>{m.title}</a>
+              : onOpen ? <button type="button" data-card-title onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
+              : <span data-card-title className={`${TITLE} text-ink`}>{m.title}</span>}
+            {/* the badge sits beside the @handle, outside data-creator: the attribution line reads exactly @handle */}
+            {m.creator && <span className="flex min-w-0 items-center gap-1">{creatorHref
+              ? <a data-creator-link href={creatorHref} title="Open the creator's profile" onClick={(e) => e.stopPropagation()} className="min-w-0 rounded-sm outline-none focus-visible:bg-accent/15 [&:hover_[data-creator]]:text-ink [&:hover_[data-creator]]:underline"><Creator m={m} /></a>
+              : <Creator m={m} />}{mine && <OwnerCheck owned />}</span>}
+            {/* A published canvas's parent project (project-canvases.md): Explore filtered to that project's published canvases. */}
+            {m.project && <a data-card-project href={m.project.href} title="Explore published canvases from this project" onClick={(e) => e.stopPropagation()}
+              className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-ink-2 hover:text-ink hover:underline">
+              <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span className="truncate">From {m.project.label}</span></a>}
+            <ForkedFrom m={m} onOpen={onForkedFromOpen} />
+          </div>
+          {(access || onMore) && (
+            <div className="-mt-0.5 -mr-1.5 flex shrink-0 items-center gap-1">
+              {access && <Visibility access={access} />}
+              {onMore && <IconBtn title="More" aria-label="More" onClick={stop(onMore)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>}
+            </div>
+          )}
         </div>
-        {(access || onMore) && (
-          <div className="-mt-0.5 -mr-1.5 flex shrink-0 items-center gap-1">
-            {access && <Visibility access={access} />}
-            {onMore && <IconBtn title="More" aria-label="More" onClick={stop(onMore)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>}
+        {(repo || m.description) && (
+          <div className="flex min-w-0 flex-col gap-1 pt-2">
+            {repo && (
+              <a data-source-link href={m.sourceUrl} target="_blank" rel="noreferrer" title="Open the repository on GitHub" onClick={(e) => e.stopPropagation()}
+                className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-accent hover:underline">
+                <span className="truncate">{m.source}</span><ArrowUpRight size={13} strokeWidth={1.75} className="shrink-0" />
+              </a>
+            )}
+            {m.description && <p data-card-description className={`${actions || note ? 'line-clamp-2' : 'line-clamp-3'} break-words text-[13px] leading-5 text-ink-2`}>{m.description}</p>}
+          </div>
+        )}
+        {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-ink-3">{note}</div>}
+        {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">{actions}</div>}
+        {learning && (
+          <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-2' : 'mt-auto pt-3'}`}>
+            {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
+            <Forks m={m} />
+            {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}
+            {m.canvases && <span data-canvas-count className="inline-flex shrink-0 items-center gap-1"><Shapes size={12} strokeWidth={1.5} />{m.canvases}</span>}
+            {m.updated && <span data-updated className="shrink-0">Updated {ago(m.updated)}</span>}
+            <span className="flex-1" />
+            {cta || (onOpen && (
+              <Button size="sm" variant="secondary" data-card-open onClick={stop(onOpen)}
+                className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">Open <ArrowRight size={13} className="nudge-arrow" /></Button>
+            ))}
           </div>
         )}
       </div>
-      {(repo || m.description) && (
-        <div className="flex min-w-0 flex-col gap-1 pt-2">
-          {repo && (
-            <a data-source-link href={m.sourceUrl} target="_blank" rel="noreferrer" title="Open the repository on GitHub" onClick={(e) => e.stopPropagation()}
-              className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-accent hover:underline">
-              <span className="truncate">{m.source}</span><ArrowUpRight size={13} strokeWidth={1.75} className="shrink-0" />
-            </a>
-          )}
-          {m.description && <p data-card-description className="line-clamp-3 break-words text-[13px] leading-5 text-ink-2">{m.description}</p>}
-        </div>
-      )}
-      {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-ink-3">{note}</div>}
-      {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">{actions}</div>}
-      {learning && (
-        <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-2' : 'mt-auto pt-3'}`}>
-          {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
-          <Forks m={m} />
-          {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}
-          {m.canvases && <span data-canvas-count className="inline-flex shrink-0 items-center gap-1"><Shapes size={12} strokeWidth={1.5} />{m.canvases}</span>}
-          {m.updated && <span data-updated className="shrink-0">Updated {ago(m.updated)}</span>}
-          <span className="flex-1" />
-          {cta || (onOpen && (
-            <Button size="sm" variant="secondary" data-card-open onClick={stop(onOpen)}
-              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">Open <ArrowRight size={13} className="nudge-arrow" /></Button>
-          ))}
-        </div>
-      )}
     </li>
   );
 }

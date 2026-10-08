@@ -15,6 +15,8 @@ Content in this browser               (only when its content is not on the serve
 [fork] 14 forks · Updated 2h ago                    Open →
 ```
 
+Since 2026-10-08 the card's picture sits on its right, 2:1 and 38% of the card wide, and above the text on a phone (card-thumbnails.md).
+
 Owner changes, 2026-10-08:
 - **The footer is the card's last line** ("why is the updated... in the middle of the cards??"): the read-only fork count
   and Updated sit side by side at the bottom, GitHub-style, with any actions above them (`data-card-footer`).
@@ -36,7 +38,8 @@ Owner changes, 2026-10-08:
 - **A canvas is `Shapes`, not a pen** ("choose another symbol for Canvas instead of that pen"), on the card tile, the
   kind icon (Search, sidebar rows) and the Library's Filters.
 
-- **Size:** at 1440×900 a card is about 471 × 186-205 px, two columns (`CARD_GRID`: `minmax(min(100%, 380px), 1fr)`, 16px gap). An Explore card with its actions row is up to about 240 px. The 1150px pages leave room for two. A phone gets one column. Three would need a page genuinely wider than today's.
+- **Size (since card-thumbnails.md, owner 2026-10-08):** one card per row (`CARD_ROWS`), every card a fixed 228 px high from `md`, the picture beside the text; on a phone the picture is on top and the text below it a fixed 196 px. The description clamps to two lines on a card with actions or a note. The paragraph below is the earlier two-column size.
+- **Size (before):** at 1440×900 a card is about 471 × 186-205 px, two columns (`CARD_GRID`: `minmax(min(100%, 380px), 1fr)`, 16px gap). An Explore card with its actions row is up to about 240 px. The 1150px pages leave room for two. A phone gets one column. Three would need a page genuinely wider than today's.
   - About 15% shorter (owner, 2026-10-08: "reduce the height of the card a bit", on Home, Library and Explore):
     - the floor is 186 px, from 220;
     - the padding is 16 px, from 20;
@@ -115,3 +118,4 @@ Server persistence and the cross-device proof retired these for every canvas who
   It adds one project row to the owner's `/api/apps` reply in the browser, because importing a repository needs the indexer.
 - `e2e/card-redesign-check.mjs` also checks (2026-10-08) the `Shapes` canvas icon, no Fork on any own card, the select-not-open click with Open on hover, the footer as the last line with the count beside Updated, no "0 forks", Enter opening the selected card, Sort beside Filters, and the Explore card's soft `[Fork | N]` with its dialog's Cancel.
 - `e2e/canvas-forking-check.mjs` reads no count at zero on your own card and no Fork on it.
+- `e2e/card-thumbnails-check.mjs` (13 checks) covers the picture, one card per row, the fixed size and the phone layout (card-thumbnails.md).

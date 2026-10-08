@@ -9,6 +9,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
+import { sniffImageType } from './learn-media.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
@@ -71,6 +72,74 @@ async function listAssets(env, row) {
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
   return json({ keys });
+}
+
+// Card thumbnails (docs/features/card-thumbnails.md): one landscape picture per main board, on its Home, Library and
+// Explore cards. The browser draws the snapshot when the board saves; the owner may replace it with a picture of their
+// own, which wins while it exists. Both sit in R2 under the board row's id, so no migration and no model call.
+export const THUMBNAIL_LIMIT = 1024 * 1024;
+const thumbnailObject = (boardId, source) => `learn-thumbnails/${boardId}/${source}`;
+const THUMBNAIL_HEADERS = { 'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff' };
+
+// The custom picture, else the snapshot. 204 when there is neither, so a card's <img> quietly keeps its placeholder;
+// 304 when the browser's copy is current (ETag).
+async function serveThumbnail(req, env, boardId) {
+  const media = learnMedia(env);
+  for (const source of ['custom', 'snapshot']) {
+    const object = media && boardId ? await media.get(thumbnailObject(boardId, source), { onlyIf: req.headers }) : null;
+    if (!object) continue;
+    const headers = { ...THUMBNAIL_HEADERS, 'Content-Type': object.httpMetadata?.contentType || 'image/png', 'Content-Security-Policy': "sandbox; default-src 'none'", 'X-Thumbnail-Source': source, ...(object.httpEtag ? { ETag: object.httpEtag } : {}) };
+    if (!object.body) return new Response(null, { status: 304, headers });
+    return new Response(req.method === 'HEAD' ? null : object.body, { headers });
+  }
+  return new Response(null, { status: 204, headers: THUMBNAIL_HEADERS });
+}
+
+// The bytes are trusted, not the declared type: PNG, JPEG or WebP, at most 1 MB (the browser sends 800 x 400).
+async function putThumbnail(req, env, row, source) {
+  if (!learnMedia(env)) return json({ error: 'Thumbnails need the R2 bucket on this worker.' }, 503);
+  const tooBig = json({ error: 'A thumbnail must be at most 1 MB.' }, 413);
+  if (Number(req.headers.get('content-length') || 0) > THUMBNAIL_LIMIT) return tooBig;
+  const bytes = new Uint8Array(await req.arrayBuffer());
+  if (bytes.byteLength > THUMBNAIL_LIMIT) return tooBig;
+  const contentType = sniffImageType(bytes);
+  if (!contentType) return json({ error: 'A thumbnail must be a PNG, JPEG or WebP image.' }, 415);
+  await learnMedia(env).put(thumbnailObject(row.id, source), bytes, { httpMetadata: { contentType }, customMetadata: { source } });
+  return json({ source, size: bytes.byteLength });
+}
+
+// The owner's own board thumbnail: GET (HEAD) serves it, PUT stores the snapshot, PUT /custom the owner's picture and
+// DELETE /custom goes back to the snapshot. Only a main board, and never one in Trash or archived.
+async function ownThumbnail(req, env, owner, app, board, custom) {
+  if (board !== 'main') return json({ error: 'Only a main board has a thumbnail.' }, 404);
+  const live = await env.LEARN_DB.prepare(`SELECT ${NOT_TRASHED('?1', '?2')} AND NOT EXISTS (SELECT 1 FROM canvases c WHERE c.org = ?1 AND c.name = ?2 AND c.archived_at IS NOT NULL) AS live`).bind(owner.org, app).first();
+  if (!live?.live) return json({ error: 'This canvas is in Trash or archived.' }, 404);
+  const method = req.method;
+  if (method !== 'GET' && method !== 'HEAD' && req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  let row = await ownerRow(env, owner, app, board);
+  if (!custom) {
+    if (method === 'GET' || method === 'HEAD') return serveThumbnail(req, env, row?.id);
+    if (method !== 'PUT') return json({ error: 'Method not allowed' }, 405);
+    return row ? putThumbnail(req, env, row, 'snapshot') : json({ error: 'Save this board first.' }, 404);
+  }
+  if (method === 'DELETE') {
+    if (row && learnMedia(env)) await learnMedia(env).delete(thumbnailObject(row.id, 'custom'));
+    return json({ source: 'snapshot' });
+  }
+  if (method !== 'PUT') return json({ error: 'Method not allowed' }, 405);
+  // A canvas made before boards came with their rows gets its empty board now, as sharing does.
+  if (!row) { await emptyBoard(env.LEARN_DB, owner.org, owner.email, app, board).run(); row = await ownerRow(env, owner, app, board); }
+  return putThumbnail(req, env, row, 'custom');
+}
+
+// Anyone's view of a thumbnail: only a canvas in Explore right now (PUBLISHED, by its publication token, as its card
+// links it), so a private, unlisted, trashed or archived canvas's picture never reaches anyone but its owner.
+async function publishedThumbnail(req, env, token) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return json({ error: 'Method not allowed' }, 405);
+  const found = TOKEN.test(token) && await env.LEARN_DB.prepare(`SELECT (SELECT b.id FROM learn_boards b WHERE b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main') AS board_id
+    ${PUBLISHED} AND p.token = ?`).bind(token).first();
+  if (!found) return json({ error: 'This canvas is not in Explore.' }, 404);
+  return serveThumbnail(req, env, found.board_id);
 }
 
 export const newToken = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -666,7 +735,10 @@ export async function learnBoardsRoute(path, req, env) {
   if (path === '/api/learn/boards/published/find') return (await import('./explore-find.js')).exploreFindFetch(req, env);
   // Explore: the published canvases (docs/features/explore-publish.md).
   if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q'), p.get('project')) : json({ error: 'Method not allowed' }, 405); }
-  const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share(?:\/repository)?|\/assets(?:\/([^/]+))?)?$/);
+  // A published canvas's card thumbnail, by the publication token its Explore card already links (card-thumbnails.md).
+  const thumbnail = path.match(/^\/api\/learn\/boards\/published\/([^/]+)\/thumbnail$/);
+  if (thumbnail) return publishedThumbnail(req, env, decodeURIComponent(thumbnail[1]));
+  const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share(?:\/repository)?|\/assets(?:\/([^/]+))?|\/thumbnail(?:\/custom)?)?$/);
   if (!own) return null;
   const [, app, rawBoard, suffix, rawKey] = own;
   const shareRoute = suffix === '/share';
@@ -676,6 +748,7 @@ export async function learnBoardsRoute(path, req, env) {
   if (owner instanceof Response) return owner;
   if (shareRoute) return req.method === 'POST' ? share(env, owner, app, board, await readBody(req)) : json({ error: 'Method not allowed' }, 405);
   if (suffix === '/share/repository') return req.method === 'POST' ? shareRepository(env, owner, app, board, await readBody(req)) : json({ error: 'Method not allowed' }, 405);
+  if (suffix?.startsWith('/thumbnail')) return ownThumbnail(req, env, owner, app, board, suffix === '/thumbnail/custom');
   if (suffix?.startsWith('/assets')) {
     const row = await ownerRow(env, owner, app, board);
     if (!row) return json({ error: 'Save or share this board first.' }, 404);
