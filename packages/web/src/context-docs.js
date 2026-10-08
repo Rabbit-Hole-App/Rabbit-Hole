@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { wsHeaders } from './api.js';
 import { toast } from './ui.jsx';
 
-export const ATTACHED_LIMIT = 3;
+export const ATTACHED_LIMIT = 10; // the server's (learn-context-docs.js), pinned by context-docs.test.mjs
 export const CONTEXT_ACCEPT = '.pdf,.txt,.md,.markdown,application/pdf,text/plain,text/markdown';
 export const isContextCanvas = app => /^canvas-[a-f0-9]{8}$/.test(String(app || ''));
 const EVENT = 'small:context-docs';
