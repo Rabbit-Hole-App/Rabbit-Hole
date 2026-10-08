@@ -13,7 +13,8 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8889';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('next-steps-wiring-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'next-steps-wiring-shots';
 mkdirSync(SHOTS, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+// VARS names the stack's control-plane .dev.vars (the keyless journey stack writes its own, as journey-switch-check reads it).
+const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const sessionFor = async email => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json()).session;
 const owner = { session: await sessionFor(`pnsw-owner-${run}@example.com`) };

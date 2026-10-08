@@ -51,7 +51,7 @@ const providerCalls = async () => {
   return (await response.json()).hits;
 };
 const providerBefore = (await providerCalls()).length;
-const plans = [], hooks = [];
+const plans = [], hooks = [], repeated = [];
 const browser = await chromium.launch();
 const errors = [];
 const contextFor = async who => {
@@ -59,11 +59,16 @@ const contextFor = async who => {
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   // A new hole's opening question is a Tutor turn; its plan is answered here, as next-steps-check and journey-check do.
   await context.route('**/api/learn/tutor/plan', route => { plans.push(route.request().url()); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }); });
-  // Professor Next Steps (#46) asks its hook planner when a canvas opens; on a stack without the fixture model that planner
-  // would call the provider, so the hook request is answered here too, with the server's own unavailable reply
-  // (learn-next-steps-routes.js), what these pages got before the tripwire. next-steps-check owns the hooks themselves.
-  await context.route(/\/api\/learn\/(?:tutor|boards\/shared\/[^/]+)\/next-steps$/, route => { hooks.push(route.request().url()); return route.fulfill({ status: 502, json: { error: 'The next steps planner is unavailable' } }); });
+  // Professor Next Steps (#46) asks for hooks when a canvas opens. The request goes to the real route; the gate stack answers
+  // its planner at the provider boundary with the journey fixture (e2e/provider-tripwire.js), counted there as a fixture,
+  // never a provider hit. Each request is recorded per page to hold it to §2.3 (never the same request twice).
   const page = await context.newPage();
+  const seen = [];
+  await context.route(/\/api\/learn\/(?:tutor|boards\/shared\/[^/]+)\/next-steps$/, route => {
+    const key = `${new URL(route.request().url()).pathname} ${route.request().postData() || ''}`;
+    hooks.push(key); if (seen.includes(key)) repeated.push(key); seen.push(key);
+    return route.continue();
+  });
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
 };
@@ -250,8 +255,13 @@ await check('2 Fork is unchanged: a copy in the viewer\'s Library, counted on th
 
 await check('no request reached a model provider: the provider tripwire counted none during this check', async () => {
   const during = (await providerCalls()).slice(providerBefore);
-  console.log(`tutor plans answered in the browser: ${plans.length}; next-steps hook requests answered: ${hooks.length}; provider requests: ${during.length}`);
+  console.log(`tutor plans answered in the browser: ${plans.length}; next-steps hook requests: ${hooks.length} (repeated: ${repeated.length}); provider requests: ${during.length}`);
   assert.deepEqual(during, []);
+});
+
+await check('Next Steps asked for hooks without repeating a request on any page (§2.3)', async () => {
+  assert.ok(hooks.length > 0, 'the canvases asked for hooks');
+  assert.deepEqual(repeated, []);
 });
 await check('no page errors', async () => assert.deepEqual(errors, []));
 console.log(`${results.length}/${results.length} checks passed`);

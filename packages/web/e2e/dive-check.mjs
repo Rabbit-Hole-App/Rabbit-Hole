@@ -27,6 +27,11 @@ const ROOT_URL = `/apps/${root.name}?board=${BOARD}`;
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+// A hole's opening question and a typed turn are Tutor turns (#46): this UI check answers the Tutor plan in the browser, as
+// shared-rabbit-hole-check does; the planner's real wiring is covered on the journey stack (journey-check, tutor-slice-check,
+// next-steps-wiring-check). Next Steps hook requests go to the real route (answered at the provider boundary by the fixture).
+const plans = [];
+await context.route('**/api/learn/tutor/plan', route => { plans.push(route.request().url()); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }); });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
@@ -294,9 +299,15 @@ assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 0, '
 console.log('flow I ok');
 
 // ---- the agent-suggested dive (structure only) ----
+// #46 (docs/features/professor-next-steps.md, LearnPage wiring): on a plain canvas the suggestion no longer floats over the
+// canvas; it draws inside the Tutor's extras under its reply in the dock sheet. A Tutor turn opens that sheet first.
 const card3 = (await blocks())[2];
+await composer().click(); await composer().fill('What should I look at next?'); await composer().press('Enter');
+await page.locator('[data-tutor-extras], [data-learn-dock]').first().waitFor();
+await page.waitForTimeout(800);
 await page.evaluate(id => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail: { blockId: id, topic: 'cross-entropy' } })), card3);
-await page.locator('[data-dive-suggestion]').waitFor();
+await page.locator('[data-tutor-extras] [data-dive-suggestion]').waitFor();
+assert.equal(await page.locator('[data-dive-suggestion]').count(), 1, 'one suggestion, in the Tutor sheet, none floating');
 await shot('13-agent-suggestion');
 await page.getByRole('button', { name: 'Keep it on this canvas' }).click();
 assert.equal(await page.locator('[data-dive-suggestion]').count(), 0);
