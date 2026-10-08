@@ -358,6 +358,8 @@ export function MaterialIcon({ type }) {
 // Exactly the 3 hooks of a set, verbatim and in order: ready, or stale (kept on screen, its buttons disabled, until the new set
 // lands); any other status draws nothing. A click validates through select() and hands the step on once: the clicked hook
 // shows a spinner and no second click goes through. The step itself is never read or shown here.
+// r29 (owner 2026-10-08): the next-section hook names where it goes; when this section's evidence is not met it skips it.
+const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
 export function NextStepsCard({ steps, onPick }) {
   const [working, setWorking] = useState(null);
   if (!steps || !['ready', 'stale'].includes(steps.status) || steps.options.length !== 3) return null;
@@ -372,10 +374,10 @@ export function NextStepsCard({ steps, onPick }) {
     <section data-next-steps={steps.status} aria-label="Curious where this goes?" className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
       <h2 className="text-xs font-medium text-ink-2">Curious where this goes?</h2>
       {steps.options.map(hook => (
-        <button key={hook.id} type="button" data-next-step={hook.id} disabled={steps.status === 'stale' || !!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
+        <button key={hook.id} type="button" data-next-step={hook.id} data-next-section={hook.section?.id} aria-label={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : undefined} disabled={steps.status === 'stale' || !!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
           className="flex w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2 text-left text-sm text-ink hover:border-[#b42318]/40 hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:border-line disabled:hover:bg-transparent">
           {working === hook.id ? <Loader2 size={14} className="mt-0.5 shrink-0 animate-spin text-ink-3" /> : <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" />}
-          <span className="min-w-0">{hook.hook}</span>
+          <span className="min-w-0">{hook.hook}{hook.section && <span data-next-section-note className="block text-xs text-ink-3">{sectionNote(hook.section)}</span>}</span>
         </button>
       ))}
     </section>

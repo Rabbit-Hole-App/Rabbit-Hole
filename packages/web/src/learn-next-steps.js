@@ -1,6 +1,7 @@
 // Professor Next Steps, browser side (docs/features/professor-next-steps.md §2.1, §2.3): the hook planner's input, built from
 // structured state only (never a chat dump, never intake self-report), its staleness basis and the stopping points. Pure.
 import { NEXT_STEPS_LIMITS as L, capText as cap, needsRepair, nextStepsScope, trimToFit } from '../../control-plane/src/agents/learn-next-steps.js';
+import { nextSectionOf, sectionCompletion } from './learn-journey.js';
 import { deriveClaimStates } from './learn-tutor-evidence.js';
 import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
@@ -94,6 +95,8 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
   }
 
   const { goal, parentGoal } = goalOf({ context, record, title, liveTitle });
+  const next = mode === 'journey' ? nextSectionOf(journey?.journey, journey?.path) : null, completion = sectionCompletion(journey?.journey);
+  const tutorSaid = cap(store?.turns?.at(-1)?.tutor || '', 300);
   const asked = ['question', 'request'].includes(lastTurn?.kind) && lastTurn.question ? cap(lastTurn.question, L.question) : null;
   // recent names only claims and cards still in the kept input (set by fits below, after every trim step).
   const transitions = (lastTurn?.transitions || []).map(({ claim, from, to }) => ({ claim, from, to }));
@@ -105,10 +108,15 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
       current: current ? { id: current.id, title: cap(current.title, 80), purpose: cap(current.purpose, 240), claim_ids: claimIdsOf(current) } : null,
       completed: completed.slice(-6).map(s => ({ id: s.id, title: cap(s.title, 80), claim_ids: claimIdsOf(s) })),
       upcoming: sections.filter(s => s.status === 'upcoming').slice(0, 4).map(s => cap(s.title, 80)),
+      // r29 (owner 2026-10-08): the next section, once the current section's checks were tried (sectionCompletion.attempted);
+      // completes says whether moving on completes this section or skips it (the journey route decides).
+      ...(next && completion.attempted ? { next: { id: next.id, title: cap(next.title, 80), completes: completion.met } } : {}),
     } } : {}),
     canvas: { blocks: shown }, scope,
     recent: {
       intent: lastTurn?.kind ?? null, ...(asked ? { question: asked } : {}),
+      // r29: the Tutor's last reply on this canvas (the session store, as the Tutor planner reads it): the example being taught.
+      ...(tutorSaid ? { tutor: tutorSaid } : {}),
       transitions: [], modalities: (store?.modalities || []).slice(-L.modalities), practice: [],
     },
     previous: { hooks: (previous?.hooks || []).slice(-L.previous_hooks), goals: (previous?.goals || []).slice(-L.previous_goals) },

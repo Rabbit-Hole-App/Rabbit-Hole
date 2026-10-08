@@ -134,6 +134,9 @@ function nextStepsFor(input) {
     seen.add(text.toLowerCase());
     options.push({ hook: text, learning_goal, concept_ids: t.concept_ids, claim_ids: t.claim_ids, reason_internal: `fixture ${kind}` });
   }
+  // r29: with path.next given, the third hook leads into the next section (section_id), grounded in its title.
+  const next = input?.path?.next;
+  if (next && options.length === 3) options[2] = { hook: `What changes once you reach ${label(next.title)}?`, learning_goal: `Open the next section: ${String(next.title).slice(0, 80)}`, concept_ids: [], claim_ids: [], reason_internal: 'fixture next section', section_id: next.id };
   return { options, ambiguous: false };
 }
 

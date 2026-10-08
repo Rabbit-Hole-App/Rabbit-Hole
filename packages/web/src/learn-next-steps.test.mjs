@@ -986,3 +986,22 @@ test('holeOpening: nothing is taken or asked until the hook context settles; the
   // Taken once; a settled typed Tutor asks its opening question as before (this load never saves, so the hole is not marked).
   assert.deepEqual([s.m.size, open({ settled: true, active: true }).opening], [0, { key: record.dive_id, question: 'Take me into Falls.' }]);
 });
+
+// Owner 2026-10-08 (r29): a journey hook input names the next section only once the current section's checks were tried, with
+// whether moving on completes it; it carries the Tutor's last reply (the example being taught) from the session store.
+test('r29 nextStepsInput: path.next only after the section checks were tried, with completes; recent.tutor from the last turn', () => {
+  const base = snap();
+  assert.ok(base.journey && base.context?.source === 'journey', 'the journey snapshot');
+  const row = base.journey.journey, criterion = [{ claim: Object.keys(row.registry.claims)[0], minimum: 'demonstrated_in_transfer' }];
+  const withEvents = events => ({ ...base, journey: { ...base.journey, journey: { ...row, section_plan: { ...row.section_plan, completion_evidence: criterion }, evidence: { seq: events.length, events } } } });
+  const ev = over => ({ seq: 1, claim: criterion[0].claim, concept: criterion[0].claim.split('/')[0], settled: true, ...over });
+  assert.equal('next' in nextStepsInput(withEvents([])).input.path, false, 'nothing tried yet');
+  const wrong = nextStepsInput(withEvents([ev({ result: 'misconception', kind: null })])).input.path.next;
+  const right = nextStepsInput(withEvents([ev({ result: 'pass', kind: 'demonstrated_in_transfer' })])).input.path.next;
+  const nextSection = base.journey.path.sections.find((s, i, all) => i > all.findIndex(x => x.id === row.active_section_id) && s.status === 'upcoming');
+  assert.deepEqual(wrong, { id: nextSection.id, title: nextSection.title.slice(0, 80), completes: false });
+  assert.deepEqual(right, { ...wrong, completes: true });
+  const said = nextStepsInput({ ...base, store: { ...base.store, turns: [{ learner: 'hm', tutor: 'Take a spam filter: each word adds to a score.' }] } }).input.recent;
+  assert.equal(said.tutor, 'Take a spam filter: each word adds to a score.');
+  assert.equal('tutor' in nextStepsInput({ ...base, store: { ...base.store, turns: [] } }).input.recent, false);
+});

@@ -29,7 +29,8 @@ test('the tool is exactly the owner schema: suggest_next_steps, 3 options of the
   assert.equal(NEXT_STEPS_TOOL.name, 'suggest_next_steps');
   const options = NEXT_STEPS_TOOL.input_schema.properties.options;
   assert.deepEqual([options.minItems, options.maxItems], [3, 3]);
-  assert.deepEqual(Object.keys(options.items.properties), ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal']);
+  // r29 (owner 2026-10-08): plus the optional section_id of the one next-section hook, never required.
+  assert.deepEqual(Object.keys(options.items.properties), ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal', 'section_id']);
   assert.deepEqual(options.items.required, ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal']);
   assert.equal(options.items.additionalProperties, false);
   assert.equal(JSON.stringify(NEXT_STEPS_TOOL).match(/modality|command|action|"id"/)?.[0] ?? null, null, 'the hook planner never chooses a modality');
@@ -369,4 +370,43 @@ test('with motion: shown and seen count as format verbs, and an all-caps MOTION 
   const topic = 'tides';
   for (const hook of ['Could this idea be shown with motion instead?', 'What is seen with motion in a falling leaf?', 'Why would MOTION make this easier to see?']) assert.equal(hookProblem(hook, { topic }), 'format_word', hook);
   assert.equal(hookProblem('How does drag grow with motion through water?', { topic }), null, 'physics motion still passes');
+});
+
+// Owner 2026-10-08 (r29): at most one hook into the journey's next section, only when the input gives path.next, naming it; its
+// ids may be empty; mintSet carries { id, title, skips }. The scope says what is still missing once part of a claim is shown, and
+// the prompt keeps the other hooks on the Tutor's example and the missing ideas. The keyless planner makes one.
+test('r29 the next-section hook: section_id only for path.next, at most one, ids may be empty; mintSet carries its section', () => {
+  const withNext = { ...INPUT, mode: 'journey', path: { current: null, completed: [], upcoming: ['From a score to probability'], next: { id: 's2', title: 'From a score to probability', completes: false } } };
+  const section = option({ hook: 'How does a score turn into a chance?', learning_goal: 'Open the step from scores to probabilities', concept_ids: [], claim_ids: [], section_id: 's2' });
+  const three = [THREE[0], THREE[1], section];
+  const ok = nextStepsOutput({ options: three }, withNext);
+  assert.equal(ok.ok, true, JSON.stringify(ok.errors));
+  assert.equal(ok.value[2].section_id, 's2');
+  assert.deepEqual(nextStepsOutput({ options: three }, INPUT).errors, ['option 3: section'], 'no path.next: no section hook');
+  assert.deepEqual(nextStepsOutput({ options: [THREE[0], THREE[1], { ...section, section_id: 's9' }] }, withNext).errors, ['option 3: section'], 'another section');
+  assert.ok(nextStepsOutput({ options: [THREE[0], { ...section, hook: 'Where does a chance come from in a score?', learning_goal: 'Trace probabilities back to scores' }, section] }, withNext).errors.includes('section'), 'at most one');
+  assert.ok(nextStepsOutput({ options: [THREE[0], THREE[1], { ...section, section_id: undefined }] }, withNext).errors.includes('option 3: ungrounded'), 'without the section, ids are needed');
+  const minted = mintSet(ok.value, withNext, { hex: () => '0a0b0c0d' });
+  assert.deepEqual(minted.options[2].section, { id: 's2', title: 'From a score to probability', skips: true });
+  assert.deepEqual(minted.options[2].selected_next_step.section, { id: 's2', title: 'From a score to probability', skips: true });
+  assert.equal('section' in minted.options[0], false);
+  assert.equal(mintSet(ok.value, { ...withNext, path: { ...withNext.path, next: { ...withNext.path.next, completes: true } } }).options[2].section.skips, false);
+});
+
+test('r29 the scope names the missing ideas once part of a claim is shown; the prompt keeps hooks on the example and what is missing', () => {
+  const claims = { 'k/c': { concept: 'k', statement: 's', ideas: ['first idea', 'second idea', 'third idea'], drawn: 'd', misconceptions: [], prerequisites: [] } };
+  const scope = events => nextStepsScope({ claims, concepts: { k: { label: 'K' } }, order: ['k/c'], states: {}, events }).claims['k/c'];
+  assert.equal('missing_ideas' in scope([]), false, 'nothing shown: ideas says it all');
+  assert.deepEqual(scope([{ seq: 1, claim: 'k/c', result: 'pass', idea: 1, settled: true }]).missing_ideas, ['first idea', 'third idea']);
+  assert.equal('missing_ideas' in scope([0, 1, 2].map(i => ({ seq: i + 1, claim: 'k/c', result: 'pass', idea: i, settled: true }))), false, 'all shown');
+  for (const line of ['path.next { id, title, completes }', 'except at most one hook into path.next when it is given, with section_id path.next.id', "stay on recent.tutor's example and on what is still missing (scope.claims[].missing_ideas)"]) assert.ok(NEXT_STEPS_SYSTEM.includes(line), line);
+});
+
+test('r29 the keyless planner leads its third hook into path.next, and the set passes the validator', async () => {
+  const { fixtureFor } = await import('../src/learn-journey-fixtures.js');
+  const input = { ...INPUT, mode: 'journey', path: { current: null, completed: [], upcoming: [], next: { id: 's2', title: 'From a linear score to probability', completes: false } }, previous: { hooks: [], goals: [] } };
+  const out = fixtureFor('suggest_next_steps', input);
+  assert.equal(out.options[2].section_id, 's2');
+  const checked = nextStepsOutput(out, input);
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
 });
