@@ -149,15 +149,24 @@ await check('4 Start Rabbit Hole opens the right-clicked card\'s Rabbit Hole - f
 
 await check('5 a kept hole: the card is its portal, and right-click Start Rabbit Hole enters it - never a second hole', async () => {
   await page.waitForSelector('[data-block-id="m-b"]', { timeout: 30000 }); await page.waitForTimeout(800);
+  // #46 review finding: entering a hole opens with a Tutor turn, and a command typed while that turn is in flight is held
+  // (never dropped) and runs once it ends. The opening's plan request is held here until the command is typed.
+  let release;
+  const held = new Promise(resolve => { release = resolve; }), opening = page.waitForRequest('**/api/learn/tutor/plan', { timeout: 20000 });
+  await page.route('**/api/learn/tutor/plan', async route => { await held; return route.fallback(); });
   await rightClick('m-b');
   await startItem().click();
   await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
-  // #46: entering a hole opens with a Tutor turn; the learner types once its question shows (a command typed while that
-  // turn is still in flight is lost - recorded as a #46 review finding, not this check's subject).
-  await page.getByText('What would you like to explore first?').first().waitFor({ timeout: 20000 });
+  await opening;
   const composer = page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
   await composer.click(); await composer.fill('/whiteboard Bulge sketch'); await page.waitForTimeout(150); await composer.press('Enter');
+  await page.waitForTimeout(500);
+  assert.ok(url().searchParams.get('hole'), 'the command waits while the opening turn runs');
+  assert.equal(await composer.inputValue(), '/whiteboard Bulge sketch', 'held, not dropped or cleared');
+  release();
+  await page.getByText('What would you like to explore first?').first().waitFor({ timeout: 20000 });
   await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 20000 });
+  await page.unroute('**/api/learn/tutor/plan');
   const kept = url().pathname.split('/').pop();
   const children = (await tree()).children;
   assert.deepEqual(children.map(child => [child.name, child.origin_block_id]), [[kept, 'm-b']]);

@@ -85,6 +85,12 @@ export const parseSlash = text => {
   return match ? { name: match[1].toLowerCase(), args: (match[2] || '').trim() } : null;
 };
 
+// A /command sent while the dock is busy (a Tutor turn, a hole's opening turn) or while another command runs is held,
+// not dropped, and runs once that ends if the composer still shows it: a cleared or edited line is a change of mind.
+// One line is held; a later Enter holds the newer one.
+export const holdsLine = line => !!parseSlash(String(line));
+export const releaseLine = (held, input) => (held != null && String(input).trim() === held.trim() ? held : null);
+
 const known = id => { try { return arxivId(id); } catch { return null; } };
 // One or two model calls (learn-artifact.js); a request that never answers ends as an error, not a skeleton
 // left waiting (learn-board-request.js waits as long for a board).

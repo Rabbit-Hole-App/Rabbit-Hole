@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ChevronRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
-import { parseSlash, pickerSections } from './learn-slash.js';
+import { parseSlash, pickerSections, releaseLine } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CommandMark } from './CommandTone.jsx';
 
@@ -15,6 +15,8 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
   const [notice, setNotice] = useState(null);
   const [proposal, setProposal] = useState(null);
   const [busy, setBusy] = useState(false);
+  // A command sent while one runs is held and runs after it, if the composer still shows it (learn-slash.js releaseLine).
+  const held = useRef(null);
   // "More learning tools" opens in place: a click, Enter on it, or scrolling
   // to the bottom of the list. It is a way in, not a command.
   const [moreOpen, setMoreOpen] = useState(false);
@@ -46,6 +48,12 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
     setNotice(out.notice || null);
     setProposal(out.proposal || null);
   };
+  useEffect(() => {
+    if (busy || held.current == null) return;
+    const line = releaseLine(held.current, input);
+    held.current = null;
+    if (line) exec(line);
+  }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
   apiRef.current = {
     onKeyDown: event => {
       if (!items.length) return;
@@ -61,7 +69,7 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
       }
     },
     // A sent line that starts with / is a command, never a chat message.
-    intercept: raw => { if (busy) return true; exec(raw); return true; },
+    intercept: raw => { if (busy) { held.current = raw; return true; } exec(raw); return true; },
   };
 
   const tone = { error: 'text-red-700', question: 'text-ink', done: 'text-ink-2', info: 'text-ink-2', busy: 'text-ink-2' };
