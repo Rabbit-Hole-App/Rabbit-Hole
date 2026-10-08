@@ -28,11 +28,12 @@ import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 import { reloadOnce } from './chunk-reload.js';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
-// The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab.
+// The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab, as v2: the same
+// aperture centred and 1.2x larger, so it fills the tab instead of sitting small and high (owner, 2026-10-08).
 if (learnPreview) {
   document.title = PRODUCT;
   document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => link.remove());
-  document.head.insertAdjacentHTML('beforeend', '<link rel="icon" type="image/svg+xml" href="/landing/favicon-v1.svg"><link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32-v1.png"><link rel="apple-touch-icon" href="/landing/apple-touch-icon-v1.png">');
+  document.head.insertAdjacentHTML('beforeend', '<link rel="icon" type="image/svg+xml" href="/landing/favicon-v2.svg"><link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32-v2.png"><link rel="apple-touch-icon" href="/landing/apple-touch-icon-v1.png">');
 }
 
 // org-wide chat as a page - same panel as the app Agent tab, textbox pinned bottom.

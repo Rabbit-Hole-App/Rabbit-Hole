@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <!-- favicon-v1's aperture, centred and 1.2x larger so it fills the tile at tab size (owner, 2026-10-08: "the icon
+       in the chrome browser seems to be small"); the rings' art box was 175x153 at (128.6, 106.4), now 210x183 at the centre. -->
+  <rect width="240" height="240" rx="38" fill="#000"/>
+  <g stroke="#fff" stroke-width="7" transform="translate(120 120) scale(1.2) translate(-128.6 -106.4) rotate(-28 120 120)">
+    <ellipse cx="134" cy="112" rx="88" ry="68"/>
+    <ellipse cx="127" cy="117" rx="73" ry="56"/>
+    <ellipse cx="120" cy="122" rx="58" ry="44"/>
+    <ellipse cx="113" cy="127" rx="44" ry="33"/>
+    <ellipse cx="106" cy="132" rx="30" ry="22"/>
+    <ellipse cx="99" cy="137" rx="17" ry="12"/>
+  </g>
+</svg>
