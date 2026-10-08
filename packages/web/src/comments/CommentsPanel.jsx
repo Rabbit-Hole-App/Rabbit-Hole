@@ -26,7 +26,7 @@ const Audience = ({ audience }) => (
 const storage = () => sessionStorage;
 const POLL_MS = 30_000;
 
-export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraftDone, selected = null, onSelect, onThreads, objectLive = () => true, onFocusAnchor, threadLink = null }) {
+export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraftDone, selected = null, onSelect, onThreads, objectLive = () => true, onFocusAnchor, threadLink = null, stamp = 0 }) {
   const client = useMemo(() => commentsApi(base), [base]);
   const [about, setAbout] = useState(null);
   const [status, setStatus] = useState('open');
@@ -39,7 +39,7 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
       setAbout(info); setList(page); setFailed(null);
     } catch (error) { setFailed(error.status === 404 ? "This canvas isn't available to you." : error.message); }
   }, [client, status, audience]);
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh, stamp]); // stamp: a pin was recoloured or deleted on the canvas
   // Freshness (Q16): every 30 s while the panel shows and the tab is visible, and on focus.
   useEffect(() => {
     if (hidden) return undefined;
@@ -48,7 +48,9 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
     window.addEventListener('focus', tick);
     return () => { clearInterval(timer); window.removeEventListener('focus', tick); };
   }, [hidden, refresh]);
-  useEffect(() => { onThreads?.(list?.threads || []); }, [list, onThreads]);
+  // Only a loaded list goes to the pins: a panel that opens (a pin's click on a page whose panel was closed) keeps the
+  // pins it had until its list arrives, so the picked pin stays.
+  useEffect(() => { if (list) onThreads?.(list.threads); }, [list, onThreads]);
   // 30 per page; Load more appends the next page. A refresh starts again from the first.
   const more = async () => {
     try { const page = await client.threads(status, audience, list.cursor); setList(current => ({ ...page, threads: [...current.threads, ...page.threads] })); } catch (error) { setFailed(error.message); }
