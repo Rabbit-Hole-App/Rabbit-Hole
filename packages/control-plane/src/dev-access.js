@@ -48,8 +48,12 @@ export async function accessSession(req, env, keys) {
   if (!env.ACCESS_AUD) return { req };
   // Half a configuration never falls through to a session.
   if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_ALLOWED_EMAILS || !env.DEV_TEST_BYPASS || !env.ACCESS_HOST) return refuse('Access sign-in on this preview is not fully configured.', 503);
+  // The preview's earlier host (owner 2026-10-08: links without the worker name) answers only with the same path on
+  // ACCESS_HOST: nothing is served or minted there.
+  const url = new URL(req.url);
+  if (env.ACCESS_REDIRECT_FROM && url.hostname === env.ACCESS_REDIRECT_FROM) return { refuse: Response.redirect(`https://${env.ACCESS_HOST}${url.pathname}${url.search}`, 301) };
   // Only the host Access protects: a version preview host (<id>-<worker>.…workers.dev) sits outside the Access application.
-  if (new URL(req.url).hostname !== env.ACCESS_HOST) return refuse('This preview is served only on its Access-protected host.');
+  if (url.hostname !== env.ACCESS_HOST) return refuse('This preview is served only on its Access-protected host.');
   const email = await accessIdentity(req, env, keys);
   const allowed = String(env.ACCESS_ALLOWED_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
   if (!email || (email !== SMOKE_EMAIL && !allowed.includes(email))) return refuse('This preview is private: sign in through Cloudflare Access with an allowed account.');
