@@ -97,6 +97,10 @@ Files, Graph, the inspector and the dock chips all read and write it.
     nothing; Learn shows `Asking about: model.py:177–179 · <commit>`, and the Tutor chooses the pedagogy. No card type is
     chosen here.
 - The context stays until it is cleared or replaced, so follow-ups ("Why?", "What calls this?") need no reselection.
+- With a selection, "Show me the data flow." is a question too (owner, 2026-10-07): in a project with a selection, a
+  "show …" that names no resource is asked about the selection instead of answering No matches (`agent/router.js` rule
+  3). A resource match still opens, "show my canvases" still filters the Library, and open / go to stay navigation (the
+  bar opens no files, so "open missing.py" keeps its No matches). With no selection, "show …" is the search it was.
 
 ## Large selections
 
@@ -136,6 +140,7 @@ Unchanged: the Sources dropdown under an answer lists only the files the server'
 ## Tests
 
 - Web unit: `agent/scope.test.mjs` (range context, chips, ×), `agent/ask-stream.test.mjs` (range on the wire),
+  `agent/router.test.mjs` (show … with a selection),
   `code-reader.test.mjs` (tree, search), `project-ui.test.mjs` (navigation, Layers, one selection).
 - Server: `control-plane/test/repositories.test.js`, the large-range case.
 - Browser: `packages/web/e2e/repo-browser-check.mjs` on the local stack, one numbered case per brief §16 item, with the

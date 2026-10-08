@@ -200,13 +200,20 @@ await check('I §13: the inspector shows the selected range - title, breadcrumb,
 });
 await shot('I-inspector-selected-range');
 
-await check('7 context survives follow-up prompts: four questions in a row each carry the same range, never reselected', async () => {
-  for (const text of ['Why are token and positional embeddings added here?', 'Why?', 'What calls this?', 'What happens next?']) {
-    const sent = await send(text);
+await check('7 context survives follow-up prompts: five questions in a row, the brief\'s "Show me the data flow." among them, each carry the same range', async () => {
+  for (const text of ['Why are token and positional embeddings added here?', 'Why?', 'What calls this?', 'What happens next?', 'Show me the data flow.']) {
+    const sent = await send(text); // "Show me…" names no resource, so with a selection it is a question, not a No matches search (router.js)
+    assert.equal(sent.message, text);
     assert.deepEqual(sent.repository_context, { commit: COMMIT, range: { path: 'model.py', start: 177, end: 179 }, label: 'model.py:177–179' });
     assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
   }
+  await bar.locator('[data-result-open]').click();
+  const sheet = page.locator('[data-result-sheet]');
+  await sheet.getByText('Show me the data flow.').waitFor();
+  assert.equal(await sheet.getByText('No matches.').count(), 0);
 });
+await shot('G2-show-me-routed-to-ask');
+await page.getByRole('button', { name: 'Collapse results' }).click();
 
 await check('12 the selected source reaches the existing repository handoff: /api/learn/ask in project scope with identity and range, no source text', async () => {
   const sent = asks.at(-1);
@@ -231,7 +238,7 @@ await check('10 a large selection keeps its whole range and stays bounded: 1-330
   assert.match(await actions.innerText(), /model\.py:1–330/);
   await actions.getByRole('button', { name: 'Ask', exact: true }).click();
   assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 1–330']);
-  const sent = await send('How does data flow through this?'); // Auto routes 'Show me <x>' to open and 'Walk me through' to teach (router.js)
+  const sent = await send('How does data flow through this?'); // 'Walk me through …' would be a learning request (router.js LEARN_INTENT)
   assert.deepEqual(sent.repository_context.range, { path: 'model.py', start: 1, end: 330 });
   assert.ok(JSON.stringify(sent).length < 400, `the request stays small: ${JSON.stringify(sent).length} bytes`);
   assert.equal(await title(), 'model.py:1–330');

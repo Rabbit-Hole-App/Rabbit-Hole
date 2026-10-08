@@ -265,3 +265,28 @@ test('an unknown slash command says so instead of going to Ask', () => {
   assert.deepEqual(at('/foobar with words'), { type: 'unknown_command', name: 'foobar' });
   assert.equal(at('/find nanoGPT').name, 'search_resources');
 });
+
+// Owner, 2026-10-07 (repository-browser.md, router option A): in a project with a selection, a "show …" that names no
+// resource is a question about that selection, asked in the frozen scope (askBody carries the selection). A resource
+// match still opens; open and go to stay navigation, with their No matches; no selection or no project is as before.
+test('show <x> in a project with a selection: no resource match is a question about the selection; matches, open and go to unchanged', () => {
+  const selected = { id: 'range:model.py:177-179', kind: 'range', label: 'lines 177–179', path: 'model.py', line: 177, start: 177, end: 179, commit: '3adf61e' };
+  const PICKED = { ...NANOGPT, selected };
+  // (a) the brief's follow-up goes to Ask, with the selection in the scope the bar sends it in
+  assert.deepEqual(at('Show me the data flow.', { scope: PICKED }), { type: 'ask', mode: 'ask', text: 'Show me the data flow.' });
+  assert.deepEqual(at('show how the loss is computed', { scope: PICKED }), { type: 'ask', mode: 'ask', text: 'show how the loss is computed' });
+  // (b) no selection, or no project: as before, a catalog search that says No matches
+  assert.deepEqual(at('Show me the data flow.', { scope: NANOGPT }), { type: 'command', name: 'search_resources', args: { text: 'me the data flow.' } });
+  assert.deepEqual(at('Show me the data flow.'), { type: 'command', name: 'search_resources', args: { text: 'me the data flow.' } });
+  assert.deepEqual(at('Show me the data flow.', { scope: { org: 'gmail-com', kind: 'canvas', slug: 'canvas-0f9e8d7c', title: 'Attention deep dive', selected } }), { type: 'command', name: 'search_resources', args: { text: 'me the data flow.' } });
+  // (c) a resource match still opens, selection or not
+  assert.deepEqual(at('show counter-2', { scope: PICKED }), { type: 'command', name: 'open_resource', args: { slug: 'counter-2', kind: 'server', title: 'counter-2' } });
+  assert.equal(at('show attention', { scope: PICKED }).type, 'choose');
+  // (d) Library words are unchanged
+  assert.deepEqual(at('Show my canvases', { scope: PICKED }), { type: 'command', name: 'filter_library', args: { type: 'canvases', section: 'private' } });
+  // (e, f) open and go to stay navigation: a name the catalog does not hold keeps its No matches (the bar opens no files)
+  assert.deepEqual(at('open missing.py', { scope: PICKED }), { type: 'command', name: 'search_resources', args: { text: 'missing.py' } });
+  assert.deepEqual(at('go to nonexistent.py', { scope: PICKED }), { type: 'command', name: 'search_resources', args: { text: 'nonexistent.py' } });
+  assert.deepEqual(at('open train.py', { scope: PICKED }), { type: 'command', name: 'search_resources', args: { text: 'train.py' } });
+  assert.deepEqual(at('open nanogpt', { scope: PICKED }), OPEN_NANOGPT);
+});
