@@ -1688,3 +1688,22 @@ test('owner 2026-10-07 D2: skipping a question continues the same journey - a ca
   assert.deepEqual(h.actions(), ['cancel']);
   assert.deepEqual([h.view().journey.id, h.view().journey.state, h.view().tray.id], ['j1', 'diagnostic', probeTray.id]);
 });
+
+// r29 (Tutor eval, 2026-10-08): a typed Tutor turn's evidence reaches the journey controller with no re-read: adoptEvidence takes the
+// evaluate reply's events and revision when newer (never older), and the next action posts that revision. The page calls it after
+// every turn, for the same journey only.
+test('controller: adoptEvidence takes a Tutor turn\'s newer evidence and revision, never older; the next action posts it', async () => {
+  const canvas = fakeCanvas();
+  const h = scripted(() => canvas, [recorded('b1'), { status: 409, d: { error: 'next_section has no next section' } }]);
+  await h.ctl.refresh();
+  const events = [{ seq: 1, claim: 'c', result: 'pass', kind: 'demonstrated_in_transfer', settled: true }];
+  assert.equal(h.view().adoptEvidence({ events, seq: 1, revision: 8 }), true);
+  assert.deepEqual([h.view().journey.evidence, h.view().journey.revision], [{ seq: 1, events }, 8]);
+  assert.equal(h.view().adoptEvidence({ events: [], seq: 1, revision: 9 }), false, 'not newer: kept');
+  assert.equal(h.view().adoptEvidence(null), false);
+  await h.view().nextSection();
+  assert.equal(h.calls.at(-1).body.revision, 8, 'the next action carries the adopted revision');
+  const tutor = readFileSync(new URL('./LearnTutor.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(tutor, /const journeyAtStart = journeyRef\.current\?\.journey\?\.id \?\? null;\n\s+let result;/);
+  assert.match(tutor, /save\(result\.store\);\n(?:\s*\/\/[^\n]*\n)*\s*if \(result\.evaluation\?\.journey && journeyAtStart && journeyRef\.current\?\.journey\?\.id === journeyAtStart\) journeyRef\.current\.adoptEvidence\?\.\(result\.evaluation\.journey\);/);
+});
