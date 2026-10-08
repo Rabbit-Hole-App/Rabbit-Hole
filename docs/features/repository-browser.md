@@ -40,7 +40,10 @@ No repository search shortcut exists, so none is shown (only the canvas has `/`)
 
 ## Layers
 
-`[≋ Layers ▾]` in Graph opens a popover of node types, as checkboxes (`MapMemory.jsx` `LayersRow`):
+`[≋ Layers ▾]` in Graph opens a panel of node types, as checkboxes (`MapMemory.jsx` `LayersRow`). It opens beside the
+graph, which narrows to make room, and stays open while layers are toggled; the button closes it. A floating popover
+covered the graph's top-right nodes and controls, so a node under it could not be picked (canvas chrome never covers
+content):
 
 ```
 Layers

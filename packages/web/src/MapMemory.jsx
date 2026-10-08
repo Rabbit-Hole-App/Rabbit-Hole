@@ -14,7 +14,7 @@ const LAYERS = [['decisions', 'Decisions'], ['questions', 'Questions'], ['sessio
 const KIND = { decision: 'Decision', question: 'Question', session: 'Session' };
 const strength = (link) => (link?.confidence === 'INFERRED' ? `Inferred · ${link.score}` : 'Recorded');
 
-// The Layers popover (owner brief §3, repo-graph clarification): node types to show, as checkboxes, several at once. Code is
+// The Layers panel (owner brief §3, repo-graph clarification): node types to show, as checkboxes, several at once. Code is
 // always on. Decisions, Questions and Sessions are first-class types with no canonical record yet (repository-graph-data-audit.md),
 // so they say so and stay off; only the labelled review fixtures (?fixtures=1) can turn them on.
 export function LayersRow({ memory, layers, onToggle }) {

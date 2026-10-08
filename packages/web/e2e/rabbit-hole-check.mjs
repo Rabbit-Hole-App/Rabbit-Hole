@@ -2180,7 +2180,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await loaded(page, `/apps/${ready.name}?tab=map${fixtures ? '&fixtures=1' : ''}`);
     await page.locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
   };
-  // The layers sit behind one icon (project-map-learn.md); a click outside closes them, so open them before each use.
+  // The layers sit behind one button (project-map-learn.md) and open beside the graph; open them before each use.
   const openLayers = async (page) => { if (!(await page.locator('[data-map-layers]').count())) await page.locator('[data-map-layers-open]').click(); };
   // Layers is a popover of node-type checkboxes since repository-browser.md (owner brief §3).
   const layer = (page, name) => page.locator('[data-map-layers]').getByRole('checkbox', { name: new RegExp(`^${name}`) });

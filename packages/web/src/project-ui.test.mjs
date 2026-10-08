@@ -46,8 +46,11 @@ test('the canvas has no Tutor or Practice button: the composer is the Tutor on t
 test('the Map: details and layers behind icons; the inspector closed until used, underline tabs only for a source, no outline (owner, 2026-10-06)', () => {
   assert.match(page, /data-repo-info aria-label="Repository details"/);
   assert.match(page, /<Menu open=\{infoOpen\}[\s\S]*?<SourceLink m=\{cardModel\(app\)\}\/>[\s\S]*?Refresh branch[\s\S]*?<\/Menu>/);
-  // Layers is a labelled popover button in Graph (owner brief §3): icon, Layers, chevron; one search field for both views (§2).
-  assert.match(page, /\{mode==='graph'&&<div className="relative"><Button size="sm" data-map-layers-open[\s\S]*?><Layers size=\{15\}\/>Layers<ChevronDown[\s\S]*?<Menu open=\{layersOpen\}[\s\S]*?className="[^"]*"><LayersRow /);
+  // Layers is a labelled button in Graph (owner brief §3): icon, Layers, chevron; one search field for both views (§2). Its
+  // panel opens beside the graph, which narrows: never a popover over the graph's nodes (repository-browser.md, Layers).
+  assert.match(page, /\{mode==='graph'&&<Button size="sm" data-map-layers-open aria-controls="map-layers" aria-expanded=\{layersOpen\}[\s\S]*?><Layers size=\{15\}\/>Layers<ChevronDown/);
+  assert.match(page, /<RepositoryGraph [^>]*\/>\s*\{layersOpen&&<aside id="map-layers" aria-label="Layers" className="w-60 shrink-0[^"]*"><LayersRow /);
+  assert.doesNotMatch(page, /<Menu open=\{layersOpen\}/);
   assert.equal(page.match(/aria-label="Search repository"/g).length, 1);
   assert.match(page, /placeholder="Search files or symbols…"/);
   assert.equal(page.match(/<LayersRow /g).length, 1, 'the layers row lives only in its menu');

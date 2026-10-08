@@ -106,14 +106,16 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
         {tab==='map'&&snapshot&&<div className="ml-auto flex items-center gap-1.5 pb-1.5">
           {/* One search field, contextual (owner brief §2): Files finds files and symbols, Graph focuses the matching nodes. */}
           <div className="relative"><Search size={14} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3"/><Input aria-label="Search repository" placeholder="Search files or symbols…" value={query} onChange={e=>setQuery(e.target.value)} className="w-64 pl-7 max-md:w-48"/></div>
-          {/* Layers are graph overlays, not a mode (owner brief §3): a labelled button, a popover of node types to show. */}
-          {mode==='graph'&&<div className="relative"><Button size="sm" data-map-layers-open aria-haspopup="true" aria-expanded={layersOpen} onClick={()=>setLayersOpen(open=>!open)}><Layers size={15}/>Layers<ChevronDown size={13} className="text-ink-3"/></Button>
-            <Menu open={layersOpen} onClose={()=>setLayersOpen(false)} className="top-full right-0 mt-1 w-64 p-2"><LayersRow memory={memory} layers={layers} onToggle={toggleLayer}/></Menu></div>}
+          {/* Layers are graph overlays, not a mode (owner brief §3): a labelled button for the node types to show. */}
+          {mode==='graph'&&<Button size="sm" data-map-layers-open aria-controls="map-layers" aria-expanded={layersOpen} onClick={()=>setLayersOpen(open=>!open)}><Layers size={15}/>Layers<ChevronDown size={13} className="text-ink-3"/></Button>}
         </div>}</div>
       {['queued','indexing'].includes(app.status)&&!app.commit_sha&&<div role="status" className="mb-4 rounded-lg border border-line p-4 text-sm"><div className="mb-2 h-1 overflow-hidden rounded bg-hover"><div className="h-full w-1/2 animate-pulse bg-accent"/></div>{app.status==='queued'?'Waiting for the indexer…':'Downloading source and building the code graph…'}</div>}
       {(error||app.error)&&<p role="alert" className="mb-4 text-sm text-danger">{error||app.error}</p>}
       {tab==='map'&&snapshot&&<>
-        <div className="flex h-[540px] min-h-0 flex-col max-lg:min-h-80">{mode==='graph'?<RepositoryGraph graph={shown} selected={lit} onSelect={choose} query={query} answerView={graphView}/>
+        {/* The layers open beside the graph, which narrows to make room: a floating popover covered the graph's top-right
+            nodes and controls (canvas chrome never covers content), so a node under it could not be picked while it was open. */}
+        <div className="flex h-[540px] min-h-0 gap-3 max-lg:min-h-80 max-md:flex-col">{mode==='graph'?<><RepositoryGraph graph={shown} selected={lit} onSelect={choose} query={query} answerView={graphView}/>
+          {layersOpen&&<aside id="map-layers" aria-label="Layers" className="w-60 shrink-0 self-start rounded-lg border border-line bg-white p-2 max-md:w-full"><LayersRow memory={memory} layers={layers} onToggle={toggleLayer}/></aside>}</>
           :<CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
             onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else window.dispatchEvent(new CustomEvent('small:ask-focus'));}}/>}</div>
         <p className="mt-3 text-xs text-ink-2">{snapshot.files.length} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships</p>

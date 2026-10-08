@@ -91,7 +91,7 @@ await check('13 §1: one navigation - Files · Graph · Learn as restrained unde
   for (const legacy of ['map', 'overview']) { await open(`/apps/${REPO}?tab=${legacy}`); assert.equal(await tab('Graph').getAttribute('aria-selected'), 'true', `?tab=${legacy}`); }
 });
 await shot('A-files-graph-learn-tabs');
-await check('14 §3: Layers is a labelled popover - Code checked; Decisions, Questions and Sessions off as none recorded yet, never on without records', async () => {
+await check('14 §3: Layers is a labelled panel beside the graph, never over its nodes - Code checked; Decisions, Questions and Sessions off as none recorded yet, never on without records', async () => {
   const button = page.locator('[data-map-layers-open]');
   assert.equal((await button.innerText()).trim(), 'Layers');
   await button.click();
@@ -103,9 +103,13 @@ await check('14 §3: Layers is a labelled popover - Code checked; Decisions, Que
   }
   assert.equal((await layers.innerText()).match(/none recorded yet/g).length, 3);
   assert.doesNotMatch(await layers.innerText(), /Fixture/);
+  // A floating popover once covered the graph's top-right nodes and controls (a node under it could not be clicked).
+  const panel = await layers.boundingBox(), canvas = await page.locator('svg[aria-label="Repository dependency graph"]').boundingBox();
+  assert.ok(panel.x >= canvas.x + canvas.width, `the panel sits beside the graph, not over it: ${panel.x} < ${canvas.x + canvas.width}`);
 });
-await shot('C-layers-popover');
-await page.keyboard.press('Escape');
+await shot('C-layers-panel');
+await page.locator('[data-map-layers-open]').click();
+await page.locator('[data-map-layers]').waitFor({ state: 'detached' });
 
 await files();
 await check('1 file click attaches file context: the reader opens train.py, the inspector shows it, the composer reads karpathy/nanoGPT › train.py', async () => {
