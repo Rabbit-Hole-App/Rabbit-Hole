@@ -1,11 +1,13 @@
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, SHOW_PAPER_TOOL, searchArxiv, readArxivPaper, paperDocument, validateShowPaper } from './arxiv.js';
-import { LEARN_TASKS, RESEARCH_STEPS, PAPERS_PER_ANSWER } from './learn-models.js';
+import { LEARN_TASKS, RESEARCH_STEPS, PAPERS_PER_ANSWER, notConfiguredMessage } from './learn-models.js';
 
 import { LEARN_RESEARCH_SYSTEM, PAPER_SHOWN_NOTE } from './agents/learn-chat.js';
 export { LEARN_RESEARCH_SYSTEM };
 
 // A model HTTP failure as an Error, with the API's own reason when it gave one.
 export async function modelFailure(response, label, suffix = '') {
+  const unset = await notConfiguredMessage(response);
+  if (unset) return new Error(unset); // no key on this deployment: that sentence alone, never an HTTP code
   const detail = (await response.json().catch(() => null))?.error?.message;
   return new Error(`${label} (model HTTP ${response.status}${detail ? `: ${String(detail).slice(0, 160)}` : ''})${suffix}`);
 }

@@ -4,7 +4,7 @@
 // Rabbit Hole stays the composer's explicit learning request (agent/router.js) or the answer's offer button.
 import { repositoryIdentity } from './repositories.js';
 import { anthropic } from './ask.js';
-import { LEARN_TASKS, loggedModel } from './learn-models.js';
+import { LEARN_TASKS, loggedModel, MODEL_NOT_CONFIGURED } from './learn-models.js';
 
 export const HOME_ASK_MODEL = LEARN_TASKS.home_ask.model;
 const MAX_TOKENS = LEARN_TASKS.home_ask.maxTokens;
@@ -63,7 +63,7 @@ export async function homeAskFetch(req, env, { identity = repositoryIdentity, ca
   const user = await identity(req, env);
   if (user instanceof Response) return user;
   if (!env.LEARN_DB) return json({ error: 'Home answers are not configured on this server.' }, 503);
-  if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: 'Home answers are not configured on this server.' }, 503);
+  if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   const library = await homeLibrary(env.LEARN_DB, user);
   const response = await callModel(env, homeAskRequest(message, library), HOME_ASK_MODEL, null);
   if (!response.ok) return json({ error: 'Could not answer right now. Try again.' }, 502);

@@ -84,7 +84,7 @@ npx wrangler dev -c <ws>/alp1-config/cp/wrangler.jsonc --local --persist-to <ws>
 
 Check that no key reached the workers, by name and by behaviour (both answer "not configured" without a model call):
 the startup binding table lists no `*_API_KEY` or `ELEVENLABS_*`; with a session, `POST /api/learn/home-ask` answers 503
-"Home answers are not configured on this server." and `POST /api/learn/image` with `confirmed: true` answers 503
+"AI answers aren’t configured on this preview." and `POST /api/learn/image` with `confirmed: true` answers 503
 "Image generation is not configured on this environment."
 
 ## 4. Run

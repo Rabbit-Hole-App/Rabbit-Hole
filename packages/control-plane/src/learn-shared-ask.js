@@ -5,7 +5,7 @@
 // conversation lives in their browser and comes back as `history`; everything else the model reads is built here
 // from the shared row.
 import { askStream } from './ask.js';
-import { HISTORY_TURNS, MESSAGE_LIMIT } from './learn-models.js';
+import { HISTORY_TURNS, MESSAGE_LIMIT, MODEL_NOT_CONFIGURED } from './learn-models.js';
 import { SHARED_CANVAS_SYSTEM, REPOSITORY_SYSTEM } from './agents/learn-chat.js';
 import { REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
 import { repositorySnapshot } from './repositories.js';
@@ -169,7 +169,7 @@ export async function askShared(env, row, viewer, body, link = null) {
   if (typeof body?.message !== 'string' || !body.message.trim() || body.message.length > MESSAGE_LIMIT) return json({ error: `Ask a question of 1-${MESSAGE_LIMIT} characters.` }, 400);
   const history = viewerHistory(body.history);
   if (!history) return json({ error: 'history must be a list of { role, content } turns' }, 400);
-  if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: 'Asking is not configured on this server.' }, 503);
+  if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   const refused = subscriptionOwnerRefusal(env, viewer);
   if (refused) return refused;
   const db = env.LEARN_DB, state = JSON.parse(row.state_json);

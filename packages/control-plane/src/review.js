@@ -1,6 +1,7 @@
 // Deploy review: one Anthropic call per deploy, run in ctx.waitUntil concurrent with
 // the Fly build. A control, not a chat - fixed prompt, schema-forced JSON, risk
 // computed here in code. Must never break a deploy: every failure path just logs.
+import { MODEL_NOT_CONFIGURED } from './learn-models.js';
 
 const MODEL = 'claude-opus-5';
 
@@ -90,6 +91,7 @@ function validateReview(r) {
 }
 
 async function fetchReview(env, bundle) {
+  if (!env.ANTHROPIC_API_KEY) throw new Error(MODEL_NOT_CONFIGURED); // no key: nothing leaves the worker
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
