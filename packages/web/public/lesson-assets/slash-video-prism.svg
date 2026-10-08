@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="A white beam enters a glass prism and fans out into a spectrum">
+<rect width="640" height="360" fill="#0b0d12"/>
+<line x1="0" y1="232" x2="270" y2="167.5" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+<polygon points="270,167.5 362,153.5 382,188.5" fill="#fff" opacity=".28"/>
+<polygon points="362,153.5 364.9,158.5 640,157.1 640,130" fill="#ef4444" opacity=".85"/>
+<polygon points="364.9,158.5 367.7,163.5 640,184.3 640,157.1" fill="#f97316" opacity=".85"/>
+<polygon points="367.7,163.5 370.6,168.5 640,211.4 640,184.3" fill="#facc15" opacity=".85"/>
+<polygon points="370.6,168.5 373.4,173.5 640,238.6 640,211.4" fill="#22c55e" opacity=".85"/>
+<polygon points="373.4,173.5 376.3,178.5 640,265.7 640,238.6" fill="#3b82f6" opacity=".85"/>
+<polygon points="376.3,178.5 379.1,183.5 640,292.9 640,265.7" fill="#6366f1" opacity=".85"/>
+<polygon points="379.1,183.5 382,188.5 640,320 640,292.9" fill="#a855f7" opacity=".85"/>
+<polygon points="320,80 420,255 220,255" fill="#cfe3ff" fill-opacity=".1" stroke="#d0d7de" stroke-width="2" stroke-linejoin="round"/>
+</svg>

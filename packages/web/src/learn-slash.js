@@ -43,7 +43,7 @@ export const EXAMPLES = {
   deeper: '/deeper into the maths', dive: '/dive softmax', simplify: '/simplify', example: '/example with real numbers',
   practice: '/practice explain it back', quiz: '/quiz the derivative of the sigmoid', compare: '/compare sigmoid vs tanh',
   explain: '/explain why a token id is only an index', code: '/code build a character vocabulary', graph: '/graph sigmoid',
-  diagram: '/diagram where a token goes in nanoGPT', animate: '/animate why the sigmoid saturates', flashcards: "/flashcards nanoGPT's embeddings and parameters",
+  diagram: '/diagram where a token goes in nanoGPT', animate: '/animate how softmax shares the whole by score', flashcards: "/flashcards nanoGPT's embeddings and parameters",
   notebook: '/notebook', walkthrough: '/walkthrough a token through the model', whiteboard: '/whiteboard the sigmoid', paper: '/paper 1706.03762',
   image: '/image a sigmoid curve', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
   ask: '/ask what does wte do?', teach: '/teach causal masking',
@@ -126,7 +126,8 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   }
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
-  if (request.action === 'open_sources') { canvas.openSources?.(); return { notice: canvas.openSources ? null : { tone: 'info', text: 'The Source inspector is not available here yet.' } }; }
+  // /source: the page opens the selected card's Sources & evidence, or says why it cannot.
+  if (request.action === 'open_sources') return canvas.openSources ? canvas.openSources(target?.id ?? null) : { notice: { tone: 'info', text: 'Sources are not available here yet.' } };
   // /motion (M7A, development builds only): the paid proposal comes back without any model call.
   // Generate inserts the existing video card already confirmed; LearnVideos hands the request to the
   // development orchestrator (operation motion_request), which plans, reviews and renders it.
