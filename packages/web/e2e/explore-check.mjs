@@ -27,6 +27,9 @@ const contextFor = async (p, init = null) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   if (p) await context.addCookies([{ name: 'small_session', value: p.session, url: BASE }]);
   if (init) await context.addInitScript(init.fn, init.arg);
+  // A new hole's opening question is a Tutor turn (#46): answered here, as shared-rabbit-hole-check does; the planner's real
+  // wiring is covered on the journey stack. Next Steps hook requests reach the real route (provider-boundary fixture).
+  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }));
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };

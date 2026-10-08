@@ -63,9 +63,12 @@ const contextFor = async who => {
   // its planner at the provider boundary with the journey fixture (e2e/provider-tripwire.js), counted there as a fixture,
   // never a provider hit. Each request is recorded per page to hold it to §2.3 (never the same request twice).
   const page = await context.newPage();
+  // §2.3 holds within one page load; a navigation or reload is a fresh page that may ask for its basis again.
+  let load = 0;
+  page.on('domcontentloaded', () => { load++; }); // full document loads only, never an in-app route change
   const seen = [];
   await context.route(/\/api\/learn\/(?:tutor|boards\/shared\/[^/]+)\/next-steps$/, route => {
-    const key = `${new URL(route.request().url()).pathname} ${route.request().postData() || ''}`;
+    const key = `load ${load}: ${new URL(route.request().url()).pathname} ${route.request().postData() || ''}`;
     hooks.push(key); if (seen.includes(key)) repeated.push(key); seen.push(key);
     return route.continue();
   });

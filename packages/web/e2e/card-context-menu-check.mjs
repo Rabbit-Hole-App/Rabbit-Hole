@@ -42,6 +42,9 @@ const contextFor = async (who, viewport = { width: 1440, height: 900 }) => {
   await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
   await context.route('**/api/learn/ask', route => { asks.push(route.request().url()); return route.abort(); });
+  // Start Rabbit Hole opens a hole whose opening question is a Tutor turn (#46): answered here, as shared-rabbit-hole-check
+  // does; the planner's real wiring is covered on the journey stack.
+  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }));
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
