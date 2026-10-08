@@ -91,13 +91,15 @@ Run both from `packages/web`, with the rabbit-hole token. A rollback serves an e
 
 ## Dev-branch trigger
 
-Owner, 2026-10-08: "create a dev branch where when pushing on dev deploys to the stable preview url". A push to `main` of Rabbit-Hole-App/Rabbit-Hole triggers nothing here; production stays the held [prod-release.md](prod-release.md) job.
+Owner, 2026-10-08: "create a dev branch where when pushing on dev deploys to the stable preview url". Then the owner chose GitHub Actions over a local watcher, with the deploy secrets in GitHub and the gate records public. `.github/workflows/deploy-dev.yml` in Rabbit-Hole-App/Rabbit-Hole does it:
 
-- **Watcher:** `node scripts/dev-deploy-watch.mjs --checkout <the clean deploy checkout>`, with the environment dev-deploy needs. It polls `dev` on the `rabbit-hole` remote every minute.
-- **Deploys:** a new `dev` head, once `<git common dir>/rabbit-hole-gates/<full tree sha>.log` holds the gate record for its exact tree. It checks the head out in the deploy checkout (forced: npm ci dirties a bin there) and runs that commit's `dev-deploy.mjs --branch rabbit-hole/dev`. Every other rule is dev-deploy's: passed gate, forward only, smoke, rollback, record.
-- **Waits:** a head without its gate record is logged once and checked again each minute. Each head is tried once; a refused or failed deploy waits for the next push.
-- **Parallel's side:** gate the exact tree, copy the full gate record to `rabbit-hole-gates/<tree>.log` in `small-deploy/.git`, push to `dev`.
-- **Why local, not GitHub Actions:** the repository is public. Actions would need the rabbit-hole Cloudflare token and the Access smoke secret as repository secrets, and the integration gate runs on this machine. ponytail: runs only while this machine and the watcher are up; Actions needs the owner's word on those secrets.
+- **Trigger:** a push to `dev`, and nothing else. No pull request or fork event starts it. It runs only in Rabbit-Hole-App/Rabbit-Hole, one at a time, in the `dev-preview` environment. That environment holds the secrets and admits only the `dev` branch.
+- **Gate:** the gate record of the exact tree is a git note on the pushed commit, `refs/notes/gates`. Push the note before `dev`. The job waits up to 10 minutes for it; with no note it deploys nothing.
+- **Deploy:** `dev-deploy.mjs --branch rabbit-hole/dev`, with every rule of a hand deploy: passed full gate, forward only, smoke, rollback. `--reuse` is not available here; every dev push needs its own full gate.
+- **Record:** the job attaches its dev-deploy record line as a note in `refs/notes/dev-deploys`. Only the job writes it, with the workflow token.
+- **Secrets (environment `dev-preview`):** `CLOUDFLARE_API_TOKEN`, `ACCESS_SMOKE_CLIENT_ID`, `ACCESS_SMOKE_CLIENT_SECRET`, `VITE_TLDRAW_LICENSE_KEY`. The account id is in the workflow; it is not a secret.
+- **Parallel's side, per candidate:** run the full gate; secret-scan the record and the commits; `git notes --ref=gates add -F <record> <sha>`; push `refs/notes/gates`, then `dev`, to Rabbit-Hole-App.
+- **Production:** a push to `main` triggers nothing yet. The production workflow is held for the owner, see [prod-release.md](prod-release.md).
 - `dev-deploy.mjs` accepts only `--branch origin/main` (the default, by hand) or `--branch rabbit-hole/dev`.
 
 ## Policy A: reusing a gate
@@ -276,5 +278,13 @@ npx wrangler d1 execute rabbit-hole-learn-dev --remote --config wrangler.rabbit-
 - **Check:** all ten tables are listed. Then re-run `dev-deploy.mjs` on the current main, or open the stable URL signed in: `/api/apps` and `/api/profile` return 200, and the smoke turns `pass`.
 - **Rollback:** not needed. The migrations are additive, and the code that predates them never reads the new tables.
 
-Production `rabbit-hole-learn-prod` is at the same 0003 level. It is a separate GO, and the [release job](prod-release.md) refuses to release main until it is migrated.
+## Production Learn schema 0004-0012 (applied 2026-10-08)
+
+The owner gave the GO in Home's session ("ok" to applying Learn 0004-0012 to the production Learn database). Target: `rabbit-hole-learn-prod` (f28417c4), the `LEARN_DB` of `wrangler.rabbit-hole-prod.jsonc`. Nothing else changed: no deploy, no secret, and the main production database `rabbit-hole-prod` was not touched.
+
+- **Checked first:** the clean deploy checkout at main `303e9263`; every statement in the nine files is `CREATE [UNIQUE] TABLE|INDEX IF NOT EXISTS`; none of their names existed on production.
+- **Rehearsal:** an in-memory copy of the live production schema (28 objects, 12 tables) took the nine files twice. It added 20 tables and 17 indexes, the existing objects were unchanged, and the result equals the dev schema.
+- **Applied:** the pinned wrangler ran `d1 execute rabbit-hole-learn-prod --remote --config wrangler.rabbit-hole-prod.jsonc --file learn-migrations/<file> -y` for 0004 to 0012 in order. Every file exited 0.
+- **Verified:** no name is missing, the 28 earlier objects are unchanged, and production has 87 objects (33 tables), the same set as dev. The SQL of the 0011 and 0012 objects differs from dev's only in whitespace (line endings).
+- **Rollback:** not needed. The migrations are additive, and the production code that predates them never reads the new tables.
 

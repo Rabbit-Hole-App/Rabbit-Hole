@@ -87,3 +87,17 @@ test('the production build env is the Rabbit Hole build, never the dev tools', (
 test('the release preflight refuses the dev sign-in secrets on production, the Access bridge included', () => {
   for (const name of ['TEST_BYPASS_SECRET', 'OAUTH_MOCK', 'DEV_TEST_BYPASS', 'ACCESS_AUD']) assert.ok(NEVER_ON_PRODUCTION.includes(name), name);
 });
+
+test('the production workflow: a push to main only, the production environment, a green dev deploy of the exact commit, prepare before release, never a migration', () => {
+  const wf = readFileSync(new URL('../.github/workflows/deploy-prod.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // CRLF checkouts
+  assert.match(wf, /on:\n  push:\n    branches: \[main\]\n/, 'push to main is the only trigger');
+  assert.doesNotMatch(wf, /pull_request|workflow_run|workflow_dispatch|issue_comment/, 'nothing else starts a release');
+  assert.match(wf, /environment: production\n/);
+  assert.match(wf, /permissions:\n  contents: read\n/);
+  assert.match(wf, /if: github\.repository == 'Rabbit-Hole-App\/Rabbit-Hole'/);
+  assert.match(wf, /notes --ref=dev-deploys show "\$GITHUB_SHA"[^\n]*\n[^\n]*\|\| \{[^}]*exit 1; \}/, 'never deployed on dev, never released');
+  const prepare = wf.indexOf('prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record'), release = wf.indexOf('prod-release.mjs release --sha "$GITHUB_SHA" --build "$build" --approve "RELEASE $GITHUB_SHA $build"');
+  assert.ok(prepare > 0 && release > prepare, 'release only after prepare, with the prepared build');
+  assert.doesNotMatch(wf, /migrations apply|d1 execute|wrangler deploy|HOLD\s*[:=]/, 'all through prod-release.mjs, which keeps HOLD and never migrates');
+  for (const uses of wf.match(/uses: \S+/g)) assert.match(uses, /@[0-9a-f]{40}$/, `${uses} is pinned to a commit`);
+});
