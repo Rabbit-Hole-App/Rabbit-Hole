@@ -410,3 +410,21 @@ test('r29 the keyless planner leads its third hook into path.next, and the set p
   const checked = nextStepsOutput(out, input);
   assert.equal(checked.ok, true, JSON.stringify(checked.errors));
 });
+
+// r29 (Tutor eval, 2026-10-08): with the section hook shown, every later set failed on repeat (it stays the way forward while its
+// section does). The one path.next hook may repeat; a content hook never does; the keyless planner's second set passes.
+test('r29 repeat: the path.next hook may stay as it was across sets; a content hook shown before still fails the set', async () => {
+  const withNext = { ...INPUT, mode: 'journey', path: { current: null, completed: [], upcoming: [], next: { id: 's2', title: 'From a score to probability', completes: false } } };
+  const section = option({ hook: 'How does a score turn into a chance?', learning_goal: 'Open the step from scores to probabilities', concept_ids: [], claim_ids: [], section_id: 's2' });
+  const again = { ...withNext, previous: { hooks: [section.hook, THREE[0].hook], goals: [] } };
+  assert.equal(nextStepsOutput({ options: [THREE[1], THREE[2], section] }, again).ok, true, 'the section hook again');
+  assert.deepEqual(nextStepsOutput({ options: [THREE[0], THREE[1], section] }, again).errors, ['repeat'], 'a content hook again');
+  assert.deepEqual(nextStepsOutput({ options: [THREE[1], THREE[2], { ...section, section_id: undefined, concept_ids: ['annealing'], claim_ids: ['annealing.slow-cool'] }] }, again).errors, ['repeat'], 'the same words without the section are a repeat');
+  assert.ok(NEXT_STEPS_SYSTEM.includes('Never repeat previous.hooks or a previous goal; only the path.next hook may stay as it was.'));
+  const { fixtureFor } = await import('../src/learn-journey-fixtures.js');
+  const keyless = { ...withNext, previous: { hooks: [], goals: [] } };
+  const first = fixtureFor('suggest_next_steps', keyless);
+  const next = { ...keyless, previous: { hooks: first.options.map(o => o.hook), goals: [] } };
+  const second = nextStepsOutput(fixtureFor('suggest_next_steps', next), next);
+  assert.equal(second.ok, true, JSON.stringify(second.errors));
+});
