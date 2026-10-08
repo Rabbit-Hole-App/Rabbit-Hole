@@ -260,5 +260,5 @@ await check('the canvas asked for hooks once on open, and nothing the panel did 
 });
 
 await browser.close();
-console.log(`${results.length}/15 checks passed`);
-process.exit(results.length === 15 ? 0 : 1);
+console.log(`${results.length}/16 checks passed`);
+process.exit(results.length === 16 ? 0 : 1);

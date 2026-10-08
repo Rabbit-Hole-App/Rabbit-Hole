@@ -152,6 +152,9 @@ await check('5 a kept hole: the card is its portal, and right-click Start Rabbit
   await rightClick('m-b');
   await startItem().click();
   await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+  // #46: entering a hole opens with a Tutor turn; the learner types once its question shows (a command typed while that
+  // turn is still in flight is lost - recorded as a #46 review finding, not this check's subject).
+  await page.getByText('What would you like to explore first?').first().waitFor({ timeout: 20000 });
   const composer = page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
   await composer.click(); await composer.fill('/whiteboard Bulge sketch'); await page.waitForTimeout(150); await composer.press('Enter');
   await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 20000 });
