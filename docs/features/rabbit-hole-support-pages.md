@@ -35,10 +35,11 @@ in header wordmarks, static footer wordmarks, auth branding and the 404. Preserv
 the landing FAQ artwork and footer animation. Public pages explicitly load new
 versioned SVG/PNG favicons and touch icon; existing Small app icons stay intact.
 
-The signed-in app's tab (`main.jsx`) uses `favicon-v2.svg` and `favicon-32-v2.png` (owner, 2026-10-08: "the icon in
-the chrome browser seems to be small"): v1's aperture, centred and 1.2x larger so its rings fill the tile instead of
-sitting small and high. A new name, so no cached v1 lingers. The public pages and the in-app marks keep v1;
-`src/tab-icon.test.mjs` pins the swap.
+The signed-in app's tab (`main.jsx`) uses `favicon-v3.svg` and `favicon-32-v3.png` (owner, 2026-10-08: "the icon in
+the chrome browser seems to be small", then "the logo in the chrome tab should have rounded corners"): v1's aperture,
+centred and 1.2x larger so its rings fill the tile, on a tile rounded to a quarter of its side (rx 60 of 240, about
+4 px at 16 px) so the corners read as rounded in the tab. A new name each time, so no cached icon lingers. The public
+pages and the in-app marks keep v1; `src/tab-icon.test.mjs` pins the swap.
 
 The session worker returns status 404 for `/404` and unknown public HTML pages.
 Existing API, auth, test, app proxy, Slack and static-asset behavior is preserved.
