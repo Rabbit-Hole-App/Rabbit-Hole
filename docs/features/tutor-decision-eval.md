@@ -724,8 +724,8 @@ the integrated SHA.
   - **At low usage** (the stub's token counts): all 15 decisions complete at $0.54, and the reviewer fits.
   - **So the evaluation may stop before all planned decisions finish.** How far it gets depends on real usage, which
     only the paid run shows.
-  - **Proposed, not built:** hold back the reviewer's worst case from each session's limit at its start, so a session
-    that stops early can still be reviewed.
+  - **Required before a paid run (owner, 2026-10-07):** the reviewer's worst case is reserved at the start of each
+    session, inside the existing session and run limits, so a session that stops early can still be reviewed.
 - **Materials.** `create_material` stays `not_run` in this first run; material generation is a separate approval.
 - **Sizing.** `requestWorstCase` at the 2026-09-25 price table, applied to:
   - the complete requests the product built in a free 15-decision run (the largest of each kind);
@@ -750,7 +750,8 @@ the integrated SHA.
   real headroom left.
 - **Before any paid call:**
   - wire the real transport in the boundary (the reservations are already in it);
-  - wire the simulator and reviewer calls (their prompts, schemas and strict parsers exist);
+  - wire the simulator and reviewer calls (their prompts, schemas and strict parsers exist), with the reviewer's worst
+    case reserved at each session's start;
   - add a run command;
   - pass the free gates on Parallel's integrated SHA.
 
