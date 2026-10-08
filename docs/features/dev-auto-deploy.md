@@ -8,6 +8,8 @@
 - The first automated run, for main `e03a7a53`, rolled itself back. Its smoke looked for `/assets/` instead of `/static/`. That is fixed.
 - Main `1b7a2116` was deployed as version 54d4e7a7, with build `5acc0f6ba69c` and the gate reused from `e03a7a53`. At that time its smoke was **blocked** by the dev Learn schema.
 - **Dev Learn schema 0004-0010 is applied** (owner GO, 2026-10-08, `rabbit-hole-learn-dev` only). Signed-in flows answer 200: see [Dev Learn schema](#dev-learn-schema-0004-0010-applied-2026-10-08-dev-only). Production is still at 0003, on hold.
+- **Dev Learn schema 0011 and 0012 are applied** (2026-10-08, `rabbit-hole-learn-dev` only): see [0011 and 0012](#dev-learn-schema-0011-and-0012-applied-2026-10-08-dev-only).
+- **Dev-branch trigger** (2026-10-08): a gated push to Rabbit-Hole-App/Rabbit-Hole `dev` deploys itself. See [Dev-branch trigger](#dev-branch-trigger).
 
 Production release is a separate, held job: [prod-release.md](prod-release.md) (Home).
 
@@ -86,6 +88,17 @@ serving):
 2. Roll back with `npx wrangler rollback <version-id> --name rabbit-hole-web-dev-small-parallel -m "rollback to main <sha>: <why>"`.
 
 Run both from `packages/web`, with the rabbit-hole token. A rollback serves an earlier version, and that version's own upload message still names its sha, so the forward-only check keeps working. Keep `main <sha>` in the rollback message anyway, for people reading the history.
+
+## Dev-branch trigger
+
+Owner, 2026-10-08: "create a dev branch where when pushing on dev deploys to the stable preview url". A push to `main` of Rabbit-Hole-App/Rabbit-Hole triggers nothing here; production stays the held [prod-release.md](prod-release.md) job.
+
+- **Watcher:** `node scripts/dev-deploy-watch.mjs --checkout <the clean deploy checkout>`, with the environment dev-deploy needs. It polls `dev` on the `rabbit-hole` remote every minute.
+- **Deploys:** a new `dev` head, once `<git common dir>/rabbit-hole-gates/<full tree sha>.log` holds the gate record for its exact tree. It checks the head out in the deploy checkout (forced: npm ci dirties a bin there) and runs that commit's `dev-deploy.mjs --branch rabbit-hole/dev`. Every other rule is dev-deploy's: passed gate, forward only, smoke, rollback, record.
+- **Waits:** a head without its gate record is logged once and checked again each minute. Each head is tried once; a refused or failed deploy waits for the next push.
+- **Parallel's side:** gate the exact tree, copy the full gate record to `rabbit-hole-gates/<tree>.log` in `small-deploy/.git`, push to `dev`.
+- **Why local, not GitHub Actions:** the repository is public. Actions would need the rabbit-hole Cloudflare token and the Access smoke secret as repository secrets, and the integration gate runs on this machine. ponytail: runs only while this machine and the watcher are up; Actions needs the owner's word on those secrets.
+- `dev-deploy.mjs` accepts only `--branch origin/main` (the default, by hand) or `--branch rabbit-hole/dev`.
 
 ## Policy A: reusing a gate
 
@@ -206,6 +219,17 @@ Without `ACCESS_AUD`, the worker behaves exactly as before. With `ACCESS_AUD` se
 - without `ACCESS_AUD`, nothing changes.
 
 `dev-barrier.test.js` still pins two things: the guard is the handler's first statement, and the barrier is its last line.
+
+## Dev Learn schema 0011 and 0012 (applied 2026-10-08, dev only)
+
+Both are additive (`CREATE ... IF NOT EXISTS` only) and went to `rabbit-hole-learn-dev` (028f800f) only. Each was first rehearsed twice on an in-memory copy of the live dev schema: no name already existed, and every existing object stayed unchanged. `rabbit-hole-learn-prod` is unchanged at 0003.
+
+| File | Source | Creates | Applied with |
+|---|---|---|---|
+| `0012-next-steps-telemetry.sql` | fix/pns-telemetry `c9a5142a` (Learning; owner yes via Parallel; standing additive-dev authorization) | `next_steps_telemetry` | the D1 query API, exact file |
+| `0011-canvas-comments.sql` | feature/comments-v1 `c7da5c47`, blob `4ce31510` (owner's explicit in-session authorization; FIX 1 left out) | 9 tables, 13 indexes | pinned wrangler `d1 execute --remote --file` from the deploy checkout |
+
+**Verified:** 0012 added one table with columns id, created_at, scope, user_id, board and telemetry_json. 0011 added 9 of 9 tables and 13 of 13 indexes, and its stored SQL equals the file; the 55 earlier objects are unchanged (87 after). The learn database has no `d1_migrations` ledger (`LEARN_DB` has no `migrations_dir`). Its record is this section plus dev-deploy's `learnTables` check: on 0001-0012 it wants 23 tables, and none are missing.
 
 ## Dev Learn schema 0004-0010 (applied 2026-10-08, dev only)
 

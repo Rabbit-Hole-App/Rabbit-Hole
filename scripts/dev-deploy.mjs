@@ -1,7 +1,8 @@
 // Gated main -> the stable dev testing URL (docs/features/dev-auto-deploy.md).
-//   node scripts/dev-deploy.mjs --sha <main commit> --gate <gate record>
+//   node scripts/dev-deploy.mjs --sha <main commit> --gate <gate record> [--branch rabbit-hole/dev]
 // Deploys that exact commit to the dev clone only when the gate record passed for its exact tree, the commit is on
-// origin/main and it descends from what the clone serves now (an older run never overwrites a newer deployment).
+// origin/main (or the --branch given) and it descends from what the clone serves now (an older run never overwrites a
+// newer deployment). Pushes to Rabbit-Hole-App dev deploy through scripts/dev-deploy-watch.mjs.
 // The Worker's deployment message ("main <sha> build <hash>") is the deploy record; a failed smoke rolls back to the
 // previous version. Each deploy appends one JSON line to <git common dir>/rabbit-hole-dev-deploys.jsonl, the green dev
 // record prod-release.mjs prepare reads. Never runs a migration, never deploys production, never prints a secret.
@@ -18,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const WORKER = 'rabbit-hole-web-dev-small-parallel';
 export const CONFIRMATIONS = 5; // consecutive serves of the new build before the smoke
+export const BRANCHES = ['origin/main', 'rabbit-hole/dev']; // the only branches whose commits deploy here
 export const URL_BASE = `https://${WORKER}.tryrabbithole.workers.dev`;
 const ACCOUNT = 'c08d3dbdc53a3afd3cb09a536ac42318';
 const LEARN_DEV_DB = '028f800f-ce8e-4461-adb2-827f417492eb';
@@ -256,8 +258,11 @@ async function main() {
   const arg = k => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
   if (process.env.CLOUDFLARE_ACCOUNT_ID !== ACCOUNT) stop('CLOUDFLARE_ACCOUNT_ID must be the rabbit-hole account');
   const sha = git('rev-parse', `${arg('sha') ?? stop('--sha <main commit> is required')}^{commit}`);
-  git('fetch', '-q', 'origin', 'main');
-  if (!isAncestor(sha, 'origin/main')) stop(`${sha.slice(0, 8)} is not on origin/main`);
+  // The branch the commit must be on: origin/main by hand, rabbit-hole/dev from the dev-branch trigger (dev-deploy-watch.mjs).
+  const branch = arg('branch') ?? 'origin/main';
+  if (!BRANCHES.includes(branch)) stop(`--branch must be one of ${BRANCHES.join(', ')}`);
+  git('fetch', '-q', ...branch.split('/'));
+  if (!isAncestor(sha, branch)) stop(`${sha.slice(0, 8)} is not on ${branch}`);
   if (git('rev-parse', 'HEAD') !== sha) stop(`this checkout is not at ${sha.slice(0, 8)}; deploy builds the exact commit`);
   // Content, not stat: npm ci rewrites a bin's line endings (packages/cli/bin/small.js), which git status reports
   // though the normalized content is unchanged.
