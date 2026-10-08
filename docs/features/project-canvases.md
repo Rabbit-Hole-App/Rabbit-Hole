@@ -19,6 +19,17 @@ Each project canvas has its own:
 - journey: `learning_journeys (org, owner_user_id, canvas-*, 'main')`;
 - title, description, sharing, publication, Archive and Trash. These are the canvas's own; the Library ⋮ manages them.
 
+### Asks read the project's repository
+
+Decided by Parallel, 2026-10-08 (open question 1, B). A project canvas's Learn asks get the project's repository, as Main canvas's asks do.
+- They get the repository's context (repo and commit), `REPOSITORY_SYSTEM` and `REPOSITORY_TOOLS` on the project's current snapshot (`canvases.js projectRepository`).
+- They keep every canvas Learn tool: Wikipedia, video moments, the outline proposal and context documents.
+- It runs inside `apiAsk` through the canvas seam (`seam.repository()`) and is read again on **every ask**, never stored at creation.
+- **Only the caller's own project counts.** The `repository_apps` row must match the workspace, the project name and the caller's email, and must not be in Trash.
+- **A quiet fallback.** Another person's project, a project in Trash or gone, one not indexed yet, or a snapshot that will not load: the ask runs as a general canvas, with no error.
+- What a canvas ask does not take from Main canvas (`repositoryAsk`): a selected node, range or file from the Map; @-mentioned repositories; the Show-on-graph view; and repository context on a lesson-snapshot ask, which keeps its snapshot as the context and gets the tools only.
+- Journey and Tutor v2 turns on a project canvas (`learn-tutor-routes.js`) are not repository-grounded; they stay LP-T.
+
 ### Why not named boards on the project app
 
 We considered extra `learn_boards` rows under `repo-*`, the title in `state_json`. They fail the decision:
@@ -91,31 +102,20 @@ No new endpoint. What already exists:
 
 ## Out of scope (deliberately)
 
-- **Repository-aware chat on added canvases.** They ask as Learn canvases (`canvasAskSeam`), not with the project's repository tools; only Main canvas reads the code.
-- **A journey on Main canvas.** It stays LP-T.
+- **A journey on Main canvas,** and repository-grounded journeys or Tutor v2 turns on project canvases. They stay LP-T.
 - **Moving a canvas** into or out of a project.
 - **Delete, reorder or archive from the switcher.** The Library ⋮ keeps Archive and Trash.
 - **Hiding project canvases** from the Library's Canvases section. They stay listed, as today.
 - **A per-project canvas cap.** The global no-cap note in `canvases.js` stands.
 
-## Open questions
+## Decided
 
-1. **Added canvases and the repository.**
-   - (a) They are general Learn canvases (built).
-   - (b) They ask with the project's repository, like Main canvas.
-   - Recommend (b), as a follow-up lane.
-2. **Project canvases in the Library.**
-   - (a) Each stays its own card in Canvases, as today (built).
-   - (b) They are reached only through their project.
-   - Recommend (a) until the owner says otherwise.
-3. **Count rule.**
-   - (a) Always "N canvases", including "1 canvas" (built).
-   - (b) Only when N > 1.
-   - Recommend (a).
-4. **New canvas default name.**
-   - (a) "Canvas N" (built).
-   - (b) "Untitled canvas", like Start and the bar.
-   - Recommend (a): the switcher stays readable when nobody renames.
+Parallel decided these on 2026-10-08, under the owner's standing grant.
+
+1. **Added canvases and the repository: B.** They ask with the project's repository, like Main canvas, re-checked on every ask (see "Asks read the project's repository" above).
+2. **Project canvases in the Library: A.** Each stays its own card in Canvases, as today.
+3. **Count rule: A.** Always "N canvases", including "1 canvas".
+4. **New canvas default name: A.** "Canvas N".
 
 ## Tests
 
@@ -125,6 +125,11 @@ No new endpoint. What already exists:
   - a separate board per canvas, the Main canvas untouched;
   - rename.
   - Chat and journeys are keyed by the canvas's own name, as for every canvas; their existing tests cover them.
+- `packages/control-plane/test/learn-chat.test.js`, "a project canvas asks with its own project's repository":
+  - the project's context, system note and code tools ride, and the Learn tools stay;
+  - the same seam re-checks on the next ask, after Trash and after a missing snapshot;
+  - another person's project in the same workspace, or none, gives a general canvas;
+  - `askStream` is the recording stub and the live DB throws, so no model call is made.
 - `packages/web/src/project-canvases.test.mjs`: the switcher's list, labels, hrefs and the "Canvas N" default (pure).
 - `packages/web/src/home/provenance.test.mjs`: the card's "N canvases" label.
 - `packages/web/e2e/project-canvases-check.mjs` runs against the local stack only and is not run yet:

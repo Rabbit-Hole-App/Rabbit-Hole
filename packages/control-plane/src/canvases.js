@@ -1,4 +1,5 @@
-import { repositoryIdentity, repositoryThreads } from './repositories.js';
+import { repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
+import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 
@@ -249,14 +250,32 @@ export async function canvasesFetch(req, env) {
   } catch (error) { return json({ error: error.message }, 400); }
 }
 
+// A project canvas asks with its project's repository, as the Main canvas does (docs/features/project-canvases.md): the
+// same system note and code tools, on the project's current snapshot. apiAsk reads it on every ask, and only as the
+// caller's own project in this workspace: another person's, one in Trash, one gone or not indexed yet, or a snapshot
+// that will not load leaves a general canvas, quietly.
+export async function projectRepository(env, app) {
+  if (!app.project) return null;
+  try {
+    const row = await env.LEARN_DB.prepare(`SELECT * FROM repository_apps r WHERE r.org=? AND r.name=? AND r.owner_email=? AND ${NOT_TRASHED('r.org', 'r.name')}`).bind(app.org, app.project, app.email).first();
+    if (!row?.commit_sha) return null;
+    const snapshot = await repositorySnapshot(env, row);
+    return {
+      context: `SCOPE: canvas ${JSON.stringify(app.title)} in the project ${row.repo} - a learning canvas whose content lives in the learner's browser, about this repository: ${JSON.stringify({ repo: row.repo, commit: row.commit_sha })}`,
+      system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input),
+    };
+  } catch { return null; }
+}
+
 // apiAsk's seam (index.js): the app, its context and the thread store all come from LEARN_DB,
 // so a canvas turn neither writes nor reads live D1: @-mentioned apps are not read on a seam turn
-// (apiAsk). Threads reuse repository-schema.sql threads/messages.
+// (apiAsk). Threads reuse repository-schema.sql threads/messages. `repository`: projectRepository, per ask.
 export function canvasAskSeam(env, app) {
   const db = env.LEARN_DB;
   return {
     app, db,
     context: `SCOPE: canvas ${JSON.stringify(app.title)} - a standalone learning canvas whose content lives in the learner's browser. Teach as a general tutor.`,
+    repository: () => projectRepository(env, app),
     findThread: id => db.prepare("SELECT id, 'learn' AS scope, scope_ref FROM threads WHERE id=? AND org=? AND user=?").bind(id, app.org, app.email).first(),
     newThread: async title => {
       const id = `canvaschat-${crypto.randomUUID()}`;
