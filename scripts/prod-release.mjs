@@ -22,7 +22,8 @@ export const SECRETS = {
     forbidden: ['RESEND_API_KEY', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_SECRET', 'MASTER_KEY'],
   },
 };
-const NEVER_ON_PRODUCTION = ['TEST_BYPASS_SECRET', 'SMALL_TEST_BYPASS', 'OAUTH_MOCK'];
+// Dev-only sign-in: the test bypass, the mock OAuth and the dev Access bridge (dev-access.js) must never be configured here.
+export const NEVER_ON_PRODUCTION = ['TEST_BYPASS_SECRET', 'SMALL_TEST_BYPASS', 'OAUTH_MOCK', 'DEV_TEST_BYPASS', 'ACCESS_AUD', 'ACCESS_TEAM_DOMAIN', 'ACCESS_ALLOWED_EMAILS', 'ACCESS_HOST', 'ACCESS_SMOKE_CLIENT_ID'];
 // The production build (rabbit-hole-production.md): never the dev/review tools or BYOC.
 export const BUILD_ENV = {
   VITE_RABBIT_HOLE: 'true',

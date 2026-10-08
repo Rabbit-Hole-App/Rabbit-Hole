@@ -55,7 +55,7 @@ Release refuses unless all of these hold:
 - `CLOUDFLARE_ACCOUNT_ID` is the rabbit-hole account.
 
 Release then runs a read-only preflight. Every finding is a blocker, and the job changes nothing:
-- **Secret names:** each Worker must have its required secrets. Neither may have a test secret, and the app may not have an OAuth, Resend or `MASTER_KEY` secret.
+- **Secret names:** each Worker must have its required secrets. Neither may have a test secret or a dev Access bridge secret (`ACCESS_*`, `DEV_TEST_BYPASS`), and the app may not have an OAuth, Resend or `MASTER_KEY` secret.
 - **Main D1:** `rabbit-hole-prod` must report "No migrations to apply".
 - **Learn D1:** `rabbit-hole-learn-prod` must have every learn migration. Wrangler does not track these, so each one is detected by the first table it creates.
 

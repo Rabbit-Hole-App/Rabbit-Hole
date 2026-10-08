@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { HOLD, checkPrepare, checkRelease, greenDevDeploy, learnMarkers, pendingLearn, parseArgs, hashDirs, BUILD_ENV } from './prod-release.mjs';
+import { HOLD, NEVER_ON_PRODUCTION, checkPrepare, checkRelease, greenDevDeploy, learnMarkers, pendingLearn, parseArgs, hashDirs, BUILD_ENV } from './prod-release.mjs';
 
 const SHA = '42f5a4f065d4a1df1b47e2f150893b83d7befe3b';
 const OTHER = 'b0ee85f3' + '0'.repeat(32);
@@ -82,4 +82,8 @@ test('the production build env is the Rabbit Hole build, never the dev tools', (
   assert.equal(BUILD_ENV.VITE_RABBIT_HOLE, 'true');
   assert.ok(!('VITE_COACHING_DEV' in BUILD_ENV) && !('VITE_BYOC_DEV' in BUILD_ENV));
   assert.throws(() => parseArgs(['release', '--sha']), /bad argument/);
+});
+
+test('the release preflight refuses the dev sign-in secrets on production, the Access bridge included', () => {
+  for (const name of ['TEST_BYPASS_SECRET', 'OAUTH_MOCK', 'DEV_TEST_BYPASS', 'ACCESS_AUD']) assert.ok(NEVER_ON_PRODUCTION.includes(name), name);
 });
