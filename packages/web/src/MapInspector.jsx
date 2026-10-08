@@ -86,12 +86,17 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
   const groups = record ? [] : relationshipGroups(graph, object.nodeId), linked = groups.reduce((n, g) => n + g.items.length, 0);
   const symbols = object.kind === 'file' ? symbolsIn(graph, file) : [];
   const mine = memory && object.nodeId ? memoryFor(memory, object.nodeId) : null;
-  const header = <header data-inspector-header className={`shrink-0 px-4 pt-3 ${record ? 'border-b border-line pb-3' : ''}`}>
+  // A container: in a narrow panel Open source keeps only its icon, so Learn this never pushes the title off.
+  const header = <header data-inspector-header className={`@container shrink-0 px-4 pt-3 ${record ? 'border-b border-line pb-3' : ''}`}>
     <div className="flex items-center gap-1.5">
       {onBack && <IconBtn data-inspector-back aria-label="Back" title={`Back to ${backLabel}`} onClick={onBack} className="-ml-1.5"><ArrowLeft size={15} /></IconBtn>}
       <Icon size={16} strokeWidth={1.75} className="shrink-0 text-ink-2" aria-hidden="true" />
-      <h2 data-inspector-title className="min-w-0 flex-1 truncate text-[15px] font-semibold" title={title}>{title}</h2>
-      {href && <a data-inspector-open-source href={href} target="_blank" rel="noreferrer" title="Open this source on GitHub at the indexed commit" className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink">Open source<ArrowUpRight size={13} /></a>}
+      <h2 data-inspector-title className="min-w-16 flex-1 truncate text-[15px] font-semibold" title={title}>{title}</h2>
+      {/* The inspector's one action, beside the title (owner, 2026-10-08: "Learn this button should be at the top right of the
+          right side panel. next to the title of the node selected"); asking happens in the composer. Same handler as before:
+          it carries the node into Learn and sends nothing (learn-hook.js). It stays on Source and Chat; a long title truncates. */}
+      {!record && <Button data-inspector-learn size="sm" variant="primary" onClick={onLearn} className="shrink-0">Learn this</Button>}
+      {href && <a data-inspector-open-source href={href} target="_blank" rel="noreferrer" aria-label="Open source" title="Open this source on GitHub at the indexed commit" className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink"><span className="@max-[24rem]:hidden">Open source</span><ArrowUpRight size={13} /></a>}
       {close}
     </div>
     {!record && <p data-inspector-crumb className="truncate pt-0.5 text-xs text-ink-2" title={crumbs.join(' › ')}>{crumbs.join(' › ')}</p>}
@@ -116,7 +121,7 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
   const chat = <div data-inspector-chat className="flex flex-col gap-2">
     {/* A path:lines in an answer opens the Map's reader with that range selected (repository-browser.md "Code references"). */}
     {turns.map((t) => <Turn key={t.id} t={t} onFile={refs?.open || null} />)}
-    {!turns.length && <Empty text="No messages yet." action="Ask about this" onAction={onAsk} />}
+    {!turns.length && <p className="text-sm text-ink-3">No messages yet. Ask about it in the composer below.</p>}
     {!!(mine?.questions.length || mine?.sessions.length) && <div className="pt-2"><Pill className="mb-1">{FIXTURE}</Pill>
       {mine.questions.map((q) => <button key={q.id} type="button" className={ROW} onClick={() => askBar(q.question)}>{q.question}</button>)}
       {mine.sessions.map((s) => <button key={s.id} type="button" className={ROW} onClick={() => onPick(s.id)}>{s.title} <span className="text-xs text-ink-3">{s.at}</span></button>)}</div>}
@@ -128,10 +133,5 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
     {(record || OVERVIEW_TAB) && <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{overview}</TabsContent>}
     {tabs && <TabsContent value="source" className="flex min-h-0 flex-1 flex-col px-4 pt-2"><RepositorySource appName={app.name} path={file} line={object.line || 1} lineEnd={object.end} commit={snapshot.commit} repo={app.repo} /></TabsContent>}
     {!record && <TabsContent value="chat" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{chat}</TabsContent>}
-    {/* Two actions, one of them primary (inspector brief §11-12); the Tutor picks the pedagogy once the learner says what they want. */}
-    {!record && <footer data-inspector-actions className="flex shrink-0 gap-2 border-t border-line px-4 py-3">
-      <Button size="sm" variant="secondary" onClick={onAsk}>Ask about this</Button>
-      <Button size="sm" variant="primary" onClick={onLearn}>Learn this</Button>
-    </footer>}
   </Tabs>;
 }

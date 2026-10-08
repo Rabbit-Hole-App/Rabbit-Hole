@@ -205,12 +205,15 @@ await check('5 Ask attaches the exact range and focuses the composer: karpathy/n
   assert.equal(await title(), 'model.py:177–179');
 });
 await shot('G-composer-repo-file-range');
-await check('I §13: the inspector shows the selected range - title, breadcrumb, path:lines, Open source at the range, Ask about this and Learn this', async () => {
+await check('I §13: the inspector shows the selected range - title, breadcrumb, path:lines, Open source at the range, and Learn this beside the title', async () => {
   assert.equal(await panel.locator('[data-inspector-crumb]').innerText(), 'karpathy/nanoGPT › model.py › lines 177–179');
   assert.match(await panel.locator('[data-inspector-header]').innerText(), /model\.py:177–179\s*·\s*3 selected lines/);
   assert.equal(await panel.locator('[data-inspector-open-source]').getAttribute('href'), `https://github.com/karpathy/nanoGPT/blob/${COMMIT}/model.py#L177-L179`);
   assert.ok(await panel.locator('[data-in-context]').isVisible());
-  assert.deepEqual((await panel.locator('[data-inspector-actions] button').allInnerTexts()).map((t) => t.trim()), ['Ask about this', 'Learn this']);
+  // One action, Learn this, in the header beside the title (owner, 2026-10-08); asking happens in the composer.
+  assert.equal(await panel.locator('[data-inspector-header] [data-inspector-learn]').innerText(), 'Learn this');
+  assert.equal(await panel.locator('[data-inspector-actions]').count(), 0);
+  assert.equal(await panel.getByRole('button', { name: 'Ask about this' }).count(), 0);
   assert.equal(await panel.locator('[data-inspector-section="relationships"]').count(), 0, 'a range shows no relationships, never its file\'s');
   // The reader already shows model.py, so the inspector does not repeat the code: no preview, no Source tab (owner, 2026-10-08).
   assert.equal(await panel.locator('[data-inspector-preview]').count(), 0);
