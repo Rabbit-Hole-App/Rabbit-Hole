@@ -102,7 +102,8 @@ function nonzero-tests {
     log="$(mktemp)"
     "$@" 2>&1 | tee "$log"
     code=${PIPESTATUS[0]}
-    if [ "$code" = 0 ] && ! grep -Eq '^(ℹ|#) tests [1-9]' "$log"; then
+    # Colour codes first: under make the reporter colours its summary (ESC[34mℹ tests N), so ^ℹ would never match.
+    if [ "$code" = 0 ] && ! sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -Eq '^(ℹ|#) tests [1-9]'; then
         echo "✗ ran 0 tests: $*" >&2
         code=1
     fi
