@@ -63,13 +63,15 @@ const page = await contextFor(owner);
 await page.goto(`${BASE}/library?type=canvases`);
 await card(page, T.kv).waitFor({ timeout: 60000 });
 await page.waitForTimeout(500);
-await check('1 ⋮ → Analytics: on the owner\'s public canvas, after Share / Manage link; never on a private one', async () => {
+await check('1 ⋮ → Analytics: on the owner\'s public canvas, after the link rows (Share / Manage link, Copy link); never on a private one', async () => {
   await menuOf(page, T.draft);
   assert.equal(await page.locator('[data-menu-analytics]').count(), 0, 'private');
   await page.keyboard.press('Escape');
   await menuOf(page, T.kv);
   const labels = (await page.locator('.shadow-pop button, [role="menu"] button').allInnerTexts()).map(l => l.trim());
-  assert.equal(labels[labels.indexOf('Share / Manage link') + 1], 'Analytics');
+  // Copy link joined the link rows (owner, 2026-10-08; visibility-menu.md); Analytics follows them.
+  assert.equal(labels[labels.indexOf('Share / Manage link') + 1], 'Copy link');
+  assert.equal(labels[labels.indexOf('Copy link') + 1], 'Analytics');
 });
 await shot(page, '00-menu-analytics');
 let panel;
