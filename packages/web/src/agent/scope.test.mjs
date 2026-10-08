@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chipsFor, contextWithout, endpointFor, fileContext, scopeKey, scopeOf } from './scope.js';
+import { chipsFor, contextWithout, endpointFor, fileContext, rangeContext, rangeTitle, scopeKey, scopeOf } from './scope.js';
 
 const SELECTED = { id: 'model_causalselfattention', label: 'CausalSelfAttention', commit: '3f2a1c9' };
 const NANOGPT = { org: 'gmail-com', resource: { kind: 'project', slug: 'repo-1a2b3c4d-nanogpt', title: 'karpathy/nanoGPT' }, selected: SELECTED };
@@ -50,4 +50,18 @@ test('x steps up one level: a symbol falls back to its file, a file to the repos
   assert.equal(contextWithout(symbol, 'file'), null);
   assert.equal(contextWithout(fileContext('train.py', '3f2a1c9'), 'selected'), null);
   assert.equal(contextWithout(SELECTED, 'selected'), null); // a node with no file
+});
+
+// repository-browser.md: a code-reader range is one more level, repo › file › lines a–b, and steps up to its file, then the repo.
+test('a line range reads repo › file › lines a–b, keeps the whole range, and steps up to its file, then the repository', () => {
+  const range = rangeContext('model.py', 115, 122, '3f2a1c9');
+  assert.deepEqual(range, { id: 'range:model.py:115-122', label: 'lines 115–122', kind: 'range', path: 'model.py', line: 115, start: 115, end: 122, commit: '3f2a1c9' });
+  assert.deepEqual(chipsFor(scopeOf({ ...NANOGPT, selected: range })), [{ key: 'resource', label: 'karpathy/nanoGPT' }, { key: 'file', label: 'model.py', title: 'model.py' }, { key: 'selected', label: 'lines 115–122' }]);
+  assert.deepEqual(contextWithout(range, 'selected'), fileContext('model.py', '3f2a1c9'));
+  assert.equal(contextWithout(range, 'file'), null);
+  assert.notEqual(scopeKey(scopeOf({ ...NANOGPT, selected: range })), scopeKey(scopeOf({ ...NANOGPT, selected: rangeContext('model.py', 115, 123, '3f2a1c9') })));
+  assert.equal(rangeTitle(range), 'model.py:115–122');
+  assert.deepEqual([rangeContext('data/prepare.py', 7, 7, 'c').label, rangeTitle(rangeContext('data/prepare.py', 7, 7, 'c'))], ['line 7', 'prepare.py:7']);
+  const large = rangeContext('train.py', 1, 337, '3f2a1c9'); // never shortened: the server bounds the snippet, not the identity
+  assert.deepEqual([large.start, large.end, large.label], [1, 337, 'lines 1–337']);
 });

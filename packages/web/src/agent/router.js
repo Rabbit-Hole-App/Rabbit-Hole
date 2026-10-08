@@ -151,10 +151,14 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   }
   if ((m = message.match(NAMED_KIND))) return command('search_resources', { text: m[1].trim(), kinds: KINDS[kindOf(m[2])] });
   // 3. open|go to|show <name>. A Settings word is never looked up: "open settings" opens Settings.
-  m = message.match(/^(?:open|go to|show)\s+(.+)$/i);
+  m = message.match(/^(open|go to|show)\s+(.+)$/i);
   if (m) {
-    const name = m[1].trim();
+    const name = m[2].trim();
     if (SETTINGS[name.toLowerCase()]) return command('open_settings', SETTINGS[name.toLowerCase()]);
+    // In a project with a selection, a "show …" that names no resource ("Show me the data flow") is a question about
+    // the selection, asked in this scope (owner, 2026-10-07, repository-browser.md). A match still opens; open and go to
+    // stay navigation; with no selection it is the search it always was.
+    if (m[1].toLowerCase() === 'show' && scope?.kind === 'project' && scope.selected && !lookup(catalog, name).length) return ask(message);
     return byName(catalog, name, (hit) => ({ name: 'open_resource', args: { slug: hit.slug, kind: hit.kind, title: hit.title } }));
   }
   // 4. find|search <text>

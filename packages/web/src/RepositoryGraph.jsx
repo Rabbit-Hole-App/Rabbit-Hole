@@ -18,7 +18,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
   const color=n=>MEMORY_COLOR[n.kind]||colors.get(n.path)||'#a1a7ae';
   const degrees=useMemo(()=>{const counts=new Map();graph.edges.forEach(e=>{for(const id of [e.source,e.target])counts.set(id,(counts.get(id)||0)+1);});return counts;},[graph]);
   useEffect(()=>{setFocus(null);setHistory([]);setAnswer(null);},[query]);
-  const scene=useMemo(()=>{
+  const ranked=useMemo(()=>{
     let nodes;
     if(focus){const ids=new Set([focus]);graph.edges.forEach(e=>{if(e.source===focus||e.target===focus){ids.add(e.source);ids.add(e.target);}});nodes=graph.nodes.filter(n=>ids.has(n.id));}
     else if(!answer&&query.trim())nodes=graph.nodes.filter(n=>`${n.label} ${n.path||''}`.toLowerCase().includes(query.toLowerCase()));
@@ -28,12 +28,19 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
       const rank=n=>memory.has(n.id)?2:linked.has(n.id)?1:0;
       nodes=[...graph.nodes].sort((a,b)=>rank(b)-rank(a)||(degrees.get(b.id)||0)-(degrees.get(a.id)||0));
     }
-    const total=nodes.length;nodes=nodes.slice(0,answer ? 100 : focus || query ? 45 : 24+nodes.filter(n=>MEMORY.has(n.kind)).length);const count=nodes.length;
+    return{nodes:nodes.slice(0,answer ? 100 : focus || query ? 45 : 24+nodes.filter(n=>MEMORY.has(n.kind)).length),total:nodes.length};
+  },[graph,focus,query,answer]);
+  // Files and Graph share one selection (repository-browser.md): a selected node outside the bounded overview joins it, so
+  // a symbol picked in Files is lit when the Graph opens. A search, a focus or an answer view stays exactly what it asked for.
+  const pinned=!focus&&!answer&&!query.trim()&&selected?.id&&!ranked.nodes.some(n=>n.id===selected.id)?graph.nodes.find(n=>n.id===selected.id)?.id:null;
+  const scene=useMemo(()=>{
+    const nodes=pinned?[...ranked.nodes,graph.nodes.find(n=>n.id===pinned)]:ranked.nodes;
+    const total=ranked.total,count=nodes.length;
     const positions=new Map(nodes.map((n,i)=>[n.id,{...n,x:500+Math.cos(i/Math.max(1,count)*Math.PI*2)*Math.min(330,Math.max(210,count*10)),y:350+Math.sin(i/Math.max(1,count)*Math.PI*2)*Math.min(250,Math.max(160,count*8))}]));
     if(focus&&positions.has(focus))positions.set(focus,{...positions.get(focus),x:500,y:350});
     if(nodes.length===1)positions.set(nodes[0].id,{...positions.get(nodes[0].id),x:500,y:350});
     return{nodes:[...positions.values()],edges:graph.edges.filter(e=>positions.has(e.source)&&positions.has(e.target)).slice(0,250),positions,total};
-  },[graph,focus,query,answer]);
+  },[graph,focus,ranked,pinned]);
   const snapshotPositions=()=>new Map([...saved.current].map(([id,p])=>[id,{...p}]));
   useEffect(()=>{
     if(!answerView)return;
@@ -138,7 +145,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
         })}
         {scene.nodes.map(n=>{
           const emphasized=n.id===active,radius=Math.min(14,7+Math.sqrt(degrees.get(n.id)||0));
-          return <g key={n.id} data-graph-node={n.id} role="button" tabIndex={0} aria-label={n.label} transform={`translate(${positions.get(n.id)?.x??n.x},${positions.get(n.id)?.y??n.y})`} opacity={!active||connected.has(n.id)?1:.4} className="cursor-grab active:cursor-grabbing"
+          return <g key={n.id} data-graph-node={n.id} data-selected={n.id===selected?.id||undefined} role="button" tabIndex={0} aria-label={n.label} transform={`translate(${positions.get(n.id)?.x??n.x},${positions.get(n.id)?.y??n.y})`} opacity={!active||connected.has(n.id)?1:.4} className="cursor-grab active:cursor-grabbing"
             onPointerEnter={()=>setHovered(n.id)} onPointerLeave={()=>setHovered(null)}
             onDoubleClick={()=>{if(!suppressClick.current)explore(n.id);}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSelect(n);if(e.shiftKey)explore(n.id);}}}>
             {n.kind==='decision'?<rect data-memory-node="decision" x={-8} y={-8} width={16} height={16} rx={2} transform="rotate(45)" fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>

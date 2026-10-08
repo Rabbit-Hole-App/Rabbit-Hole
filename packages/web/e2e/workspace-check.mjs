@@ -47,9 +47,10 @@ const near = (a, b, msg, tol = 1.5) => assert.ok(Math.abs(a - b) <= tol, `${msg}
 const bar = page.locator('[data-agent-bar]'), input = bar.locator('textarea'), panel = page.locator('[data-map-panel]');
 const chips = async () => (await bar.locator('[data-scope-chip]').allInnerTexts()).map((t) => t.trim());
 const title = () => panel.locator('[data-inspector-title]').innerText();
-const fileRow = (path) => page.locator('main button').filter({ has: page.locator('span.font-mono', { hasText: new RegExp(`^${path.replace('.', '\\.')}$`) }) });
+// The Files view is a tree since repository-browser.md: a file row is keyed by its path, under the Files tab.
+const fileRow = (path) => page.locator(`[data-file-row="${path}"]`);
 const openMap = async () => { await page.goto(`${BASE}/apps/${REPO}?tab=map`); await page.locator('[data-graph-node]').first().waitFor({ timeout: 60000 }); await page.waitForTimeout(600); };
-const files = async () => { await page.getByRole('button', { name: 'Files', exact: true }).click(); await fileRow('train.py').waitFor(); };
+const files = async () => { await page.locator('[data-project-tabs]').getByRole('tab', { name: 'Files', exact: true }).click(); await fileRow('train.py').waitFor(); };
 const section = () => page.locator('main > section').first();
 // A fold keeps its open state while the learner walks from object to object, so open it only when it is closed.
 const fold = async (name, open = true) => { const d = panel.locator(`[data-inspector-section="${name}"]`); if ((await d.evaluate((n) => n.open)) !== open) await d.locator('summary').click(); };

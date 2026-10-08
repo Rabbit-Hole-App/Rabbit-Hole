@@ -1801,16 +1801,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
   // No Overview (owner, 2026-10-04, project-map-learn.md Layout): a project is Map or Learn. /apps/<repo>, its old aliases and
   // an old ?tab=overview link land on the Map; only ?tab=learn opens Learn, which has no project pill, and its Map icon goes back.
-  if (ready) await check('wp6-project: bare /apps/<project> is the Map, with a Map | Learn switch and no Overview; map, code, graph, agent and an old ?tab=overview open the Map; Learn has one composer and no project tabs, its Map icon returns to the Map, and on a phone ?tab=learn opens Learn below the top strip', async () => {
+  if (ready) await check('wp6-project: bare /apps/<project> is the Graph, under one Files | Graph | Learn navigation (repository-browser.md) and no Overview; map, code, graph, agent and an old ?tab=overview open the Graph; Learn has one composer and no project tabs, its Map icon returns to the Map, and on a phone ?tab=learn opens Learn below the top strip', async () => {
     const page = await open();
     await loaded(page, `/apps/${ready.name}`);
     await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
     const tabs = (await page.locator('[data-project-tabs]').getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
-    must(tabs === 'Map | Learn' && await isSelected(ptab(page, 'Map')), `bare /apps/<project> shows ${tabs}, not the Map of Map | Learn`);
+    must(tabs === 'Files | Graph | Learn' && await isSelected(ptab(page, 'Graph')), `bare /apps/<project> shows ${tabs}, not the Graph of Files | Graph | Learn`);
     for (const t of ['map', 'code', 'graph', 'agent', 'overview']) {
       await spa(page, `/apps/${ready.name}?tab=${t}`);
       await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
-      must(await isSelected(ptab(page, 'Map')), `?tab=${t} is not Map`);
+      must(await isSelected(ptab(page, 'Graph')), `?tab=${t} is not the Graph`);
     }
     await ptab(page, 'Learn').click();
     await page.waitForURL(/[?]tab=learn$/);
@@ -1859,7 +1859,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.route('**/api/learn/ask', (r) => { asks++; return r.abort(); }); // no model call, no LEARN_DB thread
     await loaded(page, `/apps/${ready.name}`);
     await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 20000 }); // the project scope is registered before anything is sent
-    must(await isSelected(ptab(page, 'Map')), 'the project does not open on the Map');
+    must(await isSelected(ptab(page, 'Graph')), 'the project does not open on the Graph');
     const panel = page.locator('[data-map-panel]'), sheet = page.locator('[data-result-sheet]');
     must(await panel.getAttribute('aria-label') === 'Inspector', 'the panel is not the Inspector');
     await page.locator('[data-map-panel-open]').waitFor({ timeout: 10000 }); // closed until something is selected
@@ -1919,7 +1919,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const writes = writes6(page);
     await loaded(page, `/apps/${ready.name}?tab=overview`);
     await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
-    must(await isSelected(ptab(page, 'Map')), '?tab=overview is not the Map');
+    must(await isSelected(ptab(page, 'Graph')), '?tab=overview is not the Graph');
     await page.getByRole('heading', { level: 1, name: ready.repo, exact: true }).waitFor({ timeout: 10000 });
     for (const clutter of ['Refresh branch', 'Last run']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on the Map at rest`);
     must(await page.locator('[data-repo-details]').count() === 0, 'the repository details show before the info icon');
@@ -2180,9 +2180,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await loaded(page, `/apps/${ready.name}?tab=map${fixtures ? '&fixtures=1' : ''}`);
     await page.locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
   };
-  // The layers sit behind one icon (project-map-learn.md); a click outside closes them, so open them before each use.
+  // The layers sit behind one button (project-map-learn.md) and open beside the graph; open them before each use.
   const openLayers = async (page) => { if (!(await page.locator('[data-map-layers]').count())) await page.locator('[data-map-layers-open]').click(); };
-  const layer = (page, name) => page.locator('[data-map-layers]').getByRole('button', { name: new RegExp(`^${name}`) });
+  // Layers is a popover of node-type checkboxes since repository-browser.md (owner brief §3).
+  const layer = (page, name) => page.locator('[data-map-layers]').getByRole('checkbox', { name: new RegExp(`^${name}`) });
 
   if (ready) await check('wp6-kg-layers: the Map shows Code only; behind the layers icon, without fixtures Decisions, Questions and Sessions are off as none recorded and nothing says Fixture; with ?fixtures=1 on nanoGPT, Decisions adds its 6 decision nodes, recorded links solid and inferred dashed, and the layer row says Fixture · UI preview', async () => {
     const page = await open();
@@ -2298,7 +2299,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await convo.getByRole('button', { name: /square root of the head size/ }).click();
     await answer.getByText('It keeps the scores near unit variance').first().waitFor({ timeout: 10000 });
     await openLayers(fx);
-    for (const name of ['Decisions', 'Questions', 'Sessions']) if ((await layer(fx, name).getAttribute('aria-pressed')) !== 'true') await layer(fx, name).click();
+    for (const name of ['Decisions', 'Questions', 'Sessions']) if (!(await layer(fx, name).isChecked())) await layer(fx, name).click();
     await fx.waitForTimeout(800);
     const all = await fx.locator('body').innerText();
     must(!/Private debugging session|generate slow down/.test(all), 'a private record of another user shows');
