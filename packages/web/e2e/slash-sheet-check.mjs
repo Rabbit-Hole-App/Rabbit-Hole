@@ -93,8 +93,9 @@ ok('/animate plays the finished softmax clip, not a Generate card', plays > 0 &&
 await sheet.screenshot({ path: `${SHOTS}/sheet-animate.png` });
 for (const [command, type] of [['3d', 'scene'], ['video', 'videoGenerate']]) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
+  // decode(), not naturalWidth: an SVG with only a viewBox loads with naturalWidth 0; decode() rejects only a broken image.
   const picture = sheet.locator(`[data-slash-card="${type}"] img[data-slash-illustration]`);
-  const drawn = await picture.waitFor({ timeout: 15000 }).then(() => picture.evaluate(node => node.complete && node.naturalWidth > 0)).catch(() => false);
+  const drawn = await picture.waitFor({ timeout: 15000 }).then(() => picture.evaluate(node => node.decode().then(() => true, () => false))).catch(() => false);
   ok(`/${command} shows a labelled picture of the finished card, not a Generate card`, drawn && await sheet.locator(`[data-slash-card="${type}"]`).getByText('Illustration.').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video], [data-slash-card] [data-generate-scene]').count() === 0);
   await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
 }
