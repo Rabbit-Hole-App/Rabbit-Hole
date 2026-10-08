@@ -11,8 +11,8 @@ const send = (url, body, method = 'POST') => api(url, { method, body: JSON.strin
 export const commentsApi = base => ({
   base,
   about: () => api(base),
-  threads: (status = 'open', audience = 'all') => api(`${base}/threads?status=${status}${audience !== 'all' ? `&audience=${audience}` : ''}`),
-  thread: id => api(`${base}/threads/${id}`),
+  threads: (status = 'open', audience = 'all', cursor = null) => api(`${base}/threads?status=${status}${audience !== 'all' ? `&audience=${audience}` : ''}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`),
+  thread: (id, before = null) => api(`${base}/threads/${id}${before ? `?before=${encodeURIComponent(before)}` : ''}`),
   start: body => send(`${base}/threads`, body),
   reply: (threadId, body) => send(`${base}/threads/${threadId}/comments`, body),
   edit: (id, body) => send(`${base}/comments/${id}`, { body, mentions: mentionsIn(body) }, 'PATCH'),
@@ -20,7 +20,9 @@ export const commentsApi = base => ({
   remove: id => api(`${base}/comments/${id}`, { method: 'DELETE' }),
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
   read: id => send(`${base}/threads/${id}/read`),
-  block: commentId => send(`${base}/blocks`, { comment_id: commentId, remove_comments: false }),
+  block: (commentId, removeComments = false) => send(`${base}/blocks`, { comment_id: commentId, remove_comments: removeComments }),
+  blocks: () => api(`${base}/blocks`),
+  unblock: id => api(`${base}/blocks/${id}`, { method: 'DELETE' }),
 });
 
 // Every @handle typed in a body, as the server's mapping wants it (UTF-16 pos and len of '@handle'). The server keeps only

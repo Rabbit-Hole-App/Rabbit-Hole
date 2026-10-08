@@ -31,11 +31,11 @@ export default function MemberBoardPage({ boardId }) {
     Promise.all([get(`${base}/board`), get(base)]).then(([read, info]) => {
       if (read.status === 401) { window.location.href = `/sign-in?next=${encodeURIComponent(window.location.pathname)}`; return; }
       if (read.status !== 200) { setProblem("This canvas isn't available to you."); return; }
-      if (read.body.role === 'owner' && read.body.canvas) { window.location.replace(`/apps/${read.body.canvas}`); return; }
+      if (read.body.role === 'owner' && read.body.canvas) { window.location.replace(`/apps/${read.body.canvas}${window.location.search}`); return; }
       setBoard(read.body); setAbout(info.status === 200 ? info.body : null);
     }, () => setProblem('This canvas could not be opened. Check your connection and try again.'));
   }, [base]);
-  const comments = useCanvasComments({ base: board && base, canAdd: !!about?.can.post, openPanel: openComments, canvasApi });
+  const comments = useCanvasComments({ base: board && base, canAdd: !!about?.can.post, openPanel: openComments, canvasApi, link: `/c/${boardId}` });
 
   if (problem) return <main className="grid h-screen place-items-center bg-white p-6"><div className="max-w-sm text-center"><h1 className="text-lg font-semibold text-ink">{problem}</h1><a href="/" className="mt-3 inline-block text-sm text-ink-2 underline">Go to {PRODUCT}</a></div></main>;
   if (!board) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the canvas…</main>;

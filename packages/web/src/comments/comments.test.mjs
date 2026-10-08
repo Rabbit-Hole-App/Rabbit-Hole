@@ -137,3 +137,18 @@ test('Library: comment news on your canvases\' cards and a Shared with you secti
   assert.match(unread, /setInterval\(load, 60_000\)/, 'every 60 s');
   assert.match(unread, /if \(document\.visibilityState !== 'visible'\) return;/, 'paused while hidden');
 });
+
+test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more, earlier replies, Show comments, Block, Unblock', () => {
+  const hook = read('./useCanvasComments.js'), panel = read('./CommentsPanel.jsx'), page = read('../LearnPage.jsx'), shared = read('../SharedBoardPage.jsx'), member = read('./MemberBoardPage.jsx'), settings = read('./CommentSettings.jsx');
+  assert.match(hook, /new URLSearchParams\(window\.location\.search\)\.get\('thread'\)/);
+  assert.match(hook, /threadLink: link \? id => `\$\{window\.location\.origin\}\$\{link\}\?thread=\$\{id\}` : null/);
+  assert.match(page, /link: commentBoard && `\/c\/\$\{commentBoard\}`/, 'members\' links go to /c');
+  assert.match(shared, /link: `\/e\/\$\{token\}`/, 'public links go to /e');
+  assert.match(member, /window\.location\.replace\(`\/apps\/\$\{read\.body\.canvas\}\$\{window\.location\.search\}`\)/, 'the owner keeps ?thread= on the way home');
+  assert.match(page, /label: 'Show comments', icon: MessageCircle, checked: comments\.showPins, onSelect: comments\.togglePins/);
+  assert.match(panel, /data-more-threads/);
+  assert.match(panel, /data-earlier-replies/);
+  assert.match(panel, /data-copy-thread-link/);
+  assert.match(panel, /\['Block and remove their comments', \(\) => act\(\(\) => client\.block\(message\.id, true\)\)\]/);
+  assert.match(settings, /data-unblock onClick=\{\(\) => unblock\(block\.block_id\)\}/);
+});

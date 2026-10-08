@@ -631,7 +631,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // Comments (docs/features/canvas-comments.md): keyed by the main board's id, which the owner's board reads return.
   const [commentBoard, setCommentBoard] = useState(null);
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
-  const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi });
+  const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}` });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('toc'); }, [comments.active, panelTab]);
   // ?share=1 (the Library's Share / Manage link) opens this canvas's Share panel once; the query is dropped at once.
   const [shareOpen, setShareOpen] = useState(() => new URLSearchParams(window.location.search).get('share') === '1');
@@ -1384,6 +1384,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         { label: 'Minimap', icon: MapIcon, checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
         { label: 'Snap to grid', icon: Grid3x3, checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
         { label: 'Page guides', icon: FileText, choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
+        ...(comments.active ? [{ label: 'Show comments', icon: MessageCircle, checked: comments.showPins, onSelect: comments.togglePins }] : []),
         { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
         { divider: true },
         { label: 'Keyboard shortcuts', icon: Keyboard, hint: '?', onSelect: () => setShortcutsOpen(true) },

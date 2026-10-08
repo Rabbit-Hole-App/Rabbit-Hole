@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Globe, MoreHorizontal, Users } from 'lucide-react';
+import { ChevronLeft, Globe, Link2, MoreHorizontal, Users } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
 import { anchorText } from './anchors.js';
@@ -26,7 +26,7 @@ const Audience = ({ audience }) => (
 const storage = () => sessionStorage;
 const POLL_MS = 30_000;
 
-export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraftDone, selected = null, onSelect, onThreads, objectLive = () => true, onFocusAnchor }) {
+export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraftDone, selected = null, onSelect, onThreads, objectLive = () => true, onFocusAnchor, threadLink = null }) {
   const client = useMemo(() => commentsApi(base), [base]);
   const [about, setAbout] = useState(null);
   const [status, setStatus] = useState('open');
@@ -49,17 +49,21 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
     return () => { clearInterval(timer); window.removeEventListener('focus', tick); };
   }, [hidden, refresh]);
   useEffect(() => { onThreads?.(list?.threads || []); }, [list, onThreads]);
+  // 30 per page; Load more appends the next page. A refresh starts again from the first.
+  const more = async () => {
+    try { const page = await client.threads(status, audience, list.cursor); setList(current => ({ ...page, threads: [...current.threads, ...page.threads] })); } catch (error) { setFailed(error.message); }
+  };
 
   const body = failed ? <p className="text-sm text-ink-2">{failed}</p>
     : !about || !list ? <p className="text-sm text-ink-2">Loading comments…</p>
     : draftAnchor ? <NewThread client={client} about={about} anchor={draftAnchor} live={objectLive(draftAnchor)} onCancel={() => onDraftDone?.(null)}
         onPosted={thread => { onDraftDone?.(thread.id); refresh(); }} />
-    : selected ? <ThreadView key={selected} client={client} about={about} id={selected} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} />
-    : <ThreadList list={list} about={about} status={status} setStatus={setStatus} audience={audience} setAudience={setAudience} objectLive={objectLive} onOpen={id => onSelect?.(id)} />;
+    : selected ? <ThreadView key={selected} client={client} about={about} id={selected} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} threadLink={threadLink} />
+    : <ThreadList list={list} about={about} status={status} setStatus={setStatus} audience={audience} setAudience={setAudience} objectLive={objectLive} onOpen={id => onSelect?.(id)} onMore={more} />;
   return <div role="tabpanel" aria-label="Comments" data-comments-panel className={`${hidden ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{body}</div>;
 }
 
-function ThreadList({ list, about, status, setStatus, audience, setAudience, objectLive, onOpen }) {
+function ThreadList({ list, about, status, setStatus, audience, setAudience, objectLive, onOpen, onMore }) {
   return (
     <>
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -98,6 +102,7 @@ function ThreadList({ list, about, status, setStatus, audience, setAudience, obj
             </button>
           </li>
         ))}
+        {list.cursor && <li><button type="button" data-more-threads onClick={onMore} className="w-full rounded-lg px-2 py-1.5 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Load more</button></li>}
       </ol>
     </>
   );
@@ -142,7 +147,7 @@ function NewThread({ client, about, anchor, live, onCancel, onPosted }) {
   );
 }
 
-function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onChange }) {
+function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onChange, threadLink }) {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(null);
   const load = useCallback(async () => {
@@ -150,6 +155,12 @@ function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onCh
   }, [client, id]);
   useEffect(() => { load(); client.read(id).then(onChange, () => {}); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
   const act = async run => { try { await run(); } catch (error) { setFailed(error.message); } await load(); onChange(); };
+  // Earlier replies, 50 at a time, above the ones shown.
+  const earlier = async () => {
+    try { const older = await client.thread(id, data.before); setData(current => ({ ...current, messages: [...older.messages, ...current.messages], before: older.before })); } catch (error) { setFailed(error.message); }
+  };
+  const copy = () => navigator.clipboard?.writeText(threadLink(id)).then(() => setCopied(true), () => {});
+  const [copied, setCopied] = useState(false);
   if (failed && !data) return <div><BackButton onBack={onBack} /><p className="text-sm text-ink-2">{failed}</p></div>;
   if (!data) return <p className="text-sm text-ink-2">Loading…</p>;
   const { thread, messages } = data;
@@ -158,6 +169,8 @@ function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onCh
     <div data-comment-thread-view={thread.id} className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 flex items-center justify-between gap-2">
         <BackButton onBack={onBack} />
+        <span className="flex-1" />
+        {threadLink && <Button size="sm" data-copy-thread-link onClick={copy}><Link2 size={13} aria-hidden />{copied ? 'Copied' : 'Copy link'}</Button>}
         {thread.can.resolve && (
           <Button size="sm" variant="secondary" onClick={() => act(() => client.resolve(thread.id, thread.status === 'resolved'))}>{thread.status === 'resolved' ? 'Reopen' : 'Resolve'}</Button>
         )}
@@ -169,6 +182,7 @@ function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onCh
       </div>
       {failed && <p role="alert" className="mb-2 text-xs text-red-700">{failed}</p>}
       <ol data-comment-messages className="-mx-2 mb-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
+        {data.before && <li><button type="button" data-earlier-replies onClick={earlier} className="w-full rounded-lg px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Earlier replies</button></li>}
         {messages.map(message => <Message key={message.id} message={message} audience={thread.audience} owner={about.role === 'owner'} client={client} act={act} />)}
       </ol>
       <p className="mb-1 text-[11px] text-ink-3">Replying in {thread.audience === 'public' ? 'Public' : 'Members only'}</p>
@@ -191,6 +205,7 @@ function Message({ message, audience, owner, client, act }) {
     message.can.edit && ['Edit', () => setEditing(message.segments.map(s => s.text ?? `@${s.mention.handle}`).join(''))],
     message.can.delete && [confirm ? 'Confirm delete' : message.mine ? 'Delete' : 'Remove comment', () => (confirm ? act(() => client.remove(message.id)) : setConfirm(true)), true],
     canBlock && [`Block ${message.author.handle ? `@${message.author.handle}` : displayName(message.author)}`, () => act(() => client.block(message.id))],
+    canBlock && ['Block and remove their comments', () => act(() => client.block(message.id, true))],
   ].filter(Boolean);
   return (
     <li data-comment-message={message.id} className="group flex gap-2 rounded-lg px-2 py-1.5 hover:bg-hover/60">

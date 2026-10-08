@@ -64,7 +64,7 @@ export default function SharedBoardPage({ token }) {
     fetch(publicBase(token), { headers: { 'Content-Type': 'application/json' } }).then(response => (response.ok ? response.json() : null)).then(info => { if (live) setCommentsInfo(info); }, () => {});
     return () => { live = false; };
   }, [token, published]);
-  const comments = useCanvasComments({ base: commentsInfo && publicBase(token), canAdd: !!commentsInfo?.can.post, openPanel: openComments, canvasApi });
+  const comments = useCanvasComments({ base: commentsInfo && publicBase(token), canAdd: !!commentsInfo?.can.post, openPanel: openComments, canvasApi, link: `/e/${token}` });
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
