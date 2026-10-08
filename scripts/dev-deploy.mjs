@@ -43,6 +43,14 @@ export function gateVerdict(text, tree) {
 // "main <sha> build <hash>" (or the "rollback to main <sha>" a rollback writes) -> the sha it serves.
 export const deployedSha = message => message?.match(/\bmain ([0-9a-f]{7,40})\b/)?.[1] ?? null;
 
+// The tables the repository's learn-migrations create. SQL comments are dropped first: 0006 mentions
+// "CREATE TABLE IF NOT EXISTS adds no columns" in prose, which is not a table.
+export const learnTables = repo => {
+  const dir = join(repo, 'packages/control-plane/learn-migrations');
+  return readdirSync(dir).filter(f => f.endsWith('.sql')).sort()
+    .flatMap(f => [...readFileSync(join(dir, f), 'utf8').replace(/--[^\n]*/g, '').matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/gi)].map(m => m[1]));
+};
+
 // deploy | noop | refuse
 export function decide({ candidate, deployed, deployedIsAncestor }) {
   if (deployed && candidate.startsWith(deployed)) return { action: 'noop', why: `${deployed.slice(0, 8)} is already deployed` };
@@ -91,8 +99,7 @@ async function smoke(entry) {
   results.push([away ? 'pass' : 'fail', `/api/apps without credentials ${anon.status}`]);
   // Signed-in flows need the Learn schema; a table the repository's learn-migrations create but the dev database lacks
   // is a migration blocker (reported, never applied here), not a regression.
-  const wanted = readdirSync(join(root, 'packages/control-plane/learn-migrations')).filter(f => f.endsWith('.sql'))
-    .flatMap(f => [...readFileSync(join(root, 'packages/control-plane/learn-migrations', f), 'utf8').matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/gi)].map(m => m[1]));
+  const wanted = learnTables(root);
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${LEARN_DEV_DB}/query`, { method: 'POST', headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: "SELECT name FROM sqlite_master WHERE type='table'" }) });
   const have = new Set((await r.json()).result?.[0]?.results?.map(t => t.name) ?? []);
   const missing = wanted.filter(t => !have.has(t));

@@ -2,7 +2,10 @@
 // overwrites a newer deployment.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gateVerdict, deployedSha, decide } from './dev-deploy.mjs';
+import { DatabaseSync } from 'node:sqlite';
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { gateVerdict, deployedSha, decide, learnTables } from './dev-deploy.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -54,4 +57,16 @@ test('deploy only forward: same sha is a no-op, an older or diverged candidate i
   assert.equal(decide({ candidate: sha, deployed: sha, deployedIsAncestor: true }).action, 'noop');
   const older = decide({ candidate: sha, deployed: 'c'.repeat(40), deployedIsAncestor: false });
   assert.equal(older.action, 'refuse'); assert.match(older.why, /never overwrites a newer deployment/);
+});
+
+test('the Learn tables the smoke expects are exactly what the learn migrations create, prose comments ignored', () => {
+  const repo = fileURLToPath(new URL('..', import.meta.url));
+  const wanted = learnTables(repo);
+  assert.ok(!wanted.includes('adds'), 'a comment in 0006 is not a table');
+  const db = new DatabaseSync(':memory:');
+  const dir = new URL('../packages/control-plane/learn-migrations/', import.meta.url);
+  for (const f of readdirSync(dir).filter(f => f.endsWith('.sql')).sort()) db.exec(readFileSync(new URL(f, dir), 'utf8'));
+  const made = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r => r.name));
+  assert.deepEqual(wanted.filter(t => !made.has(t)), [], 'every expected table exists once the migrations ran');
+  assert.ok(['user_handles', 'canvas_publications', 'library_trash'].every(t => wanted.includes(t)));
 });
