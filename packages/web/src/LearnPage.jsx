@@ -30,6 +30,8 @@ import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
+import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
+import { readPanelPin, savePanelPin } from './canvas-find.js';
 import LearnPaper from './LearnPaper.jsx';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
@@ -115,6 +117,12 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // The right panel starts closed: the canvas gets the room; View or the
   // panel button opens it.
   const [panelOpen, setPanelOpen] = useState(false);
+  // The panel header (docs/features/panel-header.md): Table of contents is the default tab; pinned (the default)
+  // keeps the panel open while the learner works on the canvas.
+  const [panelTab, setPanelTab] = useState('toc');
+  const [panelPinned, setPanelPinned] = useState(() => readPanelPin(() => localStorage));
+  const pinPanel = value => { setPanelPinned(value); savePanelPin(() => localStorage, value); };
+  const findInput = useRef(null);
   // Mirrored from the canvas so the View menu can tick what is on. Held by value
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
@@ -620,6 +628,17 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     window.addEventListener('resize', fit);
     return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
   }, [canvasEpoch, learningView, courseView]);
+  // Unpinned, a press on the canvas surface closes the panel. A native listener on the frame, so a card's own
+  // pointer handlers cannot swallow the press first; a link that opens a reader stops it in capture and stays open.
+  useEffect(() => {
+    const frame = canvasFrame.current;
+    if (panelPinned || !panelOpen || !frame) return undefined;
+    const close = event => { if (event.target.closest?.('[data-canvas-surface]')) setPanelOpen(false); };
+    frame.addEventListener('pointerdown', close);
+    return () => frame.removeEventListener('pointerdown', close);
+  }, [panelPinned, panelOpen]);
+  // A reader shows under the Table of contents tab, as before the header, so opening one brings that tab forward.
+  useEffect(() => { if (wikiOpen || paperOpen || sourceOpen || lessonSource) setPanelTab('toc'); }, [wikiOpenAt, wikiOpen, paperOpen, paperContext?.id, sourceOpen, lessonSource]); // eslint-disable-line react-hooks/exhaustive-deps
   const sharingRef = useRef(null);
   sharingRef.current = sharing;
   const boardVersion = useRef(null);
@@ -1469,7 +1488,12 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         }} />
       </div>
     </section>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-6 pb-4">
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
+      <PanelHeader tab={panelTab} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
+        onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
+      <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
+      {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
+      <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
       {/* The table of contents IS the lesson's structure, not a view onto another
           document: its sections are the canvas headings, and the learner and the agent
           both author them. Dragging a section carries its cards and sub-sections. */}
@@ -1569,6 +1593,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         // lesson view: chat is docked under the canvas - the panel only displays papers and source
         ? (lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : wikiOpen && wikiContext ? <LearnWiki app={app.name} article={wikiContext} openAt={wikiOpenAt} onNavigate={next => setWikiContext(previous => ({ ...previous, ...next, selection: null }))} onSection={section => setWikiContext(previous => (previous?.section === section ? previous : { ...previous, section }))} onSelect={text => setWikiContext(previous => ({ ...previous, selection: text }))} onClose={() => setWikiOpen(false)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null)
         : <AskPanel onGraph={onGraph} key={app.name} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" headerTitle="Learn Agent" boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : wikiOpen && wikiContext ? <LearnWiki app={app.name} article={wikiContext} openAt={wikiOpenAt} onNavigate={next => setWikiContext(previous => ({ ...previous, ...next, selection: null }))} onSection={section => setWikiContext(previous => (previous?.section === section ? previous : { ...previous, section }))} onSelect={text => setWikiContext(previous => ({ ...previous, selection: text }))} onClose={() => setWikiOpen(false)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setWikiOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={askPlaceholder} autoFocus />}
+      </div>
       </div>
     </ResizableSidePanel>
     <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf" className="hidden"

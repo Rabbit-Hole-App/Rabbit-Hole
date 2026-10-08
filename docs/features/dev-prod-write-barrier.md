@@ -68,6 +68,12 @@ Every production authentication route is refused on the dev/review worker, with 
 - **Why.** A production sign-in on a dev host would be signed with the production `MASTER_KEY`. Once production has `RESEND_API_KEY`, `POST /login` from a dev host would also send a real production magic link.
 - **The replacement is the dedicated dev control plane, not production auth.** It runs the same control-plane code with its own `MASTER_KEY` and its own `/test/session` (deployment step 5, §6), and review/e2e sessions are minted only there.
 - **Until it exists,** authentication-dependent dev flows are unavailable. That is accepted, and no temporary bypass is added.
+- **Preview sign-in through Cloudflare Access (owner, 2026-10-07).** The stable testing URL's own entrypoint
+  (`dev-access-worker.js`; never `dev-worker.js` or production `app-worker.js`) lets in only the Google account allowed by
+  Access, once `ACCESS_AUD` is set. `dev-access.js` verifies the Access assertion itself, then mints a session for that
+  verified email on the dev control plane (`/test/session` through the binding, dev `MASTER_KEY`). Without `ACCESS_AUD`,
+  nothing changes. The four routes above stay refused to the browser, and production authentication is untouched. See
+  [dev-auto-deploy.md](dev-auto-deploy.md#access).
 
 ### 1c. Refused route classes
 
