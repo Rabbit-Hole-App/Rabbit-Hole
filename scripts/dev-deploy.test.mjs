@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload } from './dev-deploy.mjs';
+import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe } from './dev-deploy.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -139,4 +139,36 @@ test('pages and the packaged Worker have separate identities, both recorded and 
   assert.deepEqual(parseUpload(`main ${sha} build 5acc0f6ba69c`), { sha, build: '5acc0f6ba69c', bundle: null }, 'deploys before 2026-10-08 recorded pages only');
   assert.equal(parseUpload('main 42f5a4f0 (gated tree 192b10f3)'), null);
   assert.equal(deployedSha(`main ${sha} build 5acc0f6ba69c bundle 8c409f557e70`), sha, 'forward-only still reads the sha');
+});
+
+test('a full gate plus a rerun of what changed after it: every failed stage must pass again, nothing else may fail', () => {
+  // int24 on af22a1f8 failed only cross-device (a check bug); int24b reran cross-device alone on b7e17af8 (2026-10-08).
+  const RTREE = '4499528a' + '0'.repeat(32);
+  const gate = PASSED.replace('card-context-menu exit 0  12/12 checks passed', 'cross-device exit 1  check bug');
+  const rerun = `tree HEAD b7e17af8 MERGE_HEAD  index ${RTREE}\ncross-device exit 0  9/9 checks passed\njourney provider-tripwire hits: 0\nINT24B-DONE\n`;
+  assert.equal(rerunVerdict(gate, TREE, rerun, RTREE), null);
+  assert.match(rerunVerdict(gate.replace('rh-app exit 0', 'rh-app exit 1'), TREE, rerun, RTREE), /rh-app and the rerun did not pass it/, 'a failure the rerun did not cover');
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('cross-device exit 0', 'cross-device exit 2'), RTREE), /rerun: failed stages: cross-device/);
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('INT24B-DONE\n', ''), RTREE), /rerun: .*no -DONE/);
+  assert.match(rerunVerdict(gate, TREE, rerun, 'f'.repeat(40)), /rerun: the gate record is not for tree/);
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('hits: 0', 'hits: 2'), RTREE), /rerun: provider tripwire/);
+  assert.match(rerunVerdict(gate, TREE, 'tree HEAD x MERGE_HEAD  index ' + RTREE + '\nX-DONE\n', RTREE), /ran no stage/);
+  assert.match(rerunVerdict(gate, TREE, rerun, RTREE, { unitChanged: true }), /must run make test-unit/, 'changed unit tests need the unit run again');
+  assert.equal(gateVerdict(gate, TREE) !== null, true, 'the gate alone still refuses');
+});
+
+test('rerun paths: only tests may change between the gate and the rerun; only docs and deploy scripts after it', () => {
+  const test = p => TEST_ONLY.some(r => r.test(p));
+  for (const p of ['packages/web/e2e/cross-device-check.mjs', 'tests/evals/tutor-session/a.test.mjs', 'packages/control-plane/test/x.test.js', 'packages/web/src/foo.test.mjs']) assert.ok(test(p), p);
+  for (const p of ['packages/web/src/App.jsx', 'packages/web/e2e-helpers.js', 'packages/control-plane/src/test-utils.js', 'run.sh']) assert.ok(!test(p), p);
+  assert.ok(UNIT_TEST.test('packages/control-plane/test/x.test.js') && !UNIT_TEST.test('packages/web/e2e/cross-device-check.mjs'));
+});
+
+test('the build recipe is the install, the build env, both builds and the entry; comments and its own definition do not count', () => {
+  const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
+  const recipe = buildRecipe(src).split('\n');
+  assert.equal(recipe.length, 5);
+  assert.ok(recipe.some(l => l.includes("npm ci")) && recipe.some(l => l.includes('VITE_COACHING_DEV')) && recipe.some(l => l.includes("['dist', 'dist-dev']")));
+  assert.notEqual(buildRecipe(src.replace("VITE_BYOC_DEV: 'true'", "VITE_BYOC_DEV: 'false'")), buildRecipe(src), 'a build env change is a recipe change');
+  assert.equal(buildRecipe(src + '\n// npm ci comment\n'), buildRecipe(src));
 });
