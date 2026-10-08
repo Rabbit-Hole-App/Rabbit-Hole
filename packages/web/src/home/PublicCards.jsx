@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
-import { ArrowDownToLine, FolderGit2, Link2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowDownToLine, Check, FolderGit2, Link2, X } from 'lucide-react';
 import { navigate } from '../api.js';
 import ForkButton from '../ForkButton.jsx';
 import RabbitHoleChoice from '../RabbitHoleChoice.jsx';
 import { startHref } from '../shared-rabbit-hole.js';
 import LearningCard, { CARD_GRID, menuAt } from './LearningCard.jsx';
-import { cardModel } from './provenance.js';
+import { cardModel, profileUrl } from './provenance.js';
 import { findQuery, readFind, scheduleFind } from './explore-find.js';
 import { Avatar, Button, Menu, MenuItem, toast } from '../ui.jsx';
 
@@ -109,17 +109,44 @@ export function ProjectFilter({ project, empty }) {
 // treatment every avatar uses - from the display name, else the @handle.
 export const CreatorAvatar = ({ c, className }) => <Avatar email={c.name || c.handle} src={c.avatar} className={className} />;
 
+// Copy profile link (owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button"): the
+// creator's absolute /@handle (provenance.js profileUrl), never an email or an id. The button itself says it was copied,
+// then reverts - no corner toast. It never opens the card it sits on. `compact`: an icon until it has something to say.
+export function CopyProfileLink({ handle, compact = false, className = '' }) {
+  const [copied, setCopied] = useState(null);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const copy = async (event) => {
+    event.preventDefault(); event.stopPropagation();
+    try { await navigator.clipboard.writeText(profileUrl(window.location.origin, handle)); setCopied('Profile link copied'); }
+    catch { setCopied("Couldn't copy the link"); }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(null), 1600);
+  };
+  const Icon = copied ? Check : Link2;
+  return (
+    <Button type="button" size="sm" variant={compact ? 'ghost' : 'secondary'} data-copy-profile={handle} aria-label={copied || 'Copy profile link'} title="Copy profile link"
+      onClick={copy} className={`shrink-0 ${compact && !copied ? 'w-7 justify-center px-0' : ''} ${className}`}>
+      <Icon size={13} strokeWidth={1.8} aria-hidden="true" />{(copied || !compact) && <span aria-live="polite">{copied || 'Copy profile link'}</span>}
+    </Button>
+  );
+}
+
 // One creator in Explore's "Creators to explore" row and in creator search: picture, name, @handle and their public
-// explainer count, opening /@handle. No follower, verification or reputation signal (owner: no social features).
+// explainer count, opening /@handle, and Copy profile link beside it - outside the link, so copying never opens the
+// profile. No follower, verification or reputation signal (owner: no social features).
 export function CreatorChip({ c }) {
   const n = c.explainer_count;
   return (
-    <a data-creator-chip={c.handle} href={c.url} className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-lg border border-line bg-white py-2 pl-2.5 pr-3.5 hover:bg-hover">
-      <CreatorAvatar c={c} className="h-8 w-8 text-xs!" />
-      <span className="flex min-w-0 flex-col leading-tight">
-        <span className="truncate text-sm font-medium text-ink">{c.name || `@${c.handle}`}</span>
-        <span className="truncate text-xs text-ink-2">{c.name ? `@${c.handle} · ` : ''}{n} explainer{n === 1 ? '' : 's'}</span>
-      </span>
-    </a>
+    <div data-creator-card={c.handle} className="flex min-w-0 shrink-0 items-center rounded-lg border border-line bg-white pr-1.5 hover:bg-hover">
+      <a data-creator-chip={c.handle} href={c.url} className="flex min-w-0 items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2">
+        <CreatorAvatar c={c} className="h-8 w-8 text-xs!" />
+        <span className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate text-sm font-medium text-ink">{c.name || `@${c.handle}`}</span>
+          <span className="truncate text-xs text-ink-2">{c.name ? `@${c.handle} · ` : ''}{n} explainer{n === 1 ? '' : 's'}</span>
+        </span>
+      </a>
+      <CopyProfileLink handle={c.handle} compact />
+    </div>
   );
 }

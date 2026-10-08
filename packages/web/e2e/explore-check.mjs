@@ -25,6 +25,8 @@ const browser = await chromium.launch();
 const errors = [];
 const contextFor = async (p, init = null) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  // Copy profile link writes the clipboard; the check reads it back.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   if (p) await context.addCookies([{ name: 'small_session', value: p.session, url: BASE }]);
   if (init) await context.addInitScript(init.fn, init.arg);
   // A new hole's opening question is a Tutor turn (#46): answered here, as shared-rabbit-hole-check does; the planner's real
@@ -86,6 +88,24 @@ check('Explore opens on the Explainers tab, with Sort, searching explainers only
   && await viewer.page.locator('[data-creator-chip]').count() === 0);
 check('the Explore card shows the creator\'s @handle and the fork count, no email', (await card.locator('[data-creator]').innerText()).trim() === `@${H.owner}` && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '04-explore');
+// Copy profile link on the Creators tab (owner, 2026-10-08): the absolute /@handle on the clipboard, said on the button,
+// which then reverts; Explore stays where it is.
+await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
+const creatorCard = viewer.page.locator(`[data-explore-creators] [data-creator-card="${H.owner}"]`);
+await creatorCard.waitFor({ timeout: 30000 });
+const copyProfile = creatorCard.locator('[data-copy-profile]');
+const before = viewer.page.url();
+await copyProfile.click();
+await viewer.page.waitForTimeout(300);
+const said = (await copyProfile.innerText()).trim();
+const clip = await viewer.page.evaluate(() => navigator.clipboard.readText());
+await shot(viewer.page, '04b-explore-copy-profile', creatorCard);
+await viewer.page.waitForTimeout(1800);
+check('Copy profile link on a creator card: the clipboard holds origin + /@handle, the button says Profile link copied then reverts, and nothing navigates',
+  clip === `${BASE}/@${H.owner}` && said === 'Profile link copied' && viewer.page.url() === before && (await copyProfile.getAttribute('aria-label')) === 'Copy profile link',
+  `${clip} | ${said} | ${viewer.page.url()}`);
+await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Explainers' }).click();
+await card.waitFor({ timeout: 30000 });
 // A click on the card body only selects it (owner, 2026-10-08); its title opens it.
 await card.click();
 await viewer.page.waitForTimeout(500);

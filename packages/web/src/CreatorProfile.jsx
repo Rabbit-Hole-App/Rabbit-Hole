@@ -3,7 +3,7 @@ import { BarChart3, Compass, UserRound, UserPen } from 'lucide-react';
 import { CreatorDashboard } from './CreatorAnalytics.jsx';
 import { PRODUCT } from './flags.js';
 import { SortMenu } from './home/LearningCard.jsx';
-import PublicCards, { CreatorAvatar } from './home/PublicCards.jsx';
+import PublicCards, { CopyProfileLink, CreatorAvatar } from './home/PublicCards.jsx';
 import { OwnerCheck } from './home/Provenance.jsx';
 import { forkNumber } from './home/provenance.js';
 import { loadProfile, useProfile } from './session-display.js';
@@ -77,6 +77,8 @@ function Profile({ handle }) {
             <div className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
               {p.name && <span data-profile-handle>@{p.handle}</span>}
               {own && <span data-own-profile className="inline-flex items-center gap-1 text-xs text-ink-2"><OwnerCheck owned />Your profile</span>}
+              {/* Beside the name and handle, for everyone - signed out too (owner, 2026-10-08). */}
+              <CopyProfileLink handle={p.handle} />
             </div>
             <p data-profile-stats className="pt-2 text-sm text-ink-2">{plural(p.explainer_count, 'public explainer')} · {plural(p.fork_count, 'fork')}</p>
           </div>

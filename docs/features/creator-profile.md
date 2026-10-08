@@ -57,6 +57,16 @@ so a link from a private view reveals nothing the handle did not already name. H
 | Fork provenance ("Forked from … · @alice", Library cards and the canvas top bar) | the original creator's @handle, whatever the original's state (`provenance.js` `creatorUrl`) |
 | Library and Home cards | the @handle, through `cardModel`'s `creator.url` (yours opens your own profile) |
 
+## Copy profile link
+
+Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
+
+- **Where:** on every creator card (Explore's Creators tab, its Recommended creators and creator search: one `CreatorChip`), as an icon button beside the card's link, outside it; and on `/@handle`, in the name and handle row, labelled "Copy profile link". The profile's button is there for every viewer, signed out included.
+- **What it copies:** the absolute profile URL, `${location.origin}/@handle` (`provenance.js` `profileUrl`) - the handle only, never an email or an internal id.
+- **Feedback:** in place, as the card menu's Copy link does: the button says "Profile link copied" (or "Couldn't copy the link"), then reverts after 1.6 seconds. No corner toast.
+- **It never navigates:** the click stops before the card's link (`preventDefault`, `stopPropagation`), and the button is not inside it.
+- `CopyProfileLink` (`home/PublicCards.jsx`) is the one button for both places.
+
 ## Explore: creator discovery and search
 
 - **Two tabs** (owner, 2026-10-08; it replaces the "Creators to explore" row above the feed): **Explainers** (the default, the card feed, with Sort) and **Creators** (`/explore?tab=creators`), whose chips show each creator's picture or initials, name, @handle and explainer count, and open `/@handle`. Without a search it lists up to 8 creators, ordered by latest publication. There is no ranking, follower count or reputation.
@@ -132,9 +142,10 @@ CREATE TABLE IF NOT EXISTS user_profile_bios (
   - read-only methods.
 
   Every JSON answer is checked for emails.
-- **Web unit:** `src/creator-profile.test.mjs` covers the route, the owner-only parts, the public-only links and the analytics typed states. `src/explore-publish.test.mjs` follows the card list into `home/PublicCards.jsx`, and `src/routes.test.mjs` checks that a profile lights Explore.
-- **Browser:** `e2e/creator-profile-check.mjs` (14 checks, local stack only) covers:
+- **Web unit:** `src/creator-profile.test.mjs` covers the route, the owner-only parts, the public-only links, the analytics typed states, and Copy profile link (`profileUrl`, the card and profile wiring, no toast, no navigation). `src/explore-publish.test.mjs` follows the card list into `home/PublicCards.jsx`, and `src/routes.test.mjs` checks that a profile lights Explore.
+- **Browser:** `e2e/creator-profile-check.mjs` (15 checks, local stack only) covers:
   - the Explore tabs (Explainers default, Creators, the tab in the URL);
+  - Copy profile link on a creator card, on the profile and signed out: the clipboard holds origin + `/@handle`, the button says Profile link copied and reverts, nothing navigates (`e2e/explore-check.mjs` checks the card too);
   - the card's @handle link;
   - Explore → @handle → profile → explainer → `/e` → back;
   - another creator with no check;
