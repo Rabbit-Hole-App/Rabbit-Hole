@@ -461,6 +461,28 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     const copy = copiedCode(() => sessionStorage, text);
     setImports(queue => [...queue, { id: crypto.randomUUID(), file: new File([text], pasteName(copy), { type: 'text/plain' }), kind: 'paste', at: null, copy }]);
   };
+  // Ask in chat on lines in the Files panel (RepositoryPage small:code-card; repository-browser.md "Files in Learn", owner
+  // 2026-10-08): the lines become a Code card - the paste dialog's Code card (pasteBlock), its file, lines and language kept
+  // as its code source - placed where the learner is looking, in the flow, and selected, so it is the question's selected
+  // card beside the repository range. The same lines again reselect their card. Nothing is sent; no model is asked.
+  useEffect(() => {
+    const place = async event => {
+      const { text, path, start, end, commit, repo } = event.detail || {};
+      const surface = canvasApi.current;
+      if (!surface || typeof text !== 'string' || !path) return;
+      const same = (surface.blocks?.() || []).find(block => block.type === 'snippet' && (block.sources || []).some(source => source.kind === 'code' && source.repo === repo && source.revision === commit && source.path === path && source.lines?.[0] === start && source.lines?.[1] === end));
+      let id = same?.id;
+      if (!id) {
+        const copy = { path, repo, commit, start, end }, assetKey = `import:${crypto.randomUUID()}`;
+        const block = pasteBlock({ text, copy, choice: 'code', assetKey, language: languageOf(path) });
+        await cacheAsset(assetKey, new File([text], pasteName(copy), { type: 'text/plain' }));
+        id = surface.insertImported(block);
+      }
+      surface.select(id);
+    };
+    window.addEventListener('small:code-card', place);
+    return () => window.removeEventListener('small:code-card', place);
+  }, []);
   const takeDrop = async (files, at = null) => {
     const asked = [];
     for (const file of files) {

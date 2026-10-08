@@ -146,7 +146,8 @@ test('one selection: Files, Graph, the inspector and Learn read the same context
   assert.match(page, /<RepositoryGraph graph=\{shown\} selected=\{lit\}/);
   assert.match(page, /const lit=inspected\?\.record\?\{id:inspected\.id\}:context&&\(context\.nodeId\|\|context\.path\)\?\{id:context\.nodeId\|\|fileObject\(snapshot\.graph,context\.path\)\.nodeId\}:null;/);
   assert.match(page, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{opened\} context=\{context\}[^>]*onFile=\{p=>attach\(fileObject\(snapshot\.graph,p\)\)\} onSymbol=\{n=>attach\(objectOf\(snapshot\.graph,n\)\)\}/);
-  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else askAbout\(range\);\}\} \{\.\.\.extra\}\/>;/);
+  // In Learn's panel, Ask in chat also puts the lines on the canvas as a selected Code card (repository-browser.md "Files in Learn").
+  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else\{askAbout\(range\);if\(extra\?\.place==='panel'\)codeCard\(range\);\}\}\} \{\.\.\.extra\}\/>;/);
   assert.equal(page.match(/<CodeReader /g).length, 1, 'one reader: the Map shows reader(), the Main canvas panel reader({stacked})');
   assert.match(page, /:reader\(\)\}<\/div>/);
   assert.match(page, /repositoryContext=\{context\?wireContext\(context\):\{commit:app\.commit_sha\}\}/);

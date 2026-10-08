@@ -299,7 +299,7 @@ await check('6 Learn attaches the exact range and carries it into Learn, sending
 
 // Learn's composer is an input (LearnPage, Dive.jsx), a textarea in other docks: match either.
 const COMPOSER = '[data-learn-dock] textarea, [data-learn-dock] [data-chat-composer] input:not([type="file"])';
-await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, selected lines Ask into Learn\'s chat as its context, nothing is sent', async () => {
+await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, Ask in chat puts the lines on the canvas as a selected Code card and writes the question, with the range as context; nothing is sent', async () => {
   const n = asks.length, sent = learnRequests.length;
   await tab('Learn').click();
   await page.waitForURL(/[?]tab=learn$/);
@@ -321,6 +321,21 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
   assert.equal((await chip.locator('[data-context-path]').innerText()).trim(), 'train.py · lines 5–7');
   assert.ok((await chip.locator('[data-context-excerpt]').innerText()).includes(content['train.py'].split('\n')[4].trim()), 'the preview shows line 5');
   assert.equal(await chip.getByRole('button', { name: 'Clear repository selection' }).count(), 1);
+  // The lines are on the canvas as a Code card (owner, 2026-10-08: "put the highlighted code as code card"), holding exactly
+  // them, selected: the selected-card pill names it, beside the repository chip.
+  const lines = content['train.py'].split('\n').slice(4, 7);
+  const codeCards = page.getByLabel('Lesson canvas').locator('[data-block-id]').filter({ hasText: lines[0].trim() }).filter({ hasText: 'train.py' });
+  await codeCards.first().waitFor({ timeout: 10000 });
+  assert.equal(await codeCards.count(), 1, 'one Code card');
+  for (const text of lines.filter((l) => l.trim())) assert.ok((await codeCards.first().innerText()).includes(text.trim()), `the card holds ${text.trim()}`);
+  const cardId = await codeCards.first().getAttribute('data-block-id');
+  await page.locator(`[data-learn-dock] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
+  // Ask in chat on the same lines again reselects that card: no second card.
+  await drag(5, 7);
+  await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
+  await page.waitForTimeout(600);
+  assert.equal(await codeCards.count(), 1, 'the same lines make no second card');
+  await page.locator(`[data-learn-dock] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
   assert.equal(asks.length, n, 'Ask wrote the question and sent nothing'); assert.equal(learnRequests.length, sent);
   await shot('L-learn-files-ask');
@@ -340,9 +355,10 @@ await check('10b Copy in the panel says Copied on the button; pasting it on the 
   assert.equal((await dialog.locator('[data-import-file]').innerText()).trim(), 'train.py', 'text copied from a file keeps its name');
   assert.deepEqual((await dialog.locator('[data-import-choice]').allInnerTexts()).map((t) => t.trim()), ['Code card', 'Jupyter notebook']);
   await shot('L-paste-code-dialog');
+  const before = await canvasFrame.locator('[data-block-id]').count(); // case 10's Code card is already there
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await dialog.waitFor({ state: 'detached', timeout: 5000 });
-  assert.equal(await canvasFrame.getByText('train.py', { exact: true }).count(), 0, 'Cancel placed nothing');
+  assert.equal(await canvasFrame.locator('[data-block-id]').count(), before, 'Cancel placed nothing');
   await paste(copied);
   await dialog.waitFor({ timeout: 5000 });
   await page.keyboard.press('Escape');
@@ -350,7 +366,7 @@ await check('10b Copy in the panel says Copied on the button; pasting it on the 
   await paste(copied);
   await dialog.locator('[data-import-choice="code"]').click();
   await dialog.getByRole('button', { name: 'Add to canvas', exact: true }).click();
-  await canvasFrame.getByText('train.py', { exact: true }).first().waitFor({ timeout: 10000 });
+  await page.waitForFunction((n) => document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]').length === n + 1, before, { timeout: 10000 });
   // Code from elsewhere (the conservative heuristic) asks too, named snippet.py; a notebook is offered and nothing runs.
   await paste('def attention(q, k, v):\n    w = q @ k.T\n    return w @ v');
   await dialog.waitFor({ timeout: 5000 });
@@ -364,15 +380,24 @@ await check('10b Copy in the panel says Copied on the button; pasting it on the 
   assert.equal(asks.length, n, 'copying and pasting asked nothing'); assert.equal(learnRequests.length, sent);
 });
 
-await check('10c Send carries the attached file and line range on the Learn chat path, and the answer stays tied to them', async () => {
+await check('10c Send carries the Code card and the line range on the Learn chat path, and the answer stays tied to them', async () => {
   const n = asks.length, tutorTurns = learnRequests.filter((p) => p.startsWith('/api/learn/tutor')).length;
   const field = page.locator(COMPOSER).first();
+  // Ask in chat once more: its Code card is selected again and the question waits, unsent.
+  await drag(5, 7);
+  await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
+  const pill = page.locator('[data-learn-dock] [data-selected-card]');
+  await pill.waitFor({ timeout: 5000 });
+  const cardId = await pill.getAttribute('data-selected-card');
+  assert.equal(asks.length, n, 'nothing sent before Send');
   await field.fill('What do lines 5–7 of train.py do?');
   await field.press('Enter');
   await page.getByText(`${ANSWER} #${n + 1}`).first().waitFor({ timeout: 10000 });
   assert.equal(asks.length, n + 1, 'one stubbed ask');
   assert.deepEqual(asks.at(-1).repository_context?.range, { path: 'train.py', start: 5, end: 7 });
   assert.equal(asks.at(-1).repository_context?.commit, COMMIT);
+  assert.equal(asks.at(-1).canvas_target?.id, cardId, 'the Code card rides as the selected card');
+  assert.ok(String(asks.at(-1).canvas_target?.text || '').includes(content['train.py'].split('\n')[4].trim()), 'with its lines');
   assert.equal(learnRequests.filter((p) => p.startsWith('/api/learn/tutor')).length, tutorTurns, 'not a Tutor turn');
   await page.locator('[data-chat-sheet] blockquote', { hasText: 'train.py · lines 5–7' }).first().waitFor({ timeout: 5000 }); // the question's own passage line
   await shot('L-learn-files-send');

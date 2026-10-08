@@ -103,3 +103,21 @@ test('the chat chip names the path, the lines and a preview, removable; a questi
   assert.match(ask, /if \(tutor && !codeTurn\) \{/);
   assert.match(ask, /\.\.\.\(repository && repositoryContext \? \{ repository_context: \{ \.\.\.repositoryContext, commit: /);
 });
+
+test('Ask in chat in the panel puts the lines on the canvas as one selected Code card, keeping the range context; the Map\'s Ask does not', () => {
+  const repo = read('RepositoryPage.jsx'), page = read('LearnPage.jsx');
+  // Only the panel's Ask in chat places a card; Learn and the Map's own Ask never do.
+  assert.match(repo, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else\{askAbout\(range\);if\(extra\?\.place==='panel'\)codeCard\(range\);\}\}\}/);
+  assert.match(repo, /const codeCard=range=>window\.dispatchEvent\(new CustomEvent\('small:code-card',\{detail:\{text:range\.text,path:range\.path,start:range\.start,end:range\.end,commit:range\.commit,repo:app\.repo\}\}\)\);/);
+  const place = page.slice(page.indexOf("const place = async event => {"), page.indexOf("window.addEventListener('small:code-card', place);"));
+  // The paste dialog's Code card, with its file, lines and language as its code source, placed in view and selected.
+  assert.match(place, /const block = pasteBlock\(\{ text, copy, choice: 'code', assetKey, language: languageOf\(path\) \}\);/);
+  assert.match(place, /id = surface\.insertImported\(block\);/);
+  assert.match(place, /surface\.select\(id\);/);
+  // The same lines (repo, commit, path, start and end) reselect their card instead of making another.
+  assert.match(place, /source\.kind === 'code' && source\.repo === repo && source\.revision === commit && source\.path === path && source\.lines\?\.\[0\] === start && source\.lines\?\.\[1\] === end/);
+  assert.doesNotMatch(place, /fetch\(|api\(|\/ask|askDraft|send\(/, 'placing the card asks nothing');
+  // And the card's lines: exactly the range, as a code source the card cites.
+  const card = pasteBlock({ text: 'a = 1\nb = 2\nc = 3', copy: { path: 'train.py', repo: 'karpathy/nanoGPT', commit: SHA, start: 5, end: 7 }, choice: 'code', assetKey: 'import:9', language: 'python' });
+  assert.deepEqual([card.type, card.title, card.code, card.sources[0].lines], ['snippet', 'train.py', 'a = 1\nb = 2\nc = 3', [5, 7]]);
+});
