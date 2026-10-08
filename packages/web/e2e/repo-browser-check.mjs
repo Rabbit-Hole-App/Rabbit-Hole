@@ -7,6 +7,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { COMMIT, REPO, SNAPSHOT, content, repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { OVERVIEW_TAB } from '../src/inspector.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
@@ -208,7 +209,7 @@ await check('I §13: the inspector shows the selected range - title, breadcrumb,
   assert.equal(await panel.locator('[data-inspector-section="relationships"]').count(), 0, 'a range shows no relationships, never its file\'s');
   // The reader already shows model.py, so the inspector does not repeat the code: no preview, no Source tab (owner, 2026-10-08).
   assert.equal(await panel.locator('[data-inspector-preview]').count(), 0);
-  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Overview', 'Chat']);
+  assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), [...(OVERVIEW_TAB ? ['Overview'] : []), 'Chat'], 'Overview is hidden for now (OVERVIEW_TAB)');
 });
 await shot('I-inspector-selected-range');
 

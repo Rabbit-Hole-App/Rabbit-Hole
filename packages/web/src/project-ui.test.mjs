@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { citedSources } from './source-references.js';
 import { exampleFor } from './agent/bar.js';
 import { SLASH } from './agent/slash.js';
+import { OVERVIEW_TAB } from './inspector.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const page = read('RepositoryPage.jsx'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx');
@@ -65,7 +66,9 @@ test('the Map: details and layers behind icons; the inspector closed until used,
   assert.match(page, /\{!panelOpen&&<IconBtn data-map-panel-open aria-label="Open the side panel"/);
   // Overview | Source as underline tabs, only when the object has a source; no pill tabs, no Selected or Conversation tab.
   // Overview | Source | Chat (owner, 2026-10-08), the same restrained underline; Source only for code the main pane is not showing.
-  assert.match(inspector, /\{!record && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className=\{TAB\}>Overview<\/TabsTrigger>\{tabs && <TabsTrigger value="source" className=\{TAB\}>Source<\/TabsTrigger>\}<TabsTrigger value="chat" data-inspector-chat-tab className=\{TAB\}>Chat\{chatted > 0 && <span className="ml-1 tabular-nums text-ink-3">\{chatted\}<\/span>\}<\/TabsTrigger><\/TabsList>\}/);
+  // Overview is hidden for now (owner, 2026-10-08: "so we have only chat"): Source | Chat, or Chat alone.
+  assert.equal(OVERVIEW_TAB, false);
+  assert.match(inspector, /\{!record && <TabsList className="-mx-4 mt-2 px-4">\{OVERVIEW_TAB && <TabsTrigger value="overview" className=\{TAB\}>Overview<\/TabsTrigger>\}\{tabs && <TabsTrigger value="source" className=\{TAB\}>Source<\/TabsTrigger>\}<TabsTrigger value="chat" data-inspector-chat-tab className=\{TAB\}>Chat\{chatted > 0 && <span className="ml-1 tabular-nums text-ink-3">\{chatted\}<\/span>\}<\/TabsTrigger><\/TabsList>\}/);
   assert.doesNotMatch(page + inspector, /TabsList pill className="mb-3|value="selected"|value="conversation"|ring-2 ring-accent/);
   // A selection or a cited file opens it; answers land in the bar's own window, not here.
   assert.match(page, /const inspect=\(object,show='overview'\)=>\{.*setPanelOpen\(true\);\};/);
@@ -160,7 +163,9 @@ test('Files: the inspector does not repeat the code the reader shows - no previe
   assert.match(inspector, /const file = object\.path, source = !record && !!file, tabs = source && !codeInView;/);
   assert.match(inspector, /\{file && !codeInView && <Preview /);
   assert.match(inspector, /\{tabs && <TabsContent value="source"/);
-  assert.match(inspector, /<Tabs value=\{record \? 'overview' : view === 'source' && !tabs \? 'overview' : view\}/);
+  // With Overview hidden, a view the inspector cannot show (Overview, or Source while the reader shows the code) is Chat.
+  assert.match(inspector, /const shown = record \? 'overview' : view === 'source' && tabs \? 'source' : view === 'chat' \|\| !OVERVIEW_TAB \? 'chat' : 'overview';\n\s+return <Tabs value=\{shown\}/);
+  assert.match(inspector, /\{\(record \|\| OVERVIEW_TAB\) && <TabsContent value="overview"/);
   assert.match(inspector, /const href = source && repositoryUrl\(/, 'Open source on GitHub stays: it is a link, not the code');
 });
 

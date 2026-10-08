@@ -2,6 +2,11 @@
 // a summary or an edge (repository-graph-data-audit.md). Pure; node:test loads it.
 import { fileContext } from './agent/scope.js';
 
+// The inspector's Overview tab (Purpose, Why it matters, Symbols, Relationships) is hidden for now (owner, 2026-10-08:
+// "lets hide it. so we have only chat"). The inspector opens on Chat; a fixture record still shows its own view.
+// ponytail: one switch, so the tab and its e2e checks come back together.
+export const OVERVIEW_TAB = false;
+
 const nameOf = (path) => path.split('/').pop();
 // The indexer's code extensions (lesson-renderer/index_repository.py CODE), named.
 const LANGUAGES = { '.py': 'Python', '.pyi': 'Python', '.js': 'JavaScript', '.jsx': 'JavaScript', '.ts': 'TypeScript', '.tsx': 'TypeScript', '.go': 'Go', '.rs': 'Rust', '.java': 'Java', '.c': 'C', '.h': 'C', '.cpp': 'C++', '.rb': 'Ruby', '.cs': 'C#', '.sh': 'Shell' };

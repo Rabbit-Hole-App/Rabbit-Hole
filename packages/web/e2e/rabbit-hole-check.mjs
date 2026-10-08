@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { DEV_CP } from './dev-cp.mjs';
 import { repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { OVERVIEW_TAB } from '../src/inspector.js';
 
 const LOCAL = process.env.LOCAL === '1';
 const base = (LOCAL ? process.env.BASE : process.env.SMALL_BASE) || '';
@@ -1923,7 +1924,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await pickNode(page);
     await panel.locator('[data-inspector-header]').getByText(/^model\.py:\d+$/).waitFor({ timeout: 10000 });
     const tabs = (await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
-    must(tabs === 'Overview | Source | Chat' && await isSelected(panel.getByRole('tab', { name: 'Overview', exact: true })), `a node opens ${tabs}, not Overview | Source | Chat on Overview`);
+    // Overview is hidden for now (src/inspector.js OVERVIEW_TAB): a node opens Source | Chat on Chat.
+    const first = OVERVIEW_TAB ? 'Overview' : 'Chat', want = OVERVIEW_TAB ? 'Overview | Source | Chat' : 'Source | Chat';
+    must(tabs === want && await isSelected(panel.getByRole('tab', { name: first, exact: true })), `a node opens ${tabs}, not ${want} on ${first}`);
     must(await panel.locator('[data-in-context]').count() === 1, 'the node is not in context');
     must(await barInput(page).getAttribute('placeholder') === 'Ask about CausalSelfAttention…', 'the bar is not scoped to the node');
     await barInput(page).fill('Why does this exist?');
@@ -2273,7 +2276,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await noAsks(page);
     await mapAt(page);
     await pickNode(page);
-    await insp(page).locator('[data-inspector-section="why"]').getByText('No explanation yet.').waitFor({ timeout: 10000 });
+    if (OVERVIEW_TAB) await insp(page).locator('[data-inspector-section="why"]').getByText('No explanation yet.').waitFor({ timeout: 10000 });
+    else await insp(page).locator('[data-inspector-chat]').waitFor({ timeout: 10000 });
     must(!(await insp(page).innerText()).includes('Fixture'), 'the real inspector says Fixture');
     await page.context().close();
     if (!nano) return;
@@ -2282,8 +2286,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await mapAt(fx, true);
     await pickNode(fx);
     const why = insp(fx).locator('[data-inspector-section="why"]'), convo = insp(fx).locator('[data-inspector-chat]');
-    await why.getByText(FX).waitFor({ timeout: 10000 });
-    must(await why.locator('button').count() === 2, `${await why.locator('button').count()} decisions under Why it matters, not 2`);
+    if (OVERVIEW_TAB) {
+      await why.getByText(FX).waitFor({ timeout: 10000 });
+      must(await why.locator('button').count() === 2, `${await why.locator('button').count()} decisions under Why it matters, not 2`);
+    }
     await insp(fx).locator('[data-inspector-chat-tab]').click(); // the node's conversation is its Chat tab (owner, 2026-10-08)
     const rows = (await convo.locator('button').allInnerTexts()).map((t) => t.trim()).filter((t) => !t.startsWith('Ask about this'));
     must(rows.length === 3 && rows.filter((t) => t.endsWith('?')).length === 2 && rows.filter((t) => t.startsWith('Attention internals walkthrough')).length === 1, `Conversation should list 2 questions and 1 session: ${rows.join(' | ')}`);
@@ -2332,10 +2338,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const asks = held(page);
     await mapAt(page);
     await pickNode(page);
-    await insp(page).locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
-    await page.waitForTimeout(1200);
-    must(/^Why does .+ matter in this codebase\?$/.test(await barInput(page).inputValue()), `the composer holds: ${await barInput(page).inputValue()}`);
-    must(asks.length === 0, `Ask why sent: ${JSON.stringify(asks)}`);
+    // Ask why lives in the Overview, hidden for now (OVERVIEW_TAB).
+    if (OVERVIEW_TAB) {
+      await insp(page).locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
+      await page.waitForTimeout(1200);
+      must(/^Why does .+ matter in this codebase\?$/.test(await barInput(page).inputValue()), `the composer holds: ${await barInput(page).inputValue()}`);
+      must(asks.length === 0, `Ask why sent: ${JSON.stringify(asks)}`);
+    }
     await page.context().close();
     if (!nano) return;
     const fx = await open();
