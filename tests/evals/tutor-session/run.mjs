@@ -6,10 +6,14 @@
 // "where needed"): one topic fixture, each session under SESSION_USD with the reviewer's holdback, all of them under RUN_USD
 // (Anthropic; JEV is logged apart). Only the provider keys in KEYS are read from <env file>, and none is printed. The product
 // calls the real planners and the real JEV through runTurn (never a copy).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { LEARN_TASKS } from '../../../packages/control-plane/src/learn-models.js';
+import { JEV_TRANSPORTS } from '../../../packages/control-plane/src/learn-grade-jev.js';
 import { foldSessions } from './events.mjs';
-import { createLedger, loadProfiles, loadRoles, loadTaxonomy, loadTopic, modelLearner, readSessions, runSession, simulatedIds, writeSession } from './harness.mjs';
+import { REVIEW_STEP_BYTES, createLedger, learnerRequest, loadProfiles, loadRoles, loadTaxonomy, loadTopic, modelLearner, readSessions, reviewerRequest, runSession, simulatedIds, writeSession } from './harness.mjs';
 import { aggregate, aggregateEvents, evidenceReport, nextStepsReport, stepsCsv, terminalTable } from './metrics.mjs';
 import { HOOK_DEBOUNCE_MS, anthropicTransport, productWorld, providerBoundary, realAnswers } from './product.mjs';
 
@@ -39,6 +43,19 @@ async function paidRun(dir, envFile, topicId) {
   if (!key) throw Error(`no ANTHROPIC_API_KEY in ${envFile}`);
   console.log(`keys: ${Object.keys(keys).join(', ')}`);
   const topic = loadTopic(topicId), profiles = loadProfiles(), runId = `paid-${new Date().toISOString().slice(0, 10)}`;
+  // run.json: what was tested - the exact commit and tree (and whether the checkout had local changes), the limits, and every
+  // model setting the run used (the product's LEARN_TASKS, the simulator's and reviewer's requests, JEV's transports).
+  const git = (...args) => execFileSync('git', args, { cwd: fileURLToPath(new URL('.', import.meta.url)), encoding: 'utf8' }).trim();
+  const settings = request => ({ model: request.model, max_tokens: request.max_tokens, effort: request.output_config?.effort ?? null });
+  const manifest = {
+    run_id: runId, started_at: new Date().toISOString(), sha: git('rev-parse', 'HEAD'), tree: git('rev-parse', 'HEAD^{tree}'), dirty: git('status', '--porcelain').length > 0,
+    topic: topic.id, profiles: profiles.map(profile => profile.id), keys: Object.keys(keys),
+    limits: { run_usd: RUN_USD, session_usd: SESSION_USD, review_step_bytes: REVIEW_STEP_BYTES, max_decisions: topic.max_decisions, budget_seconds: topic.session_budget_seconds },
+    models: { product: LEARN_TASKS, simulator: settings(learnerRequest({ system: '', user: '' })), reviewer: settings(reviewerRequest({ system: '', user: '' })), jev: JEV_TRANSPORTS },
+  };
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'run.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`tested ${manifest.sha}${manifest.dirty ? ' (with local changes)' : ''}, tree ${manifest.tree}`);
   const boundary = providerBoundary(realAnswers(globalThis.fetch));
   const transport = anthropicTransport({ key, send: boundary.realFetch });
   const run = createLedger(RUN_USD);
@@ -57,6 +74,7 @@ async function paidRun(dir, envFile, topicId) {
     }
   } finally { boundary.restore(); }
   const total = run.summary().anthropic;
+  writeFileSync(join(dir, 'run.json'), `${JSON.stringify({ ...manifest, finished_at: new Date().toISOString(), anthropic: { total_usd: total.total_usd, held_usd: total.held_usd, calls: total.calls, refused: total.refused }, outbound_blocked: boundary.blocked.length, meter_errors: boundary.errors.length }, null, 2)}\n`);
   console.log(`run: $${total.total_usd} spent + $${total.held_usd} held of $${RUN_USD}; ${total.calls} Anthropic calls, ${total.refused} refused; outbound blocked ${boundary.blocked.length} [${[...new Set(boundary.blocked)].join(', ')}], meter errors ${boundary.errors.length}`);
   aggregateDir(dir);
 }

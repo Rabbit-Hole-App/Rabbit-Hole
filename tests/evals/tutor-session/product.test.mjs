@@ -290,6 +290,9 @@ test("the Next Steps report reads the product's own hook traces: escalations and
   assert.equal(report.by_role.tutor_next_steps_escalation.calls, report.sets_requested);
   assert.equal(report.by_role.tutor_next_steps.calls, report.sets_requested - (report.escalations['escalated:contradictory'] ?? 0));
   assert.ok(report.cost_usd > 0);
+  const shown = bundle.events.filter(event => event.type === 'next_steps_ready').flatMap(event => event.options);
+  assert.deepEqual([report.hook_words.n, report.hook_words.max], [shown.length, Math.max(...shown.map(option => option.text.trim().split(/\s+/).length))]);
+  assert.deepEqual(report.by_session[profile.id], { decisions: bundle.steps.length, sets_requested: report.sets_requested, sets_shown: report.sets_shown });
   // The product's own fixture is well-formed: no rule fails, so nothing escalates on the validator.
   const plain = nextStepsReport([(await realSession()).bundle]);
   assert.deepEqual([plain.validator_rules, plain.escalations['escalated:validator'], plain.set_ms.routine.n + plain.set_ms.escalated.n], [{}, undefined, plain.sets_shown]);
@@ -341,4 +344,10 @@ test("the evaluation of every typed turn is recorded without text: status, escal
   assert.equal(report.evaluations, judged.length);
   assert.equal(report.unsure_checks.transfer, judged.length);
   assert.equal(Object.values(report.route_rows).reduce((a, b) => a + b, 0), bundle.steps.length);
+  // Unsettled runs partition the uncertain_unsettled decisions; progress lists the sections in the order reached.
+  const session = report.sessions[profile.id];
+  assert.equal(session.unsettled_runs.reduce((n, run) => n + run.length, 0), report.route_rows.uncertain_unsettled ?? 0);
+  assert.equal(session.max_unsettled_run, Math.max(0, ...session.unsettled_runs.map(run => run.length)));
+  assert.deepEqual(session.sections.map(entry => entry.section_id), [...new Set(bundle.steps.map(step => step.section_id))]);
+  assert.equal(Object.values(session.actions).reduce((a, b) => a + b, 0), bundle.steps.flatMap(step => step.tutor_decision.actions).length);
 });

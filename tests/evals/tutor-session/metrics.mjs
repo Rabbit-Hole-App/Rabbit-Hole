@@ -439,7 +439,11 @@ export function nextStepsReport(bundles) {
   }]));
   const ms = list => stats(list.map(t => t.runtime.timing.total_ms));
   const planned = new Set(calls.map(c => c.hook_set_id)), escalatedSets = new Set(calls.filter(c => c.model_role === 'tutor_next_steps_escalation').map(c => c.hook_set_id));
+  const words = sets.flatMap(e => e.options.map(option => option.text.trim().split(/\s+/).filter(Boolean).length));
   return {
+    by_session: Object.fromEntries(bundles.map(bundle => [bundle.simulator.profile, {
+      decisions: bundle.steps.length, sets_requested: bundle.events.filter(e => e.type === 'next_steps_generation_started').length, sets_shown: bundle.events.filter(e => e.type === 'next_steps_ready' && e.options.length).length,
+    }])),
     sets_requested: events.filter(e => e.type === 'next_steps_generation_started').length,
     sets_shown: sets.filter(e => e.options.length).length,
     unavailable: tally(sets.filter(e => e.unavailable).map(e => e.unavailable)),
@@ -447,6 +451,7 @@ export function nextStepsReport(bundles) {
     escalations: tally(escalated.map(t => t.runtime.validation.fallback)),
     validator_rules: tally(traced.flatMap(t => t.runtime.validation.repairs)),
     set_ms: { all: ms(traced), routine: ms(routine), escalated: ms(escalated) },
+    hook_words: { ...stats(words), by_count: tally(words) },
     by_role: byRole,
     cost_usd: round(sum(Object.values(byRole).map(r => r.cost_usd)), 6),
   };
@@ -454,8 +459,35 @@ export function nextStepsReport(bundles) {
 
 // The evidence path on a run: how the product's evaluation of typed turns came out (status, the rung that answered, the
 // escalation policy's reason), the kinds of check it was unsure about (c0_transfer -> transfer, counted once per
-// evaluation), and the router row each decision took.
+// evaluation), the router row each decision took, and per session: runs of consecutive uncertain_unsettled decisions on the
+// same claim (the decision's first target claim) with the row and actions that followed, the sections in the order they
+// were reached with the claims understood when each was entered, the final claim states and the action mix.
 const checkKind = key => key.match(/^c\d+_([a-z]+)/)?.[1] ?? (/^g\d+$/.test(key) ? 'gap' : key);
+function unsettledRuns(steps) {
+  const runs = [];
+  let run = null;
+  steps.forEach((step, i) => {
+    const d = step.tutor_decision, claim = d?.target_claims?.[0] ?? null;
+    if (d?.route_row !== 'uncertain_unsettled') return;
+    if (run && run.claim === claim && run.last === i - 1) { run.length++; run.last = i; } else runs.push(run = { claim, from_step: step.step, length: 1, last: i });
+  });
+  return runs.map(({ last, ...entry }) => {
+    const next = steps[last + 1]?.tutor_decision;
+    return { ...entry, next_row: next?.route_row ?? null, next_actions: next ? next.actions.map(action => action.action_type) : null };
+  });
+}
+const understood = claims => (claims || []).filter(c => c.state === 'understood').map(c => c.claim);
+export function sessionProgress(bundle) {
+  const steps = bundle.steps, sections = [];
+  for (const step of steps) if (step.section_id && sections.at(-1)?.section_id !== step.section_id) sections.push({ section_id: step.section_id, from_step: step.step, understood_on_entry: understood(step.evidence_before) });
+  const runs = unsettledRuns(steps);
+  return {
+    decisions: steps.length, stop: bundle.simulator.stop_reason, sections,
+    final_states: tally((steps.at(-1)?.evidence_after || []).map(c => c.state)),
+    actions: tally(steps.flatMap(step => (step.tutor_decision?.actions || []).map(action => action.action_type))),
+    unsettled_runs: runs, max_unsettled_run: Math.max(0, ...runs.map(entry => entry.length)),
+  };
+}
 export function evidenceReport(bundles) {
   const evaluations = bundles.flatMap(bundle => bundle.events).filter(e => e.type === 'evidence_updated' && e.evaluation).map(e => e.evaluation);
   const events = evaluations.flatMap(e => e.events);
@@ -465,8 +497,12 @@ export function evidenceReport(bundles) {
     evaluator: tally(evaluations.map(e => e.evaluator)),
     escalation: tally(evaluations.map(e => e.escalation?.reason ?? 'none')),
     unsure_checks: tally(evaluations.flatMap(e => [...new Set((e.escalation?.unsure_checks || []).map(checkKind))])),
-    events: { total: events.length, settled: events.filter(e => e.settled).length, by_result: tally(events.map(e => `${e.result}${e.kind ? `:${e.kind}` : ''}`)) },
+    events: {
+      total: events.length, settled: events.filter(e => e.settled).length,
+      by_result: tally(events.map(e => `${e.result}${e.kind ? `:${e.kind}` : ''}`)), settled_by_result: tally(events.filter(e => e.settled).map(e => `${e.result}${e.kind ? `:${e.kind}` : ''}`)),
+    },
     route_rows: tally(bundles.flatMap(bundle => bundle.steps.map(step => step.tutor_decision?.route_row ?? 'none'))),
+    sessions: Object.fromEntries(bundles.map(bundle => [bundle.simulator.profile, sessionProgress(bundle)])),
   };
 }
 
