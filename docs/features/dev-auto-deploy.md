@@ -6,8 +6,8 @@
 - The pipeline is built.
 - Access is configured. Home verified it read-only on 2026-10-07: it admits the owner's email and the smoke service token, and production is untouched.
 - The first automated run, for main `e03a7a53`, rolled itself back. Its smoke looked for `/assets/` instead of `/static/`. That is fixed.
-- Main `1b7a2116` is deployed (version 54d4e7a7, build `5acc0f6ba69c`, gate reused from `e03a7a53`). Its smoke is **blocked** only by the dev Learn schema.
-- **Signed-in flows** are blocked on the dev Learn schema request, which is prepared and not approved: [Dev Learn schema](#dev-learn-schema-0004-0010-prepared-not-approved).
+- Main `1b7a2116` was deployed as version 54d4e7a7, with build `5acc0f6ba69c` and the gate reused from `e03a7a53`. At that time its smoke was **blocked** by the dev Learn schema.
+- **Dev Learn schema 0004-0010 is applied** (owner GO, 2026-10-08, `rabbit-hole-learn-dev` only). Signed-in flows answer 200: see [Dev Learn schema](#dev-learn-schema-0004-0010-applied-2026-10-08-dev-only). Production is still at 0003, on hold.
 
 Production release is a separate, held job: [prod-release.md](prod-release.md) (Home).
 
@@ -53,14 +53,21 @@ serving):
      - `dist` is the control plane's own shell, bundled through `control-plane/src/index.js`;
      - `dist-dev` is the documented dev build, with `VITE_COACHING_DEV`, `VITE_BYOC_DEV` and the notebook origin set before the build.
    - A leftover `dist` from another commit never ships. The 2026-10-08 run from a fresh checkout failed to bundle without one.
-   - The Worker uploads `dist/index.html` as a module, because the control plane's shell import pulls it in. The run refuses unless it is byte-identical to `dist-dev/index.html`, so the `dist-dev` build hash identifies everything uploaded.
+   - The Worker uploads `dist/index.html` as a module, because the control plane's shell import pulls it in. The run refuses unless it is byte-identical to `dist-dev/index.html`.
+   - **Two identities, kept separate.**
+     - `build` hashes the pages: every file of `dist-dev`.
+     - `bundle` hashes the packaged Worker: wrangler's own `--dry-run` bundle of `dev-access-worker.js`, meaning the code plus every module it uploads, without source maps.
+     - The page hash covers no Worker code.
+     - Both appear in the upload message (`main <sha> build <pages> bundle <worker>`) and in the record.
+     - Under policy A, both must equal the gated deploy's. Deploys before 2026-10-08 recorded pages only.
+     - The bundle is deterministic: two bundles of `4393d912` hashed the same, and the bundle holds no absolute local path.
    - "No local changes" compares content (`git diff HEAD`). `npm ci` rewrites the line endings of `packages/cli/bin/small.js`, which `git status` would report.
    - The deploy is `wrangler deploy dev-access-worker.js --config wrangler.dev.jsonc --name rabbit-hole-web-dev-small-parallel`, with the message `main <sha> build <hash>`.
    - The entrypoint is the dev worker with the Access bridge in front; see [Access](#access).
 5. **Record.**
    - The Worker's deployment history (`wrangler deployments list --name …`) is the record of what is deployed.
    - Each run also appends a line to `<git common dir>/rabbit-hole-dev-deploys.jsonl`:
-     `{"sha","gates","build","smoke","worker","version","at"}`.
+     `{"sha","gates","build","bundle","smoke","worker","version","at"}`.
    - `gates` is `"pass"` for the commit's own full gate. It is `"reused"` with `app_gate_sha` under [policy A](#policy-a-reusing-a-gate).
    - `prod-release.mjs prepare` reads this record and accepts only `gates: "pass"` with `smoke: "pass"`.
 6. **Smoke and rollback.**
@@ -174,9 +181,19 @@ Without `ACCESS_AUD`, the worker behaves exactly as before. With `ACCESS_AUD` se
 
 `dev-barrier.test.js` still pins two things: the guard is the handler's first statement, and the barrier is its last line.
 
-## Dev Learn schema 0004-0010 (prepared, NOT approved)
+## Dev Learn schema 0004-0010 (applied 2026-10-08, dev only)
 
-Signed-in flows on the stable URL return 500 until `rabbit-hole-learn-dev` has the learn migrations main already uses (`no such table: user_handles`). The smoke reports them as **blocked**. Applying the migrations needs the owner's explicit GO, and this document does not give it.
+**Applied 2026-10-08** after the owner's in-session GO, to `rabbit-hole-learn-dev` (028f800f) only.
+- Home ran the commands below from a clean checkout of main `4393d912`, with the pinned wrangler. All seven files reported OK.
+- The learn level is now 0010 on dev. `rabbit-hole-learn-prod` is unchanged at 0003.
+- Every Worker that binds the shared dev Learn database (rabbit-hole-cp-dev, small-cp-dev and the clones) sees the new tables.
+
+**Verified afterwards.** The checks went through Access with the smoke service token: 10 rounds, a fresh session each time, plus one cookie sequence.
+- `/api/apps`, `/api/profile` (which returns the handle), `/api/canvases`, `/api/library/trash`, `/api/learn/creators` (handles) and `/library` all returned 200, in all 66 requests.
+- An anonymous request is sent to the Access login.
+- The earlier one-off 401 did not reproduce.
+
+Before the migration, signed-in flows returned 500 (`no such table: user_handles`), and the smoke reported them as blocked.
 
 **Rehearsal (2026-10-08, local only).**
 - Method: copy the live schema of `rabbit-hole-learn-dev` (and of `rabbit-hole-learn-prod`, for comparison) by SELECT from `sqlite_master` into in-memory SQLite. Then apply 0004-0010 in order, twice.
@@ -197,7 +214,7 @@ Signed-in flows on the stable URL return 500 until `rabbit-hole-learn-dev` has t
 | `0009-canvas-metadata.sql` | `canvas_metadata` |
 | `0010-library-trash.sql` | `library_trash` |
 
-**Commands (at the owner's GO, dev only).** Run them from `packages/control-plane` with the rabbit-hole token. `wrangler.rabbit-hole-dev.jsonc` binds `rabbit-hole-learn-dev` (028f800f):
+**Commands (as run 2026-10-08; dev only).** Run them from `packages/control-plane` with the rabbit-hole token. `wrangler.rabbit-hole-dev.jsonc` binds `rabbit-hole-learn-dev` (028f800f):
 
 ```bash
 for f in learn-migrations/0004-*.sql learn-migrations/0005-*.sql learn-migrations/0006-*.sql learn-migrations/0007-*.sql          learn-migrations/0008-*.sql learn-migrations/0009-*.sql learn-migrations/0010-*.sql; do

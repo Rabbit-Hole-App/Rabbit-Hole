@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript } from './dev-deploy.mjs';
+import { gateVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload } from './dev-deploy.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -123,6 +123,20 @@ test('the deploy uses only this commit: lockfile install, both page builds, pinn
   assert.match(src, /for \(const outDir of \['dist', 'dist-dev'\]\)/);
   assert.ok(!/execFileSync\('npx'/.test(src) && !/shell: true/.test(src), 'no npx, no shell');
   assert.ok(!/`"(main|rollback)/.test(src), 'messages are plain arguments, not shell-quoted');
-  assert.match(src, /readFileSync\(join\(web, 'dist\/index\.html'\)\)\.equals\(readFileSync\(join\(web, 'dist-dev\/index\.html'\)\)\)/, 'the packaged shell is covered by the build identity');
+  assert.match(src, /readFileSync\(join\(web, 'dist\/index\.html'\)\)\.equals\(readFileSync\(join\(web, 'dist-dev\/index\.html'\)\)\)/, 'both page builds share one index.html');
   assert.match(src, /git\('diff', '--name-only', 'HEAD'\)/, 'clean means clean content: npm ci line-ending rewrites do not block the next run');
+});
+
+test('pages and the packaged Worker have separate identities, both recorded and both compared on reuse', () => {
+  // The page hash covers no Worker code (owner, 2026-10-08): the Worker bundle gets its own hash.
+  const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
+  assert.match(src, /'--dry-run', '--outdir', out\]/, 'the bundle hash is of wrangler\'s own bundle');
+  assert.match(src, /`main \$\{sha\} build \$\{build\} bundle \$\{bundle\}`/, 'the upload message names both');
+  assert.match(src, /\{ sha, \.\.\.gates, build, bundle, smoke:/, 'the dev record names both');
+  assert.match(src, /gatedId\?\.bundle && bundle !== gatedId\.bundle/, 'reuse refuses a different Worker bundle');
+  const sha = 'a'.repeat(40);
+  assert.deepEqual(parseUpload(`main ${sha} build 5acc0f6ba69c bundle 8c409f557e70`), { sha, build: '5acc0f6ba69c', bundle: '8c409f557e70' });
+  assert.deepEqual(parseUpload(`main ${sha} build 5acc0f6ba69c`), { sha, build: '5acc0f6ba69c', bundle: null }, 'deploys before 2026-10-08 recorded pages only');
+  assert.equal(parseUpload('main 42f5a4f0 (gated tree 192b10f3)'), null);
+  assert.equal(deployedSha(`main ${sha} build 5acc0f6ba69c bundle 8c409f557e70`), sha, 'forward-only still reads the sha');
 });
