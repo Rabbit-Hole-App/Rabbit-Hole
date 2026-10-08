@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ChevronRight, Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD } from '../ChatComposer.jsx';
 import { CommandIcon, CommandMark, commandTone } from '../CommandTone.jsx';
+import { CommandSearch } from '../CommandList.jsx';
+import { filterSections } from '../command-search.js';
 import { api, navigate } from '../api.js';
 import { START_PATHS, slugOf } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
@@ -76,9 +78,18 @@ export default function AgentBar({ page }) {
   const [picker, setPicker] = useState(false);
   const [commandsOpen, setCommandsOpen] = useState(false); // the / commands modal, from the picker's / icon
   const [hi, setHi] = useState(0);
-  const entries = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]
-    .filter((e) => e.name.startsWith(modeQuery(draft) || ''));
-  const pickerOpen = picker && entries.length > 0;
+  // Auto opens the picker on its own search field (owner, 2026-10-08): its text, or null when / was typed in the draft,
+  // which is the search then. It matches name and description as the Slash commands sheets do (command-search.js).
+  const [query, setQuery] = useState(null);
+  const searching = query !== null;
+  const all = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))];
+  const entries = searching ? filterSections([{ items: all }], query)[0]?.items || [] : all.filter((e) => e.name.startsWith(modeQuery(draft) || ''));
+  const pickerOpen = picker && (entries.length > 0 || searching);
+  useEffect(() => { if (!picker) setQuery(null); }, [picker]);
+  // The list keeps the height it opened with while the search narrows it, so the field above it never moves.
+  const list = useRef(null);
+  const [listHeight, setListHeight] = useState(null);
+  useLayoutEffect(() => { setListHeight(searching ? list.current?.offsetHeight ?? null : null); }, [searching]);
   // A click outside the composer closes the mode picker, as Escape does (onKeyDown).
   const dock = useRef(null);
   useEffect(() => {
@@ -419,13 +430,17 @@ export default function AgentBar({ page }) {
   // never also closes a SlidePanel or the search modal (window listeners). Enter on
   // the picker is handled in onSubmit: the textarea sends before this handler runs.
   const onKeyDown = (e) => {
-    if (pickerOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setHi((hiIndex + (e.key === 'ArrowDown' ? 1 : entries.length - 1)) % entries.length); return; }
+    if (pickerOpen && entries.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setHi((hiIndex + (e.key === 'ArrowDown' ? 1 : entries.length - 1)) % entries.length); return; }
     if (e.key === 'Escape' && (adding || pickerOpen || sheet)) { e.stopPropagation(); if (adding) setAdding(false); else if (pickerOpen) setPicker(false); else setSheet(null); return; }
     if (e.key === 'Backspace' && e.target === inputRef.current && !draft && shortcut) setShortcut(null);
     else if (e.key === 'Backspace' && e.target === inputRef.current && !draft && mode !== 'auto') setMode('auto');
   };
 
   if (hidden) return null;
+  // Every command with an example, one click from the picker (owner, 2026-10-04), as on the canvas.
+  const help = <button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-bar-slash-help
+    onMouseDown={(e) => e.preventDefault()} onClick={() => { setPicker(false); setCommandsOpen(true); }}
+    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button>;
   const chips = crumbsShown(target, live) ? chipsFor(target) : [];
   const own = scopeKey(target) === scopeKey(live); // × only while the draft is not held elsewhere
   const widenTo = (chip) => {
@@ -452,11 +467,18 @@ export default function AgentBar({ page }) {
       {/* The composer itself: half the dock's width, centered (owner, 2026-10-08), never under 28rem; full width on phones. */}
       <div ref={dock} className="relative mx-auto w-full md:w-1/2 md:min-w-[min(100%,28rem)]">
         {pickerOpen && (
-          <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
-            {/* Every command with an example, one click from the picker (owner, 2026-10-04), as on the canvas. */}
-            <div className="sticky top-0 z-10 -mb-7 flex justify-end"><button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-bar-slash-help
-              onMouseDown={(e) => e.preventDefault()} onClick={() => { setPicker(false); setCommandsOpen(true); }}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button></div>
+          <div className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
+            {/* Its keys stay in the field: up/down reach the bar's own handler, Enter picks, Esc clears a typed search first. */}
+            {searching && <div className="flex items-center gap-1 pb-1">
+              <CommandSearch className="flex-1" value={query} onChange={(e) => { setQuery(e.target.value); setHi(0); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); if (entries.length) pick(entries[hiIndex]); }
+                  if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery(''); } else if (e.key === 'Escape') inputRef.current?.focus(); // the bar's Esc closes the picker
+                }} />
+              {help}
+            </div>}
+            <div ref={list} role="listbox" aria-label="Modes" style={{ minHeight: listHeight ?? undefined }}>
+            {!searching && <div className="sticky top-0 z-10 -mb-7 flex justify-end">{help}</div>}
             {entries.map((entry, i) => {
               const { name: m, desc } = entry;
               const can = entry.shortcut ? { ok: true } : modeAvailability(m, target.kind);
@@ -472,6 +494,8 @@ export default function AgentBar({ page }) {
                 </div>
               );
             })}
+            {!entries.length && <p data-slash-none className="px-2 py-1.5 text-xs text-ink-3">No commands match</p>}
+            </div>
           </div>
         )}
         {commandsOpen && <BarCommandsSheet modes={modesFor(target)} shortcuts={shortcutsFor(target, surface.catalog)} place={placeOf(target) === 'project' ? 'project' : 'home'} onClose={() => { setCommandsOpen(false); inputRef.current?.focus(); }} />}
@@ -528,7 +552,7 @@ export default function AgentBar({ page }) {
             {shortcut
             ? <span data-command-pill data-command-tone={commandTone(shortcut) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
             : mode === 'auto'
-            ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className={COMPOSER_PILL}>Auto</button>
+            ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); if (pickerOpen) { setPicker(false); inputRef.current?.focus(); } else { setPicker(true); setQuery(''); } }} className={COMPOSER_PILL}>Auto</button>
             : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink"><CommandIcon name={mode} />/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { EXAMPLES, mayConfirmPaid, pickerSections, runLearnCommand } from './learn-slash.js';
+import { EXAMPLES, mayConfirmPaid, pickerSections, runLearnCommand, searchSections } from './learn-slash.js';
 import { CHAT_EXAMPLES, ILLUSTRATIONS, SAMPLES, demoOf, sheetCards } from './slash-sheet.js';
 import { filterSections } from './command-search.js';
 import { SLASH } from './agent/slash.js';
@@ -86,6 +86,31 @@ test('both sheets share the search: focused on open, Enter takes the first match
   assert.match(bar, /<CommandList sections=\{sections\} current=\{name\} onChoose=\{setName\} onClose=\{onClose\} row="data-bar-command" capture/);
   // The Agent Bar's sheet loads nothing of Learn's: the search is its own module.
   assert.doesNotMatch(list + bar, /slash-sheet\.js|learn-slash\.js|LearningBlocks/);
+});
+
+test('Auto opens each composer palette on a search field: the sheets\' search, More learning tools included, keys kept in the field', () => {
+  // The canvas palette searches the bare / menu by name and description; a More learning tools match shows open, under its title.
+  assert.deepEqual(searchSections('/walk').map(section => [section.title, section.collapsible, section.items.map(item => item.name)]), [['More learning tools', false, ['walkthrough']]]);
+  assert.deepEqual(names(searchSections('plot')), ['graph']);
+  assert.deepEqual(searchSections('zzz'), []);
+  const palette = readFileSync(new URL('./LearnSlash.jsx', import.meta.url), 'utf8');
+  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
+  const bar = readFileSync(new URL('./agent/AgentBar.jsx', import.meta.url), 'utf8');
+  // Auto (not a typed /) opens the field; it is the sheets' own field (CommandSearch: autoFocus, type="search").
+  assert.match(ask, /const openPalette = \(\) => \{[^\n]*slashRef\.current\?\.search\(\); \};/);
+  assert.match(bar, /else \{ setPicker\(true\); setQuery\(''\); \}/);
+  for (const source of [palette, bar]) assert.match(source, /<CommandSearch className="flex-1" value=\{query\}/);
+  assert.match(palette, /const sections = busy \? null : query \? searchSections\(query\) : pickerSections\(input, \{ catalog \}\);/);
+  // Up/down and Enter run the palette's own keys; Esc clears a typed search before it closes; an empty search says so.
+  assert.match(palette, /if \(event\.key !== 'Escape'\) return apiRef\.current\.onKeyDown\(event\);/);
+  assert.match(palette, /if \(query\) setQuery\(''\); else \{ setInput\(''\); composerRef\?\.current\?\.focus\(\); \}/);
+  assert.match(bar, /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); if \(entries\.length\) pick\(entries\[hiIndex\]\); \}/);
+  assert.match(bar, /if \(e\.key === 'Escape' && query\) \{ e\.stopPropagation\(\); setQuery\(''\); \}/);
+  assert.match(palette, /'No commands match'/);
+  assert.match(bar, />No commands match</);
+  // No layout jump while filtering: the canvas palette is a fixed height while searching; the bar's list keeps its opening height.
+  assert.match(palette, /query === null \? 'max-h-80' : 'h-80'/);
+  assert.match(bar, /style=\{\{ minHeight: listHeight \?\? undefined \}\}/);
 });
 
 test('/source opens the selected card through the page, and says so when the page cannot', async () => {

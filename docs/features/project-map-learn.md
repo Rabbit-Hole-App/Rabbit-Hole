@@ -40,7 +40,9 @@ Source pills and the accent outline are gone.
   commands sheet (`agent/BarCommandsSheet.jsx`) listing that place's commands, as the canvas composer opens its
   own sheet. It shares the canvas sheet's searchable list (`CommandList.jsx`); a chosen command shows its demo:
   its example as typed (`agent/bar.js` `exampleFor`) and what that example does there (`resultFor`). These
-  commands answer, find, open or start something, so the demo is the exchange, not a card (r28).
+  commands answer, find, open or start something, so the demo is the exchange, not a card (r28). Clicking Auto opens
+  the picker on the same one-line search field as the canvas palette (learn-artifact-generation.md); a typed `/`
+  filters from the draft and shows no field.
 - **The window over the main composer** is just a window: its label, a clear icon (`data-result-clear`: empties
   the conversation and closes) and minimize. No History or New chat. Closed or
   minimized, a small chat icon beside + (`data-result-open`) reopens it. The + menu has no Attach item.

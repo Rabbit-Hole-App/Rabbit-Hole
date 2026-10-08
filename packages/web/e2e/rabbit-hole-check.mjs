@@ -1484,7 +1484,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar-cmd: "/" opens the modes this place can run then the shortcuts, none dimmed and no /research, Esc closes only the picker; /teach pill; Backspace returns to Auto', async () => {
+  await check('bar-cmd: "/" opens the modes this place can run then the shortcuts, none dimmed and no /research, Esc closes only the picker; /teach pill; Backspace returns to Auto; Auto opens it on a search field', async () => {
     const page = await barOpen();
     const bar = barOf(page);
     await barInput(page).fill('/');
@@ -1509,6 +1509,27 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.locator('[data-result-sheet]').count() === 0, 'Enter on the picker also sent the text');
     await barInput(page).press('Backspace');
     await bar.getByRole('button', { name: 'Auto' }).waitFor({ timeout: 3000 });
+    // Clicking Auto opens the picker on a search field (owner, 2026-10-08): focused, name and description, the draft untouched;
+    // the list keeps its height; Esc clears a typed search first, then closes; Enter picks the highlighted match.
+    await bar.getByRole('button', { name: 'Auto', exact: true }).click();
+    const search = bar.locator('[data-slash-search]');
+    must(await search.evaluate((n) => n === document.activeElement), 'Auto did not focus the picker search');
+    const fieldTop = (await search.boundingBox()).y;
+    await search.pressSequentially('zzz');
+    await bar.getByText('No commands match').waitFor({ timeout: 3000 });
+    must((await search.boundingBox()).y === fieldTop, 'the search field moved while the list filtered');
+    must(await barInput(page).inputValue() === '', 'typing in the search reached the draft');
+    await search.press('Escape');
+    must(await search.inputValue() === '' && await options.count() === expected.length, 'Esc did not clear the search first');
+    await search.pressSequentially('/conn');
+    must(JSON.stringify(await options.locator('[data-picker-name]').allTextContents()) === '["/connect"]', `search: ${await options.locator('[data-picker-name]').allTextContents()}`);
+    await search.press('Enter');
+    await bar.getByRole('button', { name: 'Remove the command' }).waitFor({ timeout: 3000 });
+    must(await barInput(page).evaluate((n) => n === document.activeElement), 'picking from the search did not focus the draft');
+    await bar.getByRole('button', { name: 'Remove the command' }).click();
+    await bar.getByRole('button', { name: 'Auto', exact: true }).click();
+    await search.press('Escape');
+    must(await options.count() === 0, 'Esc on an empty search left the picker open');
     await page.context().close();
   });
   // ── WP5 batch 1: the composer chrome and the Home/Library shortcuts ──

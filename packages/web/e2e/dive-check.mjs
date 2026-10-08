@@ -41,7 +41,7 @@ const url = () => new URL(page.url());
 const blocks = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.map(node => node.dataset.blockId));
 // A card is selected by pressing its drag strip (the frame handle sits under the card's own strip).
 const select = async id => { const strip = page.locator(`[data-block-id="${id}"] [data-drag-zone]`).last(); await strip.scrollIntoViewIfNeeded(); await strip.click({ position: { x: 12, y: 8 } }); await page.waitForTimeout(300); };
-const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"]):not([data-slash-search])').first();
 const slash = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(150); await composer().press('Enter'); await page.waitForTimeout(800); };
 const deselect = async () => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }; // never a click: it could land on a card
 const nav = () => page.locator('[data-dive-navigator]');
@@ -91,6 +91,22 @@ await composer().fill('softmax');
 await dock.getByRole('button', { name: 'Auto' }).click();
 await page.getByText('Go down a Rabbit Hole').first().waitFor();
 await shot('01b-auto-palette');
+// Auto opens the palette on its search field (owner, 2026-10-08): focused, filtering by name and description without the
+// field moving, its keys never reaching the composer; up/down move the highlight; Esc clears a typed search first.
+const search = dock.locator('[data-slash-search]');
+assert.ok(await search.evaluate(node => node === document.activeElement), 'Auto focuses the palette search');
+const fieldTop = (await search.boundingBox()).y;
+await search.pressSequentially('/gra');
+assert.deepEqual(await dock.locator('[data-slash-command]').evaluateAll(rows => rows.map(row => row.dataset.slashCommand)), ['graph', 'diagram'], 'the search filters, a leading / ignored');
+assert.equal(await composer().inputValue(), '/', 'typing in the search never reaches the composer');
+await search.press('ArrowDown');
+assert.equal(await dock.locator('[data-slash-command="diagram"]').getAttribute('aria-selected'), 'true', 'down moves the highlight');
+await search.fill('zzz');
+await dock.getByText('No commands match').waitFor();
+assert.equal((await search.boundingBox()).y, fieldTop, 'the field does not move while the list filters');
+await shot('01b2-auto-search-empty');
+await search.press('Escape');
+assert.equal(await search.inputValue(), '', 'Esc clears a typed search first and keeps the palette');
 await page.getByText('Go down a Rabbit Hole').first().click();
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), 'softmax', 'choosing a command keeps the typed text as its argument');
@@ -98,6 +114,18 @@ await shot('01c-command-pill');
 await dock.getByRole('button', { name: 'Remove dive' }).click();
 assert.equal(await dock.locator('[data-command-pill]').count(), 0);
 assert.equal(await composer().inputValue(), 'softmax', 'the pill\'s × keeps the text');
+// Enter in the search takes the highlighted match (a description match here) and hands focus back to the composer.
+await dock.getByRole('button', { name: 'Auto' }).click();
+await search.pressSequentially('rabbit');
+await search.press('Enter');
+await dock.locator('[data-command-pill]').waitFor();
+assert.equal(await composer().inputValue(), 'softmax', 'Enter in the search chooses the command and keeps the text');
+assert.ok(await composer().evaluate(node => node === document.activeElement), 'choosing from the search focuses the composer');
+await dock.getByRole('button', { name: 'Remove dive' }).click();
+await dock.getByRole('button', { name: 'Auto' }).click();
+await search.press('Escape');
+await search.waitFor({ state: 'detached' });
+assert.equal(await composer().inputValue(), 'softmax', 'Esc on an empty search closes the palette and gives the text back');
 await dock.getByRole('button', { name: 'Auto' }).waitFor();
 await composer().fill('/dive ');
 await dock.locator('[data-command-pill]').waitFor();
