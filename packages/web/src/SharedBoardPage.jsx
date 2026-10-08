@@ -12,7 +12,7 @@ import { describeBlock } from './LearningBlocks.jsx';
 import { PRODUCT } from './flags.js';
 import { creatorLabel } from './home/provenance.js';
 import ChatComposer from './ChatComposer.jsx';
-import { Md, NextStepsCard } from './ask.jsx';
+import { MaterialIcon, Md, NextStepsCard } from './ask.jsx';
 import { streamAsk } from './agent/ask-stream.js';
 import { askHistory, askPath, loadChat, saveChat, signInForAsk, takeDraft } from './shared-ask.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -51,6 +51,8 @@ export default function SharedBoardPage({ token }) {
   // The selected card (a click on a view-only board selects it): where Start Rabbit Hole begins.
   const [card, setCard] = useState(null);
   const onCanvasState = useCallback(state => setCard(state.card || null), []);
+  // The selected card's pill above the shared composer (owner, 2026-10-08): the canvas arms it on any selection.
+  const [target, setTarget] = useState(null);
   // The card right-click menu starts the same flow from the card it was opened on (owner, 2026-10-07).
   const rabbitStart = useRef(null), rabbitAsk = useRef(null);
   // The card menu asks From this canvas or Blank too (owner, 2026-10-08); a Next Steps hook starts its step directly.
@@ -142,7 +144,8 @@ export default function SharedBoardPage({ token }) {
           <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
             gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
             leftRail={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
-            composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} />} />
+            onAskTarget={setTarget} askTargetId={target?.id ?? null}
+            composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} />} />
         </DivePortals.Provider></Suspense>
       </div>
       {comments.active && commentsOpen && (
@@ -232,7 +235,9 @@ const PILL = 'inline-flex max-w-[260px] shrink-0 items-center gap-1.5 rounded-md
 // surface only: no +, attachments, model picker or / commands (the server ignores them too). Anyone may type;
 // sending needs an account, so signed out, Send keeps the draft and goes through sign-in. `draft` (back from
 // sign-in) is restored, never sent.
-function SharedAsk({ token, viewer, context, draft }) {
+// target: the card the viewer selected (AdaptiveCanvas arms it as on the owner's canvas), shown as the one pill above the
+// composer with its x; Send carries only its id, and the server words it from the shared board (learn-shared-ask.js).
+function SharedAsk({ token, viewer, context, draft, target = null, onClearTarget = null }) {
   const [input, setInput] = useState(draft || '');
   const [turns, setTurns] = useState(() => (viewer ? loadChat(token, viewer) : []));
   const [busy, setBusy] = useState(false);
@@ -256,7 +261,7 @@ function SharedAsk({ token, viewer, context, draft }) {
     flight.current = controller;
     let signIn = false, limited = false;
     try {
-      await streamAsk({ path: askPath(token), body: { message, history }, signal: controller.signal, onEvent: (type, data) => {
+      await streamAsk({ path: askPath(token), body: { message, history, ...(target ? { selected: target.id } : {}) }, signal: controller.signal, onEvent: (type, data) => {
         if (type === 'chunk') last(turn => ({ content: turn.content + data.text }));
         else if (type === 'progress') last({ status: data.stage });
         else if (type === 'error' && data.signIn) signIn = true;
@@ -313,6 +318,11 @@ function SharedAsk({ token, viewer, context, draft }) {
           {sources.length > SOURCE_PILLS && <span data-context-pill="more" title={sources.slice(SOURCE_PILLS).map(source => source.title).join('\n')} className={`${PILL} border-line text-ink-3`}>+{sources.length - SOURCE_PILLS} more</span>}
         </div>
       )}
+      {target && <div data-canvas-target data-selected-card={target.id} title={`${target.kind}: ${String(target.title ?? '')}`} className="mb-1.5 inline-flex max-w-full self-start items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+        <MaterialIcon type={target.context?.material_type} />
+        <span className="max-w-[260px] truncate">{String(target.title ?? '').replace(/\$([^$]*)\$/g, '$1')}</span>
+        <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={onClearTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
+      </div>}
       <ChatComposer dock value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} onStop={() => flight.current?.abort()} maxLength={4000}
         placeholder={viewer ? 'Ask about this canvas…' : 'Ask about this canvas… (sign in to send)'} />
     </div>

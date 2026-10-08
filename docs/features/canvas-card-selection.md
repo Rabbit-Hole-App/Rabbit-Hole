@@ -67,7 +67,13 @@ Portals are navigation, not material, so they keep direct single-click open. The
 
 **What it looks like:** neutral (`bg-hover`, `border-line`). The remove button is labelled "Remove selected card context". Command colours belong to the slash pill (slash-command-tones.md), never to the strip.
 
-**Not covered by the strip:** a Wikipedia article, an uploaded PDF, a dropped file, a heading and a divider show the ring and Open, but no strip, because `describeBlock` has no text for them. The article and the PDF reach the tutor through their existing source context (`wiki_context`, and `paper_context` in the reader, chosen in Files). A dropped image reaches it through "Show the tutor this image". A YouTube moment, a paper, a slide and every lesson card are described, so they get the strip.
+**Every kind of card has the strip** (owner, 2026-10-08: "when we click on a card meaning it is selected we should have a pill above the chat composer"):
+- Lesson cards, YouTube moments, papers, slides and notebooks are described by `describeBlock`.
+- Chat cards, text boxes and sticky notes, and the Wikipedia, PDF, file and section cards are described by `learn-ask-target.js` `describeCanvasObject`. A dropped image also rides as `image_context`, as "Show the tutor this image" does.
+- Only a divider and a drawn shape have no strip: there is nothing to ask about.
+- On the Tutor path a card the Tutor would read no words from (a chat card, a note, a reader, file or slide card, a quiz) rides as its description (the canvas API's `objectCard`).
+
+**On a shared canvas** the one selected card's strip sits above the shared composer (`SharedBoardPage.jsx` `SharedAsk`), with the same ×. A click selects a lesson card, a chat card or a note. Esc and a blank-canvas click clear it, as on your own canvas. Send carries only the card's id (`selected`); the server finds the card on the shared board and words it from there (`learn-shared-ask.js` `selectedCard`), never from the request. Only a lesson card is a Rabbit Hole origin.
 
 **Where the answer lands is unchanged:**
 - An explicit "Ask in chat" on a card, or a region, area or group, answers as a card linked to it.
@@ -97,10 +103,11 @@ When server persistence owns cards, this becomes `canvas_target: { id }` (or `se
 ## Missing interfaces (reported, not built)
 
 - **Id-only card resolution** on `/api/learn/ask` and the Tutor turn. It is blocked on server persistence (task: persistence proposal).
-- **Shared ask:** the shared canvas's ask (`/api/learn/boards/shared/<token>/ask`) takes no card target. A selected card on a view-only board drives Start Rabbit Hole only, and no strip is shown there, so nothing invisible rides. The server already holds a shared board, so this route could resolve a card by id once it accepts one.
 
 ## Tests
 
 - Web unit: `packages/web/src/card-selection.test.mjs`.
+- Control plane: `packages/control-plane/test/shared-canvas-ask.test.js` (the selected card by id).
+- Browser: `packages/web/e2e/selected-pill-check.mjs` (local stack): every kind of card, owner and shared - the strip, Esc, a blank click, ×, and Send carrying the card.
 - Server: `packages/control-plane/test/learner-intent.test.js`, the card-text-is-not-intent case.
 - Browser: `packages/web/e2e/card-select-check.mjs` covers the owner's 15 cases, touch Open, and no model call. It runs on the local stack only.

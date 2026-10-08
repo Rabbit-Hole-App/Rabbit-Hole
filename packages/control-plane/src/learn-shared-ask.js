@@ -10,6 +10,7 @@ import { SHARED_CANVAS_SYSTEM, REPOSITORY_SYSTEM } from './agents/learn-chat.js'
 import { REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
 import { repositorySnapshot } from './repositories.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { appendCanvasTarget } from './learn-ask-context.js';
 import { sha256Hex } from './learn-grade-jev.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -110,6 +111,22 @@ export function boardText(state) {
   return all.length > BOARD_CHARS ? `${all.slice(0, BOARD_CHARS)}\n[The rest of the canvas (${all.length - BOARD_CHARS} more characters) is not included.]` : all;
 }
 
+// The card the viewer selected (SharedBoardPage.jsx, owner 2026-10-08: "a pill above the chat composer"), found on the
+// shared board by its id and worded from the board, as boardText words it: only the id comes from the request, never
+// the card's text. A lesson, reader or file card, a note or shape, or a chat card; an id not on the board is null.
+export function selectedCard(state, id) {
+  const block = list(state?.blocks).find(entry => entry?.id === id);
+  const note = !block && [...list(state?.items), ...list(state?.shapes)].find(entry => entry?.id === id);
+  const exchange = !block && !note && list(state?.exchanges).find(entry => entry?.id === id);
+  const parts = block ? [block.title, block.label, block.question, block.prompt, block.text, block.body, block.brief, block.caption, block.code, ...list(block.more).map(section => section?.text)]
+    : note ? [note.text]
+    : exchange ? [exchange, ...list(exchange.replies)].flatMap(turn => [text(turn?.question) && `Q: ${text(turn.question)}`, text(turn?.answer) && `A: ${text(turn.answer)}`])
+    : null;
+  if (!parts) return null;
+  const kind = block ? text(block.type) || 'Card' : note ? 'Note' : 'Chat';
+  return { id, kind, text: clip(parts.map(text).filter(Boolean).join('\n') || kind, ENTRY_CHARS) };
+}
+
 // The viewer's own earlier turns from their browser: the last HISTORY_TURNS, each cut to the question limit.
 // Anything but a list of { role: user|assistant, content } is refused (null).
 export function viewerHistory(history) {
@@ -180,14 +197,15 @@ async function admitAsk(env, row, viewer, repository, key = null) {
 
 // The model request: Learn chat's answer style and model settings (askStream's research path, LEARN_TASKS.chat,
 // Auto), the board's text and sources, and - when the share may read it - the repository at the share's pinned
-// commit through the read-only repository tools. No video tools: a shown video writes a moment row. Only `message`
-// and `history` come from the request: a model, a command or a file in it is ignored, and a message starting with
+// commit through the read-only repository tools. No video tools: a shown video writes a moment row. Only `message`,
+// `history` and `selected` (a card id, worded from the board here) come from the request: a model, a command or a file in it is ignored, and a message starting with
 // / is a plain question (nothing here dispatches commands).
 // link: an Explore publication's { source, key } - its own repository boundary and limit; a share reads its own.
 export async function askShared(env, row, viewer, body, link = null) {
   if (typeof body?.message !== 'string' || !body.message.trim() || body.message.length > MESSAGE_LIMIT) return json({ error: `Ask a question of 1-${MESSAGE_LIMIT} characters.` }, 400);
   const history = viewerHistory(body.history);
   if (!history) return json({ error: 'history must be a list of { role, content } turns' }, 400);
+  if (body.selected != null && (typeof body.selected !== 'string' || !body.selected || body.selected.length > 200)) return json({ error: 'selected must be a card id' }, 400);
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   const refused = subscriptionOwnerRefusal(env, viewer);
   if (refused) return refused;
@@ -201,12 +219,13 @@ export async function askShared(env, row, viewer, body, link = null) {
   if (repository) {
     try { snapshot = await repositorySnapshot(env, { id: repository.id }, repository.commit); } catch { /* fail closed: no source, never another commit */ }
   }
-  const context = JSON.stringify({
+  // The selected card rides beside the board as Learn's canvas target does (learn-ask-context.js); one not on the board is ignored.
+  const context = appendCanvasTarget(JSON.stringify({
     canvas: sharedTitle(row, canvas?.title, source),
     content: boardText(state),
     sources: boardSources(state),
     ...(repository ? { repository: { repo: repository.repo, commit: repository.commit, ...(snapshot ? {} : { note: "The repository source at this share's pinned commit is not available: answer from the canvas only, say so, and never use another version." }) } } : {}),
-  });
+  }), body.selected ? selectedCard(state, body.selected) : null);
   const research = snapshot ? { papers: [], system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) } : { papers: [] };
   const meta = repository && !snapshot ? { notice: "The repository code at this share's commit could not be read, so this answer uses the canvas only." } : {};
   return askStream(env, context, history, body.message.trim(), null, meta, [], null, null, null, SHARED_CANVAS_SYSTEM, research);

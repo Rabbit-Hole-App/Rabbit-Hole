@@ -53,7 +53,8 @@ sees, and nothing is written to the owner's board, threads or any owner data. Ke
   never open the owner's repository viewer (`ponytail:` in `SharedBoardPage.jsx`). A future shared source viewer may
   make them clickable only if it is scoped to the authorized share, its pinned commit and the allowed material.
 - **F. A plain Q&A surface.** No `+`, attachments, Auto/model picker or `/` commands on the shared composer. The
-  server reads only `message` and `history`: a model, command, mode or file in the request is ignored, a multipart
+  server reads only `message`, `history` and `selected` (the id of the card the viewer selected, owner 2026-10-08;
+  canvas-card-selection.md): a model, command, mode or file in the request is ignored, a multipart
   upload is refused (400), and a message starting with `/` reaches the model as a plain question - nothing on this
   route dispatches commands.
 
@@ -148,7 +149,12 @@ Credits takes them over when it lands.
 
 ## What the model sees
 
-Built from the shared row only (`askShared`), never from the request beyond `message` and `history`:
+Built from the shared row only (`askShared`), never from the request beyond `message`, `history` and `selected`:
+
+- `selected`: a card id (1-200 characters, else 400). The card is found on the shared board (a lesson, reader or file
+  card, a note or shape, or a chat card) and worded from the board (`selectedCard`), then rides after the context as
+  Learn's canvas target does (`appendCanvasTarget`). An id not on the board is ignored; its text never comes from the
+  request.
 
 - Learn chat's configuration: `askStream`'s research path, `LEARN_TASKS.chat` (Auto, 2400 tokens, the arXiv
   research tools), and `SHARED_CANVAS_SYSTEM` (`agents/learn-chat.js`: Learn's teaching policy and answer style,

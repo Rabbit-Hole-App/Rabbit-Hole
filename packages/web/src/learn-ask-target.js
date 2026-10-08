@@ -13,6 +13,34 @@ export function canvasTargetField(target) {
   };
 }
 
+// The selected objects describeBlock (LearningBlocks.jsx) leaves out, for the composer's pill and canvas_target (owner,
+// 2026-10-08: "when we click on a card meaning it is selected we should have a pill above the chat composer"): a chat
+// card, a text box or sticky note, and the Wikipedia, PDF, file and section cards. A divider has nothing to ask about.
+// material: the card's icon on the pill. image: an uploaded image's media id, which rides as image_context.
+export function describeCanvasObject(object) {
+  if (!object) return null;
+  if (!object.type) {
+    if (typeof object.question === 'string') {
+      const turns = [object, ...(object.replies || [])].map(turn => `Q: ${turn.question || ''}\nA: ${turn.answer || ''}`);
+      return { kind: 'Chat', title: object.question || 'Chat', text: `A chat on the canvas:\n${turns.join('\n\n')}`, material: 'chat' };
+    }
+    if (object.kind === 'text' || object.kind === 'sticky') {
+      const kind = object.kind === 'sticky' ? 'Sticky note' : 'Text';
+      const words = String(object.text || '').trim();
+      return { kind, title: words.split('\n')[0] || `Empty ${kind.toLowerCase()}`, text: `${kind} on the canvas: ${words || '(empty)'}`, material: 'note' };
+    }
+    return null;
+  }
+  if (object.type === 'wiki') return { kind: 'Wikipedia', title: object.title, text: `Wikipedia article on the canvas: ${object.title}${object.section ? ` (section ${object.section})` : ''}`, material: 'wiki' };
+  if (object.type === 'pdf') return { kind: 'PDF', title: object.label || 'PDF', text: `PDF on the canvas: ${object.label || 'untitled'}`, material: 'pdf' };
+  if (object.type === 'file') {
+    const image = object.kind === 'image';
+    return { kind: image ? 'Image' : 'File', title: object.label || (image ? 'Image' : 'File'), text: `${image ? 'Image' : 'File'} on the canvas: ${object.label || 'untitled'}`, material: 'file', ...(image && object.mediaId ? { image: object.mediaId } : {}) };
+  }
+  if (object.type === 'heading') return { kind: 'Section', title: object.text || 'Section', text: `Section heading on the canvas: ${object.text || '(untitled)'}`, material: 'heading' };
+  return null;
+}
+
 // The question a canvas Ask writes into the composer (owner, 2026-10-08): ready to send, never sent. A card or slide by
 // its title, a group as a whole; the card or group itself rides as canvas_target.
 export const cardQuestion = (title) => (title ? `Can you explain "${title}"?` : 'Can you explain this card?');

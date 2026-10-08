@@ -117,12 +117,12 @@ test('entry points: the Comment tool in the rail, C with its guards, the shortcu
   const canvas = read('../AdaptiveCanvas.jsx'), sheet = read('../ShortcutsSheet.jsx'), page = read('../LearnPage.jsx'), header = read('../PanelHeader.jsx');
   assert.match(canvas, /\{onAddComment && <ToolButton value="comment" Icon=\{MessageCircle\} label="Comment {2}C"/, 'tooltip "Comment  C"');
   assert.match(canvas, /onPointerDownCapture=\{tool === 'askArea' \? startArea : tool === 'comment' \? placeComment : undefined\}/);
-  const key = canvas.slice(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')"), canvas.indexOf("if (readOnlyRef.current) { if (event.key === 'Escape')"));
+  const key = canvas.slice(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')"), canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"));
   assert.match(key, /!event\.ctrlKey && !event\.metaKey && !event\.altKey/, 'Ctrl+C still copies');
   assert.match(key, /presentingRef\.current === null/, 'never while presenting');
   assert.match(key, /isContentEditable \|\| \['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'\]\.includes/, 'never while typing');
   assert.match(key, /held\.closest\?\.\('\[data-block-id\]'\) && !held\.matches\('\[data-block-id\]'\)/, 'never inside a card\'s own editor or widget');
-  assert.ok(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')") < canvas.indexOf("if (readOnlyRef.current) { if (event.key === 'Escape')"), 'C works on view-only boards too');
+  assert.ok(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')") < canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"), 'C works on view-only boards too');
   assert.match(sheet, /\['Comment on the selected card, or place a comment', \['C'\]\]/);
   assert.match(page, /\{comments\.active && <button type="button" data-comments-header/);
   assert.match(header, /\{id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot/);

@@ -199,7 +199,7 @@ test('the composers write an Ask action\'s question and focus; the learner\'s ow
   assert.match(md, /if \(text && \(!typed\.current\.trim\(\) \|\| typed\.current === prefilled\.current\)\) \{ prefilled\.current = text; setInput\(text\); \}/);
   // Canvas Ask in chat (card, slide, the menu's Ask about this) and a group's Ask in chat.
   const canvas = read('AdaptiveCanvas.jsx');
-  assert.match(canvas, /if \(armTarget\(block\)\) askDraft\(cardQuestion\(describeBlock\(block\)\?\.title\)\);/);
+  assert.match(canvas, /if \(armTarget\(block\)\) askDraft\(cardQuestion\(describeObject\(block\)\?\.title\)\);/);
   assert.match(canvas, /text: groupTargetText\(entries\) \}\);\n\s+askDraft\(GROUP_QUESTION\);/);
   assert.doesNotMatch(canvas, /new Event\('small:ask-focus'\)/);
 });
