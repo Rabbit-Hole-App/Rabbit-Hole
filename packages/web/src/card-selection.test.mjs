@@ -115,3 +115,23 @@ test('every kind of card has a pill: chat cards, notes, Wikipedia, PDF, file and
   for (const none of [{ id: 'd1', type: 'divider' }, { id: 's1', kind: 'rect' }, { id: 'e1', type: 'explanation' }]) assert.equal(describeCanvasObject(none), null, JSON.stringify(none));
   assert.deepEqual(canvasTargetField({ id: 'q1', ...chat }), { id: 'q1', kind: 'Chat', title: 'Why exp?', text: chat.text });
 });
+
+// Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc... each options should have an icon next to it".
+test('the canvas right-click menu: every item is one MenuRow with its icon, on card, canvas, note and group menus alike', () => {
+  const canvas = read('./AdaptiveCanvas.jsx');
+  const menu = canvas.slice(canvas.indexOf('{menuAt && presenting === null && (() => {'), canvas.indexOf('})()}', canvas.indexOf('{menuAt && presenting === null && (() => {')));
+  assert.doesNotMatch(menu, /<button[^>]*role="menuitem"/, 'no bare row');
+  const rows = menu.match(/<MenuRow [^>]*>/g);
+  assert.ok(rows.length >= 20, `${rows.length} rows`);
+  for (const row of rows) assert.match(row, /icon=\{[A-Za-z]/, row);
+  // The shared row: the ⋮ menu's MenuItem (16px, strokeWidth 1.5, text-ink-2), a menu item, dimmed when disabled.
+  assert.match(canvas, /const MenuRow = props => <MenuItem type="button" role="menuitem" \{\.\.\.props\} \/>;/);
+  const ui = read('./ui.jsx');
+  assert.match(ui, /\{Icon && <Icon size=\{16\} strokeWidth=\{1\.5\} aria-hidden="true" className="shrink-0 text-ink-2 group-disabled:text-ink-3" \/>\}/);
+  assert.match(ui, /disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent/);
+  // The suggested marks where they apply: Start Rabbit Hole's own, Add comment, Copy text, Duplicate, Delete.
+  for (const [label, icon] of [['Start Rabbit Hole', 'ArrowDownToLine'], ['Add comment', 'MessageCircle'], ['Copy text', 'Copy'], ['Duplicate', 'CopyPlus'], ['Delete', 'Trash2']]) {
+    const line = menu.split('\n').find(text => text.includes(`>${label}</MenuRow>`));
+    assert.ok(line?.includes(`icon={${icon}}`), `${label}: ${line?.trim().slice(0, 80)}`);
+  }
+});

@@ -59,6 +59,17 @@ const strip = id => page.locator(`[data-block-id="${id}"] [data-drag-zone]`).las
 const select = async (id, modifiers = []) => { await strip(id).click({ position: { x: 12, y: 8 }, modifiers }); await page.waitForTimeout(250); };
 const menu = () => page.locator('[data-canvas-menu]');
 const startItem = () => menu().locator('[data-menu-start-rabbit-hole]');
+// Owner, 2026-10-08: "each options should have an icon next to it" - every menu item, on every menu, has its icon (an svg),
+// left of the label. Returns the labels, to say which menu it was.
+const iconsOnEveryItem = async (where) => {
+  const rows = await menu().locator('[role="menuitem"]').evaluateAll(items => items.map(item => {
+    const svg = item.querySelector(':scope > svg'), label = item.querySelector(':scope > span');
+    return { text: item.innerText.trim(), icon: !!svg, left: !!svg && !!label && svg.getBoundingClientRect().right <= label.getBoundingClientRect().left };
+  }));
+  assert.ok(rows.length > 0, `${where}: a menu with items`);
+  for (const row of rows) assert.ok(row.icon && row.left, `${where}: "${row.text}" has its icon left of the label`);
+  return rows.map(row => row.text);
+};
 const rightClick = async (id, position = { x: 30, y: 10 }) => { await strip(id).click({ button: 'right', position }); await menu().waitFor(); await page.waitForTimeout(150); };
 const selectedIds = () => page.$$eval('[data-block-id][aria-current="true"]', nodes => nodes.map(node => node.dataset.blockId));
 const pending = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('small.dive.pending') || '{}'));
@@ -81,6 +92,8 @@ await check('1 right-click a card: a small menu by the cursor, "Start Rabbit Hol
   const box = await menu().boundingBox();
   assert.ok(Math.abs(box.x - (at.x + 30)) <= 2 && Math.abs(box.y - (at.y + 10)) <= 2, `the menu opens at the cursor: ${JSON.stringify(box)} vs ${at.x + 30},${at.y + 10}`);
   assert.ok((await inside()).ok);
+  const labels = await iconsOnEveryItem('a card');
+  for (const label of ['Start Rabbit Hole', 'Duplicate', 'Delete']) assert.ok(labels.includes(label), `${label} in ${labels.join(', ')}`);
 });
 await shot('01-menu-start-rabbit-hole');
 
@@ -112,6 +125,7 @@ await check('3 near the right and bottom edges the menu flips beside the cursor 
     await menu().waitFor();
     const where = await inside();
     assert.ok(where.ok, `menu inside at ${Math.round(x)},${Math.round(y)}: ${JSON.stringify(where)}`);
+    await iconsOnEveryItem('the empty canvas');
     await page.keyboard.press('Escape');
     await menu().waitFor({ state: 'detached' });
   }
@@ -199,6 +213,7 @@ await check('6b editing still works: a sticky note edits by double-click and kee
   await note.click({ button: 'right', position: { x: 30, y: 30 } });
   await menu().waitFor();
   assert.equal(await startItem().count(), 0, 'Start Rabbit Hole is for learning cards only');
+  await iconsOnEveryItem('a sticky note');
   await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
   await note.dblclick({ position: { x: 30, y: 30 } });
   const body = note.locator('[contenteditable="true"]');
@@ -270,6 +285,7 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
   // View-only edits nothing: Start Rabbit Hole is the only item (no Duplicate, Group, Select all or Delete).
   assert.deepEqual((await menu().locator('[role="menuitem"]').allInnerTexts()).map(text => text.trim()), ['Start Rabbit Hole']);
+  await iconsOnEveryItem('a view-only board');
   await shot('04-shared-view-only-menu');
   await startItem().click();
   // It asks first, as the header does (owner, 2026-10-08), naming the right-clicked card; nothing starts until a choice.
