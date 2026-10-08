@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { carryStep, holeOpening, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
+import { carryStep, goalOf, holeOpening, informativeTitle, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
 import { emptyStore, appendEvents } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
 import { NANOGPT, TUTOR_BOARD, cardModule } from './learn-tutor-claims.js';
@@ -872,15 +872,24 @@ test('a renamed journey hole and a renamed course hole: goal, dive title and bas
   assert.deepEqual([courseHole.goal, courseHole.dive.title, courseHole.dive.concept, Object.keys(courseHole.scope.claims)], ['nanoGPT attention - My notes', 'My notes', 'softmax', ['softmax/normalizes-to-one', 'softmax/gaps-set-sharpness']]);
 });
 
-// Owner eleventh message 8: hooks on a plain canvas only with trustworthy grounding - a lesson card on it (canvasApi.blocks();
-// chat exchanges are not canvas blocks, so a canvas with only chat gets no hooks in v1); its title alone is never enough, and no
-// goal is invented because no journey exists.
-test('stoppingPoint: a plain canvas with no lesson card gives no hooks, whatever its title; a course, journey or hole goal still grounds them', () => {
+// Owner 2026-10-08 (reversing the eleventh message 8): a blank plain canvas gets hooks at rest - grounded in an informative
+// title, else three distinct starters (no goal). Elsewhere a blank canvas still needs a goal; the other stops are unchanged.
+test('stoppingPoint: a blank plain canvas gets hooks whatever its title; elsewhere a blank canvas needs a goal', () => {
   const here = { app: 'a', board: 'main' }, store = emptyStore();
-  assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Sourdough', plain: true }), 'not_now', 'a title alone, or chat only (no canvas block)');
+  for (const goal of ['Sourdough', '', '  ']) assert.equal(stoppingPoint({ store, here, blocks: [], goal, plain: true }), null, JSON.stringify(goal));
+  assert.equal(stoppingPoint({ store, here, blocks: [], goal: '', plain: true, busy: true }), 'not_now', 'a Tutor turn still hides them');
+  assert.equal(stoppingPoint({ store: { ...store, open: { action_id: 'q', canvas: here } }, here, blocks: [], goal: '', plain: true }), 'not_now', 'so does an open question');
   assert.equal(stoppingPoint({ store, here, blocks: [{ id: 'k1', type: 'explanation', title: 'Starter' }], goal: 'Sourdough', plain: true }), null, 'a lesson card');
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Tidal power' }), null);
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: '' }), 'not_now');
+});
+
+test('informativeTitle and goalOf: a blank, Untitled or auto-named plain canvas has no goal; a real title is the goal', () => {
+  for (const t of ['', '  ', 'Untitled canvas', 'untitled', 'Untitled', 'canvas-0a1b2c3d', 'CANVAS-0A1B2C3D']) assert.equal(informativeTitle(t), '', JSON.stringify(t));
+  for (const t of ['Sourdough', 'Untitled poems', 'canvas-0a1b2c3d notes', 'My canvas']) assert.equal(informativeTitle(t), t);
+  const plain = title => goalOf({ context: { source: 'canvas', domain: { subject: title } }, title }).goal;
+  assert.deepEqual(['Untitled canvas', 'canvas-0000abcd', 'Tide pools'].map(plain), ['', '', 'Tide pools']);
+  assert.equal(goalOf({ context: { source: 'journey', domain: { context: { goal: 'Untitled canvas' } } }, title: 'x' }).goal, 'Untitled canvas', 'only a plain canvas title is screened');
 });
 
 // ---- Shared canvases (Task 11): the pending and carried step, and the viewer's own claim states. ----

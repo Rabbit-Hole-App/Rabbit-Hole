@@ -10,7 +10,7 @@ import { planNextSteps, planSection } from '../src/learn-journey-planners.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { LEARN_TASKS, costUsd } from '../src/learn-models.js';
 import { NO_CAP, admitUsage } from '../src/learn-shared-ask.js';
-import { nextStepsOutput } from '../src/agents/learn-next-steps.js';
+import { NEXT_STEPS_SYSTEM, nextStepsOutput } from '../src/agents/learn-next-steps.js';
 
 const claim = (concept, statement, state, over = {}) => ({ concept, statement, ideas: [`names ${concept}`], drawn: `the first ${concept} case`, state, settled_passes: 0, settled_negatives: 0, presented: false, ...over });
 const INPUT = (states = {}) => ({
@@ -234,6 +234,23 @@ test('0012 is additive, re-runnable and exactly what repository-schema.sql appli
   assert.ok(schema.replace(/\r/g, '').includes(migration.replace(/\r/g, '').trim()));
   assert.doesNotMatch(migration, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
   assert.deepEqual(sqlite.prepare('PRAGMA table_info(next_steps_telemetry)').all().map(c => c.name), ['id', 'created_at', 'scope', 'user_id', 'board', 'telemetry_json']);
+});
+
+// Owner 2026-10-08: a blank canvas asks the planner too - its informative title as the goal, or no goal for three distinct
+// starter hooks - with ids empty, through the same route, cache and limits.
+test('blank canvas: the prompt asks for title-grounded or distinct starter hooks; a blank input with or without a goal is planned with ids empty', async t => {
+  assert.ok(NEXT_STEPS_SYSTEM.includes('with no goal, three starter hooks into three different subjects a curious person might pick, never three takes on one topic'));
+  const blank = goal => ({ ...INPUT(), mode: 'canvas', basis: `blank:${goal}`, goal, path: undefined, canvas: { blocks: [] }, scope: { concepts: {}, claims: {} }, recent: { intent: null, transitions: [], modalities: [], practice: [] } });
+  const w = world(t);
+  for (const goal of ['', 'Tide pools']) {
+    const checked = nextStepsOutput(fixtureFor('suggest_next_steps', blank(goal)), blank(goal));
+    assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+    const reply = await w.post({ app: 'canvas-0a1b2c3d', input: blank(goal) });
+    assert.equal(reply.status, 200, goal);
+    const set = await reply.json();
+    assert.equal(set.options.length, 3);
+    assert.ok(set.options.every(o => !o.selected_next_step.claim_ids.length && !o.selected_next_step.concept_ids.length), 'ids empty');
+  }
 });
 
 test('owned route: the hourly cap answers 429 limited and writes nothing more', async t => {
