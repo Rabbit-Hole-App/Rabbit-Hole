@@ -1,7 +1,8 @@
 // Canvas equations (docs/features/canvas-equations.md), end to end on the owner's canvas: the Equation tool, the palette
 // (a fraction, a subscript, a 2x2 matrix), pasted LaTeX, click-out rendering, double-click to reopen, move, resize,
 // delete, undo/redo, duplicate, save and reload (this browser and a fresh profile from the server copy), typing that never
-// reaches the canvas's keys, the selection pill with the LaTeX, Ask in chat's prefill, and Send carrying the LaTeX.
+// reaches the canvas's keys, the S M L XL size ladder (r35), the selection pill with the LaTeX, Ask in chat's prefill, and
+// Send carrying the LaTeX.
 // Against the LOCAL stack only: local D1 and fresh browser profiles. No model is called: the Learn ask and the Tutor
 // planner are answered here, every other write except the board's own save is refused, and the stack's provider tripwire
 // must count 0. Prints no secrets.
@@ -264,6 +265,71 @@ await check('duplicate keeps the source', async () => {
   assert.equal((await equations()).length, 1);
 });
 
+// r35 (owner: "For the equation do you think we need like the shapes has above them: H1, H2, H3, Text?"): a size ladder,
+// S M L XL, where a text box shows its H1-to-text one. Sizes: S 19, M 24, L 32, XL 48 (canvas-equation.js).
+const ladder = () => page.getByRole('group', { name: 'Equation size' });
+const step = name => ladder().getByRole('button', { name, exact: true });
+const pressed = () => ladder().locator('button[aria-pressed="true"]').allInnerTexts();
+const tall = async () => (await shown().first().locator('.katex').first().boundingBox()).height;
+const sizeShot = async name => {
+  const boxes = (await Promise.all(['[data-equation]', '[role="group"][aria-label="Equation size"]', '[role="group"][aria-label="Text level"]'].map(async selector => Promise.all((await page.locator(selector).all()).map(node => node.boundingBox()))))).flat().filter(Boolean);
+  const left = Math.max(0, Math.min(...boxes.map(box => box.x)) - 60), top = Math.max(0, Math.min(...boxes.map(box => box.y)) - 40);
+  const right = Math.max(...boxes.map(box => box.x + box.width)) + 60, bottom = Math.max(...boxes.map(box => box.y + box.height)) + 40;
+  await page.screenshot({ path: `${SHOTS}/${name}.png`, clip: { x: left, y: top, width: Math.max(480, right - left), height: bottom - top } });
+};
+await check('a selected equation has the S M L XL size ladder: a level sets its size, undo restores it, duplicate keeps it, none while editing', async () => {
+  await clickBlank();
+  assert.equal(await ladder().count(), 0, 'no ladder on an unselected equation');
+  await shown().first().click();
+  await ladder().waitFor({ timeout: 5000 });
+  assert.deepEqual(await ladder().getByRole('button').allInnerTexts(), ['S', 'M', 'L', 'XL']);
+  const [mark, box] = await Promise.all([ladder().boundingBox(), shown().first().boundingBox()]);
+  assert.ok(mark.y + mark.height <= box.y + 1 && Math.abs(mark.x - box.x) <= 2, `above the equation at its left edge, as a text box's ladder: ${JSON.stringify({ mark, box })}`);
+  const custom = (await equations())[0].size; // the corner handle's size from the resize check above
+  assert.deepEqual(await pressed(), { 19: ['S'], 24: ['M'], 32: ['L'], 48: ['XL'] }[custom] || [], `size ${custom}: its level, or none when custom`);
+  await step('M').click(); await settle();
+  assert.equal((await equations())[0].size, 24);
+  assert.deepEqual(await pressed(), ['M']);
+  const medium = await tall();
+  await sizeShot('equation-size-1-ladder-m');
+  await step('S').click(); await settle();
+  assert.equal((await equations())[0].size, 19);
+  const small = await tall();
+  assert.ok(small < medium * 0.9, `S renders smaller: ${small} < ${medium}`);
+  await step('XL').click(); await settle();
+  assert.equal((await equations())[0].size, 48);
+  assert.deepEqual(await pressed(), ['XL']);
+  assert.ok(await tall() > medium * 1.7, `XL renders about twice M: ${await tall()} vs ${medium}`);
+  assert.equal((await equations())[0].latex, latex, 'a level keeps the source');
+  await sizeShot('equation-size-2-xl');
+  await page.keyboard.press('Control+z'); await settle();
+  assert.equal((await equations())[0].size, 19, 'undo restores the level before');
+  await page.keyboard.press('Control+z'); await settle();
+  assert.equal((await equations())[0].size, 24, 'and the one before that');
+  await page.keyboard.press('Control+y'); await settle();
+  assert.equal((await equations())[0].size, 19, 'redo');
+  await shown().first().click(); // undo clears the selection, as it does for any canvas edit
+  await ladder().waitFor({ timeout: 5000 });
+  assert.deepEqual(await pressed(), ['S'], 'the ladder shows the restored level');
+  await step('L').click(); await settle();
+  assert.equal((await equations())[0].size, 32);
+  // Beside H1 text: L is H1's size.
+  await sizeShot('equation-size-3-l');
+  await page.keyboard.press('Control+d'); await settle();
+  const copies = await equations();
+  assert.deepEqual(copies.map(item => item.size), [32, 32], 'duplicate keeps the level');
+  await page.keyboard.press('Delete'); await settle();
+  assert.equal((await equations()).length, 1);
+  // Editing the LaTeX: the palette, never the ladder.
+  await shown().first().dblclick();
+  await field().waitFor();
+  assert.equal(await ladder().count(), 0, 'no ladder while the LaTeX is edited');
+  assert.equal(await page.locator('[data-equation-palette]').count(), 1);
+  await region('equation-size-4-editing-no-ladder');
+  await page.keyboard.press('Escape'); await settle();
+  assert.equal((await equations())[0].size, 32, 'editing keeps the level');
+});
+
 await check('selecting the equation shows the composer pill with its LaTeX', async () => {
   await clickBlank();
   await shown().first().click();
@@ -291,21 +357,30 @@ await check('Ask in chat prefills a question and sends nothing; Send carries the
   if (await collapse.count()) await collapse.first().click();
 });
 
-await check('save and reload keep the LaTeX: this browser, the server copy, and a fresh browser from it', async () => {
+await check('save and reload keep the LaTeX and the size level (L): this browser, the server copy, and a fresh browser from it', async () => {
   const saved = await until('the equation on the server', async () => {
     const board = (await api(`/api/learn/boards/${canvas.name}/main`)).body;
-    return board?.state?.items?.find(item => item.kind === 'equation' && item.latex === latex);
+    return board?.state?.items?.find(item => item.kind === 'equation' && item.latex === latex && item.size === 32);
   });
-  assert.equal(saved.size > 0, true);
+  assert.equal(saved.size, 32);
   await page.reload();
   await shown().first().waitFor({ timeout: 60000 });
   assert.equal((await equations())[0].latex, latex);
+  assert.equal((await equations())[0].size, 32);
   assert.equal(await shown().locator('.katex-error').count(), 0);
+  await shown().first().click();
+  await ladder().waitFor({ timeout: 5000 });
+  assert.deepEqual(await pressed(), ['L'], 'the ladder shows L after a reload');
+  await sizeShot('equation-size-5-after-reload');
   await context.close();
   ({ context, page } = await open()); // a fresh profile: no local copy, the server's only
   await shown().first().waitFor({ timeout: 60000 });
   assert.equal((await equations())[0].latex, latex);
+  assert.equal((await equations())[0].size, 32);
   assert.ok(await shown().first().locator('.katex').count());
+  await shown().first().click();
+  await ladder().waitFor({ timeout: 5000 });
+  assert.deepEqual(await pressed(), ['L'], 'and in a fresh browser');
 });
 
 await context.close();

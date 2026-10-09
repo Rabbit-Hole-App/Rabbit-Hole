@@ -1,6 +1,7 @@
 // Equations on the learning canvas (docs/features/canvas-equations.md): the item, its palette, its resize, and the guard
 // that keeps typing in an equation away from the canvas's keys. The editor itself (MathLive) is EquationEditor.jsx,
 // loaded only when an equation is edited.
+import { TEXT_LEVELS } from './learn-style-panel.js';
 
 // The item, saved with the board like a text box: { id, kind: 'equation', x, y, latex, size }. `latex` is the editable
 // source - what is saved, copied, duplicated and asked about; the picture is rendered from it (KaTeX) every time.
@@ -9,6 +10,22 @@ export const newEquation = ({ x, y }) => ({ id: crypto.randomUUID(), kind: 'equa
 
 // The corner handle scales the type, never a box: the new size follows the width dragged to, within readable bounds.
 export const scaledSize = (size, from, to) => Math.max(12, Math.min(160, Math.round(size * to / Math.max(1, from))));
+
+// The size ladder over a selected equation (r35, owner: "For the equation do you think we need like the shapes has above
+// them: H1, H2, H3, Text?"): sizes, not headings - an equation has no heading level. S, M and L are the text ladder's
+// H3, H2 and H1 sizes, so an equation sits level with text of that rank; M is the default; XL is twice M. A level is
+// stored as the item's `size`, so it saves, copies and duplicates with it.
+const textSize = id => TEXT_LEVELS.find(entry => entry.id === id).size;
+export const EQUATION_LEVELS = [
+  { id: 's', label: 'S', size: textSize('h3') },
+  { id: 'm', label: 'M', size: EQUATION_SIZE },
+  { id: 'l', label: 'L', size: textSize('h1') },
+  { id: 'xl', label: 'XL', size: 2 * EQUATION_SIZE },
+];
+// The level a size is at. A size the corner handle left between levels is custom: no level, so the ladder never claims
+// a size the equation is not at.
+export const equationLevel = size => EQUATION_LEVELS.find(entry => entry.size === (size || EQUATION_SIZE))?.id || null;
+export const levelSize = id => EQUATION_LEVELS.find(entry => entry.id === id).size;
 
 // Where the keyboard belongs to a field, so the canvas's keys (Delete, Ctrl+D, C, /, Ctrl+V...) stand down: a text box,
 // an input, or an equation being edited. MathLive's <math-field> keeps its own input in a shadow root, so the page sees
