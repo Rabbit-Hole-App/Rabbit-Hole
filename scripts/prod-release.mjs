@@ -50,16 +50,18 @@ export function greenDevDeploy(sha, recordText) {
     .find(r => r?.sha === sha && r.gates === 'pass' && r.smoke === 'pass') || null;
 }
 
-export function checkPrepare({ sha, onMain, devRecord, head, clean }) {
+const dirty = changes => `refused: the tracked tree has changes${changes ? `:\n${changes}` : ''}`;
+
+export function checkPrepare({ sha, onMain, devRecord, head, clean, changes }) {
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!onMain) return `refused: ${sha} is not on origin/main (git fetch origin main first)`;
   if (!greenDevDeploy(sha, devRecord)) return `refused: no green dev deployment is recorded for ${sha}`;
   if (head !== sha) return `refused: HEAD is ${head}, check out ${sha} first`;
-  if (!clean) return 'refused: the tracked tree has changes';
+  if (!clean) return dirty(changes);
   return null;
 }
 
-export function checkRelease({ hold, sha, build, approve, prepared, head, clean }) {
+export function checkRelease({ hold, sha, build, approve, prepared, head, clean, changes }) {
   if (hold) return 'HOLD: production release is disabled. Lifting the hold is a reviewed change to HOLD in scripts/prod-release.mjs.';
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!build) return 'refused: --build is required';
@@ -67,7 +69,7 @@ export function checkRelease({ hold, sha, build, approve, prepared, head, clean 
   if (!prepared) return `refused: ${sha} was never prepared (run prepare first)`;
   if (prepared.sha !== sha || prepared.build !== build) return `refused: the prepared build for ${sha} is ${prepared.build}, not ${build}`;
   if (head !== sha) return `refused: HEAD is ${head}, not ${sha}`;
-  if (!clean) return 'refused: the tracked tree has changes';
+  if (!clean) return dirty(changes);
   return null;
 }
 
@@ -106,7 +108,8 @@ const tryGit = (...a) => { try { git(...a); return true; } catch { return false;
 const COMMON = () => resolve(ROOT, git('rev-parse', '--git-common-dir'));
 const devRecordPath = opts => opts['dev-record'] || join(COMMON(), 'rabbit-hole-dev-deploys.jsonl');
 const stateDir = sha => join(COMMON(), 'rabbit-hole-prod-release', sha);
-const tree = () => ({ head: git('rev-parse', 'HEAD'), clean: git('status', '--porcelain', '--untracked-files=no') === '' });
+// A refusal names the changed paths: on the Linux runner a bare "has changes" hid a file-mode change (run 37956890240).
+const tree = () => { const changes = git('status', '--porcelain', '--untracked-files=no'); return { head: git('rev-parse', 'HEAD'), clean: changes === '', changes }; };
 
 // Bundle both Workers locally (no upload) and hash them with the built pages.
 function bundleHash(sha) {

@@ -101,3 +101,12 @@ test('the production workflow: a push to main only, the production environment, 
   assert.doesNotMatch(wf, /migrations apply|d1 execute|wrangler deploy|HOLD\s*[:=]/, 'all through prod-release.mjs, which keeps HOLD and never migrates');
   for (const uses of wf.match(/uses: \S+/g)) assert.match(uses, /@[0-9a-f]{40}$/, `${uses} is pinned to a commit`);
 });
+
+test('a dirty-tree refusal names the changed paths, and the CLI bin is committed executable so npm ci on Linux leaves the tree clean', () => {
+  // Run 37956890240 (2026-10-09): npm ci set packages/cli/bin/small.js to 755 on the runner and prepare refused with no path.
+  const green = `${JSON.stringify({ sha: SHA, gates: 'pass', smoke: 'pass' })}\n`;
+  assert.equal(checkPrepare({ sha: SHA, onMain: true, devRecord: green, head: SHA, clean: false, changes: ' M packages/cli/bin/small.js' }), 'refused: the tracked tree has changes:\n M packages/cli/bin/small.js');
+  assert.match(checkRelease({ ...released, clean: false, changes: ' M a.js' }), /changes:\n M a\.js$/);
+  const mode = execFileSync('git', ['ls-files', '-s', 'packages/cli/bin/small.js'], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
+  assert.match(mode, /^100755 /);
+});
