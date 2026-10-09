@@ -43,7 +43,7 @@ export async function sendDraft(post, draft, fresh = () => crypto.randomUUID()) 
 // What a failed send says (section 11). Offline never sends by itself: Retry is the one send control.
 export function failureText(error, online = true) {
   if (!online || error instanceof TypeError) return "You're offline. Your reply is saved here. Press Retry when you're back.";
-  return error?.data?.error || "Couldn't send.";
+  return error?.data?.error || (error?.status ? `Couldn't send (HTTP ${error.status}).` : "Couldn't send.");
 }
 
 // A draft (its client id, text and failure) lives in session storage per thread, so a reload or a failed send keeps it.

@@ -141,6 +141,22 @@ await check('4 a reply lands in the thread, oldest first', async () => {
   await shot('04-reply');
 });
 
+// Owner bug, 2026-10-09 (preview): a send answered by the platform's HTML error page (an uncaught Worker error) showed only
+// "Couldn't send."; it now names the status, and the draft stays for Retry. Before the fix this waited for a line that
+// never came.
+await check('4b a send answered by an HTML error page says its HTTP status, and the draft stays for Retry', async () => {
+  const replies = /\/api\/learn\/c\/[^/]+\/threads\/[^/]+\/comments$/;
+  const failing = route => (route.request().method() === 'POST' ? route.fulfill({ status: 500, contentType: 'text/html', body: '<!doctype html><title>Worker threw exception</title>' }) : route.fallback());
+  await page.route(replies, failing);
+  await composer().fill('This one fails.');
+  await composer().press('Enter');
+  await panel().getByText("Couldn't send (HTTP 500).").waitFor();
+  assert.equal(await composer().inputValue(), 'This one fails.', 'the draft is kept');
+  await shot('04b-send-failed');
+  await page.unroute(replies, failing);
+  await panel().getByRole('button', { name: 'Discard' }).click();
+});
+
 await check('5 the bare canvas takes no new comment (no menu row, C does nothing, no Comment tool); a stored canvas-point pin stays where it was placed', async () => {
   assert.equal(await page.getByRole('button', { name: /^Comment\s+C$/ }).count(), 0, 'no Comment tool in the toolbar');
   const body = await card('k-exp').boundingBox();
