@@ -1,5 +1,5 @@
 // The picked card's pill in the workspace dock (owner, 2026-10-09: "when i click on a card in Home/Explore, I do not see
-// the pill in the chatcomposer of the selected Projects/Canvas"). Pinned in source; e2e/home-pill-check.mjs clicks it.
+// the pill in the chatcomposer of the selected Projects/Canvas"). Pinned in source; e2e/selected-pill-check.mjs clicks it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

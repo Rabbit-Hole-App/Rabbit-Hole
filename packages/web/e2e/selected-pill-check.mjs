@@ -269,6 +269,21 @@ await check('Home: a click on a card picks it - one pill with its type icon and 
   assert.equal(await homePill.count(), 0, 'x clears it');
   assert.equal(sent(), before, 'the pick sent nothing');
 });
+await check('Home: the title and Open still open the card, and opening picks nothing', async () => {
+  const opened = new RegExp(`/apps/${canvas.name}([?#]|$)`);
+  const card = page.locator('[data-recent-card]').filter({ hasText: `Every card ${run}` }).first();
+  await card.locator('[data-card-title]').click();
+  await page.waitForURL(opened, { timeout: 30000 });
+  assert.equal(await homePill.count(), 0, 'the title opened it, no pill');
+  await page.goto(`${BASE}/apps`);
+  await card.waitFor({ timeout: 30000 });
+  await card.hover();
+  await card.locator('[data-card-open]').click();
+  await page.waitForURL(opened, { timeout: 30000 });
+  assert.equal(await homePill.count(), 0, 'Open opened it, no pill');
+  await page.goto(`${BASE}/apps`);
+  await card.waitFor({ timeout: 30000 });
+});
 await check('Home: with the pill, a question goes to that canvas (its Learn ask), never the library answer', async () => {
   const card = page.locator('[data-recent-card]').filter({ hasText: `Every card ${run}` }).first();
   await pickAt(card);
@@ -327,12 +342,23 @@ await check('Explore on a phone: the pill above the composer', async () => {
   await page.screenshot({ path: `${SHOTS}/home-pill-explore-phone.png` });
   await page.keyboard.press('Escape');
 });
+await check('Home on a phone: the pill above the composer', async () => {
+  await page.goto(`${BASE}/apps`);
+  const card = page.locator('[data-recent-card]').filter({ hasText: `Every card ${run}` }).first();
+  await card.waitFor({ timeout: 30000 });
+  await card.scrollIntoViewIfNeeded();
+  await pickAt(card);
+  await homePill.waitFor({ timeout: 5000 });
+  await page.screenshot({ path: `${SHOTS}/home-pill-home-phone.png` });
+  await page.keyboard.press('Escape');
+  assert.equal(await homePill.count(), 0);
+});
 await page.context().close();
 await browser.close();
 
 const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json()).hits.length));
 console.log('provider tripwire hits', tripwire.join(' / '), 'refused', refused.length ? refused.join(', ') : 'none', 'page errors', errors.length ? errors.join(' | ') : 'none');
 assert.deepEqual(tripwire, [0, 0], 'no model call');
-const total = KINDS.length * 2 + 2 + 5;
+const total = KINDS.length * 2 + 2 + 7;
 console.log(`${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);
