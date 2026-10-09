@@ -710,7 +710,7 @@ async function activeJourney(s, events = null) {
   assert.equal(r.status, 200);
   const criterion = r.body.journey.section_plan.completion_evidence;
   assert.deepEqual(criterion.map(c => c.minimum), ['demonstrated_in_transfer'], 'the fixture criterion');
-  if (events) s.sqlite.prepare('UPDATE learning_journeys SET evidence_json = ?').run(JSON.stringify({ seq: 1, events: events(criterion[0].claim).map((e, i) => ({ ...e, seq: i + 1 })) }));
+  if (events) { const list = events(criterion[0].claim).map((e, i) => ({ ...e, seq: i + 1 })); s.sqlite.prepare('UPDATE learning_journeys SET evidence_json = ?').run(JSON.stringify({ seq: list.length, events: list })); }
   assert.equal((await s.post('section_materialized', { journey_id: r.body.journey.id, section_id: 's1', heading_block_id: 'h-s1' })).status, 200);
   return (await s.call('GET')).body;
 }
@@ -736,6 +736,8 @@ test('r29 next_section: a settled transfer pass meeting the criterion completes 
     [claim => [event(claim, { result: 'misconception', kind: null, misconception_id: 'm1' })], 'skipped', 'section_skipped'],
     [claim => [event(claim, { result: 'pass', kind: 'demonstrated_here' })], 'skipped', 'section_skipped'],
     [claim => [event(claim, { result: 'pass', kind: 'demonstrated_in_transfer', settled: false })], 'skipped', 'section_skipped'],
+    // Beta item 5b (owner 2026-10-09): current evidence - a transfer pass the learner then got wrong no longer completes it.
+    [claim => [event(claim, { result: 'pass', kind: 'demonstrated_in_transfer', idea: 0 }), event(claim, { result: 'fail', kind: null, idea: 0 })], 'skipped', 'section_skipped'],
   ];
   for (const [events, status, reason] of cases) {
     const s = setup(t);

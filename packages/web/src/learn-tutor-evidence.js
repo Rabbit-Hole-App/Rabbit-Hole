@@ -76,17 +76,20 @@ export function practiceEvents(store, block, target, canvas, domain = NANOGPT) {
 const WORST = ['misconception', 'prerequisite_gap', 'uncertain', 'not_yet_observed'];
 const negative = event => event.result === 'fail' || event.result === 'misconception';
 
-// What a claim's settled evidence covers (Decision 7), the one rule understood and the Tutor planner read: settled_ideas, the
-// idea indexes with a settled pass (all of them after a settled claim-level pass, idea null: practice); missing_ideas, the rest;
-// transfer, a settled transfer pass with no later settled fail or misconception. Missing evidence is never a pass.
+// What a claim's current settled evidence shows (Decision 7; beta item 5b, owner 2026-10-09), the one rule understood, section
+// completion, the Tutor planner and the hooks read. Each idea's latest settled event decides it: a pass on that idea, or a
+// claim-level one (idea null: practice, a probe) covers it; a fail on it, or a claim-level fail or named misconception, counts
+// against it - so a later fail uncovers an earlier pass and a later pass covers again. settled_ideas: currently passed;
+// failed_ideas: currently failed; missing_ideas: not currently passed (failed or never shown); transfer: a settled transfer pass
+// with no later settled fail or misconception. Unsettled events decide nothing, and missing evidence is never a pass.
 export function claimCoverage(events, id, claims = CLAIMS) {
   const settled = events.filter(event => event.claim === id && event.settled).sort((a, b) => a.seq - b.seq);
-  const passes = settled.filter(event => event.result === 'pass');
   const ideas = (claims[id]?.ideas || []).map((_, i) => i);
-  const settled_ideas = passes.some(event => event.idea == null) ? ideas : ideas.filter(i => passes.some(event => event.idea === i));
-  const last = passes.filter(event => event.kind === 'demonstrated_in_transfer').at(-1);
+  const latest = i => settled.filter(event => (event.result === 'pass' || negative(event)) && (event.idea == null || event.idea === i)).at(-1);
+  const settled_ideas = ideas.filter(i => latest(i)?.result === 'pass'), failed_ideas = ideas.filter(i => latest(i) && latest(i).result !== 'pass');
+  const last = settled.filter(event => event.result === 'pass' && event.kind === 'demonstrated_in_transfer').at(-1);
   const transfer = !!last && !settled.some(event => event.seq > last.seq && negative(event));
-  return { settled_ideas, missing_ideas: ideas.filter(i => !settled_ideas.includes(i)), transfer, transfer_seq: last?.seq ?? null };
+  return { settled_ideas, missing_ideas: ideas.filter(i => !settled_ideas.includes(i)), failed_ideas, transfer, transfer_seq: last?.seq ?? null };
 }
 
 function claimState(events, id, conceptOf, claims = CLAIMS) {

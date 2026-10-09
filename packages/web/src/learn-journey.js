@@ -2,8 +2,10 @@
 // Tutor Prompt Tray model (6.2, 7.1). Part B: registry and path validators (4, 9.2), journeyStep (6.6), the diagnostic
 // walker (6.3) and the contents rail entries (8). Intent and the interaction rules (6.1, 7.2) live in
 // the shared resolver's extension, control-plane/src/learner-intent-journey.js (R7); callers import journeyIntent and
-// interactionInterpretation from there. Pure ES module: no React, no DOM, no imports, so the browser and the
-// control-plane worker share one copy.
+// interactionInterpretation from there. Pure ES module: no React, no DOM, so the browser and the control-plane worker share
+// one copy; its one import is the evidence rule (claimCoverage), so section completion and understood read the same evidence.
+
+import { claimCoverage } from './learn-tutor-evidence.js';
 
 export const JOURNEY_STATES = ['intake', 'diagnostic', 'path_review', 'active', 'paused', 'completed'];
 export const TRAY_MODES = ['intent_intake', 'diagnostic_probe', 'path_preview', 'check_in', 'clarification', 'next_step', 'branch_choice', 'generation_proposal'];
@@ -242,20 +244,24 @@ export function nextSectionOf(journey, path) {
   if (journey?.state !== 'active' || at < 0) return null;
   return sections.slice(at + 1).find((s) => s?.status === 'upcoming') ?? null;
 }
-// Whether the current section's completion_evidence (its plan's own criterion, §9.3) holds on the journey's evidence: attempted
-// is any answer on the claim, demonstrated_here a settled pass, demonstrated_in_transfer a settled transfer pass. Missing evidence
-// is never met; a plan with no criterion is not complete. -> { met, attempted, missing: [claim ids] }: attempted, every
-// criterion claim has at least one answer (the current checks were tried, so the next section may be offered).
-const MEETS = {
-  attempted: (e) => e.result !== 'non_attempt',
-  demonstrated_here: (e) => e.settled && e.result === 'pass',
-  demonstrated_in_transfer: (e) => e.settled && e.result === 'pass' && e.kind === 'demonstrated_in_transfer',
-};
+// Whether the current section's completion_evidence (its plan's own criterion, §9.3) holds on the journey's current evidence
+// (claimCoverage, the rule understood reads; beta item 5b): attempted is any answer on the claim; demonstrated_here, no idea
+// currently failed and at least one currently passed (or, for a claim with no ideas, its latest settled answer a pass);
+// demonstrated_in_transfer, that plus a settled transfer pass with no later negative. Looser than understood (which needs every
+// idea), and a pass the learner later got wrong no longer counts. Missing evidence is never met; a plan with no criterion is not
+// complete. -> { met, attempted, missing: [claim ids] }: attempted, every criterion claim has at least one answer.
+const answered = (e) => e.result !== 'non_attempt';
+function meets(events, claim, minimum, claims) {
+  if (minimum === 'attempted') return events.some((e) => e?.claim === claim && answered(e));
+  const c = claimCoverage(events, claim, claims), ideas = list(claims?.[claim]?.ideas);
+  const last = events.filter((e) => e?.claim === claim && e.settled && (e.result === 'pass' || e.result === 'fail' || e.result === 'misconception')).sort((a, b) => a.seq - b.seq).at(-1);
+  const here = !c.failed_ideas.length && (ideas.length ? c.settled_ideas.length > 0 : last?.result === 'pass');
+  return minimum === 'demonstrated_here' ? here : minimum === 'demonstrated_in_transfer' ? here && c.transfer : false;
+}
 export function sectionCompletion(journey) {
-  const wanted = list(journey?.section_plan?.completion_evidence), events = list(journey?.evidence?.events);
-  const own = (claim) => events.filter((e) => e?.claim === claim);
-  const missing = wanted.filter((c) => !own(c?.claim).some(MEETS[c?.minimum] || (() => false))).map((c) => c?.claim);
-  return { met: wanted.length > 0 && !missing.length, attempted: wanted.length > 0 && wanted.every((c) => own(c?.claim).some(MEETS.attempted)), missing };
+  const wanted = list(journey?.section_plan?.completion_evidence), events = list(journey?.evidence?.events), claims = journey?.registry?.claims || {};
+  const missing = wanted.filter((c) => !meets(events, c?.claim, c?.minimum, claims)).map((c) => c?.claim);
+  return { met: wanted.length > 0 && !missing.length, attempted: wanted.length > 0 && wanted.every((c) => meets(events, c?.claim, 'attempted', claims)), missing };
 }
 
 // ---- State machine (6.6): the server applies journeyStep and refuses (409) anything it returns an error for ----
