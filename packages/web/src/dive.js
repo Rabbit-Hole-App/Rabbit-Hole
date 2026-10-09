@@ -67,11 +67,15 @@ export function takeReturn(storage, { app, board }) {
 const MAP_SPOT = 'small.dive.mapSpot';
 export const mapSpot = storage => { const spot = read(storage, MAP_SPOT); return Number.isFinite(spot?.x) && Number.isFinite(spot?.y) ? { x: spot.x, y: spot.y } : null; };
 export const keepMapSpot = (storage, spot) => write(storage, MAP_SPOT, spot);
-// Kept fully inside the frame; a frame smaller than the map pins it to the top-left corner.
-export const clampSpot = ({ x, y }, frame, map) => ({
-  x: Math.round(Math.min(Math.max(0, x), Math.max(0, frame.w - map.w))),
-  y: Math.round(Math.min(Math.max(0, y), Math.max(0, frame.h - map.h))),
-});
+// Kept fully inside the frame; a frame smaller than the map pins it to the top-left corner. The canvas's floating bottom
+// strip (minimap, zoom row, composer, hooks: `chrome`, boxes in frame px) is a floor under the map's span, MAP_GAP above
+// the highest one there, so the map never slides under it and its grip stays reachable (r29 gate, 2026-10-08).
+export const MAP_GAP = 8;
+export const clampSpot = ({ x, y }, frame, map, chrome = []) => {
+  const left = Math.round(Math.min(Math.max(0, x), Math.max(0, frame.w - map.w)));
+  const floor = Math.min(frame.h, ...chrome.filter(box => box.left < left + map.w && box.right > left).map(box => box.top - MAP_GAP));
+  return { x: left, y: Math.round(Math.min(Math.max(0, y), Math.max(0, floor - map.h))) };
+};
 
 // A topic anchor's display title from the learner's own words: "explain softmax" -> "Softmax".
 // The raw request is kept on the card beside it.
