@@ -19,7 +19,10 @@ const KEY = /^c(\d+)_(idea|mis|contra|transfer)(\d*)$/;
 export function escalation(spec, answers, thresholds) {
   const yes = p => p >= thresholds.yes, no = p => p <= thresholds.no, unsure = p => !yes(p) && !no(p);
   const uncertain = Object.keys(answers).filter(key => unsure(answers[key]));
-  if (!uncertain.length) return { escalate: false, reason: 'settled', uncertain };
+  // Beta item 5a (owner 2026-10-09): one idea both stated (yes or unsure) and contradicted (yes) on any claim is a contradiction,
+  // even when every check is confident - a fully confident pair used to skip this rule and stand as a pass.
+  const contradicted = spec.claims.some((claim, c) => claim.ideas.some((_, i) => !no(answers[`c${c}_idea${i}`]) && yes(answers[`c${c}_contra${i}`])));
+  if (!uncertain.length) return contradicted ? { escalate: true, reason: 'contradiction', uncertain } : { escalate: false, reason: 'settled', uncertain };
   const gap = uncertain.find(key => /^g\d+$/.test(key));
   if (gap) return { escalate: true, reason: 'gap', uncertain };
   for (const key of uncertain) {
@@ -38,5 +41,6 @@ export function escalation(spec, answers, thresholds) {
     const both = spec.claims[c].ideas.some((_, i) => !no(answers[`c${c}_idea${i}`]) && yes(answers[`c${c}_contra${i}`]));
     if ((positive && wrong) || (positiveUnsure && wrongSure) || both) return { escalate: true, reason: 'contradiction', uncertain };
   }
+  if (contradicted) return { escalate: true, reason: 'contradiction', uncertain }; // a claim whose own checks were all confident
   return { escalate: false, reason: 'low_consequence', uncertain };
 }

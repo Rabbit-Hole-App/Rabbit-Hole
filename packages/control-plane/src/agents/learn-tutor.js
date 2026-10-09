@@ -89,9 +89,12 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
       const transfer = answers[`c${c}_transfer`];
       const kind = yes(transfer) ? 'demonstrated_in_transfer' : 'demonstrated_here';
       const unsure = typeof transfer === 'number' && !yes(transfer) && !no(transfer) ? { transfer_unsure: true } : {};
+      // Beta item 5a (owner 2026-10-09): an idea both stated and contradicted is contested - a fail marked contested, never a pass,
+      // however confident both checks are (the escalation policy also sends it to the larger evaluator).
       claim.ideas.forEach((_, i) => {
-        if (yes(answers[`c${c}_idea${i}`])) passes.push(event(claim, ideaSettled(c, i) && misSettled(c), { result: 'pass', kind, idea: i, ...unsure }));
-        else if (yes(answers[`c${c}_contra${i}`])) negatives.push(event(claim, ideaSettled(c, i), { result: 'fail', kind: null, idea: i }));
+        const stated = yes(answers[`c${c}_idea${i}`]), contradicted = yes(answers[`c${c}_contra${i}`]);
+        if (stated && !contradicted) passes.push(event(claim, ideaSettled(c, i) && misSettled(c), { result: 'pass', kind, idea: i, ...unsure }));
+        else if (contradicted) negatives.push(event(claim, ideaSettled(c, i), { result: 'fail', kind: null, idea: i, ...(stated ? { contested: true } : {}) }));
       });
       claim.misconceptions.forEach((wrong, m) => {
         if (yes(answers[`c${c}_mis${m}`])) negatives.push(event(claim, gate, { result: 'misconception', misconception_id: wrong.id, kind: null }));
