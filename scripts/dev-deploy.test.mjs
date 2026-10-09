@@ -103,7 +103,8 @@ test('an unknown served commit refuses: forward-only cannot be checked against i
 });
 
 test('policy A: only docs and the deploy and release scripts reuse a gate; app, deps, config, schema and lesson Markdown do not', () => {
-  assert.deepEqual(notReusable(['docs/features/dev-auto-deploy.md', 'CLAUDE.md', 'scripts/dev-deploy.mjs', 'scripts/dev-deploy.test.mjs', 'scripts/prod-release.mjs', 'scripts/prod-release.test.mjs']), []);
+  assert.deepEqual(notReusable(['docs/features/dev-auto-deploy.md', 'CLAUDE.md', 'scripts/dev-deploy.mjs', 'scripts/dev-deploy.test.mjs', 'scripts/prod-release.mjs', 'scripts/prod-release.test.mjs',
+    'scripts/dev-deploy-gate.mjs', 'scripts/ensure-natives.mjs', '.github/workflows/deploy-dev.yml', '.github/workflows/deploy-prod.yml']), [], 'release scripts and workflows (owner, 2026-10-09)');
   const app = ['packages/web/src/App.jsx', 'packages/web/package-lock.json', 'packages/web/wrangler.dev.jsonc', 'packages/control-plane/learn-migrations/0011-x.sql',
     'packages/web/dev-access-worker.js', 'packages/web/src/lessons/nanogpt.md', 'run.sh', 'scripts/rabbit-hole-dev-verify.mjs', 'packages/web/vite.config.js'];
   assert.deepEqual(notReusable(app), app);
@@ -203,8 +204,10 @@ test('the dev workflow: a push to dev only, its gate note required, secrets only
   assert.match(wf, /if: github\.repository == 'Rabbit-Hole-App\/Rabbit-Hole'/);
   assert.match(wf, /notes --ref=gates show "\$GITHUB_SHA"/);
   assert.match(wf, /test -s "\$RUNNER_TEMP\/gate\.log" \|\| \{[^}]*exit 1; \}/, 'no gate note, no deploy');
-  assert.match(wf, /dev-deploy\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --branch rabbit-hole\/dev\n/);
-  assert.doesNotMatch(wf, /--reuse|prod-release|wrangler deploy/, 'full gates only, dev only, through dev-deploy');
+  assert.match(wf, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys\n/, 'the gates note decides full or reuse, never the workflow');
+  assert.doesNotMatch(wf, /--reuse|prod-release|wrangler deploy/, 'dev only, through dev-deploy');
+  const gate = readFileSync(new URL('./dev-deploy-gate.mjs', import.meta.url), 'utf8');
+  assert.match(gate, /'--branch', 'rabbit-hole\/dev'\]/);
   for (const uses of wf.match(/uses: \S+/g)) assert.match(uses, /@[0-9a-f]{40}$/, `${uses} is pinned to a commit`);
 });
 
@@ -240,4 +243,28 @@ test('natives: on the Linux runner the glibc x64 builds the Windows lockfile lef
   ], 'each parent gets its own pinned build; musl, arm64, wasm, other OSes and installed ones are left alone');
   assert.ok(forThisMachine('@rolldown/binding-win32-x64-msvc', { platform: 'win32', arch: 'x64', musl: false }), 'on Windows the Windows build is the one it would want');
   assert.ok(forThisMachine('@rolldown/binding-linux-x64-musl', { platform: 'linux', arch: 'x64', musl: true }));
+});
+
+test('gates note: a full record deploys as before; "reuse <G>" needs G\'s own gates note and a green dev deploy of G', async () => {
+  // Owner, 2026-10-09: reuse a gate for script-only changes on the Actions path too.
+  const { parseGatesNote, gatePlan, greenDev } = await import('./dev-deploy-gate.mjs');
+  const G = 'a'.repeat(40), OTHER = 'b'.repeat(40);
+  assert.deepEqual(parseGatesNote('tree HEAD x index y\nINT9-DONE\n'), { full: 'tree HEAD x index y\nINT9-DONE\n' });
+  assert.deepEqual(parseGatesNote(`reuse ${G}\n`), { reuse: G, rerun: null });
+  assert.deepEqual(parseGatesNote(`reuse ${G}\r\ntree HEAD c index t\nR-DONE\n`), { reuse: G, rerun: 'tree HEAD c index t\nR-DONE\n' });
+  assert.deepEqual(parseGatesNote(`reuse ${G.slice(0, 8)}\n`).full, `reuse ${G.slice(0, 8)}\n`, 'a short sha is not a reuse line: dev-deploy then rejects it as a gate record');
+  const green = `${JSON.stringify({ sha: G, gates: 'pass', smoke: 'pass', build: 'b1', version: 'v1' })}\n`;
+  assert.deepEqual(gatePlan({ note: 'full record' }), { full: true });
+  assert.match(gatePlan({ note: `reuse ${G}\n`, gNote: '', gDev: green }).refuse, /no gates note of its own/, 'missing G note: refused');
+  assert.match(gatePlan({ note: `reuse ${G}\n`, gNote: 'G record', gDev: '' }).refuse, /no green dev deploy/, 'G never deployed: refused');
+  for (const bad of [{ gates: 'reused', smoke: 'pass' }, { gates: 'pass', smoke: 'fail' }, { gates: 'pass', smoke: 'blocked' }])
+    assert.match(gatePlan({ note: `reuse ${G}\n`, gNote: 'G record', gDev: `${JSON.stringify({ sha: G, ...bad })}\n` }).refuse, /no green dev deploy/, JSON.stringify(bad));
+  assert.match(gatePlan({ note: `reuse ${G}\n`, gNote: 'G record', gDev: `${JSON.stringify({ sha: OTHER, gates: 'pass', smoke: 'pass' })}\n` }).refuse, /no green dev deploy/, 'another commit\'s deploy is not G\'s');
+  const ok = gatePlan({ note: `reuse ${G}\ntree HEAD c index t\nR-DONE\n`, gNote: 'G record', gDev: green });
+  assert.equal(ok.reuse, G); assert.equal(ok.rerun, 'tree HEAD c index t\nR-DONE\n'); assert.equal(ok.seed.build, 'b1');
+  assert.equal(greenDev(green, G).version, 'v1');
+  // The rest is dev-deploy.mjs's, unchanged: G must be an ancestor and every change reusable (or tested, with a rerun).
+  const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
+  assert.match(src, /if \(!isAncestor\(reuse, sha\)\) stop\(`the gated \$\{reuse\.slice\(0, 8\)\} is not an ancestor/);
+  assert.match(src, /const outside = notReusable\(changed\);\s+if \(outside\.length\) stop\(/);
 });

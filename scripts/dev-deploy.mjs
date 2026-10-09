@@ -116,7 +116,9 @@ export function servedSha(deployments, versions) {
 // Owner policy A (2026-10-08): a main commit whose changes since a fully gated main commit are only docs or the
 // deploy and release scripts reuses that commit's app gate. App source, dependencies, build inputs, runtime config
 // and schema need a gate of their own. Markdown under packages/ is not here: lesson Markdown ships in the bundle.
-const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|prod-release)(\.test)?\.mjs$/];
+// 2026-10-09 (owner: reuse a gate for script-only changes): the release scripts and workflows too; the byte-identical
+// build and bundle check still catches any of them that would change what ships.
+const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|dev-deploy-gate|prod-release|ensure-natives)(\.test)?\.mjs$/, /^\.github\/workflows\/[^/]+\.ya?ml$/];
 export const notReusable = changed => changed.filter(p => !REUSABLE.some(r => r.test(p)));
 // Test-only paths: never in the page build or the Worker bundle. Allowed before a --rerun that checks them again.
 export const TEST_ONLY = [/^packages\/web\/e2e\//, /^tests\//, /^packages\/[^/]+\/test\//, /\.test\.m?js$/];

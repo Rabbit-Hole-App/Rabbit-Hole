@@ -31,6 +31,7 @@ jobs:
             sleep 30
           done
           test -s "$RUNNER_TEMP/gate.log" || { echo "no gate record note for $GITHUB_SHA: nothing deployed"; exit 1; }
+          git fetch -q origin '+refs/notes/dev-deploys:refs/notes/dev-deploys' 2>/dev/null || true
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -40,7 +41,7 @@ jobs:
           VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
         run: |
           git remote add rabbit-hole "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          node scripts/dev-deploy.mjs --sha "$GITHUB_SHA" --gate "$RUNNER_TEMP/gate.log" --branch rabbit-hole/dev
+          node scripts/dev-deploy-gate.mjs --sha "$GITHUB_SHA" --gate "$RUNNER_TEMP/gate.log" --dev-deploys dev-deploys
       - name: Deploy record
         if: always()
         run: |

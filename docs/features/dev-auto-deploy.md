@@ -98,10 +98,15 @@ Owner, 2026-10-08: "create a dev branch where when pushing on dev deploys to the
 
 - **Trigger:** a push to `dev`, and nothing else. No pull request or fork event starts it. It runs only in Rabbit-Hole-App/Rabbit-Hole, one at a time, in the `dev-preview` environment. That environment holds the secrets and admits only the `dev` branch.
 - **Gate:** the gate record of the exact tree is a git note on the pushed commit, `refs/notes/gates`. Push the note before `dev`. The job waits up to 10 minutes for it; with no note it deploys nothing.
-- **Deploy:** `dev-deploy.mjs --branch rabbit-hole/dev`, with every rule of a hand deploy: passed full gate, forward only, smoke, rollback. `--reuse` is not available here; every dev push needs its own full gate.
+- **Deploy:** `scripts/dev-deploy-gate.mjs` reads the note and runs `dev-deploy.mjs --branch rabbit-hole/dev`, with every rule of a hand deploy: passed gate, forward only, smoke, rollback.
+- **Reusing a gate (owner, 2026-10-09):** a commit whose changes since a fully gated commit G are only reusable paths does not need its own full gate. Reusable paths are docs, top-level `*.md`, `scripts/dev-deploy*`, `scripts/dev-deploy-gate*`, `scripts/prod-release*`, `scripts/ensure-natives*`, `.github/workflows/*`, and tests with a rerun.
+  - Its gates note is the line `reuse <G full sha>`. When tests changed, the rerun record of the commit's own tree follows that line.
+  - It is refused unless G has its own gates note and a green dev deploy in `refs/notes/dev-deploys` (gates `pass`, smoke `pass`).
+  - `dev-deploy.mjs` then applies policy A as on a hand deploy: G must be an ancestor, any other changed path needs a full gate, the rerun must pass what G failed, and the page build and Worker bundle must be byte-identical to G's recorded ones.
+  - Its record line says `"gates":"reused"` and names `app_gate_sha` G.
 - **Record:** the job attaches its dev-deploy record line as a note in `refs/notes/dev-deploys`. Only the job writes it, with the workflow token.
 - **Secrets (environment `dev-preview`):** `CLOUDFLARE_API_TOKEN`, `ACCESS_SMOKE_CLIENT_ID`, `ACCESS_SMOKE_CLIENT_SECRET`, `VITE_TLDRAW_LICENSE_KEY`. The account id is in the workflow; it is not a secret.
-- **Parallel's side, per candidate:** run the full gate; secret-scan the record and the commits; `git notes --ref=gates add -F <record> <sha>`; push `refs/notes/gates`, then `dev`, to Rabbit-Hole-App.
+- **Parallel's side, per candidate:** run the full gate (or, for a script-only change, write `reuse <G>` plus any rerun record); secret-scan the record and the commits; `git notes --ref=gates add -F <record> <sha>`; push `refs/notes/gates`, then `dev`, to Rabbit-Hole-App.
 - **Production:** a push to `main` runs `.github/workflows/deploy-prod.yml`, which releases a commit only after its own green dev deploy; see [prod-release.md](prod-release.md).
 - `dev-deploy.mjs` accepts only `--branch origin/main` (the default, by hand) or `--branch rabbit-hole/dev`.
 
