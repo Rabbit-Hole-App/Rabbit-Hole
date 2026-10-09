@@ -67,13 +67,16 @@ const browser = await chromium.launch();
 async function open(who) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
-  const seen = { plans: [], asks: [], shared: [], uploads: [], notice: false };
+  // atPlan: a probe run when the next plan request arrives, before it is answered (what the server holds at that moment).
+  const seen = { plans: [], asks: [], shared: [], uploads: [], notice: false, atPlan: null, probed: [] };
   await context.route('**/api/learn/ask', route => { seen.asks.push(route.request().postDataJSON?.() ?? null); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `data: ${JSON.stringify({ text: CANNED })}\n\ndata: [DONE]\n\n` }); });
   await context.route('**/api/learn/home-ask', route => route.fulfill({ json: { answer: CANNED, references: [], offer_rabbit_hole: false } }));
   await context.route(/\/api\/(learn\/(artifact|voice\/|assess|transcribe|image)|chat)/, route => route.abort());
-  await context.route('**/api/learn/tutor/plan', route => {
+  await context.route('**/api/learn/tutor/plan', async route => {
     let body = null; try { body = route.request().postDataJSON(); } catch { /* not JSON */ }
     seen.plans.push(body);
+    const probe = seen.atPlan; seen.atPlan = null;
+    if (probe) seen.probed.push(await probe(body).catch(error => ({ error: error.message })));
     const notice = seen.notice; seen.notice = false;
     return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: CANNED }], ...(notice ? { notice: NOTICE } : {}) } });
   });
@@ -195,6 +198,38 @@ const noticed = await turn(page, seen, 'Describe the diagram.');
 const shown = await until(async () => (await page.getByText(NOTICE).count()) > 0, 5000);
 check('[fix] N the plan reply\'s notice about an unreadable image is shown', !!noticed && shown && await page.getByText(NOTICE).first().isVisible(), noticed ? 'answered with the notice' : 'no Tutor plan request');
 await shot(page, 'N-notice');
+
+// P: an image dropped and asked about at once, before the board's own save (Learning's design, 2026-10-09: an image card
+// goes as {block_id} and its turn flushes the pending save first). When the plan request arrives, the server must already
+// hold that block and its file - which the server tests show is what reads into an image block, never a 403.
+{
+  const DROPPED = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.locator('[data-canvas-target] button[aria-label="Remove selected card context"]').first().click({ timeout: 3000 }).catch(() => {});
+  const surface = await page.locator('[data-canvas-surface]').first().elementHandle();
+  await page.evaluate(([element, data]) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(data)], 'dropped.png', { type: 'image/png' }));
+    element.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+    element.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+  }, [surface, [...DROPPED]]);
+  const landed = await page.locator('img[alt="dropped.png"]').first().waitFor({ timeout: 15000 }).then(() => true, () => false);
+  seen.atPlan = async body => {
+    const id = body?.image_context?.block_id;
+    if (!id) return { id: null };
+    const board = await json(owner, `/api/learn/boards/${canvas}/main`);
+    const block = (board.state?.blocks || []).find(entry => entry.id === id);
+    const stored = block?.assetKey ? await api(owner, `/api/learn/boards/${canvas}/main/assets/${encodeURIComponent(block.assetKey)}`) : null;
+    const bytes = stored?.ok ? Buffer.from(await stored.arrayBuffer()) : null;
+    return { id, label: block?.label ?? null, saved: !!block, file: !!bytes && bytes.equals(DROPPED) };
+  };
+  const plan = landed ? await turn(page, seen, 'What did I just drop?') : null;
+  const at = seen.probed.at(-1) ?? null;
+  seen.atPlan = null;
+  check('setup: the dropped image lands as a card', landed);
+  check('[fix] P a just-dropped image asked about at once rides by its new block id, and the server already holds the block and its file',
+    !!plan && at?.id && at.id !== 'img1' && Object.keys(imageOf(plan)).length === 1 && at.saved && at.label === 'dropped.png' && at.file, `${show(plan)}, at the plan: ${JSON.stringify(at)}`);
+  await shot(page, 'P-drop-ask');
+}
 
 // ---------- V and F: the canvas shared; a viewer asks on the shared page, then forks it ----------
 const sharing = await json(owner, `/api/learn/boards/${canvas}/main/share`, 'POST', { shared: true, view: true, public_view: true, state: STATE });
