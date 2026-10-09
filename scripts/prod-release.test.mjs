@@ -40,6 +40,28 @@ test('prepare refuses a sha without a green dev deployment', () => {
   assert.equal(greenDevDeploy(SHA, `not json\n${GREEN}`).sha, SHA);
 });
 
+test('a reused-gate dev deploy releases only with its base G green on a full gate, the same build and bundle, and G an ancestor', () => {
+  // Owner, 2026-10-09 (option a): script-only changes reuse a gate and may still release.
+  const G = 'c'.repeat(40), line = o => `${JSON.stringify(o)}\n`;
+  const gRow = { sha: G, gates: 'pass', smoke: 'pass', build: 'b1', bundle: 'w1' };
+  const reused = { sha: SHA, gates: 'reused', app_gate_sha: G, smoke: 'pass', build: 'b1', bundle: 'w1' };
+  const yes = () => true, no = () => false;
+  assert.equal(greenDevDeploy(SHA, line(gRow) + line(reused), yes).app_gate_sha, G);
+  assert.equal(checkPrepare({ ...ok, devRecord: line(gRow) + line(reused), isAncestor: yes }), null);
+  const refused = [
+    ['G not in the record', line(reused), yes],
+    ['G itself reused', line({ ...gRow, gates: 'reused' }) + line(reused), yes],
+    ['G smoke failed', line({ ...gRow, smoke: 'fail' }) + line(reused), yes],
+    ['this smoke failed', line(gRow) + line({ ...reused, smoke: 'fail' }), yes],
+    ['another page build', line(gRow) + line({ ...reused, build: 'b2' }), yes],
+    ['another Worker bundle', line(gRow) + line({ ...reused, bundle: 'w2' }), yes],
+    ['no bundle recorded', line({ ...gRow, bundle: null }) + line({ ...reused, bundle: null }), yes],
+    ['G not an ancestor', line(gRow) + line(reused), no],
+    ['ancestry never checked', line(gRow) + line(reused), undefined],
+  ];
+  for (const [why, record, isAncestor] of refused) assert.equal(greenDevDeploy(SHA, record, isAncestor), null, why);
+});
+
 test('prepare refuses another checkout or a dirty tree, and passes the exact green commit', () => {
   assert.match(checkPrepare({ ...ok, head: OTHER }), /HEAD is/);
   assert.match(checkPrepare({ ...ok, clean: false }), /tracked tree has changes/);

@@ -44,18 +44,25 @@ export function parseArgs(argv) {
   return opts;
 }
 
-// A green dev deployment: a line in the dev-deploy record with this exact sha, gates and smoke both passed.
-export function greenDevDeploy(sha, recordText) {
-  return recordText.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } })
-    .find(r => r?.sha === sha && r.gates === 'pass' && r.smoke === 'pass') || null;
+// A green dev deployment: a line in the dev-deploy record with this exact sha, gates and smoke both passed. Or (owner,
+// 2026-10-09, option a) a reused gate: this sha's smoke passed, and its base G (app_gate_sha) has its own full-gate,
+// smoke-passed line with the same page build and Worker bundle, and G is an ancestor of this sha. The byte-identical
+// build is what makes G's gate cover what ships.
+export function greenDevDeploy(sha, recordText, isAncestor = () => false) {
+  const rows = recordText.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  const full = s => rows.find(r => r.sha === s && r.gates === 'pass' && r.smoke === 'pass') || null;
+  if (full(sha)) return full(sha);
+  const reused = rows.find(r => r.sha === sha && r.gates === 'reused' && r.smoke === 'pass' && SHA.test(r.app_gate_sha || ''));
+  const g = reused && full(reused.app_gate_sha);
+  return g && reused.build && reused.build === g.build && reused.bundle && reused.bundle === g.bundle && isAncestor(g.sha, sha) ? reused : null;
 }
 
 const dirty = changes => `refused: the tracked tree has changes${changes ? `:\n${changes}` : ''}`;
 
-export function checkPrepare({ sha, onMain, devRecord, head, clean, changes }) {
+export function checkPrepare({ sha, onMain, devRecord, head, clean, changes, isAncestor }) {
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!onMain) return `refused: ${sha} is not on origin/main (git fetch origin main first)`;
-  if (!greenDevDeploy(sha, devRecord)) return `refused: no green dev deployment is recorded for ${sha}`;
+  if (!greenDevDeploy(sha, devRecord, isAncestor)) return `refused: no green dev deployment is recorded for ${sha}`;
   if (head !== sha) return `refused: HEAD is ${head}, check out ${sha} first`;
   if (!clean) return dirty(changes);
   return null;
@@ -131,7 +138,7 @@ function bundleHash(sha) {
 function prepare(opts) {
   const { sha } = opts;
   const record = existsSync(devRecordPath(opts)) ? readFileSync(devRecordPath(opts), 'utf8') : '';
-  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, ...tree() });
+  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, isAncestor: (a, b) => tryGit('merge-base', '--is-ancestor', a, b), ...tree() });
   if (err) return fail(err);
   const tldraw = process.env.VITE_TLDRAW_LICENSE_KEY
     || (existsSync(join(ROOT, '.env')) && readFileSync(join(ROOT, '.env'), 'utf8').match(/^VITE_TLDRAW_LICENSE_KEY=(.*)$/m)?.[1]?.trim());

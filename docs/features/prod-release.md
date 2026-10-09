@@ -21,6 +21,12 @@ The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the 
 
 - **Trigger:** a push to `main`, and nothing else. It runs only in Rabbit-Hole-App/Rabbit-Hole, one release at a time, in the `production` environment. That environment admits only `main` and holds `CLOUDFLARE_API_TOKEN` and `VITE_TLDRAW_LICENSE_KEY`.
 - **Green dev deployment:** the exact commit needs its dev deploy record in `refs/notes/dev-deploys`, written by the dev workflow, with gates `pass` and smoke `pass`. Without it nothing is released.
+  - **Reused gate (owner, 2026-10-09, option a):** a record with gates `reused` also releases, but only when all of these hold:
+    - its own smoke passed;
+    - its base G (`app_gate_sha`) has its own record with gates `pass` and smoke `pass`;
+    - both records carry the same page build and Worker bundle;
+    - G is an ancestor of the commit.
+  - The workflow appends G's record for that check. The byte-identical build means G's full gate tested exactly what ships.
 - **Then** `prepare --dev-record <that note>` builds it, and `release --approve "RELEASE <sha> <build>"` uses the prepared build. Every rule below still applies: HOLD first, the exact prepared build, the read-only preflight of secrets and of main and learn migrations. It never applies a migration.
 - **The hold** was lifted on 2026-10-09 with the owner's GO. Putting it back is the one-line change to `HOLD = true`: then the release step exits 2 before any remote call, and a push to `main` releases nothing.
 
