@@ -44,6 +44,12 @@ test('the fresh build has every table, column and index in schema.sql', t => {
   for (const i of indexes(ref)) assert.ok(gotIdx.includes(i), `missing index ${i}`);
 });
 
+test('schema.sql is exactly the fresh build: no missing, extra or different object (r34 audit: it had drifted)', async t => {
+  const { expectedSchema, schemaDiff, schemaOf, MASTER_SQL } = await import('../../../scripts/schema-check.mjs');
+  const ref = open(t); ref.exec(read('schema.sql'));
+  assert.deepEqual(schemaDiff(expectedSchema('main'), schemaOf(ref.prepare(MASTER_SQL).all())), []);
+});
+
 test('the migrations alone cannot build a fresh database: bootstrap.sql is required', t => {
   const db = open(t);
   assert.throws(() => apply(db, migrations), /no such table: apps/);
