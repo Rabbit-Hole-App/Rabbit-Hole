@@ -113,6 +113,8 @@ test('r29 next_section: the move-on type and NEXT_SECTION_SYSTEM only on a turn 
   assert.ok(['handoff', NEXT_SECTION_ACTION].every(type => itemsOf(both).type.enum.includes(type)));
   assert.match(NEXT_SECTION_SYSTEM, /only when the learner's own words in this message explicitly ask to move on/);
   assert.match(NEXT_SECTION_SYSTEM, /continue, keep going, explain more or stay on this section is never next_section/);
-  assert.match(NEXT_SECTION_SYSTEM, /completed only when its evidence is met, else as skipped/);
+  assert.match(NEXT_SECTION_SYSTEM, /completed only when its saved evidence is met, else skipped/);
+  // Beta hardening (owner 2026-10-09): on the last section, moving on finishes the path.
+  assert.match(NEXT_SECTION_SYSTEM, /finishes the path when upcoming is empty/);
   for (const text of [PLANNER_SYSTEM, plannerSystem(false, 'journey'), CANVAS_SYSTEM]) assert.equal(/next_section/.test(text), false, 'the shared cached prefix does not grow');
 });

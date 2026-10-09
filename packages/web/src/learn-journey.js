@@ -245,6 +245,35 @@ export function nextSectionOf(journey, path) {
   if (journey?.state !== 'active' || at < 0) return null;
   return sections.slice(at + 1).find((s) => s?.status === 'upcoming') ?? null;
 }
+// Where moving on leads (beta hardening, owner 2026-10-09): { next } the next upcoming section, { final: true } from the last one
+// (moving on finishes the path), or null (not active, or the current section is not in the path).
+export function moveOnOf(journey, path) {
+  if (journey?.state !== 'active' || !list(path?.sections).some((s) => s?.id === journey.active_section_id)) return null;
+  const next = nextSectionOf(journey, path);
+  return next ? { next } : { final: true };
+}
+// The deterministic Next section chip (owner 2026-10-09): under the Tutor's reply while the current section's completion_evidence
+// holds on current evidence - the journey's, or the evidence the turn just stored when newer - on an active journey with nothing
+// pending or failed. No model call; its click asks for a completed move, which the journey route rechecks on the stored evidence.
+export function moveOnChip(journey, path, stored = null) {
+  if (journey?.pending || journey?.error) return null;
+  const to = moveOnOf(journey, path);
+  if (!to) return null;
+  const newer = Array.isArray(stored?.events) && stored.seq > (journey.evidence?.seq ?? 0);
+  if (!sectionCompletion(newer ? { ...journey, evidence: { seq: stored.seq, events: stored.events } } : journey).met) return null;
+  return to.next ? { label: `Next section: ${to.next.title}`, section_id: to.next.id } : { label: 'Finish the path', final: true };
+}
+// The finished path in words (owner 2026-10-09), from journeyOutcome: sections completed of those counted (optional ones aside),
+// the skipped and unreached ones by title, and the concepts whose claims are not yet understood. Never says understood for a
+// completed section.
+export function outcomeLine(outcome, path, registry) {
+  if (!outcome?.sections) return null;
+  const title = (id) => list(path?.sections).find((s) => s?.id === id)?.title ?? id;
+  const { completed, skipped, not_reached } = outcome.sections, total = completed.length + skipped.length + not_reached.length;
+  const concepts = [...new Set(list(outcome.gaps).map((g) => registry?.claims?.[g.claim]?.concept ?? String(g.claim).split('/')[0]))].map((id) => registry?.concepts?.[id]?.label ?? id);
+  return [`Path finished: ${completed.length} of ${total} sections completed.`, skipped.length ? `Skipped: ${skipped.map(title).join(', ')}.` : '',
+    not_reached.length ? `Not reached: ${not_reached.map(title).join(', ')}.` : '', concepts.length ? `Not yet understood: ${concepts.join(', ')}.` : ''].filter(Boolean).join(' ');
+}
 // Whether the current section's completion_evidence (its plan's own criterion, §9.3) holds on the journey's current evidence
 // (claimCoverage, the rule understood reads; beta item 5b): attempted is any answer on the claim; demonstrated_here, no idea
 // currently failed and at least one currently passed (or, for a claim with no ideas, its latest settled answer a pass);

@@ -410,3 +410,12 @@ test('a hole evaluation on a realistic registry: at most 4 gaps of at most 600 c
   assert.ok(spec.gaps.every(gap => gap.statement.length <= 600));
   assert.equal(validateEvaluateBody({ app: HOLE.app, message: 'Why not a number?', spec }).error, undefined);
 });
+
+// Beta hardening (owner 2026-10-09): a finished journey reads as phase completed, its last section still the Tutor's section, with
+// no upcoming section; its cards stay the Tutor's.
+test('journey: a finished path is phase completed, keeps its last section and cards, and has nothing upcoming', () => {
+  const finished = { ...PATH, current_section_id: null, sections: PATH.sections.map(s => ({ ...s, status: 'completed' })) };
+  const domain = journeyDomain({ journey: { ...JOURNEY, state: 'completed', active_section_id: 's1' }, path: finished, blocks: BLOCKS });
+  assert.deepEqual([domain.context.phase, domain.context.section.title, domain.context.upcoming], ['completed', 'Classification vs regression', []]);
+  assert.ok(domain.cards.includes('b1') && domain.cards.includes('b9'), 'completed sections keep their cards');
+});

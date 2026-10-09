@@ -227,7 +227,9 @@ test('the reviewer\'s worst case is held from the session\'s start: a session st
   // the next_section offer): about $0.09 more per session at these token counts, so decision 15 no longer fits under $1.30
   // beside the reviewer's holdback. Beta item 5a (owner 2026-10-09): the stub evaluator answers every check 0.95, so every idea
   // is both stated and contradicted - contested, never a pass - and the session no longer reaches path.next; its requests
-  // shrink back and all 15 decisions fit again, the review still inside the limit.
+  // shrink back and all 15 decisions fit again, the review still inside the limit. Progression keeps the final-section rule
+  // in a compact NEXT_SECTION_SYSTEM: the longer inherited wording needed $1.301242 at decision 15 (spent + holdback +
+  // reservation). Equivalent compact wording restores 15 without changing the fixture, models, ceilings or reviewer holdback.
   const low = await reviewed('stub');
   assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [15, 'max_decisions', 'ok']);
   assert.ok(low.ledger.spent() <= 1.3 && low.ledger.reserved() === 0);

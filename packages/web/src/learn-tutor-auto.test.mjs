@@ -310,7 +310,7 @@ test('Auto matrix: intent is exactly what the stand-in declared, pedagogy exactl
 const dir = mkdtempSync(join(tmpdir(), 'tutor-auto-'));
 const outfile = join(dir, 'tutor.cjs');
 await esbuild.build({
-  stdin: { contents: ["export { useTutor, turnOffers, canvasRepository } from './LearnTutor.jsx';", "export { journeyStartsHere, startRequest } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: ["export { useTutor, turnOffers, canvasRepository, withMoveOn } from './LearnTutor.jsx';", "export { journeyStartsHere, startRequest } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
 const bundled = createRequire(import.meta.url)(outfile);
@@ -793,8 +793,34 @@ test('r29 next_section: offered on every row of a live journey, kept only with t
   const path = { version: 2, sections: [{ id: 's1', status: 'current' }, { id: 's2', status: 'upcoming' }] };
   const live = (over = {}, p = path) => ({ journey: { state: 'active', active_section_id: 's1', pending: null, ...over }, path: p, busy: false, nextSection: () => {}, start: () => {} });
   assert.equal(bundled.turnOffers({ journey: live() }).nextSectionOffer, true);
-  for (const [why, journey, record] of [['setup', live({ state: 'path_review' })], ['the last section', live({ active_section_id: 's2' }, { ...path, sections: [{ id: 's1', status: 'completed' }, { id: 's2', status: 'current' }] })],
+  // Beta hardening (owner 2026-10-09): on the last section moving on finishes the path, so it is offered there too; never after the finish.
+  assert.equal(bundled.turnOffers({ journey: live({ active_section_id: 's2' }, { ...path, sections: [{ id: 's1', status: 'completed' }, { id: 's2', status: 'current' }] }) }).nextSectionOffer, true, 'the last section');
+  for (const [why, journey, record] of [['setup', live({ state: 'path_review' })], ['the finished path', live({ state: 'completed', active_section_id: 's2' })],
     ['a section being planned', live({ pending: 'section' })], ['busy', { ...live(), busy: true }], ['in a hole', live(), { dive_id: 'd' }], ['no journey', null]]) {
     assert.equal(bundled.turnOffers({ journey, record }).nextSectionOffer, false, why);
+  }
+});
+
+// Acceptance (owner 2026-10-09): the Next section chip under the Tutor's reply. withMoveOn adds it to the turn's chips from the journey
+// view and the evidence the turn stored (moveOnChip, no model call); its click asks the journey to move on only if the section is
+// completed (moveOn({ completed: true }), which the server rechecks). Never in a hole, while the journey works, or on a turn whose
+// own next_section already moved on.
+test('progression acceptance: the Next section chip is added under the Tutor reply from stored evidence, and its click asks for a completed move', () => {
+  const A = 'logistic-regression-foundations/vocabulary';
+  const path = { version: 2, sections: [{ id: 's1', title: 'Vocabulary', status: 'current' }, { id: 's2', title: 'The sigmoid', status: 'upcoming' }] };
+  const journey = { id: 'j1', state: 'active', active_section_id: 's1', pending: null, error: null, path_version: 2, registry: { claims: { [A]: { ideas: ['x'] } } }, evidence: { seq: 0, events: [] },
+    section_plan: { section_id: 's1', completion_evidence: [{ claim: A, minimum: 'demonstrated_in_transfer' }] } };
+  const stored = { seq: 1, events: [{ seq: 1, claim: A, result: 'pass', kind: 'demonstrated_in_transfer', settled: true }] };
+  const asked = [];
+  const view = (over = {}) => ({ journey, path, busy: false, nextSection: () => {}, ...over });
+  const moveOn = opts => { asked.push(opts); };
+  const chips = bundled.withMoveOn([{ label: 'Show the card', run: () => {} }], { journey: view(), stored, actions: [{ type: 'respond_text', text: 'Right.' }], moveOn });
+  assert.deepEqual(chips.map(c => c.label), ['Show the card', 'Next section: The sigmoid']);
+  chips[1].run();
+  assert.deepEqual(asked, [{ completed: true }], 'the click asks for a completed move');
+  assert.deepEqual(bundled.withMoveOn([], { journey: view(), stored: null, actions: [], moveOn }), [], 'not met: no chip');
+  for (const [why, opts] of [['in a hole', { record: { dive_id: 'd' } }], ['busy', { journey: view({ busy: true }) }], ['no controller', { journey: view({ nextSection: null }) }],
+    ['the turn moved on itself', { actions: [{ type: 'next_section' }] }], ['no journey', { journey: null }]]) {
+    assert.deepEqual(bundled.withMoveOn([], { journey: view(), stored, actions: [], moveOn, ...opts }), [], why);
   }
 });

@@ -19,8 +19,8 @@ import { SLASHES, arriveAt, cardContext, executeActions, keepHere, learnerIntent
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
 import { inJourneySetup, startRequest } from './LearnJourney.jsx';
-import { nextSectionOf } from './learn-journey.js';
-import { MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
+import { moveOnChip, moveOnOf, outcomeLine } from './learn-journey.js';
+import { MODE_SLASHES, NEXT_SECTION_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -50,12 +50,21 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // chip is how a learner switches subject mid-setup), where the click meets LP1's own continue-or-start, the confirmation naming
 // both subjects; repository (Task 11c-B) - the repository_context handoff, where the canvas reads a repository, never in setup
 // (the journey prompt's setup line allows words only, and the learning-path offer).
-// nextSectionOffer (r29, owner 2026-10-08): next_section, on a live journey whose path has a next section (nextSectionOf), not in
-// a hole and not while the journey works, where the controller can move on (journey.nextSection).
+// nextSectionOffer (r29, owner 2026-10-08): next_section, on a live journey whose path has a next section, or on its last section,
+// where moving on finishes the path (moveOnOf; beta hardening, owner 2026-10-09), not in a hole and not while the journey works,
+// where the controller can move on (journey.nextSection).
 export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null, repository = false }) {
   const setup = inJourneySetup(journey?.journey);
-  const nextSectionOffer = !!journey?.nextSection && !record && !journey.busy && !journey.journey?.pending && !!nextSectionOf(journey.journey, journey.path);
+  const nextSectionOffer = !!journey?.nextSection && !record && !journey.busy && !journey.journey?.pending && !!moveOnOf(journey.journey, journey.path);
   return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !record, nextSectionOffer, repository: !!repository && !setup };
+}
+// The deterministic Next section chip (beta hardening, owner 2026-10-09) under the Tutor's reply: moveOnChip over the journey view
+// and the evidence this turn stored; never in a hole, while the journey works, or on a turn whose own next_section moved on. Its
+// click asks for a completed move (moveOn({ completed: true })), which the journey route rechecks on the stored evidence.
+export function withMoveOn(chips, { journey = null, record = null, actions = [], stored = null, moveOn }) {
+  if (record || !journey?.nextSection || journey.busy || actions.some(action => action.type === NEXT_SECTION_ACTION)) return chips;
+  const chip = moveOnChip(journey.journey, journey.path, stored);
+  return chip ? [...chips, { label: chip.label, run: () => moveOn({ completed: true }) }] : chips;
 }
 // Whether a canvas reads a repository (Task 11c-B), from its app data alone: a repository app, or a canvas in a project - the
 // two forms the handoff route resolves (learn-shared-ask.js boardRevision). Never the learner's words.
@@ -130,6 +139,16 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
 
   // Back on a parent after a hole: its next turn carries returned_from (§6.4).
   useEffect(() => { if (active) save(arriveAt(load(), here)); }, [active, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // r29 + beta hardening (owner 2026-10-09): a move through the journey. A finish shows its honest outcome (outcomeLine), and a
+  // completed move the route refuses (completion_not_met: the stored evidence no longer meets the section) says why.
+  const moveOn = async opts => {
+    const out = await journeyRef.current?.nextSection?.(opts), d = out?.d;
+    const text = out?.status === 200 && d?.journey?.state === 'completed' ? outcomeLine(d.path?.change?.outcome, d.path, d.journey.registry)
+      : out?.status === 409 && d?.error === 'completion_not_met' ? 'This section is not complete on your latest answers, so it stays open.' : null;
+    if (text) put({ notices: [...desk.notices, { tone: 'info', text }] });
+    return out;
+  };
 
   // Resolves the turn's result once its canvas actions have run; typed and voice turns share it.
   // onSpeakable (voice): the plan streams, and its first validated, self-contained sentence is handed over
@@ -208,7 +227,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     save(result.store);
     // r29: evidence this turn stored on the journey reaches the journey controller (sectionCompletion, the next-section hook), the
     // same journey only.
-    if (result.evaluation?.journey && journeyAtStart && journeyRef.current?.journey?.id === journeyAtStart) journeyRef.current.adoptEvidence?.(result.evaluation.journey);
+    const sameJourney = !!journeyAtStart && journeyRef.current?.journey?.id === journeyAtStart, view = journeyRef.current;
+    if (result.evaluation?.journey && sameJourney) view.adoptEvidence?.(result.evaluation.journey);
     if (result.log.length) console.info('[tutor]', result.routed.row, result.log.join('; '));
     put({ chips: executeActions(result.actions, {
       canvas: canvasApi.current || {},
@@ -216,7 +236,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
       slot, domain, openResearch,
       // r29: the learner asked to move on: the journey's next section opens (completed or skipped by the server's rule).
-      nextSection: () => journeyRef.current?.nextSection?.(),
+      nextSection: () => moveOn(),
       // Fix B1: the existing journey start, through LP1's start-wrapping rule (fix round 2); a start the server refuses here (not
       // a learning request, or no journeys on this canvas) says so rather than doing nothing.
       startJourney: async request => {
@@ -314,8 +334,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   </>;
   const hasMade = () => !!desk.proposal || desk.notices.length > 0;
   // The turn's suggestion chips (Back up the Rabbit Hole among them), read when drawn; a pressed chip runs and goes.
-  const chipRow = () => desk.chips.length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
-    {desk.chips.map(chip => (
+  const chips = () => withMoveOn(desk.chips, { journey: flying.current ? null : journeyRef.current, record, moveOn });
+  const chipRow = () => chips().length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
+    {chips().map(chip => (
       <button key={chip.label} type="button" onClick={() => { chip.run(); put({ chips: desk.chips.filter(other => other !== chip) }); }}
         className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink shadow-sm hover:bg-hover">
         {chip.label}
@@ -324,7 +345,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   </div>;
   if (!hookTurns) return { active: false, ...steps };
   // Hook-only (Ruling F4): a canvas-domain hole keeps the same Back up chip as any hole (owner eleventh message 4).
-  if (!active) return { active: false, ...steps, opening, get extras() { return desk.chips.length || hasMade() ? <>{chipRow()}{made()}</> : null; } };
+  if (!active) return { active: false, ...steps, opening, get extras() { return chips().length || hasMade() ? <>{chipRow()}{made()}</> : null; } };
   return {
     active: true,
     ...steps,
@@ -350,7 +371,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // Shown under the Tutor's reply in the chat (ask.jsx): the dive suggestion, whose "Keep it on
     // this canvas" also gives the next turn here dive_choice inline, the suggestion chips, and Tutor-made material's notices
     // and Generate / Not now (read when drawn).
-    get extras() { return (dive.suggestionCard || desk.chips.length || hasMade()) ? <>
+    get extras() { return (dive.suggestionCard || chips().length || hasMade()) ? <>
       {dive.suggestionCard && cloneElement(dive.suggestionCard, { onKeep: () => { save(keepHere(load(), here)); dive.suggestionCard.props.onKeep(); } })}
       {chipRow()}
       {made()}

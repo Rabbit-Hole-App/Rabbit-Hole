@@ -73,7 +73,7 @@ export function journeyDiveContext(journey, path, block) {
 export async function journeyRequest(body, revision, send) {
   const first = await send(revision == null ? body : { ...body, revision });
   const reread = first.status === 409 && first.d?.error === 'revision' && first.d.journey ? first.d : null;
-  return reread ? { ...(await send({ ...body, revision: reread.journey.revision })), reread } : first;
+  return reread && body.action !== 'next_section' ? { ...(await send({ ...body, revision: reread.journey.revision })), reread } : first;
 }
 
 // What the tray slot shows: a local tray over the server's (recomputed by trayFor after every event and reload, so a
@@ -283,8 +283,13 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   const edit = text => act({ action: 'path_edit', text: String(text).slice(0, 300) });
   const accept = () => act({ action: 'accept' });
   // Owner 2026-10-08 (r29): move on to the next section (the Tutor's next_section, the next-section hook); the reply's new
-  // current section is drawn as accept's is.
-  const nextSection = () => act({ action: 'next_section' });
+  // current section is drawn as accept's is. From the last section it finishes the path. completed (the Next section chip, beta
+  // hardening 2026-10-09): move only if the route finds the section completed on its stored evidence (require: 'completed').
+  const nextSection = ({ completed = false } = {}) => {
+    if (s.busy) return Promise.resolve({ ok: false, status: 409, d: { error: 'busy' } });
+    const j = s.data.journey;
+    return act({ action: 'next_section', journey_id: j?.id, section_id: j?.active_section_id, ...(completed ? { require: 'completed' } : {}) });
+  };
   // r29: a Tutor turn's evaluate reply stored evidence on this journey ({ events, seq, revision }, learn-tutor-routes.js
   // journeyEvaluate). Taken when newer, so sectionCompletion (the next-section hook) and the next action see it with no re-read.
   const adoptEvidence = stored => {

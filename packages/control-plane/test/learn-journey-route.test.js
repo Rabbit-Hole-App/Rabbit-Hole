@@ -10,6 +10,7 @@ import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { JourneyConflict, appendJourneyEvidence, archiveJourney, loadJourney } from '../src/learn-journey-store.js';
 import { validatePath } from '../../web/src/learn-journey.js';
 import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
+import { journeyDomain } from '../../web/src/learn-journey-domain.js';
 
 // /api/me as the control plane answers it (§10.2): user_id is users.id, the journey key. anaAlt is another account behind
 // ana's email principal; anaCli is ana with a null id (a CLI token), anaLegacy with none (the legacy small-cp fallback).
@@ -869,4 +870,53 @@ test('progression acceptance: the final section finishes the journey with an hon
   assert.equal(again.status, 409);
   assert.match(again.body.error, /not legal in completed/);
   assert.equal(s.sqlite.prepare('SELECT count(*) AS n FROM learning_path_versions').get().n, p.version, 'nothing moves after the finish');
+});
+
+// Acceptance (owner 2026-10-09): the server rechecks on the chip's click. require: 'completed' moves on only when the stored evidence
+// meets the section's completion_evidence now; otherwise 409 completion_not_met and nothing moves (no version, no planner call), so a
+// chip shown before a later contradiction never skips the section. Without require the learner's move-on stays a skip.
+test('progression acceptance: the server rechecks stored evidence when the chip is clicked; a stale chip moves nothing', async t => {
+  const pass = claim => [event(claim, { result: 'pass', kind: 'demonstrated_in_transfer' })];
+  const stale = claim => [event(claim, { result: 'pass', kind: 'demonstrated_in_transfer', idea: 0 }), event(claim, { result: 'fail', kind: null, idea: 0 })];
+  const s = setup(t);
+  const before = await activeJourney(s, stale);
+  const planned = s.roles().length;
+  const refused = await s.post('next_section', { revision: before.journey.revision, require: 'completed' });
+  assert.equal(refused.status, 409);
+  assert.deepEqual([refused.body.error, refused.body.journey.active_section_id, refused.body.path.version, refused.body.path.sections[0].status], ['completion_not_met', 's1', before.path.version, 'current']);
+  assert.equal(s.roles().length, planned, 'no planner call');
+  assert.equal((await s.post('next_section', { revision: before.journey.revision, require: 'done' })).status, 400, 'an unknown requirement');
+  const t2 = setup(t);
+  const ready = await activeJourney(t2, pass);
+  const moved = await t2.post('next_section', { revision: ready.journey.revision, require: 'completed' });
+  assert.equal(moved.status, 200, moved.text);
+  assert.deepEqual([moved.body.path.sections[0].status, moved.body.path.change.cause], ['completed', 'evidence_met']);
+});
+
+// Acceptance (owner 2026-10-09): reload consistency. After a move and after the finish, a reload answers exactly what the move did -
+// journey, path and tray - and the Tutor's journey domain built from either is the same (phase, section, upcoming, cards).
+test('progression acceptance: after a move and after the finish, a reload answers the same journey, path, tray and Tutor context', async t => {
+  const s = setup(t);
+  let current = await activeJourney(s);
+  const context = body => journeyDomain({ journey: body.journey, path: body.path, blocks: [] }).context;
+  for (let n = 0; n < current.path.sections.length; n++) {
+    const r = await s.post('next_section', { revision: current.journey.revision });
+    assert.equal(r.status, 200, r.text);
+    current = (await s.call('GET')).body;
+    assert.deepEqual(current, r.body, `move ${n + 1}: the reload is the reply`);
+    assert.deepEqual(context(current), context(r.body));
+  }
+  assert.equal(current.journey.state, 'completed');
+  assert.deepEqual([context(current).phase, context(current).upcoming], ['completed', []], 'the Tutor reads a finished path');
+});
+
+test('progression: a retry bound to the section left cannot move the new section', async t => {
+  const s = setup(t), before = await activeJourney(s);
+  const body = { journey_id: before.journey.id, section_id: before.journey.active_section_id };
+  const moved = await s.post('next_section', { ...body, revision: before.journey.revision });
+  assert.equal(moved.status, 200);
+  const retry = await s.post('next_section', { ...body, revision: moved.body.journey.revision });
+  assert.equal(retry.status, 409);
+  assert.equal(retry.body.error, 'section_changed');
+  assert.equal(retry.body.path.version, moved.body.path.version);
 });

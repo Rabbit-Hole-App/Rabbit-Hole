@@ -3206,3 +3206,10 @@ timeout question is not resolved for direct. `TYPESAFE_API_KEY` is set on this
 clone only. Not run: the 432-call A/B, benchmark-v1.1-draft, further gateway
 benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
 `small-cp`, the live database or BYOC.
+
+
+### Learning progression takeover (2026-10-09, r36 candidate)
+
+The Tutor derives its Next section / Finish the path chip from saved section evidence, including after reload. Clicking requires the server to recheck completion; stale evidence cannot silently become a skip. Navigation revision conflicts are not replayed against a new section, and retries retain the original journey and section identity. Completed journeys use the stored outcome and retain claim gaps. No deployment or real-model verification is claimed; Parallel owns the integrated app gate.
+
+Offline budget investigation: the inherited final-section prompt addition made decision 15 need $0.611492 spent + $0.557520 reviewer holdback + $0.132230 request reservation = $1.301242, exceeding the existing $1.30 ceiling. Removing only that sentence yielded 15 decisions. Compact equivalent wording keeps the final-section rule and yields 15 decisions, a successful review and $0.695162 simulated total; decision 15 admission is $1.299587. The fixture, models, token limits, pricing and holdback are unchanged. These are synthetic offline costs, not billed costs or evidence of teaching quality. The existing 15/max_decisions expectation remains.

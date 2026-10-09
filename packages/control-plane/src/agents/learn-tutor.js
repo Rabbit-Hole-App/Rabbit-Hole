@@ -469,7 +469,7 @@ export const HANDOFF_SYSTEM = [
 
 // Owner 2026-10-08 (r29): the move-on block, sent with the next_section type only when context.allowed_actions lists it.
 export const NEXT_SECTION_SYSTEM = [
-  'next_section moves the learner on to the next section of the path (the first of context.journey_context.upcoming). The current section is recorded as completed only when its evidence is met, else as skipped; nothing is lost, and the learner can come back to it.',
+  'next_section opens the first of context.journey_context.upcoming, or finishes the path when upcoming is empty. The current section is completed only when its saved evidence is met, else skipped; its cards and evidence stay available to revisit.',
   'Use it only when the learner\'s own words in this message explicitly ask to move on: to the next section, or to a topic a later section covers ("can we move on to the sigmoid?"), even beside an answer. Set explicit_request to their exact words and add a short respond_text naming the section that opens.',
   'A request to continue, keep going, explain more or stay on this section is never next_section, and neither is a question about a later topic: say it comes later.',
 ].join('\n');

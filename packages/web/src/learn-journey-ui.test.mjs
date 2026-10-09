@@ -1705,5 +1705,44 @@ test('controller: adoptEvidence takes a Tutor turn\'s newer evidence and revisio
   assert.equal(h.calls.at(-1).body.revision, 8, 'the next action carries the adopted revision');
   const tutor = readFileSync(new URL('./LearnTutor.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(tutor, /const journeyAtStart = journeyRef\.current\?\.journey\?\.id \?\? null;\n\s+let result;/);
-  assert.match(tutor, /save\(result\.store\);\n(?:\s*\/\/[^\n]*\n)*\s*if \(result\.evaluation\?\.journey && journeyAtStart && journeyRef\.current\?\.journey\?\.id === journeyAtStart\) journeyRef\.current\.adoptEvidence\?\.\(result\.evaluation\.journey\);/);
+  // Beta hardening (owner 2026-10-09): the same rule, named sameJourney, which the Next section chip reads too.
+  assert.match(tutor, /save\(result\.store\);\n(?:\s*\/\/[^\n]*\n)*\s*const sameJourney = !!journeyAtStart && journeyRef\.current\?\.journey\?\.id === journeyAtStart, view = journeyRef\.current;\n\s*if \(result\.evaluation\?\.journey && sameJourney\) view\.adoptEvidence\?\.\(result\.evaluation\.journey\);/);
+});
+
+// Acceptance (owner 2026-10-09): the chip's click is a completed move, and the server rechecks it. nextSection({ completed: true })
+// posts require: 'completed'; a refusal (completion_not_met: the stored evidence no longer meets the section) re-reads the journey
+// and draws nothing.
+test('controller: nextSection({ completed: true }) posts require completed; a completion_not_met refusal draws nothing', async () => {
+  const canvas = fakeCanvas();
+  const refused = { status: 409, d: { error: 'completion_not_met', journey: activeJourney({ revision: 7, section_plan: { ...sectionPlan, heading_block_id: 'b1' } }), path: activePath, tray: null } };
+  const h = scripted(() => canvas, [recorded('b1'), refused]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  const drawn = canvas.inserts().length;
+  const out = await h.view().nextSection({ completed: true });
+  assert.deepEqual([h.calls.at(-1).body.action, h.calls.at(-1).body.require, out.status, out.d.error], ['next_section', 'completed', 409, 'completion_not_met']);
+  assert.equal(canvas.inserts().length, drawn, 'nothing drawn');
+  assert.equal(h.view().journey.active_section_id, 's1', 'the section stays current');
+});
+
+test('progression: a stale navigation request is not replayed against the next section', async () => {
+  const calls = [];
+  const current = { status: 409, d: { error: 'revision', journey: { revision: 8, active_section_id: 's2' } } };
+  const out = await journeyRequest({ action: 'next_section', section_id: 's1', require: 'completed' }, 7, async body => { calls.push(body); return current; });
+  assert.equal(calls.length, 1);
+  assert.equal(out, current);
+});
+
+test('progression: a fresh Tutor renders the saved eligibility chip without a model call', async () => {
+  const claim = 'sigmoid/shape';
+  const j = journeyOf({ state: 'active', active_section_id: 's1', registry: SIGMOID,
+    evidence: { seq: 1, events: [{ ...settled(claim, 1), result: 'pass', kind: 'demonstrated_in_transfer', settled: true }] },
+    section_plan: { section_id: 's1', completion_evidence: [{ claim, minimum: 'demonstrated_in_transfer' }] } });
+  const path = { version: 1, sections: [{ id: 's1', status: 'current', title: 'First' }, { id: 's2', status: 'upcoming', title: 'Second' }] };
+  const h = harness(ok(j, null, path));
+  await h.refresh();
+  const t = tutorOn(h);
+  const html = renderToStaticMarkup(t.tutor.extras);
+  assert.match(html, /Next section: Second/);
+  assert.equal(tutorRoutes(h).length, 0);
 });

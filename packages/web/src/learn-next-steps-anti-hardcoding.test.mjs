@@ -276,7 +276,7 @@ test('no product module decides an offer or an action from the learner words', (
   const page = strip(source('./LearnTutor.jsx')), offers = functionOf('./LearnTutor.jsx', 'export function turnOffers\\(');
   // r29: nextSectionOffer reads the journey view only: its controller, busy, the journey's pending and its path (nextSectionOf).
   const PAGE_OK = new Set(['export', 'function', 'turnOffers', 'journey', 'null', 'record', 'opening', 'false', 'nextStep', 'openResearch', 'const', 'setup', 'inJourneySetup', 'materials', 'materialCommands', 'research', 'journeyOffer', 'repository', 'start', 'return',
-    'nextSectionOffer', 'nextSection', 'busy', 'pending', 'nextSectionOf', 'path']);
+    'nextSectionOffer', 'nextSection', 'busy', 'pending', 'nextSectionOf', 'moveOnOf', 'path']);
   assert.deepEqual(outside(offers, PAGE_OK), [], 'turnOffers reads more than the page state');
   // The handoff flag's source: reads (the page's repository prop, else canvasRepository(app)) and canvasRepository read the app's data only.
   const reads = page.match(/const reads = [^\n]*;/)[0], repositoryOf = page.match(/export const canvasRepository = [^\n]*/)[0];

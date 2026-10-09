@@ -69,10 +69,9 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
     // §3.3: bounded (about 1.5 KB) - never the whole path, the evidence history or raw intake answers. Goal at most 200
     // characters, at most 6 concept labels of 60, at most 6 upcoming titles of 80; title, purpose and the 4
     // expected_evidence ids are already capped by the path schema (§9.2) and are cut to it here too.
-    // ponytail: a completed journey reads as 'active' (§3.3 names three phases); a 'completed' phase once LP2 says
-    // what the Tutor does after the last section.
+    // Beta hardening (owner 2026-10-09): a finished path reads as phase completed, its last section still the section.
     context: {
-      phase: dive ? 'dive' : setup ? 'setup' : journey.state === 'paused' ? 'paused' : 'active',
+      phase: dive ? 'dive' : setup ? 'setup' : journey.state === 'paused' ? 'paused' : journey.state === 'completed' ? 'completed' : 'active',
       goal: cap(path?.goal || journey.request?.topic, 200),
       section: section && {
         title: cap(section.title, 80), purpose: cap(section.purpose, 240),

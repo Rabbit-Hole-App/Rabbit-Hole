@@ -247,6 +247,11 @@ async function act(env, scope, body, callModel, now) {
     return run(env, (await appendPathVersion(env, step.journey, next, j.revision)).journey, step.effects, callModel);
   }
   if (body.action === 'next_section') {
+    // require 'completed' (the Next section chip): move only when the stored evidence meets the section now, else 409
+    // completion_not_met and nothing moves. It can only refuse a move; it never makes a section completed.
+    if (body.require != null && body.require !== 'completed') return json({ error: 'require must be completed' }, 400);
+    if (body.journey_id != null && body.journey_id !== j.id) return reply(env, j, 409, { error: 'journey_changed' });
+    if (body.section_id != null && body.section_id !== j.active_section_id) return reply(env, j, 409, { error: 'section_changed' });
     // Owner 2026-10-08 (r29): the section left is completed when its completion_evidence holds, else skipped - never completed
     // silently - and keeps its evidence and its heading (the rail opens it again); the next section is current in a new version,
     // then planned and drawn as section 1 is.
@@ -255,6 +260,7 @@ async function act(env, scope, body, callModel, now) {
     // Beta hardening (owner 2026-10-09): the change records why (cause evidence_met or learner_skip) and the stored evidence it
     // read (criterionRefs). Only the journey row's evidence decides; nothing in the body does.
     const left = j.active_section_id, met = sectionCompletion(j).met, status = met ? 'completed' : 'skipped', heading = j.section_plan?.heading_block_id;
+    if (body.require === 'completed' && !met) return reply(env, j, 409, { error: 'completion_not_met' });
     const sections = path.sections.map(s => (s.id === left ? { ...s, status, ...(heading ? { heading_block_id: heading } : {}) } : s));
     // From the last section the journey finishes (step.journey.state completed): no section is current, and the change carries
     // the honest outcome (journeyOutcome) beside cause final.

@@ -619,3 +619,40 @@ test('journeyOutcome: sections completed, skipped and not reached; expected clai
   assert.deepEqual([out.sections.not_reached, out.result], [[ids[1]], 'incomplete'], 'an upcoming section is not reached');
   assert.equal(out.sections.completed.includes(ids[2]) || out.sections.skipped.includes(ids[2]), false, 'an optional section counts nowhere');
 });
+
+// Acceptance (owner 2026-10-09): the deterministic Next section chip appears immediately after qualifying evidence. moveOnChip reads
+// the journey with the evidence the turn just stored (when newer than the journey's): met on current evidence -> a chip naming the
+// next section, or Finish the path on the last one; not met, a later contradiction, or a journey that is not active and idle -> none.
+// No model call: it is the same sectionCompletion the server runs again on the click.
+test('progression acceptance: the Next section chip appears immediately after qualifying evidence, and goes with a later contradiction', () => {
+  const path = clone(LR_PATH);
+  path.version = 2; path.current_section_id = path.sections[0].id;
+  path.sections = path.sections.map((s, i) => ({ ...s, status: i ? 'upcoming' : 'current' }));
+  const [first, second] = path.sections, A = first.expected_evidence[0].claim;
+  const ev = (seq, over = {}) => ({ seq, concept: A.split('/')[0], claim: A, result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'jev', source: 'free_text', ref: {}, ...over });
+  const j = journey({ state: 'active', path_version: 2, active_section_id: first.id, registry: LR_REGISTRY, evidence: { seq: 0, events: [] },
+    section_plan: { section_id: first.id, completion_evidence: [{ claim: A, minimum: 'demonstrated_in_transfer' }] } });
+  assert.equal(lj.moveOnChip(j, path), null, 'no evidence: no chip');
+  const stored = { seq: 1, events: [ev(1)] };
+  assert.deepEqual(lj.moveOnChip(j, path, stored), { label: `Next section: ${second.title}`, section_id: second.id }, 'the turn that stored it shows it');
+  assert.deepEqual(lj.moveOnChip({ ...j, evidence: stored }, path), { label: `Next section: ${second.title}`, section_id: second.id }, 'and every later reply while it holds');
+  assert.deepEqual(lj.moveOnChip({ ...j, evidence: stored }, path, { seq: 0, events: [] }), { label: `Next section: ${second.title}`, section_id: second.id }, 'older stored evidence is ignored');
+  assert.equal(lj.moveOnChip(j, path, { seq: 2, events: [ev(1), ev(2, { result: 'fail', kind: null })] }), null, 'a later contradiction removes it');
+  assert.equal(lj.moveOnChip(j, path, { seq: 1, events: [ev(1, { kind: 'demonstrated_here' })] }), null, 'the taught case alone does not meet a transfer criterion');
+  assert.equal(lj.moveOnChip(j, path, { seq: 1, events: [ev(1, { settled: false })] }), null, 'unsettled evidence never meets it');
+  for (const [why, over] of [['pending', { pending: 'section' }], ['error', { error: { op: 'section' } }], ['setup', { state: 'path_review' }], ['completed', { state: 'completed' }]]) {
+    assert.equal(lj.moveOnChip({ ...j, ...over }, path, stored), null, why);
+  }
+  const last = { ...path, current_section_id: path.sections.at(-1).id, sections: path.sections.map((s, i, all) => ({ ...s, status: i === all.length - 1 ? 'current' : 'completed' })) };
+  assert.deepEqual(lj.moveOnChip({ ...j, active_section_id: last.current_section_id }, last, stored), { label: 'Finish the path', final: true }, 'the last section finishes');
+  assert.deepEqual([lj.moveOnOf(j, path), lj.moveOnOf({ ...j, active_section_id: last.current_section_id }, last), lj.moveOnOf({ ...j, state: 'completed' }, path)], [{ next: second }, { final: true }, null]);
+});
+
+test('outcomeLine: the finished path in words - sections completed, skipped and not reached, and the concepts still not understood', () => {
+  const sections = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Beta' }, { id: 'c', title: 'Gamma' }];
+  const registry = { concepts: { sigmoid: { label: 'The sigmoid function' }, classification: { label: 'Binary classification' } }, claims: {} };
+  const outcome = { result: 'incomplete', sections: { completed: ['a'], skipped: ['b'], not_reached: ['c'] }, understood: [], gaps: [{ claim: 'sigmoid/x', state: 'uncertain' }, { claim: 'sigmoid/y', state: 'not_yet_observed' }, { claim: 'classification/z', state: 'misconception' }] };
+  assert.equal(lj.outcomeLine(outcome, { sections }, registry), 'Path finished: 1 of 3 sections completed. Skipped: Beta. Not reached: Gamma. Not yet understood: The sigmoid function, Binary classification.');
+  assert.equal(lj.outcomeLine({ result: 'completed', sections: { completed: ['a', 'b', 'c'], skipped: [], not_reached: [] }, understood: ['sigmoid/x'], gaps: [] }, { sections }, registry), 'Path finished: 3 of 3 sections completed.');
+  assert.equal(lj.outcomeLine(null, { sections }, registry), null);
+});
