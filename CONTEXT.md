@@ -8,6 +8,10 @@ A learning workspace where a learner explores a topic or a code repository on an
 An infinite board that holds a learner's cards, shapes, drawings and conversations about one topic.
 _Avoid_: Board (in user-facing copy), page, document
 
+**Learning Board**:
+A canvas as presented once it is published to Explore; private and draft work stays a canvas.
+_Avoid_: Explainer, post, published canvas (in user-facing copy)
+
 **Card**:
 One self-contained unit of learning content placed on a canvas, such as an explanation, a quiz, code, an image or an equation.
 _Avoid_: Block (in user-facing copy), node, tile
@@ -39,7 +43,7 @@ _Avoid_: Collection, tag, space
 ## Publishing and readers
 
 **Explore**:
-The public listing where published work is found.
+The public listing where Learning Boards and their creators are found.
 _Avoid_: Gallery, feed
 
 **Creator**:
@@ -47,8 +51,12 @@ A person whose published work appears on Explore, identified by their handle.
 _Avoid_: Author, publisher
 
 **Reader**:
-Anyone opening someone else's shared or published canvas without owning it.
+Anyone reading someone else's shared canvas or Learning Board; a description of activity, not a permission.
 _Avoid_: Viewer, visitor
+
+**Member**:
+A person invited to a canvas who may comment on it; opening a link alone never makes someone a member.
+_Avoid_: Collaborator, guest, commenter
 
 **Fork**:
 A reader's own independent copy of a shared or published canvas; it never changes when the original does.
@@ -93,8 +101,18 @@ A section whose completion evidence holds on current evidence.
 _Avoid_: Done, finished, understood
 
 **Skipped**:
-A section the learner moved on from before its completion evidence held; it says nothing about understanding.
+A section the learner chose to move on from before its completion evidence held; it says nothing about understanding.
 _Avoid_: Passed, completed
+
+**Already understood**:
+A section the Tutor passes over because current evidence already shows the learner understands it; never used for material that is merely optional.
+_Avoid_: Skipped, not needed, optional
+
+## Guidance
+
+**Next steps**:
+The small set of suggestions offered on a canvas for where to go from here; each suggestion is a next step.
+_Avoid_: Hooks, suggestions, recommendations (in learner-facing copy; "hook" is the internal and evaluation name for a next step)
 
 ## Evaluation
 
