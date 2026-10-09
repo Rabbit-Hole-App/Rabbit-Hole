@@ -253,7 +253,7 @@ printf '%s' "$VALUE" | npx wrangler secret put ANTHROPIC_API_KEY --config wrangl
 
 The zone is active (see digrabbithole.com below), so the app deploy can attach the domain. To smoke-test before cutover, deploy once with the route removed and `workers_dev: true`. OAuth would then need that host's callbacks registered too.
 
-**Hazard.** `make cp-deploy` / `make web-deploy` (`run.sh`) runs a bare `wrangler deploy` of `wrangler.jsonc`, which is legacy `small-cp`. Never use them for Rabbit Hole.
+**Hazard (guarded since the r34 audit).** `make cp-deploy` / `make web-deploy` (`run.sh`) deploy `wrangler.jsonc`, which is legacy `small-cp`. They now refuse unless `SMALL_CP_LEGACY_DEPLOY=small-cp` names that target. Never use them for Rabbit Hole.
 
 ## digrabbithole.com
 

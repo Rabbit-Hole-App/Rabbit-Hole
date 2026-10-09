@@ -40,9 +40,15 @@ serving):
    - No tracked change, and nothing untracked under the build inputs.
 2. **Passed gate.** The gate record names the commit's own tree on its first line and ends with `-DONE`. In addition:
    - `make test-unit` and every stage exit 0, counting the last attempt where a crashed stage reran;
-   - every provider-tripwire and model-key count is 0.
-   
-   A failed or unfinished gate deploys nothing, so the last passing deployment stays.
+   - every provider-tripwire and model-key count is 0;
+   - **attestation (r34 audit, 2026-10-09; stage list agreed with Parallel):**
+     - The record names every stage in `GATE_STAGES` (`scripts/dev-deploy.mjs`).
+     - Each stage's final `exit 0` line carries a positive check count: `N/N checks passed`, `N checks passed`, node's `ℹ tests N … fail 0`, `# pass N # fail 0`, `ok N FAIL 0`, or `J1 PASS …`.
+     - Every browser stage has its own `<tripwire> provider-tripwire hits: 0` line, and the record has `model key bindings in app log: 0`.
+     - A record with only the tree, unit and `-DONE` lines no longer passes. The real INT33 record is the test fixture: it fails on exactly 7 output gaps.
+     - A beta stage with a check file (`library-folders`, `share-revocation`, …) is required only once the gated commit's tree carries that file, never before.
+
+   A failed, unfinished or unattested gate deploys nothing, so the last passing deployment stays.
 3. **Forward only.**
    - The sha the clone serves is read from its version chain (Cloudflare API, `servedSha`):
      - each version's own upload message names its sha (`main <sha> build <hash>`), so a rollback serves that version again under its original record;
@@ -72,9 +78,15 @@ serving):
 5. **Record.**
    - The Worker's deployment history (`wrangler deployments list --name …`) is the record of what is deployed.
    - Each run also appends a line to `<git common dir>/rabbit-hole-dev-deploys.jsonl`:
-     `{"sha","gates","build","bundle","smoke","worker","version","at"}`.
+     `{"sha","tree","gates","gate_digest","build","bundle","smoke","worker","version","run","at"}`.
    - `gates` is `"pass"` for the commit's own full gate. It is `"reused"` with `app_gate_sha` under [policy A](#policy-a-reusing-a-gate).
-   - `prod-release.mjs prepare` reads this record and accepts only `gates: "pass"` with `smoke: "pass"`.
+   - **Provenance (r34 audit):**
+     - `tree` is the commit's own tree.
+     - `gate_digest` is the sha256 of the gates note's text it passed on, line endings normalized (`rerun_digest` for a rerun).
+     - `run` is `GITHUB_RUN_ID.attempt`, or `local`.
+     - `version` is the dev Worker version it became.
+   - `prod-release.mjs prepare` reads this record. It accepts only `gates: "pass"` with `smoke: "pass"`, or a valid reuse. It refuses any line without full provenance, or whose tree is not the commit's own.
+   - Records before 2026-10-09 (r33, r34) have no provenance, so the next release needs a fresh full gate.
 6. **Smoke and rollback.**
    - The smoke waits until the URL serves this build, then checks:
      - `/library` returns 200;
@@ -98,6 +110,7 @@ Owner, 2026-10-08: "create a dev branch where when pushing on dev deploys to the
 
 - **Trigger:** a push to `dev`, and nothing else. No pull request or fork event starts it. It runs only in Rabbit-Hole-App/Rabbit-Hole, one at a time, in the `dev-preview` environment. That environment holds the secrets and admits only the `dev` branch.
 - **Gate:** the gate record of the exact tree is a git note on the pushed commit, `refs/notes/gates`. Push the note before `dev`. The job waits up to 10 minutes for it; with no note it deploys nothing.
+- **Verify evidence (r34 audit, 2026-10-09):** before the gate, the job needs the keyless verify run's note on the same commit, `refs/notes/verify`, written by `.github/workflows/verify.yml` when the commit reached any non-main branch. That workflow is unprivileged (`contents: read`, no secret, no deploy or model key): locked `npm ci` and `uv sync --locked`, the unit suites in an empty environment, both page builds. Its note records sha, tree, both lockfile digests, run id and the two verdicts; `dev-deploy-gate.mjs --verify` refuses unless it is a passing run of this exact commit, tree and lockfiles. Gate reuse is judged after it and is unchanged.
 - **Deploy:** `scripts/dev-deploy-gate.mjs` reads the note and runs `dev-deploy.mjs --branch rabbit-hole/dev`, with every rule of a hand deploy: passed gate, forward only, smoke, rollback.
 - **Reusing a gate (owner, 2026-10-09):** a commit whose changes since a fully gated commit G are only reusable paths does not need its own full gate. Reusable paths are docs, top-level `*.md`, `scripts/dev-deploy*`, `scripts/dev-deploy-gate*`, `scripts/prod-release*`, `scripts/ensure-natives*`, `.github/workflows/*`, and tests with a rerun.
   - Its gates note is the line `reuse <G full sha>`. When tests changed, the rerun record of the commit's own tree follows that line.

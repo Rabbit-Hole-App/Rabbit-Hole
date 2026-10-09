@@ -32,15 +32,29 @@ jobs:
           # A reused-gate deploy names its base G; prod-release checks G's own record too.
           g="$(grep -o '"app_gate_sha":"[0-9a-f]\{40\}"' "$RUNNER_TEMP/dev-deploys.jsonl" | head -n 1 | cut -d'"' -f4)"
           if [ -n "$g" ]; then git notes --ref=dev-deploys show "$g" >> "$RUNNER_TEMP/dev-deploys.jsonl" 2>/dev/null || { echo "its base $g has no dev deploy record: not released"; exit 1; }; fi
+      - run: node scripts/lock-natives.mjs --check
       - run: npm ci --no-audit --no-fund
       - run: node scripts/ensure-natives.mjs
+      # The build runs every npm and Vite build script; it never sees the Cloudflare token (r34 audit).
+      - name: Prepare (build, no deploy credential)
+        env:
+          VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
+        run: node scripts/prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record "$RUNNER_TEMP/dev-deploys.jsonl"
+      # Release rebuilds nothing: it re-hashes the prepared bundles, checks production, deploys, smokes and recovers.
       - name: Release
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: c08d3dbdc53a3afd3cb09a536ac42318
-          VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
         run: |
-          node scripts/prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record "$RUNNER_TEMP/dev-deploys.jsonl"
           build="$(node -p "require('$(git rev-parse --path-format=absolute --git-common-dir)/rabbit-hole-prod-release/$GITHUB_SHA/prepared.json').build")"
           # The owner's policy (B1): a push to main that passes every check above is the approval.
-          node scripts/prod-release.mjs release --sha "$GITHUB_SHA" --build "$build" --approve "RELEASE $GITHUB_SHA $build"
+          node scripts/prod-release.mjs release --sha "$GITHUB_SHA" --build "$build" --approve "RELEASE $GITHUB_SHA $build" --receipt "$RUNNER_TEMP/release-receipt.json"
+      # The durable release receipt: previous and new version pair, D1 bookmarks, smoke, outcome.
+      - name: Release receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-receipt-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-receipt.json
+          if-no-files-found: ignore
+          retention-days: 90

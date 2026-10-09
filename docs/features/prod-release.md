@@ -36,13 +36,13 @@ The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the 
 
 ```bash
 git fetch origin main && git checkout --detach <sha>
-(cd packages/web && npm ci) && (cd packages/control-plane && npm ci)
+npm ci   # at the repo root: the one workspace lockfile pins every package, every platform's native build included
 node scripts/prod-release.mjs prepare --sha <sha>
 ```
 
 Prepare refuses unless all of these hold:
 - `<sha>` is a full 40-character sha on `origin/main`;
-- the dev-deploy record has a line for it with `gates` and `smoke` both `pass`;
+- the dev-deploy record has a line for it with `gates` and `smoke` both `pass` (or a valid reuse), carrying full provenance: the commit's own `tree`, `gate_digest`, `build`, `bundle`, `run` and `version` (r34 audit);
 - `HEAD` is `<sha>` and no tracked file has changes;
 - `VITE_TLDRAW_LICENSE_KEY` is in the environment or the repo-root `.env`. It is read by key name and never printed.
 
@@ -69,21 +69,39 @@ Release refuses unless all of these hold:
 - the bundles still hash to `<build>`;
 - `CLOUDFLARE_ACCOUNT_ID` is the rabbit-hole account.
 
+**Stale candidate (r34 audit).** Release reads what production serves, using Cloudflare API GETs only. It refuses unless:
+- the candidate is the current tip of `origin/main`, so a re-run of an older workflow never releases;
+- both Workers serve one version at 100%;
+- both carry the same `release <sha12>` message. A deployment made by a secret change is read through to the one before it.
+- the candidate descends from that release.
+
+The same release again is a no-op. A hand-deployed or split pair is refused until a released pair is restored.
+
 Release then runs a read-only preflight. Every finding is a blocker, and the job changes nothing:
 - **Secret names:** each Worker must have its required secrets. Neither may have a test secret or a dev Access bridge secret (`ACCESS_*`, `DEV_TEST_BYPASS`), and the app may not have an OAuth, Resend or `MASTER_KEY` secret.
-- **Main D1:** `rabbit-hole-prod` must report "No migrations to apply".
-- **Learn D1:** `rabbit-hole-learn-prod` must have every learn migration. Wrangler does not track these, so each one is detected by the first table it creates.
+- **Main D1:** `rabbit-hole-prod`'s `d1_migrations` must name exactly the files in `migrations/`, and its schema must equal `bootstrap.sql` plus every migration.
+- **Learn D1:** `rabbit-hole-learn-prod`'s schema must equal `repository-schema.sql` plus `learn-migrations/` 0004 onward.
+- **Complete schema (r34 audit):** both schema checks are a complete identity: every table, index and column, by name and normalized SQL (`scripts/schema-check.mjs`). The old check looked only at the first table of each learn migration, so it passed a half-applied 0011. Learn migrations are additive DDL only (tested), so schema identity is their migration identity.
 
-After the preflight passes, release deploys `rabbit-hole-cp` and then `rabbit-hole-app`, each with the message `release <sha12> build <build>`. It appends the release to the git common dir `rabbit-hole-prod-releases.jsonl`.
+**Deploy, smoke and recovery (r34 audit).**
+- **Receipt.** Before any upload, release records the previous version pair (cp, app) and the D1 Time Travel bookmarks of both databases. A Worker rollback never restores data: the bookmarks are what a data restore goes back to.
+- **Deploy.** It deploys `rabbit-hole-cp` and then `rabbit-hole-app`, each with the message `release <sha12> build <build>`, and records each new version id.
+- **Smoke.** It then runs the signed-out smoke, GET only and never a model call, retrying every 5 s for up to 120 s to cover rollout lag:
+  - `/` returns 200 and names a module entry that exists in the build just deployed, so the new version is the one serving;
+  - that entry returns 200;
+  - `/login` returns 302 to `https://digrabbithole.com/sign-in`;
+  - `/a/x` returns 404;
+  - `/api/me` returns 401.
+- **Matched rollback.** A failed upload or a failed smoke rolls back what was uploaded to the previous pair, app first, then the control plane. Release then reads the serving versions again. The outcome is `rolled-back` only if both equal the previous pair; otherwise it is `rollback-failed`, which needs a person now.
+- **Receipt kept.** The receipt (sha, build, run, previous pair, bookmarks, deployed versions, smoke results, outcome) is always written:
+  - to the git common dir `rabbit-hole-prod-releases.jsonl`;
+  - to `--receipt <file>`;
+  - by the workflow, as the artifact `release-receipt-<sha>-<attempt>`, kept 90 days.
+- **Credentials split.** The workflow's build step (`prepare`) runs without the Cloudflare token. The credentialed step only re-hashes the prepared bundles and deploys them.
 
-**4. Smoke.** Run by hand, signed out:
-- `https://digrabbithole.com/` returns 200 Landing;
-- `/login` returns 302 to `/sign-in`;
-- `/a/x` returns 404;
-- `/api/me` returns 401.
-
-A signed-in check is done by the owner.
-- **Rollback:** `npx wrangler rollback` for each Worker, from that Worker's package with `--config wrangler.rabbit-hole-prod.jsonc`. Roll back the app first, then the control plane.
+**4. Signed-in check.** The owner does the signed-in check.
+- **Manual rollback:** use `npx wrangler rollback <version from the receipt's previous pair>` for each Worker, from that Worker's package with `--config wrangler.rabbit-hole-prod.jsonc`. Roll back the app first, then the control plane.
+- **Data restore:** use `wrangler d1 time-travel restore <db> --bookmark <receipt bookmark>`. It is destructive: it is an owner GO, every time.
 
 **Migrations are never applied by this job.** A pending migration is reported, and it waits for its own owner GO.
 

@@ -39,28 +39,76 @@ function readGate(text, tree) {
   const head = lines.find(l => l.startsWith('tree HEAD ')); // stderr noise may come before it
   if (!head || !new RegExp(`\\bindex ${tree}\\b`).test(head)) return { error: `the gate record is not for tree ${tree.slice(0, 8)}` };
   if (!/-DONE$/.test(lines.at(-1))) return { error: 'the gate record has no -DONE line (gate unfinished)' };
-  const last = new Map();
-  for (const l of lines) { const m = l.match(/^([^:]+?) exit (\d+)\b/); if (m) last.set(m[1], Number(m[2])); }
+  const last = new Map(), tails = new Map();
+  for (const l of lines) { const m = l.match(/^([^:]+?) exit (\d+)\b(.*)$/); if (m) { last.set(m[1], Number(m[2])); tails.set(m[1], m[3]); } }
   // Every count, with the stage it belongs to where the line names one ("<stage> provider-tripwire hits: N").
-  const counts = lines.flatMap(l => [...l.matchAll(/(?:tripwire hits|model key bindings in app log): (\S+)/g)].map(m => ({ value: m[1], stage: l.match(/^(\S+) provider-tripwire hits:/)?.[1] ?? null })));
-  return { last, counts, failed: [...last].filter(([, code]) => code !== 0).map(([stage]) => stage) };
+  const counts = lines.flatMap(l => [...l.matchAll(/(tripwire hits|model key bindings in app log): (\S+)/g)].map(m => ({ value: m[2], model: m[1] !== 'tripwire hits', stage: l.match(/^(\S+) provider-tripwire hits:/)?.[1] ?? null })));
+  return { last, tails, counts, failed: [...last].filter(([, code]) => code !== 0).map(([stage]) => stage) };
 }
 const badCounts = (counts, redone = () => false) => counts.filter(c => c.value !== '0' && !redone(c.stage)).map(c => `${c.stage ?? 'app'}:${c.value}`);
 
-export function gateVerdict(text, tree) {
+// What a full gate must attest (r34 audit, owner 2026-10-09): every stage of Parallel's integrated gate by name, each
+// with a positive count of the checks it ran, every browser stage with its own "<tripwire> provider-tripwire hits: 0"
+// line, and the app log's "model key bindings in app log: 0". A tree, unit and -DONE line alone no longer pass. The
+// list is agreed with Parallel (the gate's owner); dropping a stage or a tripwire is a reviewed change to this list.
+const BROWSER = ['rh-app', 'comments', 'comments-invite', 'sketch', 'rh-dev', 'sca', 'project-canvases', 'fork', 'dive', 'handle', 'explore',
+  'explore-holes', 'card-select', 'selected-pill', 'naming', 'visibility', 'sidebar', 'card-redesign', 'creator-profile', 'analytics-ui',
+  'workspace', 'card-context-menu', 'repo-browser', 'panel-header', 'slash-sheet', 'equation', 'thumbnails', 'rh-local', 'cross-device',
+  'filedrop', 'blank-hooks', 'practice-card', 'canvas-chrome'];
+export const GATE_STAGES = [
+  { stage: 'make test-unit', tripwire: null }, { stage: 'fixture regression', tripwire: null },
+  { stage: 'bundle(dist)', tripwire: null }, { stage: 'bundle(dist-dev)', tripwire: null },
+  ...BROWSER.map(stage => ({ stage, tripwire: stage })),
+  { stage: 'journey J1-J8', tripwire: 'journey' }, { stage: 'tutor-slice', tripwire: 'slice' },
+  // Beta stages (Parallel, 2026-10-09): required from the release whose tree carries the check, so a release before the
+  // feature lands still passes. Add each with its check file as it lands.
+  { stage: 'library-folders', tripwire: 'library-folders', check: 'packages/web/e2e/library-folders-check.mjs' },
+  { stage: 'share-revocation', tripwire: 'share-revocation', check: 'packages/web/e2e/share-revocation-check.mjs' },
+];
+
+// The checks a passing stage reports having run, from the rest of its exit line; 0 when it names none or any failed.
+export function stageCount(tail = '') {
+  if ([...tail.matchAll(/\bfail(?:ed|ures)?:?\s+(\d+)/gi)].some(m => m[1] !== '0') || /\bFAIL\b(?!\s+0\b)/.test(tail)) return 0;
+  const ratio = tail.match(/\b(\d+)\/(\d+) checks passed/);
+  if (ratio) return ratio[1] === ratio[2] ? Number(ratio[1]) : 0;
+  const sum = re => [...tail.matchAll(re)].reduce((n, m) => n + Number(m[1]), 0);
+  return Number(tail.match(/\b(\d+) checks passed/)?.[1] ?? 0) || sum(/ℹ tests (\d+)/g) || sum(/# pass (\d+)/g) || sum(/\bok (\d+)\b/g)
+    || (tail.match(/\bJ\d+ PASS\b/g)?.length ?? 0);
+}
+
+// -> the attestation gaps over a gate record and, optionally, its rerun (a stage the rerun ran is judged there).
+// inTree(path): whether the gated tree has that file; a stage with a check file is required only where it does.
+function attestationGaps(records, inTree) {
+  const gaps = [];
+  for (const { stage, tripwire, check } of GATE_STAGES) {
+    if (check && !inTree(check)) continue;
+    const from = records.findLast(g => g.last.has(stage));
+    if (!from) { gaps.push(`${stage}: not in the record`); continue; }
+    if (from.last.get(stage) !== 0) continue; // a failed stage is reported as failed
+    if (!(stageCount(from.tails.get(stage)) > 0)) gaps.push(`${stage}: no positive check count`);
+    if (tripwire && !from.counts.some(c => !c.model && c.stage === tripwire && c.value === '0')) gaps.push(`${stage}: no "${tripwire} provider-tripwire hits: 0" line`);
+  }
+  if (!records.some(g => g.counts.some(c => c.model && c.value === '0'))) gaps.push('no "model key bindings in app log: 0" line');
+  return gaps;
+}
+
+// inTree defaults to "every check exists": without the tree to ask, every listed stage is required.
+export function gateVerdict(text, tree, inTree = () => true) {
   const g = readGate(text, tree);
   if (g.error) return g.error;
   const bad = badCounts(g.counts);
   if (bad.length) return `provider tripwire or model key count not 0: ${bad.join(', ')}`;
   if (g.last.get('make test-unit') !== 0) return 'make test-unit did not exit 0';
   if (g.failed.length) return `failed stages: ${g.failed.join(', ')}`;
+  const gaps = attestationGaps([g], inTree);
+  if (gaps.length) return `the gate record does not attest: ${gaps.join('; ')}`;
   return null;
 }
 
 // A full gate on G plus a later rerun on R of what changed after it (owner, 2026-10-08: "reuse valid unchanged results
 // and rerun affected checks"). R's record must finish clean, every stage G failed must pass in R, and G must hold the
 // unit run unless R ran it; tripwire and model-key counts are 0 in both.
-export function rerunVerdict(gText, gTree, rText, rTree, { unitChanged = false } = {}) {
+export function rerunVerdict(gText, gTree, rText, rTree, { unitChanged = false, inTree = () => true } = {}) {
   const g = readGate(gText, gTree);
   if (g.error) return `gate: ${g.error}`;
   const r = readGate(rText, rTree);
@@ -78,8 +126,13 @@ export function rerunVerdict(gText, gTree, rText, rTree, { unitChanged = false }
   if (uncovered.length) return `gate failed ${uncovered.join(', ')} and the rerun did not pass it`;
   if (unitChanged && r.last.get('make test-unit') !== 0) return 'unit tests changed after the gate, so the rerun must run make test-unit';
   if (g.last.get('make test-unit') !== 0 && r.last.get('make test-unit') !== 0) return 'make test-unit did not exit 0';
+  const gaps = attestationGaps([g, r], inTree);
+  if (gaps.length) return `the gate and rerun do not attest: ${gaps.join('; ')}`;
   return null;
 }
+
+// A gate record's identity in the dev-deploy record: the note's text, line endings aside.
+export const digest = text => createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex').slice(0, 16);
 
 // "main <sha> build <hash>" (or the "rollback to main <sha>" a rollback writes) -> the sha it serves.
 export const deployedSha = message => message?.match(/\bmain ([0-9a-f]{7,40})\b/)?.[1] ?? null;
@@ -118,7 +171,7 @@ export function servedSha(deployments, versions) {
 // and schema need a gate of their own. Markdown under packages/ is not here: lesson Markdown ships in the bundle.
 // 2026-10-09 (owner: reuse a gate for script-only changes): the release scripts and workflows too; the byte-identical
 // build and bundle check still catches any of them that would change what ships.
-const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|dev-deploy-gate|prod-release|ensure-natives)(\.test)?\.mjs$/, /^\.github\/workflows\/[^/]+\.ya?ml$/];
+const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|dev-deploy-gate|prod-release|ensure-natives|schema-check|lock-natives|verify-evidence)(\.test)?\.mjs$/, /^scripts\/fixtures\//, /^\.github\/workflows\/[^/]+\.ya?ml$/];
 export const notReusable = changed => changed.filter(p => !REUSABLE.some(r => r.test(p)));
 // Test-only paths: never in the page build or the Worker bundle. Allowed before a --rerun that checks them again.
 export const TEST_ONLY = [/^packages\/web\/e2e\//, /^tests\//, /^packages\/[^/]+\/test\//, /\.test\.m?js$/];
@@ -287,9 +340,11 @@ async function main() {
   if (rerun && !reuse) stop('--rerun goes with --reuse <gated sha>');
   const gated = reuse || sha, tree = git('rev-parse', `${gated}^{tree}`);
   const gateText = readFileSync(arg('gate') ?? stop('--gate <gate record> is required'), 'utf8');
+  // A beta stage is required where the commit being deployed carries its check (GATE_STAGES).
+  const inTree = p => { try { execFileSync('git', ['cat-file', '-e', `${sha}:${p}`], { cwd: root, stdio: 'ignore' }); return true; } catch { return false; } };
   let gatedId = null;
   if (!rerun) {
-    const verdict = gateVerdict(gateText, tree);
+    const verdict = gateVerdict(gateText, tree, inTree);
     if (verdict) stop(`gate: ${verdict} - the last passing deployment stays`);
     say(`✓ gate passed for ${gated.slice(0, 8)} (tree ${tree.slice(0, 8)})`);
   }
@@ -305,7 +360,7 @@ async function main() {
       if (notTest.length) stop(`policy A: ${notTest.join(', ')} changed between the gated ${reuse.slice(0, 8)} and the rerun; only tests may, so a full gate is needed`);
       const outsideAfter = notReusable(after);
       if (outsideAfter.length) stop(`policy A: ${outsideAfter.join(', ')} changed after the rerun ${rerun.sha.slice(0, 8)}; this commit needs its own gate`);
-      const verdict = rerunVerdict(gateText, tree, readFileSync(rerun.file, 'utf8'), git('rev-parse', `${rerun.sha}^{tree}`), { unitChanged: tested.some(p => UNIT_TEST.test(p)) });
+      const verdict = rerunVerdict(gateText, tree, readFileSync(rerun.file, 'utf8'), git('rev-parse', `${rerun.sha}^{tree}`), { unitChanged: tested.some(p => UNIT_TEST.test(p)), inTree });
       if (verdict) stop(`${verdict} - the last passing deployment stays`);
       say(`✓ gate of ${reuse.slice(0, 8)} plus the rerun on ${rerun.sha.slice(0, 8)} (changed in between: ${tested.join(', ') || 'nothing'})`);
       changed = [...new Set([...tested, ...after])];
@@ -370,8 +425,11 @@ async function main() {
     for (const [state, line] of results) say(`${state === 'pass' ? '✓' : state === 'blocked' ? '!' : '✗'} ${state === 'blocked' ? 'blocked: ' : ''}${line}`);
     const smokeVerdict = results.some(([state]) => state === 'fail') ? 'fail' : results.some(([state]) => state === 'blocked') ? 'blocked' : 'pass';
     // Reused gate evidence is recorded apart from a fresh gate: prod-release prepare accepts only gates "pass".
-    const gates = reuse ? { gates: 'reused', app_gate_sha: reuse, ...(rerun ? { rerun_sha: rerun.sha } : {}) } : { gates: 'pass' };
-    appendFileSync(record, `${JSON.stringify({ sha, ...gates, build, bundle, smoke: smokeVerdict, worker: WORKER, version, at: new Date().toISOString() })}\n`);
+    const gates = reuse ? { gates: 'reused', app_gate_sha: reuse, ...(rerun ? { rerun_sha: rerun.sha, rerun_digest: digest(readFileSync(rerun.file, 'utf8')) } : {}) } : { gates: 'pass' };
+    // Provenance (r34 audit): the commit's tree, the gate record it passed on (digest of the note's text), the run that
+    // deployed it and the dev version it became. prod-release refuses a record without them.
+    const run = process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_RUN_ATTEMPT ?? 1}` : 'local';
+    appendFileSync(record, `${JSON.stringify({ sha, tree: git('rev-parse', `${sha}^{tree}`), ...gates, gate_digest: digest(gateText), build, bundle, smoke: smokeVerdict, worker: WORKER, version, run, at: new Date().toISOString() })}\n`);
     if (smokeVerdict === 'fail') {
       if (before.version) {
         wrangler(['rollback', before.version, '--name', WORKER, '-y', '-m', `rollback to main ${before.sha}: smoke failed for ${sha.slice(0, 8)}`]);

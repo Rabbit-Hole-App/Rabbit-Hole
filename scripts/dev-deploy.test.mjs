@@ -5,42 +5,79 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS, BRANCHES, HOST, URL_BASE, OLD_URL, WORKER } from './dev-deploy.mjs';
+import { gateVerdict, rerunVerdict, stageCount, GATE_STAGES, digest, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS, BRANCHES, HOST, URL_BASE, OLD_URL, WORKER } from './dev-deploy.mjs';
 
-const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
-// Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
-const PASSED = `tree HEAD a05e927c MERGE_HEAD b0ee85f3 index ${TREE}
-mem before unit: 10299 MB free
-make test-unit exit 0  ℹ tests 1812 ℹ fail 0
-fixture regression exit 0  # pass 5 # fail 0
-rh-app exit 0  16/16 checks passed
-card-context-menu: exit 1 (stack alive: no) - rerun once
-card-context-menu exit 0  12/12 checks passed
-bundle(dist-dev) exit 0
-model key bindings in app log: 0
-journey provider-tripwire hits: 0
-journey J1-J8 exit 0  J1 PASS J2 PASS
-slice provider-tripwire hits: 0
-tutor-slice exit 0  tutor-slice-check ok
-INT16R-DONE
-`;
+// The real integration gate record of r33 (INT33, main 7198b971, refs/notes/gates), untouched.
+const TREE = '14e9b00578059a8ed8f9b261dbe93db10fb61df4';
+const R33 = () => false; // 7198b971 carries no beta-stage check file
+const INT33 = readFileSync(new URL('./fixtures/int33-gate.txt', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+// INT33 with the seven output changes the stricter attestation asks of the gate (r34 audit): a check count on every
+// stage, rh-local's own tripwire line.
+const PASSED = INT33
+  .replace('bundle(dist) exit 0', 'bundle(dist) exit 0  6 checks passed')
+  .replace('bundle(dist-dev) exit 0', 'bundle(dist-dev) exit 0  6 checks passed')
+  .replace(/^(dive exit 0  all flows ok)/m, '$1; 5 checks passed')
+  .replace(/^slash-sheet exit 0$/m, 'slash-sheet exit 0  11/11 checks passed')
+  .replace(/^filedrop exit 0$/m, 'filedrop exit 0  9/9 checks passed')
+  .replace(/^(tutor-slice exit 0 .*)$/m, '$1; 20 checks passed')
+  .replace(/^rh-local exit 0/m, 'rh-local provider-tripwire hits: 0\nrh-local exit 0');
 
 test('a finished gate with every stage at exit 0 and no provider traffic passes for its own tree', () => {
-  assert.equal(gateVerdict(PASSED, TREE), null);
-  assert.equal(gateVerdict(PASSED.replace(/\n/g, '\r\n'), TREE), null, 'CRLF records too');
-  assert.equal(gateVerdict(`fatal: Needed a single revision\n${PASSED}`, TREE), null, 'stderr before the tree line');
+  assert.equal(gateVerdict(PASSED, TREE, R33), null);
+  assert.equal(gateVerdict(PASSED.replace(/\n/g, '\r\n'), TREE, R33), null, 'CRLF records too');
+  assert.equal(gateVerdict(`fatal: Needed a single revision\n${PASSED}`, TREE, R33), null, 'stderr before the tree line');
+});
+
+test('r34 audit: the real INT33 record is refused on exactly its attestation gaps, a bare tree/unit/DONE record on every stage', () => {
+  const gaps = gateVerdict(INT33, TREE, R33);
+  assert.match(gaps, /^the gate record does not attest: /);
+  assert.deepEqual(gaps.replace(/^[^:]+: /, '').split('; ').map(g => g.split(':')[0]).sort(),
+    ['bundle(dist)', 'bundle(dist-dev)', 'dive', 'filedrop', 'rh-local', 'slash-sheet', 'tutor-slice']);
+  const bare = `tree HEAD x index ${TREE}\nmake test-unit exit 0  ℹ tests 9 ℹ fail 0\nmodel key bindings in app log: 0\nX-DONE\n`;
+  assert.equal(gateVerdict(bare, TREE, R33).split('; ').filter(g => /not in the record/.test(g)).length, GATE_STAGES.filter(s => !s.check).length - 1);
+});
+
+test('every required stage needs a positive count and, for a browser stage, its own zero tripwire line', () => {
+  for (const { stage, tripwire } of GATE_STAGES.filter(s => !s.check)) {
+    const line = PASSED.split('\n').findLast(l => l.startsWith(`${stage} exit 0`));
+    assert.ok(line, stage);
+    assert.match(gateVerdict(PASSED.replace(line, `${stage} exit 0`), TREE, R33), new RegExp(`${stage.replace(/[()]/g, '\\$&')}: no positive check count`), `${stage} without a count`);
+    if (tripwire) assert.match(gateVerdict(PASSED.replaceAll(`${tripwire} provider-tripwire hits: 0\n`, ''), TREE, R33), new RegExp(`no "${tripwire} provider-tripwire hits: 0" line`), `${stage} without its tripwire`);
+  }
+  assert.match(gateVerdict(PASSED.replace('model key bindings in app log: 0\n', ''), TREE, R33), /no "model key bindings in app log: 0" line/);
+  assert.match(gateVerdict(PASSED.replace('rh-app exit 0  18/18 checks passed', 'rh-app exit 0  0/0 checks passed'), TREE, R33), /rh-app: no positive check count/, 'zero checks is no check');
+});
+
+test('a beta stage is required from the release whose tree carries its check, and never before', () => {
+  const beta = GATE_STAGES.filter(s => s.check);
+  assert.ok(beta.some(s => s.stage === 'library-folders'));
+  const withFolders = p => p === 'packages/web/e2e/library-folders-check.mjs';
+  assert.match(gateVerdict(PASSED, TREE, withFolders), /library-folders: not in the record/);
+  const folders = PASSED.replace(/INT33-DONE$/m, 'library-folders provider-tripwire hits: 0\nlibrary-folders exit 0  12/12 checks passed\nINT33-DONE');
+  assert.equal(gateVerdict(folders, TREE, withFolders), null);
+  assert.match(gateVerdict(PASSED, TREE), /library-folders: not in the record/, 'without the tree to ask, every stage is required');
+});
+
+test('check counts: passed totals only; any failure, a partial ratio or no number is 0', () => {
+  assert.equal(stageCount('  ℹ tests 2220 ℹ fail 0 ℹ tests 1322 ℹ fail 0'), 3542);
+  assert.equal(stageCount('  # pass 5 # fail 0'), 5);
+  assert.equal(stageCount('  PASS 14/14 checks passed'), 14);
+  assert.equal(stageCount('  comments-check: 22 checks passed'), 22);
+  assert.equal(stageCount('  ok 18 FAIL 0  all checks passed'), 18);
+  assert.equal(stageCount('  J1 PASS J2 PASS J3 PASS'), 3);
+  for (const t of ['  17/18 checks passed', '  ℹ tests 3 ℹ fail 1', '  J1 PASS J2 FAIL', '  all flows ok', '', '  ok 4 FAIL 2']) assert.equal(stageCount(t), 0, t);
 });
 
 test('a gate record for another tree, unfinished, failed or with provider traffic never deploys', () => {
   assert.match(gateVerdict(PASSED, 'f'.repeat(40)), /not for tree/);
-  assert.match(gateVerdict(PASSED.replace('INT16R-DONE\n', ''), TREE), /no -DONE/);
-  assert.match(gateVerdict(PASSED.replace('rh-app exit 0', 'rh-app exit 1'), TREE), /failed stages: rh-app/);
-  assert.match(gateVerdict(PASSED.replace('card-context-menu exit 0', 'card-context-menu exit 2'), TREE), /card-context-menu/, 'the rerun counts, and it failed');
-  assert.match(gateVerdict(PASSED.replace('make test-unit exit 0', 'make test-unit exit 2'), TREE), /make test-unit/);
-  assert.match(gateVerdict(PASSED.replace(/make test-unit exit 0[^\n]*\n/, ''), TREE), /make test-unit/, 'no unit run, no deploy');
-  assert.match(gateVerdict(PASSED.replace('slice provider-tripwire hits: 0', 'slice provider-tripwire hits: 3'), TREE), /tripwire/);
-  assert.match(gateVerdict(PASSED.replace('model key bindings in app log: 0', 'model key bindings in app log: 1'), TREE), /tripwire or model key/);
-  assert.match(gateVerdict('', TREE), /not for tree/);
+  assert.match(gateVerdict(PASSED.replace('INT33-DONE', ''), TREE, R33), /no -DONE/);
+  assert.match(gateVerdict(PASSED.replace('rh-app exit 0', 'rh-app exit 1'), TREE, R33), /failed stages: rh-app/);
+  assert.match(gateVerdict(PASSED.replace('card-context-menu exit 0', 'card-context-menu exit 2'), TREE, R33), /card-context-menu/, 'the rerun counts, and it failed');
+  assert.match(gateVerdict(PASSED.replace('make test-unit exit 0', 'make test-unit exit 2'), TREE, R33), /make test-unit/);
+  assert.match(gateVerdict(PASSED.replace(/make test-unit exit 0[^\n]*\n/, ''), TREE, R33), /make test-unit/, 'no unit run, no deploy');
+  assert.match(gateVerdict(PASSED.replace('slice provider-tripwire hits: 0', 'slice provider-tripwire hits: 3'), TREE, R33), /tripwire/);
+  assert.match(gateVerdict(PASSED.replace('model key bindings in app log: 0', 'model key bindings in app log: 1'), TREE, R33), /tripwire or model key/);
+  assert.match(gateVerdict('', TREE, R33), /not for tree/);
 });
 
 test('the deployment message names the sha it serves, including after a rollback', () => {
@@ -133,7 +170,8 @@ test('pages and the packaged Worker have separate identities, both recorded and 
   const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
   assert.match(src, /'--dry-run', '--outdir', out\]/, 'the bundle hash is of wrangler\'s own bundle');
   assert.match(src, /`main \$\{sha\} build \$\{build\} bundle \$\{bundle\}`/, 'the upload message names both');
-  assert.match(src, /\{ sha, \.\.\.gates, build, bundle, smoke:/, 'the dev record names both');
+  assert.match(src, /\{ sha, tree: git\('rev-parse', `\$\{sha\}\^\{tree\}`\), \.\.\.gates, gate_digest: digest\(gateText\), build, bundle, smoke: smokeVerdict, worker: WORKER, version, run,/, 'the dev record names both, with its provenance');
+  assert.equal(digest('a\r\nb\n'), digest('a\nb\n'), 'a gate note digests the same from a CRLF checkout');
   assert.match(src, /gatedId\?\.bundle && bundle !== gatedId\.bundle/, 'reuse refuses a different Worker bundle');
   const sha = 'a'.repeat(40);
   assert.deepEqual(parseUpload(`main ${sha} build 5acc0f6ba69c bundle 8c409f557e70`), { sha, build: '5acc0f6ba69c', bundle: '8c409f557e70' });
@@ -145,17 +183,19 @@ test('pages and the packaged Worker have separate identities, both recorded and 
 test('a full gate plus a rerun of what changed after it: every failed stage must pass again, nothing else may fail', () => {
   // int24 on af22a1f8 failed only cross-device (a check bug); int24b reran cross-device alone on b7e17af8 (2026-10-08).
   const RTREE = '4499528a' + '0'.repeat(32);
-  const gate = PASSED.replace('card-context-menu exit 0  12/12 checks passed', 'cross-device exit 1  check bug');
-  const rerun = `tree HEAD b7e17af8 MERGE_HEAD  index ${RTREE}\ncross-device exit 0  9/9 checks passed\njourney provider-tripwire hits: 0\nINT24B-DONE\n`;
-  assert.equal(rerunVerdict(gate, TREE, rerun, RTREE), null);
-  assert.match(rerunVerdict(gate.replace('rh-app exit 0', 'rh-app exit 1'), TREE, rerun, RTREE), /rh-app and the rerun did not pass it/, 'a failure the rerun did not cover');
-  assert.match(rerunVerdict(gate, TREE, rerun.replace('cross-device exit 0', 'cross-device exit 2'), RTREE), /rerun: failed stages: cross-device/);
-  assert.match(rerunVerdict(gate, TREE, rerun.replace('INT24B-DONE\n', ''), RTREE), /rerun: .*no -DONE/);
+  const gate = PASSED.replace('cross-device exit 0  13/13 checks passed', 'cross-device exit 1  check bug');
+  const rerun = `tree HEAD b7e17af8 MERGE_HEAD  index ${RTREE}\ncross-device provider-tripwire hits: 0\ncross-device exit 0  9/9 checks passed\nINT24B-DONE\n`;
+  assert.equal(rerunVerdict(gate, TREE, rerun, RTREE, { inTree: R33 }), null);
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('cross-device exit 0  9/9 checks passed', 'cross-device exit 0'), RTREE, { inTree: R33 }), /do not attest: cross-device: no positive check count/, 'the rerun attests what it reran');
+  assert.match(rerunVerdict(gate.replace(/^dive exit 0.*$/m, 'dive exit 0'), TREE, rerun, RTREE, { inTree: R33 }), /dive: no positive check count/, 'the gate still attests the rest');
+  assert.match(rerunVerdict(gate.replace('rh-app exit 0', 'rh-app exit 1'), TREE, rerun, RTREE, { inTree: R33 }), /rh-app and the rerun did not pass it/, 'a failure the rerun did not cover');
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('cross-device exit 0', 'cross-device exit 2'), RTREE, { inTree: R33 }), /rerun: failed stages: cross-device/);
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('INT24B-DONE\n', ''), RTREE, { inTree: R33 }), /rerun: .*no -DONE/);
   assert.match(rerunVerdict(gate, TREE, rerun, 'f'.repeat(40)), /rerun: the gate record is not for tree/);
-  assert.match(rerunVerdict(gate, TREE, rerun.replace('hits: 0', 'hits: 2'), RTREE), /rerun: provider tripwire/);
-  assert.match(rerunVerdict(gate, TREE, 'tree HEAD x MERGE_HEAD  index ' + RTREE + '\nX-DONE\n', RTREE), /ran no stage/);
-  assert.match(rerunVerdict(gate, TREE, rerun, RTREE, { unitChanged: true }), /must run make test-unit/, 'changed unit tests need the unit run again');
-  assert.equal(gateVerdict(gate, TREE) !== null, true, 'the gate alone still refuses');
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('hits: 0', 'hits: 2'), RTREE, { inTree: R33 }), /rerun: provider tripwire/);
+  assert.match(rerunVerdict(gate, TREE, 'tree HEAD x MERGE_HEAD  index ' + RTREE + '\nX-DONE\n', RTREE, { inTree: R33 }), /ran no stage/);
+  assert.match(rerunVerdict(gate, TREE, rerun, RTREE, { unitChanged: true, inTree: R33 }), /must run make test-unit/, 'changed unit tests need the unit run again');
+  assert.equal(gateVerdict(gate, TREE, R33) !== null, true, 'the gate alone still refuses');
 });
 
 test('rerun paths: only tests may change between the gate and the rerun; only docs and deploy scripts after it', () => {
@@ -177,14 +217,14 @@ test('the build recipe is the install, the build env, both builds and the entry;
 test('a failed stage\'s unreadable tripwire count in the gate is replaced only by a readable 0 for that stage in the rerun', () => {
   // int24 (2026-10-08): cross-device crashed its stack, so its count read "unreadable"; int24b reran it with 0 hits.
   const RTREE = '4499528a' + '0'.repeat(32);
-  const gate = PASSED.replace('card-context-menu exit 0  12/12 checks passed', 'cross-device provider-tripwire hits: unreadable\ncross-device exit 1');
+  const gate = PASSED.replace('cross-device provider-tripwire hits: 0\ncross-device exit 0  13/13 checks passed', 'cross-device provider-tripwire hits: unreadable\ncross-device exit 1');
   const rerun = `tree HEAD b7e17af8 MERGE_HEAD  index ${RTREE}\ncross-device provider-tripwire hits: 0\ncross-device exit 0  13/13 checks passed\nINT24B-DONE\n`;
-  assert.equal(rerunVerdict(gate, TREE, rerun, RTREE), null);
-  assert.match(gateVerdict(gate, TREE), /not 0: cross-device:unreadable/, 'never enough on its own');
-  assert.match(rerunVerdict(gate, TREE, rerun.replace('cross-device provider-tripwire hits: 0\n', ''), RTREE), /gate: provider tripwire .*cross-device:unreadable/, 'the rerun must measure that stage again');
-  assert.match(rerunVerdict(gate.replace('journey provider-tripwire hits: 0', 'journey provider-tripwire hits: unreadable'), TREE, rerun, RTREE), /gate: .*journey:unreadable/, 'a stage that passed keeps its own count');
-  assert.match(rerunVerdict(gate.replace('model key bindings in app log: 0', 'model key bindings in app log: 1'), TREE, rerun, RTREE), /gate: .*app:1/, 'app-wide counts are never replaced');
-  assert.match(rerunVerdict(gate, TREE, rerun.replace('hits: 0', 'hits: 1'), RTREE), /rerun: provider tripwire .*cross-device:1/);
+  assert.equal(rerunVerdict(gate, TREE, rerun, RTREE, { inTree: R33 }), null);
+  assert.match(gateVerdict(gate, TREE, R33), /not 0: cross-device:unreadable/, 'never enough on its own');
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('cross-device provider-tripwire hits: 0\n', ''), RTREE, { inTree: R33 }), /gate: provider tripwire .*cross-device:unreadable/, 'the rerun must measure that stage again');
+  assert.match(rerunVerdict(gate.replace('journey provider-tripwire hits: 0', 'journey provider-tripwire hits: unreadable'), TREE, rerun, RTREE, { inTree: R33 }), /gate: .*journey:unreadable/, 'a stage that passed keeps its own count');
+  assert.match(rerunVerdict(gate.replace('model key bindings in app log: 0', 'model key bindings in app log: 1'), TREE, rerun, RTREE, { inTree: R33 }), /gate: .*app:1/, 'app-wide counts are never replaced');
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('hits: 0', 'hits: 1'), RTREE, { inTree: R33 }), /rerun: provider tripwire .*cross-device:1/);
 });
 
 test('the smoke waits for several consecutive serves of the new build, not one', () => {
@@ -204,7 +244,9 @@ test('the dev workflow: a push to dev only, its gate note required, secrets only
   assert.match(wf, /if: github\.repository == 'Rabbit-Hole-App\/Rabbit-Hole'/);
   assert.match(wf, /notes --ref=gates show "\$GITHUB_SHA"/);
   assert.match(wf, /test -s "\$RUNNER_TEMP\/gate\.log" \|\| \{[^}]*exit 1; \}/, 'no gate note, no deploy');
-  assert.match(wf, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys\n/, 'the gates note decides full or reuse, never the workflow');
+  assert.match(wf, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys --verify "\$RUNNER_TEMP\/verify\.json"\n/, 'the gates note decides full or reuse, never the workflow; the verify note is required');
+  assert.match(wf, /test -s "\$RUNNER_TEMP\/verify\.json" \|\| \{[^}]*exit 1; \}/, 'no verify evidence, no deploy (r34 audit)');
+  assert.match(wf, /seq 1 60\)[\s\S]*notes --ref=verify show "\$GITHUB_SHA"/, 'it waits for the verify run started by the same push');
   assert.doesNotMatch(wf, /--reuse|prod-release|wrangler deploy/, 'dev only, through dev-deploy');
   const gate = readFileSync(new URL('./dev-deploy-gate.mjs', import.meta.url), 'utf8');
   assert.match(gate, /'--branch', 'rabbit-hole\/dev'\]/);

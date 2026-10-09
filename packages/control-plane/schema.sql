@@ -8,16 +8,16 @@ CREATE TABLE IF NOT EXISTS apps (
   owner_email TEXT NOT NULL,
   aws_role_arn TEXT,
   deploy_token TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   kind TEXT NOT NULL DEFAULT 'server',
   image TEXT,
-  schedule TEXT,
-  schedule_paused INTEGER NOT NULL DEFAULT 0,
-  last_scheduled_at INTEGER,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   review TEXT,
   review_prev TEXT,
   reviewed_at TEXT,
   review_model TEXT,
+  schedule TEXT,
+  schedule_paused INTEGER NOT NULL DEFAULT 0,
+  last_scheduled_at INTEGER,
   repo_url TEXT,
   repo_branch TEXT,
   repo_commit TEXT,
@@ -31,12 +31,12 @@ CREATE TABLE IF NOT EXISTS apps (
   outputs TEXT,
   agent_md TEXT,
   description TEXT,
+  runbook_json TEXT,
+  runbook_warnings TEXT,
   UNIQUE(org, name)
 );
--- migrating an existing DB:
---   ALTER TABLE apps ADD COLUMN kind TEXT NOT NULL DEFAULT 'server';
---   ALTER TABLE apps ADD COLUMN image TEXT;
---   (web dashboard columns: migrations/0003-web.sql, 0004-stop.sql, 0005-folders-teams.sql)
+-- The exact shape bootstrap.sql plus every migrations/ file builds, column order included: the columns after
+-- created_at came by ALTER TABLE in migrations 0001-0020. test/migrations-bootstrap.test.js holds the two equal.
 
 -- Dashboard sidebar folders — org-wide, purely organizational.
 CREATE TABLE IF NOT EXISTS folders (
@@ -124,8 +124,8 @@ CREATE TABLE IF NOT EXISTS threads (
   user TEXT NOT NULL,
   scope TEXT NOT NULL,
   scope_ref TEXT,
-  title TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  title TEXT
 );
 CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY,
@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS run_logs (
   run_id TEXT NOT NULL,
   seq INTEGER NOT NULL,
   line TEXT NOT NULL,
+  ts TEXT,
   PRIMARY KEY (run_id, seq)
 );
 
@@ -179,6 +180,78 @@ CREATE TABLE IF NOT EXISTS slack_runs (
   thread_ts TEXT,
   PRIMARY KEY (org, run_id)
 );
+-- 0015-watch.sql
+-- Watch: nightly baselines + fixed checks + observations. SQL plus a few model
+-- calls, not an agent loop.
+CREATE TABLE IF NOT EXISTS baselines (
+  id INTEGER PRIMARY KEY,
+  app_id INTEGER NOT NULL,
+  day TEXT NOT NULL,                       -- YYYY-MM-DD (UTC)
+  median_run_secs REAL,
+  daily_req_count REAL,
+  last_request_at TEXT,
+  last_run_at TEXT,
+  last_deploy_at TEXT,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(app_id, day)
+);
+
+-- ponytail: enabled is global for now — add an org column when per-org config ships
+CREATE TABLE IF NOT EXISTS checks (
+  key TEXT PRIMARY KEY,
+  enabled INTEGER NOT NULL DEFAULT 1
+);
+INSERT OR IGNORE INTO checks (key) VALUES
+  ('schedule_missed'), ('run_slow'), ('run_failing'), ('server_silent'),
+  ('never_opened'), ('secret_drift'), ('stale_deploy'), ('access_unused');
+
+CREATE TABLE IF NOT EXISTS observations (
+  id INTEGER PRIMARY KEY,
+  org TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  "check" TEXT NOT NULL,
+  first_seen TEXT NOT NULL,
+  last_seen TEXT NOT NULL,
+  resolved_at TEXT,
+  dismissed_until TEXT,
+  evidence TEXT NOT NULL,
+  text TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_observations_open ON observations(org, slug) WHERE resolved_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS org_settings (
+  org TEXT PRIMARY KEY,
+  notify_weekly INTEGER NOT NULL DEFAULT 1
+);
+
+-- 0016-slack.sql
+-- Slack adapter for Ask: per-org install, channel↔app links, thread mapping.
+CREATE TABLE IF NOT EXISTS slack_installs (
+  org TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  bot_token TEXT NOT NULL,
+  signing_secret TEXT NOT NULL,
+  installed_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- app IS NULL + digest=1 → the weekly digest channel for the org
+CREATE TABLE IF NOT EXISTS slack_channels (
+  org TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  app TEXT,
+  digest INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (org, channel_id)
+);
+
+-- Slack thread_ts ↔ Ask thread_id, so follow-ups keep context
+CREATE TABLE IF NOT EXISTS slack_threads (
+  org TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  thread_ts TEXT NOT NULL,
+  ask_thread_id INTEGER NOT NULL,
+  PRIMARY KEY (org, channel_id, thread_ts)
+);
 
 -- 0018: apps.description — model-written on first deploy, user-editable after.
 
@@ -196,9 +269,7 @@ CREATE TABLE IF NOT EXISTS workspace_members (
   PRIMARY KEY (slug, email)
 );
 
--- 0020: structured runbook JSON + validation warnings (docs/features/runbook.md).
--- ALTER TABLE apps ADD COLUMN runbook_json TEXT;
--- ALTER TABLE apps ADD COLUMN runbook_warnings TEXT;
+-- 0020: structured runbook JSON + validation warnings (docs/features/runbook.md): apps.runbook_json, runbook_warnings.
 
 -- 0021: per-org AI provider (Settings > Account) - platform Anthropic key or
 -- the org's own AWS Bedrock via an assumed role.
@@ -209,12 +280,11 @@ CREATE TABLE IF NOT EXISTS org_ai (
   bedrock_region TEXT,
   bedrock_role_arn TEXT,
   updated_by TEXT,
-  updated_at TEXT DEFAULT (datetime('now'))
+  updated_at TEXT DEFAULT (datetime('now')),
+  -- 0022: OpenAI-compatible provider (local LLMs via tunnel, vLLM, gateways).
+  openai_base_url TEXT,
+  openai_api_key TEXT
 );
-
--- 0022: OpenAI-compatible provider (local LLMs via tunnel, vLLM, gateways).
--- ALTER TABLE org_ai ADD COLUMN openai_base_url TEXT;
--- ALTER TABLE org_ai ADD COLUMN openai_api_key TEXT;
 
 -- 0024: one owner-reviewed Learn course per app.
 CREATE TABLE IF NOT EXISTS learn_courses (
