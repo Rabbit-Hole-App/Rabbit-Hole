@@ -36,7 +36,7 @@ The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the 
 
 ```bash
 git fetch origin main && git checkout --detach <sha>
-(cd packages/web && npm ci) && (cd packages/control-plane && npm ci)
+npm ci   # at the repo root: the one workspace lockfile pins every package, every platform's native build included
 node scripts/prod-release.mjs prepare --sha <sha>
 ```
 
