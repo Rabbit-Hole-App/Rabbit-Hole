@@ -116,7 +116,9 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   - A six-dot grip on top moves the map (owner, 2026-10-08). Only the grip drags; levels, ↑/↓, rename and the picker work
     the same wherever the map is.
     - Drag it anywhere over the canvas frame (the canvas and its gutters). It is clamped so the whole map stays inside, and
-      a resized window re-clamps it. Off its gutter it floats over the canvas as a white card, so it can cover content
+      8 px above the floating bottom strip's controls under it (minimap, zoom row, composer, hooks), so it never slides
+      under them and its grip stays reachable. A resized window, a growing strip or a stored spot that is no longer
+      valid re-clamps it. Off its gutter it floats over the canvas as a white card, so it can cover content
       there: that is the learner's choice. At its default spot it still covers nothing.
     - Arrow keys on the focused grip step it 16 px. Its accessible name is "Move Rabbit Holes Map".
     - Double-click the grip to put the map back in its gutter.

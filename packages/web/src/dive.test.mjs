@@ -107,6 +107,15 @@ test('the Holes Map spot is clamped inside the canvas frame, remembered on this 
   assert.deepEqual(clampSpot({ x: -50, y: -9 }, frame, map), { x: 0, y: 0 });
   assert.deepEqual(clampSpot({ x: 990, y: 590 }, frame, map), { x: 924, y: 480 }); // the whole map stays inside
   assert.deepEqual(clampSpot({ x: 40, y: 40 }, { w: 50, h: 100 }, map), { x: 0, y: 0 }); // a frame smaller than the map
+  // The floating bottom strip is a floor under the map's span, 8 px above its highest control there (r29 gate).
+  const chrome = [{ left: 16, right: 240, top: 380 }, { left: 300, right: 780, top: 520 }, { left: 900, right: 1000, top: 440 }];
+  assert.deepEqual(clampSpot({ x: -50, y: 900 }, frame, map, chrome), { x: 0, y: 252 }); // above the minimap and zoom row: 380 - 8 - 120
+  assert.deepEqual(clampSpot({ x: 400, y: 900 }, frame, map, chrome), { x: 400, y: 392 }); // above the composer
+  assert.deepEqual(clampSpot({ x: 250, y: 900 }, frame, map, chrome), { x: 250, y: 392 }); // past the zoom stack, over the composer's edge
+  assert.deepEqual(clampSpot({ x: 830, y: 900 }, frame, map, chrome), { x: 830, y: 312 }); // overlapping the hooks by a few px
+  assert.deepEqual(clampSpot({ x: 800, y: 900 }, frame, map, [{ left: 0, right: 799, top: 100 }]), { x: 800, y: 480 }); // nothing under it: the frame
+  assert.deepEqual(clampSpot({ x: 0, y: 900 }, frame, map, [{ left: 0, right: 100, top: 60 }]), { x: 0, y: 0 }); // no room above: the top edge
+  assert.deepEqual(clampSpot({ x: 0, y: 100 }, frame, map, chrome), { x: 0, y: 100 }); // a spot already clear stays put
   const local = memory();
   assert.equal(mapSpot(local), null, 'no spot: the gutter');
   keepMapSpot(local, { x: 300, y: 201 });

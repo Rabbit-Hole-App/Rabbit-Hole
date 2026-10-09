@@ -5,6 +5,7 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { chromeFloor } from './canvas-reveal.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('explain-back-sketch-check runs against a local stack only');
@@ -49,11 +50,13 @@ const insert = async label => {
   return node;
 };
 const box = async locator => locator.boundingBox();
-// The canvas has its own camera: a wheel over empty canvas pans it until the whole card is on screen.
+// The canvas has its own camera: a wheel over empty canvas pans it until the whole card is on screen - above the floating
+// bottom strip over the card (the composer), which the canvas runs under since 2026-10-08.
 const reveal = async locator => {
   const surface = await box(page.locator('[data-canvas-surface]'));
   const card = await box(locator);
-  const over = card.y + card.height - (surface.y + surface.height - 40), under = surface.y + 40 - card.y;
+  const floor = Math.min(surface.y + surface.height, await chromeFloor(page, card.x, card.x + card.width));
+  const over = card.y + card.height - (floor - 40), under = surface.y + 40 - card.y;
   const delta = over > 0 ? Math.min(over, -under) : under > 0 ? -under : 0;
   if (!delta) return;
   await page.mouse.move(surface.x + surface.width - 60, surface.y + surface.height / 2);

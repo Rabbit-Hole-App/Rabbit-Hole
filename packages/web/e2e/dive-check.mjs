@@ -103,7 +103,14 @@ await shot('holes-map-01-dragged');
 const grip0 = await page.locator('[data-dive-grip]').boundingBox(); // then to the window's lower-left corner, past the canvas
 const clamped = await dragMap(2 - (grip0.x + grip0.width / 2), 998 - (grip0.y + grip0.height / 2)), frame = await frameAt();
 assert.ok(clamped.x >= frame.x - 0.5 && clamped.bottom <= frame.bottom + 0.5 && clamped.y >= frame.y && clamped.right <= frame.right, `clamped fully inside the canvas frame: ${JSON.stringify({ clamped, frame })}`);
-near(clamped, { x: frame.x, y: frame.bottom - (clamped.bottom - clamped.y) }, 'pinned to the lower-left corner');
+// The floating bottom strip floats over the canvas (z-30): the map stops 8 px above its minimap and zoom row, never under them,
+// and its grip still takes a click (r29 gate: a map dragged under the minimap had an unreachable grip).
+const chrome = await page.evaluate(() => Object.fromEntries(['[data-canvas-minimap]', '[data-zoom]', '[data-zoom-stack]'].map(s => { const r = document.querySelector(s)?.getBoundingClientRect(); return [s, r && r.width ? { x: r.x, y: r.y, right: r.right, bottom: r.bottom } : null]; })));
+assert.ok(chrome['[data-zoom]'], 'the zoom row is there to clear');
+const apart = (a, b) => !b || a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
+for (const s of ['[data-canvas-minimap]', '[data-zoom]']) assert.ok(apart(clamped, chrome[s]), `the dragged map stays clear of ${s}: ${JSON.stringify({ clamped, box: chrome[s] })}`);
+near(clamped, { x: frame.x, y: chrome['[data-zoom-stack]'].y - 8 - (clamped.bottom - clamped.y) }, 'pinned to the left edge, 8 px above the minimap and zoom row');
+await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); // actionable: nothing intercepts the grip
 await shot('holes-map-02-clamped');
 assert.equal(await page.locator('[data-dive-grip]').evaluate(node => node.tagName === 'BUTTON' && node.tabIndex === 0 && node.getAttribute('aria-label')), 'Move Rabbit Holes Map', 'a focusable, named grip');
 await page.locator('[data-dive-grip]').focus();
