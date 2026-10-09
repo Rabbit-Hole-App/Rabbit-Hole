@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ChevronRight, Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
+import { ChevronRight, FolderGit2, Loader2, MessageSquare, Plus, Shapes, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD } from '../ChatComposer.jsx';
 import { CommandMark, commandTone } from '../CommandTone.jsx';
 import { CommandSearch } from '../CommandList.jsx';
@@ -22,7 +22,8 @@ import BarCommandsSheet from './BarCommandsSheet.jsx';
 import { placeOf } from './slash.js';
 import { route } from './router.js';
 import { chipsFor, contextWithout, crumbsShown, endpointFor, scopeKey, scopeOf } from './scope.js';
-import { getSurface, useSurface } from './surface.js';
+import { clearPick, getSurface, pickedKey, useSurface } from './surface.js';
+import { askHistory } from '../shared-ask.js';
 
 const nameOf = (scope) => labelOf(scope);
 const add = (scope, entry, key = resultsKey(scope)) => {
@@ -65,6 +66,25 @@ export default function AgentBar({ page }) {
   const clearDraft = (scope, sent) => setDrafts((d) => (d.get(scopeKey(scope)) === sent ? new Map(d).set(scopeKey(scope), '') : d));
   const keepDraft = (scope, text) => setDrafts((d) => (d.get(scopeKey(scope))?.trim() ? d : new Map(d).set(scopeKey(scope), text)));
   const waiting = [...drafts.values()].some((text) => text.trim());
+  // A card picked on Home, Library or Explore (surface.js pickCard) is what the next question is about: picking one, another
+  // or none (x, Esc) on the same page moves the draft with it, as [Use selection] does. Leaving the page does not: a draft
+  // held from elsewhere keeps its scope and the offer row, as before. Never a focus move: Enter on the card still opens it.
+  const pickKey = pickedKey(surface);
+  const lastPick = useRef({ key: pickKey, place: surface.place });
+  useEffect(() => {
+    const was = lastPick.current;
+    lastPick.current = { key: pickKey, place: surface.place };
+    if (was.key === pickKey || was.place !== surface.place || targetKey === scopeKey(live)) return;
+    setDrafts((d) => carry(d, target, live, false));
+    setHeld(live);
+  }, [pickKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Esc clears the pick wherever focus is, unless something in the bar used it first (onKeyDown stops it there).
+  useEffect(() => {
+    if (!surface.picked) return undefined;
+    const esc = (e) => { if (e.key === 'Escape' && !e.defaultPrevented) clearPick(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [surface.picked]);
 
   const [streaming, setStreaming] = useState(null); // name of the one in-flight answer's scope
   const [sheet, setSheet] = useState(null); // the scope whose results are open
@@ -384,6 +404,9 @@ export default function AgentBar({ page }) {
       clearDraft(from, raw);
       return land();
     }
+    // A published canvas's ask keeps no thread: this list's answered turns before this question ride as its history.
+    const history = scope.kind === 'shared' ? askHistory(getTurns(key).map((t) => (t.kind === 'user' ? { role: 'user', content: t.text }
+      : t.kind === 'answer' ? { role: 'assistant', content: t.text, error: t.error, pending: !t.done } : null)).filter(Boolean)) : [];
     add(scope, { kind: 'user', text }, key);
     const id = add(scope, { kind: 'answer', text: '' }, key);
     clearDraft(from, raw);
@@ -392,7 +415,7 @@ export default function AgentBar({ page }) {
     abort.current = controller;
     setStreaming(nameOf(scope));
     // a {choose} pick asks about one app: a fresh thread, never the workspace one
-    const body = only ? { ...askBody({ scope, message: text }), scope: only } : askBody({ scope, message: text, threadId: threadIds.get(key) || null });
+    const body = only ? { ...askBody({ scope, message: text }), scope: only } : askBody({ scope, message: text, threadId: threadIds.get(key) || null, history });
     let graph = null, failed = null;
     try {
       await streamAsk({
@@ -445,6 +468,8 @@ export default function AgentBar({ page }) {
     onMouseDown={(e) => e.preventDefault()} onClick={() => { setPicker(false); setCommandsOpen(true); }}
     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button>;
   const chips = crumbsShown(target, live) ? chipsFor(target) : [];
+  // The picked card's pill (owner, 2026-10-09): the canvas composer's selected-card pill, its type icon and title, x clears.
+  const pill = surface.picked && surface.resource && scopeKey(target) === scopeKey(live) ? surface.resource : null;
   const own = scopeKey(target) === scopeKey(live); // × only while the draft is not held elsewhere
   const widenTo = (chip) => {
     const next = chip === 'resource' ? ['resource'] : [...removed, chip];
@@ -534,6 +559,11 @@ export default function AgentBar({ page }) {
             ))}
           </div>
         )}
+        {pill && <div data-home-pill data-selected-card={pill.slug} title={`${pill.type === 'repository' ? 'Project' : 'Canvas'}: ${pill.title}`} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+          {pill.type === 'repository' ? <FolderGit2 size={13} strokeWidth={1.75} aria-hidden="true" className="shrink-0" /> : <Shapes size={13} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />}
+          <span className="max-w-[260px] truncate">{pill.title}</span>
+          <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={clearPick} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
+        </div>}
         <ChatComposer multiline dock flat value={draft} onStop={() => abort.current?.abort()}
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
           onSubmit={(raw) => { if (pickerOpen) return pick(entries[hiIndex]); if (!shortcut) return submit(raw); setShortcut(null); return submit(`/${shortcut} ${raw}`.trim()); }} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}

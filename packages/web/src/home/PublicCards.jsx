@@ -37,6 +37,7 @@ export default function PublicCards({ cards, me, attr }) {
           const m = cardModel({ kind: 'canvas', name: card.url, title: card.title, description: card.description, fork_count: mine ? card.fork_count : null, updated_at: card.updated_at, owner_handle: card.creator?.handle, owner_name: card.creator?.name, project_label: card.project });
           return (
             <LearningCard key={card.url} kind="canvas" m={m} attrs={{ [attr]: '' }} href={card.url} onOpen={() => go(card.url)} mine={mine} access="public" thumbnail={publishedThumbnail(card.url)}
+              pick={{ kind: 'shared', slug: card.url.split('/').pop(), title: card.title, type: 'canvas' }}
               creatorHref={card.creator?.handle ? `/@${card.creator.handle}` : null}
               onMore={(e) => setMenu({ card, anchor: e.currentTarget, ...menuAt(e.currentTarget, 192, 60) })}
               actions={mine ? null : (
