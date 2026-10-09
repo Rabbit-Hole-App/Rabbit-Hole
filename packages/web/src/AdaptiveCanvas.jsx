@@ -38,7 +38,7 @@ import { copiedCode } from './map-files.js';
 import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel } from './comments/anchors.js';
 import { MathText } from './MathText.jsx';
-import { EQUATION_SIZE, newEquation, scaledSize, typingIn } from './canvas-equation.js';
+import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
@@ -740,17 +740,19 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   );
 }
 
-// The H1-to-text ladder offered right on a selected text box or shape.
+// The H1-to-text ladder offered right on a selected text box or shape; an equation's S-to-XL size ladder is the same
+// pill with its own levels (`levels`, `label`), and no level pressed when its size is custom (`fallback` null).
 // pointerdown is swallowed so choosing a level never blurs or deselects.
-function LevelPill({ level, onLevel, className = '', style = null }) {
+function LevelPill({ level, onLevel, className = '', style = null, levels = TEXT_LEVELS, label = 'Text level', fallback = 'body' }) {
+  const current = level || fallback;
   return (
-    <div role="group" aria-label="Text level" data-keep-focus data-thumbnail-hide style={{ fontSize: 12, fontWeight: 400, ...style }}
+    <div role="group" aria-label={label} data-keep-focus data-thumbnail-hide style={{ fontSize: 12, fontWeight: 400, ...style }}
       className={`flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${className}`}
       onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}>
-      {TEXT_LEVELS.map(entry => (
-        <button key={entry.id} type="button" aria-pressed={(level || 'body') === entry.id}
+      {levels.map(entry => (
+        <button key={entry.id} type="button" aria-pressed={current === entry.id}
           onClick={() => onLevel(entry.id)}
-          className={`rounded px-1.5 py-0.5 text-[11px] ${(level || 'body') === entry.id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}
+          className={`rounded px-1.5 py-0.5 text-[11px] ${current === entry.id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}
           style={{ fontWeight: entry.weight }}>{entry.label}</button>
       ))}
     </div>
@@ -864,6 +866,11 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
       {editing
         ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
         : still}
+      {/* The size ladder, where a text box shows its H1-to-text one; never while the LaTeX is edited (the palette is there). */}
+      {selected && !editing && tool === 'select' && (
+        <LevelPill level={equationLevel(size)} levels={EQUATION_LEVELS} label="Equation size" fallback={null} className="absolute bottom-full left-0 z-20 mb-1"
+          onLevel={value => { onGesture(); onPatch(item.id, { size: levelSize(value) }); }} />
+      )}
       {/* The corner scales the type, as a text box's corner reflows its text. */}
       {selected && !editing && tool === 'select' && (
         <button type="button" data-thumbnail-hide aria-label="Resize equation" title="Resize" className="absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 text-ink-3 hover:text-ink-2"

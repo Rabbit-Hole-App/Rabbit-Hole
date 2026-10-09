@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import katex from 'katex';
-import { EQUATION_PALETTE, EQUATION_SIZE, newEquation, scaledSize, typingIn } from './canvas-equation.js';
+import { EQUATION_LEVELS, EQUATION_PALETTE, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
+import { TEXT_LEVELS } from './learn-style-panel.js';
 import { canvasTargetField, describeCanvasObject, EQUATION_QUESTION } from './learn-ask-target.js';
 import { boardText, persistBoard } from './canvas-persist.js';
 
@@ -24,6 +25,26 @@ test('the corner scales the type with the width dragged to, within readable boun
   assert.equal(scaledSize(24, 100, 10), 12, 'never below 12');
   assert.equal(scaledSize(24, 100, 5000), 160, 'never above 160');
   assert.equal(scaledSize(24, 0, 10), 160, 'a zero width cannot divide by zero');
+});
+
+// r35 (owner: "For the equation do you think we need like the shapes has above them: H1, H2, H3, Text?"): a size ladder.
+test('the size ladder: S, M, L match the text ladder\'s H3, H2, H1; M is today\'s size; XL is twice M; a custom size has no level', () => {
+  const text = Object.fromEntries(TEXT_LEVELS.map(entry => [entry.id, entry.size]));
+  assert.deepEqual(EQUATION_LEVELS.map(entry => [entry.label, entry.size]), [['S', text.h3], ['M', EQUATION_SIZE], ['L', text.h1], ['XL', 2 * EQUATION_SIZE]]);
+  assert.equal(EQUATION_SIZE, text.h2, 'M is H2');
+  assert.deepEqual(EQUATION_LEVELS.map(entry => equationLevel(entry.size)), ['s', 'm', 'l', 'xl']);
+  assert.deepEqual(EQUATION_LEVELS.map(entry => levelSize(entry.id)), EQUATION_LEVELS.map(entry => entry.size));
+  assert.equal(equationLevel(undefined), 'm', 'an equation saved before sizes is M');
+  assert.equal(equationLevel(37), null, 'the corner handle left it between levels: custom, nothing pressed');
+  assert.equal(equationLevel(scaledSize(24, 100, 200)), 'xl', 'a handle landing on a level shows it');
+});
+
+test('the ladder sits where the text ladder does, as the same pill, on a selected equation and never while it is edited', () => {
+  const canvas = read('./AdaptiveCanvas.jsx');
+  const equation = canvas.slice(canvas.indexOf('function EquationItem('), canvas.indexOf('// The lesson-block picker.'));
+  assert.match(equation, /\{selected && !editing && tool === 'select' && \(\n\s+<LevelPill level=\{equationLevel\(size\)\} levels=\{EQUATION_LEVELS\} label="Equation size" fallback=\{null\} className="absolute bottom-full left-0 z-20 mb-1"\n\s+onLevel=\{value => \{ onGesture\(\); onPatch\(item\.id, \{ size: levelSize\(value\) \}\); \}\} \/>/);
+  assert.match(canvas, /<LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} className="absolute bottom-full left-0 z-20 mb-1" \/>/, 'the text ladder: same pill, same place');
+  assert.equal((canvas.match(/function LevelPill\(/g) || []).length, 1, 'one ladder component');
 });
 
 test('the palette offers the five groups, and every button reads as KaTeX and inserts a MathLive template', () => {

@@ -21,7 +21,12 @@ Owner request, r29 (2026-10-08): an Equation tool beside Text, so a learner can 
 4. The equation renders as it is built. A typed `a/b` becomes a fraction, and pasted LaTeX (`\frac{a}{b}`) becomes the equation it describes.
 5. A click anywhere off the equation and its palette finishes editing, and so does Esc. The palette is gone whenever no equation is being edited. A double-click reopens the equation with its source.
 6. Selected, an equation moves by dragging, scales its type from the corner handle, and is removed with Delete. Copy, paste, Duplicate (Ctrl+D or the menu), undo and redo work as they do for a text box. An equation left empty is removed when editing finishes.
-7. **Ask in chat.**
+7. **Size ladder** (owner, r35: "For the equation do you think we need like the shapes has above them: H1, H2, H3, Text?"). A selected equation shows an **S M L XL** ladder where a text box shows its H1-to-Text one: the same pill, above its left edge. These are sizes, not headings, because an equation has no heading level.
+   - S, M and L are the text ladder's H3, H2 and H1 sizes (19, 24, 32 px), so an equation sits level with text of that rank. M is the default (today's 24). XL is twice M (48).
+   - A level sets the equation's `size`, so it saves, reloads, copies and duplicates with it. Undo and redo cover it.
+   - The corner handle still scales the type freely. A size it leaves between levels is custom, and the ladder then presses no level, so it never claims a size the equation is not at. A handle that lands exactly on a level's size shows that level. One click snaps a custom size to a level.
+   - The ladder never shows while the LaTeX is edited; the palette is there then.
+8. **Ask in chat.**
    - Selecting an equation puts its pill above the composer, showing the LaTeX (canvas-card-selection.md). A question sent while it is selected carries the LaTeX as its context.
    - Right-click → **Ask in chat** arms the same pill and writes "Can you explain this equation?" into the composer. It never sends.
    - The answer lands where any question does: the conversation panel on a canvas with one, never a linked canvas card.
@@ -43,7 +48,7 @@ An equation is a canvas item, saved with the board like a text box:
 
 - `latex` is the editable source. It is what is saved (localStorage, then `learn_boards.state_json`), copied, duplicated, forked and asked about.
 - The picture is rendered from `latex` by KaTeX (MathText.jsx) every time; it is never stored.
-- `size` is the type size in px (default 24).
+- `size` is the type size in px (default 24). The size ladder's levels are sizes (S 19, M 24, L 32, XL 48), so a level needs no field of its own.
 - No schema change, no new route.
 
 MathLive's own macros are expanded before saving (a typed `dx` is `\mathrm{d}x`, not `\differentialD x`), and empty slots are dropped, so the stored source is LaTeX that KaTeX and the model read.

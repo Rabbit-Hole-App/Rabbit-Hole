@@ -116,7 +116,7 @@ test('the picture leaves out every piece of chrome by the canvas\'s own attribut
   for (const attr of CHROME.match(/data-[a-z-]+/g)) assert.ok(canvas.includes(attr), `${attr} is a real attribute of the canvas`);
   // The selected card's pill rows (Ask in chat, Explain, Continue), the text ladder and the resize handles had none.
   assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 3);
-  assert.match(canvas, /aria-label="Text level" data-keep-focus data-thumbnail-hide/);
+  assert.match(canvas, /aria-label=\{label\} data-keep-focus data-thumbnail-hide/); // the text ladder and the equation's size ladder
   assert.equal(canvas.match(/<button type="button" data-thumbnail-hide aria-label=/g).length, 2);
   assert.equal(canvas.match(/<(rect|circle) (key=\{index\} )?data-thumbnail-hide/g).length, 2, 'a shape\'s outline and handles');
   // A selected card, note, text or sketch loses its ring; a group its accent outline.
