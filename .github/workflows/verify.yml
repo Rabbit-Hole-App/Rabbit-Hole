@@ -1,0 +1,62 @@
+# Reproducible, unprivileged verification before any deployment (r34 audit, owner 2026-10-09): locked Node and Python
+# dependencies, the unit suites and both page builds, on Linux, with no deployment or model credential in the job.
+# It writes its evidence (sha, tree, lockfile digests, run id, verdicts) as a note under refs/notes/verify; the dev
+# deploy refuses a commit whose tree carries no passing note (scripts/dev-deploy-gate.mjs). Gate reuse is unchanged.
+name: verify
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      evidence: ${{ steps.evidence.outputs.evidence }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: node scripts/lock-natives.mjs --check
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/ensure-natives.mjs
+      - run: uv sync --locked
+      # Keyless: every suite runs with no provider or deployment credential in the environment.
+      - name: Unit suites
+        id: unit
+        run: |
+          set +e
+          env -i PATH="$PATH" HOME="$HOME" CI=true bash run.sh test:unit
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+      - name: Page builds
+        id: build
+        run: |
+          set +e
+          (cd packages/web && VITE_RABBIT_HOLE=true VITE_TLDRAW_LICENSE_KEY=verify-only npm run build && npm run build -- --outDir dist-dev)
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+      - name: Evidence
+        id: evidence
+        run: |
+          node scripts/verify-evidence.mjs write --unit "${{ steps.unit.outputs.code }}" --build "${{ steps.build.outputs.code }}" --out "$RUNNER_TEMP/verify.json"
+          echo "evidence=$(cat "$RUNNER_TEMP/verify.json" | tr -d '\n')" >> "$GITHUB_OUTPUT"
+          test "${{ steps.unit.outputs.code }}" = 0 && test "${{ steps.build.outputs.code }}" = 0
+  # The note is written by a separate job with only the write it needs; the verify job above holds no write at all.
+  record:
+    needs: verify
+    if: always() && needs.verify.outputs.evidence != '' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only to push refs/notes/verify
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: |
+          git fetch -q origin '+refs/notes/verify:refs/notes/verify' 2>/dev/null || true
+          git -c user.name=rabbit-hole-ci -c user.email=rabbit-hole-ci@users.noreply.github.com notes --ref=verify add -f -m '${{ needs.verify.outputs.evidence }}' "$GITHUB_SHA"
+          git push -q origin refs/notes/verify

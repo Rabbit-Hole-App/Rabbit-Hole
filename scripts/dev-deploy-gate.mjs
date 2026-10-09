@@ -1,6 +1,8 @@
 // The dev workflow's gate step (.github/workflows/deploy-dev.yml): turns the pushed commit's gates note into the
 // dev-deploy.mjs arguments and runs it.
-//   node scripts/dev-deploy-gate.mjs --sha <commit> --gate <its gates note> --dev-deploys <refs/notes/dev-deploys ref>
+//   node scripts/dev-deploy-gate.mjs --sha <commit> --gate <its gates note> --dev-deploys <refs/notes/dev-deploys ref> [--verify <its refs/notes/verify note>]
+// With --verify (the dev workflow always passes it): the keyless verify run's evidence must be a passing one for this
+// exact commit, tree and lockfiles (scripts/verify-evidence.mjs), or nothing deploys. Gate reuse is judged after it.
 // The note is either a full gate record of the commit's tree, or (owner 2026-10-09: reuse a gate for script-only
 // changes) a first line "reuse <G sha>" and, when tests changed, the rerun record of the commit's own tree. A reuse is
 // refused unless G has its own gates note and a green dev deploy (gates pass, smoke pass, in refs/notes/dev-deploys);
@@ -11,6 +13,7 @@ import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { checkEvidence, lockDigest } from './verify-evidence.mjs';
 
 export function parseGatesNote(text) {
   const m = text.match(/^reuse ([0-9a-f]{40})[ \t]*\r?(\n|$)/);
@@ -40,6 +43,12 @@ function main() {
   const git = (...a) => { try { return execFileSync('git', a, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return ''; } };
   const sha = arg('sha'), note = readFileSync(arg('gate'), 'utf8'), devRef = arg('dev-deploys');
   const reuse = parseGatesNote(note).reuse, gNote = reuse && git('notes', '--ref=gates', 'show', reuse);
+  if (process.argv.includes('--verify')) {
+    let evidence = null; try { evidence = JSON.parse(readFileSync(arg('verify'), 'utf8')); } catch {}
+    const why = checkEvidence(evidence, { sha, tree: git('rev-parse', `${sha}^{tree}`).trim(), locks: lockDigest(root) });
+    if (why) { console.error(`✗ verify: ${why}: nothing deployed`); process.exitCode = 1; return; }
+    console.log(`✓ verify: run ${evidence.run} passed unit and build for tree ${evidence.tree.slice(0, 8)}`);
+  }
   const plan = gatePlan({ note, gNote, gDev: reuse && git('notes', `--ref=${devRef}`, 'show', reuse) });
   if (plan.refuse) { console.error(`✗ ${plan.refuse}: nothing deployed`); process.exitCode = 1; return; }
   const file = (name, text) => { const p = join(tmpdir(), `dev-deploy-gate-${name}.log`); writeFileSync(p, text); return p; };

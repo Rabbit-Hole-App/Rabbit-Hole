@@ -244,7 +244,8 @@ test('the dev workflow: a push to dev only, its gate note required, secrets only
   assert.match(wf, /if: github\.repository == 'Rabbit-Hole-App\/Rabbit-Hole'/);
   assert.match(wf, /notes --ref=gates show "\$GITHUB_SHA"/);
   assert.match(wf, /test -s "\$RUNNER_TEMP\/gate\.log" \|\| \{[^}]*exit 1; \}/, 'no gate note, no deploy');
-  assert.match(wf, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys\n/, 'the gates note decides full or reuse, never the workflow');
+  assert.match(wf, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys --verify "\$RUNNER_TEMP\/verify\.json"\n/, 'the gates note decides full or reuse, never the workflow; the verify note is required');
+  assert.match(wf, /notes --ref=verify show "\$GITHUB_SHA"[^\n]*\|\| \{[^}]*exit 1; \}/, 'no verify evidence, no deploy (r34 audit)');
   assert.doesNotMatch(wf, /--reuse|prod-release|wrangler deploy/, 'dev only, through dev-deploy');
   const gate = readFileSync(new URL('./dev-deploy-gate.mjs', import.meta.url), 'utf8');
   assert.match(gate, /'--branch', 'rabbit-hole\/dev'\]/);
