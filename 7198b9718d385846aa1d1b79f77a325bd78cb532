@@ -1,0 +1,118 @@
+tree HEAD 7198b971 MERGE_HEAD  index 14e9b00578059a8ed8f9b261dbe93db10fb61df4
+mem before unit: 9116 MB free
+make test-unit exit 0  ℹ tests 2220 ℹ fail 0 ℹ tests 1322 ℹ fail 0 ℹ tests 1 ℹ fail 0 ℹ tests 1 ℹ fail 0 ℹ tests 26 ℹ fail 0 ℹ tests 241 ℹ fail 0 ℹ tests 64 ℹ fail 0 ℹ tests 33 ℹ fail 0
+fixture regression exit 0  # pass 5 # fail 0
+registry: rabbit-hole-cp-dev small-cp-dev
+mem before rh-app: 8362 MB free
+rh-app provider-tripwire hits: 0
+rh-app exit 0  18/18 checks passed
+mem before comments: 8488 MB free
+comments provider-tripwire hits: 0
+comments exit 0  comments-check: 22 checks passed
+mem before comments-invite: 8318 MB free
+comments-invite provider-tripwire hits: 0
+comments-invite exit 0  comments-invite-check: 8 checks passed
+registry: rabbit-hole-cp-dev small-cp-dev
+mem before sketch: 6837 MB free
+sketch provider-tripwire hits: 0
+sketch exit 0  15/15 checks passed
+mem before rh-dev: 6888 MB free
+rh-dev provider-tripwire hits: 0
+rh-dev exit 0  18/18 checks passed
+mem before sca: 6707 MB free
+sca provider-tripwire hits: 0
+sca exit 0  37/37 checks passed
+mem before project-canvases: 6651 MB free
+project-canvases provider-tripwire hits: 0
+project-canvases exit 0  27/27 checks passed
+mem before fork: 6767 MB free
+fork provider-tripwire hits: 0
+fork exit 0  26/26 checks passed
+mem before dive: 6858 MB free
+dive provider-tripwire hits: 0
+dive exit 0  all flows ok; root /apps/canvas-aa2eed16?board=nanogpt-deep-dive
+mem before handle: 6669 MB free
+handle provider-tripwire hits: 0
+handle exit 0  23/23 checks passed
+mem before explore: 6640 MB free
+explore provider-tripwire hits: 0
+explore exit 0  21/21 checks passed
+mem before explore-holes: 6019 MB free
+explore-holes provider-tripwire hits: 0
+explore-holes exit 0  13/13 checks passed
+mem before card-select: 5754 MB free
+card-select provider-tripwire hits: 0
+card-select exit 0  18/18 checks passed
+mem before selected-pill: 5660 MB free
+selected-pill provider-tripwire hits: 0
+selected-pill exit 0  22/22 checks passed
+mem before naming: 5815 MB free
+naming provider-tripwire hits: 0
+naming exit 0  6/6 checks passed
+mem before visibility: 5781 MB free
+visibility: exit 1 (stack alive: no) - rerun once
+registry: rabbit-hole-cp-dev small-cp-dev
+visibility provider-tripwire hits: 0
+visibility exit 0  13/13 checks passed
+mem before sidebar: 8225 MB free
+sidebar provider-tripwire hits: 0
+sidebar exit 0  16/16 checks passed
+mem before card-redesign: 8061 MB free
+card-redesign provider-tripwire hits: 0
+card-redesign exit 0  20/20 checks passed
+mem before creator-profile: 7302 MB free
+creator-profile provider-tripwire hits: 0
+creator-profile exit 0  17/17 checks passed
+mem before analytics-ui: 7376 MB free
+analytics-ui provider-tripwire hits: 0
+analytics-ui exit 0  9/9 checks passed
+mem before workspace: 7578 MB free
+workspace provider-tripwire hits: 0
+workspace exit 0  22/22 checks passed
+mem before card-context-menu: 7754 MB free
+card-context-menu provider-tripwire hits: 0
+card-context-menu exit 0  12/12 checks passed
+mem before repo-browser: 7711 MB free
+repo-browser provider-tripwire hits: 0
+repo-browser exit 0  21/21 checks passed
+mem before panel-header: 7730 MB free
+panel-header provider-tripwire hits: 0
+panel-header exit 0  16/16 checks passed
+mem before slash-sheet: 7648 MB free
+slash-sheet provider-tripwire hits: 0
+slash-sheet exit 0
+mem before equation: 7734 MB free
+equation provider-tripwire hits: 0
+equation exit 0  14/14 checks passed
+mem before thumbnails: 7600 MB free
+thumbnails provider-tripwire hits: 0
+thumbnails exit 0  PASS 14/14 checks passed
+mem before rh-local: 7606 MB free
+rh-local exit 0  ok 18 FAIL 0  all checks passed
+mem before cross-device: 7549 MB free
+cross-device: exit 1 (stack alive: no) - rerun once
+registry: rabbit-hole-cp-dev small-cp-dev
+cross-device provider-tripwire hits: 0
+cross-device exit 0  13/13 checks passed
+mem before filedrop: 7893 MB free
+filedrop provider-tripwire hits: 0
+filedrop exit 0
+stopped 8; mine still listening on 8878/8879: 0
+registry: rabbit-hole-cp-dev small-cp-dev
+bundle(dist) exit 0
+bundle(dist-dev) exit 0
+stopped 8; mine still listening on 8878/8879: 0
+mem before journeys: 10155 MB free
+model key bindings in app log: 0
+journey provider-tripwire hits: 0
+journey J1-J8 exit 0  J1 PASS J2 PASS J3 PASS J4 PASS J5 PASS J6 PASS J7 PASS J8 PASS
+slice provider-tripwire hits: 0
+tutor-slice exit 0  tutor-slice-check ok: 9 planner turns, 11 evaluations
+blank-hooks provider-tripwire hits: 0
+blank-hooks exit 0  8/8 checks passed
+practice-card provider-tripwire hits: 0
+practice-card exit 0  15/15 checks passed
+canvas-chrome provider-tripwire hits: 0
+canvas-chrome exit 0  7/7 checks passed
+stopped 6; listening on 8878/8879: 0
+INT33-DONE
