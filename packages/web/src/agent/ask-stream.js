@@ -9,7 +9,9 @@ const EVENTS = new Set(['chunk', 'progress', 'graph', 'proposal', 'papers', 'pap
 // node (or a whole file by path, or a line range) and the commit it was selected on; the server 409s a mismatched thread (repositories.js:177).
 // With a selection it is that object's conversation (`node`, its id): the server keeps it in the object's own thread
 // (repositories.js nodeScope), so the answer stays with it whatever is selected while it streams (owner, 2026-10-08).
-export function askBody({ scope, message, threadId = null, model = 'auto' }) {
+export function askBody({ scope, message, threadId = null, model = 'auto', history = [] }) {
+  // The shared ask keeps no thread: the viewer's own turns ride as `history` (learn-shared-ask.js), and nothing else.
+  if (scope.kind === 'shared') return { message, history };
   const s = scope.selected;
   return {
     scope: endpointFor(scope).scope,

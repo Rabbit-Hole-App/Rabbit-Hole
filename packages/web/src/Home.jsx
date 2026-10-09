@@ -7,6 +7,7 @@ import LearningCard, { CARD_ROWS, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as 
 import { cardThumbnail } from './card-thumbnail.js';
 import PublicCards, { CreatorCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
+import { appPick } from './agent/surface.js';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
@@ -87,7 +88,7 @@ function Continue({ item, app, email }) {
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue learning</h2>
       <ul className={CARD_ROWS}>
-        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)}
+        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)} pick={appPick(a, cardModel(a).title)}
           mine={isMine(a, email)} access={a.kind === 'canvas' ? a.access : null}
           note={(
             <>
@@ -115,7 +116,7 @@ function RecentCard({ app, card, email, onMore }) {
     : meta.join(' · ');
   const link = 'inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline';
   return (
-    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)}
+    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)} pick={appPick(app, cardModel(app).title)}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
       mine={!app.fixture && isMine(app, email)} access={app.kind === 'canvas' && !app.fixture ? app.access : null} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}

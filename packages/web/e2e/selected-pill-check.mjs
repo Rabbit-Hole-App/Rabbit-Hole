@@ -3,6 +3,10 @@
 // above it"), on the owner's canvas and on a shared canvas. Against the LOCAL stack only: local D1 and fresh browser
 // profiles. No model is called: the Learn ask, the Tutor planner and the shared ask are answered here, every other write
 // and every outside host is refused, and the stack's provider tripwire must count 0. Prints no secrets.
+// And the workspace dock (owner, 2026-10-09: "when i click on a card in Home/Explore, I do not see the pill in the
+// chatcomposer of the selected Projects/Canvas"): on Home, Library and Explore a click on a card's body picks it - the
+// dock shows its pill, another card replaces it, Esc and x clear it, the pick sends nothing - and a question then goes to
+// that canvas (answered here as above).
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/selected-pill-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -222,10 +226,113 @@ await check('shared: with nothing selected, Send carries no card', async () => {
 });
 await page.screenshot({ path: `${SHOTS}/shared-after.png` });
 await page.context().close();
+
+// ---- the workspace dock on Home, Library and Explore ----
+// A second canvas of the owner's (Library: another card replaces the pill) and a published canvas of the viewer's (Explore).
+const second = (await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Second canvas ${run}` }) })).body;
+const theirs = (await api(viewer, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Published canvas ${run}` }) })).body;
+await api(viewer, `/api/learn/boards/${theirs.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...ink, exchanges: [] } }) });
+const publication = (await api(viewer, `/api/apps/${theirs.name}/publish`, { method: 'POST', body: '{}' })).body?.publication_token;
+assert.ok(publication, 'the viewer canvas is published');
+({ page } = await contextFor(owner));
+const dock = page.locator('[data-agent-bar]');
+const homePill = page.locator('[data-home-pill]');
+const dockField = dock.locator('textarea, input:not([type="file"])').first();
+const sent = () => asks.length + sharedAsks.length + plans.length;
+const waitSent = async n => { for (let i = 0; i < 40 && sent() < n; i++) await page.waitForTimeout(150); };
+// A press on the card's picture: its body, never the title, Open, the menu or a link.
+const pickAt = async card => { const box = await card.locator('[data-card-thumbnail]').boundingBox(); await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); await page.waitForTimeout(300); };
+await page.goto(`${BASE}/apps/${canvas.name}`); // this browser opened it: Home's Recent lists it
+await node(page, KINDS[0]).waitFor({ timeout: 60000 });
+await page.waitForTimeout(800);
+await check('Home: a click on a card picks it - one pill with its type icon and title, the card stays selected, nothing opens, nothing is sent; Esc and x clear it', async () => {
+  await page.goto(`${BASE}/apps`);
+  const card = page.locator('[data-recent-card]').filter({ hasText: `Every card ${run}` }).first();
+  await card.waitFor({ timeout: 30000 });
+  const before = sent(), url = page.url();
+  await pickAt(card);
+  await homePill.waitFor({ timeout: 5000 });
+  assert.equal(await homePill.count(), 1, 'one pill');
+  assert.equal(await homePill.getAttribute('data-selected-card'), canvas.name);
+  assert.ok((await homePill.innerText()).includes(`Every card ${run}`));
+  assert.equal(await homePill.locator('svg').count(), 2, 'the type icon and the x');
+  assert.equal(await card.getAttribute('data-card-selected'), '');
+  assert.equal(page.url(), url, 'the click did not open it');
+  assert.equal(await dockField.getAttribute('placeholder'), `Ask about ${`Every card ${run}`}…`);
+  await page.screenshot({ path: `${SHOTS}/home-pill-home.png` });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  assert.equal(await homePill.count(), 0, 'Esc clears it');
+  assert.equal(await card.getAttribute('data-card-selected'), null);
+  await pickAt(card);
+  await homePill.locator('button[aria-label="Remove selected card context"]').click();
+  assert.equal(await homePill.count(), 0, 'x clears it');
+  assert.equal(sent(), before, 'the pick sent nothing');
+});
+await check('Home: with the pill, a question goes to that canvas (its Learn ask), never the library answer', async () => {
+  const card = page.locator('[data-recent-card]').filter({ hasText: `Every card ${run}` }).first();
+  await pickAt(card);
+  const before = sent();
+  await dockField.fill('What is on this canvas?');
+  await dockField.press('Enter');
+  await waitSent(before + 1);
+  assert.equal(sent(), before + 1, 'one question');
+  assert.equal(asks.at(-1).scope?.app, canvas.name);
+  assert.ok(!refused.some(r => r.endsWith('/api/learn/home-ask')), 'not the library answer');
+  await page.keyboard.press('Escape'); // the answer window, then the pill
+  await page.keyboard.press('Escape');
+});
+await check('Library: one pill; picking another card replaces it; nothing is sent', async () => {
+  await page.goto(`${BASE}/library`);
+  const first = page.locator('[data-library-card]').filter({ hasText: `Every card ${run}` }).first();
+  const next = page.locator('[data-library-card]').filter({ hasText: `Second canvas ${run}` }).first();
+  await first.waitFor({ timeout: 30000 });
+  const before = sent();
+  await pickAt(first);
+  assert.equal(await homePill.getAttribute('data-selected-card'), canvas.name);
+  await pickAt(next);
+  assert.equal(await homePill.count(), 1, 'one pill');
+  assert.equal(await homePill.getAttribute('data-selected-card'), second.name, 'the other card replaces it');
+  assert.equal(await first.getAttribute('data-card-selected'), null, 'only the picked card is selected');
+  await page.screenshot({ path: `${SHOTS}/home-pill-library.png` });
+  await page.keyboard.press('Escape');
+  assert.equal(await homePill.count(), 0);
+  assert.equal(sent(), before);
+});
+await check('Explore: a published canvas picks by its link; a question goes to its shared ask with only the message and history', async () => {
+  await page.goto(`${BASE}/explore`);
+  const card = page.locator('[data-explore-card]').filter({ hasText: `Published canvas ${run}` }).first();
+  await card.waitFor({ timeout: 30000 });
+  const before = sent(), url = page.url();
+  await pickAt(card);
+  assert.equal(await homePill.getAttribute('data-selected-card'), publication);
+  assert.equal(page.url(), url, 'the click did not open it');
+  await page.screenshot({ path: `${SHOTS}/home-pill-explore.png` });
+  assert.equal(sent(), before, 'the pick sent nothing');
+  const shared = sharedAsks.length;
+  await dockField.fill('What does it teach?');
+  await dockField.press('Enter');
+  await waitSent(before + 1);
+  assert.equal(sharedAsks.length, shared + 1, 'one question, to the shared ask');
+  assert.deepEqual(Object.keys(sharedAsks.at(-1)).sort(), ['history', 'message']);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+});
+await page.setViewportSize({ width: 390, height: 844 });
+await check('Explore on a phone: the pill above the composer', async () => {
+  const card = page.locator('[data-explore-card]').filter({ hasText: `Published canvas ${run}` }).first();
+  await card.scrollIntoViewIfNeeded();
+  await pickAt(card);
+  await homePill.waitFor({ timeout: 5000 });
+  await page.screenshot({ path: `${SHOTS}/home-pill-explore-phone.png` });
+  await page.keyboard.press('Escape');
+});
+await page.context().close();
 await browser.close();
 
 const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json()).hits.length));
 console.log('provider tripwire hits', tripwire.join(' / '), 'refused', refused.length ? refused.join(', ') : 'none', 'page errors', errors.length ? errors.join(' | ') : 'none');
 assert.deepEqual(tripwire, [0, 0], 'no model call');
-console.log(`${results.length}/${KINDS.length * 2 + 2} checks passed`);
-process.exit(results.length === KINDS.length * 2 + 2 ? 0 : 1);
+const total = KINDS.length * 2 + 2 + 5;
+console.log(`${results.length}/${total} checks passed`);
+process.exit(results.length === total ? 0 : 1);

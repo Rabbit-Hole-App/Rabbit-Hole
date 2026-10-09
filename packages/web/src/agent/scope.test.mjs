@@ -34,6 +34,8 @@ test('workspace and app threads use /api/ask; projects and canvases use Learn', 
   assert.deepEqual(at({ kind: 'app', slug: 'counter', title: 'counter' }), { path: '/api/ask', scope: { app: 'counter' } });
   assert.deepEqual(at({ kind: 'project', slug: 'repo-1a2b3c4d-nanogpt', title: 'karpathy/nanoGPT' }), { path: '/api/learn/ask', scope: { app: 'repo-1a2b3c4d-nanogpt' } });
   assert.deepEqual(at({ kind: 'canvas', slug: 'canvas-0f9e8d7c', title: 'Attention deep dive' }), { path: '/api/learn/ask', scope: { app: 'canvas-0f9e8d7c' } });
+  // A published canvas picked on Explore asks as its page's composer does (shared-ask.js askPath), by its link token.
+  assert.deepEqual(at({ kind: 'shared', slug: 'k3y', title: 'Attention' }), { path: '/api/learn/boards/shared/k3y/ask', scope: {} });
 });
 
 test('context is hierarchical: repository, file, symbol; a node named like its file shows once (workspace-dock.md)', () => {

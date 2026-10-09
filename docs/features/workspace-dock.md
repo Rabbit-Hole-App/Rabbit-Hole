@@ -48,7 +48,13 @@ The chips above the input are what Auto will ask about. A project reads **reposi
   file falls back to the repository. Only the repository chip's × clears everything (it widens to the workspace for this
   visit, as before).
 - A graph node named after its own file is that file and shows once.
-- Home, Library and Explore are places, not context: they show no chip.
+- Home, Library and Explore are places, not context: they show no chip. A card picked there is (owner, 2026-10-09: "when
+  i click on a card in Home/Explore, I do not see the pill in the chatcomposer of the selected Projects/Canvas"): a click on
+  a card's body makes it the dock's context and shows the canvas composer's selected-card pill above the input (type icon,
+  title, x). One at a time; another card replaces it; x or Esc clears it; a new page starts without one; the pick sends
+  nothing. A question then goes where that resource's questions go: your canvas or project to its Learn ask, a published
+  canvas on Explore to its shared ask with this list's history (`surface.js` `pickCard`, `scope.js` `endpointFor`).
+  Checked by `e2e/selected-pill-check.mjs`.
 - The chips are the project's breadcrumb, shown only on that project's own page (owner, 2026-10-08: "if we are not in a
   particular project, the breadcrumbs disappear"; `scope.js` `crumbsShown`). An app page shows none, and neither does any
   page after you leave the project with a draft held: the offer row ("Keep karpathy/nanoGPT") still names its scope.

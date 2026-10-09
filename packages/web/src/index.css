@@ -671,7 +671,8 @@ tr.cursor-pointer:active > td {
 .select-card {
   outline: none;
 }
-.select-card:focus-within {
+.select-card:focus-within,
+.select-card[data-card-selected] {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 1px var(--color-accent);
 }

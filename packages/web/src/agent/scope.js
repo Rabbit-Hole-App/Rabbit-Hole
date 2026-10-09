@@ -1,3 +1,5 @@
+import { askPath } from '../shared-ask.js';
+
 // Where a message goes and which thread it joins. The bar freezes this at Send
 // (T02 §6.3); nothing here reads the live page.
 export function scopeOf(surface) {
@@ -50,8 +52,10 @@ export const contextWithout = (selected, key) => (key === 'selected' && parentFi
 // node id, a whole file by path, a line range as {path, start, end} (the shape Learn's chat already sends, ask.jsx).
 export const wireContext = (s) => ({ commit: s.commit, ...(s.kind === 'range' ? { range: { path: s.path, start: s.start, end: s.end } } : s.kind === 'file' ? { path: s.path } : { nodeId: s.id }), label: s.kind === 'range' ? rangeTitle(s) : s.label });
 
-// Workspace and app threads stay on /api/ask; projects and canvases use Learn's LEARN_DB threads (T02 §6.3).
+// Workspace and app threads stay on /api/ask; projects and canvases use Learn's LEARN_DB threads (T02 §6.3). A published
+// canvas picked on Explore (surface.js pickCard) asks as its own page's composer does: the shared ask, by its link token.
 export function endpointFor(scope) {
   if (scope.kind === 'workspace') return { path: '/api/ask', scope: {} };
+  if (scope.kind === 'shared') return { path: askPath(scope.slug), scope: {} };
   return { path: scope.kind === 'app' ? '/api/ask' : '/api/learn/ask', scope: { app: scope.slug } };
 }

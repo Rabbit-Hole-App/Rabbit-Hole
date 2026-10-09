@@ -22,7 +22,8 @@ Owner changes, 2026-10-08:
   and Updated sit side by side at the bottom, GitHub-style, with any actions above them (`data-card-footer`).
 - **A click selects, never opens** ("when clicking on a card should not open it", "also clicking on a card selects it"):
   the card takes focus, so one card is selected at a time (an accent edge, `.select-card` in index.css), and a click
-  elsewhere clears it. The title link, the **Open →** button and Enter on the selected card open it. Open shows on hover
+  elsewhere clears it. Since 2026-10-09 the click also picks the card as the dock composer's pill and context
+  (workspace-dock.md); the card keeps its accent edge while it is the pill (`data-card-selected`). The title link, the **Open →** button and Enter on the selected card open it. Open shows on hover
   and on the selected card, and always on touch screens (`pointer-coarse`, phones). Home's Continue card keeps its
   Continue → instead.
 - **No Fork on your own cards** ("i cannot fork my own cards", "there is duplication of 'fork' on the cards"): your own
