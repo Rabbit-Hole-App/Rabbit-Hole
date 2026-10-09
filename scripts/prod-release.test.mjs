@@ -78,6 +78,21 @@ test('the build hash is stable and changes with any byte', () => {
   assert.notEqual(hashDirs([['a', dir]]), hashDirs([['b', dir]]));
 });
 
+test('the build hash ignores what wrangler writes differently on every dry run: README.md and source maps', async () => {
+  // Run 37966166779 (2026-10-09): prepare and release dry-ran seconds apart; README.md's "generated at" timestamp
+  // differed and release refused its own prepared build. A .map's sourceRoot names the outdir.
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const dir = mkdtempSync(fileURLToPath(new URL(`file:///${tmpdir().replaceAll('\\', '/')}/hash-`)));
+  const put = (name, text) => writeFileSync(`${dir}/${name}`, text);
+  put('index.js', 'code'); put('README.md', 'generated at 1'); put('index.js.map', '{"sourceRoot":"/a"}');
+  const first = hashDirs([['cp', dir]]);
+  put('README.md', 'generated at 2'); put('index.js.map', '{"sourceRoot":"/b"}');
+  assert.equal(hashDirs([['cp', dir]]), first, 'a new timestamp or outdir is the same build');
+  put('index.js', 'code!');
+  assert.notEqual(hashDirs([['cp', dir]]), first, 'any code byte is a new build');
+});
+
 test('the production build env is the Rabbit Hole build, never the dev tools', () => {
   assert.equal(BUILD_ENV.VITE_RABBIT_HOLE, 'true');
   assert.ok(!('VITE_COACHING_DEV' in BUILD_ENV) && !('VITE_BYOC_DEV' in BUILD_ENV));

@@ -82,11 +82,18 @@ export function learnMarkers(dir) {
 }
 export const pendingLearn = (markers, tables) => markers.filter(m => !tables.includes(m.table)).map(m => m.file);
 
+// Wrangler's README.md (a "generated at" timestamp) and source maps (sourceRoot names the outdir) differ on every dry
+// run, so they are not the build: the same rule as dev-deploy.mjs's bundle hash (run 37966166779).
+const NOT_BUILD = rel => rel === 'README.md' || rel.endsWith('.map');
+
 export function hashDirs(dirs) {
   const h = createHash('sha256');
   for (const [label, dir] of dirs) {
     const walk = d => readdirSync(d).sort().flatMap(n => statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : [join(d, n)]);
-    for (const f of walk(dir)) h.update(`${label}/${relative(dir, f).replaceAll('\\', '/')}\0`).update(readFileSync(f)).update('\0');
+    for (const f of walk(dir)) {
+      const rel = relative(dir, f).replaceAll('\\', '/');
+      if (!NOT_BUILD(rel)) h.update(`${label}/${rel}\0`).update(readFileSync(f)).update('\0');
+    }
   }
   return h.digest('hex').slice(0, 16);
 }
