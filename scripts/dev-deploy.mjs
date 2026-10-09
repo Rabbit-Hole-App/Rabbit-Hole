@@ -16,6 +16,7 @@ import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { ensureNatives } from './ensure-natives.mjs';
 
 export const WORKER = 'rabbit-hole-web-dev-small-parallel';
 export const CONFIRMATIONS = 5; // consecutive serves of the new build before the smoke
@@ -339,6 +340,9 @@ async function main() {
     // page builds. dist-dev is what the dev worker serves; dist/index.html is bundled too, through the control plane's
     // own shell import (control-plane/src/index.js), so a leftover dist from another commit must never ship.
     execSync('npm ci --no-audit --no-fund', { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
+    // The lockfile is written on Windows: on the Linux runner, add this machine's native builds it leaves out.
+    const natives = ensureNatives(root);
+    if (natives.length) say(`✓ natives added: ${natives.map(m => `${m.name}@${m.version}`).join(', ')}`);
     // The documented dev build (docs/features/rabbit-hole-dev.md): flags set before the build or Learn silently vanishes.
     const buildEnv = { ...process.env, VITE_COACHING_DEV: 'true', VITE_BYOC_DEV: 'true', VITE_NOTEBOOK_ORIGIN: 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev', VITE_TLDRAW_LICENSE_KEY: tldraw };
     for (const outDir of ['dist', 'dist-dev']) execFileSync(process.execPath, [tool('vite', 'bin/vite.js'), 'build', '--outDir', outDir], { cwd: web, stdio: ['ignore', 'ignore', 'inherit'], env: buildEnv });

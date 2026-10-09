@@ -30,6 +30,7 @@ jobs:
           git notes --ref=dev-deploys show "$GITHUB_SHA" > "$RUNNER_TEMP/dev-deploys.jsonl" 2>/dev/null \
             || { echo "$GITHUB_SHA was never deployed on dev: not released"; exit 1; }
       - run: npm ci --no-audit --no-fund
+      - run: node scripts/ensure-natives.mjs
       - name: Release
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

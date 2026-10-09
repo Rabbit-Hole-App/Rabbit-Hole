@@ -218,3 +218,26 @@ test('the preview lives on its own host, every deploy keeps that custom domain, 
   assert.match(src, /fetch\(`\$\{OLD_URL\}\/library`, \{ redirect: 'manual', headers: \{ \.\.\.UA, \.\.\.token \} \}\)/, 'probed with the smoke credentials');
   assert.match(src, /old\.status === 403 \? 'pass' : 'fail'/);
 });
+
+test('natives: on the Linux runner the glibc x64 builds the Windows lockfile left out are found per parent, nothing else', async () => {
+  // Run 37880756033 (2026-10-08): npm ci on ubuntu had only @rolldown/binding-win32-x64-msvc, and vite could not load rolldown.
+  const { missingNatives, forThisMachine } = await import('./ensure-natives.mjs');
+  const linux = { platform: 'linux', arch: 'x64', musl: false };
+  const packages = {
+    'node_modules/rolldown': { version: '1.2.7', optionalDependencies: { '@rolldown/binding-linux-x64-gnu': '1.2.7', '@rolldown/binding-linux-x64-musl': '1.2.7', '@rolldown/binding-linux-arm64-gnu': '1.2.7', '@rolldown/binding-win32-x64-msvc': '1.2.7', '@rolldown/binding-darwin-x64': '1.2.7', '@rolldown/binding-wasm32-wasi': '1.2.7' } },
+    'node_modules/lightningcss': { version: '1.32.0', optionalDependencies: { 'lightningcss-linux-x64-gnu': '1.32.0' } },
+    'node_modules/vite/node_modules/lightningcss': { version: '1.33.0', optionalDependencies: { 'lightningcss-linux-x64-gnu': '1.33.0' } },
+    'node_modules/miniflare/node_modules/workerd': { version: '1.2', optionalDependencies: { '@cloudflare/workerd-linux-64': '1.2', '@cloudflare/workerd-linux-arm64': '1.2' } },
+    'node_modules/esbuild': { version: '0.25.0', optionalDependencies: { '@esbuild/linux-x64': '0.25.0' } },
+  };
+  const installed = new Set(['node_modules/esbuild:@esbuild/linux-x64']);
+  const found = missingNatives(packages, (dir, name) => installed.has(`${dir}:${name}`), linux);
+  assert.deepEqual(found.map(m => `${m.dir} ${m.name}@${m.version}`), [
+    'node_modules/rolldown @rolldown/binding-linux-x64-gnu@1.2.7',
+    'node_modules/lightningcss lightningcss-linux-x64-gnu@1.32.0',
+    'node_modules/vite/node_modules/lightningcss lightningcss-linux-x64-gnu@1.33.0',
+    'node_modules/miniflare/node_modules/workerd @cloudflare/workerd-linux-64@1.2',
+  ], 'each parent gets its own pinned build; musl, arm64, wasm, other OSes and installed ones are left alone');
+  assert.ok(forThisMachine('@rolldown/binding-win32-x64-msvc', { platform: 'win32', arch: 'x64', musl: false }), 'on Windows the Windows build is the one it would want');
+  assert.ok(forThisMachine('@rolldown/binding-linux-x64-musl', { platform: 'linux', arch: 'x64', musl: true }));
+});
