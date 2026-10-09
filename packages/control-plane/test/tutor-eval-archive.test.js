@@ -148,6 +148,9 @@ test("today's run.json (run.mjs on main, no execution_id/mode/status) maps with 
   const e = executionFromRunJson(run, { execution_id: 'paid-20261008T180918Z-aaaaaaaa', imported_by: 'u_owner', artifact_count: 3 });
   assert.deepEqual([e.run_date, e.topic, e.mode, e.status, e.source_sha, e.harness_version, e.anthropic_usd, e.anthropic_calls, e.jev_cost_usd], ['2026-10-08', 'logistic-regression', 'real', 'completed', 'a'.repeat(40), 'a'.repeat(40), 2.24, 9, null]);
   assert.match(e.config_version, /^[0-9a-f]{12}$/, 'a digest of limits and models');
+  assert.equal(e.jev_cost_note, null, 'the importer states the JEV note; no default lands on a run without a JEV call');
+  const { anthropic, ...unmetered } = run;
+  assert.equal(executionFromRunJson(unmetered, { execution_id: 'x', imported_by: 'u', artifact_count: 3 }).mode, 'unknown', 'no Anthropic calls recorded: unknown, never guessed real');
   assert.equal(executionFromRunJson({ ...run, finished_at: undefined }, { execution_id: 'x', imported_by: 'u', artifact_count: 3 }).status, 'partial', 'unfinished is partial, never completed');
   assert.equal(executionFromRunJson(run, { execution_id: 'x', imported_by: 'u', artifact_count: 3, status: 'stopped', mode: 'unknown' }).mode, 'unknown', 'the importer may state what the harness could not');
   assert.equal(executionFromRunJson({ ...run, execution_id: 'minted', mode: 'scripted', status: 'failed' }, { imported_by: 'u', artifact_count: 1 }).execution_id, 'minted', 'the next run.mjs writes its own ids');

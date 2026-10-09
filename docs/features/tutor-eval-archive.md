@@ -57,10 +57,19 @@ All under `/api/learn/tutor-eval/`, on the preview and production app workers:
 | Database | 0017 | Evidence |
 |---|---|---|
 | `rabbit-hole-learn-dev` | **applied 2026-10-09** (Home, standing additive-dev authorization) | file sha256 `cd213e49…` (commit `d82f072b`, blob `dd964638`); rehearsed on a live copy (applied twice, exact identity); Time Travel bookmark before: `00000076-00000000-000050ff-3c34c017940bb4344e9ed56df1cca9c2`; 61 objects after, exact identity; probe: incomplete state visible, a two-chunk artifact read back exactly, the mode CHECK and the chunk key held, probe rows deleted |
-| `rabbit-hole-learn-prod` | **not applied: needs the owner's GO** | read-only rehearsal on a live copy: 54 objects, applied twice, prior objects unchanged, exact identity. The prepared run names the file sha and refuses without `--go "APPLY 0017 <sha256>"`. |
+| `rabbit-hole-learn-prod` | **applied 2026-10-09** on the owner's in-session GO (`APPLY 0017 cd213e49…`), after `make test-unit` passed and Tutor eval and Parallel confirmed d82f072b as the final contract | file sha256 re-checked against the commit; rehearsed on a live copy (54 objects, applied twice, prior objects unchanged, exact identity); Time Travel bookmark before: `00000020-00000000-000050ff-135fc39b874266ce9711091bb9b637b1`; 61 objects after, exact identity |
 
-**Release order:** once 0017 is in a tree that ships, the production release preflight requires it on prod (complete
-schema identity), so the owner's GO for 0017 precedes that release. 0015 (folders) and 0016 (usage) are reserved.
+**Release order:** 0017 is on prod, so a release carrying it passes the schema preflight. 0015 (folders) and 0016 (usage)
+are reserved; each needs its own GO before the release that carries it.
+
+## Archive owner
+
+| Environment | `TUTOR_EVAL_OWNER_USER_ID` | Resolved how |
+|---|---|---|
+| Preview (`rabbit-hole-web-dev-small-parallel`, `rabbit-hole-dev`) | `9af0627142b77e6d84d53366f95b5566`, **set 2026-10-09** (a Worker secret) | read-only lookup: the owner's Access identity is minted by cp-dev's `/test/session` as the **email-provider** user for that address. The dev DB also holds a Google-identity user (`856179c5…`) and a GitHub user (`7da6802e…`) for the owner from OAuth tests; neither can reach the preview, which is behind Access. |
+| Production (`rabbit-hole-app`, `rabbit-hole-prod`) | `dda2350771a4066e3080c605ba092e0a`, **prepared, not set** | read-only lookup: the only user, Google identity of the owner's account. Setting it is a production change for the owner's GO with r35: `npx wrangler secret put TUTOR_EVAL_OWNER_USER_ID --config wrangler.rabbit-hole-prod.jsonc` from `packages/web`, value above. |
+
+The two ids differ: each environment is resolved on its own database, never copied.
 
 ## Recovery
 

@@ -40,10 +40,11 @@ export function executionFromRunJson(run, over) {
   const config = run.limits || run.models ? createHash('sha256').update(JSON.stringify({ limits: run.limits ?? null, models: run.models ?? null })).digest('hex').slice(0, 12) : null;
   return execution({
     execution_id: run.execution_id, run_id: run.run_id, run_started_at: run.started_at, run_finished_at: run.finished_at ?? null,
-    topic: run.topic, mode: run.mode ?? 'real', status: run.status ?? (run.finished_at ? 'completed' : 'partial'),
+    // Unknown unless proven (contract): a run that made Anthropic calls was real.
+    topic: run.topic, mode: run.mode ?? (run.anthropic?.calls > 0 ? 'real' : 'unknown'), status: run.status ?? (run.finished_at ? 'completed' : 'partial'),
     source_sha: run.sha, tested_tree: run.tree, harness_version: run.harness_version ?? run.sha, config_version: run.config_version ?? config,
     anthropic_usd: run.anthropic?.total_usd ?? null, anthropic_calls: run.anthropic?.calls ?? null,
-    jev_cost_usd: null, jev_cost_note: 'provider reports no cost; included nowhere',
+    jev_cost_usd: null, jev_cost_note: null, // the importer states why, per run
     ...over,
   });
 }

@@ -15,7 +15,7 @@ jobs:
     if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole'
     runs-on: ubuntu-latest
     environment: dev-preview
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -33,8 +33,12 @@ jobs:
           test -s "$RUNNER_TEMP/gate.log" || { echo "no gate record note for $GITHUB_SHA: nothing deployed"; exit 1; }
           git fetch -q origin '+refs/notes/dev-deploys:refs/notes/dev-deploys' 2>/dev/null || true
           # The keyless verify run's evidence for this exact commit (verify.yml writes it as the commit reaches a branch).
-          git fetch -q origin '+refs/notes/verify:refs/notes/verify' 2>/dev/null || true
-          git notes --ref=verify show "$GITHUB_SHA" > "$RUNNER_TEMP/verify.json" 2>/dev/null || { echo "no verify evidence for $GITHUB_SHA: nothing deployed"; exit 1; }
+          # verify.yml starts on the same push and runs the unit suites (~10 min): wait for its note, up to 30 minutes.
+          for i in $(seq 1 60); do
+            git fetch -q origin '+refs/notes/verify:refs/notes/verify' 2>/dev/null               && git notes --ref=verify show "$GITHUB_SHA" > "$RUNNER_TEMP/verify.json" 2>/dev/null && break
+            sleep 30
+          done
+          test -s "$RUNNER_TEMP/verify.json" || { echo "no verify evidence for $GITHUB_SHA: nothing deployed"; exit 1; }
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
