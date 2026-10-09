@@ -80,8 +80,9 @@ export async function apiFetch(path, opts = {}) {
 
 export async function api(path, opts = {}) {
   const r = await apiFetch(path, opts);
-  const data = await r.json();
-  if (!r.ok) throw Object.assign(new Error(data.error || `HTTP ${r.status}`), { status: r.status, data });
+  // A body that is not JSON (the platform's HTML error page) still fails, with its HTTP status rather than a parse error.
+  const data = await r.json().catch(() => undefined);
+  if (!r.ok || data === undefined) throw Object.assign(new Error(data?.error || `HTTP ${r.status}`), { status: r.status, data: data ?? {} });
   return data;
 }
 

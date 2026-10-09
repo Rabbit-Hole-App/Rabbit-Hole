@@ -591,7 +591,15 @@ async function unreadCounts(req, env) {
   return json({ owned: map(owned), shared: map(shared) });
 }
 
+// Whatever fails inside answers JSON (owner bug, 2026-10-09: an uncaught error reached the browser as the platform's HTML
+// error page, which the panel could only call "Couldn't send."). The error goes to the Worker's logs with its route.
 export async function canvasCommentsRoute(path, req, env) {
+  try { return await commentsRoute(path, req, env); } catch (error) {
+    console.error('canvas comments failed', req.method, path, error?.stack || String(error));
+    return json({ error: "Couldn't save that: the server failed. Try again in a moment.", code: 'server_error' }, 500);
+  }
+}
+async function commentsRoute(path, req, env) {
   if (path === '/api/learn/comments/unread') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? unreadCounts(req, env) : json({ error: 'Method not allowed' }, 405);
   if (path === '/api/learn/c/shared-with-me') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? sharedWithMe(req, env) : json({ error: 'Method not allowed' }, 405);
   let match = path.match(/^\/api\/learn\/c\/([^/]+)(\/.*)?$/), family = 'member';

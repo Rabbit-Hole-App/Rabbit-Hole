@@ -63,6 +63,9 @@ test('a retry reuses the draft id; an id_conflict resends once with a fresh id; 
   await assert.rejects(sendDraft(async () => { throw limited; }, draft), /slow down/);
   assert.equal(failureText(limited), "You've posted a lot in a short time. Try again in a few minutes.");
   assert.match(failureText(new TypeError('Failed to fetch')), /You're offline/);
+  // No reason from the server (a platform error page, owner bug 2026-10-09): the status, so the next one is diagnosable.
+  assert.equal(failureText(Object.assign(new Error('HTTP 502'), { status: 502, data: {} })), "Couldn't send (HTTP 502).");
+  assert.equal(failureText(new Error('?')), "Couldn't send.");
   assert.match(failureText(limited, false), /You're offline/);
 });
 

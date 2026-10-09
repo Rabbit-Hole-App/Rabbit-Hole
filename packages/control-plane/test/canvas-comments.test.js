@@ -336,6 +336,19 @@ test('Trash suspends the member family for everyone but the owner; nested Rabbit
   assert.equal((await comments(f, 'GET', `${base}/threads`, { as: 'ana' })).status, 404);
 });
 
+test('a failure inside a comment route answers JSON with a reason, never the platform error page (owner bug, 2026-10-09)', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const errors = [];
+  t.mock.method(console, 'error', (...args) => errors.push(args.join(' ')));
+  f.env.LEARN_DB.batch = async () => { throw new Error('D1_ERROR: something broke'); };
+  const failed = await start(f, base, 'ana', 'This send fails');
+  assert.deepEqual([failed.status, failed.body.code], [500, 'server_error']);
+  assert.match(failed.body.error, /the server failed/);
+  assert.doesNotMatch(JSON.stringify(failed.body), /D1_ERROR/, 'the database message stays in the logs');
+  assert.match(errors.join('\n'), /canvas comments failed POST \/api\/learn\/c\/[^ ]+\/threads[\s\S]*D1_ERROR: something broke/, 'and reaches the logs with its route');
+});
+
 test('mutations check Origin', async t => {
   const f = setup(t);
   const { base } = await canvas(f);
