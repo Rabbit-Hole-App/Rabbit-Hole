@@ -205,21 +205,25 @@ test('a deadline kills the whole process tree and returns at the deadline', { ti
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const pidOf = async file => { for (let i = 0; i < 100 && !existsSync(file); i++) await sleep(50); return Number(readFileSync(file, 'utf8')); };
 
+  // The deadline leaves a fresh node process time to start and spawn its child first: under a loaded make test-unit a
+  // start took over 1 s, the 1000 ms kill landed before the pid file was written, and the test failed on ENOENT (2026-10-09).
+  // The kill-latency and return bounds below are the same 500 ms and 1 s margins as before.
+  const DEADLINE = 4000;
   // The old mechanism: execFile's own timeout kills the parent only; the grandchild keeps running.
-  await new Promise(done => execFile(process.execPath, tree(join(dir, 'old.pid')), { timeout: 1000, windowsHide: true }, () => done()));
+  await new Promise(done => execFile(process.execPath, tree(join(dir, 'old.pid')), { timeout: DEADLINE, windowsHide: true }, () => done()));
   const orphan = await pidOf(join(dir, 'old.pid'));
   await sleep(300);
   assert.equal(alive(orphan), true, 'a parent-only kill leaves the grandchild running');
   process.kill(orphan);
 
   const t0 = Date.now();
-  const error = await runWithDeadline(process.execPath, tree(join(dir, 'new.pid')), { timeout: 1000 }).then(() => null, e => e);
+  const error = await runWithDeadline(process.execPath, tree(join(dir, 'new.pid')), { timeout: DEADLINE }).then(() => null, e => e);
   const returned = Date.now() - t0;
   assert.equal(error?.code, 'ETIMEDOUT');
-  assert.deepEqual([error.deadline_ms, error.reason], [1000, 'deadline: process tree killed']);
-  assert.ok(error.elapsed_ms >= 1000 && error.elapsed_ms < 1500, `terminated after ${error.elapsed_ms} ms`);
-  assert.ok(returned < 2000, `returned after ${returned} ms, near the 1000 ms deadline`);
-  assert.match(error.message, /deadline 1000 ms, process tree terminated after \d+ ms/);
+  assert.deepEqual([error.deadline_ms, error.reason], [DEADLINE, 'deadline: process tree killed']);
+  assert.ok(error.elapsed_ms >= DEADLINE && error.elapsed_ms < DEADLINE + 500, `terminated after ${error.elapsed_ms} ms`);
+  assert.ok(returned < DEADLINE + 1000, `returned after ${returned} ms, near the ${DEADLINE} ms deadline`);
+  assert.match(error.message, new RegExp(`deadline ${DEADLINE} ms, process tree terminated after \\d+ ms`));
   const grandchild = await pidOf(join(dir, 'new.pid'));
   for (let i = 0; i < 100 && alive(grandchild); i++) await sleep(50);
   assert.equal(alive(grandchild), false, 'the grandchild died with the tree');
