@@ -225,9 +225,11 @@ test('the reviewer\'s worst case is held from the session\'s start: a session st
   // At low usage the session runs until the limit, and the review still fits inside it. Measured: 15 of 15 decisions on r28;
   // 14 on r29, whose journey requests are larger once the evaluate reply's evidence is adopted (the hook input's path.next,
   // the next_section offer): about $0.09 more per session at these token counts, so decision 15 no longer fits under $1.30
-  // beside the reviewer's holdback.
+  // beside the reviewer's holdback. Beta item 5a (owner 2026-10-09): the stub evaluator answers every check 0.95, so every idea
+  // is both stated and contradicted - contested, never a pass - and the session no longer reaches path.next; its requests
+  // shrink back and all 15 decisions fit again, the review still inside the limit.
   const low = await reviewed('stub');
-  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [14, 'cost_ceiling', 'ok']);
+  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [15, 'max_decisions', 'ok']);
   assert.ok(low.ledger.spent() <= 1.3 && low.ledger.reserved() === 0);
   assert.equal(aggregate([low.bundle], loadTaxonomy()).review_scores.mean.pacing, 3);
   // A limit below the holdback: the session never starts, so nothing is sent and there is nothing to review.

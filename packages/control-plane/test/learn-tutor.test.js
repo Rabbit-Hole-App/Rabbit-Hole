@@ -10,6 +10,7 @@ import { tutorQuestions, evaluationFrom, TUTOR_TOOL, NEXT_STEP_SYSTEM, PLANNER_S
 import { protocolFingerprint, GRADER_PROTOCOL_FINGERPRINT, JevError } from '../src/learn-grade-jev.js';
 import { promptVersion } from '../src/learn-models.js';
 import { appendEvents, deriveClaimStates, emptyStore } from '../../web/src/learn-tutor-evidence.js';
+import { escalation } from '../src/agents/learn-tutor-escalation.js';
 
 const SPEC = {
   answering: false,
@@ -402,4 +403,19 @@ test('plan: an unknown fast model name tiers nothing', async t => {
   const body = await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-9' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
   assert.equal(calls[0].model, 'claude-opus-5-5');
   assert.equal('tier' in body.telemetry, false);
+});
+
+// Beta hardening item 5a (owner 2026-10-09): an idea JEV is fully confident the learner both stated and contradicted is contested.
+// It never stands as a pass (so never an uncontested transfer pass or understood): it is a fail marked contested, and the escalation
+// policy sends the contradiction to the larger evaluator even when every check is confident.
+test('one idea confidently stated and contradicted is contested, never a settled pass', () => {
+  const answers = ownerAnswers({ c0_idea0: 1, c0_contra0: 1, c0_idea1: 1, c0_contra1: 0, c0_transfer: 0.95 });
+  const out = evaluationFrom(OWNER, answers, T, 'jev');
+  assert.deepEqual(out.events.map(e => [e.result, e.idea, e.kind, e.settled, e.contested === true]), [['pass', 1, 'demonstrated_in_transfer', true, false], ['fail', 0, null, true, true]]);
+  assert.notEqual(stateAfter(out.events), 'understood', 'a contested idea is never covered');
+  assert.deepEqual(escalation(OWNER, answers, T), { escalate: true, reason: 'contradiction', uncertain: [] }, 'every check confident: still the larger evaluator');
+  const two = { ...OWNER, claims: [OWNER.claims[0], { ...OWNER.claims[0], id: 'softmax/y', misconceptions: [] }] };
+  const mixed = { ...answers, c1_idea0: 0.5, c1_contra0: 0, c1_idea1: 0, c1_contra1: 0, c1_transfer: 0 };
+  assert.equal(escalation(two, mixed, T).reason, 'contradiction', 'an unsure check on another claim does not hide it');
+  assert.deepEqual(escalation(OWNER, ownerAnswers({ c0_idea1: 1 }), T), { escalate: false, reason: 'settled', uncertain: [] }, 'no contradiction: settled as before');
 });
