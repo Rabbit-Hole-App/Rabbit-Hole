@@ -107,6 +107,6 @@ test('a dirty-tree refusal names the changed paths, and the CLI bin is committed
   const green = `${JSON.stringify({ sha: SHA, gates: 'pass', smoke: 'pass' })}\n`;
   assert.equal(checkPrepare({ sha: SHA, onMain: true, devRecord: green, head: SHA, clean: false, changes: ' M packages/cli/bin/small.js' }), 'refused: the tracked tree has changes:\n M packages/cli/bin/small.js');
   assert.match(checkRelease({ ...released, clean: false, changes: ' M a.js' }), /changes:\n M a\.js$/);
-  const mode = execFileSync('git', ['ls-files', '-s', 'packages/cli/bin/small.js'], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
+  const mode = execFileSync('git', ['ls-tree', 'HEAD', 'packages/cli/bin/small.js'], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
   assert.match(mode, /^100755 /);
 });
