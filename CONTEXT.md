@@ -114,6 +114,12 @@ _Avoid_: Skipped, not needed, optional
 The small set of suggestions offered on a canvas for where to go from here; each suggestion is a next step.
 _Avoid_: Hooks, suggestions, recommendations (in learner-facing copy; "hook" is the internal and evaluation name for a next step)
 
+## Stage
+
+**Personal beta**:
+The current stage, in which the owner alone uses the app as its tester and judges releases by whether they are ready for that personal testing.
+_Avoid_: Launch, public beta, paying users (paying-user launch is a later, separate stage)
+
 ## Evaluation
 
 **Execution**:
