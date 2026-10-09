@@ -3,9 +3,10 @@
 // walker (6.3) and the contents rail entries (8). Intent and the interaction rules (6.1, 7.2) live in
 // the shared resolver's extension, control-plane/src/learner-intent-journey.js (R7); callers import journeyIntent and
 // interactionInterpretation from there. Pure ES module: no React, no DOM, so the browser and the control-plane worker share
-// one copy; its one import is the evidence rule (claimCoverage), so section completion and understood read the same evidence.
+// one copy; its one import is the evidence module (claimCoverage, deriveClaimStates), so section completion, the path outcome and
+// understood read the same evidence.
 
-import { claimCoverage } from './learn-tutor-evidence.js';
+import { claimCoverage, deriveClaimStates } from './learn-tutor-evidence.js';
 
 export const JOURNEY_STATES = ['intake', 'diagnostic', 'path_review', 'active', 'paused', 'completed'];
 export const TRAY_MODES = ['intent_intake', 'diagnostic_probe', 'path_preview', 'check_in', 'clarification', 'next_step', 'branch_choice', 'generation_proposal'];
@@ -258,6 +259,19 @@ function meets(events, claim, minimum, claims) {
   const here = !c.failed_ideas.length && (ideas.length ? c.settled_ideas.length > 0 : last?.result === 'pass');
   return minimum === 'demonstrated_here' ? here : minimum === 'demonstrated_in_transfer' ? here && c.transfer : false;
 }
+// The honest outcome of a finished path (beta hardening, owner 2026-10-09): its sections by status - completed, skipped, and not
+// reached (upcoming, current or needs_review; an optional one counts nowhere) - and the claims its non-optional sections expect,
+// understood on current evidence (deriveClaimStates) or a gap with its current state. result: completed when no section was
+// skipped or left unreached, else incomplete. A completed section is never an understood claim.
+export function journeyOutcome(journey, path) {
+  const sections = list(path?.sections), ids = (...statuses) => sections.filter((s) => statuses.includes(s?.status)).map((s) => s.id);
+  const claims = journey?.registry?.claims || {}, states = deriveClaimStates(list(journey?.evidence?.events), claims);
+  const wanted = [...new Set(sections.filter((s) => s?.status !== 'optional').flatMap((s) => list(s?.expected_evidence).map((e) => e?.claim)))].filter((id) => claims[id]);
+  const understood = wanted.filter((id) => states[id]?.state === 'understood');
+  const by = { completed: ids('completed'), skipped: ids('skipped'), not_reached: ids('upcoming', 'current', 'needs_review') };
+  return { result: by.skipped.length || by.not_reached.length ? 'incomplete' : 'completed', sections: by, understood,
+    gaps: wanted.filter((id) => !understood.includes(id)).map((claim) => ({ claim, state: states[claim]?.state ?? 'not_yet_observed' })) };
+}
 export function sectionCompletion(journey) {
   const wanted = list(journey?.section_plan?.completion_evidence), events = list(journey?.evidence?.events), claims = journey?.registry?.claims || {};
   const missing = wanted.filter((c) => !meets(events, c?.claim, c?.minimum, claims)).map((c) => c?.claim);
@@ -344,7 +358,10 @@ export function journeyStep(journey, event) {
       if (j.state !== 'active') return no();
       if (event.path?.version !== j.path_version) return no(`needs path version ${j.path_version}, got ${event.path?.version}`);
       const next = nextSectionOf(j, event.path);
-      return next ? wait('active', 'section', { active_section_id: next.id, section_plan: null }) : no('has no next section');
+      if (next) return wait('active', 'section', { active_section_id: next.id, section_plan: null });
+      // Beta hardening (owner 2026-10-09): from the last section, moving on finishes the journey. No planner runs; the last section
+      // stays active_section_id (its heading and cards stay the rail's and the Tutor's), and the route records the outcome.
+      return list(event.path?.sections).some((s) => s?.id === j.active_section_id) ? go({ state: 'completed' }) : no('has no next section');
     }
     case 'section_materialized': {
       if (j.state !== 'active') return no();

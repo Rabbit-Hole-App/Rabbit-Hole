@@ -14,7 +14,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { MODEL_NOT_CONFIGURED } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
-import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, sectionCompletion, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
+import { TRAY_MODES, journeyOutcome, journeyStep, nextIntakeQuestion, nextProbe, sectionCompletion, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
 import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
 import { JourneyConflict, activateStaged, appendPathVersion, archiveJourney, createJourney, dropStaged, loadJourney, loadJourneyById, loadPath, saveJourney, stagedScope, toClient } from './learn-journey-store.js';
 import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
@@ -256,8 +256,13 @@ async function act(env, scope, body, callModel, now) {
     // read (criterionRefs). Only the journey row's evidence decides; nothing in the body does.
     const left = j.active_section_id, met = sectionCompletion(j).met, status = met ? 'completed' : 'skipped', heading = j.section_plan?.heading_block_id;
     const sections = path.sections.map(s => (s.id === left ? { ...s, status, ...(heading ? { heading_block_id: heading } : {}) } : s));
-    const next = { ...current({ ...path, sections }, step.journey.active_section_id), version: path.version + 1,
-      change: { source: 'learner_edit', reason: met ? 'section_completed' : 'section_skipped', cause: met ? 'evidence_met' : 'learner_skip', evidence_refs: criterionRefs(j), sections_changed: [left] } };
+    // From the last section the journey finishes (step.journey.state completed): no section is current, and the change carries
+    // the honest outcome (journeyOutcome) beside cause final.
+    const finished = step.journey.state === 'completed', moved = finished ? { ...path, sections, current_section_id: null } : current({ ...path, sections }, step.journey.active_section_id);
+    const change = finished
+      ? { source: 'learner_edit', reason: 'journey_finished', cause: 'final', evidence_refs: criterionRefs(j), sections_changed: [left], outcome: journeyOutcome(j, moved) }
+      : { source: 'learner_edit', reason: met ? 'section_completed' : 'section_skipped', cause: met ? 'evidence_met' : 'learner_skip', evidence_refs: criterionRefs(j), sections_changed: [left] };
+    const next = { ...moved, version: path.version + 1, change };
     return run(env, (await appendPathVersion(env, step.journey, next, j.revision)).journey, step.effects, callModel);
   }
   let step;
