@@ -171,7 +171,7 @@ export function servedSha(deployments, versions) {
 // and schema need a gate of their own. Markdown under packages/ is not here: lesson Markdown ships in the bundle.
 // 2026-10-09 (owner: reuse a gate for script-only changes): the release scripts and workflows too; the byte-identical
 // build and bundle check still catches any of them that would change what ships.
-const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|dev-deploy-gate|prod-release|ensure-natives|schema-check)(\.test)?\.mjs$/, /^scripts\/fixtures\//, /^\.github\/workflows\/[^/]+\.ya?ml$/];
+const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|dev-deploy-gate|prod-release|ensure-natives|schema-check|lock-natives)(\.test)?\.mjs$/, /^scripts\/fixtures\//, /^\.github\/workflows\/[^/]+\.ya?ml$/];
 export const notReusable = changed => changed.filter(p => !REUSABLE.some(r => r.test(p)));
 // Test-only paths: never in the page build or the Worker bundle. Allowed before a --rerun that checks them again.
 export const TEST_ONLY = [/^packages\/web\/e2e\//, /^tests\//, /^packages\/[^/]+\/test\//, /\.test\.m?js$/];

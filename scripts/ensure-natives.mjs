@@ -6,6 +6,8 @@
 // fetched with `npm pack` at the exact version the package pins, and unpacked into that package's own node_modules,
 // so two versions of one parent (lightningcss at the root and under vite) each get their own build.
 // No lockfile change, so the gated dependency set is unchanged. Where nothing is missing (Windows here) it does nothing.
+// Since the r34 audit the lock pins every platform build (scripts/lock-natives.mjs), so this is a fallback that should
+// find nothing; it prints what it added so a regression of the lock is visible in the run log.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
