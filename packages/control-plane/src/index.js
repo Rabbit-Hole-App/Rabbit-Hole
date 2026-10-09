@@ -25,6 +25,7 @@ import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 import { learnMedia } from './learn-storage.js';
 import { canvasMembersRoute, membersPath } from './canvas-members.js';
+import { stubTransport, stubSend, outboxRoute } from './dev-outbox.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, MODEL_NOT_CONFIGURED } from './learn-models.js';
 
@@ -41,6 +42,8 @@ const html = (body, status = 200, headers = {}) =>
 
 // false when there is no provider or the send fails/throws. Never logs the body - it holds codes and links.
 async function sendEmail(env, to, subject, text) {
+  // The dev control plane's stub transport (dev-outbox.js): never Resend, never a production credential.
+  if (stubTransport(env)) return stubSend(env, to, subject, text);
   if (!env.RESEND_API_KEY) return false;
   try {
     const resp = await fetch('https://api.resend.com/emails', {
@@ -2464,6 +2467,7 @@ export default {
         if (path === '/api/review/run' && req.method === 'POST') return await apiReviewRun(req, env, ctx, user);
         return json({ error: 'no such endpoint' }, 404);
       }
+      if (path === '/test/outbox') return await outboxRoute(req, env);
       const webAuth = await handleWebAuth(req, env, path, { baseUrl, html, sendEmail });
       if (webAuth) return webAuth;
       if (path === '/test/openai/chat/completions' && req.method === 'POST') {
