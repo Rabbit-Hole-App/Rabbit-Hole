@@ -194,7 +194,8 @@ await check('5 Ask attaches the exact range and focuses the composer: karpathy/n
   await shot('F-highlighted-code-ask-learn');
   await actions.getByRole('button', { name: 'Ask', exact: true }).click();
   assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
-  assert.equal(await page.evaluate(() => document.activeElement?.closest('[data-agent-bar]') !== null && document.activeElement.tagName), 'TEXTAREA');
+  // The composer takes focus on the next frame after Ask, so wait for it rather than reading it once.
+  await page.waitForFunction(() => document.activeElement?.closest('[data-agent-bar]') !== null && document.activeElement.tagName === 'TEXTAREA', null, { timeout: 5000 });
   assert.equal(await input.getAttribute('placeholder'), 'Ask about lines 177–179…');
   // Ask writes a ready question; the learner presses Send (owner, 2026-10-08).
   await page.waitForTimeout(200);
