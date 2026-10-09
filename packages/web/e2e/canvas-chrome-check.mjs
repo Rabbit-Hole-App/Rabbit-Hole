@@ -8,7 +8,9 @@
 // it, the empty strip lets the pointer through to the canvas, its controls stay clickable, and zoom to fit frames every card
 // clear of the composer, the hooks, the minimap and zoom (a bottom inset; on a phone the tools' strip is at the top). Against the
 // LOCAL keyless stack only: the hook planner answers from its fixtures, the provider tripwire must count 0, nothing is sent.
-// Usage: BASE=http://127.0.0.1:8858 SMALL_CP=http://127.0.0.1:8859 node e2e/canvas-chrome-check.mjs [shotsDir]
+// Usage: BASE=http://127.0.0.1:8858 SMALL_CP=http://127.0.0.1:8859 [TEST_BYPASS_SECRET=<that stack's>] node e2e/canvas-chrome-check.mjs [shotsDir]
+// The hooks must load, so the stack's hook planner must answer without a model: a keyless stack (e2e/journey-local-stack.md,
+// the one blank-canvas-hooks-check uses) answers from its fixtures; a stack with model keys trips the provider tripwire.
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -18,7 +20,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8859';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('canvas-chrome-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'canvas-chrome-shots';
 mkdirSync(SHOTS, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = process.env.TEST_BYPASS_SECRET || readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, handle }) })).json()).session;
 const run = Date.now().toString(36);
 const owner = { session: await sessionFor(`chrome-owner-${run}@example.com`, `chrome_${run}`) };
@@ -184,8 +186,10 @@ await check('a set on its way is a skeleton with a spinner - the same card size 
   await page.context().close();
 });
 
-const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json().catch(() => ({ hits: [] }))).hits.length));
-await check('no page errors, nothing sent, the provider tripwire at 0', async () => {
+// A stack without the tripwire (the keyless journey stack: no key to trip) answers it with no JSON: counted as absent.
+const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json().catch(() => null))?.hits?.length ?? 0));
+console.log(`provider tripwire: ${tripwire.join(', ')}`);
+await check('no page errors, nothing sent, the provider tripwire at 0 where present', async () => {
   assert.deepEqual(errors, []);
   assert.deepEqual(sent, []);
   assert.deepEqual(tripwire, [0, 0]);
