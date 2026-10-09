@@ -289,6 +289,12 @@ function Name({ level, className, onOpen, onRename, active = false }) {
 // checks never move; the map inside it is translated from that slot to its spot in the canvas frame (the row of canvas
 // and gutters), clamped so all of it stays inside. Its default spot covers nothing; a dragged spot is the learner's choice.
 const frameOf = map => map?.closest('[data-dive-gutter],[data-tool-gutter]')?.parentElement || null;
+// The floating bottom strip's controls (AdaptiveCanvas: its grandchildren take the pointer, as its chromeTop reads them),
+// in frame px; a control without a box of its own (the composer's display: contents root) counts by its children.
+const stripOf = frame => frame.parentElement?.querySelector('[data-canvas-bottom]') || null;
+const boxesIn = node => { const rect = node.getBoundingClientRect(); return rect.width || rect.height ? [rect] : [...node.children].flatMap(boxesIn); };
+const chromeIn = (frame, f) => [...(stripOf(frame)?.querySelectorAll(':scope > * > *') || [])].flatMap(boxesIn)
+  .filter(rect => rect.width && rect.height).map(rect => ({ left: rect.left - f.left, right: rect.right - f.left, top: rect.top - f.top }));
 const STEPS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 function useMapGrip(shown) {
   const ref = useRef(null);
@@ -298,8 +304,8 @@ function useMapGrip(shown) {
     const map = ref.current, frame = frameOf(map);
     if (!map) return null;
     map.toggleAttribute('data-moved', !!(next && frame)); // first: moved, it is a wider card, clamped at that size
-    const at = next && frame ? clampSpot(next, { w: frame.clientWidth, h: frame.clientHeight }, { w: map.offsetWidth, h: map.offsetHeight }) : null;
     const slot = map.parentElement.getBoundingClientRect(), f = frame?.getBoundingClientRect();
+    const at = next && frame ? clampSpot(next, { w: frame.clientWidth, h: frame.clientHeight }, { w: map.offsetWidth, h: map.offsetHeight }, chromeIn(frame, f)) : null;
     map.style.transform = at ? `translate(${f.left + at.x - slot.left}px, ${f.top + at.y - slot.top}px)` : '';
     return at;
   }, []);
@@ -308,9 +314,10 @@ function useMapGrip(shown) {
     place(spot);
     const frame = frameOf(ref.current);
     if (!spot || !frame) return undefined;
-    // A resized window or panel re-clamps the stored spot without overwriting it.
+    // A resized window or panel, or the bottom strip growing (the minimap, the hooks arriving), re-clamps the stored spot
+    // without overwriting it.
     const observer = new ResizeObserver(() => place(spot));
-    observer.observe(frame); observer.observe(ref.current);
+    for (const node of [frame, ref.current, ...(stripOf(frame)?.children || [])]) observer.observe(node);
     return () => observer.disconnect();
   }, [spot, place, shown]); // shown: the map mounts once its tree has loaded
   const from = (map, frame) => { const box = map.getBoundingClientRect(), f = frame.getBoundingClientRect(); return { x: box.left - f.left, y: box.top - f.top }; };
