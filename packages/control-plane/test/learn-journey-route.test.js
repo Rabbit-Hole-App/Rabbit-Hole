@@ -9,6 +9,7 @@ import { journeyRoute } from '../src/learn-journey.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { JourneyConflict, appendJourneyEvidence, archiveJourney, loadJourney } from '../src/learn-journey-store.js';
 import { validatePath } from '../../web/src/learn-journey.js';
+import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
 
 // /api/me as the control plane answers it (§10.2): user_id is users.id, the journey key. anaAlt is another account behind
 // ana's email principal; anaCli is ana with a null id (a CLI token), anaLegacy with none (the legacy small-cp fallback).
@@ -767,4 +768,63 @@ test('r29 next_section: refused (409) outside an active journey, after the last 
   assert.match(last.body.error, /has no next section/);
   t2.sqlite.prepare("UPDATE learning_journeys SET pending = 'section'").run();
   assert.equal((await t2.post('next_section', {})).status, 409, 'a section being planned');
+});
+
+// ---- Beta hardening, section progression (owner 2026-10-09, via Parallel) ----
+// Every move records its cause and the evidence it rests on in the path version's change: evidence_met when the section's
+// completion_evidence holds on the stored evidence (reason section_completed), learner_skip otherwise (section_skipped);
+// evidence_refs are the seqs of the settled events on the criterion claims. Only persisted evidence decides: a body flag
+// claiming completion changes nothing. Claim states survive the move unchanged.
+test('progression: the move records its cause and evidence refs from stored evidence only; claim states are unchanged', async t => {
+  const cases = [
+    [claim => [event(claim, { result: 'pass', kind: 'demonstrated_in_transfer' }), event(claim, { result: 'pass', kind: 'demonstrated_here', settled: false })], 'section_completed', 'evidence_met', [1]],
+    [claim => [event(claim, { result: 'fail', kind: null })], 'section_skipped', 'learner_skip', [1]],
+    [null, 'section_skipped', 'learner_skip', []],
+  ];
+  for (const [events, reason, cause, refs] of cases) {
+    const s = setup(t);
+    const before = await activeJourney(s, events);
+    const states = deriveClaimStates(before.journey.evidence.events, before.journey.registry.claims);
+    const r = await s.post('next_section', { revision: before.journey.revision, completed: true, section_complete: true });
+    assert.equal(r.status, 200, r.text);
+    assert.deepEqual(r.body.path.change, { source: 'learner_edit', reason, cause, evidence_refs: refs, sections_changed: ['s1'] }, cause);
+    const row = s.sqlite.prepare('SELECT reason, evidence_refs, path_json FROM learning_path_versions ORDER BY version DESC LIMIT 1').get();
+    assert.deepEqual([row.reason, JSON.parse(row.evidence_refs), JSON.parse(row.path_json).change.cause], [reason, refs, cause], 'stored with the version');
+    assert.deepEqual(deriveClaimStates(r.body.journey.evidence.events, r.body.journey.registry.claims), states, 'claim states unchanged by the move');
+    assert.deepEqual(r.body.journey.registry, before.journey.registry, 'registry unchanged');
+  }
+});
+
+// A duplicate request (the same body replayed, its revision now stale) moves nothing: 409 revision, one version added, the
+// journey where the first request left it; the reply carries the live journey so the browser catches up.
+test('progression: a duplicate next_section request is refused and leaves one version', async t => {
+  const s = setup(t);
+  const before = await activeJourney(s);
+  const first = await s.post('next_section', { revision: before.journey.revision });
+  assert.equal(first.status, 200, first.text);
+  const again = await s.post('next_section', { revision: before.journey.revision });
+  assert.equal(again.status, 409);
+  assert.deepEqual([again.body.error, again.body.journey.active_section_id, again.body.path.version], ['revision', 's2', before.path.version + 1]);
+  assert.equal(s.sqlite.prepare('SELECT count(*) AS n FROM learning_path_versions').get().n, before.path.version + 1, 'one version added');
+  const reload = (await s.call('GET')).body;
+  assert.deepEqual([reload.journey.active_section_id, reload.journey.state, reload.path.version, reload.path.sections[0].status], ['s2', 'active', before.path.version + 1, 'skipped'], 'a reload agrees');
+});
+
+// The next section's planner fails: the move stands (the section left recorded, the next one current in the new version), the
+// journey waits on retry with no section plan, 502; retry plans it. Nothing is drawn or completed by the failure.
+test('progression: a planning failure after the move keeps the move and retries the plan', async t => {
+  const s = setup(t);
+  const before = await activeJourney(s);
+  s.fail.add('journey_section');
+  const r = await s.post('next_section', { revision: before.journey.revision });
+  assert.equal(r.status, 502, r.text);
+  const j = r.body.journey;
+  assert.deepEqual([j.state, j.active_section_id, j.pending, j.section_plan, j.error.op, j.error.retryable], ['active', 's2', null, null, 'section', true]);
+  assert.deepEqual([r.body.path.version, r.body.path.sections[0].status, r.body.path.change.cause, r.body.tray.options[0].id], [before.path.version + 1, 'skipped', 'learner_skip', 'retry']);
+  const reload = (await s.call('GET')).body;
+  assert.deepEqual([reload.journey.active_section_id, reload.journey.error.op, reload.path.version], ['s2', 'section', before.path.version + 1], 'a reload shows the same');
+  s.fail.delete('journey_section');
+  const retried = await s.post('retry', { revision: reload.journey.revision });
+  assert.equal(retried.status, 200, retried.text);
+  assert.deepEqual([retried.body.journey.error, retried.body.journey.section_plan.section_id, retried.body.path.version], [null, 's2', before.path.version + 1]);
 });

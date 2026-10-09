@@ -83,6 +83,11 @@ function probeResult(j, probe) {
   return any(e => e.result === 'pass') ? 'pass' : 'uncertain';
 }
 
+// The stored evidence a move read: the seqs of the settled events on the current section's completion_evidence claims.
+const criterionRefs = j => {
+  const claims = new Set((j.section_plan?.completion_evidence || []).map(c => c?.claim));
+  return (j.evidence?.events || []).filter(e => e.settled && claims.has(e.claim)).map(e => e.seq);
+};
 const current = (path, id) => ({ ...path, current_section_id: id, sections: path.sections.map(s => (s.id === id ? { ...s, status: 'current' } : s)) });
 const must = step => { if (step.error) throw new Error(step.error); return step; };
 
@@ -247,10 +252,12 @@ async function act(env, scope, body, callModel, now) {
     // then planned and drawn as section 1 is.
     const path = await loadPath(env, j.id), step = journeyStep(j, { type: 'next_section', path });
     if (step.error) return refuse(step);
-    const left = j.active_section_id, status = sectionCompletion(j).met ? 'completed' : 'skipped', heading = j.section_plan?.heading_block_id;
+    // Beta hardening (owner 2026-10-09): the change records why (cause evidence_met or learner_skip) and the stored evidence it
+    // read (criterionRefs). Only the journey row's evidence decides; nothing in the body does.
+    const left = j.active_section_id, met = sectionCompletion(j).met, status = met ? 'completed' : 'skipped', heading = j.section_plan?.heading_block_id;
     const sections = path.sections.map(s => (s.id === left ? { ...s, status, ...(heading ? { heading_block_id: heading } : {}) } : s));
     const next = { ...current({ ...path, sections }, step.journey.active_section_id), version: path.version + 1,
-      change: { source: 'learner_edit', reason: status === 'completed' ? 'section_completed' : 'section_skipped', evidence_refs: [], sections_changed: [left] } };
+      change: { source: 'learner_edit', reason: met ? 'section_completed' : 'section_skipped', cause: met ? 'evidence_met' : 'learner_skip', evidence_refs: criterionRefs(j), sections_changed: [left] } };
     return run(env, (await appendPathVersion(env, step.journey, next, j.revision)).journey, step.effects, callModel);
   }
   let step;
