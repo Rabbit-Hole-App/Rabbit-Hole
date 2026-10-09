@@ -13,18 +13,18 @@ const GREEN = `${JSON.stringify({ sha: SHA, gates: 'pass', smoke: 'pass', worker
 const ok = { sha: SHA, onMain: true, devRecord: GREEN, head: SHA, clean: true };
 const released = { hold: false, sha: SHA, build: 'abc123', approve: `RELEASE ${SHA} abc123`, prepared: { sha: SHA, build: 'abc123' }, head: SHA, clean: true };
 
-test('the production hold is on, and a lift is a reviewed code change', () => {
-  assert.equal(HOLD, true);
-  assert.match(readFileSync(new URL('./prod-release.mjs', import.meta.url), 'utf8'), /^export const HOLD = true;$/m);
+test('the production hold is lifted (owner, 2026-10-09), and the hold is a reviewed code line, never a flag', () => {
+  assert.equal(HOLD, false);
+  assert.match(readFileSync(new URL('./prod-release.mjs', import.meta.url), 'utf8'), /^export const HOLD = false;$/m);
+  assert.match(checkRelease({ ...released, hold: true }), /^HOLD/, 'set again, it refuses first');
 });
 
-test('release under HOLD exits 2 before any remote call, whatever the arguments', () => {
+test('with the hold lifted, release still refuses an unprepared commit before any remote call', () => {
   const script = fileURLToPath(new URL('./prod-release.mjs', import.meta.url));
   // An empty environment: no Cloudflare credential exists, so a remote call could not succeed even by accident.
   const r = (() => { try { execFileSync(process.execPath, [script, 'release', '--sha', SHA, '--build', 'abc123', '--approve', `RELEASE ${SHA} abc123`], { env: {}, encoding: 'utf8', stdio: 'pipe' }); return { status: 0 }; } catch (e) { return e; } })();
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /^HOLD: production release is disabled/);
-  assert.match(checkRelease({ ...released, hold: true }), /^HOLD/);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /never prepared/);
 });
 
 test('prepare refuses a wrong or short sha', () => {

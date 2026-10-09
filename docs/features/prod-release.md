@@ -1,6 +1,6 @@
 # Production release job
 
-Status 2026-10-07: configured, **never executed**. `HOLD = true` in `scripts/prod-release.mjs`.
+Status 2026-10-09: **hold lifted** by the owner in Home's session (`HOLD = false` in `scripts/prod-release.mjs`). The production Learn database is at 0014, the same as dev. A push to Rabbit-Hole-App `main` that passes every check below releases.
 
 **Policy (owner, 2026-10-07):**
 - Production is a separate job, approved by hand.
@@ -22,7 +22,7 @@ The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the 
 - **Trigger:** a push to `main`, and nothing else. It runs only in Rabbit-Hole-App/Rabbit-Hole, one release at a time, in the `production` environment. That environment admits only `main` and holds `CLOUDFLARE_API_TOKEN` and `VITE_TLDRAW_LICENSE_KEY`.
 - **Green dev deployment:** the exact commit needs its dev deploy record in `refs/notes/dev-deploys`, written by the dev workflow, with gates `pass` and smoke `pass`. Without it nothing is released.
 - **Then** `prepare --dev-record <that note>` builds it, and `release --approve "RELEASE <sha> <build>"` uses the prepared build. Every rule below still applies: HOLD first, the exact prepared build, the read-only preflight of secrets and of main and learn migrations. It never applies a migration.
-- **While `HOLD = true`** the release step exits 2 before any remote call, so a push to `main` releases nothing. Lifting HOLD is still its own reviewed change and needs the owner's GO.
+- **The hold** was lifted on 2026-10-09 with the owner's GO. Putting it back is the one-line change to `HOLD = true`: then the release step exits 2 before any remote call, and a push to `main` releases nothing.
 
 ## Steps
 

@@ -11,7 +11,7 @@
 - **Dev Learn schema 0011 and 0012 are applied** (2026-10-08, `rabbit-hole-learn-dev` only): see [0011 and 0012](#dev-learn-schema-0011-and-0012-applied-2026-10-08-dev-only).
 - **Dev-branch trigger** (2026-10-08): a gated push to Rabbit-Hole-App/Rabbit-Hole `dev` deploys itself. See [Dev-branch trigger](#dev-branch-trigger).
 
-Production release is a separate, held job: [prod-release.md](prod-release.md) (Home).
+Production release is a separate job, released by a push to Rabbit-Hole-App `main` (hold lifted 2026-10-09): [prod-release.md](prod-release.md) (Home).
 
 ## What it does
 
@@ -102,7 +102,7 @@ Owner, 2026-10-08: "create a dev branch where when pushing on dev deploys to the
 - **Record:** the job attaches its dev-deploy record line as a note in `refs/notes/dev-deploys`. Only the job writes it, with the workflow token.
 - **Secrets (environment `dev-preview`):** `CLOUDFLARE_API_TOKEN`, `ACCESS_SMOKE_CLIENT_ID`, `ACCESS_SMOKE_CLIENT_SECRET`, `VITE_TLDRAW_LICENSE_KEY`. The account id is in the workflow; it is not a secret.
 - **Parallel's side, per candidate:** run the full gate; secret-scan the record and the commits; `git notes --ref=gates add -F <record> <sha>`; push `refs/notes/gates`, then `dev`, to Rabbit-Hole-App.
-- **Production:** a push to `main` triggers nothing yet. The production workflow is held for the owner, see [prod-release.md](prod-release.md).
+- **Production:** a push to `main` runs `.github/workflows/deploy-prod.yml`, which releases a commit only after its own green dev deploy; see [prod-release.md](prod-release.md).
 - `dev-deploy.mjs` accepts only `--branch origin/main` (the default, by hand) or `--branch rabbit-hole/dev`.
 
 ## Policy A: reusing a gate

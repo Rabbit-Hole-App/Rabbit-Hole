@@ -9,9 +9,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, wri
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Production hold (owner, 2026-10-07). `release` exits here before any remote call. Lifting it is a reviewed
-// change to this line, never an environment variable or a flag.
-export const HOLD = true;
+// Production hold (owner, 2026-10-07; lifted by the owner in Home's session 2026-10-09). While true, `release` exits
+// here before any remote call. Setting it again is a reviewed change to this line, never an environment variable or a flag.
+export const HOLD = false;
 
 export const ACCOUNT = 'c08d3dbdc53a3afd3cb09a536ac42318';
 const CONFIG = 'wrangler.rabbit-hole-prod.jsonc';
