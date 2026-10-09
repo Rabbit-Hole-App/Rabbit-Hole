@@ -88,6 +88,25 @@ const check = async (label, fn) => { await fn(); results.push(label); console.lo
 const shot = async (page, name) => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const titled = (page, sel, title) => page.locator(sel).filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title}$`) }) });
 const boxes = loc => loc.evaluateAll(ns => ns.map(n => { const r = n.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; }));
+// The card since r30 (card-thumbnails.md, owner 2026-10-08: "you can show one card per row if needed", "each card should be
+// same size"): one per row (the 1150px page leaves 958px at 1440), one fixed 228px height from md (LearningCard CARD_HEIGHT;
+// r28's shorter-card intent: no taller than its 186-230 range allowed), and the picture slot on the right, 2:1, 38% wide.
+const CARD_H = [220, 236];
+async function oneSize(cards, { min = 900, max = 1000 } = {}) {
+  const all = await boxes(cards);
+  for (const b of all) { assert.ok(b.w >= min && b.w <= max, `width ${b.w}`); assert.ok(b.h >= CARD_H[0] && b.h <= CARD_H[1], `height ${b.h}`); }
+  assert.equal(new Set(all.map(b => b.h)).size, 1, `one height for every card: ${all.map(b => b.h)}`);
+  assert.equal(new Set(all.map(b => b.x)).size, 1, `one card per row: x at ${[...new Set(all.map(b => b.x))]}`);
+  for (let i = 1; i < all.length; i += 1) assert.ok(all[i].y >= all[i - 1].y + all[i - 1].h, `card ${i} starts its own row`);
+  const pics = await boxes(cards.locator('[data-card-thumbnail]'));
+  assert.equal(pics.length, all.length, 'every learning card has its picture slot');
+  pics.forEach((t, i) => {
+    const c = all[i];
+    assert.ok(Math.abs(t.x + t.w - (c.x + c.w - 17)) <= 2, `card ${i}: the picture at the right (${JSON.stringify(t)} in ${JSON.stringify(c)})`);
+    assert.ok(t.w / c.w > 0.35 && t.w / c.w < 0.4 && Math.abs(t.w / t.h - 2) < 0.05, `card ${i}: 38% wide and 2:1 (${t.w} x ${t.h} of ${c.w})`);
+  });
+  return all;
+}
 // No textual type pill anywhere in a card: no leaf element reads exactly Canvas, Project or Standalone.
 const typeWords = loc => loc.evaluateAll(ns => ns.flatMap(n => [...n.querySelectorAll('*')].filter(e => !e.children.length && /^(Canvas|Project|Standalone)$/.test(e.textContent.trim())).map(e => e.textContent.trim())));
 const rgb = (loc, prop) => loc.evaluate((n, p) => getComputedStyle(n)[p], prop);
@@ -108,15 +127,11 @@ const lib = await contextFor(owner, { project: true, legacy: [tides.name, away.n
 await lib.goto(`${BASE}/library`);
 await lib.locator('[data-library-card="project"]').first().waitFor({ timeout: 60000 });
 await lib.locator('[data-library-card="canvas"]').first().waitFor();
-await check('1 Library at 1440x900: cards 420-500 x 180-230 px (owner, 2026-10-08: about 15% shorter), two columns', async () => {
+await check('1 Library at 1440x900: one card per row, about 958 x 228 px, every card the same height, the picture on the right at 38% and 2:1', async () => {
   await lib.goto(`${BASE}/library?type=canvases`);
   await titled(lib, '[data-library-card]', T.tides).waitFor({ timeout: 60000 });
-  const all = await boxes(lib.locator('[data-library-card]'));
+  const all = await oneSize(lib.locator('[data-library-card]'));
   assert.ok(all.length >= 4, `${all.length} cards`);
-  for (const b of all) { assert.ok(b.w >= 420 && b.w <= 500, `width ${b.w}`); assert.ok(b.h >= 180 && b.h <= 230, `height ${b.h}`); }
-  const columns = new Set(all.map(b => b.x));
-  assert.equal(columns.size, 2, `columns at x ${[...columns]}`);
-  assert.equal(all[0].y, all[1].y); assert.ok(all[2].y > all[0].y, 'the third card starts the second row');
 });
 await shot(lib, '02-library-canvases');
 await check('2 no textual Canvas / Project / Standalone pill on any Library card; each has its type icon', async () => {
@@ -188,11 +203,13 @@ await check('6 the read-only fork count shows only once forked (none at 0), besi
   assert.ok(c.y + c.h - (f.y + f.h) <= 24, `the footer ends the card: card ${JSON.stringify(c)} footer ${JSON.stringify(f)}`);
   assert.ok(Math.abs(n.y + n.h / 2 - (u.y + u.h / 2)) <= 2 && u.x > n.x && u.x - (n.x + n.w) <= 16, `count ${JSON.stringify(n)} beside Updated ${JSON.stringify(u)}`);
 });
-await check('7 the description clamps to three lines', async () => {
-  const p = titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-card-description]');
-  const m = await p.evaluate(n => ({ clamp: getComputedStyle(n).webkitLineClamp, line: parseFloat(getComputedStyle(n).lineHeight), h: n.clientHeight, full: n.scrollHeight }));
-  assert.equal(m.clamp, '3');
-  assert.ok(m.h <= 3 * m.line + 1 && m.full > m.h, JSON.stringify(m));
+// Since r30's fixed card height (card-thumbnails.md): three lines, two on a card that also carries a note or actions.
+await check('7 the description clamps to three lines, two beside a note or actions', async () => {
+  const card = titled(lib, '[data-library-card="canvas"]', T.tides);
+  const lines = (await card.locator('[data-card-note]').count()) ? 2 : 3;
+  const m = await card.locator('[data-card-description]').evaluate(n => ({ clamp: getComputedStyle(n).webkitLineClamp, line: parseFloat(getComputedStyle(n).lineHeight), h: n.clientHeight, full: n.scrollHeight }));
+  assert.equal(m.clamp, String(lines));
+  assert.ok(m.h <= lines * m.line + 1 && m.full > m.h, JSON.stringify(m));
 });
 await check('8 the truthful browser states stay on older board-less canvases: Content in this browser, and On another device with the stored-only line', async () => {
   assert.equal((await titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-card-note]').innerText()).trim(), 'Content in this browser');
@@ -301,8 +318,7 @@ await check('12 Home Continue: the canonical card, "Continue learning", where it
   const link = card.locator('[data-continue-link]');
   assert.equal((await link.innerText()).trim(), 'Continue');
   assert.equal(await rgb(link, 'background-color'), 'rgba(0, 0, 0, 0)', 'a text link, not a filled button');
-  const [b] = await boxes(card);
-  assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 180 && b.h <= 230, JSON.stringify(b));
+  await oneSize(card); // the r30 card: one per row, 228px, the picture on the right
   assert.deepEqual(await typeWords(home.locator('[data-continue-card], [data-recent-card]')), []);
 });
 await check('13 Home Recent: the same card; the away canvas keeps On another device and the stored-only line, and does not open; a saved board has no note', async () => {
@@ -379,10 +395,8 @@ await check('15 Explore, as the owner: own card badged, no Start/Fork, its read-
   const [start] = await boxes(theirs.locator('[data-card-start-rabbit-hole]')), [foot] = await boxes(theirs.locator('[data-card-footer]'));
   assert.ok(foot.y > start.y + start.h - 1, `footer ${JSON.stringify(foot)} under the actions ${JSON.stringify(start)}`);
   assert.deepEqual(await typeWords(ex.locator('[data-explore-card]')), []);
-  const all = await boxes(ex.locator('[data-explore-card]'));
-  // An Explore card has its actions row too, so its ceiling is that row higher (owner, 2026-10-08: about 15% shorter).
-  for (const b of all) assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 180 && b.h <= 250, JSON.stringify(b));
-  assert.equal(new Set(all.map(b => b.x)).size, 2);
+  // An Explore card with its actions row is the same fixed size as every other card since r30 (card-thumbnails.md).
+  await oneSize(ex.locator('[data-explore-card]'));
 });
 await shot(ex, '08-explore-owner');
 await check('16 the Explore sort control orders the cards as the server does: Newest (default), Recently updated, Most forked', async () => {
