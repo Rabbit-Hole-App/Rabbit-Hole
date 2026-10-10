@@ -13,6 +13,9 @@ const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const now = () => new Date().toISOString();
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 const HEX40 = /^[0-9a-f]{40}$/;
+// 0017 is already applied with NOT NULL. Store explicit unknown provenance as a non-SHA sentinel;
+// the public contract is JSON null. Never substitute source_sha's committed tree for an observed tested tree.
+const publicExecution = row => row && ({ ...row, tested_tree: row.tested_tree === 'unknown' ? null : row.tested_tree });
 
 // The columns of an execution row, in insert order. Fields the importer must state; nothing is defaulted silently.
 export const EXECUTION_COLUMNS = ['execution_id', 'run_id', 'run_date', 'run_started_at', 'run_finished_at', 'topic', 'mode', 'status', 'status_note',
@@ -21,12 +24,13 @@ export const EXECUTION_COLUMNS = ['execution_id', 'run_id', 'run_date', 'run_sta
 // -> a validated execution row, or a thrown Error naming the first problem.
 export function execution(fields) {
   const e = { status_note: null, run_finished_at: null, config_version: null, anthropic_usd: null, anthropic_calls: null, jev_cost_usd: null, jev_cost_note: null, ...fields };
-  for (const k of ['execution_id', 'run_id', 'run_started_at', 'topic', 'mode', 'status', 'source_sha', 'tested_tree', 'harness_version', 'imported_by', 'artifact_count']) if (e[k] == null || e[k] === '') throw new Error(`execution lacks ${k}`);
+  for (const k of ['execution_id', 'run_id', 'run_started_at', 'topic', 'mode', 'status', 'source_sha', 'harness_version', 'imported_by', 'artifact_count']) if (e[k] == null || e[k] === '') throw new Error(`execution lacks ${k}`);
+  if (e.tested_tree === undefined) throw new Error('execution lacks tested_tree');
   if (!ISO.test(e.run_started_at)) throw new Error('run_started_at must be ISO 8601 UTC');
   if (e.run_finished_at != null && !ISO.test(e.run_finished_at)) throw new Error('run_finished_at must be ISO 8601 UTC or null');
   if (!MODES.includes(e.mode)) throw new Error(`mode must be one of ${MODES.join(', ')}`);
   if (!STATUSES.includes(e.status)) throw new Error(`status must be one of ${STATUSES.join(', ')}`);
-  for (const k of ['source_sha', 'tested_tree']) if (!HEX40.test(e[k])) throw new Error(`${k} must be a full 40-hex id`);
+  for (const k of ['source_sha', 'tested_tree']) if (!(k === 'tested_tree' && e[k] === null) && !HEX40.test(e[k])) throw new Error(`${k} must be a full 40-hex id${k === 'tested_tree' ? ' or null' : ''}`);
   for (const k of ['anthropic_usd', 'jev_cost_usd']) if (e[k] != null && !(Number.isFinite(e[k]) && e[k] >= 0)) throw new Error(`${k} must be a non-negative number or null`);
   if (e.anthropic_calls != null && !(Number.isInteger(e.anthropic_calls) && e.anthropic_calls >= 0)) throw new Error('anthropic_calls must be a non-negative integer or null');
   if (!(Number.isInteger(e.artifact_count) && e.artifact_count > 0)) throw new Error('artifact_count must be a positive integer');
@@ -42,7 +46,7 @@ export function executionFromRunJson(run, over) {
     execution_id: run.execution_id, run_id: run.run_id, run_started_at: run.started_at, run_finished_at: run.finished_at ?? null,
     // Unknown unless proven (contract): a run that made Anthropic calls was real.
     topic: run.topic, mode: run.mode ?? (run.anthropic?.calls > 0 ? 'real' : 'unknown'), status: run.status ?? (run.finished_at ? 'completed' : 'partial'),
-    source_sha: run.sha, tested_tree: run.tree, harness_version: run.harness_version ?? run.sha, config_version: run.config_version ?? config,
+    source_sha: run.sha, tested_tree: run.dirty ? null : (run.tested_tree !== undefined ? run.tested_tree : run.tree ?? null), harness_version: run.harness_version ?? run.sha, config_version: run.config_version ?? config,
     anthropic_usd: run.anthropic?.total_usd ?? null, anthropic_calls: run.anthropic?.calls ?? null,
     jev_cost_usd: null, jev_cost_note: null, // the importer states why, per run
     ...over,
@@ -58,15 +62,31 @@ export class TutorEvalArchive {
   // difference it is refused: a run that happened once is never redescribed.
   async declare(fields) {
     const e = execution(fields);
-    const have = await this.db.prepare('SELECT * FROM tutor_eval_executions WHERE execution_id = ?').bind(e.execution_id).first();
+    const have = publicExecution(await this.db.prepare('SELECT * FROM tutor_eval_executions WHERE execution_id = ?').bind(e.execution_id).first());
     if (have) {
       const diff = EXECUTION_COLUMNS.filter(c => (have[c] ?? null) !== (e[c] ?? null));
       if (diff.length) throw new Error(`execution ${e.execution_id} is already declared with different ${diff.join(', ')}: refused`);
       return { ...have, resumed: true };
     }
     const cols = [...EXECUTION_COLUMNS, 'imported_at'];
-    await this.db.prepare(`INSERT INTO tutor_eval_executions (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`).bind(...EXECUTION_COLUMNS.map(c => e[c]), now()).run();
+    await this.db.prepare(`INSERT INTO tutor_eval_executions (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`).bind(...EXECUTION_COLUMNS.map(c => c === 'tested_tree' && e[c] === null ? 'unknown' : e[c]), now()).run();
     return { ...e, imported_at: now(), completed_at: null, resumed: false };
+  }
+
+  // Explicitly reserve more artifact slots after a verified import. Count-only, never a rewrite of run metadata.
+  // The conditional update serializes competing extensions. A retry of the same target is a no-op, even after completion.
+  async extend(executionId, expectedCount, artifactCount) {
+    if (!Number.isInteger(expectedCount) || expectedCount < 1 || !Number.isInteger(artifactCount) || artifactCount <= expectedCount)
+      throw new Error('extension counts must be positive integers with artifact_count greater than expected_count');
+    const have = await this.db.prepare('SELECT artifact_count FROM tutor_eval_executions WHERE execution_id = ?').bind(executionId).first();
+    if (!have) throw new Error(`no execution ${executionId}`);
+    if (have.artifact_count === artifactCount) return this.status(executionId);
+    if (have.artifact_count !== expectedCount) throw new Error('extension conflict: artifact count changed');
+    if (!(await this.status(executionId)).complete) throw new Error('cannot extend an incomplete import');
+    const result = await this.db.prepare(`UPDATE tutor_eval_executions SET artifact_count = ?, completed_at = NULL
+      WHERE execution_id = ? AND artifact_count = ? AND completed_at IS NOT NULL`).bind(artifactCount, executionId, expectedCount).run();
+    if (!result.meta.changes) throw new Error('extension conflict: import changed');
+    return this.status(executionId);
   }
 
   // Puts one artifact's bytes as chunks. Identical bytes again are a no-op; different bytes under the same key are refused.
@@ -117,8 +137,14 @@ export class TutorEvalArchive {
     if (s.missing.length) throw new Error(`import of ${executionId} is incomplete: ${s.missing.join('; ')}`);
     const { results } = await this.db.prepare('SELECT artifact_key FROM tutor_eval_artifacts WHERE execution_id = ?').bind(executionId).all();
     for (const { artifact_key } of results) await this.bytes(executionId, artifact_key); // throws on any mismatch
-    await this.db.prepare('UPDATE tutor_eval_executions SET completed_at = ? WHERE execution_id = ? AND completed_at IS NULL').bind(now(), executionId).run();
-    return this.status(executionId);
+    // An extension may occur while bytes() yields. Never complete that newer declaration using this older snapshot.
+    await this.db.prepare(`UPDATE tutor_eval_executions SET completed_at = ? WHERE execution_id = ? AND completed_at IS NULL
+      AND artifact_count = ? AND artifact_count = (SELECT COUNT(*) FROM tutor_eval_artifacts WHERE execution_id = ?)
+      AND NOT EXISTS (SELECT 1 FROM tutor_eval_artifacts WHERE execution_id = ? AND verified_at IS NULL)`)
+      .bind(now(), executionId, results.length, executionId, executionId).run();
+    const final = await this.status(executionId);
+    if (!final.complete) throw new Error(`import of ${executionId} is incomplete: declaration changed during completion`);
+    return final;
   }
 
   // Owner-only listing (the route checks the principal): filters are exact matches, from/to on run_date.
@@ -129,7 +155,7 @@ export class TutorEvalArchive {
     if (to) { where.push('run_date <= ?'); args.push(to); }
     const sql = `SELECT e.*, (SELECT json_group_array(analysis_version) FROM tutor_eval_artifacts a WHERE a.execution_id = e.execution_id AND a.kind = 'aggregate') AS analysis_versions
       FROM tutor_eval_executions e${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY run_started_at`;
-    return (await this.db.prepare(sql).bind(...args).all()).results.map(r => ({ ...r, analysis_versions: JSON.parse(r.analysis_versions) }));
+    return (await this.db.prepare(sql).bind(...args).all()).results.map(r => ({ ...publicExecution(r), analysis_versions: JSON.parse(r.analysis_versions) }));
   }
 
   async artifacts(executionId, { kind } = {}) {

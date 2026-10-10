@@ -17,6 +17,55 @@ const base = { execution_id: 'paid-20261008T180918Z-01a7a508', run_id: 'paid-202
   config_version: 'cfg-1a2b3c4d5e', anthropic_usd: 2.24, anthropic_calls: 9, jev_cost_usd: null, jev_cost_note: 'provider reports no cost; included nowhere', imported_by: 'u_owner', artifact_count: 3 };
 const exec = (over = {}) => ({ ...base, ...over });
 const archive = t => new TutorEvalArchive(learnDb(t).LEARN_DB);
+test('unknown historical tested trees round-trip as null without inventing provenance', async t => {
+  const a = archive(t), e = exec({ tested_tree: null });
+  assert.equal((await a.declare(e)).tested_tree, null);
+  assert.equal((await a.declare(e)).tested_tree, null);
+  assert.equal((await a.list())[0].tested_tree, null);
+  await assert.rejects(a.declare(exec()), /different tested_tree/);
+  assert.throws(() => execution(exec({ tested_tree: undefined })), /lacks tested_tree/);
+  assert.throws(() => execution(exec({ tested_tree: 'unknown' })), /tested_tree must/);
+  const mapped = executionFromRunJson({ run_id: 'dirty', sha: base.source_sha, tree: base.tested_tree, dirty: true, started_at: base.run_started_at, topic: base.topic }, { execution_id: 'dirty', imported_by: 'owner', artifact_count: 1 });
+  assert.equal(mapped.tested_tree, null, 'a committed tree is not proof of the tested dirty tree');
+});
+
+test('competing extensions and a stale completion cannot finish the newer import', async t => {
+  const a = archive(t), e = exec();
+  await importAll(a, e, trio);
+  const raced = await Promise.allSettled([a.extend(e.execution_id, 3, 4), a.extend(e.execution_id, 3, 5)]);
+  assert.equal(raced.filter(r => r.status === 'fulfilled').length, 1);
+  assert.equal((await a.status(e.execution_id)).completed_at, null);
+  const b = archive(t), f = exec({ execution_id: 'stale' });
+  await importAll(b, f, trio);
+  const bytes = b.bytes.bind(b); let extended = false;
+  b.bytes = async (...args) => {
+    if (!extended) { extended = true; await b.extend(f.execution_id, 3, 4); }
+    return bytes(...args);
+  };
+  await assert.rejects(b.complete(f.execution_id), /incomplete/);
+  assert.equal((await b.status(f.execution_id)).completed_at, null);
+});
+
+test('explicit count extension reopens a completed import, resumes and preserves original metadata and bytes', async t => {
+  const a = archive(t), e = exec();
+  await importAll(a, e, trio);
+  await a.extend(e.execution_id, 3, 4);
+  assert.equal((await a.status(e.execution_id)).completed_at, null);
+  await a.extend(e.execution_id, 3, 4); // lost response: idempotent retry
+  await assert.rejects(a.complete(e.execution_id), /incomplete/);
+  await assert.rejects(a.extend(e.execution_id, 4, 5), /incomplete/);
+  await a.put(e.execution_id, 'aggregate@later.json', 'aggregate', Buffer.from('{"n":2}'), { analysisVersion: 'later' });
+  assert.equal((await a.complete(e.execution_id)).complete, true);
+  const beforeRetry = (await a.status(e.execution_id)).completed_at;
+  await a.extend(e.execution_id, 3, 4);
+  assert.equal((await a.status(e.execution_id)).completed_at, beforeRetry);
+  for (const [key, , bytes] of trio) assert.deepEqual(await a.bytes(e.execution_id, key), bytes);
+  const [row] = await a.list();
+  for (const col of EXECUTION_COLUMNS.filter(c => c !== 'artifact_count' && c !== 'run_date')) assert.equal(row[col], execution(e)[col]);
+  await assert.rejects(a.extend(e.execution_id, 3, 5), /extension conflict/);
+  await assert.rejects(a.extend(e.execution_id, 4, 3), /must/);
+  await assert.rejects(a.declare({ ...e, status: 'failed', artifact_count: 4 }), /different status/);
+});
 const trio = [['run.json', 'manifest', Buffer.from(JSON.stringify({ run_id: base.run_id })), {}], ['aggregate.json', 'aggregate', Buffer.from('{"n":1}'), { analysisVersion: '2cb65b39' }], ['logistic-regression-novice.json', 'session', big(3 * CHUNK_BYTES + 17), {}]];
 async function importAll(a, e, artifacts) {
   await a.declare(e);

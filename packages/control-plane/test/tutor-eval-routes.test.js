@@ -25,6 +25,35 @@ function setup(t, { owner = OWNER, as = OWNER } = {}) {
   return { call, env };
 }
 
+test('owner-only extension reserves new versions and unknown provenance remains null over HTTP', async t => {
+  const { call } = setup(t), path = `executions/${exec.execution_id}`;
+  const row = { ...exec, tested_tree: null, artifact_count: 1 };
+  const created = await call('POST', 'executions', JSON.stringify(row));
+  assert.equal(created.status, 201);
+  assert.equal((await created.json()).execution.tested_tree, null);
+  await call('PUT', `${path}/artifacts/aggregate.json?kind=aggregate&analysis_version=original`, '{}');
+  await call('POST', `${path}/complete`);
+  const body = JSON.stringify({ expected_count: 1, artifact_count: 2 });
+  const extended = await call('POST', `${path}/extend`, body);
+  assert.equal(extended.status, 200);
+  assert.equal((await extended.json()).import.completed_at, null);
+  assert.equal((await call('POST', `${path}/complete`)).status, 409);
+  assert.equal((await call('POST', `${path}/extend`, body)).status, 200);
+  assert.equal((await call('POST', `${path}/extend`, JSON.stringify({ expected_count: 1, artifact_count: 3 }))).status, 409);
+  assert.equal((await call('POST', `${path}/extend`, JSON.stringify({ expected_count: 2, artifact_count: 1 }))).status, 400);
+  assert.equal((await call('POST', `${path}/extend`, 'null')).status, 400);
+  assert.equal((await call('POST', `${path}/extend`, '{')).status, 400);
+  assert.equal((await call('POST', `${path}/extend`, JSON.stringify({ expected_count: 2, artifact_count: 3, status: 'failed' }))).status, 400);
+  assert.equal((await call('GET', `${path}/extend`)).status, 405);
+  assert.equal((await call('POST', 'executions/missing/extend', body)).status, 404);
+  await call('PUT', `${path}/artifacts/aggregate@new.json?kind=aggregate&analysis_version=new`, '{"new":true}');
+  assert.equal((await call('POST', `${path}/complete`)).status, 200);
+  assert.equal(await (await call('GET', `${path}/artifacts/aggregate.json`)).text(), '{}');
+  assert.equal((await (await call('GET', path)).json()).execution.tested_tree, null);
+  for (const opts of [{ as: null }, { as: 'other' }, { owner: 'UNSET' }])
+    assert.equal((await setup(t, opts).call('POST', `${path}/extend`, body)).status, 404);
+});
+
 test('only the configured owner reaches the archive; everyone else, and everyone while it is unset, gets 404', async t => {
   for (const [why, opts] of [['another user', { as: 'u_someone_else' }], ['signed out', { as: null }], ['owner unset', { owner: 'UNSET' }], ['owner empty', { owner: '' }]]) {
     const { call } = setup(t, opts);

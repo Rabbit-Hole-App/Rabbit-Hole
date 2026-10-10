@@ -27,6 +27,11 @@ writes touches these tables.
 
 - **Declare** is resumable: the same fields again return the row (a crashed import continues); any different field is
   refused (409). Two runs on one date are two executions.
+- **Unknown provenance (r36):** `tested_tree` must be explicitly a full tree SHA or JSON `null` when not observed.
+  The applied 0017 column is NOT NULL, so the store encodes null as the literal `unknown` and decodes it on every
+  public read; no schema migration or fabricated hash is needed. Missing/invalid fields remain errors. Old manifests
+  without a tree, and dirty runs whose `tree` only names the committed checkout, map to null. Keep source files and
+  provenance notes byte-exact; never substitute `git rev-parse <source_sha>^{tree}` for a tree actually tested.
 - **Put** stores whole bytes as chunks: identical bytes again are a no-op; different bytes under a key are refused
   (409), whole or by chunk. An aggregate needs its `analysis_version`; no other kind may have one.
 - **Complete** re-hashes every artifact from its chunks and refuses unless exactly `artifact_count` artifacts verify.
@@ -34,6 +39,13 @@ writes touches these tables.
   incomplete, never finished.
 - **Status vs completion:** `status` is the run's own outcome (`completed`, `failed`, `stopped`, `partial`, …) as the
   harness, or on a backfill the importer with a `status_note`, reported it. `completed_at` is the import's.
+- **Extend (r36):** after completion, explicitly reserve additional slots with `POST executions/:id/extend`
+  and `{ "expected_count": 3, "artifact_count": 4 }`. Counts are positive integers and must grow. The atomic
+  compare-and-set refuses a stale expected count (409), clears `completed_at`, and changes no historical metadata.
+  An identical target-count retry is a no-op, including after completion. A new extension while incomplete is 409.
+  Upload the additional versioned artifacts, then call complete; missing artifacts and stale concurrent completion
+  cannot mark the new declaration finished. Existing bytes remain immutable. Count changes through declare still
+  conflict: clients must use this explicit extension before resuming with the updated declaration.
 
 ## Routes (`src/tutor-eval-routes.js`, owner only)
 
@@ -47,6 +59,7 @@ All under `/api/learn/tutor-eval/`, on the preview and production app workers:
 | `PUT executions/:id/artifacts/:key?kind=&analysis_version=` | whole bytes: 204, 409 different bytes, 413 over 50 MB |
 | `GET executions/:id/artifacts/:key` | exact bytes, `ETag` = sha256, `Content-Disposition: attachment`, `no-store` |
 | `POST executions/:id/complete` | 200 complete, 409 while anything is missing |
+| `POST executions/:id/extend` | owner only; expected_count + larger artifact_count; 200 reserved/resumed, 400 invalid, 409 stale/incomplete |
 
 - **Access:** the signed-in `users.id` must equal the Worker variable `TUTOR_EVAL_OWNER_USER_ID`. Anyone else, signed in
   or not, and everyone while the variable is unset (the default), gets the same 404 as any missing page. Setting the

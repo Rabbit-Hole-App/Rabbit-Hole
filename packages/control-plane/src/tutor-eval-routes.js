@@ -19,7 +19,7 @@ const notFound = () => new Response('Not found', { status: 404, headers: { ...he
 // Store errors by meaning: a conflict with stored state is 409, a bad request 400, a missing thing 404.
 const failure = error => {
   const m = String(error?.message || error);
-  if (/already declared with different|already holds different|incomplete|artifacts put, \d+ declared/.test(m)) return json({ error: m }, 409);
+  if (/already declared with different|already holds different|incomplete|extension conflict|artifacts put, \d+ declared/.test(m)) return json({ error: m }, 409);
   if (/^no (execution|artifact)/.test(m)) return json({ error: m }, 404);
   if (/lacks|must be|needs its analysis_version|has no analysis_version|ISO 8601/.test(m)) return json({ error: m }, 400);
   throw error;
@@ -57,6 +57,12 @@ export async function tutorEvalRoute(path, req, env, deps = {}) {
     if (sub === 'complete' && !key) {
       if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
       return json({ import: await archive.complete(id) });
+    }
+    if (sub === 'extend' && !key) {
+      if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+      let body; try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+      if (!body || Object.keys(body).some(k => !['expected_count', 'artifact_count'].includes(k))) return json({ error: 'extension must contain only expected_count and artifact_count' }, 400);
+      return json({ import: await archive.extend(id, body.expected_count, body.artifact_count) });
     }
     if (sub !== 'artifacts' || !key || extra !== undefined) return notFound();
     if (req.method === 'PUT') {
