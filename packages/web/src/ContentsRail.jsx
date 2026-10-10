@@ -17,8 +17,8 @@ const PLACEMENT = {
   // The 52px gutter the canvas keeps clear (edgeInset): a narrow hover margin, so the rail never covers a card.
   canvas: 'absolute top-1/2 right-0 z-30 -translate-y-1/2 pr-2 pl-2 max-lg:hidden',
 };
-const GLYPHS = { completed: '✓', current: '●', upcoming: '○', skipped: '○', needs_review: '↺' };
-const SAY = { completed: 'completed', current: 'current', upcoming: 'upcoming', optional: 'optional', skipped: 'skipped', needs_review: 'needs review' };
+const GLYPHS = { already_understood: '✓', completed: '✓', current: '●', upcoming: '○', skipped: '○', needs_review: '↺' };
+const SAY = { already_understood: 'already understood', completed: 'completed', current: 'current', upcoming: 'upcoming', optional: 'optional', skipped: 'skipped', needs_review: 'needs review' };
 const CHANGED = { added: 'new', moved: 'moved', changed: 'changed' };
 const tone = status => (status === 'current' ? 'text-accent' : status === 'completed' ? 'text-ink-2' : 'text-ink-3');
 
@@ -76,7 +76,7 @@ export function PathList({ entries, onOpen, expanded }) {
             className={`flex w-full items-baseline gap-2 rounded px-1 py-0.5 text-left text-sm hover:text-accent ${entry.status === 'current' ? 'font-semibold text-accent' : entry.status === 'completed' ? 'text-ink' : 'text-ink-2'}`}>
             <span aria-hidden="true" className={`w-3.5 shrink-0 text-center text-xs ${tone(entry.status)}`}><Glyph status={entry.status} /></span>
             <span className={`min-w-0 flex-1 ${entry.status === 'skipped' ? 'line-through' : ''}`}>
-              {entry.n}. {entry.title}<span className="sr-only">, {SAY[entry.status] ?? entry.status}{entry.changed ? `, ${CHANGED[entry.changed] ?? entry.changed}` : ''}</span>
+              {entry.n}. {entry.title}{entry.status === 'already_understood' && <span className="ml-1 text-xs text-ink-2">Already understood</span>}<span className="sr-only">, {SAY[entry.status] ?? entry.status}{entry.changed ? `, ${CHANGED[entry.changed] ?? entry.changed}` : ''}</span>
             </span>
             {entry.changed && <span data-path-changed={entry.changed} aria-hidden="true" className="h-1.5 w-1.5 shrink-0 self-center rounded-full bg-accent" />}
           </button>

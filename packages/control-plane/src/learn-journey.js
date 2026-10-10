@@ -14,7 +14,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { MODEL_NOT_CONFIGURED } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
-import { TRAY_MODES, journeyOutcome, journeyStep, nextIntakeQuestion, nextProbe, sectionCompletion, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
+import { TRAY_MODES, journeyOutcome, journeyStep, nextIntakeQuestion, nextProbe, priorCoverage, sectionCompletion, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
 import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
 import { JourneyConflict, activateStaged, appendPathVersion, archiveJourney, createJourney, dropStaged, loadJourney, loadJourneyById, loadPath, saveJourney, stagedScope, toClient } from './learn-journey-store.js';
 import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
@@ -88,6 +88,14 @@ const criterionRefs = j => {
   const claims = new Set((j.section_plan?.completion_evidence || []).map(c => c?.claim));
   return (j.evidence?.events || []).filter(e => e.settled && claims.has(e.claim)).map(e => e.seq);
 };
+// Recheck prior coverage when a draft is saved and before passing a section on navigation. A later contradiction
+// restores upcoming; it never becomes a learner skip. Each version retains its own evidence receipt.
+const priorPath = (j, path) => !path ? path : ({ ...path, sections: path.sections.map(section => {
+  if (section.status !== 'already_understood') return section;
+  const coverage = priorCoverage(j, section);
+  const { evidence_refs, ...rest } = section;
+  return coverage.met ? { ...rest, evidence_refs: coverage.evidence_refs } : { ...rest, status: 'upcoming' };
+}) });
 const current = (path, id) => ({ ...path, current_section_id: id, sections: path.sections.map(s => (s.id === id ? { ...s, status: 'current' } : s)) });
 const must = step => { if (step.error) throw new Error(step.error); return step; };
 
@@ -100,7 +108,7 @@ async function drafted(env, j, out, source, prev = null) {
   const checked = validateRegistry(registry, { prev: j.registry, events: j.evidence.events });
   if (!checked.ok) throw new PlannerInvalid(prev ? 'journey_adapt' : 'journey_path', checked.errors);
   const version = (prev?.version ?? 0) + 1;
-  const path = { ...out.path, version, grounding: j.grounding, intake_ref: { journey_revision: j.revision }, change: { ...out.path.change, source } };
+  const path = priorPath({ ...j, registry }, { ...out.path, version, grounding: j.grounding, intake_ref: { journey_revision: j.revision }, change: { ...out.path.change, source } });
   const step = must(journeyStep({ ...j, registry }, { type: 'path_drafted', version, path }));
   const id = step.journey.active_section_id;
   const { journey } = await appendPathVersion(env, step.journey, id ? current(path, id) : path, j.revision);
@@ -241,9 +249,9 @@ async function act(env, scope, body, callModel, now) {
   if (body.action === 'archive') { await archiveJourney(env, j, j.revision); return json({ journey: null, path: null, tray: null }); }
   if (body.action === 'accept') {
     // Section 1 becomes current in a new version with only that status change, then only it is planned.
-    const path = await loadPath(env, j.id), step = journeyStep(j, { type: 'accept', path });
+    const path = priorPath(j, await loadPath(env, j.id)), step = journeyStep(j, { type: 'accept', path });
     if (step.error) return refuse(step);
-    const next = { ...current(path, step.journey.active_section_id), version: path.version + 1, change: { source: 'learner_edit', reason: 'accepted', evidence_refs: [], sections_changed: [] } };
+    const next = { ...current(path, step.journey.active_section_id), version: path.version + 1, change: { source: 'learner_edit', reason: 'accepted', evidence_refs: path.sections.flatMap(s => s.evidence_refs || []), sections_changed: [], ...(step.journey.state === 'completed' ? { cause: 'final', outcome: journeyOutcome(j, path) } : {}) } };
     return run(env, (await appendPathVersion(env, step.journey, next, j.revision)).journey, step.effects, callModel);
   }
   if (body.action === 'next_section') {
@@ -255,7 +263,7 @@ async function act(env, scope, body, callModel, now) {
     // Owner 2026-10-08 (r29): the section left is completed when its completion_evidence holds, else skipped - never completed
     // silently - and keeps its evidence and its heading (the rail opens it again); the next section is current in a new version,
     // then planned and drawn as section 1 is.
-    const path = await loadPath(env, j.id), step = journeyStep(j, { type: 'next_section', path });
+    const path = priorPath(j, await loadPath(env, j.id)), step = journeyStep(j, { type: 'next_section', path });
     if (step.error) return refuse(step);
     // Beta hardening (owner 2026-10-09): the change records why (cause evidence_met or learner_skip) and the stored evidence it
     // read (criterionRefs). Only the journey row's evidence decides; nothing in the body does.

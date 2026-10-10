@@ -605,7 +605,7 @@ test('journeyOutcome: sections completed, skipped and not reached; expected clai
   const wanted = [...new Set(done.sections.filter((s) => s.status !== 'optional').flatMap((s) => s.expected_evidence.map((e) => e.claim)))];
   const states = deriveClaimStates(j.evidence.events, LR_REGISTRY.claims);
   const o = lj.journeyOutcome(j, done);
-  assert.deepEqual(o.sections, { completed: ids.filter((id, i) => id === last || i % 2 === 0), skipped: ids.filter((id, i) => id !== last && i % 2 === 1), not_reached: [] });
+  assert.deepEqual(o.sections, { already_understood: [], completed: ids.filter((id, i) => id === last || i % 2 === 0), skipped: ids.filter((id, i) => id !== last && i % 2 === 1), not_reached: [] });
   assert.equal(o.result, 'incomplete', 'a section was skipped');
   assert.deepEqual(o.understood, [A]);
   assert.deepEqual(o.gaps, wanted.filter((c) => c !== A).map((claim) => ({ claim, state: states[claim].state })));
@@ -651,8 +651,20 @@ test('progression acceptance: the Next section chip appears immediately after qu
 test('outcomeLine: the finished path in words - sections completed, skipped and not reached, and the concepts still not understood', () => {
   const sections = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Beta' }, { id: 'c', title: 'Gamma' }];
   const registry = { concepts: { sigmoid: { label: 'The sigmoid function' }, classification: { label: 'Binary classification' } }, claims: {} };
-  const outcome = { result: 'incomplete', sections: { completed: ['a'], skipped: ['b'], not_reached: ['c'] }, understood: [], gaps: [{ claim: 'sigmoid/x', state: 'uncertain' }, { claim: 'sigmoid/y', state: 'not_yet_observed' }, { claim: 'classification/z', state: 'misconception' }] };
+  const outcome = { result: 'incomplete', sections: { completed: ['a'], already_understood: [], skipped: ['b'], not_reached: ['c'] }, understood: [], gaps: [{ claim: 'sigmoid/x', state: 'uncertain' }, { claim: 'sigmoid/y', state: 'not_yet_observed' }, { claim: 'classification/z', state: 'misconception' }] };
   assert.equal(lj.outcomeLine(outcome, { sections }, registry), 'Path finished: 1 of 3 sections completed. Skipped: Beta. Not reached: Gamma. Not yet understood: The sigmoid function, Binary classification.');
-  assert.equal(lj.outcomeLine({ result: 'completed', sections: { completed: ['a', 'b', 'c'], skipped: [], not_reached: [] }, understood: ['sigmoid/x'], gaps: [] }, { sections }, registry), 'Path finished: 3 of 3 sections completed.');
+  assert.equal(lj.outcomeLine({ result: 'completed', sections: { completed: ['a', 'b', 'c'], already_understood: [], skipped: [], not_reached: [] }, understood: ['sigmoid/x'], gaps: [] }, { sections }, registry), 'Path finished: 3 of 3 sections completed.');
   assert.equal(lj.outcomeLine(null, { sections }, registry), null);
+});
+
+test('prior coverage requires every idea and transfer on each expected claim, never a skip or an empty criterion', () => {
+  const claim = 'topic/claim', registry = { claims: { [claim]: { concept: 'topic', ideas: ['one', 'two'], prerequisites: [] } } };
+  const section = { expected_evidence: [{ claim }] };
+  const pass = (idea, seq) => ({ claim, idea, seq, result: 'pass', settled: true, kind: 'demonstrated_in_transfer' });
+  const j = events => ({ registry, evidence: { events } });
+  assert.equal(lj.priorCoverage(j([]), section).met, false);
+  assert.equal(lj.priorCoverage(j([pass(0,1)]), section).met, false);
+  assert.deepEqual(lj.priorCoverage(j([pass(0,1),pass(1,2)]), section), { met: true, evidence_refs: [1,2] });
+  assert.equal(lj.priorCoverage(j([pass(0,1),pass(1,2),{ ...pass(0,3), result: 'fail' }]), section).met, false);
+  assert.equal(lj.priorCoverage(j([pass(0,1),pass(1,2)]), { expected_evidence: [] }).met, false);
 });

@@ -1746,3 +1746,21 @@ test('progression: a fresh Tutor renders the saved eligibility chip without a mo
   assert.match(html, /Next section: Second/);
   assert.equal(tutorRoutes(h).length, 0);
 });
+
+test('progression: already understood is visibly distinct in the rail and a reloaded final outcome retains gaps', async () => {
+  const html = renderToStaticMarkup(createElement(PathList, { expanded: true, onOpen: () => {}, entries: [
+    { id: 's1', n: 1, title: 'Prior topic', status: 'already_understood' }, { id: 's2', n: 2, title: 'Skipped topic', status: 'skipped' },
+  ] }));
+  assert.match(html, /Already understood/);
+  assert.match(html, /data-status="already_understood"/);
+  assert.match(html, /data-status="skipped"/);
+  const j = journeyOf({ state: 'completed', registry: SIGMOID });
+  const path = { sections: [{ id: 's1', title: 'Prior topic' }, { id: 's2', title: 'Skipped topic' }],
+    change: { outcome: { sections: { completed: [], already_understood: ['s1'], skipped: ['s2'], not_reached: [] }, gaps: [{ claim: 'sigmoid/shape', state: 'uncertain' }] } } };
+  const h = harness(ok(j, null, path)); await h.refresh();
+  const restored = renderToStaticMarkup(tutorOn(h).tutor.extras);
+  assert.match(restored, /Already understood: Prior topic/);
+  assert.match(restored, /Skipped: Skipped topic/);
+  assert.match(restored, /Not yet understood:/);
+  assert.equal(tutorRoutes(h).length, 0);
+});

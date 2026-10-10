@@ -889,3 +889,10 @@ Before any app deploy of a main that contains LP1:
 2. The control plane with `/api/me` `user_id` deploys next.
 3. Only then the app.
 None of these commands was run by LP1.
+
+
+### Evidence-backed prior coverage (r36, 2026-10-09)
+
+`already_understood` is a separate section status. A planner can use it only when every expected claim is understood on current saved evidence; empty criteria, partial coverage, contradictions and learner statements alone do not qualify. The server records the settled evidence references on the section, rechecks when accepting or moving, and restores upcoming when coverage no longer holds. `skipped` remains the learner's choice, `optional` remains elective, and `completed` remains section completion. None of these transitions writes claim evidence. The rail labels prior coverage as Already understood. An all-covered path can finish without a section planner call. Final outcomes list prior-covered sections separately from completed, skipped and not reached, retain claim gaps, and render again after reload.
+
+Verification is offline route/domain/render testing; deployed UI and real-model behavior remain for Parallel's gate and Tutor's independent verification. No new migration or deployment.

@@ -144,8 +144,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // completed move the route refuses (completion_not_met: the stored evidence no longer meets the section) says why.
   const moveOn = async opts => {
     const out = await journeyRef.current?.nextSection?.(opts), d = out?.d;
-    const text = out?.status === 200 && d?.journey?.state === 'completed' ? outcomeLine(d.path?.change?.outcome, d.path, d.journey.registry)
-      : out?.status === 409 && d?.error === 'completion_not_met' ? 'This section is not complete on your latest answers, so it stays open.' : null;
+    const text = out?.status === 409 && d?.error === 'completion_not_met' ? 'This section is not complete on your latest answers, so it stays open.' : null;
     if (text) put({ notices: [...desk.notices, { tone: 'info', text }] });
     return out;
   };
@@ -326,13 +325,18 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     showing: options => { shown.current = options; },
   };
   // Read when drawn (extras is a getter): the desk as it is now.
+  const finished = () => {
+    const view = journeyRef.current;
+    return !record && view?.journey?.state === 'completed' ? outcomeLine(view.path?.change?.outcome, view.path, view.journey.registry) : null;
+  };
   const made = () => <>
+    {finished() && <p data-journey-outcome role="status" className="text-xs text-ink-2">{finished()}</p>}
     {desk.notices.length > 0 && <div data-tutor-notices role="status" className="flex flex-col gap-1 text-xs">
       {desk.notices.map((notice, i) => <p key={i} className={notice.tone === 'error' ? 'text-red-700' : 'text-ink-2'}>{notice.text}</p>)}
     </div>}
     {desk.proposal && <PaidConfirm message={desk.proposal.message} onGenerate={() => decide(true)} onCancel={() => decide(false)} />}
   </>;
-  const hasMade = () => !!desk.proposal || desk.notices.length > 0;
+  const hasMade = () => !!finished() || !!desk.proposal || desk.notices.length > 0;
   // The turn's suggestion chips (Back up the Rabbit Hole among them), read when drawn; a pressed chip runs and goes.
   const chips = () => withMoveOn(desk.chips, { journey: flying.current ? null : journeyRef.current, record, moveOn });
   const chipRow = () => chips().length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">

@@ -77,7 +77,7 @@ export async function planDiagnostic(env, input, { callModel = journeyCallModel(
 // max_sections (a quick overview: 3) is PlannerInvalid.
 export async function planPath(env, input, { callModel = journeyCallModel(env) } = {}) {
   const out = await callRole(env, 'journey_path', input, callModel);
-  return valid('journey_path', pathOutput(out, { registry: input.registry, source: 'draft', diagnostic_evidence_refs: input.diagnostic_evidence_refs ?? [], max_sections: input.max_sections ?? null }));
+  return valid('journey_path', pathOutput(out, { registry: input.registry, source: 'draft', diagnostic_evidence_refs: input.diagnostic_evidence_refs ?? [], max_sections: input.max_sections ?? null, states: input.states }));
 }
 
 // input { prev, edit | evidence, registry, states } -> { path, concepts_added, ambiguous, escalated }. journey_adapt
@@ -88,7 +88,7 @@ export async function planPath(env, input, { callModel = journeyCallModel(env) }
 // would throw away. A learner edit escalates only on a rejection or ambiguity (controller ruling, Task 4 review round 1).
 // change.evidence_refs is evidence.refs; the model never sets it.
 export async function adaptPath(env, input, { callModel = journeyCallModel(env) } = {}) {
-  const check = out => pathOutput(out, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit', evidence_refs: input.evidence?.refs ?? [] });
+  const check = out => pathOutput(out, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit', evidence_refs: input.evidence?.refs ?? [], states: input.states });
   const contradictory = !!input.evidence && (input.evidence.claims ?? []).some(id => {
     const s = input.states?.[id];
     return s?.state === 'uncertain' && s.settled_passes > 0 && s.settled_negatives > 0;
