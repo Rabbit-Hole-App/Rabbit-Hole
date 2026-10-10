@@ -1,4 +1,4 @@
-import { repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
+import { PROJECT_FIELDS, projectAccess, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
@@ -164,10 +164,24 @@ export async function canvasesFetch(req, env) {
       // ponytail: no per-owner canvas cap (repositories cap 25 per workspace); add one if dev rows grow unbounded.
       // One batch: a canvas is its row and its empty main board together, or nothing.
       const name = `canvas-${crypto.randomUUID().slice(0, 8)}`;
+      // A canvas added to a project takes the project's visibility (owner, 2026-10-09; visibility-menu.md "Projects"), read
+      // before it joins: unlisted, its own view link; public, its Explore publication under the owner's @handle. A private
+      // or mixed project adds it private.
+      const inherit = project ? projectAccess(await db.prepare(`SELECT ${PROJECT_FIELDS()} FROM repository_apps r WHERE r.org=? AND r.name=?`).bind(user.org, project).first()) : 'private';
       await db.batch([
         db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,?)').bind(user.org, name, user.email, title, project, device),
         emptyBoard(db, user.org, user.email, name),
       ]);
+      if (inherit === 'unlisted') {
+        // learn-boards.js imports this module: load it here, not at the top (learn-context-docs.js does the same).
+        const [{ newToken }, { sharePin }] = await Promise.all([import('./learn-boards.js'), import('./learn-shared-ask.js')]);
+        const view = newToken();
+        await db.prepare("UPDATE learn_boards SET shared = 1, view_token = ? WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(view, user.org, user.email, name).run();
+        await sharePin(db, await db.prepare("SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name).first());
+      }
+      if (inherit === 'public' && await db.prepare('SELECT 1 FROM user_handles WHERE email = ?').bind(user.email).first()) {
+        await db.prepare('INSERT OR IGNORE INTO canvas_publications (org, canvas, token) VALUES (?, ?, ?)').bind(user.org, name, publicationToken()).run();
+      }
       return json(await ownedCanvas(env, user, name), 201);
     }
     // Learn's chat keeps its /api/ask/threads calls (ask.jsx:388,401,601,622); canvas history lives in LEARN_DB.

@@ -26,11 +26,12 @@ function setup(t) {
       return new URL(request.url).pathname === '/api/me' ? Response.json({ ...who, orgName: null }) : new Response('no', { status: 404 });
     },
   };
-  const objects = new Map();
+  const objects = new Map(), deleted = [];
   const LEARN_MEDIA = {
     put: async (key, bytes, { httpMetadata, customMetadata }) => { objects.set(key, { bytes: new Uint8Array(bytes), httpMetadata, customMetadata }); },
     get: async key => { const object = objects.get(key); return object ? { body: object.bytes, httpMetadata: object.httpMetadata, customMetadata: object.customMetadata } : null; },
     list: async ({ prefix }) => ({ objects: [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, object]) => ({ key, customMetadata: object.customMetadata })), truncated: false }),
+    delete: async key => { deleted.push(key); objects.delete(key); },
   };
   const DB = liveDb(), RUNS = liveRuns();
   const env = { LEARN_DB, CONTROL_PLANE, LEARN_MEDIA, DB, RUNS };
@@ -49,7 +50,7 @@ function setup(t) {
   const library = async as => (await call('GET', '/api/canvases', { as })).body.canvases;
   const app = async (as, name) => (await call('GET', `/api/apps/${name}`, { as })).body;
   const board = async (as, name) => (await call('GET', `/api/learn/boards/${name}/main`, { as })).body;
-  return { sqlite, call, canvas, save, share, fork, library, app, board, objects };
+  return { sqlite, env, call, canvas, save, share, fork, library, app, board, objects, deleted };
 }
 
 const BOARD = {
@@ -106,7 +107,7 @@ test('a shared canvas forks for any signed-in viewer: the server copy, its files
   const a = await f.canvas('ana', 'Attention');
   const extra = { ...BOARD, selection: ['b1'], view: { x: 1, y: 2, z: 3 }, voice: { transcript: 'private words' }, tutor: { evidence: 'x' },
     exchanges: [...BOARD.exchanges, { id: 'q2', question: 'mid answer', answer: 'half', status: 'streaming' }],
-    blocks: [...BOARD.blocks, { id: 'nb', type: 'notebook', notebook_id: 'nb-original' }] };
+    blocks: [...BOARD.blocks, { id: 'p', type: 'pdf', assetKey: 'pdf:p' }, { id: 'nb', type: 'notebook', notebook_id: 'nb-original' }] };
   await f.save('ana', a.name, extra);
   const links = await f.share('ana', a.name);
   await f.call('PUT', `/api/learn/boards/${a.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ana', raw: new Uint8Array([4, 5]), headers: { 'Content-Type': 'application/pdf' } });
@@ -353,4 +354,141 @@ test('forkState keeps the board content and settles chat cards', () => {
   assert.deepEqual(forkState({ blocks: [{ id: 'b' }], exchanges: [{ id: 'e', status: 'thinking' }], selection: ['b'], viewport: {}, shapes: 'not a list' }),
     { blocks: [{ id: 'b' }], exchanges: [{ id: 'e', status: 'done' }] });
   assert.deepEqual(forkState(null), {});
+});
+
+// Beta hardening 3d (regression only): a fork's own board, its files and the notebook workspace it uses now survive
+// whatever happens to the source - a file and a notebook removed from the source board, the source hole deleted, the
+// source's parent trashed and restored. The fork reads from its own board (boardAssetKeys of the fork's state, never the
+// source's), and nothing is ever deleted from R2.
+test('a fork and its current notebook workspace survive the source\'s asset removal, hole delete, and parent trash + restore; nothing is deleted from R2', async t => {
+  const f = setup(t);
+  const root = await f.canvas('ana', 'Attention');
+  // The source is a hole under root (dives.js), with a file and a notebook.
+  const hole = 'canvas-0000ab1e';
+  assert.equal((await f.call('POST', '/api/canvases/dives', { as: 'ana', body: { name: hole, title: 'Softmax hole', parent: { app: root.name, board: 'main' }, origin_block_id: 'b1', dive: {} } })).status, 201);
+  await f.save('ana', hole, { ...BOARD, blocks: [...BOARD.blocks, { id: 'p', type: 'pdf', assetKey: 'pdf:p' }, { id: 'nb', type: 'notebook', notebook_id: 'nb-source' }] });
+  const links = await f.share('ana', hole);
+  await f.call('PUT', `/api/learn/boards/${hole}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ana', raw: new Uint8Array([4, 5]), headers: { 'Content-Type': 'application/pdf' } });
+  await f.call('PUT', `/api/learn/boards/${hole}/main/assets/${encodeURIComponent('notebook:nb-source')}`, { as: 'ana', raw: '{"a.py":{"content":"x"}}', headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string' } });
+  const made = (await f.fork('ben', { token: links.view })).body;
+  assert.equal(made.files, 2);
+  const workspace = `notebook:${(await f.board('ben', made.name)).state.blocks.find(block => block.type === 'notebook').notebook_id}`;
+  const intact = async where => {
+    assert.equal((await f.app('ben', made.name)).title, 'Softmax hole', where);
+    assert.deepEqual((await f.call('GET', `/api/learn/boards/${made.name}/main/assets`, { as: 'ben' })).body.keys.sort(), ['pdf:p', workspace].sort(), where);
+    for (const key of ['pdf:p', workspace]) assert.equal((await f.call('GET', `/api/learn/boards/${made.name}/main/assets/${encodeURIComponent(key)}`, { as: 'ben' })).status, 200, `${where}: ${key}`);
+    // The fork's own link reads the fork's board, not the source's.
+    assert.equal((await f.call('GET', `/api/learn/boards/shared/${(await f.share('ben', made.name)).view}/assets/${encodeURIComponent(workspace)}`, { as: 'ana' })).status, 200, `${where}: by the fork's link`);
+  };
+  await intact('after the fork');
+  // 1. The source owner removes the file and the notebook from the source board.
+  assert.equal((await f.save('ana', hole, BOARD, (await f.board('ana', hole)).version)).status, 200);
+  assert.equal((await f.call('GET', `/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('pdf:p')}`, { as: 'ben' })).status, 404, 'the source link no longer serves it');
+  await intact('after the source removed its file and notebook');
+  // 2. The source hole is deleted.
+  assert.equal((await f.call('DELETE', `/api/canvases/dives/${hole}`, { as: 'ana' })).status, 200);
+  assert.equal((await f.call('GET', `/api/learn/boards/shared/${links.view}`, { as: 'ben' })).status, 404);
+  await intact('after the source hole was deleted');
+  // 3. The source's parent goes to Trash and comes back.
+  assert.equal((await f.call('POST', `/api/apps/${root.name}/trash`, { as: 'ana', body: {} })).status, 200);
+  await intact('while the source\'s parent is in Trash');
+  assert.equal((await f.call('POST', `/api/apps/${root.name}/untrash`, { as: 'ana', body: {} })).status, 200);
+  await intact('after Restore');
+  assert.deepEqual(f.deleted, [], 'nothing is ever deleted from R2');
+});
+
+// Beta hardening 4b: a fork is all or nothing. The files copy before the rows commit, so a copy that fails commits
+// nothing and the retry with the same key makes a whole fork, never a replay of a partial one; Duplicate leaves no
+// partial copy either. The fake R2 put fails on demand.
+test('a failed file copy makes no fork: nothing committed, JSON 500; the retry with the same key is a complete fork; Duplicate leaves nothing', async t => {
+  const f = setup(t);
+  const a = await f.canvas('ana', 'Attention');
+  await f.save('ana', a.name, { ...BOARD, blocks: [...BOARD.blocks, { id: 'p', type: 'pdf', assetKey: 'pdf:p' }, { id: 'nb', type: 'notebook', notebook_id: 'nb-original' }] });
+  const links = await f.share('ana', a.name);
+  await f.call('PUT', `/api/learn/boards/${a.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ana', raw: new Uint8Array([4, 5]), headers: { 'Content-Type': 'application/pdf' } });
+  await f.call('PUT', `/api/learn/boards/${a.name}/main/assets/${encodeURIComponent('notebook:nb-original')}`, { as: 'ana', raw: '{"a.py":{"content":"x"}}', headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string' } });
+  const put = f.env.LEARN_MEDIA.put;
+  let failing = 0;
+  f.env.LEARN_MEDIA.put = async (...args) => { if (failing-- > 0) throw new Error('R2 is down'); return put(...args); };
+  const rows = owner => f.sqlite.prepare('SELECT (SELECT count(*) FROM canvases WHERE owner_email = ?1) AS canvases, (SELECT count(*) FROM learn_boards WHERE owner_email = ?1) AS boards, (SELECT count(*) FROM canvas_forks WHERE owner_email = ?1) AS forks').get(owner);
+  const forkIt = () => f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { source: { token: links.view }, key: 'all-or-nothing' } });
+  failing = 1;
+  const broken = await forkIt();
+  assert.equal(broken.status, 500);
+  assert.match(broken.body.error, /fork could not be made/);
+  assert.deepEqual({ ...rows('ben@test') }, { canvases: 0, boards: 0, forks: 0 }, 'nothing committed');
+  const again = await forkIt();
+  assert.deepEqual([again.status, again.body.files, again.body.replayed], [201, 2, undefined], 'the retry is a complete fork, not a replay of a partial one');
+  assert.deepEqual((await f.call('GET', `/api/learn/boards/${again.body.name}/main/assets`, { as: 'ben' })).body.keys.length, 2);
+  const third = await forkIt();
+  assert.deepEqual([third.status, third.body.replayed, third.body.name], [200, true, again.body.name]);
+  // Duplicate: a failed copy leaves no partial canvas of ana's.
+  const before = rows('ana@test');
+  failing = 1;
+  const copy = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: a.name } } });
+  assert.equal(copy.status, 500);
+  assert.match(copy.body.error, /copy could not be made/);
+  assert.deepEqual(rows('ana@test'), before, 'no partial copy');
+});
+
+test('fork publication failures clean only this attempt, including a write that succeeded before throwing', async t => {
+  for (const failure of ['second-put', 'batch']) await t.test(failure, async t => {
+    const f = setup(t), a = await f.canvas('ana', 'Atomic files');
+    await f.save('ana', a.name, { ...BOARD, blocks: [{ id: 'p', type: 'pdf', assetKey: 'pdf:p' }, { id: 'q', type: 'pdf', assetKey: 'pdf:q' }] });
+    for (const id of ['p', 'q']) await f.call('PUT', `/api/learn/boards/${a.name}/main/assets/${encodeURIComponent('pdf:' + id)}`, { as: 'ana', raw: new Uint8Array([1,2]), headers: { 'Content-Type': 'application/pdf' } });
+    const links = await f.share('ana', a.name), original = new Map(f.objects);
+    const put = f.env.LEARN_MEDIA.put;
+    let copied = 0;
+    if (failure === 'second-put') f.env.LEARN_MEDIA.put = async (...args) => { await put(...args); if (++copied === 2) throw Error('write acknowledgement lost'); };
+    else f.sqlite.exec("CREATE TRIGGER refuse_fork BEFORE INSERT ON canvas_forks BEGIN SELECT RAISE(ABORT, 'no publication'); END;");
+    const attempt = () => f.fork('ben', { token: links.view }, { key: 'retry-publication' });
+    const failed = await attempt();
+    assert.equal(failed.status, 500);
+    assert.equal((await f.library('ben')).length, 0);
+    assert.deepEqual(f.objects, original, 'unpublished copies removed; source untouched');
+    f.env.LEARN_MEDIA.put = put;
+    if (failure === 'batch') f.sqlite.exec('DROP TRIGGER refuse_fork');
+    const retried = await attempt();
+    assert.equal(retried.status, 201);
+    assert.equal(retried.body.files, 2);
+    assert.equal((await attempt()).body.name, retried.body.name);
+  });
+});
+
+test('same-key concurrent forks retain the winner files and remove the losing copies', async t => {
+  const f = setup(t), a = await f.canvas('ana', 'Concurrent files');
+  await f.save('ana', a.name, { ...BOARD, blocks: [{ id: 'p', type: 'pdf', assetKey: 'pdf:p' }] });
+  await f.call('PUT', `/api/learn/boards/${a.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ana', raw: new Uint8Array([7]), headers: { 'Content-Type': 'application/pdf' } });
+  const links = await f.share('ana', a.name), original = new Map(f.objects);
+  const batch = f.env.LEARN_DB.batch.bind(f.env.LEARN_DB);
+  let arrived = 0, release;
+  const barrier = new Promise(resolve => { release = resolve; });
+  f.env.LEARN_DB.batch = async statements => { if (++arrived === 2) release(); await barrier; return batch(statements); };
+  const results = await Promise.all([f.fork('ben', { token: links.view }, { key: 'concurrent' }), f.fork('ben', { token: links.view }, { key: 'concurrent' })]);
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 201]);
+  assert.equal(results[0].body.name, results[1].body.name);
+  assert.equal((await f.library('ben')).length, 1);
+  assert.equal(f.objects.size, original.size + 1);
+  for (const [key, value] of original) assert.deepEqual(f.objects.get(key), value);
+  const asset = await f.call('GET', `/api/learn/boards/${results[0].body.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ben' });
+  assert.equal(asset.status, 200);
+  assert.deepEqual([...asset.body], [7]);
+});
+
+test('a lost publication acknowledgement replays the committed fork without deleting its files', async t => {
+  const f = setup(t), a = await f.canvas('ana', 'Acknowledged later');
+  await f.save('ana', a.name, { ...BOARD, blocks: [{ id: 'p', type: 'pdf', assetKey: 'pdf:p' }] });
+  await f.call('PUT', `/api/learn/boards/${a.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ana', raw: new Uint8Array([9]), headers: { 'Content-Type': 'application/pdf' } });
+  const links = await f.share('ana', a.name);
+  const batch = f.env.LEARN_DB.batch.bind(f.env.LEARN_DB);
+  f.env.LEARN_DB.batch = async statements => { await batch(statements); throw Error('publication acknowledgement lost'); };
+  const first = await f.fork('ben', { token: links.view }, { key: 'lost-ack' });
+  assert.equal(first.status, 200);
+  assert.equal(first.body.replayed, true);
+  assert.equal((await f.library('ben')).length, 1);
+  const asset = await f.call('GET', `/api/learn/boards/${first.body.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ben' });
+  assert.equal(asset.status, 200);
+  assert.deepEqual([...asset.body], [9]);
+  assert.deepEqual(f.deleted, [], 'published files are retained');
+  assert.equal((await f.fork('ben', { token: links.view }, { key: 'lost-ack' })).body.name, first.body.name);
 });

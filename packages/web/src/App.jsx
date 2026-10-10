@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, MoreHorizontal, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, FolderPlus, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, MoreHorizontal, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
@@ -10,6 +10,7 @@ import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
 import { chipHref, isMine, libraryQuery, ofType } from './library-filter.js';
 import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
+import { FolderCrumb, FolderTitle, useLibraryFolders } from './LibraryFolders.jsx';
 import SharedWithYou from './comments/SharedWithYou.jsx';
 import { SortMenu } from './home/LearningCard.jsx';
 import { LIBRARY_SORTS, readLibrarySort, saveLibrarySort } from './home/card-sort.js';
@@ -125,7 +126,7 @@ function AppContent({ data, load }) {
   );
   const colMatch = (k) => COLS[k].toLowerCase().includes(menuQ.toLowerCase());
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
-  const { type, archived, section } = libraryQuery(window.location.search, learnPreview);
+  const { type, archived, section, folderId } = libraryQuery(window.location.search, learnPreview);
   const hidden = cols.hidden;
   const setHidden = (k, v) => saveCols({ ...cols, hidden: { ...cols.hidden, [k]: v } });
   const visibleCols = order.filter((k) => !hidden[k]);
@@ -140,6 +141,10 @@ function AppContent({ data, load }) {
 
   const apps = data?.apps || [];
   const org = data?.org || 'small';
+  // Library folders (docs/features/library-folders.md), the preview's Library only: the tiles, the open folder (?d=) and
+  // the card ⋮'s Move to folder all read this one list.
+  const lib = useLibraryFolders(learnPreview && !!data && !data.error, apps);
+  const openFolder = folderId ? lib.folders.find((f) => f.id === folderId) || null : null;
   // ?s=shared / ?s=private - the sidebar section labels filter this overview;
   // ?f=<folder> - the breadcrumb's folder crumb shows just that folder's apps
   const params = new URLSearchParams(window.location.search);
@@ -225,7 +230,13 @@ function AppContent({ data, load }) {
             <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{data?.orgName || wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>}
-          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <div className="flex shrink-0 items-center gap-2">{!archived && type !== 'apps' && <div className="w-48 max-md:w-32"><Input type="search" data-library-search aria-label="Search by name" placeholder="Search by name" value={find} onChange={(e) => setFind(e.target.value)} /></div>}<LibraryFilters type={type} section={section} archived={archived} />{!archived && type !== 'apps' && <SortMenu size="md" options={LIBRARY_SORTS} value={cardSort} onChange={chooseSort} />}<Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
+          {openFolder && <FolderCrumb folder={openFolder} onDropOut={lib.unfile} />}
+          <div className="flex items-center justify-between pb-5"><h1 className="min-w-0 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{openFolder ? <FolderTitle folder={openFolder} /> : title}</h1>{learnPreview && <div className="flex shrink-0 items-center gap-2">{!archived && type !== 'apps' && <div className="w-48 max-md:w-32"><Input type="search" data-library-search aria-label="Search by name" placeholder="Search by name" value={find} onChange={(e) => setFind(e.target.value)} /></div>}<LibraryFilters type={type} section={section} archived={archived} />{!archived && type !== 'apps' && <SortMenu size="md" options={LIBRARY_SORTS} value={cardSort} onChange={chooseSort} />}
+            {/* New folder beside the filters (library-folders.md); inside a folder, its ⋮ (Rename, Colour, Delete) takes the spot. */}
+            {!archived && type !== 'apps' && data && !data.error && (openFolder
+              ? <IconBtn title="Folder options" aria-label={`Options for ${openFolder.name}`} data-folder-more className="h-8 w-8 rounded-lg border border-line-strong bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]" onClick={lib.onMore(openFolder)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
+              : <Button variant="secondary" data-new-folder onClick={() => lib.newFolder()}><FolderPlus size={14} /><span className="max-md:hidden">New folder</span></Button>)}
+            <Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
           {learnPreview && <ActiveFilters type={type} section={section} archived={archived} />}
           {/* The preview sidebar has no Apps section, so an AWS catalog error shows here instead. */}
           {learnPreview && data?.awsError && <p role="alert" className="pb-4 text-xs text-danger">{data.awsError}</p>}
@@ -261,8 +272,9 @@ function AppContent({ data, load }) {
           {/* Projects and Canvases are cards, All is sections; only the Apps view is the table. */}
           {learnPreview && !archived && type !== 'apps' && withFixtures.length > 0 && (
             <LibraryViews apps={found} type={type} data={data} sort={cardSort} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive} onForked={load}
-              onType={(k) => navigate(chipHref(window.location.search, 'type', k))} />
+              onType={(k) => navigate(chipHref(window.location.search, 'type', k))} folders={lib} folderId={folderId} searching={!!needle} />
           )}
+          {learnPreview && lib.element}
           {/* Someone only invited to others' canvases still has a Library: Shared with you (docs/features/canvas-comments.md). */}
           {learnPreview && !archived && !type && data && !data.error && withFixtures.length === 0 && <SharedWithYou />}
           {!archived && (learnPreview ? type === 'apps' && sectionApps.length > 0 : apps.length > 0) && (

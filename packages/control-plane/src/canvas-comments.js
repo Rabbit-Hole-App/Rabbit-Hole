@@ -10,7 +10,7 @@ import { repositoryIdentity } from './repositories.js';
 import { HANDLE_OF, NAME_OF } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { sha256Hex } from './learn-grade-jev.js';
-import { getAsset } from './learn-boards.js';
+import { boardAsset } from './learn-boards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const refuse = (error, code, status, extra = {}) => json({ error, code, ...extra }, status);
@@ -619,7 +619,7 @@ async function commentsRoute(path, req, env) {
   if (rest === '' || rest === '/') return method === 'GET' ? about(ctx) : not();
   let part;
   if (family === 'member' && rest === '/board') return method === 'GET' ? readBoard(env, ctx) : not();
-  if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? getAsset(env, ctx.board, decodeURIComponent(part[1])) : not();
+  if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? boardAsset(env, ctx.board, decodeURIComponent(part[1])) : not();
   if (rest === '/threads') return method === 'GET' ? listThreads(env, ctx, url.searchParams) : method === 'POST' ? startThread(req, env, ctx) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)$/))) return method === 'GET' ? readThread(env, ctx, part[1], url.searchParams) : method === 'DELETE' ? deleteThread(env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/color$/))) return method === 'PUT' ? setColor(req, env, ctx, part[1]) : not();

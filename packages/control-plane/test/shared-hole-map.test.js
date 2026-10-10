@@ -39,7 +39,8 @@ test('a shared canvas shows only the holes the viewer could open by their own li
   const { tokens, map } = await tree(t);
   const out = await map(tokens.root);
   assert.equal(out.status, 200);
-  assert.deepEqual(out.body, { path: [{ title: 'Attention', href: `/b/${tokens.root}` }], children: [{ title: 'Softmax hole', href: `/b/${tokens.open}`, origin_block_id: 'b1' }] });
+  assert.deepEqual(out.body, { path: [{ title: 'Attention', href: `/b/${tokens.root}` }], children: [{ title: 'Softmax hole', href: `/b/${tokens.open}`, origin_block_id: 'b1' }],
+    holes: [{ title: 'Softmax hole', href: `/b/${tokens.open}`, parent: `/b/${tokens.root}` }, { title: 'Deeper', href: `/b/${tokens.deeper}`, parent: `/b/${tokens.open}` }] });
   const ben = await map(tokens.root, 'ben');
   assert.deepEqual(ben.body.children.map(c => [c.title, c.href, c.origin_block_id]), [['Softmax hole', `/b/${tokens.open}`, 'b1'], ['Members only', `/b/${tokens.members}`, 'b3']]);
 });
@@ -76,4 +77,16 @@ test('a published canvas shows the same holes under the same rule, its own level
   assert.deepEqual(out.body.path, [{ title: 'Attention', href: `/e/${token}` }]);
   assert.deepEqual(out.body.children.map(c => c.href), [`/b/${tokens.open}`]);
   assert.deepEqual((await map(token, 'ben')).body.children.map(c => c.title), ['Softmax hole', 'Members only']);
+});
+
+// The canvas title's menu (owner r35): every hole at any depth under the top level, by the same rule level by level, so a
+// hole left out takes everything under it out too (Under the secret has its own public link, and is still left out).
+test('the title menu lists every hole the viewer may open at any depth, from the top level down, each with its parent link', async t => {
+  const { tokens, map } = await tree(t);
+  const ben = (await map(tokens.root, 'ben')).body.holes;
+  assert.deepEqual(ben.map(h => [h.title, h.parent]), [['Softmax hole', `/b/${tokens.root}`], ['Members only', `/b/${tokens.root}`], ['Deeper', `/b/${tokens.open}`]]);
+  // From the deepest link the tree is the same one, walked from the top level the viewer may open.
+  assert.deepEqual((await map(tokens.deeper)).body.holes.map(h => h.title), ['Softmax hole', 'Deeper']);
+  // Its parent has no open link: the top is the hole itself, with nothing under it.
+  assert.deepEqual((await map(tokens.underSecret)).body.holes, []);
 });

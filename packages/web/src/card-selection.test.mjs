@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
-import { canvasTargetField, describeCanvasObject } from './learn-ask-target.js';
+import { canvasTargetField, describeCanvasObject, IMAGE_QUESTION, TEXT_QUESTION } from './learn-ask-target.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const everything = { dive: true, readers: true };
@@ -114,6 +114,28 @@ test('every kind of card has a pill: chat cards, notes, Wikipedia, PDF, file and
   assert.equal(describeCanvasObject({ id: 'h1', type: 'heading', text: 'Attention' }).title, 'Attention');
   for (const none of [{ id: 'd1', type: 'divider' }, { id: 's1', kind: 'rect' }, { id: 'e1', type: 'explanation' }]) assert.equal(describeCanvasObject(none), null, JSON.stringify(none));
   assert.deepEqual(canvasTargetField({ id: 'q1', ...chat }), { id: 'q1', kind: 'Chat', title: 'Why exp?', text: chat.text });
+});
+
+// r35, owner: "For Image or Text box, should we have a "Ask in Chat"?" - yes, both, as cards, groups and equations have.
+test('Ask in chat on a dropped image, a text box and a sticky note: the cards\' pill, a ready question, nothing sent', () => {
+  const canvas = read('./AdaptiveCanvas.jsx');
+  // The one selected object only (a multi-selection asks through its group or area); the same pill, above the top right.
+  assert.match(canvas, /\{selected && onAsk && block\.kind === 'image' && <AskPill title="Ask the tutor about this image" onAsk=\{\(\) => onAsk\(block\)\} \/>\}/);
+  assert.match(canvas, /onAskImage=\{selected === block\.id \? askImage : null\}/);
+  assert.match(canvas, /onAsk=\{selected === item\.id \? askItem : null\}/);
+  assert.match(canvas, /function AskPill\(\{ title, onAsk, className = 'absolute -top-10 right-0 z-30', style = null \}\)/);
+  // The image is the target (its label; its media id rides as image_context) and is shown to the tutor the way Show the
+  // tutor this image and the drop show it, so the Tutor path carries the picture; the question waits, nothing is sent.
+  assert.match(canvas, /const askImage = block => \{\n\s+askedId\.current = block\.id;\n\s+if \(!armTarget\(block\)\) return;\n\s+if \(block\.mediaId\) onCardActionRef\.current\?\.\('image-attach', \{ blockId: block\.id, mediaId: block\.mediaId, label: block\.label \}\);\n\s+askDraft\(IMAGE_QUESTION\);/);
+  assert.match(canvas, /const askItem = item => \{ if \(armTarget\(item\)\) askDraft\(TEXT_QUESTION\); \};/, 'words as context, as an equation; the answer lands where any does');
+  assert.equal(IMAGE_QUESTION, 'What does this image show?');
+  assert.equal(TEXT_QUESTION, 'Explain this');
+  // Only with words in it and never while edited; a note's pill sits beside it in the layer (it clips and tilts its inside).
+  assert.match(canvas, /const ask = !!onAsk && selected && !editing && tool === 'select' && !!String\(item\.text \|\| ''\)\.trim\(\);/);
+  assert.match(canvas, /\{ask && sticky && askPill\}/);
+  assert.match(canvas, /style=\{sticky \? \{ left: item\.x \+ \(item\.w \|\| 160\), top: item\.y - 40 \} : null\}/, 'on the cards\' pill row, right-aligned to the note');
+  // The pin slot reserves the pill for an image (a block) and a text box or note (an item): PILL.ask (comments.test.mjs).
+  assert.match(canvas, /if \(block\) return PILL\.ask \+ \(block\.type === 'whiteboard' \|\| block\.type === 'paper' \? PILL\.gap \+ PILL\.select : 0\);\n\s+if \(exchanges\.some\(entry => entry\.id === id\)\) return PILL\.explain \+ PILL\.gap \+ PILL\.more;\n\s+return PILL\.ask;/);
 });
 
 // Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc... each options should have an icon next to it".

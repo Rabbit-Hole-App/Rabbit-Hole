@@ -89,21 +89,31 @@ const shot = async (page, name) => { await page.waitForTimeout(400); await page.
 const titled = (page, sel, title) => page.locator(sel).filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title}$`) }) });
 const boxes = loc => loc.evaluateAll(ns => ns.map(n => { const r = n.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; }));
 // The card since r30 (card-thumbnails.md, owner 2026-10-08: "you can show one card per row if needed", "each card should be
-// same size"): one per row (the 1150px page leaves 958px at 1440), one fixed 228px height from md (LearningCard CARD_HEIGHT;
-// r28's shorter-card intent: no taller than its 186-230 range allowed), and the picture slot on the right, 2:1, 38% wide.
+// same size"): one per row (the 1150px page leaves 958px at 1440), one fixed height from md - a 190px body and its padding,
+// 224px (LearningCard CARD_BODY_H; r28's shorter-card intent: inside its 186-230 range) - and the picture slot on the right,
+// 2:1 at 1440 (380 x 190, about 40% of the card). Owner, 2026-10-09: the picture's inset above equals its inset below, and
+// the footer (N canvases, Updated, Open) ends on the picture's bottom edge, each within 1px.
 const CARD_H = [220, 236];
 async function oneSize(cards, { min = 900, max = 1000 } = {}) {
-  const all = await boxes(cards);
+  // The card and its parts in one read: a card still lifting under the mouse (lift-card, 150ms) moves between two reads,
+  // and a 1px assertion would see the move, not the layout.
+  const parts = await cards.evaluateAll(ns => ns.map(n => {
+    const box = el => { if (!el) return null; const r = el.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; };
+    return { card: box(n), pic: box(n.querySelector('[data-card-thumbnail]')), foot: box(n.querySelector('[data-card-footer]')) };
+  }));
+  const all = parts.map(p => p.card);
   for (const b of all) { assert.ok(b.w >= min && b.w <= max, `width ${b.w}`); assert.ok(b.h >= CARD_H[0] && b.h <= CARD_H[1], `height ${b.h}`); }
   assert.equal(new Set(all.map(b => b.h)).size, 1, `one height for every card: ${all.map(b => b.h)}`);
   assert.equal(new Set(all.map(b => b.x)).size, 1, `one card per row: x at ${[...new Set(all.map(b => b.x))]}`);
   for (let i = 1; i < all.length; i += 1) assert.ok(all[i].y >= all[i - 1].y + all[i - 1].h, `card ${i} starts its own row`);
-  const pics = await boxes(cards.locator('[data-card-thumbnail]'));
+  const pics = parts.map(p => p.pic).filter(Boolean), feet = parts.map(p => p.foot);
   assert.equal(pics.length, all.length, 'every learning card has its picture slot');
   pics.forEach((t, i) => {
-    const c = all[i];
+    const c = all[i], above = t.y - c.y, below = c.y + c.h - (t.y + t.h);
     assert.ok(Math.abs(t.x + t.w - (c.x + c.w - 17)) <= 2, `card ${i}: the picture at the right (${JSON.stringify(t)} in ${JSON.stringify(c)})`);
-    assert.ok(t.w / c.w > 0.35 && t.w / c.w < 0.4 && Math.abs(t.w / t.h - 2) < 0.05, `card ${i}: 38% wide and 2:1 (${t.w} x ${t.h} of ${c.w})`);
+    assert.ok(t.w / c.w > 0.35 && t.w / c.w < 0.42 && Math.abs(t.w / t.h - 2) < 0.05, `card ${i}: about 40% wide and 2:1 (${t.w} x ${t.h} of ${c.w})`);
+    assert.ok(Math.abs(above - below) <= 1, `card ${i}: the picture's inset above (${above}) equals its inset below (${below})`);
+    assert.ok(Math.abs(feet[i].y + feet[i].h - (t.y + t.h)) <= 1, `card ${i}: the footer ends on the picture's bottom edge (${feet[i].y + feet[i].h} vs ${t.y + t.h})`);
   });
   return all;
 }
@@ -127,7 +137,8 @@ const lib = await contextFor(owner, { project: true, legacy: [tides.name, away.n
 await lib.goto(`${BASE}/library`);
 await lib.locator('[data-library-card="project"]').first().waitFor({ timeout: 60000 });
 await lib.locator('[data-library-card="canvas"]').first().waitFor();
-await check('1 Library at 1440x900: one card per row, about 958 x 228 px, every card the same height, the picture on the right at 38% and 2:1', async () => {
+await check('1 Library at 1440x900: one card per row, about 958 x 224 px, every card the same height, the picture on the right at 2:1, its insets equal and the footer on its bottom edge (a project and the canvases)', async () => {
+  await oneSize(lib.locator('[data-library-card="project"]'));
   await lib.goto(`${BASE}/library?type=canvases`);
   await titled(lib, '[data-library-card]', T.tides).waitFor({ timeout: 60000 });
   const all = await oneSize(lib.locator('[data-library-card]'));

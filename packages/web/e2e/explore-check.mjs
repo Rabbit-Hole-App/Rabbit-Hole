@@ -3,7 +3,9 @@
 // default), UNLISTED (a share link), PUBLIC (Publish to Explore, opened at /e/<token> by anyone, read-only).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explore-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
@@ -83,8 +85,8 @@ await viewer.page.goto(`${BASE}/explore`);
 await viewer.page.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
 const card = viewer.page.locator('[data-explore-card]').filter({ hasText: TITLE });
 // Owner, 2026-10-08: two tabs, Explainers (the default, with Sort) and Creators; the search is the active tab's.
-check('Explore opens on the Explainers tab, with Sort, searching explainers only', (await viewer.page.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText()) === 'Explainers'
-  && await viewer.page.locator('[data-sort-control]').count() === 1 && (await viewer.page.locator('[data-explore-search]').getAttribute('placeholder')) === 'Search explainers'
+check('Explore opens on the Learning Boards tab, with Sort, searching learning boards only', (await viewer.page.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText()) === 'Learning Boards'
+  && await viewer.page.locator('[data-sort-control]').count() === 1 && (await viewer.page.locator('[data-explore-search]').getAttribute('placeholder')) === 'Search learning boards'
   && await viewer.page.locator('[data-creator-chip]').count() === 0);
 check('the Explore card shows the creator\'s @handle and the fork count, no email', (await card.locator('[data-creator]').innerText()).trim() === `@${H.owner}` && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '04-explore');
@@ -107,7 +109,7 @@ await viewer.page.waitForTimeout(1800);
 check('Copy profile link on a creator card: the clipboard holds origin + /@handle, a check icon and the live text Profile link copied, no wider, then reverts; nothing navigates',
   clip === `${BASE}/@${H.owner}` && said === 'Profile link copied' && swapped && viewer.page.url() === before && (await copyProfile.getAttribute('aria-label')) === 'Copy profile link',
   `${clip} | ${said} | ${swapped} | ${viewer.page.url()}`);
-await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Explainers' }).click();
+await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Learning Boards' }).click();
 await card.waitFor({ timeout: 30000 });
 // A click on the card body only selects it (owner, 2026-10-08); its title opens it.
 await card.click();
@@ -207,6 +209,68 @@ check('on a phone the creator cards stay square, two to a row, with no sideways 
   && await people.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(tops));
 await shot(people.page, '10-creator-cards-phone');
 await people.context.close();
+
+// ---- the type filter (owner 2026-10-09: "Explore should have a filter for Projects or Canvas"; "same filter as library?"):
+// the Library's Filters, Projects and Canvas only, in the same ?type=. A public project and a private-repository one are
+// seeded in local D1 (importing needs the indexer), as project-canvases-check.mjs does; PERSIST is the stack's directory.
+const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+const PERSIST = process.env.PERSIST || '.small/fork-local';
+const theirsCatalog = (await api(who.other, '/api/apps')).body;
+const PUB = `repo-${run.slice(-8).padStart(8, '0')}-xpub`, PRIV = `repo-${run.slice(-8).padStart(8, '0')}-xpriv`, PUB_REPO = `acme/explore-${run}`, PRIV_REPO = `acme/hidden-${run}`;
+execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to ${PERSIST} -c packages/web/wrangler.dev.jsonc --command "INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${theirsCatalog.org}','${PUB}','${theirsCatalog.email}','${PUB_REPO}','main','${'d'.repeat(40)}','ready'), ('${theirsCatalog.org}','${PRIV}','${theirsCatalog.email}','${PRIV_REPO}','main','${'d'.repeat(40)}','ready'); INSERT INTO repository_visibility(app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = '${PUB}'"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
+const boardIn = async (title, project) => {
+  const c = (await api(who.other, '/api/canvases', { method: 'POST', body: JSON.stringify({ title, project }) })).body;
+  await api(who.other, `/api/learn/boards/${c.name}/main`, { method: 'PUT', body: JSON.stringify({ state: SEED(title) }) });
+  return (await api(who.other, `/api/apps/${c.name}/publish`, { method: 'POST', body: '{}' })).status;
+};
+const PUB_BOARD = `Truss board ${run}`, PRIV_BOARD = `Hidden-repo board ${run}`;
+check('a board published in a public project and one in a private repository', await boardIn(PUB_BOARD, PUB) === 200 && await boardIn(PRIV_BOARD, PRIV) === 200);
+const typed = await contextFor(who.viewer);
+const tp = typed.page;
+const settle = () => tp.waitForTimeout(1200);
+const search = async (text) => { await tp.locator('[data-explore-search]').fill(text); await settle(); };
+const emptyLine = async () => (await tp.locator('[data-search-empty]').count()) ? (await tp.locator('[data-search-empty]').innerText()).trim() : null;
+await tp.goto(`${BASE}/explore`);
+await tp.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
+await tp.getByRole('button', { name: 'Filters' }).click();
+const rows = {};
+for (const name of ['Projects', 'Canvas', 'Apps', 'Archived canvas', 'Mine']) rows[name] = await tp.getByRole('button', { name, exact: true }).count();
+check('the Filters control beside Sort, the Library\'s, with its Projects and Canvas rows only', JSON.stringify(rows) === JSON.stringify({ Projects: 1, Canvas: 1, Apps: 0, 'Archived canvas': 0, Mine: 0 }), JSON.stringify(rows));
+await shot(tp, '11-explore-filters', tp.locator('[data-explore-search]').locator('xpath=../..'));
+await tp.getByRole('button', { name: 'Projects', exact: true }).click();
+await tp.waitForURL(/\/explore\?type=projects$/);
+await search(`explore-${run}`);
+const project = tp.locator(`[data-explore-project="${PUB_REPO}"]`);
+check('Projects: ?type=projects, the Library\'s chip, one card for the public project - its name, repository and "1 learning board" - and no board cards',
+  await project.count() === 1 && (await project.locator('[data-card-title]').innerText()).trim() === `explore-${run}` && (await project.locator('[data-source-link]').innerText()).trim() === `github.com/${PUB_REPO}`
+  && (await project.locator('[data-canvas-count]').innerText()).trim() === '1 learning board' && await tp.locator('[data-explore-card]').count() === 0
+  && (await tp.getByRole('button', { name: 'Remove filter Projects' }).count()) === 1);
+await shot(tp, '12-explore-projects');
+await search(`hidden-${run}`);
+check('Projects never lists a private repository: "No projects match"', await tp.locator('[data-explore-project]').count() === 0 && await emptyLine() === `No projects match “hidden-${run}”.`, await emptyLine());
+await tp.reload();
+await tp.locator('[data-explore-project]').first().waitFor({ timeout: 30000 });
+check('a reload keeps ?type=projects and its chip', new URL(tp.url()).search === '?type=projects' && (await tp.getByRole('button', { name: 'Remove filter Projects' }).count()) === 1);
+// Opened unsearched (the reload cleared the field), so the project view lists every board of the project.
+await project.locator('[data-card-title]').click();
+await tp.waitForURL(new RegExp(`/explore\\?project=${encodeURIComponent(PUB_REPO)}$`));
+await tp.locator('[data-project-filter]').waitFor({ timeout: 30000 });
+await settle();
+check('a project card opens Explore\'s project view, listing its boards', (await tp.locator('[data-explore-card] [data-card-title]').allInnerTexts()).map(t => t.trim()).join() === PUB_BOARD);
+await tp.goto(`${BASE}/explore?type=canvases`);
+await tp.locator('[data-explore-card], [data-search-empty]').first().waitFor({ timeout: 60000 });
+await search(`board ${run}`);
+const boards = (await tp.locator('[data-explore-card] [data-card-title]').allInnerTexts()).map(t => t.trim());
+check('Canvas: ?type=canvases lists boards naming no project - a private repository is never named - and never a public project\'s', boards.includes(PRIV_BOARD) && !boards.includes(PUB_BOARD)
+  && await tp.locator('[data-explore-card] [data-card-project]').count() === 0 && (await tp.getByRole('button', { name: 'Remove filter Canvas' }).count()) === 1, JSON.stringify(boards));
+await search(PUB_BOARD);
+check('Canvas with a search that only a project\'s board matches: "No canvases match"', await emptyLine() === `No canvases match “${PUB_BOARD}”.`, await emptyLine());
+await shot(tp, '13-explore-canvases-empty');
+await tp.getByRole('button', { name: 'Remove filter Canvas' }).click();
+await tp.waitForURL(/\/explore$/);
+await settle();
+check('removing the chip is All again: today\'s list, the public project\'s board included', (await tp.locator('[data-explore-card] [data-card-title]').allInnerTexts()).map(t => t.trim()).includes(PUB_BOARD));
+await typed.context.close();
 
 check('no page errors', errors.length === 0, errors.join(' | '));
 await browser.close();

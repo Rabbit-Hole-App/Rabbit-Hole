@@ -7,9 +7,11 @@ import { browserOnly, onAnotherDevice, readRecent } from './home/continue.js';
 import { cardModel } from './home/provenance.js';
 import LearningCard, { CARD_ROWS, IN_THIS_BROWSER, ON_ANOTHER_DEVICE } from './home/LearningCard.jsx';
 import { cardThumbnail } from './card-thumbnail.js';
-import { useCardMenu } from './home/CardMenu.jsx';
+import { hasCardMenu, useCardMenu } from './home/CardMenu.jsx';
 import { sortCards } from './home/card-sort.js';
 import { chipHref, isMine, libraryHref, librarySections, ofType, SCOPES, SECTION_LIMIT, TYPES } from './library-filter.js';
+import { DRAG_TYPE, inView } from './library-folders.js';
+import { FolderEmpty, FolderTiles } from './LibraryFolders.jsx';
 import { Button, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
 import SharedWithYou from './comments/SharedWithYou.jsx';
 import { newComments, useCommentUnread } from './comments/unread.js';
@@ -24,17 +26,24 @@ const guard = (a, fn) => () => (a.fixture ? fixtureNote() : fn());
 const open = (a) => guard(a, () => navigate(`/apps/${a.name}`))();
 
 // `sort`: the Library sort, chosen beside Filters (App.jsx) over the owner's whole list; Apps keep their own order.
-export default function LibraryViews({ apps, type, data, sort, onType, onArchive, onRun, runningOf, onForked }) {
+// `folders`: the Library's folders (LibraryFolders.jsx useLibraryFolders); `folderId`: the open one (?d=), whose items
+// alone show; at the top the filed cards sit in their tiles unless a search (`searching`) looks everywhere.
+export default function LibraryViews({ apps: listed, type, data, sort, onType, onArchive, onRun, runningOf, onForked, folders = null, folderId = null, searching = false }) {
   // The card ⋮ (home/CardMenu.jsx), the same menu Home's Recent cards open (owner, 2026-10-08); its Archive asks in App.jsx.
-  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps: data?.apps || [], onArchive, onChanged: onForked });
+  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps: data?.apps || [], onArchive, onChanged: onForked, folders });
   // Comment news (docs/features/canvas-comments.md): a line on your canvases' cards, and the canvases shared with you.
   const unread = useCommentUnread();
   const ctx = { org: data?.org, email: data?.email, storage: localStorage, unread: unread.owned };
-  const card = (a) => <LibraryCard key={a.name} a={a} ctx={ctx} onMore={cardMenu.onMore(a)} />;
+  // A card you own drags onto a folder tile, or onto the Library crumb to leave its folder (library-folders.md).
+  const drag = (a) => (folders && !a.fixture && hasCardMenu(a) ? { draggable: true, onDragStart: (e) => { e.dataTransfer.setData(DRAG_TYPE, a.name); e.dataTransfer.effectAllowed = 'move'; } } : {});
+  const card = (a) => <LibraryCard key={a.name} a={a} ctx={ctx} onMore={cardMenu.onMore(a)} drag={drag(a)} />;
+  const apps = folders ? inView(listed, folders.items, folderId, searching) : listed;
   const recent = readRecent(localStorage);
   const sections = librarySections(apps, recent).map((s) => (s.key === 'apps' ? s : { ...s, items: sortCards(ofType(apps, s.key), sort).slice(0, SECTION_LIMIT) }));
   return (
     <>
+      {folders && !folderId && <FolderTiles folders={folders.folders} counts={folders.counts} onMore={folders.onMore} onDrop={folders.move} />}
+      {folders && folderId && folders.loaded && !apps.length && <FolderEmpty folder={folders.folders.find((f) => f.id === folderId)} />}
       {type ? <ul className={CARD_ROWS}>{sortCards(ofType(apps, type), sort).map(card)}</ul> : (
         <div className="space-y-10">
           {sections.filter((s) => s.items.length).map((s) => (
@@ -58,11 +67,14 @@ export default function LibraryViews({ apps, type, data, sort, onType, onArchive
 
 // One Filters control instead of permanent tabs (user, 2026-09-28): Type and Ownership in a popover.
 // It, View all and the Agent Bar's filter_library all set the same URL state (library-filter.js).
-const setFilter = (key, value) => navigate(chipHref(window.location.search, key, value));
+const setFilter = (key, value, path) => navigate(chipHref(window.location.search, key, value, path));
 // Each filter row carries an icon: a type's matches its cards (repository, canvas pencil, app).
 const FILTER_ICONS = { projects: FolderGit2, canvases: Shapes, apps: AppWindow };
-export function LibraryFilters({ type, section, archived }) {
+// `path` and `types`: the page and the Type rows it shows - Explore passes /explore and its two types (library-filter.js
+// EXPLORE_TYPES); Archived and Ownership are the Library's alone.
+export function LibraryFilters({ type, section, archived, path = '/library', types = Object.keys(TYPES) }) {
   const [open, setOpen] = useState(false);
+  const library = path === '/library';
   const count = [type, section].filter(Boolean).length;
   const item = (label, on, pick, icon) => (
     <MenuItem key={label} icon={icon} onClick={() => { pick(); setOpen(false); }}>
@@ -75,20 +87,20 @@ export function LibraryFilters({ type, section, archived }) {
       <Button variant="secondary" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ListFilter size={14} /> Filters{count > 0 && ` · ${count}`}</Button>
       <Menu open={open} onClose={() => setOpen(false)} className="top-10 right-0 w-56">
         {heading('Type')}
-        {Object.entries(TYPES).map(([k, t]) => item(t.label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k), FILTER_ICONS[k]))}
-        {item('Archived canvas', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); }, Archive)}
-        {heading('Ownership')}
-        {Object.entries(SCOPES).map(([k, label]) => item(label, section === k, () => setFilter('s', section === k ? null : k), UserRound))}
-        {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem icon={X} className="text-ink-2" onClick={() => { navigate('/library'); setOpen(false); }}>Clear filters</MenuItem></>}
+        {types.map((k) => item(TYPES[k].label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k, path), FILTER_ICONS[k]))}
+        {library && item('Archived canvas', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ d: q.get('d'), f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); }, Archive)}
+        {library && heading('Ownership')}
+        {library && Object.entries(SCOPES).map(([k, label]) => item(label, section === k, () => setFilter('s', section === k ? null : k), UserRound))}
+        {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem icon={X} className="text-ink-2" onClick={() => { navigate(libraryHref({ d: new URLSearchParams(window.location.search).get('d'), project: new URLSearchParams(window.location.search).get('project') }, path)); setOpen(false); }}>Clear filters</MenuItem></>}
       </Menu>
     </div>
   );
 }
 
-export function ActiveFilters({ type, section, archived }) {
+export function ActiveFilters({ type, section, archived, path = '/library' }) {
   const pills = [
-    type && [archived ? 'Archived canvas' : TYPES[type].label, () => setFilter('type', null)],
-    section && [SCOPES[section], () => setFilter('s', null)],
+    type && [archived ? 'Archived canvas' : TYPES[type].label, () => setFilter('type', null, path)],
+    section && [SCOPES[section], () => setFilter('s', null, path)],
   ].filter(Boolean);
   if (!pills.length) return null;
   return (
@@ -107,7 +119,7 @@ export function ActiveFilters({ type, section, archived }) {
 // truthful content state only for a canvas whose board is not on the server (canvas-persistence.md, step 8).
 // Its title and its hover Open open it; its own canvases carry the blue Owned-by-you badge beside the @handle. No Fork
 // on your own canvas (owner, 2026-10-08): Duplicate in the ⋮ copies it; the footer reads N forks once others forked it.
-function LibraryCard({ a, ctx, onMore }) {
+function LibraryCard({ a, ctx, onMore, drag = {} }) {
   const away = a.kind === 'canvas' && !a.fixture && onAnotherDevice(a, ctx.email, ctx.storage);
   // No 'Map ready' label (owner, 2026-10-04): only a Map still indexing or failed says so.
   const state = a.fixture ? null
@@ -116,9 +128,9 @@ function LibraryCard({ a, ctx, onMore }) {
   const news = a.kind === 'canvas' && !a.fixture ? newComments(ctx.unread?.[a.name]) : null;
   const note = state || news ? <>{state}{news && <span data-comment-news className="font-medium text-accent">{news}</span>}</> : null;
   return (
-    <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas' }}
+    <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas', ...drag }}
       href={a.fixture ? null : `/apps/${a.name}`} onOpen={() => open(a)} mine={!a.fixture && isMine(a, ctx.email)}
-      access={a.kind === 'canvas' && !a.fixture ? a.access : null} onMore={onMore} note={note} thumbnail={cardThumbnail(a)}
+      access={!a.fixture ? a.access || null : null} onMore={onMore} note={note} thumbnail={cardThumbnail(a)}
       onForkedFromOpen={(id) => open({ name: id, fixture: a.fixture })} pick={appPick(a, cardModel(a).title)} />
   );
 }

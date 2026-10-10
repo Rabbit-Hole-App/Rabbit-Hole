@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { anchorBlock, anchorTitle, canvasObjects, clampSpot, diveRecord, diveTopic, discardHole, dropPending, holeHref, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
+import { anchorBlock, anchorTitle, canvasObjects, clampSpot, diveRecord, diveTopic, discardHole, dropPending, holeHref, holeRows, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 const memory = () => { const map = new Map(); return { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), removeItem: k => map.delete(k), key: i => [...map.keys()][i], get length() { return map.size; }, map }; };
 const local = () => { const store = memory(); return new Proxy(store, { ownKeys: () => [...store.map.keys()], getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }) }); };
@@ -187,4 +187,42 @@ test('a dive from a journey section carries journey { journey_id, section_id, co
   const long = n => `${'x'.repeat(115)}/${n}`.slice(0, 120);
   const big = diveRecord({ ...args, journey: { journey_id: 'lj_1', section_id: 's2', concept_ids: [1, 2, 3, 4].map(long), claim_ids: [5, 6, 7, 8].map(long) } });
   assert.ok(JSON.stringify(big).length < 16000);
+});
+
+// The canvas title's Rabbit Holes menu (owner r35): the root, then every kept hole depth-first, indented by depth.
+test('holeRows: the root and every kept hole depth-first, each with its depth; the open level marked; a pending hole never listed', () => {
+  const root = { app: 'canvas-root', board: 'main', title: 'Attention' };
+  const holes = [
+    { name: 'canvas-a', title: 'Softmax', parent: 'canvas-root' }, { name: 'canvas-b', title: 'Masking', parent: 'canvas-root' },
+    { name: 'canvas-a1', title: 'Temperature', parent: 'canvas-a' }, { name: 'canvas-a1x', title: 'Overflow', parent: 'canvas-a1' },
+  ];
+  const rows = holeRows({ path: [root, { app: 'canvas-a', title: 'Softmax' }], holes });
+  assert.deepEqual(rows.map(r => [r.title, r.depth, r.current]), [['Attention', 0, false], ['Softmax', 1, true], ['Temperature', 2, false], ['Overflow', 3, false], ['Masking', 1, false]]);
+  // At the root, the root is the current row.
+  assert.deepEqual(holeRows({ path: [root], holes }).filter(r => r.current).map(r => r.app), ['canvas-root']);
+  // In a pending hole: it has no row and none is current; its kept siblings still are.
+  const pending = holeRows({ path: [root, { app: 'canvas-new', title: 'New', pending: true }], holes });
+  assert.equal(pending.some(r => r.app === 'canvas-new'), false);
+  assert.equal(pending.some(r => r.current), false);
+  assert.equal(pending.length, 5);
+  // No holes, one row: no menu. No tree, no rows. A corrupted cycle ends.
+  assert.deepEqual(holeRows({ path: [root], holes: [] }).map(r => r.app), ['canvas-root']);
+  assert.deepEqual(holeRows({}), []);
+  assert.equal(holeRows({ path: [root], holes: [{ name: 'canvas-root', title: 'Loop', parent: 'canvas-root' }] }).length, 1);
+});
+
+test('the title menu: a chevron only with holes, rows on one line with the full title on hover, indented, arrows and Esc', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./TitleHoles.jsx', import.meta.url), 'utf8');
+  assert.match(source, /if \(rows\.length < 2\) return null;/, 'no holes, no chevron');
+  assert.match(source, /<Menu portal anchor=\{menu\?\.anchor\}/, 'the shared Menu, anchored, as the card menus are');
+  assert.match(source, /title=\{row\.title\}[\s\S]*?paddingLeft: 8 \+ \(row\.depth \+ indent\) \* 14[\s\S]*?<span data-hole-title className="min-w-0 truncate">\{row\.title\}<\/span>/);
+  assert.match(source, /className="w-auto! min-w-56 max-w-80"/);
+  assert.match(source, /\['ArrowDown', 'ArrowUp', 'Home', 'End'\]/);
+  const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
+  assert.match(learn, /<input aria-label="Canvas title" title=\{canvasTitle \|\| fallbackTitle\}/, 'the full title on hover');
+  const shared = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8');
+  // A minimum width, so a narrow header cuts the title short instead of shrinking it away (phone, 2026-10-09).
+  assert.match(shared, /data-shared-title title=\{[^\n]+\} className="min-w-16 truncate /);
+  assert.match(shared, /\{holes && <TitleHoles rows=\{holeRows\(holes\.tree\)\} onPick=\{row => goTo\(row\.app\)\} \/>\}/);
 });

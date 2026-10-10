@@ -55,7 +55,7 @@ function Frame({ title, scope, onClose, children, ...attrs }) {
         </div>
         <div data-analytics-banner className="flex gap-2 rounded-md bg-code px-3 py-2.5 text-xs leading-5 text-ink-2">
           <Info size={14} strokeWidth={1.75} className="mt-0.5 shrink-0" />
-          <span><span className="font-medium text-ink">Not collected yet.</span> Rabbit Hole does not record what learners do on public explainers yet, so nothing here is counted or estimated. Counters that already exist publicly are shown.</span>
+          <span><span className="font-medium text-ink">Not collected yet.</span> Rabbit Hole does not record what learners do on public learning boards yet, so nothing here is counted or estimated. Counters that already exist publicly are shown.</span>
         </div>
         {children}
         <HowToRead />
@@ -74,11 +74,11 @@ const Traffic = ({ traffic }) => (
 export function ExplainerAnalytics({ a, onClose }) {
   const view = explainerAnalytics({ forkCount: a.fork_count });
   return (
-    <Frame title={`Analytics · ${a.title || 'Untitled'}`} scope="This explainer." onClose={onClose} data-explainer-analytics={a.name}>
+    <Frame title={`Analytics · ${a.title || 'Untitled'}`} scope="This learning board." onClose={onClose} data-explainer-analytics={a.name}>
       <Section title="What your audience is telling you" data-analytics-insights>
         <p data-insights-empty className="py-1.5 text-sm text-ink-3">No insights yet. They come only from what learners do here - a concept they dig into, where they get stuck or leave, a comparison they keep asking for - and that is not collected yet.</p>
         <div className="flex items-center gap-3 pt-1">
-          <Button size="sm" variant="secondary" disabled data-create-next title="Needs a real learner signal first"><Sparkles size={13} strokeWidth={1.8} />Create next explainer</Button>
+          <Button size="sm" variant="secondary" disabled data-create-next title="Needs a real learner signal first"><Sparkles size={13} strokeWidth={1.8} />Create next learning board</Button>
           <span className="text-xs text-ink-3">Available once learners show what they want next.</span>
         </div>
       </Section>
@@ -101,16 +101,16 @@ const cell = (metric) => <td className={`truncate py-1.5 pl-2 text-right ${metri
 export function CreatorDashboard({ profile, onClose }) {
   const view = creatorAnalytics({ explainerCount: profile.explainer_count, forkCount: profile.fork_count, explainers: profile.explainers });
   return (
-    <Frame title="Creator analytics" scope="All your public explainers." onClose={onClose} data-creator-analytics>
+    <Frame title="Creator analytics" scope="All your public learning boards." onClose={onClose} data-creator-analytics>
       <Section title="Totals">{CREATOR_TOTALS.map(([key, label, all]) => <Metric key={key} label={label} metric={view.totals[key]} all={all} />)}</Section>
-      <Section title="Audience wants next" note="Concepts learners went deeper on, across your explainers.">
+      <Section title="Audience wants next" note="Concepts learners went deeper on, across your learning boards.">
         <Metric label="Most-requested next topics" metric={view.wants_next} />
       </Section>
       <Section title="Highest-friction concepts"><Metric label="Where learners get stuck" metric={view.friction} /></Section>
-      <Section title="Explainer comparison" note="One range for every row. A hidden cell is never 0." data-analytics-comparison>
+      <Section title="Learning Board comparison" note="One range for every row. A hidden cell is never 0." data-analytics-comparison>
         {view.explainers.length ? (
           <table className="w-full table-fixed">
-            <thead className="border-b border-line"><tr>{head(Shapes, 'Explainer')}{head(Users, 'Learners', true)}{head(Clock, 'Avg active', true)}{head(ArrowDownToLine, 'Started RH', true)}{head(GitFork, 'Forks', true)}</tr></thead>
+            <thead className="border-b border-line"><tr>{head(Shapes, 'Learning Board')}{head(Users, 'Learners', true)}{head(Clock, 'Avg active', true)}{head(ArrowDownToLine, 'Started RH', true)}{head(GitFork, 'Forks', true)}</tr></thead>
             <tbody>
               {view.explainers.map(e => (
                 <tr key={e.url} className="border-b border-line last:border-b-0">
@@ -120,7 +120,7 @@ export function CreatorDashboard({ profile, onClose }) {
               ))}
             </tbody>
           </table>
-        ) : <p className="py-1.5 text-sm text-ink-3">No public explainers yet.</p>}
+        ) : <p className="py-1.5 text-sm text-ink-3">No public learning boards yet.</p>}
       </Section>
       <Traffic traffic={view.traffic} />
       <Section title="Recent trend"><Metric label="Daily opens and visitors" metric={view.trend} /></Section>

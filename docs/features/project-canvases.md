@@ -86,6 +86,18 @@ No new endpoint. What already exists:
   - It is the one LearningCard, so Home's Recent shows the same line.
 - **Navigation is unchanged.** The Files / Graph / Learn tabs, the Map icon and Back in the Learn header, the crumbs, and `?tab=` stay as they are.
 - **Press feedback** comes from the global rule (`index.css`): the trigger and the menu items are buttons.
+- **Breadcrumb title (owner r35).** Owner: "when we open a project and we create a second canvas, we should still keep the
+  original project name so we know what projhect we are on. could be like a bread crumb: pallets/itsdangerous > canvas 2
+  something like that. we can still rename canvas 2 if needed."
+  - In a project the title reads `[project] › [canvas]` (`data-title-crumbs`), on the Main canvas too, which is then named
+    "Main canvas". The project part (`data-project-crumb`) is the name its card shows (`cardModel(project).title`, the
+    project's own title once it has one, else the repository's name), never the repository hardcoded. It opens the Main canvas.
+  - The canvas part is the existing title field: it renames as before, and the switcher hangs off it, with the canvas's
+    Rabbit Holes as a group under the current canvas (dive-v1.md "Title menu").
+  - One line, never wrapped: the project part shrinks first, down to 3 rem, then the title. Both cut with an ellipsis and
+    show the full name on hover. The row wraps around the crumbs on a phone, never inside them.
+  - A canvas outside its project (`CanvasPage`, `/apps/canvas-…`) keeps its "In <project> →" row; a standalone canvas
+    shows its title only.
 
 ### States
 
@@ -152,6 +164,8 @@ Parallel decided these on 2026-10-08, under the owner's standing grant.
 - `packages/web/e2e/project-canvases-check.mjs` runs against the local stack only and is not run yet:
   - it seeds a ready project row, confirmed public, in local D1;
   - it checks the switcher, New canvas, the URL, a reload, the Library count and that each canvas has its own board;
+  - the breadcrumb: both parts on a second canvas, the project part to the Main canvas, a rename keeping it, and long
+    names on one line on a desktop and a phone;
   - then it publishes one canvas and checks the Explore card order, the label link, the filter chip with its single card, and the ×.
 - `packages/web/e2e/rabbit-hole-check.mjs` `wp6-learn` drives the switcher instead of the old `<select>`.
   - Its not-in-this-browser step is gone. A canvas is now made with its board, so that gate opens only for canvases older than that, which no API can make.

@@ -48,7 +48,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 
 | Call | Does |
 | --- | --- |
-| `GET /api/canvases/dives?app=&board=` | `{path, dive, children}`. `path` runs from the root to this level. `children` are the immediate children only. `dive` is this level's own record. |
+| `GET /api/canvases/dives?app=&board=` | `{path, dive, children, holes}`. `path` runs from the root to this level. `children` are the immediate children only. `dive` is this level's own record. `holes` is every kept hole under the root at any depth, `{name, title, parent}`, parents before children (the title menu). |
 | `POST /api/canvases/dives` | Persists a hole: its canvas row and link in one batch. Body: `{name, title, parent, origin_block_id, dive, device_id}`. Returns 409 `{existing}` if the card already has a child. |
 | `DELETE /api/canvases/dives/<canvas>` | Deletes a leaf. A hole with holes inside returns 409 `{descendants}`; only `?subtree=1` removes them all. |
 | `PATCH /api/apps/<canvas>` | Rename (the existing canvas title API). |
@@ -133,6 +133,8 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   - A leaf is deleted after a confirmation.
   - A hole with descendants gets a subtree warning that names them.
   - Deleted holes' local keys are cleared, and the outline goes with the link.
+  - A deleted hole's board rows go with it, so its share link dies; a link whose canvas is gone (rows earlier
+    deletes left behind) is dead too, with no data migration (`sharedRow` in `learn-boards.js`).
 - **Suggestion (structure only).**
   - `DiveSuggestion` shows [Go down a Rabbit Hole] / [Keep it on this canvas].
   - With a blockId the card is the origin; without one, confirming makes a topic anchor card.
@@ -161,12 +163,36 @@ Everything else is left out whole: a private hole's title, its existence, its co
 - There is no rename, no delete, and no new hole from the map.
 - With nothing above or below, there is no map, as on a canvas without holes.
 
-**API:** `GET /api/learn/boards/shared/<token>/holes`, under the same access as opening the link (`sharedAccess`). It returns `{ path: [{ title, href }], children: [{ title, href, origin_block_id }] }`.
+**API:** `GET /api/learn/boards/shared/<token>/holes`, under the same access as opening the link (`sharedAccess`). It returns `{ path: [{ title, href }], children: [{ title, href, origin_block_id }], holes: [{ title, href, parent }] }`. `holes` is every hole under the top level, by the same rule level by level (a hole left out takes its subtree with it), for the title menu; ponytail: at most 200.
 - ponytail: the path climbs canvas levels only. A project board, or a hole started from someone else's share (`share:`), ends it.
 
 **Code:** `learn-boards.js` `sharedHoles`; `shared-holes.js` `sharedTree`; `SharedBoardPage.jsx` (`DivePortals` and a read-only `DiveNavigator`, which shows no delete without `askDelete`).
 
 **Checks:** `packages/control-plane/test/shared-hole-map.test.js`, `packages/web/src/shared-holes.test.mjs`, and `packages/web/e2e/explore-holes-check.mjs` part A (local stack, not run yet).
+
+## Title menu (owner r35)
+
+Owner: "For a canvas which has nested rabbit holes. we want the title to have a dropdown to show the different options as
+well so users can select from there in the top bar title menu. do not wrap the titles."
+
+- A canvas with kept holes gets a chevron beside its top-bar title. It opens a menu of the whole hole tree: the root, then
+  every kept hole at any depth, depth-first, indented by level. The level open now has a check and bold text.
+- A pick goes where the map's level would: a level on the path is climbed to (with its return point), any other hole is
+  entered. A pending hole is never listed.
+- No kept holes, no chevron: the title is as before, and renaming it works as before.
+- A project canvas already has its canvas switcher beside the title, so its holes are a "Rabbit Holes" group under the
+  current canvas in that menu, never a second control.
+- A shared or published canvas gets the same chevron, read-only: each row opens that level's own link, and only holes the
+  viewer may open are listed (the shared map's rule).
+- Nothing wraps: the title and every row are one line, truncated with an ellipsis, the full title on hover. The menu is
+  14 to 20 rem wide. Arrow keys, Home and End move through the rows, Enter picks, Esc closes. The shared title keeps a 4 rem
+  minimum width, so a phone header cuts it short rather than hiding it beside the chevron.
+
+**Code:** `dive.js` `holeRows`; `TitleHoles.jsx` (`TitleHoles`, `HoleRows`, `menuKeys`); `useDive` `titleHoles`;
+`LearnPage.jsx` header; `RepositoryPage.jsx` `CanvasSwitcher` `holes`; `SharedBoardPage.jsx`.
+
+**Checks:** `dive.test.mjs` (holeRows, the title menu), `dives.test.js` and `shared-hole-map.test.js` (`holes`), and
+`e2e/dive-check.mjs` flow K.
 
 ## Run it locally (no remote resources)
 
@@ -188,7 +214,7 @@ npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --loca
 - `wrangler dev` bundles `dist-dev/index.html` into the worker, so restart it after every rebuild.
 - `node packages/web/e2e/dive-local.mjs` opens a signed-in browser window on a stable review canvas
   ("Attention (local review)", NanoGPT deep-dive board) for hands-on testing.
-- `node packages/web/e2e/dive-check.mjs <outDir>` walks flows A to I against the local stack, with
+- `node packages/web/e2e/dive-check.mjs <outDir>` walks flows A to K against the local stack, with
   screenshots. It refuses any other host.
 
 ## Known limits (v1)

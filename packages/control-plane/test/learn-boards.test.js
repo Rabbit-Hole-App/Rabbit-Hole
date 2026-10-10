@@ -139,7 +139,9 @@ test('board files: the owner uploads them; whoever can open a link can load them
   const { call } = setup(t);
   const key = encodeURIComponent('pdf:paper-1');
   assert.equal((await call('PUT', `${OWN}/assets/${key}`, { as: 'owner', raw: new Uint8Array([1, 2, 3]), headers: { 'Content-Type': 'application/pdf' } })).status, 404, 'no board row yet');
-  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, state: STATE } })).body.sharing;
+  // A link serves the files the board's cards use (boardAssetKeys), so the board names both.
+  const used = { ...STATE, blocks: [...STATE.blocks, { id: 'p', type: 'pdf', assetKey: 'pdf:paper-1' }, { id: 'i', type: 'image', assetKey: 'image:a cat' }] };
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, state: used } })).body.sharing;
   assert.equal((await call('PUT', `${OWN}/assets/${key}`, { as: 'owner', raw: new Uint8Array([1, 2, 3]), headers: { 'Content-Type': 'application/pdf' } })).status, 200);
   await call('PUT', `${OWN}/assets/${encodeURIComponent('image:a cat')}`, { as: 'owner', raw: 'data:image/png;base64,AAAA', headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string' } });
   assert.deepEqual((await call('GET', `${OWN}/assets`, { as: 'owner' })).body.keys.sort(), ['image:a cat', 'pdf:paper-1']);
@@ -156,7 +158,8 @@ test('board files: the owner uploads them; whoever can open a link can load them
 
 test('an uploaded file is never served as a page on this origin', async t => {
   const { call } = setup(t);
-  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, public_view: true, state: STATE } })).body.sharing;
+  const used = { ...STATE, blocks: [...STATE.blocks, { id: 'e', type: 'image', assetKey: 'drop:evil' }] };
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, public_view: true, state: used } })).body.sharing;
   await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:evil')}`, { as: 'owner', raw: '<script>alert(1)</script>', headers: { 'Content-Type': 'text/html' } });
   const served = await call('GET', `/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('drop:evil')}`);
   assert.equal(served.headers.get('content-type'), 'application/octet-stream');
@@ -165,9 +168,35 @@ test('an uploaded file is never served as a page on this origin', async t => {
   assert.equal(served.headers.get('content-disposition'), 'attachment');
 });
 
+test('a link serves only the files its board uses now: a removed file, an old notebook workspace or any other key is 404; a fork copies only those', async t => {
+  const { call, sqlite } = setup(t);
+  const CANVAS = 'canvas-0a1b2c3d', own = `/api/learn/boards/${CANVAS}/main`, PUBLISHED = 'published-token-0000000001';
+  sqlite.exec(`INSERT INTO canvases(org,name,owner_email,title) VALUES('team','${CANVAS}','owner@test','Board')`);
+  const blocks = [{ id: 'a', type: 'image', assetKey: 'drop:a' }, { id: 'b', type: 'image', assetKey: 'drop:b' }, { id: 'nb', type: 'notebook', notebook_id: 'nb-1' }];
+  const links = (await call('POST', `${own}/share`, { as: 'owner', body: { shared: true, view: true, public_view: true, state: { ...STATE, blocks } } })).body.sharing;
+  const uploaded = ['drop:a', 'drop:b', 'notebook:nb-1', 'notebook:nb-old', 'drop:never-on-it'];
+  for (const key of uploaded) await call('PUT', `${own}/assets/${encodeURIComponent(key)}`, { as: 'owner', raw: new Uint8Array([7]), headers: { 'Content-Type': 'application/pdf' } });
+  // The owner removes B from the board; its file stays in R2, unreachable past its owner.
+  assert.equal((await call('PUT', own, { as: 'owner', body: { state: { ...STATE, blocks: blocks.filter(block => block.id !== 'b') }, version: 1 } })).status, 200);
+  sqlite.prepare('INSERT INTO canvas_publications (org, canvas, token) VALUES (?, ?, ?)').run('team', CANVAS, PUBLISHED);
+  for (const token of [links.view, PUBLISHED]) {
+    const file = async key => (await call('GET', `/api/learn/boards/shared/${token}/assets/${encodeURIComponent(key)}`)).status;
+    for (const key of ['drop:a', 'notebook:nb-1']) assert.equal(await file(key), 200, `${token}: ${key} is on the board`);
+    for (const key of ['drop:b', 'notebook:nb-old', 'drop:never-on-it']) assert.equal(await file(key), 404, `${token}: ${key} is not`);
+  }
+  // The owner's own routes are unchanged: every file they uploaded.
+  assert.deepEqual((await call('GET', `${own}/assets`, { as: 'owner' })).body.keys.sort(), [...uploaded].sort());
+  assert.equal((await call('GET', `${own}/assets/${encodeURIComponent('drop:b')}`, { as: 'owner' })).status, 200);
+  // A fork copies only what its board uses: A and the notebook's workspace, under the notebook's new id.
+  const forked = await call('POST', `/api/learn/boards/shared/${links.view}/fork`, { as: 'friend' });
+  assert.equal(forked.body.files, 2);
+  const notebook = (await call('GET', `/api/learn/boards/${forked.body.name}/main`, { as: 'friend' })).body.state.blocks.find(block => block.type === 'notebook');
+  assert.deepEqual((await call('GET', `/api/learn/boards/${forked.body.name}/main/assets`, { as: 'friend' })).body.keys.sort(), ['drop:a', `notebook:${notebook.notebook_id}`].sort());
+});
+
 test('forking makes the viewer their own Canvas with a copy of the board, its files and notebooks', async t => {
   const { call, sqlite } = setup(t);
-  const board = { ...STATE, blocks: [...STATE.blocks, { id: 'nb', type: 'notebook', notebook_id: 'nb-original-id' }] };
+  const board = { ...STATE, blocks: [...STATE.blocks, { id: 'p', type: 'pdf', assetKey: 'pdf:p' }, { id: 'nb', type: 'notebook', notebook_id: 'nb-original-id' }] };
   const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, public_view: true, state: board } })).body.sharing;
   await call('PUT', `${OWN}/assets/${encodeURIComponent('pdf:p')}`, { as: 'owner', raw: new Uint8Array([4, 5]), headers: { 'Content-Type': 'application/pdf' } });
   await call('PUT', `${OWN}/assets/${encodeURIComponent('notebook:nb-original-id')}`, { as: 'owner', raw: '{"helper.py":{"type":"file","format":"text","content":"x = 1"}}', headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string' } });

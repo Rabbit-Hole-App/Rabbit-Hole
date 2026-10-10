@@ -373,7 +373,8 @@ Send; Esc or × removes the ghost.
 **Placement (owner, 2026-10-08):** an object's pins sit in a fixed slot just left of where its Ask in chat pill sits, above
 its top right and on the pill's row - with the extra pills a few cards add beside it reserved (a whiteboard's or paper's Ask
 selection; a chat card's Explain in canvas and Continue convo) - whether the object is selected or not, so a pin never
-covers a pill. Several threads line up leftwards, oldest nearest the pill. A shape or text keeps the slot Ask in chat would
+covers a pill. Several threads line up leftwards, oldest nearest the pill. A dropped image, a text box and a sticky note
+have the same Ask in chat (r35, [canvas-card-selection.md](canvas-card-selection.md)); a shape keeps the slot it would
 take. The stored offset is not used for them (render only, no migration). A pin on a bare canvas point - from before this
 change - stays where it was placed; no new ones are made.
 

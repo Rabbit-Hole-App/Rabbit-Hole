@@ -33,9 +33,9 @@ test('a refusal becomes the one-line note; the picks pass through', async () => 
 test('Explore wires Recommended above each tab\'s keyword results, signed in only, through the debounced find', () => {
   const home = readFileSync(new URL('../Home.jsx', import.meta.url), 'utf8'), explore = home.slice(home.indexOf('function Explore()'));
   assert.match(explore, /const found = useExploreFind\(term, !!me\);/);
-  const creators = explore.indexOf('<Recommended found={found} me={me} kind="creators" />'), canvases = explore.indexOf('<Recommended found={project ? null : found} me={me} kind="canvases" />');
+  const creators = explore.indexOf('<Recommended found={found} me={me} kind="creators" />'), canvases = explore.indexOf('<Recommended found={project || type ? null : found} me={me} kind="canvases" />');
   assert.ok(creators > 0 && creators < explore.indexOf('{creators === null'), 'Creators tab: above the creator results');
-  assert.ok(canvases > 0 && canvases < explore.indexOf('<div data-explore-list>'), 'Explainers tab: above the explainer results');
+  assert.ok(canvases > 0 && canvases < explore.indexOf('<div data-explore-list>'), 'Learning Boards tab: above its results; none under a project or type filter');
   const cards = readFileSync(new URL('./PublicCards.jsx', import.meta.url), 'utf8');
   assert.match(cards, /const q = signedIn \? findQuery\(term\) : null;/);
   assert.match(cards, /scheduleFind\(q, query => fetch\('\/api\/learn\/boards\/published\/find'/);

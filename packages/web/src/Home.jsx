@@ -5,13 +5,14 @@ import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_ROWS, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
 import { cardThumbnail } from './card-thumbnail.js';
-import PublicCards, { CreatorCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
+import PublicCards, { CreatorCards, ProjectCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
 import { appPick } from './agent/surface.js';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
-import { isMine } from './library-filter.js';
+import { EXPLORE_TYPES, exploreType, isMine } from './library-filter.js';
+import { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
 import { loadProfile } from './session-display.js';
 import Shell from './Shell.jsx';
 import { Button, Input, SkeletonRows, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
@@ -89,7 +90,7 @@ function Continue({ item, app, email }) {
       <h2 className={HEADING}>Continue learning</h2>
       <ul className={CARD_ROWS}>
         <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)} pick={appPick(a, cardModel(a).title)}
-          mine={isMine(a, email)} access={a.kind === 'canvas' ? a.access : null}
+          mine={isMine(a, email)} access={a.kind === 'canvas' || a.kind === 'repository' ? a.access || null : null}
           note={(
             <>
               <span className="truncate">{item.lastExplored ? <>Last explored: <span className="text-ink-2">{item.lastExplored}</span></> : 'Pick up where you left off'}</span>
@@ -118,7 +119,7 @@ function RecentCard({ app, card, email, onMore }) {
   return (
     <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)} pick={appPick(app, cardModel(app).title)}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
-      mine={!app.fixture && isMine(app, email)} access={app.kind === 'canvas' && !app.fixture ? app.access : null} note={note} onMore={onMore}
+      mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}
       actions={learning ? null : action?.to ? <button type="button" className={`${link} cursor-pointer`} onClick={stop(() => go(action.to))}>{action.label} <ArrowRight size={12} className="nudge-arrow" /></button>
         : action?.href ? <a href={action.href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className={link}>{action.label} <ArrowUpRight size={12} /></a> : null} />
@@ -138,10 +139,12 @@ export function ExplorePreview() {
 // Search answers from the server (@handle, display name, title, description). Two tabs (owner, 2026-10-08): Explainers (the default, the published canvas cards, with Sort) and Creators (profiles).
 // The search applies to the active tab only, and the tab is in the URL (/explore?tab=creators) so a reload keeps it.
 
+const EXPLORE_EMPTY = { projects: 'No projects match', canvases: 'No canvases match' };
 function Explore() {
   const [tab, setTab] = useState(() => exploreTab(window.location.search));
   const [order, setOrder] = useState('newest');
   const [cards, setCards] = useState(null);
+  const [listed, setListed] = useState(null); // the type `cards` holds, set with them: projects, canvases or null (all)
   const [creators, setCreators] = useState(null);
   const [me, setMe] = useState(null);
   const [typed, setTyped] = useState('');
@@ -154,6 +157,8 @@ function Explore() {
   };
   // ?project=owner/repo: a card's project label opened Explore on that project's published canvases (PublicCards ProjectFilter).
   const project = new URLSearchParams(window.location.search).get('project');
+  // ?type=projects|canvases: the Library's Type filter, on the Learning Boards tab (library-filter.js EXPLORE_TYPES).
+  const type = exploreType(window.location.search);
   // A sentence-length search also gets AI picks, Recommended above the tab's keyword results (explore-publish.md "AI find");
   // not while a project filter narrows the list.
   const found = useExploreFind(term, !!me);
@@ -161,10 +166,10 @@ function Explore() {
   useEffect(() => {
     if (tab !== 'explainers') return;
     let live = true;
-    fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}${project ? `&project=${encodeURIComponent(project)}` : ''}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
-      .then(data => { if (live) setCards(data.canvases || []); }).catch(() => { if (live) setCards([]); });
+    fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}${project ? `&project=${encodeURIComponent(project)}` : ''}${type ? `&type=${type}` : ''}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : {}))
+      .then(data => { if (live) { setCards((type === 'projects' ? data.projects : data.canvases) || []); setListed(type); } }).catch(() => { if (live) { setCards([]); setListed(type); } });
     return () => { live = false; };
-  }, [tab, order, q, project]);
+  }, [tab, order, q, project, type]);
   useEffect(() => {
     if (tab !== 'creators') return;
     let live = true;
@@ -172,7 +177,7 @@ function Explore() {
       .then(data => { if (live) setCreators(data.creators || []); }).catch(() => { if (live) setCreators([]); });
     return () => { live = false; };
   }, [tab, q]);
-  const searchLabel = tab === 'creators' ? 'Search creators' : 'Search explainers';
+  const searchLabel = tab === 'creators' ? 'Search creators' : 'Search learning boards';
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
@@ -186,6 +191,7 @@ function Explore() {
             <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
           </label>
+          {tab === 'explainers' && <LibraryFilters type={type} path="/explore" types={EXPLORE_TYPES} />}
           {tab === 'explainers' && cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
         </div>
         {tab === 'creators' ? (
@@ -196,11 +202,13 @@ function Explore() {
             {creators?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
           </section>
         ) : <>
-          <Recommended found={project ? null : found} me={me} kind="canvases" />
+          <ActiveFilters type={type} path="/explore" />
+          <Recommended found={project || type ? null : found} me={me} kind="canvases" />
           {project && <ProjectFilter project={project} empty={cards?.length === 0 && !term} />}
           {cards === null && <SkeletonRows rows={3} />}
-          {cards?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>}
-          {cards?.length > 0 && <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>}
+          {cards?.length === 0 && (term || listed) && <p data-search-empty className="text-sm text-ink-3">{EXPLORE_EMPTY[listed] || 'No learning boards match'}{term && <> &ldquo;{term}&rdquo;</>}.</p>}
+          {cards?.length > 0 && (listed === 'projects' ? <div data-explore-projects-list><ProjectCards projects={cards} /></div>
+            : <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>)}
         </>}
       </div>
     </main>

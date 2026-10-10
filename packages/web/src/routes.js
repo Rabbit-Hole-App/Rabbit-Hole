@@ -19,7 +19,8 @@ export const canonicalPath = (pathname, preview) =>
 export const PREVIEW_WRITE_REFUSED = 'Blocked on this preview: it would change live apps.';
 export function previewWriteAllowed(url) {
   const u = new URL(url, 'https://preview.invalid'), p = u.pathname;
-  return /^\/api\/(repositories|learn|byoc)(\/|$)/.test(p) || /^\/api\/canvases(\/dives(\/canvas-[a-f0-9]{8})?)?$/.test(p) || /^\/api\/apps\/canvas-[a-f0-9]{8}(\/|$)/.test(p)
+  // /api/library/folders: Library folders (docs/features/library-folders.md), served by the dev worker on LEARN_DB.
+  return /^\/api\/(repositories|learn|byoc)(\/|$)/.test(p) || /^\/api\/library\/folders(\/|$)/.test(p) || /^\/api\/canvases(\/dives(\/canvas-[a-f0-9]{8})?)?$/.test(p) || /^\/api\/apps\/canvas-[a-f0-9]{8}(\/|$)/.test(p)
     || /^\/api\/apps\/repo-[a-z0-9-]+(\/learn-course)?$/.test(p) // dev-worker.js repositoryRoute: served as /api/repositories/...
     || /^\/api\/ask\/threads\/canvaschat-/.test(p) || (p === '/api/ask/threads' && u.searchParams.get('scope') === 'learn' && /^canvas-[a-f0-9]{8}$/.test(u.searchParams.get('ref') || ''));
 }

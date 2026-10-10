@@ -9,7 +9,7 @@ import { api, navigate } from './api.js';
 import { Button, ConfirmDialog, Tip, toast } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
 import { resolveTarget } from './learn-target.js';
-import { anchorBlock, clampSpot, diveRecord, discardHole, dropPending, holeHref, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
+import { anchorBlock, clampSpot, diveRecord, discardHole, dropPending, holeHref, holeRows, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 // The green portal outline on an originating card, read by the canvas's card chrome.
 export const DivePortals = createContext(null);
@@ -77,7 +77,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       const { parent, name, title, origin_block_id: origin } = holeRef.current;
       const above = await api(`/api/canvases/dives?app=${encodeURIComponent(parent.app)}&board=${encodeURIComponent(parent.board)}`);
       const path = above.path.map((level, index) => index === above.path.length - 1 ? { ...level, origin_block_id: origin } : level);
-      setTree({ path: [...path, { app: name, board: 'main', title, kind: 'canvas', pending: true }], children: [], dive: holeRef.current.dive });
+      setTree({ path: [...path, { app: name, board: 'main', title, kind: 'canvas', pending: true }], children: [], holes: above.holes, dive: holeRef.current.dive });
     } catch { setTree(null); } // not a canvas or project board of yours: no Rabbit Holes here
   }, [here.app, here.board, pending]);
   useEffect(() => { load(); }, [load]);
@@ -247,6 +247,9 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       if (notice?.text) toast(notice.text);
     } },
     navigator: { tree: tree && { ...tree, children }, pending, error, climb, enter, rename, askDelete },
+    // The canvas title's Rabbit Holes menu (TitleHoles): a level on the path is climbed to, as the map's levels are;
+    // any other hole is entered.
+    titleHoles: { rows: holeRows(tree || {}), onPick: row => { const index = treeRef.current.path.findIndex(level => level.app === row.app); if (index >= 0) climb(index); else enter(row.app); } },
     // An empty hole says what it is and what keeps it; gone with the first object, by the keep rule's own predicate.
     emptyHint: pending && !meaningful(canvasState) && tree && <div data-dive-empty className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6">
       <div className="max-w-sm text-center">

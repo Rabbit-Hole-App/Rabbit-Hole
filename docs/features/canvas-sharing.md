@@ -61,6 +61,11 @@ with a message rather than truncated.
 Files are R2 objects in `small-runs` at `learn-boards/<row id>/<sha256 of the
 asset key>`, readable only through the owner's routes or a live link; they
 are served as downloads with `nosniff` and a sandbox CSP, never as pages.
+A link, a publication or a member reads only the files the board uses now
+(`boardAssetKeys` in `learn-boards.js`: its cards' asset keys plus `notebook:<id>`
+for each notebook card); a file removed from the board, or the workspace of a
+removed notebook, stays in R2 (nothing is deleted) but answers 404 to anyone but
+the owner. A fork copies that same list, never the board's whole R2 prefix.
 
 ## API (dev worker)
 

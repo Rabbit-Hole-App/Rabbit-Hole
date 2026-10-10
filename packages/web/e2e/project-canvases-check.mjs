@@ -18,7 +18,7 @@ const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const PERSIST = process.env.PERSIST || '.small/fork-local';
 const SHOTS = process.argv[2] || null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = process.env.TEST_BYPASS_SECRET || readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const owner = { session: (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `pc-owner-${run}@example.com`, secret, handle: `pc_${run}` }) })).json()).session };
 const api = async (path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'application/json' } }); return { status: r.status, body: await r.json().catch(() => null) }; };
@@ -77,6 +77,11 @@ await page.waitForURL(/[?]tab=learn&canvas=canvas-[a-f0-9]{8}$/, { timeout: 3000
 const made = new URL(page.url()).searchParams.get('canvas');
 await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
 check('Create opens the new canvas in the project frame, named as typed', await title() === `Attention ${run}`);
+// ---- the title is a breadcrumb in a project (owner r35): [project] › [canvas] on one line; the project part goes to Main ----
+const crumb = page.locator('[data-project-crumb]');
+const PROJECT = 'project-canvases'; // the project card's own title (home/provenance.js cardModel), never hardcoded in the page
+check('a second canvas names its project before its own title', (await crumb.innerText()).trim() === PROJECT && await crumb.getAttribute('title') === PROJECT && await title() === `Attention ${run}`);
+await shot('title-crumbs-second-canvas');
 const row = (await projectCanvases()).find(c => c.name === made);
 check('it is a canvas row in this project, made with its main board', row?.board_saved === true && (await api(`/api/learn/boards/${made}/main`)).body.version === 0);
 check('the switcher lists Main canvas, then the new one, checked', JSON.stringify(await options()) === JSON.stringify([['Main canvas', 'false'], [`Attention ${run}`, 'true']]));
@@ -113,15 +118,40 @@ await page.getByLabel('Canvas title').fill(`Renamed ${run}`);
 await page.getByLabel('Canvas title').press('Enter');
 await page.waitForTimeout(1500);
 check('a rename from the title field reaches the server', (await api(`/api/apps/${made}`)).body.title === `Renamed ${run}`);
+check('renaming the canvas keeps the project part', (await crumb.innerText()).trim() === PROJECT && await title() === `Renamed ${run}`);
 check('the switcher shows the new name', (await options()).some(([label]) => label === `Renamed ${run}`));
 await page.keyboard.press('Escape');
 
+await crumb.click();
+await page.waitForURL(new RegExp(`/apps/${REPO}[?]tab=learn$`));
+await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
+check('the project part goes to the Main canvas, which names the project too', (await crumb.innerText()).trim() === PROJECT && await title() === 'Main canvas');
+await shot('title-crumbs-main-canvas');
+// Long names stay on one line: on a desktop the title is cut short and the project kept whole; on a phone the project is cut
+// first, down to its minimum width, then the title.
+const LONG = `A canvas with a very long title that has to stay on one line in the top bar ${run}`;
+const longCanvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: LONG, project: REPO }) })).body;
+const crumbs = () => page.evaluate(() => {
+  const box = node => ({ width: node.clientWidth, full: node.scrollWidth, nowrap: getComputedStyle(node).whiteSpace === 'nowrap' });
+  return { row: document.querySelector('[data-title-crumbs]').getBoundingClientRect().height, project: box(document.querySelector('[data-project-crumb]')), title: box(document.querySelector('input[aria-label="Canvas title"]')) };
+});
+await page.goto(`${BASE}/apps/${REPO}?tab=learn&canvas=${longCanvas.name}`);
+await crumb.waitFor({ timeout: 60000 }); await page.waitForTimeout(800);
+const wide = await crumbs();
+check('desktop: one line, the long title cut short, the project whole', wide.row <= 32 && wide.title.full > wide.title.width && wide.project.full <= wide.project.width, JSON.stringify(wide));
+await shot('title-crumbs-long-desktop');
+await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(800);
+const narrow = await crumbs();
+check('phone: one line, the project cut first to its minimum, then the title', narrow.row <= 32 && narrow.project.nowrap && narrow.project.full > narrow.project.width && narrow.project.width >= 47 && narrow.title.full > narrow.title.width, JSON.stringify(narrow));
+await shot('title-crumbs-long-phone');
+await page.setViewportSize({ width: 1440, height: 900 });
+
 // ---- the Library's project card counts them; the project navigation is unchanged ----
-check('the project row counts Main canvas and both canvases', (await projectRow())?.canvas_count === 3);
+check('the project row counts Main canvas and its canvases', (await projectRow())?.canvas_count === 4);
 await page.goto(`${BASE}/library?type=projects`);
 const card = page.locator('[data-library-card="project"]').filter({ has: page.locator('[data-card-title]', { hasText: 'project-canvases' }) });
 await card.locator('[data-canvas-count]').waitFor({ timeout: 60000 });
-check('the Library card says 3 canvases', (await card.locator('[data-canvas-count]').innerText()).trim() === '3 canvases');
+check('the Library card says 4 canvases', (await card.locator('[data-canvas-count]').innerText()).trim() === '4 canvases');
 await shot('04-library-card');
 await page.goto(`${BASE}/apps/${REPO}?tab=learn`);
 // On the Main canvas the Map icon opens the repository's Files in the panel (owner, 2026-10-08) - when there are files to
@@ -156,7 +186,7 @@ check('the chip x clears the filter', await page.locator('[data-project-filter]'
 
 await browser.close();
 // Untouched canvases delete (no threads); the seeded project row stays in local D1 with the session's throwaway account.
-for (const c of [made, seeded.name]) await api(`/api/apps/${c}`, { method: 'DELETE' });
+for (const c of [made, seeded.name, longCanvas.name]) await api(`/api/apps/${c}`, { method: 'DELETE' });
 check('no page errors', errors.length === 0, errors.join(' | '));
 // A blank canvas posts its own Next Steps hook request at rest (owner, 2026-10-08; professor-next-steps.md 1.2): expected, and
 // aborted here like every other write, so it is not counted as the learner reaching a model.

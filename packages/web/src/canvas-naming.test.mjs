@@ -17,11 +17,12 @@ test('Duplicate posts the same copy call as Fork to its own route, and fork stay
   assert.equal(made.title, 'Example (2)');
 });
 
-test('the Library ⋮ offers Duplicate on your own canvases only, with this browser\'s content, and reloads the list', () => {
+test('the Library ⋮ offers Duplicate on your own canvases only, with this browser\'s content, and reloads the list', async () => {
   const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
-  // Inside the owned-canvas menu only (visibility-menu.md): `menu?.a.canEdit ? <> ... </> : null`.
-  const owned = library.slice(library.indexOf(') : menu?.a.canEdit ? <>'), library.indexOf('</> : null}'));
-  assert.match(owned, /<MenuItem icon=\{CopyPlus\} onClick=\{\(\) => pick\(duplicate\)\}>Duplicate<\/MenuItem>/);
+  // Your own canvases only (visibility-menu.md; one list since 2026-10-09, home/card-menu-items.js): an owner row for canvases.
+  const { CARD_MENU } = await import('./home/card-menu-items.js');
+  assert.deepEqual(CARD_MENU.find(i => i.id === 'duplicate'), { id: 'duplicate', label: 'Duplicate', icon: 'CopyPlus', types: ['canvas'], owner: true });
+  assert.match(library, /\n {4}duplicate,\n/, 'its row runs duplicate');
   const fn = library.slice(library.indexOf('const duplicate = async (a) => {'), library.indexOf('const pinnedNow'));
   assert.match(fn, /postFork\(\{ source: \{ canvas: a\.name \}, state: localBoard\(ctx\.storage, canvasKeys\(/);
   assert.match(fn, /'\/api\/learn\/boards\/duplicate'\)/);

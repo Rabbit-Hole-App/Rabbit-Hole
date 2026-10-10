@@ -1,8 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, BookOpen, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, X } from 'lucide-react';
+import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, Shapes, X } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import ForkButton from './ForkButton.jsx';
-import { Button, toast } from './ui.jsx';
+import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
 import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
 import RabbitHoleChoice from './RabbitHoleChoice.jsx';
@@ -20,6 +20,8 @@ import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase, publicBase } from './comments/comments-api.js';
 import { DiveNavigator, DivePortals } from './Dive.jsx';
 import { sharedTree } from './shared-holes.js';
+import { holeRows } from './dive.js';
+import { TitleHoles } from './TitleHoles.jsx';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
@@ -127,8 +129,11 @@ export default function SharedBoardPage({ token }) {
           <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" />
           <span className="text-sm font-semibold text-ink">{PRODUCT}</span>
         </a>
-        <span className="text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
-        <span className="flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
+        {/* One line, the full title on hover; with holes, the chevron opens their tree, each level its own link (owner r35). */}
+        <span data-shared-title title={shared.title || (shared.board === 'main' ? shared.app : shared.board)} className="min-w-16 truncate text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
+        {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
+        <span className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
+        {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
         {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. The @handle
             links to the creator's public profile on a publication and a share link alike (owner, 2026-10-08). */}
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
@@ -325,6 +330,22 @@ function SharedAsk({ token, viewer, context, draft, target = null, onClearTarget
       </div>}
       <ChatComposer dock value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} onStop={() => flight.current?.abort()} maxLength={4000}
         placeholder={viewer ? 'Ask about this canvas…' : 'Ask about this canvas… (sign in to send)'} />
+    </div>
+  );
+}
+
+// A project's link (visibility-menu.md "Projects", owner 2026-10-09) is its Main canvas's: beside it, the project's canvases
+// this viewer may open by their own links (learn-boards.js projectCanvasLinks) - a title and a link each, never a private one.
+function ProjectCanvases({ list }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <Button type="button" size="sm" variant="secondary" data-project-canvases aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Shapes size={13} strokeWidth={1.8} />{list.length} {list.length === 1 ? 'canvas' : 'canvases'} in this project<ChevronDown size={13} className="text-ink-3" />
+      </Button>
+      <Menu open={open} onClose={() => setOpen(false)} className="top-9 left-0 w-64">
+        {list.map(c => <MenuItem key={c.href} icon={Shapes} data-project-canvas={c.href} onClick={() => window.location.assign(c.href)}>{c.title}</MenuItem>)}
+      </Menu>
     </div>
   );
 }

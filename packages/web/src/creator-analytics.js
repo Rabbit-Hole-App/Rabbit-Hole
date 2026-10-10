@@ -26,7 +26,7 @@ export const EXPLAINER_SECTIONS = [
   { title: 'Outbound resources', rows: [['resource_opens', 'Paper, GitHub and source opens']] },
 ];
 export const TRAFFIC_SOURCES = [['linkedin', 'LinkedIn'], ['explore', 'Explore'], ['creator_profile', 'Creator profile'], ['direct', 'Direct'], ['other_referrer', 'Other referrer']];
-export const CREATOR_TOTALS = [['unique_learners', 'Unique learners'], ['avg_active_seconds', 'Average active learning time'], ['rabbit_holes_started', 'Rabbit Holes started'], ['fork_count', 'Canonical forks', 'all'], ['explainer_count', 'Public explainers', 'all']];
+export const CREATOR_TOTALS = [['unique_learners', 'Unique learners'], ['avg_active_seconds', 'Average active learning time'], ['rabbit_holes_started', 'Rabbit Holes started'], ['fork_count', 'Canonical forks', 'all'], ['explainer_count', 'Public learning boards', 'all']];
 
 const notCollected = rows => Object.fromEntries(rows.map(([key]) => [key, NOT_COLLECTED]));
 

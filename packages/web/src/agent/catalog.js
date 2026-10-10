@@ -1,6 +1,7 @@
 // The name the user sees: a project by owner/repository (App.jsx:386, Sidebar.jsx:616), a canvas
 // by its title, an app by its name. The only titleOf: Home, Sidebar and Library import it from here.
-export const titleOf = (row) => (row.kind === 'repository' ? row.repo : row.title || row.name);
+// A project's own name once renamed (repositories.js; its repository stays its subtitle), else its repository.
+export const titleOf = (row) => (row.kind === 'repository' ? row.title || row.repo : row.title || row.name);
 
 // The type shown beside a title in choose pills and result lists.
 const KIND = { repository: 'Project', canvas: 'Canvas', job: 'App · job', server: 'App · server' };

@@ -15,6 +15,7 @@ import { NOT_TRASHED } from './library-trash.js';
 import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
+import { assetKeysOf } from '../../web/src/learn-board-assets.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -45,7 +46,7 @@ async function putAsset(req, env, row, key) {
   return json({ key, size: bytes.byteLength });
 }
 
-export async function getAsset(env, row, key) {
+async function getAsset(env, row, key) {
   if (!learnMedia(env) || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
   const object = await learnMedia(env).get(await assetObject(row, key));
   if (!object) return json({ error: 'No such file on this board' }, 404);
@@ -60,6 +61,19 @@ export async function getAsset(env, row, key) {
       'Cache-Control': 'private, no-cache',
     },
   });
+}
+
+// Every file a board uses now: its cards' files (assetKeysOf, the list the browser uploads by) and each notebook card's
+// workspace. Anyone but the owner reads only these, and a fork copies only these: a file removed from the board, or the
+// workspace of a removed notebook, stays in R2 (never deleted) but past its owner nobody reaches it.
+export const boardAssetKeys = state => [...assetKeysOf(state),
+  ...(state?.blocks || []).filter(block => block.type === 'notebook' && block.notebook_id).map(block => `notebook:${block.notebook_id}`)];
+
+// A board file for a share or publication link, or a member: a key the board does not use now is 404, as a missing one is.
+export async function boardAsset(env, row, key) {
+  const text = row.state_json ?? (await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(row.id).first())?.state_json;
+  if (!boardAssetKeys(JSON.parse(text || '{}')).includes(key)) return json({ error: 'No such file on this board' }, 404);
+  return getAsset(env, row, key);
 }
 
 async function listAssets(env, row) {
@@ -163,20 +177,27 @@ const ownerRow = (env, owner, app, board) => env.LEARN_DB.prepare('SELECT * FROM
 
 // Save the owner's board: every owned board, shared or not, is canonical here (docs/features/canvas-persistence.md).
 // A stale version (another tab or device saved since; 0 when the browser saw no copy) is refused with the newer
-// version, never overwritten.
+// version, never overwritten. The row's version is the lock (beta hardening 4a): the UPDATE itself requires the version
+// the save was based on, and the first INSERT yields to a first save that won meanwhile, so two saves based on the same
+// version are one write and one 409 - the loser is told the version now stored.
 async function saveOwn(env, owner, app, board, body) {
   const state = stateText(body?.state);
   if (state.error) return json({ error: state.error }, state.status || 400);
   const row = await ownerRow(env, owner, app, board);
   const now = new Date().toISOString();
+  const stale = async version => json({ error: 'This board changed since you opened it.', version: version ?? (await ownerRow(env, owner, app, board))?.version ?? 0 }, 409);
   if (!row) {
     const id = crypto.randomUUID();
-    await env.LEARN_DB.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)')
+    const { meta } = await env.LEARN_DB.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT DO NOTHING')
       .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now).run();
-    return json({ version: 1, board_id: id, sharing: sharingOf(null) });
+    return meta.changes ? json({ version: 1, board_id: id, sharing: sharingOf(null) }) : stale();
   }
-  if (Number.isInteger(body.version) && body.version !== row.version) return json({ error: 'This board changed since you opened it.', version: row.version }, 409);
-  await env.LEARN_DB.prepare('UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?').bind(state.text, owner.email, now, row.id).run();
+  const checked = Number.isInteger(body.version);
+  if (checked && body.version !== row.version) return stale(row.version);
+  // Without a version (older pages, API tests) the save is unconditional, as before.
+  const { meta } = await env.LEARN_DB.prepare(`UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?${checked ? ' AND version = ?' : ''}`)
+    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])).run();
+  if (!meta.changes) return stale();
   // A change to a canvas's saved content is a meaningful change (canvas-metadata.md); a save of the same content, or a
   // board's first server copy (a sync of what the browser already had: sharing, publishing; over a canvas's empty
   // version 0 board too), is not.
@@ -239,10 +260,17 @@ async function shareRepository(env, owner, app, board, body) {
 // opens its canvas's main board read-only while the canvas is published, live and top-level, and dies when it is
 // removed from Explore or archived. A publication is `publication: true`, with its own repository boundary
 // (linkSource) and its own rate-limit key; the shared routes are otherwise one code path.
+// A canvas's board whose canvas is gone (a deleted Rabbit Hole; rows earlier deletes left behind) is nobody's link: its
+// owner has no route left to revoke it, so the link is dead instead (beta hardening 3b, no data migration).
+const CANVAS_EXISTS = "(b.app NOT LIKE 'canvas-%' OR EXISTS (SELECT 1 FROM canvases c WHERE c.org = b.org AND c.name = b.app))";
+// A canvas or project in Trash suspends its links (docs/features/library-trash.md), and a Rabbit Hole under it sleeps
+// with it however deep (beta hardening 3c): the walk climbs canvas_dives only - a fork is linked by canvas_forks and is
+// nobody's child - and UNION ends a corrupted cycle. Restore wakes the same tokens; nothing is rewritten.
+const NO_TRASHED_ANCESTOR = `NOT EXISTS (WITH RECURSIVE up(app) AS (SELECT b.app UNION SELECT d.parent_app FROM canvas_dives d JOIN up ON d.child = up.app WHERE d.org = b.org AND d.owner_email = b.owner_email)
+  SELECT 1 FROM up JOIN library_trash t ON t.org = b.org AND t.name = up.app)`;
 async function sharedRow(env, token) {
   if (!TOKEN.test(token)) return null;
-  // A canvas or project in Trash suspends its links (docs/features/library-trash.md); Restore brings them back as they were.
-  const row = await env.LEARN_DB.prepare(`SELECT * FROM learn_boards b WHERE b.shared = 1 AND b.view_token = ? AND ${NOT_TRASHED('b.org', 'b.app')}`).bind(token).first();
+  const row = await env.LEARN_DB.prepare(`SELECT * FROM learn_boards b WHERE b.shared = 1 AND b.view_token = ? AND ${CANVAS_EXISTS} AND ${NO_TRASHED_ANCESTOR}`).bind(token).first();
   if (row) return { row, role: 'view' };
   const published = await env.LEARN_DB.prepare(`SELECT b.* FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
     JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' WHERE p.token = ? AND ${NOT_TRASHED('c.org', 'c.name')}`).bind(token).first();
@@ -420,9 +448,21 @@ async function fork(req, env, body, { duplicate = false } = {}) {
   });
   const id = crypto.randomUUID(), now = new Date().toISOString();
   const forkedFrom = duplicate ? null : { resource_id: source.resource, board: source.row?.board || 'main', board_id: source.row?.id || null, title: sourceTitle, creator: null, share_url: source.share ? source.sharePath : null };
-  // One batch: a fork is its canvas, board and link together, or nothing. The UNIQUE key refuses a
-  // concurrent duplicate of the same action, which then answers with the fork that won.
+  // Copy first, then publish the canvas, board and lineage atomically. A failed copy cannot become a replayable fork.
+  const bucket = learnMedia(env), copiedKeys = [];
+  let files = 0, publishing = false;
   try {
+    if (bucket && source.row) {
+      for (const key of boardAssetKeys(source.state)) {
+        const body = await bucket.get(await assetObject(source.row, key));
+        if (!body) continue; // Browser-only assets and unopened notebook workspaces retain their existing semantics.
+        const target = renamed.get(key) || key, objectKey = await assetObject({ id }, target);
+        copiedKeys.push(objectKey); // A remote write may succeed even when its acknowledgement fails.
+        await bucket.put(objectKey, await new Response(body.body).arrayBuffer(), { httpMetadata: body.httpMetadata, customMetadata: { ...body.customMetadata, key: target } });
+        files += 1;
+      }
+    }
+    publishing = true;
     await db.batch([
       db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,NULL)').bind(user.org, name, user.email, title, duplicate ? source.project ?? null : null),
       ...(duplicate ? [db.prepare(`INSERT INTO canvas_metadata (org, canvas, description, updated_at) SELECT ?, ?, description, ${NOW} FROM canvas_metadata WHERE org = ? AND canvas = ? AND description IS NOT NULL`).bind(user.org, name, source.org, source.canvas)] : []),
@@ -434,28 +474,16 @@ async function fork(req, env, body, { duplicate = false } = {}) {
       ...(source.revision ? [db.prepare('INSERT INTO board_repository_pins (board_id, repository_id, commit_sha, share_key, repo_access, pinned_at) VALUES (?, ?, ?, NULL, 0, ?)').bind(id, source.revision.id, source.revision.commit, now)] : []),
     ]);
   } catch (error) {
+    // On an ambiguous database response, never remove assets that may already belong to a published board.
+    let published = false;
+    if (publishing) {
+      try { published = !!await db.prepare('SELECT id FROM learn_boards WHERE id = ?').bind(id).first(); }
+      catch { published = true; }
+    }
+    if (!published) await Promise.allSettled(copiedKeys.map(key => bucket.delete(key)));
     const won = !duplicate && await replay();
     if (won) return won;
     return json({ error: `The ${duplicate ? 'copy' : 'fork'} could not be made: ${error.message}` }, 500);
-  }
-  let files = 0;
-  // ponytail: files copy after the rows commit, so a worker dying mid-copy leaves the fork with fewer files and a
-  // replay does not re-copy. Copy before the batch (orphan R2 objects on a lost race) if that is ever seen.
-  if (learnMedia(env) && source.row) {
-    let cursor;
-    do {
-      const page = await learnMedia(env).list({ prefix: `learn-boards/${source.row.id}/`, cursor, include: ['customMetadata'] });
-      for (const object of page.objects) {
-        const key = object.customMetadata?.key;
-        if (!key) continue;
-        const body = await learnMedia(env).get(object.key);
-        if (!body) continue;
-        const target = renamed.get(key) || key;
-        await learnMedia(env).put(await assetObject({ id }, target), await new Response(body.body).arrayBuffer(), { httpMetadata: body.httpMetadata, customMetadata: { ...body.customMetadata, key: target } });
-        files += 1;
-      }
-      cursor = page.truncated ? page.cursor : undefined;
-    } while (cursor);
   }
   if (duplicate) return json(forkReply(name, title, { files, duplicate: true }), 201);
   return json(forkReply(name, title, { files, forked_from: forkedFrom, source_fork_count: await sourceForkCount(db, source.org, source.canvas) }), 201);
@@ -602,17 +630,43 @@ async function sharedHoles(req, env, token) {
   const OPEN = `b.shared = 1 AND b.view_token IS NOT NULL AND ${NOT_TRASHED('b.org', 'b.app')} AND (b.public_view = 1 OR ?)`;
   const canvasTitle = CANVAS.test(row.app) ? (await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first())?.title : null;
   const path = [{ title: sharedTitle(row, canvasTitle, row.app.startsWith('repo-') ? await linkSource(db, found) : null), href: linkPath(found, token) }];
+  let top = row;
   for (let level = row; level.board === 'main' && CANVAS.test(level.app) && path.length < 50;) {
     const up = await db.prepare(`SELECT b.*, c.title AS canvas_title FROM canvas_dives d JOIN learn_boards b ON b.org = d.org AND b.owner_email = d.owner_email AND b.app = d.parent_app AND b.board = d.parent_board
       JOIN canvases c ON c.org = b.org AND c.name = b.app WHERE d.org = ? AND d.owner_email = ? AND d.child = ? AND ${OPEN}`).bind(level.org, level.owner_email, level.app, anyone).first();
     if (!up) break;
     path.unshift({ title: up.canvas_title, href: `/b/${up.view_token}` });
-    level = up;
+    level = top = up;
   }
-  const { results } = await db.prepare(`SELECT c.title, b.view_token, d.origin_block_id FROM canvas_dives d JOIN canvases c ON c.org = d.org AND c.name = d.child
+  const below = async level => (await db.prepare(`SELECT d.child, c.title, b.view_token, d.origin_block_id FROM canvas_dives d JOIN canvases c ON c.org = d.org AND c.name = d.child
     JOIN learn_boards b ON b.org = d.org AND b.owner_email = d.owner_email AND b.app = d.child AND b.board = 'main'
-    WHERE d.org = ? AND d.owner_email = ? AND d.parent_app = ? AND d.parent_board = ? AND ${OPEN} ORDER BY d.created_at, d.child`).bind(row.org, row.owner_email, row.app, row.board, anyone).all();
-  return json({ path, children: results.map(r => ({ title: r.title, href: `/b/${r.view_token}`, origin_block_id: r.origin_block_id })) });
+    WHERE d.org = ? AND d.owner_email = ? AND d.parent_app = ? AND d.parent_board = ? AND ${OPEN} ORDER BY d.created_at, d.child`).bind(level.org, level.owner_email, level.app, level.board, anyone).all()).results;
+  // Every hole under the top level at any depth, for the canvas title's menu (dive.js holeRows), by the same rule level by
+  // level: a hole left out takes everything under it out too. A hole is its title, its link and its parent's link.
+  // ponytail: one read per level, capped at 200 holes; a wider tree shows its first 200.
+  const holes = [], queue = [{ ...top, href: path[0].href }], walked = new Set([top.app]);
+  while (queue.length && holes.length < 200) {
+    const level = queue.shift();
+    for (const r of await below(level)) {
+      if (walked.has(r.child)) continue;
+      walked.add(r.child);
+      holes.push({ title: r.title, href: `/b/${r.view_token}`, parent: level.href });
+      queue.push({ org: level.org, owner_email: level.owner_email, app: r.child, board: 'main', href: `/b/${r.view_token}` });
+    }
+  }
+  return json({ path, children: (await below(row)).map(r => ({ title: r.title, href: `/b/${r.view_token}`, origin_block_id: r.origin_block_id })), holes });
+}
+
+// A project's link (visibility-menu.md "Projects", owner 2026-10-09) is its Main canvas board's link: beside that board it
+// lists the project's canvases this viewer could open by their own link right now - published (/e/), or a view link that
+// is public or the viewer is signed in, as the Rabbit Holes Map does (sharedHoles). A private canvas is never listed; each
+// is a title and its link, never a canvas id or an email.
+async function projectCanvasLinks(db, row, signedIn) {
+  const { results } = await db.prepare(`SELECT c.title, p.token AS publication, b.view_token, b.public_view FROM canvases c
+    LEFT JOIN canvas_publications p ON p.org = c.org AND p.canvas = c.name
+    LEFT JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' AND b.shared = 1 AND b.view_token IS NOT NULL
+    WHERE c.org = ? AND c.owner_email = ? AND c.project = ? AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org', 'c.name')} ORDER BY c.created_at, c.id`).bind(row.org, row.owner_email, row.app).all();
+  return results.flatMap(r => (r.publication ? [{ title: r.title, href: `/e/${r.publication}` }] : r.view_token && (r.public_view || signedIn) ? [{ title: r.title, href: `/b/${r.view_token}` }] : []));
 }
 
 async function openShared(req, env, token) {
@@ -639,7 +693,8 @@ async function openShared(req, env, token) {
   const signedIn = viewer instanceof Response ? null : viewer;
   const member = canvas && row.board === 'main' && !found.publication && signedIn && (signedIn.email === row.owner_email
     || (signedIn.userId && await env.LEARN_DB.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(row.org, row.app, signedIn.userId).first()));
-  return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
+  const projectCanvases = row.app.startsWith('repo-') && row.board === 'main' ? await projectCanvasLinks(env.LEARN_DB, row, !!signedIn) : null;
+  return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, ...(projectCanvases ? { project_canvases: projectCanvases } : {}), title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
     ...(member ? { member_board_id: row.id } : {}),
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
@@ -683,16 +738,35 @@ const PROJECT_KEY = /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})(?:@(.{1,250
 // (or a debounce-and-cache) when Explore holds thousands.
 export const likeOf = q => `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
 export const searchTerm = raw => String(raw || '').trim().replace(/^@/, '').slice(0, 60);
-async function explore(env, sort, q = '', project = null) {
+// Explore's type filter (owner 2026-10-09: "Explore should have a filter for Projects or Canvas", the Library's Type
+// filter and its ?type= values): `canvases` is the published canvases whose card names no project (PUBLISHED's `r` is
+// null: standalone, or in a repository not confirmed public, which a card never names); `projects` is one row per project
+// label those cards name - a public, untrashed repository with at least one published canvas - with its count, searched
+// by repository (owner/repo, so its name too) and sorted as its newest, latest-updated or most-forked canvases.
+const EXPLORE_TYPES = ['projects', 'canvases'];
+const PROJECT_SORTS = { newest: 'latest DESC', updated: 'updated DESC, latest DESC', forks: 'forks DESC, latest DESC' };
+async function exploreProjects(env, sort, term, from, binds) {
+  const { results } = await env.LEARN_DB.prepare(`SELECT label, project_repo AS repo, count(*) AS boards, max(published_at) AS latest,
+      max(updated_at) AS updated, sum(fork_count) AS forks
+    FROM (SELECT CASE WHEN project_branches > 1 THEN project_repo || '@' || project_branch ELSE project_repo END AS label, *
+      FROM (${PUBLISHED_CARDS} ${PUBLISHED} AND r.id IS NOT NULL ${term ? `AND r.repo LIKE ?1 ESCAPE '\\'` : ''} ${from}))
+    GROUP BY label ORDER BY ${PROJECT_SORTS[sort]}, label LIMIT ${EXPLORE_LIMIT}`).bind(...binds).all();
+  return json({ projects: results.map(r => ({ label: r.label, repo: r.repo, boards: r.boards, fork_count: r.forks, published_at: r.latest, updated_at: r.updated, url: `/explore?project=${encodeURIComponent(r.label)}` })) });
+}
+async function explore(env, sort, q = '', project = null, type = null) {
   if (!Object.hasOwn(EXPLORE_SORTS, sort)) return json({ error: 'Sort Explore by newest, updated or forks' }, 400);
+  if (type && !EXPLORE_TYPES.includes(type)) return json({ error: 'Filter Explore by projects or canvases' }, 400);
   const key = project ? String(project).match(PROJECT_KEY) : null;
   if (project && !key) return json({ error: 'Filter Explore by a project as owner/repo' }, 400);
   const term = searchTerm(q);
   const match = term ? `AND (c.title LIKE ?1 ESCAPE '\\' OR m.description LIKE ?1 ESCAPE '\\' OR h.handle LIKE ?1 ESCAPE '\\' OR ${NAME_OF('c.owner_email')} LIKE ?1 ESCAPE '\\')` : '';
   const n = term ? 2 : 1;
   const from = key ? `AND r.repo = ?${n} COLLATE NOCASE ${key[2] ? `AND r.branch = ?${n + 1}` : ''}` : '';
-  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} ${match} ${from}
-    ORDER BY ${EXPLORE_SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`).bind(...(term ? [likeOf(term)] : []), ...(key ? [key[1], ...(key[2] ? [key[2]] : [])] : [])).all();
+  const binds = [...(term ? [likeOf(term)] : []), ...(key ? [key[1], ...(key[2] ? [key[2]] : [])] : [])];
+  if (type === 'projects') return exploreProjects(env, sort, term, from, binds);
+  const only = type === 'canvases' ? 'AND r.id IS NULL' : '';
+  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} ${match} ${from} ${only}
+    ORDER BY ${EXPLORE_SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`).bind(...binds).all();
   return json({ canvases: results.map(exploreCard) });
 }
 
@@ -703,7 +777,7 @@ export async function learnBoardsRoute(path, req, env) {
     const found = await sharedAccess(req, env, decodeURIComponent(sharedFile[1]));
     if (found instanceof Response) return found;
     const key = decodeURIComponent(sharedFile[2]);
-    if (req.method === 'GET') return getAsset(env, found.row, key);
+    if (req.method === 'GET') return boardAsset(env, found.row, key);
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
@@ -734,7 +808,7 @@ export async function learnBoardsRoute(path, req, env) {
   // Explore's AI find (explore-find.js): a sentence-length search ranked by the small model over the published set only.
   if (path === '/api/learn/boards/published/find') return (await import('./explore-find.js')).exploreFindFetch(req, env);
   // Explore: the published canvases (docs/features/explore-publish.md).
-  if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q'), p.get('project')) : json({ error: 'Method not allowed' }, 405); }
+  if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q'), p.get('project'), p.get('type')) : json({ error: 'Method not allowed' }, 405); }
   // A published canvas's card thumbnail, by the publication token its Explore card already links (card-thumbnails.md).
   const thumbnail = path.match(/^\/api\/learn\/boards\/published\/([^/]+)\/thumbnail$/);
   if (thumbnail) return publishedThumbnail(req, env, decodeURIComponent(thumbnail[1]));

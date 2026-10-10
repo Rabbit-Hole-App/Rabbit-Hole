@@ -184,7 +184,7 @@ await check('5 the Library card shows its picture on the right, 2:1, about 38% o
   const { c, t, title } = await layout(card);
   assert.ok(Math.abs(t.x + t.width - (c.x + c.width - 17)) <= 2, `flush with the card's right padding (${t.x + t.width} vs ${c.x + c.width})`);
   assert.ok(Math.abs(t.width / t.height - 2) < 0.03, `2:1 (${t.width} x ${t.height})`);
-  assert.ok(t.width / c.width > 0.33 && t.width / c.width < 0.4, `${(100 * t.width / c.width).toFixed(1)}% of the card`);
+  assert.ok(t.width / c.width > 0.33 && t.width / c.width < 0.42, `${(100 * t.width / c.width).toFixed(1)}% of the card`);
   assert.ok(title.x + title.width <= t.x, 'the title is left of the picture');
   assert.ok(t.width >= 340, `big enough to make out (${t.width}px)`);
   assert.equal(await card.locator('[data-card-thumbnail] img').evaluate(img => img.naturalWidth), 800);

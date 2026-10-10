@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, GitBranch, Info, Layers, PanelRightOpen, Plus, RefreshCw, Search, Shapes } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, ChevronDown, GitBranch, Info, Layers, MoreHorizontal, PanelRightOpen, Plus, RefreshCw, Search, Shapes } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ConfirmDialog, ExpandedPageFrame, IconBtn, Input, Menu, MenuItem, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
+import { HoleRows, menuKeys } from './TitleHoles.jsx';
 import { deviceId } from './home/canvas-local.js';
 import { canvasHref, newCanvasTitle, projectCanvases } from './project-canvases.js';
 import LearnPage from './LearnPage.jsx';
@@ -14,6 +15,7 @@ import { titleOf } from './agent/catalog.js';
 import { projectTab } from './routes.js';
 import { cardModel } from './home/provenance.js';
 import { SourceLink } from './home/Provenance.jsx';
+import { useCardMenu } from './home/CardMenu.jsx';
 import { resultsKey } from './agent/bar.js';
 import { reviewTools } from './flags.js';
 import { fixturesOn, useMapMemory } from './home/review-fixtures.js';
@@ -54,6 +56,8 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
   useEffect(()=>{if(tab!==asked){window.history.replaceState(window.history.state,'',`/apps/${app.name}?tab=map`);window.dispatchEvent(new PopStateEvent('popstate'));}},[tab,asked,app.name]);
   const canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name),picked=tab==='learn'&&canvases.find(c=>c.name===new URLSearchParams(window.location.search).get('canvas')); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Main canvas
   const root=`/api/repositories/${app.name}`;
+  // The card's ⋮ in the header (home/CardMenu.jsx): a change reloads this project and the shell's catalog.
+  const headerMenu=useCardMenu({org:app.org,email:app.email,apps:catalog,onChanged:()=>{api(root).then(setApp,()=>{});onCatalog?.();}});
   function onFile(filePath,line){if(snapshot?.files.some(f=>f.path===filePath))inspect(fileObject(snapshot.graph,filePath,line||1),'source');}
   // A code reference in an answer (path:15-64; repository-browser.md "Code references", owner 2026-10-08): only a file of this
   // snapshot is a link (ask.jsx CodeRefs), and a click opens it in this page's reader with the range selected, as a drag selects
@@ -125,12 +129,17 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
   const codeCard=range=>window.dispatchEvent(new CustomEvent('small:code-card',{detail:{text:range.text,path:range.path,start:range.start,end:range.end,commit:range.commit,repo:app.repo}}));
   const reader=extra=><CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} pick={jump} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
     onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else{askAbout(range);if(extra?.place==='panel')codeCard(range);}}} {...extra}/>;
+  const projectMenu = <>{headerMenu.onMore(app)&&<IconBtn data-project-more title="More" aria-label="More" onClick={e=>headerMenu.onMore(app)(e)}><MoreHorizontal size={16}/></IconBtn>}{headerMenu.element}</>;
   if(tab==='learn')return <CodeRefs.Provider value={codeRefs}><div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
-    {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} files={snapshot&&reader({query:'',stacked:true,place:'panel'})} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} repositoryExcerpt={context?.kind==='range'?context.text:null} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} switcher={switcher}/>}
+    {picked?<CanvasLearn key={picked.name} app={picked} project={app} projectMenu={projectMenu} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} files={snapshot&&reader({query:'',stacked:true,place:'panel'})} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} repositoryExcerpt={context?.kind==='range'?context.text:null} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} project={app} projectMenu={projectMenu} switcher={switcher}/>}
   </div></CodeRefs.Provider>;
   return <CodeRefs.Provider value={codeRefs}><main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>
-      <div className="flex items-center gap-1"><h1 className="min-w-0 truncate text-2xl font-semibold">{app.repo}</h1>
+      {/* The project's name - its own once renamed, with its repository as the subtitle - and its ⋮, the card's menu (owner,
+          2026-10-09): rename, visibility, links and Move to Trash from inside the project. */}
+      <div className="flex items-center gap-1"><h1 data-project-title className="min-w-0 truncate text-2xl font-semibold">{titleOf(app)}</h1>
+        {app.title&&<span data-project-repo className="shrink-0 pl-1 text-sm text-ink-3">{app.repo}</span>}
+        {projectMenu}
         {/* Repository details live behind one icon (owner, 2026-10-04): source, branch, commit, status, refresh. */}
         <div className="relative"><IconBtn data-repo-info aria-label="Repository details" title="Repository details" aria-expanded={infoOpen} onClick={()=>setInfoOpen(open=>!open)}><Info size={16}/></IconBtn>
           <Menu open={infoOpen} onClose={()=>setInfoOpen(false)} className="top-full left-0 mt-1 w-72 p-3">
@@ -176,7 +185,8 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
 // The canvas switcher (docs/features/project-canvases.md). The title field beside it names the open canvas, so the trigger
 // is the canvas icon and a chevron. Opening it reloads the catalog (a rename made elsewhere shows); New canvas is a canvas
 // row in this project with its own board (POST /api/canvases), opened once the catalog has it.
-function CanvasSwitcher({ project, entries, onCatalog }) {
+// `holes` (LearnPage, owner r35): the open canvas's Rabbit Holes, a group under it in this same menu (TitleHoles.jsx).
+function CanvasSwitcher({ project, entries, onCatalog, holes = null }) {
   const [open,setOpen]=useState(false),[naming,setNaming]=useState(null),[busy,setBusy]=useState(false);
   const create=async()=>{
     const title=naming.trim();if(!title||busy)return;setBusy(true);
@@ -186,13 +196,14 @@ function CanvasSwitcher({ project, entries, onCatalog }) {
   return <span className="relative">
     <button type="button" data-canvas-switcher aria-label="Switch canvas" title={`${entries.length} canvas${entries.length===1?'':'es'} in this project`} aria-haspopup="menu" aria-expanded={open}
       onClick={()=>{if(!open)onCatalog?.();setOpen(!open);}} className={`flex h-8 items-center gap-0.5 rounded-lg px-1.5 ${open?'bg-hover text-ink':'text-ink-2 hover:bg-hover hover:text-ink'}`}><Shapes size={15} strokeWidth={1.8}/><ChevronDown size={13}/></button>
-    <Menu open={open} onClose={()=>setOpen(false)} className="top-full left-0 mt-1 w-64">
+    <Menu open={open} onClose={()=>setOpen(false)} className="top-full left-0 mt-1 w-64"><div role="menu" aria-label="Canvases" onKeyDown={menuKeys}>
       <div className="px-2 pb-1 pt-2 text-xs text-ink-3">Canvases</div>
-      {entries.map(e=><MenuItem key={e.name||'main'} role="menuitemradio" aria-checked={e.current} data-canvas-option={e.name||'main'} onClick={()=>{setOpen(false);if(!e.current)navigate(e.href);}}>
-        <span className="flex w-full min-w-0 items-center justify-between gap-2"><span className="min-w-0 truncate">{e.label}</span>{e.current&&<Check size={14} strokeWidth={2} className="shrink-0"/>}</span></MenuItem>)}
+      {entries.map(e=><Fragment key={e.name||'main'}><MenuItem role="menuitemradio" aria-checked={e.current} data-canvas-option={e.name||'main'} title={e.label} onClick={()=>{setOpen(false);if(!e.current)navigate(e.href);}}>
+        <span className="flex w-full min-w-0 items-center justify-between gap-2"><span className="min-w-0 truncate">{e.label}</span>{e.current&&<Check size={14} strokeWidth={2} className="shrink-0"/>}</span></MenuItem>
+        {e.current&&holes?.rows.length>1&&<div data-switcher-holes><div className="px-2 pb-1 pt-1.5 pl-5 text-xs text-ink-3">Rabbit Holes</div><HoleRows rows={holes.rows.slice(1)} onPick={row=>{setOpen(false);holes.onPick(row);}}/></div>}</Fragment>)}
       <div className="my-1 border-t border-line"/>
       <MenuItem icon={Plus} data-new-canvas onClick={()=>{setOpen(false);setNaming(newCanvasTitle(entries));}}>New canvas</MenuItem>
-    </Menu>
+    </div></Menu>
     {naming!==null&&<ConfirmDialog title="New canvas" confirmLabel="Create" confirmVariant="primary" confirmDisabled={busy||!naming.trim()} onCancel={()=>setNaming(null)} onConfirm={create}
       body={<Input autoFocus aria-label="Canvas name" maxLength={120} value={naming} onFocus={e=>e.currentTarget.select()} onChange={e=>setNaming(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')create();}}/>}/>}
   </span>;

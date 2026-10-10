@@ -1,7 +1,8 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { cloneElement, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
-import { api, goBack, wsHeaders } from './api.js';
+import { api, goBack, navigate, wsHeaders } from './api.js';
+import { canvasHref } from './project-canvases.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel, NextStepsCard } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
@@ -49,6 +50,7 @@ import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
 import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
+import { TitleHoles } from './TitleHoles.jsx';
 import { canvasRepository, useTutor } from './LearnTutor.jsx';
 import { useNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
@@ -80,7 +82,8 @@ export default function LearnPage(props) {
 }
 
 // `switcher`: a project's canvas switcher (RepositoryPage, docs/features/project-canvases.md), beside the title.
-function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onMap = null, files = null, hole = null, switcher = null }) {
+// `project`: the open project (RepositoryPage), so the title reads [project] › [canvas] (owner r35).
+function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onMap = null, files = null, hole = null, switcher = null, project = null, projectMenu = null }) {
   const isRepository = app.kind === 'repository';
   // A canvas (smart-home's catalog) holds only what was put on it: never the
   // sample course, its lesson header, outline or progress.
@@ -1319,7 +1322,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // project by its repository unless one of its course lessons is running,
   // and never the sample course on a canvas or project route.
   const fallbackTitle = isCanvas ? app.title || 'Untitled canvas'
-    : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : app.repo || app.name)
+    : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : project ? 'Main canvas' : app.repo || app.name)
     : courseTitle || app.repo || app.name;
   // Never the canvas id: its title, or plain words when there is none.
   const askPlaceholder = isCanvas ? ((canvasTitle || app.title) ? `Ask about ${canvasTitle || app.title}…` : 'Ask about this canvas…') : `Ask about ${app.repo || app.name}…`;
@@ -1489,7 +1492,17 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
           <button type="button" data-learn-home aria-label="Back" title="Back"
             onClick={() => goBack('/apps')}
             className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
-          <input aria-label="Canvas title" title="Rename this canvas"
+          {/* One line, never wrapped (owner r35): in a project, [project] › [canvas], the project part to its Main canvas,
+              shrinking first down to its minimum; then the canvas title (renamable) and what hangs off it. The project's
+              name is the one its card shows (cardModel), never the repository's own. */}
+          <div data-title-crumbs className="flex max-w-full min-w-0 items-center">
+          {project && <>
+            <button type="button" data-project-crumb title={cardModel(project).title} onClick={() => navigate(canvasHref(project.name))}
+              className="h-8 max-w-60 min-w-12 shrink-[50] truncate rounded-lg px-1.5 text-sm text-ink-2 hover:bg-hover hover:text-ink">{cardModel(project).title}</button>
+            {projectMenu}
+            <span aria-hidden="true" className="shrink-0 px-0.5 text-ink-3">›</span>
+          </>}
+          <input aria-label="Canvas title" title={canvasTitle || fallbackTitle}
             // The name on screen is always the value - editing edits IT, via a
             // focus-scoped draft so the fallback never fights the keystrokes.
             // Saving the fallback verbatim stores nothing, so an untouched
@@ -1508,7 +1521,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
               });
             }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
-          {switcher}
+          {/* A canvas with kept Rabbit Holes: a chevron and the hole tree (owner r35). A project canvas has its canvas
+              switcher here already, so the holes are a group in that menu, never a second control. */}
+          {switcher ? cloneElement(switcher, { holes: dive.titleHoles }) : <TitleHoles {...dive.titleHoles} />}
+          </div>
           {/* A fork names its source (docs/features/canvas-forking.md): the title it had when forked, kept through renames. */}
           {isCanvas && <ForkedFrom m={cardModel(app)} className="max-w-80 items-center pr-1 [&_.line-clamp-3]:line-clamp-2" />}
           <CanvasMenubar menus={canvasMenus} />

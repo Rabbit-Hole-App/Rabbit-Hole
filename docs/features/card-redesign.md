@@ -15,7 +15,7 @@ Content in this browser               (only when its content is not on the serve
 [fork] 14 forks · Updated 2h ago                    Open →
 ```
 
-Since 2026-10-08 the card's picture sits on its right, 2:1 and 38% of the card wide, and above the text on a phone (card-thumbnails.md).
+Since 2026-10-08 the card's picture sits on its right, 2:1 and about 40% of the card wide, and above the text on a phone (card-thumbnails.md). Since 2026-10-09 its inset above equals its inset below, and the footer ends on its bottom edge.
 
 Owner changes, 2026-10-08:
 - **The footer is the card's last line** ("why is the updated... in the middle of the cards??"): the read-only fork count
@@ -39,7 +39,7 @@ Owner changes, 2026-10-08:
 - **A canvas is `Shapes`, not a pen** ("choose another symbol for Canvas instead of that pen"), on the card tile, the
   kind icon (Search, sidebar rows) and the Library's Filters.
 
-- **Size (since card-thumbnails.md, owner 2026-10-08):** one card per row (`CARD_ROWS`), every card a fixed 228 px high from `md`, the picture beside the text; on a phone the picture is on top and the text below it a fixed 196 px. The description clamps to two lines on a card with actions or a note. The paragraph below is the earlier two-column size.
+- **Size (since card-thumbnails.md, owner 2026-10-08):** one card per row (`CARD_ROWS`), every card a fixed 224 px high from `md` (a 190 px body, `CARD_BODY_H`, plus padding), the picture beside the text at the body's height; on a phone the picture is on top and the text below it a fixed 196 px. The description clamps to two lines on a card with actions or a note. The paragraph below is the earlier two-column size.
 - **Size (before):** at 1440×900 a card is about 471 × 186-205 px, two columns (`CARD_GRID`: `minmax(min(100%, 380px), 1fr)`, 16px gap). An Explore card with its actions row is up to about 240 px. The 1150px pages leave room for two. A phone gets one column. Three would need a page genuinely wider than today's.
   - About 15% shorter (owner, 2026-10-08: "reduce the height of the card a bit", on Home, Library and Explore):
     - the floor is 186 px, from 220;

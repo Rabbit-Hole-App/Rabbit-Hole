@@ -52,6 +52,10 @@ export const cardQuestion = (title) => (title ? `Can you explain "${title}"?` : 
 export const GROUP_QUESTION = 'Can you explain how these cards fit together?';
 // An equation's own LaTeX rides as the context (and shows on the pill), so its question stays plain words.
 export const EQUATION_QUESTION = 'Can you explain this equation?';
+// A dropped image and a text box or sticky note (r35, owner: "For Image or Text box, should we have a "Ask in Chat"?"): the
+// image's label and its picture ride as the context, a text box's words do.
+export const IMAGE_QUESTION = 'What does this image show?';
+export const TEXT_QUESTION = 'Explain this';
 
 // A group Ask (K5): members in order, a chat answer cut at 600 characters, and the members with
 // no text description named, each cut or omission marked so the tutor knows what it lacks.

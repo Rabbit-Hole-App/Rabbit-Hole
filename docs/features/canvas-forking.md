@@ -70,7 +70,7 @@ So "copy the persisted content" means:
 
 | Source | What is copied |
 |---|---|
-| A shared canvas, through its link | the server board (the owner's browser saves it 1.5 s after each change while shared) and its R2 files and notebook workspaces |
+| A shared canvas, through its link | the server board (the owner's browser saves it 1.5 s after each change while shared) and the R2 files and notebook workspaces its board uses now (`boardAssetKeys`, [canvas-sharing.md](canvas-sharing.md)) |
 | Your own canvas (`{ canvas }`: API only since 2026-10-08; Duplicate is the UI copy) | this browser's saved board if sent (`state`; `null` means none); otherwise the server board; a canvas without one gets its empty board first and forks as empty (owner, 2026-10-08; canvas-persistence.md) |
 
 Browser-only parts of your own canvas: files it uses (images, PDFs, clips) are not uploaded by a
@@ -152,7 +152,7 @@ grades and share settings are never read. The fork starts private.
   clone equals the persisted board, no private or transient state, independence, lineage A → B → C,
   title snapshot, ↗ available/unavailable without leaks, direct counts, permissions, double click
   and retry, and the dialog's name (used; trimmed and capped; blank falls back; provenance keeps the
-  source title; a repeat gets (2); Duplicate ignores it). `learn-boards.test.js` keeps the original shared-board fork test.
+  source title; a repeat gets (2); Duplicate ignores it). `learn-boards.test.js` keeps the original shared-board fork test. The 3d regression (beta hardening): a fork, its files and its notebook workspace survive the source's asset removal, hole delete and parent trash + restore, read from the fork's own board; nothing is deleted from R2.
 - `test/shared-canvas-v1.test.js`: "A chat" (a fork stores none of the viewer's chat, whatever the
   request carries), "B pin: a fork records the revision...", "C permission: a fork never opens up..." and
   "Lineage" (a fork of a fork: owned and editable by its forker, source title, parent, root and pinned revision).
@@ -170,3 +170,12 @@ grades and share settings are never read. The fork starts private.
   (see above). `ponytail:` in `learn-boards.js`: R2 files copy after the rows commit, and a replay
   does not re-copy.
 - A deleted fork's link row stays (it no longer counts; names are never reused).
+
+## r35 copy publication
+
+Referenced uploaded files are copied before the new canvas, board and lineage
+publish in one database batch. Failed reads/writes return a structured error;
+unpublished copies are cleaned up and a retry cannot replay a partial board.
+Concurrent same-key requests keep only the winning board's copies. An ambiguous
+database response never deletes potentially published assets. Browser-only or
+missing workspace snapshots keep the existing zero-copy behavior above.

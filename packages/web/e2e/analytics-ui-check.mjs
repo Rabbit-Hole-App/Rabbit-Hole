@@ -127,7 +127,7 @@ await check('6 creator analytics: your own profile only, beside it - totals, com
   assert.deepEqual(Object.values(totals), [['not_collected', 'Not collected yet'], ['not_collected', 'Not collected yet'], ['not_collected', 'Not collected yet'], ['value', String(forks)], ['value', '2']]);
   const rows = await dash.locator('[data-analytics-comparison] tbody tr').evaluateAll(trs => trs.map(tr => [...tr.cells].map(td => td.textContent.trim())));
   assert.deepEqual(rows, [[T.moe, 'Not collected', 'Not collected', 'Not collected', '0'], [T.kv, 'Not collected', 'Not collected', 'Not collected', '2']]);
-  for (const label of ['Audience wants next', 'Highest-friction concepts', 'Explainer comparison', 'Traffic sources', 'Recent trend']) assert.ok((await dash.innerText()).includes(label), label);
+  for (const label of ['Audience wants next', 'Highest-friction concepts', 'Learning Board comparison', 'Traffic sources', 'Recent trend']) assert.ok((await dash.innerText()).includes(label), label);
 });
 await shot(page, 'D-creator-analytics', page.getByRole('dialog'));
 await shot(page, 'E-explainer-comparison', page.locator('[data-analytics-comparison]'));

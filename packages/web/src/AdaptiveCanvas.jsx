@@ -14,7 +14,7 @@ import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
-import { cardQuestion, describeCanvasObject, EQUATION_QUESTION, GROUP_QUESTION, groupTargetText } from './learn-ask-target.js';
+import { cardQuestion, describeCanvasObject, EQUATION_QUESTION, GROUP_QUESTION, groupTargetText, IMAGE_QUESTION, TEXT_QUESTION } from './learn-ask-target.js';
 import { askDraft } from './agent/scope.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
@@ -464,7 +464,21 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
 // Same storage bargain as the PDF card - the bytes live in this browser's
 // asset store, the block keeps only the key, so the 120 kB src strip never
 // applies and a reload keeps the card.
-function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
+// The cards' Ask in chat pill, for a dropped image and a text box or sticky note (r35, owner: "For Image or Text box,
+// should we have a "Ask in Chat"?"): the same button, in the same place above the object's top right.
+function AskPill({ title, onAsk, className = 'absolute -top-10 right-0 z-30', style = null }) {
+  return (
+    <div data-thumbnail-hide data-ask-pill className={className} style={style}>
+      <button type="button" title={title} onPointerDown={e => e.stopPropagation()} onClick={onAsk}
+        className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+        <MessageCircle size={13} />Ask in chat
+      </button>
+    </div>
+  );
+}
+
+// onAsk: only while this image is the one selected object (a multi-selection asks through its group or area).
+function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onAsk = null }) {
   const [url, setUrl] = useState(null);
   const [missing, setMissing] = useState(false);
   useEffect(() => {
@@ -499,6 +513,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       connected={connected} width={COLUMN} autoMax={620} saved={{ w: block.w }}
       onSize={(id, w) => onChange({ ...block, w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      {selected && onAsk && block.kind === 'image' && <AskPill title="Ask the tutor about this image" onAsk={() => onAsk(block)} />}
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />{clip ? 'Video' : 'Image'}<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
       </div>
@@ -678,7 +693,7 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onAskImage = null }) {
   // Tool Performance v1: visible on first paint; simple cards are complete then (learn-perf.js).
   usePaintedMarks(block.id, block.type);
   // A block that declares its evidence carries it collapsed at its foot; the
@@ -692,7 +707,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
-  if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onAsk={onAskImage} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onAsk={onAsk} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -759,7 +774,8 @@ function LevelPill({ level, onLevel, className = '', style = null, levels = TEXT
   );
 }
 
-function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null }) {
+// onAsk: only while this text box or note is the one selected object (a multi-selection asks through its group or area).
+function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null }) {
   const [editing, setEditing] = useState(item.fresh);
   const body = useRef(null);
   // The rendered children stay pinned to this ref while editing so re-renders
@@ -803,7 +819,12 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
       </div>
     );
   }
-  return (
+  // The cards' Ask in chat (r35), on a text box or note with words in it; never while it is edited. A text box's pill
+  // shares the ladder's row and is pushed to the right edge, so a short text never has the two over each other.
+  const ladder = !sticky && item.kind === 'text' && onLevel && (editing || (selected && tool === 'select'));
+  const ask = !!onAsk && selected && !editing && tool === 'select' && !!String(item.text || '').trim();
+  const askPill = <AskPill title={sticky ? 'Ask the tutor about this note' : 'Ask the tutor about this text'} onAsk={() => onAsk(item)} className={sticky ? 'absolute z-30 -translate-x-full' : 'ml-auto'} style={sticky ? { left: item.x + (item.w || 160), top: item.y - 40 } : null} />;
+  return (<>
     <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160, background: stickyTone(item.color).bg, borderColor: stickyTone(item.color).border, color: stickyTone(item.color).text, '--sticky-ph': stickyTone(item.color).placeholder } : { color: inkAware(item.color), ...textStyle(item), ...(item.w ? { width: item.w } : {}), ...(item.h ? { minHeight: item.h } : {}) }) }}
       className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky
         // Text has no card behind it, so its box is invisible until you are on
@@ -817,8 +838,11 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
           text - instead of asking the learner to find the style panel. One
           click reaches it; no double-click needed. pointerdown is swallowed
           so choosing a level never blurs or deselects the text. */}
-      {!sticky && item.kind === 'text' && onLevel && (editing || (selected && tool === 'select')) && (
-        <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} className="absolute bottom-full left-0 z-20 mb-1" />
+      {(ladder || (ask && !sticky)) && (
+        <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full items-center gap-2">
+          {ladder && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+          {ask && !sticky && askPill}
+        </div>
       )}
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
@@ -841,7 +865,9 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
         </button>
       )}
     </div>
-  );
+    {/* A note clips and tilts what is inside it, so its pill sits beside it in the layer, above its top right. */}
+    {ask && sticky && askPill}
+  </>);
 }
 
 // An equation (docs/features/canvas-equations.md): its LaTeX rendered by KaTeX, and while edited MathLive's field with
@@ -868,7 +894,7 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
         : still}
       {/* The size ladder, where a text box shows its H1-to-text one; never while the LaTeX is edited (the palette is there). */}
       {selected && !editing && tool === 'select' && (
-        <LevelPill level={equationLevel(size)} levels={EQUATION_LEVELS} label="Equation size" fallback={null} className="absolute bottom-full left-0 z-20 mb-1"
+        <LevelPill level={equationLevel(size)} levels={EQUATION_LEVELS} label="Equation size" fallback={null} className="absolute bottom-full left-0 z-20 mb-2.5"
           onLevel={value => { onGesture(); onPatch(item.id, { size: levelSize(value) }); }} />
       )}
       {/* The corner scales the type, as a text box's corner reflows its text. */}
@@ -2412,6 +2438,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     askedId.current = block.id;
     if (armTarget(block)) askDraft(cardQuestion(describeObject(block)?.title));
   };
+  // Ask in chat on a dropped image (r35, owner: "For Image or Text box, should we have a "Ask in Chat"?"): the image is
+  // the target - its label as the text, its server copy as image_context (describeCanvasObject image) - and it is shown
+  // to the tutor the way Show the tutor this image and the drop show it (LearnPage image-attach), so the Tutor path
+  // carries the picture too. The ready question waits in the composer; nothing is sent.
+  const askImage = block => {
+    askedId.current = block.id;
+    if (!armTarget(block)) return;
+    if (block.mediaId) onCardActionRef.current?.('image-attach', { blockId: block.id, mediaId: block.mediaId, label: block.label });
+    askDraft(IMAGE_QUESTION);
+  };
+  // Ask in chat on a text box or sticky note: its words ride as the context, as an equation's LaTeX does, and the answer
+  // lands where any question's does.
+  const askItem = item => { if (armTarget(item)) askDraft(TEXT_QUESTION); };
   // Selecting a card is choosing what the next question is about (docs/features/canvas-card-selection.md): the one
   // selected card sets the composer's context strip - the same target Ask in chat arms, never a second chip - and a
   // selection that moves off it (blank canvas, Esc, another object) takes the strip with it. A region, area or group
@@ -2636,8 +2675,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   } : null;
   // The pin slot (owner, 2026-10-08): an object's thread pins sit in a row ending just left of its pill row - Ask in chat,
   // and the pills a few cards add beside it - above its top right, whether it is selected or not, so a pin never covers a
-  // pill. In world units: where the reserved row starts (`right`), its top and height. A shape or text keeps the slot
-  // Ask in chat would take. PILL: the pills' rendered widths, with a little room.
+  // pill. In world units: where the reserved row starts (`right`), its top and height. A dropped image, a text box and a
+  // sticky note have the same Ask in chat (r35); a shape keeps the slot it would take. PILL: the pills' rendered widths,
+  // with a little room.
   const PILL = { ask: 112, select: 124, explain: 144, more: 138, gap: 6 };
   const pillRow = id => {
     const block = blocks.find(entry => entry.id === id);
@@ -3541,7 +3581,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onAskImage={selected === block.id ? askImage : null} />)}
           </CardOpen.Provider></SketchHost.Provider>
         </div>
         {readOnly && selected && bounds[selected] && (
@@ -3686,7 +3726,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => { snapshot(); setItems(previous => previous.map(entry => entry.id === id ? { ...entry, level: value } : entry)); }} />)}
+            onLevel={(id, value) => { snapshot(); setItems(previous => previous.map(entry => entry.id === id ? { ...entry, level: value } : entry)); }}
+            onAsk={selected === item.id ? askItem : null} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}
           {shapes.filter(shape => TEXT_BOX[shape.kind] && (editingShape === shape.id || (tool === 'select' && selection.length === 1 && selection[0] === shape.id))).map(shape => (

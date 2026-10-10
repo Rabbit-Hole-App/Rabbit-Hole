@@ -9,7 +9,7 @@ import { titleOf } from './agent/catalog.js';
 import { canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-local.js';
 
 // ponytail: T02 §8.3 [New canvas here] and [About local-only storage] are left out; add them when asked.
-export function CanvasLearn({ app, project, onMap = null, switcher = null }) { // callers key it by canvas: the decision is made once per mount
+export function CanvasLearn({ app, project, onMap = null, switcher = null, projectMenu = null }) { // callers key it by canvas: the decision is made once per mount
   // The canvas opens when this browser has its content (or made it), or when the server has its board
   // (docs/features/canvas-persistence.md): NOT_HERE only when neither copy exists. The server is asked only when needed.
   const [here, setHere] = useState(() => opensHere({ storage: localStorage, keys: canvasKeys({ org: app.org, email: app.email || app.owner_email, slug: app.name }), record: app }) || null); // LearnPage.jsx:143's key
@@ -20,7 +20,8 @@ export function CanvasLearn({ app, project, onMap = null, switcher = null }) { /
     return () => { live = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (here === null) return <main className="min-w-0 flex-1" />;
-  if (here) return <LearnPage app={app} onMap={onMap} switcher={switcher} />;
+  // Inside its project (RepositoryPage, which gives the switcher) the title names the project too; CanvasPage has its own row.
+  if (here) return <LearnPage app={app} onMap={onMap} switcher={switcher} project={switcher ? project : null} projectMenu={projectMenu} />;
   return <main data-canvas-gate className="min-w-0 flex-1 overflow-auto"><div className="mx-auto max-w-md px-6 pt-[18vh] text-center">
     <h1 className="text-lg font-semibold">{NOT_HERE}</h1>
     <p className="pt-2 text-sm text-ink-2">{NOT_HERE_WHY}</p>

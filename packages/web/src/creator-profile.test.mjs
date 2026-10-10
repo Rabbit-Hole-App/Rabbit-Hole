@@ -34,10 +34,12 @@ test('analytics: the typed states read as words, never 0 or an estimate', () => 
   assert.deepEqual(counter(undefined), NOT_COLLECTED, 'no canonical number, no number');
 });
 
-test('analytics: ⋮ → Analytics is in the owner\'s canvas menu only, for a public canvas only; the views fetch nothing', () => {
+test('analytics: ⋮ → Analytics is in the owner\'s canvas menu only, for a public canvas only; the views fetch nothing', async () => {
   const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
-  const owned = library.slice(library.indexOf(') : menu?.a.canEdit ? <>'), library.indexOf('</> : null}'));
-  assert.match(owned, /\{menu\.a\.access === 'public' && <MenuItem icon=\{BarChart3\} data-menu-analytics/);
+  // One card menu list since 2026-10-09 (home/card-menu-items.js): a canvas owner row, shown for a public canvas only.
+  const { CARD_MENU } = await import('./home/card-menu-items.js');
+  assert.deepEqual(CARD_MENU.find(i => i.id === 'analytics'), { id: 'analytics', label: 'Analytics', icon: 'BarChart3', types: ['canvas'], owner: true });
+  assert.match(library, /id === 'analytics' \? a\.access === 'public'/);
   assert.equal(library.split('data-menu-analytics').length, 2, 'nowhere else');
   const views = read('./CreatorAnalytics.jsx') + read('./creator-analytics.js');
   assert.doesNotMatch(views, /fetch\(|api\(|email/, 'no analytics route exists yet (#62 storage awaits GO)');
@@ -73,19 +75,19 @@ test('every @handle links to its creator\'s profile: every card, fork provenance
   assert.match(shared, /\{shared\.creator\.handle\n\s+\? <a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a share link\'s header links too');
 });
 
-// Owner, 2026-10-08: Explore is two tabs, Explainers (default, with Sort) and Creators; the search applies to the active tab
+// Owner, 2026-10-08: Explore is two tabs, Learning Boards (default, with Sort; "Explainers" until 2026-10-09) and Creators; the search applies to the active tab
 // only, and the tab is in the URL so a reload keeps it.
-test('Explore: Explainers and Creators tabs; each tab asks the server for its own search; the card list is the shared one', async () => {
+test('Explore: Learning Boards and Creators tabs; each tab asks the server for its own search; the card list is the shared one', async () => {
   const home = read('./Home.jsx');
   const explore = home.slice(home.indexOf('function Explore()'));
   const { exploreTab, EXPLORE_TABS } = await import('./home/card-sort.js');
-  assert.deepEqual(EXPLORE_TABS, [['explainers', 'Explainers'], ['creators', 'Creators']]);
+  assert.deepEqual(EXPLORE_TABS, [['explainers', 'Learning Boards'], ['creators', 'Creators']], 'the tab id stays an identifier');
   assert.deepEqual(['', '?tab=creators', '?tab=bogus', '?tab=explainers'].map(exploreTab), ['explainers', 'creators', 'explainers', 'explainers']);
   assert.match(explore, /window\.history\.replaceState\(window\.history\.state, '', next === 'creators' \? '\/explore\?tab=creators' : '\/explore'\);/);
   assert.match(explore, /if \(tab !== 'explainers'\) return;\n\s+let live = true;\n\s+fetch\(`\/api\/learn\/boards\/published/);
   assert.match(explore, /if \(tab !== 'creators'\) return;\n\s+let live = true;\n\s+fetch\(`\/api\/learn\/creators\$\{q && `\?\$\{q\}`\}`/);
-  assert.match(explore, /const searchLabel = tab === 'creators' \? 'Search creators' : 'Search explainers';/);
-  assert.match(explore, /\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'Sort stays on Explainers');
+  assert.match(explore, /const searchLabel = tab === 'creators' \? 'Search creators' : 'Search learning boards';/);
+  assert.match(explore, /\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'Sort stays on Learning Boards');
   assert.doesNotMatch(explore, /Creators to explore|data-creator-row/, 'the creators row left the Explainers feed');
   assert.match(read('./home/PublicCards.jsx'), /export const CreatorAvatar = \(\{ c, className \}\) => <Avatar email=\{c\.name \|\| c\.handle\} src=\{c\.avatar\}/, 'the initials come from the name or @handle');
 });
@@ -100,7 +102,9 @@ test('creator cards: square at every width, picture, name, @handle, the descript
   assert.match(chip, /\{c\.description && <span data-creator-description className="line-clamp-3 [^"]*">\{c\.description\}<\/span>\}/, 'text, three lines at most, no empty line');
   assert.match(chip, /\{count\(c\.project_count, 'project', 'projects'\)\} · \{count\(c\.explainer_count, 'canvas', 'canvases'\)\}/);
   assert.match(chip, /pr-8/, 'room for one small icon button at the top right');
-  assert.match(cards, /<div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-\[repeat\(auto-fill,minmax\(200px,1fr\)\)\]">/, 'two on a phone, ~200px squares above');
+  // Owner, 2026-10-09: "The creator cards should be a little bigger and the avatar profile picture should be bigger in the card."
+  assert.match(cards, /<div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-\[repeat\(auto-fill,minmax\(250px,1fr\)\)\] sm:gap-4">/, 'two on a phone, squares of at least 250px above');
+  assert.match(chip, /<CreatorAvatar c=\{c\} className="h-12 w-12 text-base! sm:h-15 sm:w-15 sm:text-xl!" \/>/, 'the avatar 1.5x: 48px on a phone, 60px above');
   assert.match(cards, /kind === 'creators' \? <CreatorCards creators=\{picks\} \/>/, 'Recommended creators: the same cards');
   assert.match(read('./Home.jsx'), /\{creators\?\.length > 0 && <CreatorCards creators=\{creators\} \/>\}/, 'the Creators tab: the same cards');
 });
@@ -165,4 +169,46 @@ test('profile search: one field above the list for every viewer, filtered on the
   assert.match(profile, /\{p\.q && <ProjectMatches projects=\{matchingProjects\(p\.explainers, p\.q\)\} \/>\}\n\s+\{p\.q && p\.explainers\.length > 0 && <h3 className="pb-2 text-xs text-ink-2">Canvases<\/h3>\}/, 'projects, then canvases, each labelled');
   assert.match(profile, /: p\.q \? <p data-profile-search-empty className="text-sm text-ink-3">No canvases or projects match &ldquo;\{p\.q\}&rdquo;\.<\/p>/);
   assert.match(profile, /<PublicCards cards=\{p\.explainers\} me=\{me\?\.handle \|\| null\} attr="data-profile-card" \/>/, 'results on the same cards');
+});
+
+// Owner, 2026-10-09: "Rename "Explainers" to "Learning Boards"". The published-canvas copy on Explore, the creator profile
+// and creator analytics says learning board(s); identifiers (the tab id `explainers`, explainer_count, data attributes)
+// and the Motion explainer, a different thing, keep their names.
+test('rename: no Explore, creator profile or creator analytics string says explainer; the new copy is in place', () => {
+  // UI copy: string literals with a space or a capital, and JSX text - so identifiers such as the 'explainers' tab id pass.
+  const copy = src => {
+    const code = src.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+    return [...code.matchAll(/'([^'\n]*)'|"([^"\n]*)"|`([^`]*)`|>([^<>{}\n]*[A-Za-z][^<>{}\n]*)[<{]/g)].map(m => m[1] ?? m[2] ?? m[3] ?? m[4]).filter(s => /\s|[A-Z]/.test(s));
+  };
+  const home = read('./Home.jsx');
+  const sources = { Explore: home.slice(home.indexOf('function Explore()')), 'card-sort.js': read('./home/card-sort.js'), 'CreatorProfile.jsx': read('./CreatorProfile.jsx'),
+    'PublicCards.jsx': read('./home/PublicCards.jsx'), 'CreatorAnalytics.jsx': read('./CreatorAnalytics.jsx'), 'creator-analytics.js': read('./creator-analytics.js') };
+  for (const [name, src] of Object.entries(sources)) assert.deepEqual(copy(src).filter(s => /explainer/i.test(s)), [], name);
+  const profile = read('./CreatorProfile.jsx'), analytics = read('./CreatorAnalytics.jsx');
+  assert.match(profile, /plural\(p\.explainer_count, 'public learning board'\)/, '1 public learning board, 3 public learning boards');
+  assert.match(profile, />Public Learning Boards<\/h2>/);
+  assert.match(analytics, /<Section title="Learning Board comparison"/);
+  assert.match(read('./creator-analytics.js'), /\['explainer_count', 'Public learning boards', 'all'\]/);
+  assert.match(read('./learn-video-label.js'), /Motion explainer/, 'the Motion explainer keeps its name');
+});
+
+// Owner, 2026-10-09: "Explore should have a filter for Projects or Canvas"; "same filter as library?" - yes: the Library's
+// LibraryFilters and ActiveFilters, its Type labels and its ?type= values, for the two types Explore lists.
+test('Explore and the Library render the same Filters control with the same Type labels; Explore shows Projects and Canvas only', async () => {
+  const { EXPLORE_TYPES, TYPES } = await import('./library-filter.js');
+  assert.deepEqual(EXPLORE_TYPES.map(k => TYPES[k].label), ['Projects', 'Canvas'], 'the Library\'s own labels');
+  const home = read('./Home.jsx'), explore = home.slice(home.indexOf('function Explore()'));
+  assert.match(home, /import \{ ActiveFilters, LibraryFilters \} from '\.\/LibraryViews\.jsx';/);
+  assert.match(explore, /\{tab === 'explainers' && <LibraryFilters type=\{type\} path="\/explore" types=\{EXPLORE_TYPES\} \/>\}\n\s+\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'beside Sort, as in the Library');
+  assert.match(explore, /<ActiveFilters type=\{type\} path="\/explore" \/>/, 'the same active-filter chip');
+  assert.match(read('./App.jsx'), /<LibraryFilters type=\{type\} section=\{section\} archived=\{archived\} \/>/, 'the Library\'s');
+  const views = read('./LibraryViews.jsx'), control = views.slice(views.indexOf('export function LibraryFilters'), views.indexOf('export function ActiveFilters'));
+  assert.match(control, /\{types\.map\(\(k\) => item\(TYPES\[k\]\.label, /, 'one row per type, its Library label');
+  for (const own of ["{library && item('Archived canvas'", "{library && heading('Ownership')}", '{library && Object.entries(SCOPES)']) assert.ok(control.includes(own), `the Library's alone: ${own}`);
+  // Projects: one card per project, opening Explore's project filter; the empty lines say which.
+  assert.match(explore, /listed === 'projects' \? <div data-explore-projects-list><ProjectCards projects=\{cards\} \/><\/div>/);
+  assert.match(home, /const EXPLORE_EMPTY = \{ projects: 'No projects match', canvases: 'No canvases match' \};/);
+  const cards = read('./home/PublicCards.jsx'), projects = cards.slice(cards.indexOf('export function ProjectCards'), cards.indexOf('export function ProjectFilter'));
+  assert.match(projects, /canvases: count\(p\.boards, 'learning board', 'learning boards'\)/);
+  assert.match(projects, /href=\{p\.url\} onOpen=\{\(\) => navigate\(p\.url\)\}/, 'it opens /explore?project=, the existing project view');
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
+import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Layers, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
 import { ago } from '../api.js';
 import { pickCard, pickedKey, useSurface } from '../agent/surface.js';
 import { ACCESS } from '../canvas-visibility.js';
@@ -31,9 +31,12 @@ export const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,380px
 // left their picture about 180 x 90, too small to make out; one per row shows it about 350 x 175.
 export const CARD_ROWS = 'grid grid-cols-1 gap-4';
 // Every card the same size (owner, 2026-10-08: "each card should be same size but also allow enough space to show an
-// image that can be seen"): a fixed height beside the picture; on a phone the picture is on top and the text below it has
-// the fixed height. Text clamps (title two lines, description three, two beside actions or a note) and never grows it.
-export const CARD_HEIGHT = 'md:h-[228px]';
+// image that can be seen"). From md the text column and the picture are one fixed height, so the picture's inset above
+// equals its inset below and the footer (N canvases, Updated, Open) ends on the picture's bottom edge (owner, 2026-10-09);
+// the card is that height plus its padding (224px). On a phone the picture is on top and the text below it has the fixed
+// height. Text clamps (title two lines, description three, two beside actions or a note); a description that still does
+// not fit is the one part that gives way, so the footer never moves.
+export const CARD_BODY_H = 'md:h-[190px]';
 const CARD_TEXT_PHONE = 'max-md:h-[196px] max-md:flex-none';
 
 // Type icons (§14): one tile per kind, the same on every surface - a project its repository, a canvas its pen; never a
@@ -57,15 +60,16 @@ export function TypeIcon({ kind, schedule }) {
   );
 }
 
-// The card's picture (card-thumbnails.md): 2:1, right of the text from md (38% of the card, at most 500px), full width
-// above it on a phone. The server answers 204 when there is none yet, so the <img> errors quietly and the placeholder stays.
+// The card's picture (card-thumbnails.md): right of the text from md at the body's height, 2:1 (380 x 190) where the card
+// is wide enough (the 1440 pages) and cropped narrower below that (at most 42% of the card); full width, 2:1, above the
+// text on a phone. The server answers 204 when there is none yet, so the <img> errors quietly and the placeholder stays.
 export function CardThumbnail({ kind, src }) {
   const [shown, setShown] = useState(false);
   useEffect(() => { if (!src) setShown(false); }, [src]);
   const Icon = TYPES[kind]?.Icon || Shapes;
   return (
     <div data-card-thumbnail={shown ? 'image' : 'placeholder'} aria-hidden="true"
-      className={`relative grid aspect-[2/1] w-full max-w-[500px] shrink-0 place-items-center self-start overflow-hidden rounded-md border border-line md:order-last md:w-[38%] ${PLACEHOLDER[kind] || PLACEHOLDER.canvas} bg-[radial-gradient(var(--color-line)_1px,transparent_1px)] bg-[size:14px_14px]`}>
+      className={`relative grid aspect-[2/1] w-full max-w-[500px] shrink-0 place-items-center self-start overflow-hidden rounded-md border border-line md:order-last ${CARD_BODY_H} md:w-[min(380px,42%)] md:aspect-auto ${PLACEHOLDER[kind] || PLACEHOLDER.canvas} bg-[radial-gradient(var(--color-line)_1px,transparent_1px)] bg-[size:14px_14px]`}>
       {!shown && <Icon size={22} strokeWidth={1.5} />}
       {src && <img src={src} alt="" loading="lazy" decoding="async" draggable={false} onLoad={() => setShown(true)} onError={() => setShown(false)}
         className={`absolute inset-0 h-full w-full bg-white object-cover ${shown ? '' : 'invisible'}`} />}
@@ -73,14 +77,15 @@ export function CardThumbnail({ kind, src }) {
   );
 }
 
-// Visibility as neutral metadata (visibility-menu.md's three states); it is changed from the ⋮, never here.
-const ACCESS_ICON = { private: Lock, unlisted: Link2, public: Globe };
+// Visibility as neutral metadata (visibility-menu.md's three states, and a project's Mixed when its canvases differ); it is
+// changed from the ⋮, never here.
+const ACCESS_ICON = { private: Lock, unlisted: Link2, public: Globe, mixed: Layers };
 function Visibility({ access }) {
   const Icon = ACCESS_ICON[access];
   if (!Icon) return null;
   return (
     <span data-card-visibility={access} className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-line px-2 text-xs text-ink-2">
-      <Icon size={12} strokeWidth={1.75} />{ACCESS.find((a) => a.id === access).label}
+      <Icon size={12} strokeWidth={1.75} />{ACCESS.find((a) => a.id === access)?.label || 'Mixed'}
     </span>
   );
 }
@@ -125,9 +130,9 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
   return (
     <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
       onClick={pick ? () => pickCard(pick) : undefined} data-card-selected={picked ? '' : undefined}
-      className={`group select-card flex min-w-0 gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 max-md:flex-col ${CARD_HEIGHT} ${onOpen ? 'lift-card' : ''}`}>
+      className={`group select-card flex min-w-0 gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 max-md:flex-col ${onOpen ? 'lift-card' : ''}`}>
       {learning && <CardThumbnail kind={kind} src={thumbnail} />}
-      <div data-card-text className={`flex min-h-0 min-w-0 flex-1 flex-col ${CARD_TEXT_PHONE}`}>
+      <div data-card-text className={`flex min-h-0 min-w-0 flex-1 flex-col *:shrink-0 ${CARD_BODY_H} ${CARD_TEXT_PHONE}`}>
         <div className="flex min-w-0 items-start gap-3">
           <TypeIcon kind={kind} schedule={schedule} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -152,7 +157,7 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
           )}
         </div>
         {(repo || m.description) && (
-          <div className="flex min-w-0 flex-col gap-1 pt-2">
+          <div data-card-body className="flex min-h-0 min-w-0 shrink! flex-col gap-1 overflow-hidden pt-2">
             {repo && (
               <a data-source-link href={m.sourceUrl} target="_blank" rel="noreferrer" title="Open the repository on GitHub" onClick={(e) => e.stopPropagation()}
                 className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-accent hover:underline">

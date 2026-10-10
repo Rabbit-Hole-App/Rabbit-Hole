@@ -113,7 +113,8 @@ test('a project opens on its Map (owner, 2026-10-04: no Overview; a project has 
 test('D7 (WP7): the preview sends only the writes the dev worker serves itself; anything else would reach live small-cp', () => {
   for (const url of ['/api/repositories', '/api/repositories/repo-1a2b3c4d-nanogpt/refresh', '/api/canvases', '/api/apps/canvas-1a2b3c4d', '/api/apps/canvas-1a2b3c4d/archive',
     '/api/ask/threads/canvaschat-abc', '/api/ask/threads?scope=learn&ref=canvas-1a2b3c4d', '/api/learn/ask', '/api/learn/feedback', '/api/learn/boards/x/share', '/api/byoc/grant',
-    '/api/apps/repo-1a2b3c4d-nanogpt', '/api/apps/repo-1a2b3c4d-nanogpt/learn-course']) assert.equal(previewWriteAllowed(url), true, url); // dev-worker.js repositoryRoute
+    '/api/apps/repo-1a2b3c4d-nanogpt', '/api/apps/repo-1a2b3c4d-nanogpt/learn-course', // dev-worker.js repositoryRoute
+    '/api/library/folders', '/api/library/folders/0f1e2d3c-4b5a-4978-8a6b-5c4d3e2f1a0b/items/canvas-1a2b3c4d']) assert.equal(previewWriteAllowed(url), true, url); // library-folders.md
   for (const url of ['/api/members', '/api/teams/x/members', '/api/workspaces', '/api/workspaces/rename', '/api/org/ai', '/api/folders', '/api/watch/w1/dismiss',
     '/api/apps/counter', '/api/apps/counter/restore', '/api/apps/repo-1a2b3c4d-nanogpt/rename', '/api/share', '/api/unshare', '/api/schedule', '/api/runbook',
     '/api/runs/r1/stop', '/api/ask/approve', '/api/ask/threads/t1', '/api/ask/threads?scope=app&ref=counter', '/api/apps/canvas-XYZ']) assert.equal(previewWriteAllowed(url), false, url);

@@ -15,18 +15,18 @@ Owner layout, the same day: "then the image will be on the right of the card. yo
 ```
 [type]  Title                          Visibility  ⋮   ┌──────────────────────┐
         @handle                                         │  picture, 2:1        │
-Description, three lines (two beside actions or a note) │  38% of the card     │
+Description, three lines (two beside actions or a note) │  about 40% of the card│
 actions                                                 └──────────────────────┘
 [fork] N forks · Updated 2h ago                  Open →
 ```
 
 - **One card per row** (`CARD_ROWS`) on Home's Continue and Recent, the Library and Explore, and the creator profile. At 1440 px two per row left the picture at about 180 × 90 px, too small to make out. One per row shows it at about 350 × 175 px (about 205 × 102 px at 1024 px with the sidebar open).
   - Shared with you keeps its small cards on `CARD_GRID`.
-- **Every card is the same size.** From `md`, the card is a fixed 228 px high (`CARD_HEIGHT`).
+- **Every card is the same size.** From `md`, the text column and the picture are one fixed 190 px height (`CARD_BODY_H`), the card that plus its padding, 224 px. Owner, 2026-10-09: the picture's inset above equals its inset below, and the footer (N canvases · Updated · Open) ends on the picture's bottom edge, each within 1 px (`card-redesign-check`, `project-menu-check`).
   - The title clamps to two lines.
   - The description clamps to three lines, or two when the card has actions or a note.
   - Nothing grows a card.
-- **The picture** is 2:1, at the card's right from `md`, 38% of the card wide and at most 500 px. It is cropped with `object-fit: cover`.
+- **The picture** is at the card's right from `md`, the body's 190 px high and 2:1 (380 px) where the card is wide enough (the 1440 pages, about 40% of the card); narrower pages crop it to at most 42% of the card. It is cropped with `object-fit: cover`.
   - On a phone, the picture sits above the text at full width, still 2:1. The text below it is a fixed 196 px high, so phone cards are the same size too.
 - **No picture yet** (a new or empty canvas, or one whose owner has not opened it since thumbnails shipped): the slot shows a quiet placeholder.
   - The placeholder is the canvas's own dot grid on a faint tint of the type colour (green for a canvas, purple for a project), with the type icon.
@@ -131,7 +131,7 @@ Each is one small WebP per canvas, plus a custom one only when the owner chose o
   - a board on the server gets one on open, and an empty canvas gets none;
   - there is no second snapshot without a change;
   - a picture drawn from a dark-themed page with a card selected is light and has no ring, pill or port;
-  - the picture is on the right at 2:1 and 38%;
+  - the picture is on the right at 2:1 and about 40%;
   - one card per row, every card one size, the placeholder, no failed loads;
   - Change thumbnail refuses a GIF and replaces with a PNG cropped to 2:1;
   - Use canvas snapshot reverts;

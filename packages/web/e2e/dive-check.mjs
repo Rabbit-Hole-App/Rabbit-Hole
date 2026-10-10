@@ -1,4 +1,4 @@
-// /dive visual acceptance (docs/features/dive-v1.md), flows A-I, against the LOCAL stack only:
+// /dive visual acceptance (docs/features/dive-v1.md), flows A-K, against the LOCAL stack only:
 //   npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.jsonc --local --persist-to .small/dive-local --port 8788
 // It writes to local D1 and this browser profile; never point it at a deployed worker.
 // Usage: node e2e/dive-check.mjs [outDir]
@@ -33,6 +33,9 @@ await context.addCookies([{ name: 'small_session', value: session, url: BASE }])
 // next-steps-wiring-check). Next Steps hook requests go to the real route (answered at the provider boundary by the fixture).
 const plans = [];
 await context.route('**/api/learn/tutor/plan', route => { plans.push(route.request().url()); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }); });
+// Card thumbnails (card-thumbnails.md) are not under test here, so their uploads are answered in the browser: on the Windows
+// lane stack a thumbnail upload took the local worker down mid-run three times (2026-10-09). card-thumbnails-check covers them.
+await context.route('**/main/thumbnail', route => (route.request().method() === 'PUT' ? route.fulfill({ status: 204 }) : route.continue()));
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
@@ -451,6 +454,112 @@ for (const [kind, add] of Object.entries(firstObjects)) {
   assert.ok(await page.locator(kept).count() > 0, `${kind}: its object is still there`);
 }
 console.log('flow J ok');
+
+// ---- K: the canvas title's Rabbit Holes menu (owner r35). A canvas with two nested holes has a chevron; its menu lists
+// all three, indented; a pick (keyboard or click) goes there; nothing wraps; a canvas without holes has no chevron. ----
+const LONG = 'Attention from raw scores to weights, and why the softmax is scaled by the square root of the key size';
+const titleRoot = await post('/api/canvases', { title: LONG });
+const seedHole = async (parent, title) => {
+  const name = `canvas-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
+  const made = await post('/api/canvases/dives', { name, title, parent: { app: parent, board: 'main' }, origin_block_id: `k-${name}`, dive: { concept: title, created_by: 'learner_slash' } });
+  assert.equal(made.name, name, `seeded ${title}: ${JSON.stringify(made).slice(0, 120)}`);
+  return name;
+};
+const holeA = await seedHole(titleRoot.name, 'Scaled scores'), holeB = await seedHole(holeA, 'Why the square root');
+const chevron = () => page.locator('[data-title-holes]');
+const menuRows = () => page.locator('[data-title-holes-menu] [data-hole-option]');
+const oneLine = () => page.evaluate(() => {
+  const line = node => { const style = getComputedStyle(node); return { height: node.getBoundingClientRect().height, line: parseFloat(style.lineHeight), wraps: style.whiteSpace !== 'nowrap', overflows: node.scrollWidth > node.clientWidth }; };
+  const title = document.querySelector('input[aria-label="Canvas title"]');
+  return { title: { ...line(title), full: title.title }, rows: [...document.querySelectorAll('[data-title-holes-menu] [data-hole-title]')].map(line) };
+});
+await page.setViewportSize({ width: 1600, height: 1000 });
+await open(`/apps/${titleRoot.name}`);
+assert.equal(await chevron().count(), 1, 'a canvas with holes has the chevron');
+await shot('title-holes-desktop');
+await chevron().click();
+await menuRows().first().waitFor();
+assert.deepEqual(await menuRows().evaluateAll(rows => rows.map(row => [row.dataset.holeOption, Number(row.dataset.depth), row.getAttribute('aria-checked')])),
+  [[titleRoot.name, 0, 'true'], [holeA, 1, 'false'], [holeB, 2, 'false']], 'the root and both holes, depth-first, the open level checked');
+const indents = await menuRows().evaluateAll(rows => rows.map(row => parseFloat(getComputedStyle(row).paddingLeft)));
+assert.ok(indents[0] < indents[1] && indents[1] < indents[2], `each level indented further: ${indents}`);
+assert.equal(await menuRows().first().evaluate(row => getComputedStyle(row).fontWeight), '600', 'the open level is bold');
+const lines = await oneLine();
+assert.ok(lines.title.height <= 32 && lines.title.overflows, `the long title stays one line, cut short: ${JSON.stringify(lines.title)}`);
+assert.equal(lines.title.full, LONG, 'the full title on hover');
+for (const row of lines.rows) assert.ok(!row.wraps && row.height === row.line, `a menu row is one line: ${JSON.stringify(row)}`);
+assert.ok(lines.rows[0].overflows, 'the long root row is cut short, not wrapped');
+assert.equal(await menuRows().first().getAttribute('title'), LONG);
+await shot('title-holes-desktop-open');
+// Keyboard: the open level has focus; ArrowDown twice, Enter goes down to the deepest hole.
+assert.equal(await page.evaluate(() => document.activeElement?.dataset.holeOption), titleRoot.name, 'the open level has focus');
+await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+await page.waitForFunction(name => location.pathname.endsWith(name), holeB); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
+await chevron().click();
+await menuRows().first().waitFor();
+assert.deepEqual(await menuRows().evaluateAll(rows => rows.map(row => row.getAttribute('aria-checked'))), ['false', 'false', 'true'], 'in the deepest hole, it is the one checked');
+await shot('title-holes-deepest-open');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+assert.equal(await menuRows().count(), 0, 'Esc closes the menu');
+await chevron().click(); await menuRows().first().waitFor();
+await chevron().click(); await page.waitForTimeout(300);
+assert.equal(await menuRows().count(), 0, 'a press on the chevron closes the open menu and does not reopen it');
+// A click on a row goes there: the middle hole.
+await chevron().click();
+await menuRows().nth(1).click();
+await page.waitForFunction(name => location.pathname.endsWith(name), holeA); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
+// Phone width: the same one-line title and menu.
+await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(600);
+await open(`/apps/${titleRoot.name}`);
+await chevron().click();
+await menuRows().first().waitFor();
+const phone = await oneLine();
+assert.ok(phone.title.height <= 32, `phone: the title is one line: ${JSON.stringify(phone.title)}`);
+for (const row of phone.rows) assert.ok(!row.wraps && row.height === row.line, `phone: a menu row is one line: ${JSON.stringify(row)}`);
+assert.ok(await page.locator('[data-title-holes-menu]').evaluate(menu => { const box = menu.parentElement.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; }), 'phone: the menu stays on screen');
+await shot('title-holes-phone-open');
+await page.keyboard.press('Escape');
+await page.setViewportSize({ width: 1600, height: 1000 }); await page.waitForTimeout(400);
+// A canvas without holes: no chevron, and its title still renames.
+const plain = await post('/api/canvases', { title: 'No holes here' });
+await open(`/apps/${plain.name}`);
+assert.equal(await chevron().count(), 0, 'a canvas without holes has no chevron');
+await page.locator('input[aria-label="Canvas title"]').fill('Renamed, still no holes');
+await page.locator('input[aria-label="Canvas title"]').press('Enter');
+await page.waitForTimeout(1200);
+assert.equal((await tree(plain.name)).path[0].title, 'Renamed, still no holes', 'the title renames as before');
+assert.equal(await chevron().count(), 0);
+await shot('title-holes-none');
+// A shared canvas: the same chevron, read-only, each row its own link (only holes with an open link of their own).
+const shareOf = async app => (await post(`/api/learn/boards/${app}/main/share`, { shared: true, view: true, public_view: true, state: { blocks: [{ id: 'k', type: 'explanation', title: 'Shared' }] } })).sharing.view;
+const [rootLink, aLink, bLink] = [await shareOf(titleRoot.name), await shareOf(holeA), await shareOf(holeB)];
+const viewer = await (await browser.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
+await viewer.goto(`${BASE}/b/${rootLink}`); await viewer.locator('[data-title-holes]').waitFor({ timeout: 30000 });
+const sharedLine = () => viewer.locator('[data-shared-title]').evaluate(node => ({ nowrap: getComputedStyle(node).whiteSpace === 'nowrap', height: node.getBoundingClientRect().height, width: node.clientWidth, cut: node.scrollWidth > node.clientWidth, full: node.title }));
+const wideShared = await sharedLine();
+assert.ok(wideShared.nowrap && wideShared.height <= 24 && wideShared.full === LONG, `the shared title is one line, the full title on hover: ${JSON.stringify(wideShared)}`);
+await viewer.locator('[data-title-holes]').click();
+assert.deepEqual(await viewer.locator('[data-title-holes-menu] [data-hole-option]').evaluateAll(rows => rows.map(row => row.dataset.holeOption)), [`/b/${rootLink}`, `/b/${aLink}`, `/b/${bLink}`]);
+await viewer.screenshot({ path: `${OUT}/title-holes-shared-open.png` });
+await viewer.keyboard.press('Escape'); await viewer.waitForTimeout(300);
+// A phone: the long shared title is cut short, never wrapped, and the chevron stays beside it on screen.
+await viewer.setViewportSize({ width: 390, height: 844 }); await viewer.waitForTimeout(500);
+const phoneShared = await sharedLine();
+assert.ok(phoneShared.nowrap && phoneShared.cut && phoneShared.height <= 24 && phoneShared.width >= 60, `phone: the shared title is one line, cut short but still shown: ${JSON.stringify(phoneShared)}`);
+assert.ok(await viewer.locator('[data-title-holes]').evaluate(node => { const box = node.getBoundingClientRect(); return box.width > 0 && box.left >= 0 && box.right <= innerWidth; }), 'phone: the chevron stays on screen');
+await viewer.screenshot({ path: `${OUT}/title-holes-shared-phone.png` });
+await viewer.setViewportSize({ width: 1600, height: 1000 }); await viewer.waitForTimeout(400);
+await viewer.locator('[data-title-holes]').click();
+await viewer.locator('[data-title-holes-menu] [data-hole-option]').nth(2).click();
+await viewer.waitForURL(`${BASE}/b/${bLink}`);
+await viewer.context().close();
+console.log('flow K ok');
+// On a tripwire stack (e2e/provider-tripwire.js) nothing reached a model or paid-AI provider.
+for (const origin of [BASE, CP]) {
+  const wire = await fetch(`${origin}/__provider-tripwire`).catch(() => null);
+  if (wire?.ok) assert.equal((await wire.json()).hits.length, 0, `${origin}: provider tripwire hits`);
+}
 console.log('all flows ok; root', ROOT_URL);
 await browser.close();
 if (errors.length) { console.log('page errors:', errors); process.exit(1); }

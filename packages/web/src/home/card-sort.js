@@ -39,6 +39,8 @@ export function saveLibrarySort(storage, org, email, id) {
   try { storage.setItem(key(org, email), id); } catch { /* not kept */ }
 }
 
-// Explore's two tabs (owner, 2026-10-08): Explainers is the default; the tab rides in the URL (/explore?tab=creators).
-export const EXPLORE_TABS = [['explainers', 'Explainers'], ['creators', 'Creators']];
+// Explore's two tabs (owner, 2026-10-08): Learning Boards is the default; the tab rides in the URL (/explore?tab=creators).
+// The published canvases are "learning boards" in every label (owner 2026-10-09: "Rename "Explainers" to "Learning
+// Boards""); the tab's id stays `explainers`, an identifier, never shown.
+export const EXPLORE_TABS = [['explainers', 'Learning Boards'], ['creators', 'Creators']];
 export const exploreTab = (search) => (new URLSearchParams(search).get('tab') === 'creators' ? 'creators' : 'explainers');

@@ -194,6 +194,34 @@ test('inline image bytes reach the CLI as image blocks, never as text; long runs
   assert.ok(prompt.startsWith('You are the Motion Director.'), 'block system prompts arrive as text, not [object Object]');
 });
 
+// kill(pid, 0) also succeeds for an unreaped Linux zombie. Such a process cannot run;
+// distinguish that state without hiding permission errors or a broken /proc probe.
+function processRunning(pid, { platform = process.platform, signal = process.kill, readStat = readFileSync } = {}) {
+  try { signal(pid, 0); } catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+  if (platform !== 'linux') return true;
+  let stat;
+  try { stat = readStat(`/proc/${pid}/stat`, 'utf8'); } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+  // comm is parenthesized and may itself contain spaces and parentheses.
+  const match = stat.match(/^\d+ \(.*\) ([A-Z]) /s);
+  if (!match) throw new Error(`Invalid process state for pid ${pid}`);
+  return match[1] !== 'Z' && match[1] !== 'X';
+}
+
+test('deadline liveness distinguishes Linux zombies from running descendants and fails on probe errors', () => {
+  const probe = state => ({ platform: 'linux', signal: () => {}, readStat: () => `123 (node (child)) ${state} 1 2 3` });
+  assert.equal(processRunning(123, probe('S')), true);
+  assert.equal(processRunning(123, probe('R')), true);
+  assert.equal(processRunning(123, probe('Z')), false, 'a zombie exists but cannot execute');
+  assert.equal(processRunning(123, probe('X')), false);
+  const error = code => Object.assign(new Error(code), { code });
+  assert.equal(processRunning(123, { ...probe('S'), signal: () => { throw error('ESRCH'); } }), false);
+  assert.equal(processRunning(123, { ...probe('S'), readStat: () => { throw error('ENOENT'); } }), false);
+  assert.throws(() => processRunning(123, { ...probe('S'), signal: () => { throw error('EPERM'); } }), /EPERM/);
+  assert.throws(() => processRunning(123, { ...probe('S'), readStat: () => { throw error('EACCES'); } }), /EACCES/);
+  assert.throws(() => processRunning(123, { ...probe('S'), readStat: () => 'invalid' }), /process state/);
+  assert.equal(processRunning(123, { platform: 'win32', signal: () => {}, readStat: () => { throw error('unexpected'); } }), true);
+});
+
 // Motion M7A Run A (2026-10-06): a 15 min CLI deadline returned after 61.5 min on Windows. A kill of
 // the parent alone leaves its descendants running (a detached one escapes Node's Windows job object; on
 // POSIX any child outlives a SIGTERM to its parent). The deadline kills the tree and returns at once.
@@ -201,7 +229,7 @@ test('a deadline kills the whole process tree and returns at the deadline', { ti
   const dir = mkdtempSync(join(tmpdir(), 'deadline-tree-'));
   const detached = process.platform === 'win32';
   const tree = pidFile => ['-e', `const { spawn } = require('node:child_process'); const c = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], { stdio: 'inherit', detached: ${detached} }); require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(c.pid)); setTimeout(() => {}, 20000);`];
-  const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  const alive = processRunning;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const pidOf = async file => { for (let i = 0; i < 100 && !existsSync(file); i++) await sleep(50); return Number(readFileSync(file, 'utf8')); };
 

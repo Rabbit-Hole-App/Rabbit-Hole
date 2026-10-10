@@ -145,3 +145,19 @@ test('nested holes stay out of the top-level canvas lists (Home, Library, Search
   await f.send('DELETE', `/api/canvases/dives/${child}`);
   assert.deepEqual((await f.send('GET', '/api/canvases')).body.canvases.map(canvas => canvas.name), ['canvas-00000000']);
 });
+
+// The canvas title's menu (owner r35): every kept hole under the root at any depth, parents before children, each with its
+// parent; from any level of the tree, the same list. Another board of the root is another tree; another owner sees none.
+test('the tree carries every kept hole under the root at any depth, each with its parent', async t => {
+  const f = fixture(t);
+  const a = (await f.dive(ROOT, 'card-a', 'A')).body.name;
+  const b = (await f.dive(ROOT, 'card-b', 'B')).body.name;
+  const a1 = (await f.dive({ app: a, board: 'main' }, 'card-a1', 'A1')).body.name;
+  const a1x = (await f.dive({ app: a1, board: 'main' }, 'card-a1x', 'A1x')).body.name;
+  await f.dive({ app: ROOT.app, board: 'main' }, 'card-other', 'On another board');
+  const want = [['A', ROOT.app], ['B', ROOT.app], ['A1', a], ['A1x', a1]];
+  for (const app of [[ROOT.app, ROOT.board], [a1x], [b]]) assert.deepEqual((await f.where(...app)).body.holes.map(h => [h.title, h.parent]), want, app.join(' '));
+  assert.deepEqual((await f.where(a1x)).body.holes.map(h => h.name), [a, b, a1, a1x]);
+  assert.deepEqual((await f.where(ROOT.app, 'main')).body.holes.map(h => h.title), ['On another board']);
+  assert.equal((await f.where(ROOT.app, ROOT.board, { 'x-email': 'other@test' })).status, 404);
+});

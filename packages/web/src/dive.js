@@ -137,6 +137,25 @@ export function diveRecord({ name, title, via, parent, target, block = null, vie
   };
 }
 
+// The canvas title's Rabbit Holes menu (owner r35): the root, then every kept hole under it at any depth, depth-first,
+// each with its depth for the indent, and the level open now marked current. `holes` is the server's list (each hole and
+// its parent; dives.js GET, or a shared map's links), so a pending hole is never in it. One row means no holes: no menu.
+export function holeRows({ path = [], holes = [] } = {}) {
+  const root = path[0], here = path.at(-1);
+  if (!root) return [];
+  const under = new Map();
+  for (const hole of holes) under.set(hole.parent, [...(under.get(hole.parent) || []), hole]);
+  const rows = [], walked = new Set();
+  const walk = (app, title, depth) => {
+    if (walked.has(app)) return; // a corrupted cycle ends here
+    walked.add(app);
+    rows.push({ app, title, depth, current: app === here.app && !here.pending });
+    for (const hole of under.get(app) || []) walk(hole.name, hole.title, depth + 1);
+  };
+  walk(root.app, root.title, 0);
+  return rows;
+}
+
 // The navigator's rows: the path from the root, the current level emphasised, then its immediate
 // children. A long path folds its middle so the roots never become a breadcrumb bar.
 export function navigatorRows({ path, children }, fold = 5) {

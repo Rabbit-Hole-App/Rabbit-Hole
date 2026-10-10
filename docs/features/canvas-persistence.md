@@ -59,6 +59,7 @@ The `device_id` gate (`opensHere`, canvas-local.js) becomes: a canvas opens when
 ## Conflicts (explicit, V1)
 
 This is the existing optimistic check, unchanged. A PUT based on a stale version gets **409** with the current version, and nothing is overwritten.
+- Atomic since beta hardening 4a: the UPDATE itself requires the version the PUT was based on (`WHERE id = ? AND version = ?`), and a first INSERT yields to one that won meanwhile (`ON CONFLICT DO NOTHING`). Two PUTs based on the same version are one write and one 409 carrying the version now stored; the reply version is always the one written. A PUT without a version (older pages, API tests) stays unconditional.
 - The learner sees the existing message: "This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved."
 - Pushing stops until reload.
 - Reload loads the server copy.
@@ -121,7 +122,7 @@ Two fresh browser profiles, one account, on the local stack:
 - **The gate** (CanvasPage) asks the server only when `opensHere` says no, and NOT_HERE shows only when neither copy exists. `opensHere` itself is unchanged: its device clause still opens an empty canvas made in this browser. Since step 8, Home and the Library read the row's `board_saved` first.
 - **Server.** `saveOwn` already made the first copy version 1 without an `updated_at` bump; only the over-cap message changed. It still accepts a PUT without a version (older pages and API tests); every page PUT now sends one.
 - **Tests.**
-  - `control-plane/test/canvas-persistence.test.js`: the first copy is version 1 without a bump; a write on a stale or unseen version (0) is a 409; the over-cap refusal. Permissions: same-workspace 403, another workspace 404, signed-out 401, no state in any answer; no share or `/e` token reaches a private board; Trash suspends and Restore returns links.
+  - `control-plane/test/canvas-persistence.test.js`: the first copy is version 1 without a bump; a write on a stale or unseen version (0) is a 409; the over-cap refusal. Two saves based on the same version (the owner-row read gated so both read before either writes): one written, the other 409 with the stored version; two first saves make one row. Permissions: same-workspace 403, another workspace 404, signed-out 401, no state in any answer; no share or `/e` token reaches a private board; Trash suspends and Restore returns links.
   - `web/src/canvas-persist.test.mjs`: `boardText`.
   - The source-pinning tests in explore-publish and learn-journey-materialize follow the new push contract.
 - **Proof.** `e2e/cross-device-check.mjs` (local stack only, two fresh profiles, one account) passes 10/10:

@@ -3206,3 +3206,11 @@ timeout question is not resolved for direct. `TYPESAFE_API_KEY` is set on this
 clone only. Not run: the 432-call A/B, benchmark-v1.1-draft, further gateway
 benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
 `small-cp`, the live database or BYOC.
+
+### r35 integration verification (2026-10-10)
+
+The project's existing shared menu is available beside its breadcrumb in Main
+Learn and nested canvases, as well as Map. Explore type filters retain project
+scope. The full local r35 gate includes the project-menu browser check across
+all three surfaces; its integrated browser result and preview deployment remain
+pending. Production promotion and remote migrations retain separate approvals.

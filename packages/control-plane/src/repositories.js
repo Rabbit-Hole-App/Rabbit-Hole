@@ -45,7 +45,33 @@ export async function repositoryIdentity(req,env) {
   if(requested&&requested!==user.org)return json({error:'You are not a member of the requested workspace'},403);
   return user;
 }
+// A project's own fields beside its row, read and never stored on it (visibility-menu.md "Projects", owner 2026-10-09):
+// its display name - the Main canvas board's title, renamed from the card or the project's header (null: the repository's
+// name) - whether its repository is confirmed public, and the states its visibility is made of: the Main canvas board's
+// link (on: unlisted, public view: public) and its live canvases (published: public, link on: unlisted, else private).
+// Functions, not constants: library-trash.js imports this module, so NOT_TRASHED may not exist yet when it loads.
+const IN_PROJECT=()=>`c.org=r.org AND c.owner_email=r.owner_email AND c.project=r.name AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org','c.name')}`;
+const PUBLISHED_CANVAS='EXISTS(SELECT 1 FROM canvas_publications p WHERE p.org=c.org AND p.canvas=c.name)';
+const LINKED_CANVAS="EXISTS(SELECT 1 FROM learn_boards cb WHERE cb.org=c.org AND cb.owner_email=c.owner_email AND cb.app=c.name AND cb.board='main' AND cb.shared=1 AND cb.view_token IS NOT NULL)";
+export const PROJECT_FIELDS=()=>`(SELECT b.title FROM learn_boards b WHERE b.org=r.org AND b.owner_email=r.owner_email AND b.app=r.name AND b.board='main') AS title,
+  EXISTS(SELECT 1 FROM repository_visibility v WHERE v.app_id=r.id AND v.visibility='public') AS repo_public,
+  (SELECT CASE WHEN b.shared=1 AND b.view_token IS NOT NULL THEN CASE WHEN b.public_view=1 THEN 'public' ELSE 'unlisted' END ELSE 'private' END FROM learn_boards b WHERE b.org=r.org AND b.owner_email=r.owner_email AND b.app=r.name AND b.board='main') AS main_access,
+  (SELECT count(*) FROM canvases c WHERE ${IN_PROJECT()}) AS canvases_total,
+  (SELECT count(*) FROM canvases c WHERE ${IN_PROJECT()} AND ${PUBLISHED_CANVAS}) AS canvases_public,
+  (SELECT count(*) FROM canvases c WHERE ${IN_PROJECT()} AND NOT ${PUBLISHED_CANVAS} AND ${LINKED_CANVAS}) AS canvases_unlisted`;
+// One visibility for the whole project when every part has the same one, else 'mixed'.
+export function projectAccess(row){
+  if(!row)return 'private';
+  const states=new Set([row.main_access||'private']);
+  if(row.canvases_public)states.add('public');
+  if(row.canvases_unlisted)states.add('unlisted');
+  if(row.canvases_total-row.canvases_public-row.canvases_unlisted>0)states.add('private');
+  return states.size===1?[...states][0]:'mixed';
+}
+const projectFields=({main_access,canvases_total,canvases_public,canvases_unlisted,...row})=>main_access===undefined&&canvases_total===undefined?row
+  :{...row,access:projectAccess({main_access,canvases_total,canvases_public,canvases_unlisted}),repo_public:!!row.repo_public};
 export function repositoryApp(row,user) {
+  row=projectFields(row);
   return {...row,kind:'repository',hosting:'repository',email:user.email,orgName:user.orgName,visibility:'domain',members:[],canView:true,canEdit:row.owner_email===user.email,
     repo_url:`https://github.com/${row.repo}`,repo_branch:row.branch,repo_commit:row.commit_sha,description:`Learn from ${row.repo}`,url:`/apps/${row.name}`,inputs:{},outputs:{},board_saved:!!row.board_saved};
 }
@@ -55,7 +81,7 @@ export async function ownerRepositories(env,user){
   // The owner's @handle and display name by reference (docs/features/user-handles.md), as on canvas cards; never an email.
   // board_saved: its Learn main board (LearnPage boardPath /api/learn/boards/<repo>/main) is on the server (canvas-persistence.md, step 8).
   // canvas_count (docs/features/project-canvases.md): its Main canvas plus the owner's live canvases in it - the switcher's list.
-  const {results}=await env.LEARN_DB.prepare(`SELECT r.*,(SELECT handle FROM user_handles WHERE email=r.owner_email) AS owner_handle,(SELECT name FROM user_profiles WHERE email=r.owner_email) AS owner_name,EXISTS(SELECT 1 FROM learn_boards b WHERE b.org=r.org AND b.owner_email=r.owner_email AND b.app=r.name AND b.board='main') AS board_saved,1+(SELECT count(*) FROM canvases c WHERE c.org=r.org AND c.owner_email=r.owner_email AND c.project=r.name AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org','c.name')}) AS canvas_count FROM repository_apps r WHERE r.org=? AND r.owner_email=? AND ${NOT_TRASHED('r.org','r.name')} ORDER BY r.created_at DESC`).bind(user.org,user.email).all();
+  const {results}=await env.LEARN_DB.prepare(`SELECT r.*,(SELECT handle FROM user_handles WHERE email=r.owner_email) AS owner_handle,(SELECT name FROM user_profiles WHERE email=r.owner_email) AS owner_name,EXISTS(SELECT 1 FROM learn_boards b WHERE b.org=r.org AND b.owner_email=r.owner_email AND b.app=r.name AND b.board='main') AS board_saved,1+(SELECT count(*) FROM canvases c WHERE c.org=r.org AND c.owner_email=r.owner_email AND c.project=r.name AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org','c.name')}) AS canvas_count,${PROJECT_FIELDS()} FROM repository_apps r WHERE r.org=? AND r.owner_email=? AND ${NOT_TRASHED('r.org','r.name')} ORDER BY r.created_at DESC`).bind(user.org,user.email).all();
   return results.map(row=>repositoryApp(row,user));
 }
 // D1 occasionally throws a transient internal error ("object to be reset");
@@ -160,12 +186,22 @@ export async function repositoriesFetch(req,env,ctx){
     }
     const match=path.match(/^\/api\/repositories\/([^/]+)(?:\/(snapshot|refresh|learn-course|file|ask|threads))?(?:\/([^/]+))?$/);
     if(!match)return json({error:'Not found'},404);
-    const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=? AND owner_email=?').bind(user.org,match[1],user.email).first();if(!row)return json({error:'Repository not found in this workspace'},404);
+    const row=await db.prepare(`SELECT r.*,${PROJECT_FIELDS()} FROM repository_apps r WHERE r.org=? AND r.name=? AND r.owner_email=?`).bind(user.org,match[1],user.email).first();if(!row)return json({error:'Repository not found in this workspace'},404);
     const app=repositoryApp(row,user),action=match[2];
     // Dev subscription mode: the dev worker routes these here before its own owner gate.
     if(env.SUBSCRIPTION_ONLY==='true'&&req.method==='POST'&&(action==='ask'||action==='learn-course')){
       const refused=subscriptionOwnerRefusal(env,user)||(action==='learn-course'&&subscriptionCourseRefusal(env,(await req.clone().json().catch(()=>null))?.action));
       if(refused)return refused;
+    }
+    // Rename (owner, 2026-10-09): the project's display name only - its Main canvas board's title; the repository stays its
+    // provenance and its subtitle. Empty goes back to the repository's name.
+    if(!action&&req.method==='PATCH'){
+      if(req.headers.has('origin')&&req.headers.get('origin')!==url.origin)return json({error:'Invalid origin'},403);
+      const body=await req.json().catch(()=>null);
+      if(typeof body?.title!=='string'||body.title.trim().length>120)return json({error:'Use a name of up to 120 characters'},400);
+      const title=body.title.trim()||null;
+      await db.batch([emptyBoard(db,user.org,user.email,row.name),db.prepare("UPDATE learn_boards SET title=? WHERE org=? AND owner_email=? AND app=? AND board='main'").bind(title,user.org,user.email,row.name)]);
+      return json(repositoryApp({...row,title},user));
     }
     if(!action)return req.method==='GET'?json(app):json({error:'Repository updates use the refresh action'},405);
     if(['snapshot'].includes(action)&&req.method!=='GET'||['file','ask'].includes(action)&&req.method!=='POST')return json({error:'Method not allowed'},405);

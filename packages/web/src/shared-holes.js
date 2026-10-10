@@ -7,7 +7,9 @@ export function sharedTree(map) {
   const children = map.children || [];
   return {
     // kind 'view': a level is opened, never renamed or deleted from here (DiveNavigator renames kind 'canvas' only).
-    tree: { path: map.path.map(level => ({ app: level.href, board: 'main', title: level.title, kind: 'view', href: level.href })), children: children.map(child => ({ name: child.href, title: child.title })) },
+    // holes: every hole under the top level the viewer may open (the title's menu, dive.js holeRows), named by their links.
+    tree: { path: map.path.map(level => ({ app: level.href, board: 'main', title: level.title, kind: 'view', href: level.href })), children: children.map(child => ({ name: child.href, title: child.title })),
+      holes: (map.holes || []).map(hole => ({ name: hole.href, title: hole.title, parent: hole.parent })) },
     portals: Object.fromEntries(children.map(child => [child.origin_block_id, { name: child.href, title: child.title, pending: false }])),
   };
 }

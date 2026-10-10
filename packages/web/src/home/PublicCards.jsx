@@ -92,6 +92,20 @@ export function Recommended({ found, me, kind }) {
   );
 }
 
+// Explore's Projects filter (?type=projects; learn-boards.js exploreProjects): one card per public project with published
+// learning boards - the project's name, its repository and "N learning boards" - on the canonical card. It opens Explore's
+// project filter below, which lists that project's boards.
+export function ProjectCards({ projects }) {
+  return (
+    <ul data-explore-projects className={CARD_ROWS}>
+      {projects.map(p => {
+        const m = { ...cardModel({ kind: 'repository', repo: p.repo, name: p.label, updated_at: p.updated_at }), title: p.label.split('/').pop(), canvases: count(p.boards, 'learning board', 'learning boards') };
+        return <LearningCard key={p.label} kind="repository" m={m} attrs={{ 'data-explore-project': p.label }} href={p.url} onOpen={() => navigate(p.url)} />;
+      })}
+    </ul>
+  );
+}
+
 // Explore's project filter (?project=owner/repo, opened from a card's project label; project-canvases.md): one chip naming
 // it, whose × drops only that filter, and a line when the project has no published canvas (gone, private or none yet).
 export function ProjectFilter({ project, empty }) {
@@ -150,13 +164,14 @@ function CreatorChip({ c }) {
     // overflow-hidden keeps it square (an aspect-ratio box otherwise grows to fit its content); select-card draws focus on
     // the card's edge, where the clip cannot hide it.
     <div data-creator-card={c.handle} className="lift-card select-card relative aspect-square min-w-0 overflow-hidden rounded-lg border border-line bg-white">
-      <a data-creator-chip={c.handle} href={c.url} className="flex h-full min-w-0 flex-col gap-3 rounded-lg p-3 outline-none sm:p-4">
-        {/* pr-8: the top right is Copy profile link's, beside the link and outside it. */}
-        <span className="flex min-w-0 items-center gap-2 pr-8 sm:gap-2.5">
-          <CreatorAvatar c={c} className="h-8 w-8 text-xs! sm:h-10 sm:w-10 sm:text-sm!" />
+      <a data-creator-chip={c.handle} href={c.url} className="flex h-full min-w-0 flex-col gap-3 rounded-lg p-3 outline-none sm:gap-4 sm:p-5">
+        {/* pr-8: the top right is Copy profile link's, beside the link and outside it. The avatar is 1.5x its first size
+            (owner 2026-10-09: "the avatar profile picture should be bigger in the card"), centred on the name lines. */}
+        <span className="flex min-w-0 items-center gap-2 pr-8 sm:gap-3">
+          <CreatorAvatar c={c} className="h-12 w-12 text-base! sm:h-15 sm:w-15 sm:text-xl!" />
           <span className="flex min-w-0 flex-col leading-tight">
-            <span data-creator-name className="truncate text-sm font-medium text-ink">{c.name || `@${c.handle}`}</span>
-            {c.name && <span data-creator-handle className="truncate text-xs text-ink-2">@{c.handle}</span>}
+            <span data-creator-name className="truncate text-sm font-medium text-ink sm:text-base">{c.name || `@${c.handle}`}</span>
+            {c.name && <span data-creator-handle className="truncate text-xs text-ink-2 sm:text-sm">@{c.handle}</span>}
           </span>
         </span>
         {c.description && <span data-creator-description className="line-clamp-3 break-words text-xs leading-4 text-ink-2 sm:text-sm sm:leading-5">{c.description}</span>}
@@ -167,7 +182,8 @@ function CreatorChip({ c }) {
   );
 }
 
-// The creator cards, in the server's order: two columns on a phone, then as many ~200px squares as fit.
+// The creator cards, in the server's order: two columns on a phone, then as many squares of at least 250px as fit
+// (owner 2026-10-09: "a little bigger" - three across Explore's column at 1440, where 200px fitted four).
 export function CreatorCards({ creators }) {
-  return <div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>;
+  return <div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] sm:gap-4">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>;
 }

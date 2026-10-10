@@ -6,11 +6,11 @@ const apps = [{ name: 'repo-1', kind: 'repository' }, { name: 'canvas-1', kind: 
 const names = (list) => list.map((a) => a.name);
 
 test('the live build never reads ?type; the preview accepts only the three types', () => {
-  assert.deepEqual(libraryQuery('?type=projects', false), { type: null, archived: false, section: null });
-  assert.deepEqual(libraryQuery('?type=projects', true), { type: 'projects', archived: false, section: null });
-  for (const bad of ['?type=bogus', '?type=constructor', '']) assert.deepEqual(libraryQuery(bad, true), { type: null, archived: false, section: null });
-  assert.deepEqual(libraryQuery('?type=canvases&archived=1', true), { type: 'canvases', archived: true, section: null });
-  assert.deepEqual(libraryQuery('?type=projects&archived=1', true), { type: 'projects', archived: false, section: null });
+  assert.deepEqual(libraryQuery('?type=projects', false), { type: null, archived: false, section: null, folderId: null });
+  assert.deepEqual(libraryQuery('?type=projects', true), { type: 'projects', archived: false, section: null, folderId: null });
+  for (const bad of ['?type=bogus', '?type=constructor', '']) assert.deepEqual(libraryQuery(bad, true), { type: null, archived: false, section: null, folderId: null });
+  assert.deepEqual(libraryQuery('?type=canvases&archived=1', true), { type: 'canvases', archived: true, section: null, folderId: null });
+  assert.deepEqual(libraryQuery('?type=projects&archived=1', true), { type: 'projects', archived: false, section: null, folderId: null });
 });
 
 test('solo v1: the preview keeps only the Mine scope and ignores ?s=shared and ?s=apps; the live build keeps every section', () => {
@@ -85,4 +85,26 @@ test('the Library title row: Search by name, Filters and Sort side by side; the 
   assert.match(app, /const found = needle \? withFixtures\.filter\(\(a\) => \[a\.title, titleOf\(a\)\]\.some\(\(t\) => t\?\.toLowerCase\(\)\.includes\(needle\)\)\) : withFixtures;/);
   assert.match(app, /<LibraryViews apps=\{found\} type=\{type\} data=\{data\} sort=\{cardSort\}/);
   assert.doesNotMatch(readFileSync(new URL('./LibraryViews.jsx', import.meta.url), 'utf8'), /<SortMenu/, 'one Sort, beside Filters');
+});
+
+// Explore's Type filter is the Library's (owner 2026-10-09: "same filter as library?"): the same builder makes its URL.
+test('libraryHref and chipHref build an /explore URL with the same ?type= values; exploreType reads only Explore\'s two', async () => {
+  const { EXPLORE_TYPES, exploreType } = await import('./library-filter.js');
+  assert.deepEqual(EXPLORE_TYPES, ['projects', 'canvases']);
+  assert.equal(libraryHref({ type: 'projects' }, '/explore'), '/explore?type=projects');
+  assert.equal(libraryHref({}, '/explore'), '/explore');
+  assert.equal(chipHref('?type=projects', 'type', 'canvases', '/explore'), '/explore?type=canvases');
+  assert.equal(chipHref('?type=canvases&project=a%2Fb', 'type', null, '/explore'), '/explore?project=a%2Fb', 'clearing the type preserves the independent project filter');
+  assert.equal(chipHref('?type=canvases', 'type', 'projects'), '/library?type=projects', 'the Library unchanged');
+  assert.deepEqual(['?type=projects', '?type=canvases', '?type=apps', '?type=', ''].map(exploreType), ['projects', 'canvases', null, null, null], 'Apps is the Library\'s alone');
+});
+
+test('Explore type changes preserve project scope and clearing project preserves type', () => {
+  const changed = new URL(chipHref('?project=acme%2Fattention', 'type', 'canvases', '/explore'), 'https://local');
+  assert.equal(changed.searchParams.get('project'), 'acme/attention');
+  assert.equal(changed.searchParams.get('type'), 'canvases');
+  const cleared = new URL(chipHref(changed.search, 'project', null, '/explore'), 'https://local');
+  assert.equal(cleared.searchParams.get('project'), null);
+  assert.equal(cleared.searchParams.get('type'), 'canvases');
+  assert.equal(libraryHref({ project: 'acme/attention' }, '/explore'), '/explore?project=acme%2Fattention');
 });

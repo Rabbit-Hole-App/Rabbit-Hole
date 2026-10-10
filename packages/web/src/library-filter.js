@@ -18,7 +18,9 @@ export function libraryQuery(search, preview) {
   const q = new URLSearchParams(search);
   const type = preview && Object.hasOwn(TYPES, q.get('type')) ? q.get('type') : null;
   const section = !preview || Object.hasOwn(SCOPES, q.get('s')) ? q.get('s') : null;
-  return { type, archived: type === 'canvases' && q.get('archived') === '1', section };
+  // ?d=<folder id>: an open Library folder (docs/features/library-folders.md), the preview's only.
+  const folderId = preview && /^[0-9a-f-]{36}$/.test(q.get('d') || '') ? q.get('d') : null;
+  return { type, archived: type === 'canvases' && q.get('archived') === '1', section, folderId };
 }
 
 export const ofType = (apps, type) => (type ? apps.filter((a) => TYPES[type].kinds.includes(a.kind)) : apps);
@@ -39,25 +41,34 @@ export function librarySections(apps, recent = []) {
 }
 
 // The one URL for a Library state (folder f, ownership s, type, archived canvases). The Filters
-// control, View all and the Agent Bar's filter_library all build it here.
-export function libraryHref({ f, s, type, archived } = {}) {
+// control, View all and the Agent Bar's filter_library all build it here. `path` is the page: /library, or /explore,
+// whose Type filter is this one (EXPLORE_TYPES).
+export function libraryHref({ d, f, s, type, archived, project } = {}, path = '/library') {
   const q = new URLSearchParams();
+  if (d) q.set('d', d);
+  if (project) q.set('project', project);
   if (f) q.set('f', f);
   if (s) q.set('s', s);
   if (type) q.set('type', type);
   if (archived && type === 'canvases') q.set('archived', '1');
   const query = q.toString();
-  return query ? `/library?${query}` : '/library';
+  return query ? `${path}?${query}` : path;
 }
 
 // Sets or clears one parameter and keeps the rest; changing type leaves Archived.
-export function chipHref(search, key, value) {
+export function chipHref(search, key, value, path = '/library') {
   const q = new URLSearchParams(search);
-  const state = { f: q.get('f'), s: q.get('s'), type: q.get('type'), archived: q.get('archived') };
+  const state = { project: q.get('project'), d: q.get('d'), f: q.get('f'), s: q.get('s'), type: q.get('type'), archived: q.get('archived') };
   if (key === 'type') state.archived = null;
   state[key] = value || null;
-  return libraryHref(state);
+  return libraryHref(state, path);
 }
+
+// Explore's Type filter (owner 2026-10-09: "Explore should have a filter for Projects or Canvas"; "same filter as
+// library?"): the Library's own control, labels and ?type= values, for the two types Explore lists. Apps, Archived and
+// Ownership are the Library's alone.
+export const EXPLORE_TYPES = ['projects', 'canvases'];
+export const exploreType = (search) => { const type = new URLSearchParams(search).get('type'); return EXPLORE_TYPES.includes(type) ? type : null; };
 
 // Projects and canvases live in LEARN_DB: the live app actions (share, rename, duplicate,
 // trash, drag to a folder, the runbook peek) never apply to them.

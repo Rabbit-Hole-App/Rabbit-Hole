@@ -49,7 +49,7 @@ test('Publish pushes the board first, only for a top-level canvas, and a missing
 test('Explore lists the published canvases on the canonical card: title, the creator @handle, the fork count, and the /e link', () => {
   const home = read('./Home.jsx');
   const explore = home.slice(home.indexOf('function Explore()'));
-  assert.match(explore, /fetch\(`\/api\/learn\/boards\/published\?sort=\$\{order\}\$\{q && `&\$\{q\}`\}\$\{project \? `&project=\$\{encodeURIComponent\(project\)\}` : ''\}`/, 'the server sorts, searches and filters by project');
+  assert.match(explore, /fetch\(`\/api\/learn\/boards\/published\?sort=\$\{order\}\$\{q && `&\$\{q\}`\}\$\{project \? `&project=\$\{encodeURIComponent\(project\)\}` : ''\}\$\{type \? `&type=\$\{type\}` : ''\}`/, 'the server sorts, searches and filters by project and type');
   assert.match(explore, /<PublicCards cards=\{cards\} me=\{me\} attr="data-explore-card" \/>/);
   // A card's project label opens Explore on ?project=; the chip names it and clears it (project-canvases.md).
   assert.match(explore, /\{project && <ProjectFilter project=\{project\} empty=\{cards\?\.length === 0 && !term\} \/>\}/);

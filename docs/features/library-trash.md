@@ -26,6 +26,8 @@ Owner rules, 2026-10-06. Trash is a stronger removal than Archive, with an expli
 | Copying | Duplicate, Fork, Publish and share links are refused until restored |
 
 - A nested Rabbit Hole is never trashed on its own (409). It goes with its canvas and comes back with it.
+  - Its own share links sleep with the canvas too, however deep the hole sits, under a trashed project as well: `sharedRow`
+    walks the hole's ancestors over `canvas_dives` (never `canvas_forks`, so a fork keeps its links) and Restore wakes the same tokens.
 - A hole started from someone's shared canvas is a top-level canvas of yours, so it can be trashed.
 
 ## Restore

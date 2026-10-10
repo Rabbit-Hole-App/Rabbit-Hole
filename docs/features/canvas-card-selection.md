@@ -79,6 +79,15 @@ Portals are navigation, not material, so they keep direct single-click open. The
 - An explicit "Ask in chat" on a card, or a region, area or group, answers as a card linked to it.
 - A question asked while a card is merely selected answers where any question does: the sheet on a canvas with one, so the Tutor's own chips stay under its reply. The card rides as its context either way.
 
+## Ask in chat on an image, a text box and a sticky note (r35)
+
+Owner: "For Image or Text box, should we have a "Ask in Chat"?" - yes, both, consistent with cards, groups and equations.
+
+- The one selected dropped image, text box or sticky note with words in it shows the cards' **Ask in chat** pill, in the same place and style: above its top right, on the pill row the comment pins keep clear ([canvas-comments.md](canvas-comments.md) Pins). A text box's pill shares its H1-to-Text ladder's row, pushed to the right edge, so a short text never has the two over each other; a note's sits beside it in the layer (a note clips and tilts what is inside it). A multi-selection asks through its group or area. An empty text box or note has no pill; a view-only board has none, as for cards.
+- **Image:** the target is the image - its label as the text, its server copy as `image_context` (`describeCanvasObject` `image`) - and the image is shown to the tutor the way "Show the tutor this image" and the drop show it (`image-attach`), so the Tutor path carries the picture with no UI change. Ready question: `What does this image show?`. The answer lands as a card linked to the image, as an explicit Ask in chat on a card does.
+- **Text box or sticky note:** its words ride as the context, as an equation's LaTeX does, and the answer lands where any question's does. Ready question: `Explain this`.
+- The pill sends nothing: the question waits in the composer.
+
 **The one context object:** `selectedCardContext(block, title)` returns `{ card_id, block_id, scene_id?, concept_ids?, title, material_type }`. It comes from the existing identity resolver (`learn-target.js` `resolveTarget`), with the identities kept apart: `card_id` is the authored card and is `null` on a learner's own card; `block_id` is the canvas block. It rides the composer target as `context`.
 
 **Commands:** every command reads the same target. `/ask`, `/teach`, `/research` and `/do` send their words through the Learn ask with that target. Generation commands send `selection: {kind: 'card', id, title}` plus the card text as `context` (learn-slash.js). Nothing is per-command.
@@ -108,6 +117,6 @@ When server persistence owns cards, this becomes `canvas_target: { id }` (or `se
 
 - Web unit: `packages/web/src/card-selection.test.mjs`.
 - Control plane: `packages/control-plane/test/shared-canvas-ask.test.js` (the selected card by id).
-- Browser: `packages/web/e2e/selected-pill-check.mjs` (local stack): every kind of card, owner and shared - the strip, Esc, a blank click, ×, and Send carrying the card.
+- Browser: `packages/web/e2e/selected-pill-check.mjs` (local stack): every kind of card, owner and shared - the strip, Esc, a blank click, ×, and Send carrying the card; Ask in chat on a dropped image, a text box and a sticky note - the pill above the top right, the strip and the ready question, nothing sent, none on an empty text box, a comment pin left of it.
 - Server: `packages/control-plane/test/learner-intent.test.js`, the card-text-is-not-intent case.
 - Browser: `packages/web/e2e/card-select-check.mjs` covers the owner's 15 cases, touch Open, and no model call. It runs on the local stack only.

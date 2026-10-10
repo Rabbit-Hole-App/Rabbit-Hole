@@ -88,14 +88,19 @@ test('addresses: your own card by its name, a published card by its token; a cha
 test('the card: the picture on the right from md, on top on a phone; one per row; one fixed size; quiet placeholder', () => {
   const card = read('./home/LearningCard.jsx');
   assert.match(card, /export const CARD_ROWS = 'grid grid-cols-1 gap-4'/);
-  assert.match(card, /export const CARD_HEIGHT = 'md:h-\[228px\]'/);
-  assert.match(card, /aspect-\[2\/1\][^`]*md:order-last md:w-\[38%\]/, '2:1, after the text (right) from md, 38% wide');
+  // Owner, 2026-10-09: the picture's inset above equals its inset below, and the footer ends on its bottom edge - the text
+  // column and the picture are one fixed height from md, the card that plus its padding.
+  assert.match(card, /export const CARD_BODY_H = 'md:h-\[190px\]';/);
+  assert.match(card, /aspect-\[2\/1\][^`]*md:order-last \$\{CARD_BODY_H\} md:w-\[min\(380px,42%\)\] md:aspect-auto/, 'right of the text from md, the body\'s height, 2:1 where the card is wide');
+  assert.match(card, /<div data-card-text className=\{`flex min-h-0 min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_BODY_H\} \$\{CARD_TEXT_PHONE\}`\}>/);
+  assert.match(card, /<div data-card-body className="flex min-h-0 min-w-0 shrink! flex-col gap-1 overflow-hidden pt-2">/, 'only the description gives way');
+  assert.doesNotMatch(card, /CARD_HEIGHT/, 'no fixed card height: the body sets it');
   assert.match(card, /max-md:flex-col/, 'a phone stacks it above the text');
   assert.match(card, /max-md:h-\[196px\]/, 'and the text under it keeps one height');
   assert.match(card, /object-cover/, 'a custom picture is cropped to 2:1');
   assert.match(card, /data-card-thumbnail=\{shown \? 'image' : 'placeholder'\}/);
   assert.doesNotMatch(card, /min-h-\[186px\]/, 'a fixed height, not a floor');
-  for (const [file, uses] of [['./Home.jsx', 2], ['./LibraryViews.jsx', 2], ['./home/PublicCards.jsx', 1]]) {
+  for (const [file, uses] of [['./Home.jsx', 2], ['./LibraryViews.jsx', 2], ['./home/PublicCards.jsx', 2]]) {
     const src = read(file);
     assert.equal(src.split('className={CARD_ROWS}').length - 1, uses, file);
     assert.doesNotMatch(src, /CARD_GRID/, file);
@@ -103,9 +108,10 @@ test('the card: the picture on the right from md, on top on a phone; one per row
   }
   // Change thumbnail and Use canvas snapshot: the owner's menu only.
   const menu = read('./home/CardMenu.jsx');
-  assert.match(menu, /const coverRows = menu\?\.a\.canEdit && /);
+  // (card-menu-items.js: owner rows; Use canvas snapshot only while a picture of yours is up.)
   assert.match(menu, /accept="image\/png,image\/jpeg,image\/webp"/);
-  assert.match(menu, /cover\.source === 'custom' && <MenuItem icon=\{RotateCcw\} data-menu-thumbnail-revert/);
+  assert.match(menu, /id === 'snapshot' \? cover\?\.name === a\.name && cover\.source === 'custom'/);
+  assert.match(menu, /snapshot: 'data-menu-thumbnail-revert'/);
 });
 
 // Parallel, 2026-10-08: "the picture must never show canvas chrome", and always in the light theme.

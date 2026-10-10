@@ -4,6 +4,7 @@ import { profileFetch, profileRoute } from '../control-plane/src/profile.js';
 import { contextDocsFetch, contextDocsRoute } from '../control-plane/src/learn-context-docs.js';
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 import { libraryTrashFetch, libraryTrashRoute } from '../control-plane/src/library-trash.js';
+import { libraryFoldersFetch, libraryFoldersRoute } from '../control-plane/src/library-folders.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 import SHELL from './dist-dev/index.html';
@@ -101,6 +102,8 @@ export default {
     }
     // Library trash (docs/features/library-trash.md): the Trash list, and a project's Move to Trash / Restore.
     if (libraryTrashRoute(path)) return libraryTrashFetch(req, env);
+    // Library folders (docs/features/library-folders.md): the owner's own folders and what is filed in them.
+    if (libraryFoldersRoute(path)) return libraryFoldersFetch(req, env);
     const repositoryRoute = path.match(/^\/api\/apps\/(repo-[a-z0-9-]+)(\/learn-course)?$/);
     if (repositoryRoute) {
       const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;

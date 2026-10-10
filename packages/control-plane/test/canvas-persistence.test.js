@@ -196,3 +196,46 @@ test('a canvas made before boards came with their rows gets its empty board on d
   const pushed = await f.call('PUT', f.board(copy.name), { as: 'ana', body: { state: BOARD, version: 0 } });
   assert.deepEqual([pushed.status, pushed.body.version], [200, 1]);
 });
+
+// Beta hardening 4a: the row's version is the lock. A gate on the owner-row read (the exact SQL saveOwn prepares) holds
+// the first two readers until both have read, so two saves see the same version before either writes; later reads pass.
+const OWNER_ROW = 'SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?';
+function gateOwnerRow(f) {
+  const prepare = f.env.LEARN_DB.prepare, waiting = [];
+  let reads = 0;
+  f.env.LEARN_DB.prepare = sql => {
+    const statement = prepare(sql);
+    if (sql !== OWNER_ROW) return statement;
+    const first = statement.first;
+    statement.first = async () => {
+      if (++reads <= 2) await new Promise(resolve => { waiting.push(resolve); if (waiting.length === 2) waiting.forEach(open => open()); });
+      return first();
+    };
+    return statement;
+  };
+}
+
+test('two saves based on the same version: one is written, the other is 409 with the version now stored; two first saves make one row', async t => {
+  const f = setup(t);
+  const c = await f.create('ana', 'Raced notes');
+  assert.equal((await f.call('PUT', f.board(c.name), { as: 'ana', body: { state: BOARD, version: 0 } })).body.version, 1);
+  const edit = id => ({ ...BOARD, blocks: [...BOARD.blocks, { id, type: 'quiz', question: id }] });
+  gateOwnerRow(f);
+  const [a, b] = await Promise.all(['tab-a', 'tab-b'].map(id => f.call('PUT', f.board(c.name), { as: 'ana', body: { state: edit(id), version: 1 } })));
+  assert.deepEqual([a.status, b.status].sort(), [200, 409], `${a.status} ${b.status}`);
+  const won = a.status === 200 ? a : b, lost = won === a ? b : a;
+  assert.deepEqual([won.body.version, lost.body.version], [2, 2], 'the winner is version 2; the loser learns the version now stored');
+  assert.match(lost.body.error, /changed since you opened it/);
+  const stored = (await f.call('GET', f.board(c.name), { as: 'ana' })).body;
+  assert.equal(stored.version, 2, 'one write, not two');
+  assert.equal(stored.state.blocks.at(-1).id, won === a ? 'tab-a' : 'tab-b', 'the stored board is the winner\'s');
+  // A canvas made before boards came with their rows: two first saves at once make one row, the other is 409.
+  const old = await f.create('ana', 'Older notes');
+  f.sqlite.prepare('DELETE FROM learn_boards WHERE app = ?').run(old.name);
+  gateOwnerRow(f);
+  const [x, y] = await Promise.all(['tab-x', 'tab-y'].map(id => f.call('PUT', f.board(old.name), { as: 'ana', body: { state: edit(id), version: 0 } })));
+  assert.deepEqual([x.status, y.status].sort(), [200, 409], `${x.status} ${y.status}`);
+  assert.equal((x.status === 409 ? x : y).body.version, 1);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM learn_boards WHERE app = ?').get(old.name).n, 1);
+  assert.equal((await f.call('GET', f.board(old.name), { as: 'ana' })).body.version, 1);
+});

@@ -90,7 +90,7 @@ function Profile({ handle }) {
             </div>
             {/* The profile description (Settings > Profile): plain text, rendered as text - never HTML or a link. */}
             {description && <p data-profile-description className="max-w-[60ch] break-words pt-1 text-sm text-ink">{description}</p>}
-            <p data-profile-stats className="pt-2 text-sm text-ink-2">{plural(p.explainer_count, 'public explainer')} · {plural(p.fork_count, 'fork')}</p>
+            <p data-profile-stats className="pt-2 text-sm text-ink-2">{plural(p.explainer_count, 'public learning board')} · {plural(p.fork_count, 'fork')}</p>
           </div>
           {own && (
             <div className="flex shrink-0 gap-2 pt-1">
@@ -100,7 +100,7 @@ function Profile({ handle }) {
           )}
         </header>
         <div className="flex flex-wrap items-center gap-3 pb-4">
-          <h2 className="mr-auto text-xs text-ink-2">Public explainers</h2>
+          <h2 className="mr-auto text-xs text-ink-2">Public Learning Boards</h2>
           {/* Explore's search field, compact beside Sort; full width under them on a phone. Signed out too. */}
           {p.explainer_count > 0 && (
             <label className="relative block w-72 min-w-0 max-md:order-last max-md:w-full">
@@ -116,7 +116,7 @@ function Profile({ handle }) {
         {p.q && p.explainers.length > 0 && <h3 className="pb-2 text-xs text-ink-2">Canvases</h3>}
         {p.explainers.length ? <PublicCards cards={p.explainers} me={me?.handle || null} attr="data-profile-card" />
           : p.q ? <p data-profile-search-empty className="text-sm text-ink-3">No canvases or projects match &ldquo;{p.q}&rdquo;.</p>
-          : <div data-profile-empty><EmptyState icon={Compass}>{own ? 'You have no public explainers yet. Publish a canvas to Explore from its Share panel.' : `@${p.handle} has no public explainers yet.`}</EmptyState></div>}
+          : <div data-profile-empty><EmptyState icon={Compass}>{own ? 'You have no public learning boards yet. Publish a canvas to Explore from its Share panel.' : `@${p.handle} has no public learning boards yet.`}</EmptyState></div>}
       </div>
       {own && analytics && <CreatorDashboard profile={p} onClose={() => setAnalytics(false)} />}
     </main>

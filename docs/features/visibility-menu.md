@@ -1,18 +1,24 @@
 # Owned-card menu: Visibility, Rename, Edit description, Trash
 
-Owner rules, 2026-10-06. This is the Library card ⋮ on your own top-level canvas.
+Owner rules, 2026-10-06. This is the Library card ⋮ on your own top-level canvas, and since 2026-10-09 on your project too.
 
 ```
-Rename
-Edit description
-Duplicate
+                      canvas                     project
+Open                  ·                          ·
+Learn / Map / Pin                                ·
+Rename                ·                          ·
+Edit description      ·
+Duplicate             ·
+New canvas in project                            ·
 ─────────────
-Visibility ›    Private · Unlisted · Public   (the current one checked)
-Share / Manage link
-Copy link
+Visibility ›          ·  Private · Unlisted · Public   (the current one checked; a project reads Mixed when its parts differ)
+Share / Manage link   ·                          ·
+Copy link             ·                          ·
+Change thumbnail      ·                          ·      (Use canvas snapshot while a picture of yours is up)
+Analytics             ·  (public only)
 ─────────────
-Archive
-Move to Trash
+Archive               ·
+Move to Trash         ·                          ·
 ```
 
 **One menu** (owner, 2026-10-08): `home/CardMenu.jsx` `useCardMenu`, the same ⋮ on the Library's cards and on Home's
@@ -20,10 +26,18 @@ Recent cards. It opens in place and stays inside the window (`menuAt`).
 - A card shows a ⋮ only where the menu has items (`hasCardMenu`): your own canvas, or a project.
 - On Home the menu asks its own Archive confirm, in the Library's words.
 
+**One list** (owner, 2026-10-09: "make sure the ⋮ for Projects and Canvas are consistent"): `home/card-menu-items.js`
+`CARD_MENU` is the one definition both types render, filtered by type (`menuRows`). A shared row has one label, one icon
+and one place; a row for one type keeps its slot and is hidden on the other (Duplicate, Edit description, Analytics and
+Archive are a canvas's; Learn, Map, Pin and New canvas in project are a project's). The open project's header shows the
+same ⋮ beside the project's name (`RepositoryPage.jsx`). `card-menu-items.test.mjs` diffs the two lists;
+`e2e/project-menu-check.mjs` opens both menus and compares their labels.
+
 **Copy link** (owner, 2026-10-08) copies the link that matches what the card is (`canvas-visibility.js` `copyLinkFor`):
 - **Public:** `/e/<token>`.
 - **Unlisted:** its share link `/b/<view token>`, read from the board as it copies.
-- **Private, or a project:** `/apps/<name>`, which opens only for you.
+- **Private, or a private project:** `/apps/<name>`, which opens only for you.
+- **An unlisted, public or mixed project:** its project link `/b/<view token>` ("Project link copied"; see Projects).
 
 The row itself says which link it copied ("Public link copied", "Share link copied", "Private link copied, opens only for
 you"), then the menu closes, with no corner toast. A project's ⋮ has Copy link too. Others' cards keep their own Copy link
@@ -32,6 +46,40 @@ you"), then the menu closes, with no corner toast. A project's ⋮ has Copy link
 "Archive", without an ellipsis (owner, 2026-10-08); its confirmation still asks first.
 
 A project's ⋮ keeps Pin, Learn and Map, and adds Move to Trash. Other people's cards never show this menu; their Fork / Start Rabbit Hole / Copy link actions come with the card redesign.
+
+## Projects
+
+Owner, 2026-10-09: "Can we rename a Project in the ⋮ in the cards or when we open a project", and "the ⋮ for a Project
+should it not also have the Visibility and Share/Manage link similar to canvas". Nothing new is stored on the project: no
+table, no column (0015 is folders, 0016 is Home's).
+
+- **Rename** changes the project's display name only: `PATCH /api/repositories/<name>` `{ title }` writes the project's
+  Main canvas board's title (`learn_boards`, app `repo-*`, board `main`; the board is made first when a project predates
+  boards). The repository (`owner/name`) stays its provenance: the subtitle on the card (`github.com/owner/name`) and
+  beside the name in the open project's header. Empty goes back to the repository's name. `titleOf` shows the display
+  name wherever it is used. Up to 120 characters; the owner only.
+- **Visibility** applies to the whole project: every live canvas in it is set through its own routes
+  (`canvas-visibility.js setProjectAccess` → `setAccess` each), and the project's Main canvas board's link is set with them
+  (off for Private, on for Unlisted, on and open signed out for Public). A project itself is never in Explore; its canvases
+  are. The confirm names the count, the Main canvas included: "Make 3 canvases public?" / "Make 3 canvases unlisted?";
+  Make private keeps the canvas confirm's words.
+  - The state is **read back** from the parts (`repositories.js PROJECT_FIELDS`, `projectAccess`): published canvases are
+    public, link-shared ones unlisted, the rest private, and the Main canvas link counts as one part. All the same → that
+    state; otherwise **Mixed**, shown on the card and in the menu with no state checked.
+  - A canvas **added later** takes the project's visibility at creation (`canvases.js`): unlisted gets its own view
+    link, public its Explore publication (an owner with no @handle gets it private). A private or mixed project adds it
+    private. Per-canvas changes stay allowed; they make the project Mixed.
+  - A project whose repository is not confirmed public (`repository_visibility`) **can't go Public**: the row is disabled
+    with "Private repository: can't be public" (Explore's rule), and `setProjectAccess` refuses it before touching anything.
+- **Share / Manage link** opens the same Share panel on the project's Main canvas board, without Publish to Explore.
+  The **project link** is that board's `/b/<view token>` (there is no project share page): beside the board it lists the
+  project's canvases this viewer may open right now (`learn-boards.js projectCanvasLinks`): published ones for anyone,
+  link-shared ones for a signed-in viewer, as the Rabbit Holes Map lists holes; a private canvas is never listed, and no
+  canvas id or email travels. The header's switcher-style button says "N canvases in this project".
+- **New canvas in project** is the switcher's New canvas from the card: a canvas row in this project with its own board,
+  opened in the project's Learn tab once made.
+- **Move to Trash** from the header too; the Trash list still names the project by its repository.
+- The Sidebar and the top bar keep their own project labels; the renamed title reaches them only where they use `titleOf`.
 
 ## Visibility
 
@@ -97,3 +145,9 @@ Nothing is hard-deleted from the menu. Trash (the sidebar) lists your trashed ca
   - Move to Trash with its confirmation, the Trash list, Restore without republishing;
   - an unlisted link suspended and reactivated;
   - no page errors.
+- Projects (2026-10-09): `packages/web/src/home/card-menu-items.test.mjs` (the one list, both types' rows),
+  `visibility-menu.test.mjs` (bulk steps, the private-repository refusal, the confirm's count, Mixed, the project's Copy
+  link), `packages/control-plane/test/project-menu.test.js` (rename, derived visibility and Mixed, inheritance, the project
+  link never listing a private canvas), and `packages/web/e2e/project-menu-check.mjs` (12 checks: one menu on the card and
+  in Map, Main Learn and nested Learn headers, Rename from card and header with the repository kept, "Make 3 canvases public?", Mixed, inheritance, a private
+  repository blocked, the project link signed out, New canvas in project, and the cards' picture insets and footer).

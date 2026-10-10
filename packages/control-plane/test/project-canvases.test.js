@@ -128,3 +128,45 @@ test('Explore names each published canvas\'s project by its public repository, o
   assert.deepEqual(Object.keys(await explore('?project=karpathy/nanoGPT')), ['Dev tour']);
   assert.equal((await f.call('GET', '/api/learn/boards/published?project=not%20a%20repo')).status, 400);
 });
+
+// Explore's type filter (owner 2026-10-09: "Explore should have a filter for Projects or Canvas", the Library's ?type=):
+// projects is one row per project label its published canvases name; canvases is the published canvases naming none.
+test('Explore ?type=projects lists one row per public project with published boards, counted, searched by repository and sorted; ?type=canvases lists the boards naming no project', async t => {
+  const f = setup(t);
+  for (const [email, handle] of [['ana@test', 'ana'], ['ben@test', 'ben']]) {
+    f.sqlite.prepare("INSERT INTO user_profiles (email, name) VALUES (?, '')").run(email);
+    f.sqlite.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?)').run(email, handle);
+  }
+  const SECRET = 'repo-0c0c0c0c-secret', QUIET = 'repo-0e0e0e0e-quiet', BEN = 'repo-0b0b0b0b-ik';
+  f.sqlite.exec(`INSERT INTO repository_apps (org, name, owner_email, repo, branch, status) VALUES ('ana-ws', '${SECRET}', 'ana@test', 'acme/secret', 'main', 'ready'),
+    ('ana-ws', '${QUIET}', 'ana@test', 'acme/quiet', 'main', 'ready'), ('ben-ws', '${BEN}', 'ben@test', 'ben/robot-ik', 'main', 'ready')`);
+  const markPublic = name => f.sqlite.prepare("INSERT INTO repository_visibility (app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = ?").run(name);
+  for (const name of [REPO, QUIET, BEN]) markPublic(name); // acme/secret: no row, private
+  const made = async (title, project = REPO, as = 'ana') => (await f.create(as, title, project)).body.name;
+  const publish = async (name, as = 'ana') => assert.equal((await f.call('POST', `/api/apps/${name}/publish`, { as, body: {} })).status, 200);
+  for (const name of [await made('Attention'), await made('Softmax'), await made('Secret lab', SECRET), await made('Standalone', null)]) await publish(name);
+  await publish(await made('IK basics', BEN, 'ben'), 'ben');
+  await made('Quiet draft', QUIET); // a public project with nothing published is no project here
+  const unlisted = await made('Unlisted notes');
+  assert.equal((await f.call('POST', `/api/learn/boards/${unlisted}/main/share`, { as: 'ana', body: { shared: true, view: true, state: BOARD } })).status, 200);
+  const get = async query => {
+    const r = await f.call('GET', `/api/learn/boards/published${query}`);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    return r.body;
+  };
+  const projects = async query => (await get(`?type=projects${query}`)).projects.map(p => [p.label, p.repo, p.boards, p.url]);
+  const NANO = ['karpathy/nanoGPT', 'karpathy/nanoGPT', 2, '/explore?project=karpathy%2FnanoGPT'], IK = ['ben/robot-ik', 'ben/robot-ik', 1, '/explore?project=ben%2Frobot-ik'];
+  assert.deepEqual(await projects(''), [IK, NANO], 'newest publication first; never a private repository, a project with nothing published, or an unlisted board counted');
+  assert.deepEqual(await projects('&q=NANO'), [NANO], 'by the repository, any case');
+  assert.deepEqual(await projects('&q=karpathy'), [NANO], 'by its owner/repo');
+  for (const q of ['secret', 'quiet', 'Attention', '%']) assert.deepEqual(await projects(`&q=${encodeURIComponent(q)}`), [], `never: ${q}`);
+  assert.deepEqual((await get('?type=projects&sort=updated')).projects.map(p => p.label).sort(), ['ben/robot-ik', 'karpathy/nanoGPT']);
+  assert.ok(!('canvases' in await get('?type=projects')), 'projects only');
+  const canvases = async query => (await get(`?type=canvases${query}`)).canvases.map(c => [c.title, c.project]);
+  assert.deepEqual(await canvases(''), [['Standalone', null], ['Secret lab', null]], 'only boards that name no project - a private repository is never named, so its board is one');
+  assert.deepEqual(await canvases('&q=stand'), [['Standalone', null]]);
+  assert.deepEqual(await canvases('&q=attention'), [], 'a board in a public project is under Projects');
+  assert.deepEqual((await get('')).canvases.map(c => c.title).sort(), ['Attention', 'IK basics', 'Secret lab', 'Softmax', 'Standalone'], 'all: today\'s list');
+  assert.equal((await f.call('GET', '/api/learn/boards/published?type=apps')).status, 400, 'Explore lists projects and canvases only');
+  assert.ok(!JSON.stringify(await get('?type=projects')).includes('ana@test'));
+});

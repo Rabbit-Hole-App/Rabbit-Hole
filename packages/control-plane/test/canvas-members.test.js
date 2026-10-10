@@ -243,6 +243,24 @@ test('a member reads the board, its files and Shared with you; anyone else and a
   assert.deepEqual((await f.call('GET', '/api/learn/c/shared-with-me', { as: 'ben' })).body.canvases, []);
 });
 
+test('a member reads only the files the board uses now: a removed notebook\'s workspace or any other key is 404', async t => {
+  // Every key exists in R2 here; only the board decides what a member may read.
+  const LEARN_MEDIA = { get: async () => ({ body: '{}', httpMetadata: { contentType: 'text/x-cached-string' }, customMetadata: { kind: 'string' } }) };
+  const f = setup(t, { LEARN_MEDIA });
+  f.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ?').run(JSON.stringify({ blocks: [{ id: 'nb', type: 'notebook', notebook_id: 'nb-1' }] }), BOARD_ID);
+  await invite(f, ['bob@lab.org']);
+  const token = f.tokenOf(f.mail[0]);
+  await f.call('POST', '/api/learn/invites/code', { as: 'ben', body: { token } });
+  await f.call('POST', '/api/learn/invites/accept', { as: 'ben', body: { token, code: f.codeOf(f.mail.at(-1)) } });
+  const session = await sign({ t: 'sess', uid: PEOPLE.ben.uid, email: PEOPLE.ben.email, ep: 0, prov: 'google', exp: Math.floor(Date.now() / 1000) + 3600 }, KEY);
+  const file = async key => {
+    const path = `${f.base}/assets/${encodeURIComponent(key)}`;
+    return (await canvasCommentsRoute(path, new Request(`${ORIGIN}${path}`, { headers: { 'X-Small-Session': session } }), f.env)).status;
+  };
+  assert.equal(await file('notebook:nb-1'), 200);
+  for (const key of ['notebook:nb-old', 'pdf:x']) assert.equal(await file(key), 404, key);
+});
+
 test('recipient-wide caps across owners refuse with the same `limited` an owner cap does; a lost race consumes nothing', async t => {
   const f = setup(t);
   f.sqlite.exec(`INSERT INTO canvases (org, name, owner_email, title) VALUES ('cara-ws', 'canvas-0000000b', 'cara@test', 'Cara canvas');
