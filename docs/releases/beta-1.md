@@ -23,7 +23,7 @@ Ownership: Parallel owns items, SHAs and gates; Home owns migrations, production
 
 The original isolated Home timing change (95e0ade9ef00001e874d9c3c472d0533a361d8fd)
 was committed as 455bcaa0838b200f35ced28e2fdc49640093e148 after its full unit pass.
-Home follow-up 78c029866832b22257c00a6d008057eb9637e238 adds strict Linux process-state checks and dev Worker nodejs_compat; local full units and the runtime crypto probe pass. Linux CI remains required on the integrated commit.
+Home follow-up 78c029866832b22257c00a6d008057eb9637e238 adds strict Linux process-state checks and dev Worker nodejs_compat; local full units and the runtime crypto probe pass. Linux CI on6c99040f then proved a runtime bug: execFile discarded detached, so the POSIX process group was never created. Home correction c91d2be4c2e35d95abc5e1fee25f81cf1f12d365 uses spawn with bounded output and preserves deadline semantics; it also adds production-source Worker compatibility. Full Home units and offline crypto probe pass. Fresh integrated Linux CI and the full exact-commit gate remain required; no production deployment is authorized.
 
 Integration resolves the shared project menu across Map, Main Learn and nested Learn;
 retains project scope through Explore type changes; and publishes fork rows only after
