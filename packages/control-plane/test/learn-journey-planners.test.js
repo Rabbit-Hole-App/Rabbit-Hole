@@ -307,3 +307,20 @@ test('the planners read their roles from LEARN_TASKS: model, max_tokens and effo
   await planPath(env, PATH_INPUT, { callModel: path.callModel });
   assert.deepEqual([path.calls[0].body.max_tokens, 'output_config' in path.calls[0].body], [LEARN_TASKS.journey_path.maxTokens, false]);
 });
+
+test('path planner: prior coverage requires every expected claim understood; an explicit learner skip stays distinct', async () => {
+  const draft = structuredClone(DRAFT);
+  draft.path.sections[0].status = 'already_understood';
+  const claims = draft.path.sections[0].expected_evidence.map(e => e.claim);
+  const accepted = scripted(draft);
+  const states = Object.fromEntries(claims.map(id => [id, { state: 'understood' }]));
+  const out = await planPath(env, { ...PATH_INPUT, states }, accepted);
+  assert.equal(out.path.sections[0].status, 'already_understood');
+  for (const state of ['not_yet_observed', 'uncertain', 'misconception', 'prerequisite_gap']) {
+    await assert.rejects(() => planPath(env, { ...PATH_INPUT, states: { [claims[0]]: { state } } }, scripted(draft)), /already_understood requires current evidence/);
+  }
+  const empty = structuredClone(draft); empty.path.sections[0].expected_evidence = [];
+  await assert.rejects(() => planPath(env, { ...PATH_INPUT, states }, scripted(empty)), /already_understood requires current evidence/);
+  draft.path.sections[0].status = 'skipped';
+  assert.equal((await planPath(env, PATH_INPUT, scripted(draft))).path.sections[0].status, 'skipped');
+});

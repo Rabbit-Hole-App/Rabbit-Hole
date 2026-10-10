@@ -1707,3 +1707,21 @@ test('controller: adoptEvidence takes a Tutor turn\'s newer evidence and revisio
   assert.match(tutor, /const journeyAtStart = journeyRef\.current\?\.journey\?\.id \?\? null;\n\s+let result;/);
   assert.match(tutor, /save\(result\.store\);\n(?:\s*\/\/[^\n]*\n)*\s*if \(result\.evaluation\?\.journey && journeyAtStart && journeyRef\.current\?\.journey\?\.id === journeyAtStart\) journeyRef\.current\.adoptEvidence\?\.\(result\.evaluation\.journey\);/);
 });
+
+test('progression: already understood is visibly distinct in the rail and a reloaded final outcome retains gaps', async () => {
+  const html = renderToStaticMarkup(createElement(PathList, { expanded: true, onOpen: () => {}, entries: [
+    { id: 's1', n: 1, title: 'Prior topic', status: 'already_understood' }, { id: 's2', n: 2, title: 'Skipped topic', status: 'skipped' },
+  ] }));
+  assert.match(html, /Already understood/);
+  assert.match(html, /data-status="already_understood"/);
+  assert.match(html, /data-status="skipped"/);
+  const j = journeyOf({ state: 'completed', registry: SIGMOID });
+  const path = { sections: [{ id: 's1', title: 'Prior topic' }, { id: 's2', title: 'Skipped topic' }],
+    change: { outcome: { sections: { completed: [], already_understood: ['s1'], skipped: ['s2'], not_reached: [] }, gaps: [{ claim: 'sigmoid/shape', state: 'uncertain' }] } } };
+  const h = harness(ok(j, null, path)); await h.refresh();
+  const restored = renderToStaticMarkup(tutorOn(h).tutor.extras);
+  assert.match(restored, /Already understood: Prior topic/);
+  assert.match(restored, /Skipped: Skipped topic/);
+  assert.match(restored, /Not yet understood:/);
+  assert.equal(tutorRoutes(h).length, 0);
+});

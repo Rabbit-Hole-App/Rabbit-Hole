@@ -114,10 +114,10 @@ const PATH_SYSTEM = tagged({
   ],
   allowed_evidence: [
     `${ADAPT_ONLY} That is the states, the intake and the learner's own words (goal_text, pending_edits, edit).`,
-    '- not_yet_observed is missing evidence and skips nothing (a skipped diagnostic leaves every claim there). A prerequisite_gap keeps a refresher or bridge for that prerequisite first. Only understood, or the learner\'s request, makes a section optional or skipped; mixed evidence (uncertain with passes and negatives) removes nothing.',
+    '- not_yet_observed is missing evidence and skips nothing (a skipped diagnostic leaves every claim there). A prerequisite_gap keeps a refresher or bridge for that prerequisite first. Use already_understood only when every expected claim is understood; skipped only at the learner\'s request. Optional means elective, never prior coverage. Mixed evidence removes nothing.',
   ],
   non_negotiable_rules: rules(
-    '- Draft: every section upcoming (optional or skipped only as above), generation_state not_generated, current_section_id null. Apply every pending edit, never exceed max_sections, fit estimated_minutes to the intake minutes.',
+    '- Draft: sections upcoming, already_understood, optional or learner-requested skipped, generation_state not_generated, current_section_id null. Apply every pending edit, never exceed max_sections, fit estimated_minutes to the intake minutes.',
     FUTURE_RULE,
     COMPLETED_RULE,
     `- Revision: keep the ids of sections that stay (new sections get new ids); ${CHANGE_LIST}. A revision never completes a section, never moves current_section_id and never touches the current section's status, generation_state or heading_block_id.`,
@@ -127,7 +127,7 @@ const PATH_SYSTEM = tagged({
   ),
   examples: [
     '- [conceptual science][quick overview] plate tectonics, depth overview, minutes 10, max_sections 3, empty registry -> 3 overview sections ("Plates and their boundaries", "Why plates move", "Earthquakes and mountains"), concepts and claims in concepts_added.',
-    '- [math/ML][deep dive] gradient descent, depth deep, minutes 60; derivative claims understood, gradient claims prerequisite_gap on partial-derivatives -> about 10 deep sections: "Slopes, revisited" optional, a partial-derivatives refresher before "The gradient as a direction", then the update rule onward, ending on a transfer section.',
+    '- [math/ML][deep dive] gradient descent, depth deep, minutes 60; derivative claims understood, gradient claims prerequisite_gap on partial-derivatives -> about 10 deep sections: "Slopes, revisited" already_understood, a partial-derivatives refresher before "The gradient as a direction", then the update rule onward, ending on a transfer section.',
     '- [coding][skipped diagnostic][path edit] SQL joins, diagnostic_evidence_refs empty, pending_edits ["more hands-on"] -> every prerequisite kept (tables and keys before joins), nothing skipped, practice-heavy sections; change.reason names the edit and the missing evidence.',
     '- Bad output [whole course at once]: sections carrying "cards", "questions" or written-out teaching steps. Why: a section is a plan; only the current section gets content, later, from the Section Planner.',
     '- Bad output [changes a completed section]: on a revision, retitling or dropping completed "Plates and their boundaries" to shorten the path. Why: completed sections are immutable; shorten the upcoming ones.',
@@ -140,7 +140,7 @@ const ADAPT_SYSTEM = tagged({
   objective: ['Return the next version of prev: the same plan except the changes the edit or the evidence calls for, each listed and explained. When you cannot tell what the learner meant, say so with ambiguous: true instead of guessing; a stronger planner then decides.'],
   current_state: [
     'input = { prev, edit | evidence, registry, states }.',
-    '- prev: the current path version: goal, target_topic, sections (status completed, current, upcoming, optional, skipped or needs_review), current_section_id and change.',
+    '- prev: the current path version: goal, target_topic, sections (status completed, current, upcoming, optional, skipped, already_understood or needs_review), current_section_id and change.',
     '- edit, for a learner edit: the learner\'s own words asking for the change, one line per request.',
     '- evidence, for an evidence adaptation: { claims, refs }: the claims whose state just changed and the seq numbers of the settled events behind them.',
     '- registry: { concepts, claims }.',
@@ -149,7 +149,7 @@ const ADAPT_SYSTEM = tagged({
   allowed_evidence: [
     `${ADAPT_ONLY} Nothing else moves the path: not the topic's usual difficulty, not a guess about the learner.`,
     '- An edit is a request, never evidence: "I already know recursion, skip it" makes that section skipped or optional at their request; no claim becomes understood.',
-    '- Evidence, by the state of each claim in evidence.claims: understood may make its upcoming section optional or shorter; prerequisite_gap adds a refresher or bridge for the prerequisite before the section that needs it; misconception keeps or adds a section that confronts it, named in adaptation_reason; uncertain may add practice; not_yet_observed changes nothing.',
+    '- Evidence, by the state of each claim in evidence.claims: understood on every expected claim may make its upcoming section already_understood; partial coverage may only shorten it; prerequisite_gap adds a refresher or bridge for the prerequisite before the section that needs it; misconception keeps or adds a section that confronts it, named in adaptation_reason; uncertain may add practice; not_yet_observed changes nothing.',
   ],
   non_negotiable_rules: rules(
     '- Only the sections after the current one change; before acceptance (current_section_id null) any section may.',
@@ -237,7 +237,7 @@ const SECTION = obj({
   id: S, title: S, purpose: S, kind: { type: 'string', enum: ['core', 'refresher', 'bridge', 'review'] }, target_concepts: IDS, prerequisites: IDS,
   expected_evidence: { type: 'array', items: obj({ claim: S, kind: { type: 'string', enum: ['explain', 'predict', 'apply', 'transfer'] } }) },
   estimated_minutes: { type: 'number' }, depth: { type: 'string', enum: ['overview', 'guided', 'deep'] },
-  status: { type: 'string', enum: ['upcoming', 'current', 'completed', 'optional', 'skipped', 'needs_review'] },
+  status: { type: 'string', enum: ['upcoming', 'current', 'completed', 'optional', 'skipped', 'already_understood', 'needs_review'] },
   generation_state: { type: 'string', enum: ['not_generated', 'planning', 'generated'] }, heading_block_id: S, adaptation_reason: S, from: IDS,
 }, ['id', 'title', 'purpose', 'kind', 'target_concepts', 'prerequisites', 'expected_evidence', 'depth', 'status', 'generation_state'], { additionalProperties: false });
 const PATH = obj({
@@ -327,7 +327,7 @@ export function diagnosticOutput(out) {
 const leveled = t => typeof t === 'string' && LEVEL_WORDS.test(t);
 const PROGRESS = ['status', 'generation_state', 'heading_block_id'];
 // max_sections (a quick overview's draft, AT-14) caps the section count: a longer path is invalid, never trimmed.
-export function pathOutput(out, { prev = null, registry, source, evidence_refs = [], diagnostic_evidence_refs = [], max_sections = null }) {
+export function pathOutput(out, { prev = null, registry, source, evidence_refs = [], diagnostic_evidence_refs = [], max_sections = null, states = {} }) {
   const errors = [], added = { concepts: { ...out?.concepts_added?.concepts }, claims: { ...out?.concepts_added?.claims } };
   for (const kind of ['concepts', 'claims']) for (const id of Object.keys(added[kind])) if (has(registry?.[kind], id)) errors.push(`concepts_added: ${id} already exists; a changed concept or claim needs a new id`);
   const merged = { concepts: { ...registry?.concepts, ...added.concepts }, claims: { ...registry?.claims, ...added.claims } };
@@ -350,6 +350,10 @@ export function pathOutput(out, { prev = null, registry, source, evidence_refs =
     },
   };
   errors.push(...(validatePath(path, prev, merged).errors || []));
+  for (const section of list(path.sections)) if (section?.status === 'already_understood') {
+    const wanted = list(section.expected_evidence);
+    if (!wanted.length || wanted.some(e => states[e.claim]?.state !== 'understood')) errors.push(`section ${section.id}: already_understood requires current evidence on every expected claim`);
+  }
   if (!prev) for (const s of list(path.sections)) if (['current', 'completed', 'needs_review'].includes(s?.status)) errors.push(`a first draft has no ${s.status} section (${s.id})`);
   if (max_sections != null && list(path.sections).length > max_sections) errors.push(`this path has at most ${max_sections} sections (got ${path.sections.length})`);
   if (prev) {

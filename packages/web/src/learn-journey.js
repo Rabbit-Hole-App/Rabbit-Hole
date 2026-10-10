@@ -3,9 +3,10 @@
 // walker (6.3) and the contents rail entries (8). Intent and the interaction rules (6.1, 7.2) live in
 // the shared resolver's extension, control-plane/src/learner-intent-journey.js (R7); callers import journeyIntent and
 // interactionInterpretation from there. Pure ES module: no React, no DOM, so the browser and the control-plane worker share
-// one copy; its one import is the evidence rule (claimCoverage), so section completion and understood read the same evidence.
+// one copy; its one import is the evidence module (claimCoverage, deriveClaimStates), so section completion, the path outcome and
+// understood read the same evidence.
 
-import { claimCoverage } from './learn-tutor-evidence.js';
+import { claimCoverage, deriveClaimStates } from './learn-tutor-evidence.js';
 
 export const JOURNEY_STATES = ['intake', 'diagnostic', 'path_review', 'active', 'paused', 'completed'];
 export const TRAY_MODES = ['intent_intake', 'diagnostic_probe', 'path_preview', 'check_in', 'clarification', 'next_step', 'branch_choice', 'generation_proposal'];
@@ -160,10 +161,10 @@ export function validateRegistry(registry, { prev = null, events = [] } = {}) {
 }
 
 // ---- LearningPath (9.2): the schema plus invariants 1-6, shared by the browser and the worker ----
-const SECTION_KEYS = ['id', 'title', 'purpose', 'kind', 'target_concepts', 'prerequisites', 'expected_evidence', 'estimated_minutes', 'depth', 'status', 'generation_state', 'heading_block_id', 'adaptation_reason', 'from'];
+const SECTION_KEYS = ['id', 'title', 'purpose', 'kind', 'target_concepts', 'prerequisites', 'expected_evidence', 'estimated_minutes', 'depth', 'status', 'generation_state', 'heading_block_id', 'adaptation_reason', 'from', 'evidence_refs'];
 const SECTION_ENUMS = {
   kind: ['core', 'refresher', 'bridge', 'review'], depth: ['overview', 'guided', 'deep'],
-  status: ['upcoming', 'current', 'completed', 'optional', 'skipped', 'needs_review'], generation_state: ['not_generated', 'planning', 'generated'],
+  status: ['upcoming', 'current', 'completed', 'optional', 'skipped', 'already_understood', 'needs_review'], generation_state: ['not_generated', 'planning', 'generated'],
 };
 const EVIDENCE_KINDS = ['explain', 'predict', 'apply', 'transfer'];
 const CHANGE_SOURCES = ['draft', 'learner_edit', 'evidence', 'dive_return'];
@@ -244,6 +245,35 @@ export function nextSectionOf(journey, path) {
   if (journey?.state !== 'active' || at < 0) return null;
   return sections.slice(at + 1).find((s) => s?.status === 'upcoming') ?? null;
 }
+// Where moving on leads (beta hardening, owner 2026-10-09): { next } the next upcoming section, { final: true } from the last one
+// (moving on finishes the path), or null (not active, or the current section is not in the path).
+export function moveOnOf(journey, path) {
+  if (journey?.state !== 'active' || !list(path?.sections).some((s) => s?.id === journey.active_section_id)) return null;
+  const next = nextSectionOf(journey, path);
+  return next ? { next } : { final: true };
+}
+// The deterministic Next section chip (owner 2026-10-09): under the Tutor's reply while the current section's completion_evidence
+// holds on current evidence - the journey's, or the evidence the turn just stored when newer - on an active journey with nothing
+// pending or failed. No model call; its click asks for a completed move, which the journey route rechecks on the stored evidence.
+export function moveOnChip(journey, path, stored = null) {
+  if (journey?.pending || journey?.error) return null;
+  const to = moveOnOf(journey, path);
+  if (!to) return null;
+  const newer = Array.isArray(stored?.events) && stored.seq > (journey.evidence?.seq ?? 0);
+  if (!sectionCompletion(newer ? { ...journey, evidence: { seq: stored.seq, events: stored.events } } : journey).met) return null;
+  return to.next ? { label: `Next section: ${to.next.title}`, section_id: to.next.id } : { label: 'Finish the path', final: true };
+}
+// The finished path in words (owner 2026-10-09), from journeyOutcome: sections completed of those counted (optional ones aside),
+// the skipped and unreached ones by title, and the concepts whose claims are not yet understood. Never says understood for a
+// completed section.
+export function outcomeLine(outcome, path, registry) {
+  if (!outcome?.sections) return null;
+  const title = (id) => list(path?.sections).find((s) => s?.id === id)?.title ?? id;
+  const { completed, already_understood = [], skipped, not_reached } = outcome.sections, total = completed.length + already_understood.length + skipped.length + not_reached.length;
+  const concepts = [...new Set(list(outcome.gaps).map((g) => registry?.claims?.[g.claim]?.concept ?? String(g.claim).split('/')[0]))].map((id) => registry?.concepts?.[id]?.label ?? id);
+  return [`Path finished: ${completed.length} of ${total} sections completed.`, skipped.length ? `Skipped: ${skipped.map(title).join(', ')}.` : '',
+    not_reached.length ? `Not reached: ${not_reached.map(title).join(', ')}.` : '', already_understood.length ? `Already understood: ${already_understood.map(title).join(', ')}.` : '', concepts.length ? `Not yet understood: ${concepts.join(', ')}.` : ''].filter(Boolean).join(' ');
+}
 // Whether the current section's completion_evidence (its plan's own criterion, §9.3) holds on the journey's current evidence
 // (claimCoverage, the rule understood reads; beta item 5b): attempted is any answer on the claim; demonstrated_here, no idea
 // currently failed and at least one currently passed (or, for a claim with no ideas, its latest settled answer a pass);
@@ -257,6 +287,27 @@ function meets(events, claim, minimum, claims) {
   const last = events.filter((e) => e?.claim === claim && e.settled && (e.result === 'pass' || e.result === 'fail' || e.result === 'misconception')).sort((a, b) => a.seq - b.seq).at(-1);
   const here = !c.failed_ideas.length && (ideas.length ? c.settled_ideas.length > 0 : last?.result === 'pass');
   return minimum === 'demonstrated_here' ? here : minimum === 'demonstrated_in_transfer' ? here && c.transfer : false;
+}
+// The honest outcome of a finished path (beta hardening, owner 2026-10-09): its sections by status - completed, skipped, and not
+// reached (upcoming, current or needs_review; an optional one counts nowhere) - and the claims its non-optional sections expect,
+// understood on current evidence (deriveClaimStates) or a gap with its current state. result: completed when no section was
+// skipped or left unreached, else incomplete. A completed section is never an understood claim.
+// Prior coverage is stronger than section completion: every expected claim must be understood on current evidence.
+// Empty criteria, missing claims and learner statements about familiarity prove nothing.
+export function priorCoverage(journey, section) {
+  const claims = list(section?.expected_evidence).map(e => e?.claim), events = list(journey?.evidence?.events);
+  const states = deriveClaimStates(events, journey?.registry?.claims || {});
+  const met = claims.length > 0 && claims.every(id => states[id]?.state === 'understood');
+  return { met, evidence_refs: met ? events.filter(e => e.settled && claims.includes(e.claim)).map(e => e.seq) : [] };
+}
+export function journeyOutcome(journey, path) {
+  const sections = list(path?.sections), ids = (...statuses) => sections.filter((s) => statuses.includes(s?.status)).map((s) => s.id);
+  const claims = journey?.registry?.claims || {}, states = deriveClaimStates(list(journey?.evidence?.events), claims);
+  const wanted = [...new Set(sections.filter((s) => s?.status !== 'optional').flatMap((s) => list(s?.expected_evidence).map((e) => e?.claim)))].filter((id) => claims[id]);
+  const understood = wanted.filter((id) => states[id]?.state === 'understood');
+  const by = { completed: ids('completed'), already_understood: ids('already_understood'), skipped: ids('skipped'), not_reached: ids('upcoming', 'current', 'needs_review') };
+  return { result: by.skipped.length || by.not_reached.length ? 'incomplete' : 'completed', sections: by, understood,
+    gaps: wanted.filter((id) => !understood.includes(id)).map((claim) => ({ claim, state: states[claim]?.state ?? 'not_yet_observed' })) };
 }
 export function sectionCompletion(journey) {
   const wanted = list(journey?.section_plan?.completion_evidence), events = list(journey?.evidence?.events), claims = journey?.registry?.claims || {};
@@ -285,8 +336,10 @@ export function journeyStep(journey, event) {
   // Only the version the journey is on can be accepted: a stale path would start the wrong section.
   const accept = (path, version, over = {}) => {
     if (path?.version !== version) return no(`needs path version ${version}, got ${path?.version}`);
-    const first = list(path.sections).find((s) => s?.status !== 'optional' && s?.status !== 'skipped');
-    return first ? wait('active', 'section', { ...over, active_section_id: first.id }) : no('needs a path with a section to start');
+    const first = list(path.sections).find((s) => s?.status === 'upcoming');
+    if (first) return wait('active', 'section', { ...over, active_section_id: first.id });
+    return list(path.sections).some(s => s?.status === 'already_understood')
+      ? go({ ...over, state: 'completed', pending: null, active_section_id: null }) : no('needs a path with a section to start');
   };
 
   if (j.error) return t === 'retry' ? wait(j.state, j.error.op, { error: null }) : no('waits for retry after a planner failure');
@@ -344,7 +397,10 @@ export function journeyStep(journey, event) {
       if (j.state !== 'active') return no();
       if (event.path?.version !== j.path_version) return no(`needs path version ${j.path_version}, got ${event.path?.version}`);
       const next = nextSectionOf(j, event.path);
-      return next ? wait('active', 'section', { active_section_id: next.id, section_plan: null }) : no('has no next section');
+      if (next) return wait('active', 'section', { active_section_id: next.id, section_plan: null });
+      // Beta hardening (owner 2026-10-09): from the last section, moving on finishes the journey. No planner runs; the last section
+      // stays active_section_id (its heading and cards stay the rail's and the Tutor's), and the route records the outcome.
+      return list(event.path?.sections).some((s) => s?.id === j.active_section_id) ? go({ state: 'completed' }) : no('has no next section');
     }
     case 'section_materialized': {
       if (j.state !== 'active') return no();

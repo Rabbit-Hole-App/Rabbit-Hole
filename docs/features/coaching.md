@@ -3207,15 +3207,16 @@ clone only. Not run: the 432-call A/B, benchmark-v1.1-draft, further gateway
 benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
 `small-cp`, the live database or BYOC.
 
-### r35 integration verification (2026-10-10)
 
-The project's existing shared menu is available beside its breadcrumb in Main
-Learn and nested canvases, as well as Map. Explore type filters retain project
-scope. The full local r35 gate includes the project-menu browser check across
-all three surfaces; its integrated browser result and preview deployment remain
-pending. Production promotion and remote migrations retain separate approvals.
+### Learning progression takeover (2026-10-09, r36 candidate)
+
+The Tutor derives its Next section / Finish the path chip from saved section evidence, including after reload. Clicking requires the server to recheck completion; stale evidence cannot silently become a skip. Navigation revision conflicts are not replayed against a new section, and retries retain the original journey and section identity. Completed journeys use the stored outcome and retain claim gaps. No deployment or real-model verification is claimed; Parallel owns the integrated app gate.
+
+Offline budget investigation: the inherited final-section prompt addition made decision 15 need $0.611492 spent + $0.557520 reviewer holdback + $0.132230 request reservation = $1.301242, exceeding the existing $1.30 ceiling. Removing only that sentence yielded 15 decisions. Compact equivalent wording keeps the final-section rule and yields 15 decisions, a successful review and $0.695162 simulated total; decision 15 admission is $1.299587. The fixture, models, token limits, pricing and holdback are unchanged. These are synthetic offline costs, not billed costs or evidence of teaching quality. The existing 15/max_decisions expectation remains.
 
 
-### r35 Library header integration
+### Evidence-backed prior coverage (r36, 2026-10-09)
 
-The Library heading and its search/filter/sort/folder/start controls now wrap when the available width is too small for one row. This preserves the title and all actions at 1024px and phone widths. The folders browser gate checks title visibility and every header control's viewport bounds; final candidate verification and preview deployment remain pending.
+`already_understood` is a separate section status. A planner can use it only when every expected claim is understood on current saved evidence; empty criteria, partial coverage, contradictions and learner statements alone do not qualify. The server records the settled evidence references on the section, rechecks when accepting or moving, and restores upcoming when coverage no longer holds. `skipped` remains the learner's choice, `optional` remains elective, and `completed` remains section completion. None of these transitions writes claim evidence. The rail labels prior coverage as Already understood. An all-covered path can finish without a section planner call. Final outcomes list prior-covered sections separately from completed, skipped and not reached, retain claim gaps, and render again after reload.
+
+Verification is offline route/domain/render testing; deployed UI and real-model behavior remain for Parallel's gate and Tutor's independent verification. No new migration or deployment.
