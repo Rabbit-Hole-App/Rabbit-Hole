@@ -1,3 +1,4 @@
+import { prepareTutorImage } from './learn-tutor-image.js';
 // Tutor v1 on the Learn page (docs/features/tutor-v1-implementation-map.md §5). Active where the Tutor domain registry
 // (learn-tutor-domains.js) or a journey resolves a domain, and the Rabbit Holes under it. The dock composer hands learner
 // messages here instead of /api/learn/ask; /dive stays /dive's (Dive.jsx), and the Tutor only
@@ -158,7 +159,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // nextStep (contract §1.4): a clicked hook's selected_next_step, never evidence - no target block (so no practice rung), no
   // journey resolver, no learner words (so no evaluate), and a waiting /deeper stays for the next typed turn. selectedAt: the
   // click's time, for the decision trace.
-  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null }) => {
+  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null, image = null }) => {
     const canvas = canvasApi.current;
     // Task 14 C-M1: the hooks on screen as the turn is sent, read before any await (the journey resolver's), so a busy re-render
     // that clears them meanwhile never empties the trace.
@@ -199,6 +200,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       if (routed.handled) return { text: '', handled: true, failed: !!routed.failed };
       raw = routed.text ?? raw;
     }
+    const preparedImage = nextStep ? { image: null } : await prepareTutorImage({ canvas, targetId, image });
+    if (preparedImage.notice) put({ notices: [...desk.notices, { tone: 'info', text: preparedImage.notice }] });
     onAnswer?.();
     const journeyAtStart = journeyRef.current?.journey?.id ?? null;
     let result;
@@ -206,7 +209,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       result = await runTurn({
         // The typed command is read in place of the composer's words only where it fixes the move (/deeper or /simplify on a
         // depth ladder); /ask, /teach (fix A3) and a ladderless /deeper or /simplify (fix B5) keep the composer's words.
-        ...common, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
+        ...common, image: preparedImage.image, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
         nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch, repository: reads }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: onScreen, selected_at: selectedAt },
@@ -223,6 +226,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       bench({ error: error?.name || 'Error', trace: error?.trace ?? null, handoff: error?.handoff ?? null, ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
       throw error;
     }
+    if (result.response?.notice) put({ notices: [...desk.notices, { tone: 'info', text: result.response.notice }] });
     save(result.store);
     // r29: evidence this turn stored on the journey reaches the journey controller (sectionCompletion, the next-section hook), the
     // same journey only.
@@ -355,14 +359,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     ...steps,
     // begin (ask.jsx): draws the turn's chat bubbles and exchange, once the turn is the Tutor's. A turn the journey took
     // resolves to { handled: true, failed } and draws nothing.
-    ask: ({ raw, targetId, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null }) => answer({ raw, targetId, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin }),
+    ask: ({ raw, targetId, image = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null }) => answer({ raw, targetId, image, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin }),
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry. A turn the journey took
     // says nothing: the tray shows where the journey is.
     // nextStep: a hook clicked while Voice is on (voice-session say with nextStep) - the same next_step turn as askStep.
-    voiceTurn: async ({ raw, targetId, signal, turnId, onSpeakable = null, opening = false, nextStep = null, selectedAt = null }) => {
+    voiceTurn: async ({ raw, targetId, image = null, signal, turnId, onSpeakable = null, opening = false, nextStep = null, selectedAt = null }) => {
       fresh();
-      const result = await tracked({ raw, targetId, opening, signal, inputModality: 'voice', turnId, onSpeakable, nextStep, selectedAt: nextStep ? selectedAt ?? new Date().toISOString() : null });
+      const result = await tracked({ raw, targetId, image, opening, signal, inputModality: 'voice', turnId, onSpeakable, nextStep, selectedAt: nextStep ? selectedAt ?? new Date().toISOString() : null });
       if (result.handled) return { speech: '', turnId, ms: {} };
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },

@@ -636,6 +636,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // A selected card stays the context for the follow-up (canvas-card-selection.md); a region, area or group rides once.
     if (target && !target.card) onClearCanvasTarget?.();
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
+    const tutorImage = !target?.paper && !questionPaper ? (target?.image ? { id: target.image } : questionImage?.blockId ? { block_id: questionImage.blockId } : questionImage?.id ? { id: questionImage.id } : null) : null;
     const replyId = crypto.randomUUID();
     const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
     // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
@@ -676,7 +677,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
       if (tutor && !codeTurn) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
-        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
         begin();
         mirror(reply);

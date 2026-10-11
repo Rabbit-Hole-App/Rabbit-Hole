@@ -173,7 +173,7 @@ function stateText(state) {
   return text.length > MAX_STATE ? { error: 'This board is over 1.9 MB, so it was not saved to your account and stays only in this browser. Remove large images or outputs to save it.', status: 413 } : { text };
 }
 
-const ownerRow = (env, owner, app, board) => env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(owner.org, owner.email, app, board).first();
+export const ownerRow = (env, owner, app, board) => env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(owner.org, owner.email, app, board).first();
 
 // Save the owner's board: every owned board, shared or not, is canonical here (docs/features/canvas-persistence.md).
 // A stale version (another tab or device saved since; 0 when the browser saw no copy) is refused with the newer

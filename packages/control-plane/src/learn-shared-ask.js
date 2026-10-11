@@ -1,3 +1,4 @@
+import { boardImageContext, imageCard } from './learn-image-context.js';
 // A viewer's question about a shared canvas: POST /api/learn/boards/shared/:token/ask
 // (docs/features/shared-canvas-ask.md). The answer streams back to that viewer only, and nothing of the owner's is
 // written - no thread, no message, no moment row, nothing on the owner's board. The writes are the question's usage
@@ -229,5 +230,8 @@ export async function askShared(env, row, viewer, body, link = null) {
   }), body.selected ? selectedCard(state, body.selected) : null);
   const research = snapshot ? { papers: [], system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) } : { papers: [] };
   const meta = repository && !snapshot ? { notice: "The repository code at this share's commit could not be read, so this answer uses the canvas only." } : {};
-  return askStream(env, context, history, body.message.trim(), null, meta, [], null, null, null, SHARED_CANVAS_SYSTEM, research);
+  const selectedImage = imageCard(state, body.selected);
+  const image = selectedImage ? await boardImageContext(env, row, selectedImage) : { blocks: [] };
+  if (image.notice) meta.notice = [meta.notice, image.notice].filter(Boolean).join(' ');
+  return askStream(env, context, history, body.message.trim(), null, meta, image.blocks, null, null, null, SHARED_CANVAS_SYSTEM, research);
 }

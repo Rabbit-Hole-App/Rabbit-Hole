@@ -78,7 +78,7 @@ test('Explore lists the published canvases on the canonical card: title, the cre
 test('a published board keeps its files and notebook workspaces live too, not only its board', () => {
   const learn = read('./LearnPage.jsx');
   assert.match(learn, /save: \(id, files\) => \(\(!board \|\| sharingOf\(sharingRef\.current\) === 'shared'\) && boardVersion\.current != null && !boardStopped\.current/);
-  assert.match(learn, /\/\/ Runs after a board PUT, so the board has its server row\.\n\s+const syncAssets = async \(\) => \{\n\s+try \{/);
+  assert.match(learn, /\/\/ Runs after a board PUT, so the board has its server row\.\n\s+const \[assetQueue\] = useState\(serial\);\n\s+const syncAssets = \(\) => assetQueue\(async \(\) => \{\n\s+let complete = true;\n\s+try \{/);
   assert.doesNotMatch(learn, /sharingRef\.current\?\.shared/, 'no gate that forgets a publication');
 });
 

@@ -9,6 +9,7 @@
 // Nothing is stored here for a nanoGPT canvas: evidence is session-scoped in the browser (§2). A body with journey_id
 // takes the journey path (adaptive-learning-path-v1-architecture.md §5): its evidence is the journey's, on the server.
 import { authorizedBoardApp } from './learn-board.js';
+import { tutorImageContext } from './learn-image-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { JEV_TRANSPORTS, THRESHOLDS, askJev } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
@@ -438,9 +439,13 @@ export async function tutorRoute(path, req, env, deps = {}) {
   }
   const serialized = JSON.stringify(body?.context ?? null);
   if (!body?.context || typeof body.context !== 'object' || serialized.length > CONTEXT_LIMIT) return json({ error: `context must be an object of at most ${CONTEXT_LIMIT} characters` }, 400);
+  const image = await tutorImageContext(env, access, body);
+  if (image.error) return json({ error: image.error }, image.status);
+  const withNotice = result => image.notice ? { ...result, notice: image.notice } : result;
   // The canvas's switched-on context documents reach the planner (canvas-context-docs.md); JEV is unchanged.
   let documents;
   try { documents = await (deps.documents || contextDocumentBlocks)(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  documents = [...documents, ...image.blocks];
   // v2 checkpoint I: { stream: true } answers in NDJSON - {type:'sentence', text} as soon as the plan's
   // first sentence is written, then {type:'plan', ...TutorResponse} or {type:'error', error, telemetry}.
   // The browser validates the sentence against the route before anything is spoken (speakable).
@@ -449,11 +454,11 @@ export async function tutorRoute(path, req, env, deps = {}) {
     const writer = writable.getWriter(), encoder = new TextEncoder();
     const send = event => writer.write(encoder.encode(`${JSON.stringify(event)}\n`)).catch(() => {});
     (async () => {
-      try { await send({ type: 'plan', ...await planTurn(env, body.context, { ...deps, onSentence: sentence => send({ type: 'sentence', ...sentence }) }, documents) }); }
+      try { await send({ type: 'plan', ...withNotice(await planTurn(env, body.context, { ...deps, onSentence: sentence => send({ type: 'sentence', ...sentence }) }, documents)) }); }
       catch (error) { await send({ type: 'error', error: error.message, telemetry: error.telemetry }); }
       finally { await writer.close().catch(() => {}); }
     })();
     return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store' } });
   }
-  try { return json(await planTurn(env, body.context, deps, documents)); } catch (error) { return json({ error: error.message, telemetry: error.telemetry }, 502); }
+  try { return json(withNotice(await planTurn(env, body.context, deps, documents))); } catch (error) { return json({ error: error.message, telemetry: error.telemetry }, 502); }
 }
