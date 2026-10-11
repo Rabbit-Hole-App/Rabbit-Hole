@@ -1,6 +1,6 @@
 // Personal dev adapter. Claude credentials stay in the native CLI on this machine.
 import { createServer } from 'node:http';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -21,19 +21,40 @@ export function killTree(pid) {
 // once (code ETIMEDOUT, with the configured deadline and the elapsed time), never waiting for pipes.
 export function runWithDeadline(command, args, { input = '', timeout = 180000, env = process.env, maxBuffer = 4 * 1024 * 1024 } = {}) {
   return new Promise((resolve, reject) => {
+    if (typeof maxBuffer !== 'number' || Number.isNaN(maxBuffer) || maxBuffer < 0) throw new RangeError('maxBuffer must be a non-negative number');
     const started = Date.now();
     let done = false;
-    const child = execFile(command, args, { env, windowsHide: true, maxBuffer, detached: process.platform !== 'win32' }, (error, stdout, stderr) => {
+    // execFile silently discards detached: only spawn creates the POSIX group that killTree targets.
+    const child = spawn(command, args, { env, windowsHide: true, detached: process.platform !== 'win32' });
+    const output = { stdout: [], stderr: [] }, lengths = { stdout: 0, stderr: 0 };
+    let timer;
+    const finish = error => {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      resolve({ error, stdout, stderr });
+      resolve({ error, stdout: Buffer.concat(output.stdout).toString('utf8'), stderr: Buffer.concat(output.stderr).toString('utf8') });
+    };
+    const terminate = () => {
+      if (child.pid) killTree(child.pid);
+      child.stdin.destroy(); child.stdout.destroy(); child.stderr.destroy();
+    };
+    for (const stream of ['stdout', 'stderr']) child[stream].on('data', chunk => {
+      if (done) return;
+      const remaining = maxBuffer - lengths[stream];
+      output[stream].push(chunk.subarray(0, Math.min(chunk.length, remaining)));
+      lengths[stream] += Math.min(chunk.length, remaining);
+      if (chunk.length > remaining) {
+        terminate();
+        finish(Object.assign(new Error(`${stream} maxBuffer length exceeded`), { code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER', killed: true }));
+      }
     });
-    const timer = setTimeout(() => {
+    child.once('error', finish);
+    child.once('close', (code, signal) => finish(code === 0 && !signal ? null : Object.assign(new Error(`Command failed: ${command}`), { code, signal, killed: child.killed })));
+    timer = setTimeout(() => {
       if (done) return;
       done = true;
       const elapsed = Date.now() - started;
-      killTree(child.pid);
+      terminate();
       reject(Object.assign(new Error(`Claude Code timed out: deadline ${timeout} ms, process tree terminated after ${elapsed} ms`), { code: 'ETIMEDOUT', deadline_ms: timeout, elapsed_ms: elapsed, reason: 'deadline: process tree killed' }));
     }, timeout);
     child.stdin.on('error', () => {});

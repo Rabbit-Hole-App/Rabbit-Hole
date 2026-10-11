@@ -33,9 +33,9 @@ test('the shared lines: material meaning, simple-answer principle, grounding and
   const [material, simple, grounding, retrieval, reading] = lines.slice(16);
   assert.match(material, /^create_material \{ command, request \}/);
   assert.match(material, /context\.available_materials/);
-  assert.match(material, /plain words, with no backticks and no code/);
-  assert.match(material, /Several are allowed within the action limit only when the turn genuinely needs more than one, each with a different command/);
-  assert.match(material, /a paid one asks the learner first/);
+  assert.match(material, /plain words, no backticks or code/);
+  assert.match(material, /Use multiple cards only when needed, with distinct commands, within the action limit/);
+  assert.match(material, /Paid cards ask first/);
   assert.match(simple, /^A simple answer is often enough/);
   assert.match(simple, /never for its own sake/);
   assert.match(simple, /a topic word that names a format \(motion in physics\) is not a request for that format/);
@@ -99,8 +99,8 @@ test('fix A1, A2, A4: research offered only when allowed, retrieval only through
   const [material, , grounding, retrieval, reading] = PLANNER_SYSTEM.split('\n').slice(16);
   assert.match(grounding, /offer suggest_research when context\.allowed_actions lists it\.$/);
   assert.match(retrieval, /^Retrieval happens only through an action context\.allowed_actions lists in this turn; without one, never say "I found" or "current research shows"/);
-  assert.match(material, /Several are allowed within the action limit only when the turn genuinely needs more than one, each with a different command/);
-  assert.match(material, /plain words, with no backticks and no code/);
+  assert.match(material, /Use multiple cards only when needed, with distinct commands, within the action limit/);
+  assert.match(material, /plain words, no backticks or code/);
   assert.match(reading, /before a costly action you are unsure of, ask a concise clarification or propose it; a paid material already asks the learner first, so never confirm twice/);
 });
 

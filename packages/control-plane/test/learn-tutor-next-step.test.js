@@ -69,8 +69,8 @@ test('NEXT_STEP_SYSTEM is appended only on next_step turns; every other request 
   assert.match(NEXT_STEP_SYSTEM, /never evidence and never an explicit_request/);
   // Task 11b (task-11b-repin-review.md change 5): the create_material meaning moved to the shared prefix, so typed turns read it too.
   assert.doesNotMatch(NEXT_STEP_SYSTEM, /create_material/);
-  assert.match(PLANNER_SYSTEM, /Several are allowed within the action limit only when the turn genuinely needs more than one, each with a different command/);
-  assert.match(PLANNER_SYSTEM, /request says in plain words, with no backticks and no code/);
+  assert.match(PLANNER_SYSTEM, /Use multiple cards only when needed, with distinct commands, within the action limit/);
+  assert.match(PLANNER_SYSTEM, /request describes it in plain words, no backticks or code/);
   assert.doesNotMatch(NEXT_STEP_SYSTEM, /[`]|=>/, 'the prompt itself has no code characters');
   assert.deepEqual(plannerTier({ route: { row: 'not_yet_observed' }, learner_intent: { kind: 'next_step' } }).tier, 'fast');
   assert.deepEqual(plannerTier({ route: { row: 'misconception' }, learner_intent: { kind: 'next_step' } }).tier, 'opus');
@@ -110,5 +110,5 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
   // Pinned 2026-10-06 (Task 10 fix round 2; was c4005ddb..., before that 6d8cc2ce..., task-10-repin-review.md entries 5-6).
   // Re-pinned by Task 11b (was c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755; task-11b-repin-review.md part A, pin 6).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '8728fd7fb2e6d7168eb06b0c05c62be7e2201e99e215ec1d8fb996d7b2905fd7') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was 83ca2aab4d451244; // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '585641c133c60bf5570bda021dff06ba26fa29dff4bd8e0782f22dd8074e3443') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was 83ca2aab4d451244; // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
 });

@@ -762,24 +762,27 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const uploadedAssets = useRef(null);
   useEffect(() => { uploadedAssets.current = null; }, [boardPath]);
   // Runs after a board PUT, so the board has its server row.
-  const syncAssets = async () => {
+  const [assetQueue] = useState(serial);
+  const syncAssets = () => assetQueue(async () => {
+    let complete = true;
     try {
       if (!uploadedAssets.current) uploadedAssets.current = new Set((await api(`${boardPath}/assets`)).keys);
       for (const key of assetKeysOf(boardSnapshot())) {
         if (uploadedAssets.current.has(key)) continue;
         const value = await cachedAsset(key);
-        if (value == null) continue;
+        if (value == null) { complete = false; continue; }
         const blob = typeof value === 'string' ? new Blob([value], { type: 'text/x-cached-string' }) : value;
-        uploadedAssets.current.add(key);
-        if (blob.size > 25 * 1024 * 1024) { toast(`${blob.name || 'A file'} is over 25 MB, so it was not saved to your account and stays only in this browser.`); continue; }
+        if (blob.size > 25 * 1024 * 1024) { toast(`${blob.name || 'A file'} is over 25 MB, so it was not saved to your account and stays only in this browser.`); complete = false; continue; }
         const response = await fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, {
           method: 'PUT', body: blob,
           headers: { 'Content-Type': blob.type || 'application/octet-stream', ...(typeof value === 'string' ? { 'X-Asset-Kind': 'string' } : {}), ...wsHeaders() },
         });
-        if (!response.ok) uploadedAssets.current.delete(key);
+        if (response.ok) uploadedAssets.current.add(key);
+        else complete = false;
       }
-    } catch { /* tried again after the next save */ }
-  };
+    } catch { complete = false; /* tried again after the next save */ }
+    return complete;
+  });
   // A pending Rabbit Hole has no canvas row, so its board GET is refused; once its first object keeps it, ask again.
   const [boardLoad, setBoardLoad] = useState(0);
   useEffect(() => { if (hole && !dive.pending) setBoardLoad(load => load + 1); }, [dive.pending]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -888,6 +891,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     const put = () => pushQueue(async () => {
       if (boardStopped.current) return 'failed';
       try { await saveBoard(); } catch (error) { refused(error); return 'failed'; }
+      if (now) return await syncAssets() ? 'ok' : 'failed';
       syncAssets();
       return 'ok';
     });

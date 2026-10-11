@@ -273,7 +273,7 @@ test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() 
   assert.match(page, /const how = sharingOf\(sharingRef\.current\);\n\s+if \(board && how !== 'shared'\) return now && how === 'unknown' \? 'failed' : 'skipped';\n\s+if \(!boardLoaded\.current \|\| boardStopped\.current\) \{ boardUnsynced\.current = true; return now \? 'failed' : undefined; \}/);
   // C-15a: every PUT, immediate or debounced, goes through one serial queue and reads boardVersion inside it.
   assert.match(page, /const \[pushQueue\] = useState\(serial\);/);
-  assert.match(page, /const put = \(\) => pushQueue\(async \(\) => \{\n\s+if \(boardStopped\.current\) return 'failed';\n\s+try \{ await saveBoard\(\); \} catch \(error\) \{ refused\(error\); return 'failed'; \}\n\s+syncAssets\(\);\n\s+return 'ok';/);
+  assert.match(page, /const put = \(\) => pushQueue\(async \(\) => \{\n\s+if \(boardStopped\.current\) return 'failed';\n\s+try \{ await saveBoard\(\); \} catch \(error\) \{ refused\(error\); return 'failed'; \}\n\s+if \(now\) return await syncAssets\(\) \? 'ok' : 'failed';\n\s+syncAssets\(\);\n\s+return 'ok';/);
   assert.match(page, /const saved = await api\(boardPath, \{ method: 'PUT', body: JSON\.stringify\(\{ state, version: boardVersion\.current \?\? 0 \}\) \}\);\n\s+boardVersion\.current = saved\.version;/);
   assert.match(page, /if \(error\.status === 409\) \{\n\s+boardStopped\.current = true;\n\s+toast\(/);
   assert.match(page, /if \(now\) return put\(\);\n\s+pushTimer\.current = setTimeout\(put, 1500\);/);
