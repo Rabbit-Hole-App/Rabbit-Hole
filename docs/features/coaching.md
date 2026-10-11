@@ -3214,3 +3214,8 @@ Learn and nested canvases, as well as Map. Explore type filters retain project
 scope. The full local r35 gate includes the project-menu browser check across
 all three surfaces; its integrated browser result and preview deployment remain
 pending. Production promotion and remote migrations retain separate approvals.
+
+
+### r35 Library header integration
+
+The Library heading and its search/filter/sort/folder/start controls now wrap when the available width is too small for one row. This preserves the title and all actions at 1024px and phone widths. The folders browser gate checks title visibility and every header control's viewport bounds; final candidate verification and preview deployment remain pending.

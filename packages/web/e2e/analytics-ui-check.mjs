@@ -63,15 +63,19 @@ const page = await contextFor(owner);
 await page.goto(`${BASE}/library?type=canvases`);
 await card(page, T.kv).waitFor({ timeout: 60000 });
 await page.waitForTimeout(500);
-await check('1 ⋮ → Analytics: on the owner\'s public canvas, after the link rows (Share / Manage link, Copy link); never on a private one', async () => {
+await check('1 ⋮ → Analytics: on the owner\'s public canvas, after the link and thumbnail rows; never on a private one', async () => {
   await menuOf(page, T.draft);
   assert.equal(await page.locator('[data-menu-analytics]').count(), 0, 'private');
   await page.keyboard.press('Escape');
   await menuOf(page, T.kv);
   const labels = (await page.locator('.shadow-pop button, [role="menu"] button').allInnerTexts()).map(l => l.trim());
-  // Copy link joined the link rows (owner, 2026-10-08; visibility-menu.md); Analytics follows them.
-  assert.equal(labels[labels.indexOf('Share / Manage link') + 1], 'Copy link');
-  assert.equal(labels[labels.indexOf('Copy link') + 1], 'Analytics');
+  // The unified r35 menu puts thumbnail actions after the links (visibility-menu.md).
+  // This fresh canvas has no custom thumbnail, so no Use canvas snapshot row appears.
+  const linkStart = labels.indexOf('Share / Manage link');
+  assert.ok(linkStart >= 0, 'the link group remains present');
+  assert.deepEqual(labels.slice(linkStart, linkStart + 4), ['Share / Manage link', 'Copy link', 'Change thumbnail', 'Analytics']);
+  assert.equal(await page.locator('[data-menu-analytics]').count(), 1, 'one Analytics entry');
+  assert.equal(await page.locator('[data-menu-analytics]').isVisible(), true, 'Analytics remains visible');
 });
 await shot(page, '00-menu-analytics');
 let panel;

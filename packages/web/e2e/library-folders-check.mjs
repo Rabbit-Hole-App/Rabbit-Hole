@@ -252,6 +252,14 @@ await check('16 phone, 1024 and dark views render the tiles and the open folder'
   for (const [name, width, height] of [['08-1024-tiles', 1024, 800], ['09-phone-tiles', 390, 844]]) {
     await page.setViewportSize({ width, height });
     await library();
+    const header = page.locator('h1').locator('..');
+    const titleBox = await page.locator('h1').boundingBox();
+    assert.ok(titleBox.width > 0 && titleBox.x >= 0 && titleBox.x + titleBox.width <= width + 1, `${name}: the Library title remains visible`);
+    const controls = await header.locator('input, button').evaluateAll(nodes => nodes.map(node => {
+      const box = node.getBoundingClientRect();
+      return { label: node.getAttribute('aria-label') || node.textContent.trim(), x: box.x, right: box.right, width: box.width };
+    }));
+    assert.ok(controls.length > 0 && controls.every(box => box.width > 0 && box.x >= 0 && box.right <= width + 1), `${name}: every header action fits (${JSON.stringify(controls)})`);
     await tile('Waves stuff').waitFor();
     const box = await tile('Waves stuff').boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= width + 1, `${name}: the tile fits the viewport (${JSON.stringify(box)})`);

@@ -75,11 +75,11 @@ test('one URL for a Library state: the Filters control, View all and the Agent B
 });
 
 // Owner, 2026-10-08: "put sort and filter next to each other", "put a search near filter and sort to search by
-// project/canvas name". One row beside the title: Search, Filters, Sort, then Start; Sort and Search only on card views.
+// project/canvas name". Ordered controls beside the title, wrapping at narrow widths: Search, Filters, Sort, then Start; Sort and Search only on card views.
 test('the Library title row: Search by name, Filters and Sort side by side; the search narrows the cards by title', async () => {
   const { readFileSync } = await import('node:fs');
   const app = readFileSync(new URL('./App.jsx', import.meta.url), 'utf8');
-  const row = app.slice(app.indexOf('{learnPreview && <div className="flex shrink-0 items-center gap-2">'), app.indexOf('Start a rabbit hole</Button></div>}'));
+  const row = app.slice(app.indexOf('{learnPreview && <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-2">'), app.indexOf('Start a rabbit hole</Button></div>}'));
   const order = ['data-library-search', '<LibraryFilters', '<SortMenu size="md"', 'onClick={startRabbitHole}'].map((x) => row.indexOf(x));
   assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), `order ${order}`);
   assert.match(app, /const found = needle \? withFixtures\.filter\(\(a\) => \[a\.title, titleOf\(a\)\]\.some\(\(t\) => t\?\.toLowerCase\(\)\.includes\(needle\)\)\) : withFixtures;/);

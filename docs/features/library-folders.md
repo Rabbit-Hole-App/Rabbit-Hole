@@ -18,7 +18,7 @@ Search, shares and profiles never read them.
 
 ## UI
 
-**Library header:** "New folder" beside Filters and Sort, the secondary style. It opens a dialog (name, the six swatches,
+**Library header:** "New folder" beside Filters and Sort, the secondary style. The title and toolbar wrap when they do not fit; at 1024px and on phones, the title and every action remain visible inside the viewport. It opens a dialog (name, the six swatches,
 Create); the name is trimmed to one space and 1-60 characters, the server's rule too. Inside a folder the spot holds the
 folder's ⋮ instead: flat folders are not made inside one.
 

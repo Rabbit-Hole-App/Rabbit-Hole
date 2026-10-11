@@ -44,7 +44,12 @@ for (const key of ['drop:a', 'drop:b', `notebook:nb-${run}`, 'notebook:nb-old'])
 const share = async (name, who = owner) => (await post(who, `/api/learn/boards/${name}/main/share`, { shared: true, view: true, public_view: true, state: state([]) })).body.sharing.view;
 let holes = 0;
 // A hole as /dive persists it (dives.js): its canvas row and link together, under the parent's main board.
-const hole = async origin => { const name = `canvas-${(++holes).toString(16).padStart(6, '0')}${run.slice(-2)}`; const made = await post(owner, '/api/canvases/dives', { name, title: `Hole ${holes}`, parent: { app: parent.name, board: 'main' }, origin_block_id: origin, dive: {} }); assert.equal(made.status, 201, `hole ${origin}`); return name; };
+const hole = async origin => {
+  const name = `canvas-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
+  const made = await post(owner, '/api/canvases/dives', { name, title: `Hole ${++holes}`, parent: { app: parent.name, board: 'main' }, origin_block_id: origin, dive: {} });
+  assert.equal(made.status, 201, `hole ${origin}: ${JSON.stringify(made.body)}`);
+  return name;
+};
 
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };

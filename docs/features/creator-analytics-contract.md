@@ -223,12 +223,15 @@ menu and panels (CLAUDE.md: no separate pages).
 
 ### Entry point
 
-- The owned-card ⋮ (visibility-menu.md) gets **Analytics**, only when the card's `access` is `public`. Proposed position:
-  in the Visibility group, after Share / Manage link.
+- The owned-card ⋮ (visibility-menu.md) gets **Analytics**, only when the card's `access` is `public`. Position in the unified owned-card menu (visibility-menu.md):
+  in the Visibility group, after the link and thumbnail actions.
 
   ```
   Visibility ›
   Share / Manage link
+  Copy link
+  Change thumbnail
+  Use canvas snapshot  (only while a custom thumbnail is set)
   Analytics            (public canvases only)
   ```
 
