@@ -36,6 +36,11 @@ test('portable preparation preserves the ordered baseline checks and adds routin
       const parsed=spawnSync(bash,['-n',join(gate,script)],{encoding:'utf8',windowsHide:true});
       assert.equal(parsed.status,0,`${script}: ${parsed.stderr}`);
     }
+    if(process.platform==='win32') {
+      const parser="$errorsFound=@(); Get-ChildItem -LiteralPath '"+gate+"' -Recurse -Filter '*.ps1' | ForEach-Object { $e=$null; $null=[System.Management.Automation.Language.Parser]::ParseFile($_.FullName,[ref]$null,[ref]$e); $errorsFound+=@($e) }; if($errorsFound.Count) { $errorsFound | Format-List; exit 1 }";
+      const parsed=spawnSync('powershell.exe',['-NoProfile','-Command',parser],{encoding:'utf8',windowsHide:true});
+      assert.equal(parsed.status,0,parsed.stdout+parsed.stderr);
+    }
     assert.ok(existsSync(join(app,'packages/web/e2e/r36-routing-operator.mjs')));
     assert.throws(()=>prepare({app,state,sha:'a'.repeat(40),tree:'b'.repeat(40),grant:'again'}),/Refusing to overwrite/);
     assert.match(readFileSync(join(app,'packages/web/.dev.vars'),'utf8'),new RegExp(`TEST_BYPASS_SECRET=${secret}`));

@@ -35,7 +35,7 @@ export function prepare({app,state,sha,tree,grant}) {
     }
     if(['fork/stop.ps1','lp1h/stop.ps1'].includes(relative)) {
       text='param([switch]$DeferPortCheck)\n'+text.replace('if ($taskListeners.Count) {','if ($taskListeners.Count -and -not $DeferPortCheck) {');
-      text=text.replace('$taskSnapshot = @(Get-CimInstance Win32_Process)',`# Ask the process observers to retire their recorded children and write exit receipts first.
+      text=text.replace('$taskSnapshot = @(Get-CimInstance Win32_Process)',()=>`# Ask the process observers to retire their recorded children and write exit receipts first.
 Get-ChildItem -LiteralPath $PSScriptRoot -Filter 'worker-*.start.json' -ErrorAction SilentlyContinue | ForEach-Object {
   $base=$_.FullName -replace '\\.start\\.json$',''
   Set-Content -LiteralPath "$base.stop" -Value 'stop'
