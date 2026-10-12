@@ -1,5 +1,5 @@
 import { subscriptionTransport } from './subscription-transport.js';
-import { platformCaps, spendMessage } from './learn-spend.js';
+import { platformCaps, platformSpendStatus, spendMessage } from './learn-spend.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { base64 } from './token.js';
@@ -290,6 +290,10 @@ export async function anthropic(env, body, model, org) {
   // configured caps; this guard covers the other paid entry points as well.
   if ((env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'production') && !platformCaps(env).usd) {
     return Response.json({ error: spendMessage('cap_unset'), code: 'spend_limited', reason: 'cap_unset' }, { status: 429 });
+  }
+  if (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'production') {
+    const spend = await platformSpendStatus(env.LEARN_DB, env);
+    if (spend.refused) return Response.json({ error: spendMessage(spend.reason), code: 'spend_limited', reason: spend.reason }, { status: 429 });
   }
   if (env.SUBSCRIPTION_ONLY === 'true') {
     const response = await subscriptionTransport(env, body, model || MODEL);

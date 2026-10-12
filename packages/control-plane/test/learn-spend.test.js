@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { admitSpend, platformCaps, settleSpend, spendMessage } from '../src/learn-spend.js';
+import { admitSpend, platformCaps, platformSpendStatus, settleSpend, spendMessage } from '../src/learn-spend.js';
 import { anthropic } from '../src/ask.js';
 
 const migration = readFileSync(new URL('../learn-migrations/0016-usage-operations.sql', import.meta.url), 'utf8');
@@ -49,4 +49,12 @@ test('the provider chokepoint refuses an unset cap before any transport', async 
     assert.deepEqual(await response.json(), { error: spendMessage('cap_unset'), code: 'spend_limited', reason: 'cap_unset' });
     assert.equal(calls, 0);
   } finally { globalThis.fetch = original; }
+});
+
+test('the provider chokepoint refuses a reached cap before transport', async () => {
+  const sqlite = db();
+  sqlite.prepare("INSERT INTO usage_operations(op_id,user_id,org,category,status,admitted_at,deadline_at,settled_at,cost_usd) VALUES ('spent','synthetic','synthetic','chat','settled',?,?,?,0.01)").run(100000, 100120, 100001);
+  const d1 = { prepare: sql => { const statement = sqlite.prepare(sql); return { bind: (...args) => ({ first: async () => statement.get(...args), run: async () => ({ meta: { changes: statement.run(...args).changes } }) }) }; } };
+  assert.deepEqual(await platformSpendStatus(d1, { USAGE_PLATFORM_DAY_USD: '0.01' }, 100002), { refused: true, reason: 'daily_cap_reached' });
+  sqlite.close();
 });

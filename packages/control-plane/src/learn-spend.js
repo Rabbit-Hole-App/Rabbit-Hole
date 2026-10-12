@@ -4,6 +4,26 @@ export const spendError = reason => Object.assign(new Error(reason), { code: rea
 const number = value => { const n = Number(String(value ?? '').trim()); return Number.isFinite(n) && n > 0 ? n : null; };
 export const platformCaps = env => ({ usd: number(env?.USAGE_PLATFORM_DAY_USD), operations: number(env?.USAGE_PLATFORM_DAY) ?? 2000 });
 
+// Provider paths that do not have an admission operation still check the
+// shared ledger before transport. This closes the reached-cap gap for direct
+// Anthropic/OpenAI/Bedrock callers while preserving local test environments
+// that do not bind LEARN_DB.
+export async function platformSpendStatus(db, env, now = Math.floor(Date.now() / 1000)) {
+  const caps = platformCaps(env);
+  if (!caps.usd) return { refused: true, reason: 'cap_unset' };
+  if (!db) return { refused: false };
+  try {
+    const row = await db.prepare(`SELECT COALESCE(SUM(cost_usd), 0) AS spent
+      FROM usage_operations
+      WHERE admitted_at >= ? AND status IN ('admitted', 'settled')`).bind(now - 86400).first();
+    return Number(row?.spent || 0) >= caps.usd
+      ? { refused: true, reason: 'daily_cap_reached' }
+      : { refused: false };
+  } catch {
+    return { refused: true, reason: 'spend_schema_unavailable' };
+  }
+}
+
 export async function admitSpend(db, env, { opId, userId, org, category, now = Math.floor(Date.now() / 1000), deadlineAt = now + 120 }) {
   const caps = platformCaps(env);
   if (!caps.usd) return { refused: true, reason: 'cap_unset' };
