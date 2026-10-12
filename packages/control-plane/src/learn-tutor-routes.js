@@ -24,6 +24,7 @@ import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
+import { admitSpend, operationId, settleSpend, spendMessage } from './learn-spend.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -31,6 +32,33 @@ export const LARGER_TIMEOUT_MS = 8000;
 const CONTEXT_LIMIT = 60000; // characters of planner context (about 12k tokens, §9)
 
 const text = (value, max) => typeof value === 'string' && value.length <= max;
+
+// One operation admission covers a Tutor request; retries/escalations get a fresh operation after settlement.
+function spendCallModel(env, access, category, callModel) {
+  if (env.SMALL_ENV === 'test' || env.ANTHROPIC_API_KEY === 'test-key') return callModel;
+  let opId = null, admitted = false;
+  return async (callEnv, body, model, org, ...rest) => {
+    if (!admitted) {
+      opId = operationId(category);
+      const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: access.user_id || access.email, org: access.org, category });
+      if (gate.refused) return Response.json({ error: spendMessage(gate.reason), code: 'spend_limited', reason: gate.reason }, { status: 429 });
+      admitted = true;
+    }
+    try {
+      const response = await callModel(callEnv, body, model, org, ...rest);
+      const result = response.ok ? await response.clone().json().catch(() => null) : null;
+      const usage = result?.usage;
+      const cost = usage && result?.model ? costUsd({ model: result.model, ...usage }) : null;
+      await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, costUsd: cost, provider: env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : 'anthropic', model: result?.model || model, error: response.ok ? null : `http_${response.status}` });
+      admitted = false;
+      return response;
+    } catch (error) {
+      await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, error: error?.message || 'model_error' });
+      admitted = false;
+      throw error;
+    }
+  };
+}
 export function validateEvaluateBody(body) {
   const { message, spec } = body || {};
   if (typeof message !== 'string' || !message.trim() || message.length > 4000) return { error: 'message must be 1-4000 characters' };
@@ -428,14 +456,16 @@ export async function tutorRoute(path, req, env, deps = {}) {
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
+  const category = path === HANDOFF_PATH ? 'tutor_handoff' : path.endsWith('/next-steps') ? 'tutor_next_steps' : path.endsWith('/evaluate') ? 'tutor_evaluate' : 'tutor_plan';
+  const paidDeps = { ...deps, callModel: spendCallModel(env, access, category, deps.callModel || loggedModel(category === 'tutor_plan' ? 'tutor' : 'tutor_evaluator', anthropic)) };
   // Professor Next Steps (learn-next-steps-routes.js): the same gates, a separate call, never part of a Tutor turn.
-  if (path === '/api/learn/tutor/next-steps') return ownedNextSteps(env, access, body, deps);
-  if (path === HANDOFF_PATH) return handoff(env, access, body, deps);
+  if (path === '/api/learn/tutor/next-steps') return ownedNextSteps(env, access, body, paidDeps);
+  if (path === HANDOFF_PATH) return handoff(env, access, body, paidDeps);
   if (path === '/api/learn/tutor/evaluate') {
-    if (body.journey_id != null) return journeyEvaluate(env, access, body, deps);
+    if (body.journey_id != null) return journeyEvaluate(env, access, body, paidDeps);
     const input = validateEvaluateBody(body);
     if (input.error) return json({ error: input.error }, 400);
-    return json(await evaluateFreeText(env, input.value.spec, input.value.message, deps));
+    return json(await evaluateFreeText(env, input.value.spec, input.value.message, paidDeps));
   }
   const serialized = JSON.stringify(body?.context ?? null);
   if (!body?.context || typeof body.context !== 'object' || serialized.length > CONTEXT_LIMIT) return json({ error: `context must be an object of at most ${CONTEXT_LIMIT} characters` }, 400);
@@ -454,11 +484,11 @@ export async function tutorRoute(path, req, env, deps = {}) {
     const writer = writable.getWriter(), encoder = new TextEncoder();
     const send = event => writer.write(encoder.encode(`${JSON.stringify(event)}\n`)).catch(() => {});
     (async () => {
-      try { await send({ type: 'plan', ...withNotice(await planTurn(env, body.context, { ...deps, onSentence: sentence => send({ type: 'sentence', ...sentence }) }, documents)) }); }
+      try { await send({ type: 'plan', ...withNotice(await planTurn(env, body.context, { ...paidDeps, onSentence: sentence => send({ type: 'sentence', ...sentence }) }, documents)) }); }
       catch (error) { await send({ type: 'error', error: error.message, telemetry: error.telemetry }); }
       finally { await writer.close().catch(() => {}); }
     })();
     return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store' } });
   }
-  try { return json(withNotice(await planTurn(env, body.context, deps, documents))); } catch (error) { return json({ error: error.message, telemetry: error.telemetry }, 502); }
+  try { return json(withNotice(await planTurn(env, body.context, paidDeps, documents))); } catch (error) { return json({ error: error.message, code: error.code, telemetry: error.telemetry }, error.code === 'spend_limited' ? 429 : 502); }
 }

@@ -8,7 +8,9 @@ export { LEARN_RESEARCH_SYSTEM };
 export async function modelFailure(response, label, suffix = '') {
   const unset = await notConfiguredMessage(response);
   if (unset) return new Error(unset); // no key on this deployment: that sentence alone, never an HTTP code
-  const detail = (await response.json().catch(() => null))?.error?.message;
+  const payload = await response.json().catch(() => null);
+  if (payload?.code === 'spend_limited') return Object.assign(new Error(payload.error || 'Paid Learn calls are paused.'), { code: 'spend_limited', status: 429, reason: payload.reason });
+  const detail = payload?.error?.message;
   return new Error(`${label} (model HTTP ${response.status}${detail ? `: ${String(detail).slice(0, 160)}` : ''})${suffix}`);
 }
 
