@@ -230,8 +230,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     save(result.store);
     // r29: evidence this turn stored on the journey reaches the journey controller (sectionCompletion, the next-section hook), the
     // same journey only.
-    const sameJourney = !!journeyAtStart && journeyRef.current?.journey?.id === journeyAtStart, view = journeyRef.current;
-    if (result.evaluation?.journey && sameJourney) view.adoptEvidence?.(result.evaluation.journey);
+    if (result.evaluation?.journey && journeyAtStart && journeyRef.current?.journey?.id === journeyAtStart) journeyRef.current.adoptEvidence?.(result.evaluation.journey);
     if (result.log.length) console.info('[tutor]', result.routed.row, result.log.join('; '));
     put({ chips: executeActions(result.actions, {
       canvas: canvasApi.current || {},
