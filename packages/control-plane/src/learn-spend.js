@@ -9,11 +9,11 @@ export async function admitSpend(db, env, { opId, userId, org, category, now = M
   if (!caps.usd) return { refused: true, reason: 'cap_unset' };
   if (!db || !opId || !userId || !org || !category) return { refused: true, reason: 'spend_identity_unavailable' };
   try {
-    const result = await db.prepare(`INSERT INTO usage_operations (op_id, user_id, org, category, status, admitted_at, deadline_at)
-      SELECT ?, ?, ?, ?, 'admitted', ?, ?
+    const result = await db.prepare(`INSERT INTO usage_operations (op_id, user_id, org, category, status, admitted_at, deadline_at, cost_usd)
+      SELECT ?, ?, ?, ?, 'admitted', ?, ?, ?
       WHERE (SELECT COUNT(*) FROM usage_operations WHERE admitted_at >= ? AND status <> 'cancelled') < ?
-        AND (SELECT COALESCE(SUM(cost_usd), 0) FROM usage_operations WHERE admitted_at >= ? AND status = 'settled') < ?`).bind(
-      opId, userId, org, category, now, deadlineAt, now - 86400, caps.operations, now - 86400, caps.usd,
+        AND (SELECT COALESCE(SUM(cost_usd), 0) FROM usage_operations WHERE admitted_at >= ? AND status IN ('admitted', 'settled')) + ? <= ?`).bind(
+      opId, userId, org, category, now, deadlineAt, caps.usd, now - 86400, caps.operations, now - 86400, caps.usd, caps.usd,
     ).run();
     return result.meta?.changes === 1 ? { refused: false, opId } : { refused: true, reason: 'daily_cap_reached' };
   } catch {
