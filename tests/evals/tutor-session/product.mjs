@@ -229,7 +229,9 @@ export function availableModalities(result, domain, materials) {
 export async function productWorld({ topic, ids, boundary, board = 'main', trace = true, keys = { ANTHROPIC_API_KEY: 'eval-stub-not-a-key', TYPESAFE_API_KEY: 'eval-stub-not-a-key' } }) {
   const db = await freshLearnDb();
   const app = ids.canvas_id;
-  const env = { LEARN_DB: db.LEARN_DB, ...keys };
+  // Only the outbound-blocked stub world uses the supported test environment.
+  // Real-provider evaluation worlds retain normal fail-closed spend admission.
+  const env = { LEARN_DB: db.LEARN_DB, ...(boundary.transport === 'stub' ? { SMALL_ENV: 'test' } : {}), ...keys };
   const access = { org: 'eval-org', user_id: ids.user_id, email: `${ids.user_id}@eval.invalid`, app, kind: 'canvas' };
   const request = (route, path, body) => route(path, new Request(`https://eval.invalid${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env, { authorize: async () => access });
   // The browser's post: a non-2xx answer throws with its status, as the page's api() does.

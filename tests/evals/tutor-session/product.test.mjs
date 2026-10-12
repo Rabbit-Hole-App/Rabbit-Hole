@@ -38,6 +38,13 @@ async function realSession({ answers = stubAnswers(), maxDecisions = 4, learner 
   } finally { boundary.restore(); }
 }
 const roles = bundle => bundle.events.filter(event => event.type === 'model_call_completed').map(event => event.model_role);
+test('only stub worlds select test mode: a real-provider world still refuses an unset cap', async () => {
+  // Model a real-provider selection while every response remains offline.
+  const { bundle, boundary } = await realSession({ answers: { ...stubAnswers(), kind: 'anthropic' } });
+  assert.equal(bundle.simulator.stop_reason, 'error');
+  assert.match(bundle.simulator.error.message, /daily dollar cap is configured/);
+  assert.equal(boundary.requests.filter(entry => entry.provider === 'anthropic' && roleOf(entry.body) === 'tutor').length, 0);
+});
 
 test('the real product path: an LP1 journey through its route, typed turns through JEV and the planner, hooks through the controller and the route, a click as a next_step turn', async () => {
   const { bundle, boundary } = await realSession();
