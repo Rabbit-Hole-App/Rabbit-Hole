@@ -72,7 +72,7 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
     // ponytail: a completed journey reads as 'active' (§3.3 names three phases); a 'completed' phase once LP2 says
     // what the Tutor does after the last section.
     context: {
-      phase: dive ? 'dive' : setup ? 'setup' : journey.state === 'paused' ? 'paused' : 'active',
+      phase: dive ? 'dive' : setup ? 'setup' : journey.state === 'completed' ? 'completed' : journey.state === 'paused' ? 'paused' : 'active',
       goal: cap(path?.goal || journey.request?.topic, 200),
       section: section && {
         title: cap(section.title, 80), purpose: cap(section.purpose, 240),
