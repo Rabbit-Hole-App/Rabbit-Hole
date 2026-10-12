@@ -1,0 +1,67 @@
+[
+  {
+    "path": "int35.sh",
+    "sourceSha256": "bc46f6c4d79bd03d77c32d06ddf67aa0fcc924b911b534c52625622f08efb4c1",
+    "templateSha256": "44e60d635d7ffaa8773fabfbae44f8cd4586781a620366a0dd766db79c78b89c"
+  },
+  {
+    "path": "preflight.cjs",
+    "sourceSha256": "f9e4ad3ebf1f290a3b69cd470fac13ccb9ccf8bd6d339497cd244131966262fa",
+    "templateSha256": "26c0195593a759d2f2bfa1840a0bf436ad269f4b9ba75e048f648f069129fa01"
+  },
+  {
+    "path": "clear-local.ps1",
+    "sourceSha256": "9d4d79360b54a6a02c51e6c33a04fd684a885eec6b811fe2d9bac7b0ac0bec4c",
+    "templateSha256": "4b4f20fd411585ba826de783463ed5ac33a1d2f6ac5598aeeb3d558113f6c797"
+  },
+  {
+    "path": "fork/stack.sh",
+    "sourceSha256": "bf8b8c4882f5d61d669a82c8e5a4fcd1c4660f8a08d871fe10287ff8bd69232b",
+    "templateSha256": "864e14ba7b41485836abc458692d52e065e2baaaa02d98c262d0acb3a3f9f396"
+  },
+  {
+    "path": "fork/stack-app.sh",
+    "sourceSha256": "cf672a573625f027d74c62fd7fab9bfc5d427438d3a17163adbf6586153571ac",
+    "templateSha256": "cabcc7b109c0b4cb767b64cbbfaead86480044d6d2851272201e7b71e30af3a9"
+  },
+  {
+    "path": "fork/stop.ps1",
+    "sourceSha256": "d7e83350a02356cb98eca4d301dfb41974eb10941269465a35c8a0480917fb5a",
+    "templateSha256": "8e9a051682f2dbb78fc3c27725e9a9d5106adf6539db5e6658bb82acdf22d9a2"
+  },
+  {
+    "path": "lp1h/jstack.sh",
+    "sourceSha256": "8a8775d4893468c4d0e0cd3d0bdfd056886a24e273e826fb949e0ae9a2a69e76",
+    "templateSha256": "da61fdcfe8f41721a2fa92c59836bd6c22e73ff8ef4e5ab36aaf06e8a2f3d309"
+  },
+  {
+    "path": "lp1h/setup-j.cjs",
+    "sourceSha256": "ea194cecfba738bc438da0634f90697cb82da184c172ee0aa9333a52705bd625",
+    "templateSha256": "5dc28d9d9c985560282c7e6b90736702aac8e8c490ac5f0a149792dd2536b3ac"
+  },
+  {
+    "path": "lp1h/stop.ps1",
+    "sourceSha256": "cea418a9c1ad7f8449990a411e4e1a6ebd44667978060acb889d63440d55971c",
+    "templateSha256": "ca189e7ca0c422b0c39ec5aedf3a504fece00534d009a8cea8f609d8600666c4"
+  },
+  {
+    "path": "config-templates/packages/control-plane/integ-local-cp2.jsonc",
+    "sourceSha256": "866ebee368b0a3694b5b70fa3d104fc9e8b8658e3d159e3e9a6a40b03f6b409e",
+    "templateSha256": "b8bd5102903b0614a2a242aef3c9d42c527652ea0893b02adee2754ae31d1a8a"
+  },
+  {
+    "path": "config-templates/packages/control-plane/integ-local.jsonc",
+    "sourceSha256": "695d490accf431cb318b36d0585002c14c737042c376f93ce5a4afc006e87a2c",
+    "templateSha256": "f92e9a2f89c8c7b03d106975bd43277c280c240470fb13bd72f19e698b804764"
+  },
+  {
+    "path": "config-templates/packages/web/integ-app.jsonc",
+    "sourceSha256": "ebe6d2ac7a0c45b0e8ec45c80c9a482c4553240c3c11b018dcf4db4e1d77bc22",
+    "templateSha256": "7d6949e88b4f1f77d4573b04279ad7f683c1a9f4714b3c148e91b5aacdbe0b83"
+  },
+  {
+    "path": "config-templates/packages/web/integ-local.jsonc",
+    "sourceSha256": "fbde87383eeb5c700a39f050816508e249ef4b0bfc98efdc1ff779fe55458690",
+    "templateSha256": "c91cc92ba7dd2a49fec599eeb44b1c5d42676a3700ac52507026b24a9bfb2d75"
+  }
+]
