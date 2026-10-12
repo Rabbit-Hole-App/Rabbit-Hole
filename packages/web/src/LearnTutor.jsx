@@ -20,7 +20,7 @@ import { SLASHES, arriveAt, cardContext, executeActions, keepHere, learnerIntent
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
 import { inJourneySetup, startRequest } from './LearnJourney.jsx';
-import { moveOnChip, moveOnOf, outcomeLine } from './learn-journey.js';
+import { moveOnChip, nextSectionOf, outcomeLine } from './learn-journey.js';
 import { MODE_SLASHES, NEXT_SECTION_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
@@ -56,7 +56,7 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // where the controller can move on (journey.nextSection).
 export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null, repository = false }) {
   const setup = inJourneySetup(journey?.journey);
-  const nextSectionOffer = !!journey?.nextSection && !record && !journey.busy && !journey.journey?.pending && !!moveOnOf(journey.journey, journey.path);
+  const nextSectionOffer = !!journey?.nextSection && !record && !journey.busy && !journey.journey?.pending && !!nextSectionOf(journey.journey, journey.path);
   return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !record, nextSectionOffer, repository: !!repository && !setup };
 }
 // The deterministic Next section chip (beta hardening, owner 2026-10-09) under the Tutor's reply: moveOnChip over the journey view
