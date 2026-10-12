@@ -73,7 +73,7 @@ test('the hook card click: select() first, then the step once, never the hook as
 
 test('ask.jsx sendStep: Voice on is say with the step, else one askStep turn drawn as a selection chip in the sheet; no typed text, no canvas card', () => {
   assert.match(ask, /const sendStep = async \(step, hook\) => \{\n\s+if \(voice\?\.on\) return voice\.say\('', \{ nextStep: step, selectedAt: new Date\(\)\.toISOString\(\) \}\);\n\s+if \(busy \|\| !tutor\?\.askStep\) return false;/);
-  assert.match(ask, /const answer = await tutor\.askStep\(\{ selected_next_step: step, signal: flight\.signal, begin \}\)/);
+  assert.match(ask, /const answer = await tutor\.askStep\(\{ selected_next_step: step, signal: flight\.signal, resolved: sheetMode, begin: sheetMode \? null : begin \}\)/);
   assert.match(ask, /setMsgs\(m => \[\.\.\.m, \{ role: 'step', content: hook \}, \{ role: 'assistant', content: '', id: replyId \}\]\);/);
   const body = ask.slice(ask.indexOf('const sendStep = async'), ask.indexOf('if (nextStepRef) nextStepRef.current = sendStep;'));
   assert.doesNotMatch(body, /setInput|send\(|exchange|onExchange|tutor\.ask\(/, 'never the composer, the Learn chat or a canvas card');

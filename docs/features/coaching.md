@@ -3206,3 +3206,14 @@ timeout question is not resolved for direct. `TYPESAFE_API_KEY` is set on this
 clone only. Not run: the 432-call A/B, benchmark-v1.1-draft, further gateway
 benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
 `small-cp`, the live database or BYOC.
+
+## Answer routing option B (2026-10-09, r36 local work)
+
++The Tutor-backed Learn dock routes teaching to cards, selected-card discussion to
+the shared resizable right panel, and clarification/errors above chat. Material
+planner narration is suppressed; distinct source-reader answers are retained.
+See [Learn chat sheet](learn-chat-sheet.md) for behavior and temporary history
+limits. Existing providers and independent evaluators are unchanged. Focused
+offline checks pass; full-suite, browser and real-model deployed verification are
+pending. The isolated upload failed `node:crypto` module validation. This is not a
+successful dev deployment and is excluded from the r35 candidate.

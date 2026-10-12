@@ -194,33 +194,112 @@ test('inline image bytes reach the CLI as image blocks, never as text; long runs
   assert.ok(prompt.startsWith('You are the Motion Director.'), 'block system prompts arrive as text, not [object Object]');
 });
 
+test('deadline launcher preserves stdin, split UTF-8 output, stderr, environment and exit errors', async () => {
+  const script = `process.stdin.setEncoding('utf8'); let input=''; process.stdin.on('data', x => input+=x); process.stdin.on('end', () => {
+    const b=Buffer.from('🙂'); process.stdout.write(b.subarray(0,2)); setImmediate(() => {
+      process.stdout.write(b.subarray(2)); process.stdout.write(input); process.stderr.write(process.env.DEADLINE_TEST); process.exitCode=7;
+    });
+  });`;
+  const result = await runWithDeadline(process.execPath, ['-e', script], { input: 'input', timeout: 4000, maxBuffer: 64, env: { ...process.env, DEADLINE_TEST: 'stderr' } });
+  assert.equal(result.stdout, '🙂input');
+  assert.equal(result.stderr, 'stderr');
+  assert.equal(result.error?.code, 7);
+  const successful = await runWithDeadline(process.execPath, ['-e', "process.stdout.write('ok')"], { timeout: 4000, maxBuffer: 2 });
+  assert.deepEqual(successful, { error: null, stdout: 'ok', stderr: '' });
+  await assert.rejects(runWithDeadline(process.execPath, [], { maxBuffer: -1 }), /maxBuffer/);
+  const missing = await runWithDeadline(join(tmpdir(), 'missing-deadline-command'), [], { timeout: 4000 });
+  assert.equal(missing.error?.code, 'ENOENT');
+});
+
+test('deadline launcher bounds each output stream and terminates an overflowing child', async () => {
+  for (const stream of ['stdout', 'stderr']) {
+    const t0 = Date.now();
+    const result = await runWithDeadline(process.execPath, ['-e', `process.${stream}.write('x'.repeat(65536)); setInterval(() => {}, 1000)`], { timeout: 4000, maxBuffer: 16 });
+    assert.equal(result.error?.code, 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER', stream);
+    assert.equal(result[stream], 'x'.repeat(16), stream);
+    assert.equal(result.error?.killed, true);
+    assert.ok(Date.now() - t0 < 4000, 'overflow returns without waiting for the deadline');
+  }
+});
+
+test('deadline launcher creates a real isolated Linux process group', { skip: process.platform !== 'linux' }, async t => {
+  const result = await runWithDeadline(process.execPath, ['-e', `const stat=require('node:fs').readFileSync('/proc/self/stat','utf8');
+    console.log(JSON.stringify({pid:process.pid,pgid:Number(stat.slice(stat.lastIndexOf(')')+2).split(' ')[2])}));`], { timeout: 4000 });
+  assert.equal(result.error, null);
+  const state = JSON.parse(result.stdout);
+  t.diagnostic(`deadline child pid=${state.pid} pgid=${state.pgid}`);
+  assert.equal(state.pgid, state.pid, 'detached must create a process group, not be ignored by execFile');
+});
+
+// kill(pid, 0) also succeeds for an unreaped Linux zombie. Such a process cannot run;
+// distinguish that state without hiding permission errors or a broken /proc probe.
+function processRunning(pid, { platform = process.platform, signal = process.kill, readStat = readFileSync } = {}) {
+  try { signal(pid, 0); } catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+  if (platform !== 'linux') return true;
+  let stat;
+  try { stat = readStat(`/proc/${pid}/stat`, 'utf8'); } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+  // comm is parenthesized and may itself contain spaces and parentheses.
+  const match = stat.match(/^\d+ \(.*\) ([A-Z]) /s);
+  if (!match) throw new Error(`Invalid process state for pid ${pid}`);
+  return match[1] !== 'Z' && match[1] !== 'X';
+}
+
+test('deadline liveness distinguishes Linux zombies from running descendants and fails on probe errors', () => {
+  const probe = state => ({ platform: 'linux', signal: () => {}, readStat: () => `123 (node (child)) ${state} 1 2 3` });
+  assert.equal(processRunning(123, probe('S')), true);
+  assert.equal(processRunning(123, probe('R')), true);
+  assert.equal(processRunning(123, probe('Z')), false, 'a zombie exists but cannot execute');
+  assert.equal(processRunning(123, probe('X')), false);
+  const error = code => Object.assign(new Error(code), { code });
+  assert.equal(processRunning(123, { ...probe('S'), signal: () => { throw error('ESRCH'); } }), false);
+  assert.equal(processRunning(123, { ...probe('S'), readStat: () => { throw error('ENOENT'); } }), false);
+  assert.throws(() => processRunning(123, { ...probe('S'), signal: () => { throw error('EPERM'); } }), /EPERM/);
+  assert.throws(() => processRunning(123, { ...probe('S'), readStat: () => { throw error('EACCES'); } }), /EACCES/);
+  assert.throws(() => processRunning(123, { ...probe('S'), readStat: () => 'invalid' }), /process state/);
+  assert.equal(processRunning(123, { platform: 'win32', signal: () => {}, readStat: () => { throw error('unexpected'); } }), true);
+});
+
 // Motion M7A Run A (2026-10-06): a 15 min CLI deadline returned after 61.5 min on Windows. A kill of
 // the parent alone leaves its descendants running (a detached one escapes Node's Windows job object; on
 // POSIX any child outlives a SIGTERM to its parent). The deadline kills the tree and returns at once.
-test('a deadline kills the whole process tree and returns at the deadline', { timeout: 60000 }, async () => {
+test('a deadline kills the whole process tree and returns at the deadline', { timeout: 60000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'deadline-tree-'));
   const detached = process.platform === 'win32';
   const tree = pidFile => ['-e', `const { spawn } = require('node:child_process'); const c = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], { stdio: 'inherit', detached: ${detached} }); require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(c.pid)); setTimeout(() => {}, 20000);`];
-  const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  const alive = processRunning;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const pidOf = async file => { for (let i = 0; i < 100 && !existsSync(file); i++) await sleep(50); return Number(readFileSync(file, 'utf8')); };
 
+  // The deadline leaves a fresh node process time to start and spawn its child first: under a loaded make test-unit a
+  // start took over 1 s, the 1000 ms kill landed before the pid file was written, and the test failed on ENOENT (2026-10-09).
+  // The kill-latency and return bounds below are the same 500 ms and 1 s margins as before.
+  const DEADLINE = 4000;
   // The old mechanism: execFile's own timeout kills the parent only; the grandchild keeps running.
-  await new Promise(done => execFile(process.execPath, tree(join(dir, 'old.pid')), { timeout: 1000, windowsHide: true }, () => done()));
+  await new Promise(done => execFile(process.execPath, tree(join(dir, 'old.pid')), { timeout: DEADLINE, windowsHide: true }, () => done()));
   const orphan = await pidOf(join(dir, 'old.pid'));
   await sleep(300);
   assert.equal(alive(orphan), true, 'a parent-only kill leaves the grandchild running');
   process.kill(orphan);
 
   const t0 = Date.now();
-  const error = await runWithDeadline(process.execPath, tree(join(dir, 'new.pid')), { timeout: 1000 }).then(() => null, e => e);
+  const error = await runWithDeadline(process.execPath, tree(join(dir, 'new.pid')), { timeout: DEADLINE }).then(() => null, e => e);
   const returned = Date.now() - t0;
   assert.equal(error?.code, 'ETIMEDOUT');
-  assert.deepEqual([error.deadline_ms, error.reason], [1000, 'deadline: process tree killed']);
-  assert.ok(error.elapsed_ms >= 1000 && error.elapsed_ms < 1500, `terminated after ${error.elapsed_ms} ms`);
-  assert.ok(returned < 2000, `returned after ${returned} ms, near the 1000 ms deadline`);
-  assert.match(error.message, /deadline 1000 ms, process tree terminated after \d+ ms/);
+  assert.deepEqual([error.deadline_ms, error.reason], [DEADLINE, 'deadline: process tree killed']);
+  assert.ok(error.elapsed_ms >= DEADLINE && error.elapsed_ms < DEADLINE + 500, `terminated after ${error.elapsed_ms} ms`);
+  assert.ok(returned < DEADLINE + 1000, `returned after ${returned} ms, near the ${DEADLINE} ms deadline`);
+  assert.match(error.message, new RegExp(`deadline ${DEADLINE} ms, process tree terminated after \\d+ ms`));
   const grandchild = await pidOf(join(dir, 'new.pid'));
   for (let i = 0; i < 100 && alive(grandchild); i++) await sleep(50);
+  if (process.platform === 'linux') {
+    try {
+      const stat = readFileSync(`/proc/${grandchild}/stat`, 'utf8');
+      const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+      t.diagnostic(`deadline descendant pid=${grandchild} state=${fields[0]} pgid=${fields[2]}`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      t.diagnostic(`deadline descendant pid=${grandchild} absent from /proc`);
+    }
+  }
   assert.equal(alive(grandchild), false, 'the grandchild died with the tree');
 });

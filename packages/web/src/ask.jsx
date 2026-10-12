@@ -16,6 +16,7 @@ import { contextPassage } from './map-files.js';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
+import { destinationOf } from './answer-destination.js';
 import { commandTone } from './CommandTone.jsx';
 import { waitingText } from './waiting-text.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
@@ -402,7 +403,7 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onConversation = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -600,10 +601,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
     // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
-    // A card only selected (not asked about through Ask in chat) rides as context and changes nothing about where the answer lands.
-    const panelAsk = sheetMode && (!canvasTarget || (canvasTarget.card && !canvasTarget.asked) || journeySetup);
+    // Legacy streaming asks keep their destination at Send. Tutor turns resolve it from the completed plan below.
+    let panelAsk = sheetMode && (!canvasTarget || (canvasTarget.card && !canvasTarget.asked) || journeySetup);
     if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
-    const exchange = panelAsk || journeySetup ? null : onExchange;
+    let exchange = panelAsk || journeySetup ? null : onExchange;
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
     if (isDemo && demo.disabled) return;
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
@@ -637,7 +638,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (target && !target.card) onClearCanvasTarget?.();
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const replyId = crypto.randomUUID();
-    const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
+    let card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
     // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
     // (begin), only for a turn it answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
     // A question about a file or lines of the repository (Learn's Files panel or the Map: "Asking about: train.py:5–7") is
@@ -676,10 +677,22 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
       if (tutor && !codeTurn) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
-        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
-        begin();
-        mirror(reply);
+        if (sheetMode) {
+          const routed = typeof reply === 'string' ? { to: 'tray', text: reply } : destinationOf(reply, target, { setup: journeySetup });
+          setSheetOpen(true); setSheetHistory(false);
+          if (!routed.to) return; // the material card is the answer; extras carries its status
+          if (routed.to === 'conversation' && onConversation) {
+            onConversation(target, { id: replyId, question: message, answer: routed.text });
+            return;
+          }
+          panelAsk = routed.to !== 'card';
+          exchange = panelAsk ? null : onExchange;
+          card = panelAsk ? {} : { card: true };
+          begin();
+          mirror(routed.text);
+        } else { begin(); mirror(reply); }
         return;
       }
       const payload = {
@@ -777,7 +790,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       }
     } catch (e) {
       // A stopped answer keeps what arrived; it is not an error.
-      if (e.name !== 'AbortError') { begin(); mirror(`✗ ${e.message}`); }
+      if (e.name !== 'AbortError') {
+        if (sheetMode && tutor && !codeTurn) { panelAsk = true; exchange = null; card = {}; }
+        begin(); mirror(`✗ ${e.message}`);
+      }
     } finally {
       if (answerFlight.current === flight) answerFlight.current = null;
       for (const slot of Object.values(slots)) boardContext?.releaseCard?.(slot);
@@ -810,8 +826,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     };
     const reply = text => { begin(); setMsgs(m => m.map(item => (item.id === replyId ? { ...item, content: item.content + text } : item))); };
     try {
-      const answer = await tutor.askStep({ selected_next_step: step, signal: flight.signal, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
-      if (!answer?.handled) reply(answer);
+      const answer = await tutor.askStep({ selected_next_step: step, signal: flight.signal, resolved: sheetMode, begin: sheetMode ? null : begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+      if (!answer?.handled) {
+        if (!sheetMode || typeof answer === 'string') reply(answer);
+        else {
+          const routed = destinationOf(answer, null, { setup: journeySetup });
+          setSheetOpen(true); setSheetHistory(false);
+          if (routed.to === 'card') onAddToCanvas?.({ question: hook, answer: routed.text });
+          else if (routed.text) reply(routed.text);
+        }
+      }
     } catch (e) {
       reply(`✗ ${e.message}`);
     } finally {
@@ -975,7 +999,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       {contentPanel && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SourceSelectionContext.Provider value={{value:codeSelection,set:setCodeSelection}}>{contentPanel}</SourceSelectionContext.Provider></div>}
       <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || (composerOnly && !sheetMode)) && 'hidden',
         sheetMode && 'absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] rounded-xl border border-line bg-white px-3 pb-3 shadow-pop',
-        sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card))) && 'hidden')}>
+        sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card) || tutor?.extras)) && 'hidden')}>
         {sheetMode && (
           <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
             <span className="mr-auto text-xs text-ink-2">Rabbit Hole</span>

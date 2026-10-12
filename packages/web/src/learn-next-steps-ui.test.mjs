@@ -493,7 +493,7 @@ test('LearnTutor.jsx source pins: block null and no journey resolver on a click,
   assert.match(source, /setLastTurn\(\{ seq: \+\+seq\.current, turn_id: result\.turn\.turn_id, kind: intent\.kind/);
   assert.match(source, /setBusy\(true\)/);
   assert.match(source, /if \(result\.trace\) emitDecision\(result\.trace\);/);
-  assert.match(source, /const askStep = \(\{ selected_next_step, signal, begin = null, inputModality = 'text', turnId = null, onSpeakable = null \}\) => answer\(/);
+  assert.match(source, /const askStep = \(\{ selected_next_step, signal, begin = null, inputModality = 'text', turnId = null, onSpeakable = null, resolved = false \}\) => answer\(/);
 });
 
 // ---- Shared canvases (Task 11): useSharedNextSteps and its logic (sharedSteps) through the real controller. ----
