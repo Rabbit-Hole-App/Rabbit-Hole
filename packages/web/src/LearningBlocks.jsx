@@ -7,7 +7,7 @@ import { loadAsset } from './learn-board-assets.js';
 import { colorLine } from './code.jsx';
 import { CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
-import { graphRenderers } from './graph-renderers.js';
+import { describeGraphError, graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
 import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
 import SpeakAnswer from './SpeakAnswer.jsx';
@@ -1625,6 +1625,7 @@ function GraphBody({ block, appName, onChange }) {
     return () => observer.disconnect();
   }, []);
   const stop = event => event.stopPropagation();
+  const describedError = error ? describeGraphError(error) : null;
   return (
     <div data-scroll className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
       <Kicker>Interactive graph</Kicker>
@@ -1633,9 +1634,9 @@ function GraphBody({ block, appName, onChange }) {
       <div data-graph className="relative min-h-[260px] flex-1 overflow-hidden rounded-lg border border-line"
         onPointerDown={stop} onPointerMove={stop} onPointerUp={stop} onWheel={stop} onKeyDown={stop}>
         <div ref={host} className="h-full w-full" />
-        {error && <div className="absolute inset-0 grid place-content-center bg-white p-4 text-center text-xs text-ink-2">
-          {error}
-          <button type="button" onClick={() => setAttempt(value => value + 1)} className="mt-2 rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-hover">Retry graph</button>
+        {describedError && <div className="absolute inset-0 grid place-content-center bg-white p-4 text-center text-xs text-ink-2">
+          {describedError.message}
+          {describedError.kind === 'retryable' && <button type="button" onClick={() => setAttempt(value => value + 1)} className="mt-2 rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-hover">Retry graph</button>}
         </div>}
       </div>
     </div>

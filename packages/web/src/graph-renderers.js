@@ -1,6 +1,16 @@
 import { api } from './api.js';
 
 let desmosScript;
+export function describeGraphError(error) {
+  const message = error instanceof Error ? error.message : String(error || 'Graph could not be loaded');
+  if (message === 'Desmos is not configured') {
+    return {
+      kind: 'unavailable',
+      message: 'Interactive math graphs are unavailable on this deployment. Use a Plotly data plot or an equation block instead.',
+    };
+  }
+  return { kind: 'retryable', message };
+}
 // Also called on idle by learn-warmup.js: fetches and parses the SDK once, no calculator.
 export async function loadDesmos(app) {
   if (window.Desmos) return window.Desmos;

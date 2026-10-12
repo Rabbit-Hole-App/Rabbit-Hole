@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BaseBoxShapeUtil, HTMLContainer, T } from 'tldraw';
-import { graphRenderers } from './graph-renderers.js';
+import { describeGraphError, graphRenderers } from './graph-renderers.js';
 import { emitGraphEvent, getGraphContext } from './graph-context.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
 
@@ -60,13 +60,14 @@ function InteractiveGraph({ shape, editor }) {
     observer.observe(element); return () => { observer.disconnect(); element.removeEventListener('wheel', wheel); };
   }, []);
   const stop = event => event.stopPropagation();
+  const describedError = error ? describeGraphError(error) : null;
   return <HTMLContainer style={{ width: shape.props.w, height: shape.props.h, background: 'white', color: '#171717', border: '1px solid #a3a3a3', borderRadius: 8, overflow: 'hidden', pointerEvents: 'all' }}>
     <div title="Drag this frame to move the graph" style={{ height: 32, padding: '6px 12px', fontSize: 13, background: '#f5f5f5', borderBottom: '1px solid #e5e5e5', cursor: 'grab', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shape.props.spec.title || shape.props.spec.concept || 'Interactive graph'}</div>
     <div aria-label={`${shape.props.spec.renderer} interactive graph`} onPointerDownCapture={editor.markEventAsHandled} onPointerMoveCapture={editor.markEventAsHandled} onPointerUpCapture={editor.markEventAsHandled} onDoubleClick={stop} onWheel={stop} onKeyDown={stop} onKeyUp={stop} style={{ width: '100%', height: 'calc(100% - 32px)', position: 'relative' }}>
       <div ref={host} style={{ width: '100%', height: '100%' }} />
       {(!loaded || error) && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', padding: 20, background: 'white', fontSize: 13 }}>
-        {error || 'Loading interactive graph…'}
-        {error && <button onClick={() => setAttempt(v => v + 1)} style={{ marginTop: 10, border: '1px solid #a3a3a3', padding: 6, borderRadius: 4 }}>Retry graph</button>}
+        {describedError?.message || 'Loading interactive graph…'}
+        {describedError?.kind === 'retryable' && <button onClick={() => setAttempt(v => v + 1)} style={{ marginTop: 10, border: '1px solid #a3a3a3', padding: 6, borderRadius: 4 }}>Retry graph</button>}
       </div>}
     </div>
   </HTMLContainer>;
