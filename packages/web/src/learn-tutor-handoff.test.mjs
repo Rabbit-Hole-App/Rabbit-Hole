@@ -454,6 +454,7 @@ test('B-I2: a failed, refused or invalid handoff drops the create_material plann
   }
   const answered = await turnWith({ actions: [SAY, WALK, HANDOFF] }, { block: null, materials: materialCommands() });
   assert.deepEqual(answered.actions.map(a => a.command ?? a.type), ['respond_text', 'walkthrough', 'handoff'], 'an answer keeps the material');
+  assert.ok(answered.sourceAnswer && answered.text.endsWith(answered.sourceAnswer), 'the distinct source answer remains available to presentation routing');
   assert.equal(answered.decisions.some(d => d.stage === 'handoff'), false);
   assert.equal((await made(answered.actions)).length, 1);
 });

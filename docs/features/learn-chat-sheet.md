@@ -1,11 +1,31 @@
 # Learn chat sheet
 
-Status (2026-09-29): on the dev review clone. Not yet routed by intent: the
-Tutor Agent's router decides later when a question should become a card.
+Status (2026-10-09): option B is implemented locally for the Tutor-backed
+Learn dock, pending full-suite, browser and deployed verification. This is r36;
+it is excluded from the r35 integration candidate.
 
-A plain question typed in the Learn canvas composer ("hi", or anything not
-tied to a card) answers in a sheet above the composer, not as a canvas card.
-The sheet is the same idea as smart-home's result sheet on Home.
+## Where an answer goes
+
+The resolved Tutor plan determines the destination after Send:
+
+- Clear teaching requests create a card directly. A generated or shown material
+  card is the answer; its planner narration does not become another card or a
+  second explanation above chat.
+- Discussion about a selected card opens Conversation in the existing resizable
+  right panel, including Ask in chat. The request retains the selection captured
+  at Send. Selecting a previously discussed card reopens its stored conversation.
+- Clarification, setup and errors stay in the window above chat. Failed or refused
+  source handoffs do not become permanent answer cards.
+- A substantive answer without a selected card becomes a canvas card. A distinct
+  retrieved source answer survives material narration suppression, using the same
+  destination rules. Questions accompanying material remain visible.
+- ponytail: right-panel conversation history is local React state for the current
+  app and board; reload clears it. Changing app or board clears it too. This change
+  does not add server persistence or alter model providers, prompts or evaluators.
+
+The rules below describe the existing sheet controls and legacy non-Tutor chat.
+The Tutor dock uses the destinations above instead of duplicating its answers in
+that sheet.
 
 ## Behaviour
 
@@ -21,7 +41,7 @@ The sheet is the same idea as smart-home's result sheet on Home.
 - Each finished answer has **Add to canvas**. It places that question and
   answer on the canvas as a chat card, centred in the view above the open
   sheet, and the button then reads **On the canvas**.
-- **Ask in chat** on a selected card is unchanged: the answer is a chat card
+- **Ask in chat** in legacy non-Tutor chat is unchanged: the answer is a chat card
   linked under that card, in its own thread. It never shows in the sheet and
   does not break the sheet's thread.
 - `/` commands are unchanged: they insert their cards directly.
@@ -58,3 +78,17 @@ still while the answer streams. Cards inserted any other way (Insert menu,
   repository page's Learn chat.
 - `packages/web/e2e/chat-card-placement.mjs` and
   `packages/web/e2e/canvas-landing-sweep.mjs`: where new cards land.
+
+## Option B verification
+
+- `src/answer-destination.test.mjs`: material suppression, teaching intent,
+  selected-card conversation, clarification, setup, source failures and distinct
+  source answers.
+- `src/learn-tutor-handoff.test.mjs` and `src/learn-tutor-auto.test.mjs`: preserve
+  the source answer and the legacy string return contract.
+- `e2e/answer-routing-check.mjs`: scripted browser scenarios with model-capable
+  requests intercepted. This is UI evidence only, not real-model verification.
+- Latest focused run: 70 passed, zero failed. Full suite and browser pending.
+  Isolated upload failed Cloudflare validation for `node:crypto`; no deployment
+  or real-model success is claimed. Final evidence belongs in the external
+  answer-routing lane receipt before integration.

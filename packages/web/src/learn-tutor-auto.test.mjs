@@ -798,3 +798,10 @@ test('r29 next_section: offered on every row of a live journey, kept only with t
     assert.equal(bundled.turnOffers({ journey, record }).nextSectionOffer, false, why);
   }
 });
+
+test('answer routing: ask can return the resolved plan without changing the legacy text or voice contract', async () => {
+  const { out } = await plainTutor(RESPOND, t => t.ask({ raw: 'What is a gradient?', resolved: true }));
+  assert.equal(out.text, 'A step that is too large jumps past the lowest point.');
+  assert.equal(out.actions[0].type, 'respond_text');
+  assert.equal(out.turn.raw_user_message, 'What is a gradient?');
+});

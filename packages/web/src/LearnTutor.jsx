@@ -313,13 +313,13 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const answer = async args => {
     fresh();
     const result = await tracked(args);
-    if (result.handled) return result;
+    if (result.handled || args.resolved) return result;
     return result.text || (result.actions.some(action => action.type !== 'no_action') ? 'See the canvas.' : 'Nothing to add here yet.');
   };
   // A hook click (contract §1.4): one next_step turn with the step as structured data and no learner words; its
   // create_material actions run through runMaterials. inputModality 'voice' in Voice Mode: the same turn, and the reply
   // follows the existing voice behaviour (onSpeakable).
-  const askStep = ({ selected_next_step, signal, begin = null, inputModality = 'text', turnId = null, onSpeakable = null }) => answer({ raw: '', nextStep: selected_next_step, selectedAt: new Date().toISOString(), signal, inputModality, turnId, onSpeakable, onAnswer: begin });
+  const askStep = ({ selected_next_step, signal, begin = null, inputModality = 'text', turnId = null, onSpeakable = null, resolved = false }) => answer({ resolved, raw: '', nextStep: selected_next_step, selectedAt: new Date().toISOString(), signal, inputModality, turnId, onSpeakable, onAnswer: begin });
   // snapshot(): what useNextSteps builds the hook input from - the Tutor context here (null: no hooks), the merged store, a
   // hole's parent journey and record, and the live title. showing(options): the hooks on screen, named in the next turn's
   // decision trace.
@@ -359,7 +359,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     ...steps,
     // begin (ask.jsx): draws the turn's chat bubbles and exchange, once the turn is the Tutor's. A turn the journey took
     // resolves to { handled: true, failed } and draws nothing.
-    ask: ({ raw, targetId, image = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null }) => answer({ raw, targetId, image, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin }),
+    ask: ({ raw, targetId, image = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null, resolved = false }) => answer({ resolved, raw, targetId, image, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin }),
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry. A turn the journey took
     // says nothing: the tray shows where the journey is.

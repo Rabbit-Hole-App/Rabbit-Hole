@@ -59,3 +59,12 @@ Comments is paused by the owner. Its slot only holds a placeholder:
 
 - `src/panel-header.test.mjs`: order, labels, single active tab, the Comments placeholder, pin default and persistence, the unpinned close, Close, the reader tab, and the find matching.
 - `e2e/panel-header-check.mjs`: the same in a browser, plus a real find that brings an off-screen card into view and selects it.
+
+## Selected-card conversation (r36, local implementation)
+
++After a Tutor reply about a selected card, Conversation (`MessagesSquare`) is
+available in the existing tab group. It uses the shared answer renderer and
+resizable panel. Existing Find, Contents, Comments and repository controls stay
+available. Selecting a card with prior replies switches the conversation content
+to that card; app/board changes clear this temporary history. Browser and deployed
+verification remain pending; see learn-chat-sheet.md.

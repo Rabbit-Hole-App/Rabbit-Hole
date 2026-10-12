@@ -624,7 +624,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_answer: handed ? ms(t[0], end) : firstText,
     },
   };
-  return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), reading, decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
+  return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), reading, decisions, log, text, sourceAnswer: handed?.answer ?? null, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
 }
 const now = () => (globalThis.performance ?? Date).now();
 

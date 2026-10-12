@@ -3208,6 +3208,7 @@ benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
 `small-cp`, the live database or BYOC.
 
 
+
 ### Learning progression takeover (2026-10-09, r36 candidate)
 
 The Tutor derives its Next section / Finish the path chip from saved section evidence, including after reload. Clicking requires the server to recheck completion; stale evidence cannot silently become a skip. Navigation revision conflicts are not replayed against a new section, and retries retain the original journey and section identity. Completed journeys use the stored outcome and retain claim gaps. No deployment or real-model verification is claimed; Parallel owns the integrated app gate.
@@ -3228,3 +3229,14 @@ Tutor turns accept one reference: an existing image card uses `{block_id}`, whil
 The server validates the reference before reading any asset. Card references resolve from the authenticated caller's saved board; shared-reader references resolve from the already-authorized shared row; forks use their copied board assets. Upload ids resolve under the authenticated app/user identity. Missing, invalid-format or oversized image bytes produce a text-only response with a notice, including on streamed turns. No client asset key or owner identity is trusted.
 
 The material policy now avoids repeating a card's explanation in respond_text. [Prompt pin review](beta-material-prompt-review.md) records the exact shared-line change and six reproduced before/after hashes; models, tool schemas and budgets are unchanged. The original 15-decision budget contract remains in force. Tutor owns independent image and browser verification; mocked transport tests alone do not establish deployed behavior.
+
+## Answer routing option B (2026-10-09, r36 local work)
+
++The Tutor-backed Learn dock routes teaching to cards, selected-card discussion to
+the shared resizable right panel, and clarification/errors above chat. Material
+planner narration is suppressed; distinct source-reader answers are retained.
+See [Learn chat sheet](learn-chat-sheet.md) for behavior and temporary history
+limits. Existing providers and independent evaluators are unchanged. Focused
+offline checks pass; full-suite, browser and real-model deployed verification are
+pending. The isolated upload failed `node:crypto` module validation. This is not a
+successful dev deployment and is excluded from the r35 candidate.

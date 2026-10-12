@@ -193,7 +193,7 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // has neither, and a failed one gives the words back. Ask the Tutor (skipJourney) goes straight to the planner.
   // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
   assert.match(ask, /if \(!tutor \|\| codeTurn \|\| isDemo\) begin\(\);/);
-  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, opening, signal: flight\.signal, skipJourney, begin \}\)/);
+  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin \}\)/);
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
   assert.match(ask, /<TutorPromptTray tray=\{tray\.tray\}/);
@@ -450,8 +450,8 @@ test('ask.jsx: on a journey in setup, the Learn chat answers in the sheet only -
   const ask = read('ask.jsx');
   assert.match(ask, /journeySetup = false/);
   // A card only selected (canvas-card-selection.md) is context, not an Ask in chat: it never moves the answer out of the sheet.
-  assert.match(ask, /const panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\) \|\| journeySetup\);/);
-  assert.match(ask, /const exchange = panelAsk \|\| journeySetup \? null : onExchange;/);
+  assert.match(ask, /let panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\) \|\| journeySetup\);/);
+  assert.match(ask, /let exchange = panelAsk \|\| journeySetup \? null : onExchange;/);
   assert.match(ask, /if \(d\.card && !slots\[d\.card\] && !journeySetup\)/);
   for (const kind of ['Paper', 'Wiki', 'Video']) assert.match(ask, new RegExp(`if \\(!journeySetup\\) boardContext\\?\\.onShow${kind}\\?\\.`));
   // Every turn on a board with a journey goes through handleText; a failed one gives the words back.
