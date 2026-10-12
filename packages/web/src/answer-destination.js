@@ -20,7 +20,10 @@ export function destinationOf(result, target = null, { setup = false } = {}) {
   const text = material && !failed ? [...questions, result?.sourceAnswer].filter(Boolean).join('\n\n')
     : result?.text || (actions.some(action => action.type !== 'no_action') ? '' : 'Nothing to add here yet.');
   const card = !setup && (teaching(result?.turn, result?.reading) || !target?.card);
+  // Match turnOffers: an automatic hole opening is setup, not a request to keep a card.
+  const opening = result?.turn?.opening && !result.turn.next_step;
   const to = !text ? null
+    : opening ? 'tray'
     : failed || result?.reading?.clarification_requested === true ? 'tray'
     : !material && !actions.some(action => action.type !== 'no_action') ? 'tray'
     : (!material || result?.sourceAnswer) && card ? 'card'

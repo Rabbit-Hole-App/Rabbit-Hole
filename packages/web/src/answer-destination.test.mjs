@@ -85,3 +85,14 @@ test('material suppresses planner narration but preserves a distinct retrieved s
   assert.deepEqual(destinationOf(reply, selected), { material: true, to: 'conversation', text: reply.sourceAnswer });
   assert.deepEqual(destinationOf(reply), { material: true, to: 'card', text: reply.sourceAnswer });
 });
+
+test('automatic hole openings stay above chat instead of keeping an empty hole with a card', () => {
+  const opening = result([say('What would you like to explore first?')], {
+    raw: 'Take me into Attention.', turn: { opening: true },
+  });
+  assert.deepEqual(destinationOf(opening), { material: false, to: 'tray', text: opening.text });
+  // A learner-selected Next Step carried into the hole remains an intentional answer.
+  const carried = { ...opening, turn: { ...opening.turn, next_step: { suggestion_id: 'hook-1' } } };
+  assert.equal(destinationOf(carried).to, 'card');
+  assert.equal(destinationOf({ ...opening, turn: { raw_user_message: 'Explain attention' } }).to, 'card');
+});
