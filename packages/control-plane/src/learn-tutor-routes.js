@@ -25,6 +25,7 @@ import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
 import { admitSpend, operationId, settleSpend, spendMessage } from './learn-spend.js';
+import { journeyCallModel } from './learn-journey-planners.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -457,7 +458,14 @@ export async function tutorRoute(path, req, env, deps = {}) {
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
   const category = path === HANDOFF_PATH ? 'tutor_handoff' : path.endsWith('/next-steps') ? 'tutor_next_steps' : path.endsWith('/evaluate') ? 'tutor_evaluate' : 'tutor_plan';
-  const paidDeps = { ...deps, callModel: spendCallModel(env, access, category, deps.callModel || loggedModel(category === 'tutor_plan' ? 'tutor' : 'tutor_evaluator', anthropic)) };
+  const defaultCallModel = path === '/api/learn/tutor/next-steps'
+    ? journeyCallModel(env)
+    : path === HANDOFF_PATH
+      ? loggedModel('chat', anthropic)
+      : path.endsWith('/evaluate')
+        ? loggedModel('tutor_evaluator', anthropic)
+        : loggedModel('tutor', anthropic);
+  const paidDeps = { ...deps, callModel: spendCallModel(env, access, category, deps.callModel || defaultCallModel) };
   // Professor Next Steps (learn-next-steps-routes.js): the same gates, a separate call, never part of a Tutor turn.
   if (path === '/api/learn/tutor/next-steps') return ownedNextSteps(env, access, body, paidDeps);
   if (path === HANDOFF_PATH) return handoff(env, access, body, paidDeps);

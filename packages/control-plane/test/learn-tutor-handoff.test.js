@@ -34,6 +34,7 @@ function setup(t, vars = {}) {
   const statements = [], snapshotReads = [], storageWrites = [], authorized = [];
   const stored = new Map([['snap-now', SNAPSHOT], ['snap-old', PINNED]]);
   const env = {
+    SMALL_ENV: 'test',
     LEARN_DB: { prepare: sql => { statements.push(sql.replace(/\s+/g, ' ').trim()); return LEARN_DB.prepare(sql); }, batch: async list => { storageWrites.push('LEARN_DB.batch'); return LEARN_DB.batch(list); } },
     REPOSITORY_SNAPSHOTS: { get: async key => { snapshotReads.push(key); return stored.has(key) ? { json: async () => structuredClone(stored.get(key)) } : null; }, put: async key => { storageWrites.push(`snapshot ${key}`); } },
     ...vars,

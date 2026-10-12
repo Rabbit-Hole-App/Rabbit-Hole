@@ -130,7 +130,7 @@ async function setup(t, envExtra = {}) {
     },
   };
   sqlite.prepare('INSERT INTO canvases(org, name, owner_email, title) VALUES (?, ?, ?, ?)').run('team-ws', APP, 'ana@test', 'Logistic regression');
-  const env = { LEARN_DB, CONTROL_PLANE, TYPESAFE_API_KEY: 'jev', ...envExtra };
+  const env = { LEARN_DB, CONTROL_PLANE, SMALL_ENV: 'test', TYPESAFE_API_KEY: 'jev', ...envExtra };
   const created = await createJourney(env, SCOPE, START);
   const journey = await saveJourney(env, { ...created, state: 'diagnostic', registry: REG, diagnostic: { probes: DIAG.probes, asked: [], skipped: false }, section_plan: { section_id: 's1', checks: [CHECK] } }, 0);
   // move(n): another tab moves the journey (revision + 1) just before each of the next n journey writes.

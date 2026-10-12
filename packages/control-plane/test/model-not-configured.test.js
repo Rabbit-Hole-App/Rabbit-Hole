@@ -39,7 +39,7 @@ test('a Tutor turn with no key: the learner reads the sentence, and nothing left
   const calls = outbound(t);
   const { sqlite, LEARN_DB } = learnDb(t);
   sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Board')");
-  const env = { LEARN_DB, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: {} }), TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' };
+  const env = { LEARN_DB, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: {} }), SMALL_ENV: 'test', TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' };
   const response = await tutorRoute('/api/learn/tutor/plan', new Request('https://dev.test/api/learn/tutor/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'What is a tensor?' } } }) }), env);
   assert.equal(response.ok, false);
   assert.match(JSON.stringify(await response.json()), new RegExp(MODEL_NOT_CONFIGURED.replace(/[.?]/g, '\\$&')));

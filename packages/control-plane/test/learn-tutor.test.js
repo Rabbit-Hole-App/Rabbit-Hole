@@ -32,7 +32,7 @@ function recordFetch(t, reply) {
 function world(t, envExtra = {}) {
   const { sqlite, LEARN_DB } = learnDb(t);
   sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Board')");
-  const env = { LEARN_DB, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: {} }), ANTHROPIC_API_KEY: 'k', TYPESAFE_API_KEY: 'jev', ...envExtra };
+  const env = { LEARN_DB, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: {} }), SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', TYPESAFE_API_KEY: 'jev', ...envExtra };
   const post = (path, body, deps) => tutorRoute(path, new Request(`https://dev.test${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env, deps);
   return { env, post };
 }

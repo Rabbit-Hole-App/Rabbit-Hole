@@ -23,7 +23,7 @@ test('an ordinary Tutor turn plans without the telemetry store and without the h
   const original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async () => Response.json({ model: 'claude-opus-5-5', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' });
-  const env = { LEARN_DB: db, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: {} }), ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' };
+  const env = { LEARN_DB: db, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: {} }), SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' };
   const response = await tutorRoute('/api/learn/tutor/plan', new Request('https://dev.test/api/learn/tutor/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'What is a tensor?' } } }) }), env);
   assert.equal(response.status, 200, await response.clone().text());
   const { telemetry, ...body } = await response.json();
