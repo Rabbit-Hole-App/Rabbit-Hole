@@ -228,8 +228,6 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     }
     if (result.response?.notice) put({ notices: [...desk.notices, { tone: 'info', text: result.response.notice }] });
     save(result.store);
-    // r29: evidence this turn stored on the journey reaches the journey controller (sectionCompletion, the next-section hook), the
-    // same journey only.
     if (result.evaluation?.journey && journeyAtStart && journeyRef.current?.journey?.id === journeyAtStart) journeyRef.current.adoptEvidence?.(result.evaluation.journey);
     if (result.log.length) console.info('[tutor]', result.routed.row, result.log.join('; '));
     put({ chips: executeActions(result.actions, {
