@@ -125,12 +125,52 @@ jobs:
           node --version
           bash --version | head -n 1
           make --version | head -n 1
-      - name: Run instrumented Dive then complete gate
+      - name: Run gate preflight checkpoint
+        id: preflight
         shell: pwsh
         working-directory: harness
+        continue-on-error: true
         run: |
           if (-not (Test-Path 'scripts/r36-gate/run.mjs')) { throw 'gate bundle missing: scripts/r36-gate/run.mjs' }
-          node scripts/r36-gate/run.mjs
+          node scripts/r36-gate/run.mjs preflight
+      - name: Upload preflight checkpoint
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: r36-windows-preflight-${{ inputs.app_sha || '46fbe04283a424e69db5272f9e1f3c7b9c19e846' }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/r36/artifacts/**
+            ${{ runner.temp }}/r36-identities.txt
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Run instrumented Dive checkpoint
+        id: dive
+        if: steps.preflight.outcome == 'success'
+        shell: pwsh
+        working-directory: harness
+        continue-on-error: true
+        run: |
+          node scripts/r36-gate/run.mjs dive
+      - name: Upload Dive checkpoint
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: r36-windows-dive-${{ inputs.app_sha || '46fbe04283a424e69db5272f9e1f3c7b9c19e846' }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/r36/artifacts/**
+            ${{ runner.temp }}/r36-identities.txt
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Run complete gate
+        id: gate
+        if: steps.dive.outcome == 'success'
+        shell: pwsh
+        working-directory: harness
+        run: node scripts/r36-gate/run.mjs gate
+      - name: Fail when a checkpoint did not pass
+        if: steps.preflight.outcome != 'success' || steps.dive.outcome != 'success'
+        shell: pwsh
+        run: throw "Preflight or Dive checkpoint failed; complete gate was not started"
       - name: Upload complete gate artifacts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

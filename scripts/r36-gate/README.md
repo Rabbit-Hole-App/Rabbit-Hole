@@ -6,7 +6,11 @@ harness on a separate branch, not an application change. Every receipt records
 both application identity and the harness checkout's HEAD.
 
 Run `node scripts/r36-gate/run.mjs` from the harness checkout on the authorized
-GitHub-hosted Windows job. Required environment: `APP_ROOT`, `GATE_ROOT`,
+GitHub-hosted Windows job. The workflow invokes the same entrypoint in three
+success-gated phases: `preflight`, `dive`, then `gate`; each phase writes a
+receipt and uploads its sanitized artifact before the next phase starts.
+Running the entrypoint with no phase retains the all-in-one local compatibility
+mode. Required environment: `APP_ROOT`, `GATE_ROOT`,
 `ARTIFACT_ROOT`, `HARNESS_SHA`, `GATE_GRANT_ID`. `GATE_BASH` points to Git Bash.
 Use fresh workspace/temp directories without spaces. No provider credentials or
 deployment credentials are permitted. Synthetic local authentication is generated
@@ -21,24 +25,23 @@ and Windows PowerShell must be available to Git Bash.
 
 ## Sequence
 
-1. Assert source identities and clean tracked application tree; check tools,
-   available RAM, child spawning and ports.
-2. Instantiate reviewed local configs in the disposable app checkout. Generate
-   matching app/CP `.dev.vars` with SMALL_ENV=test, OAUTH_MOCK=true and
-   JOURNEY_MODEL_STUB=fixtures. Initialize local bootstrap/migrations,
-   repository schema and BYOC schema using `wrangler d1 ... --local` only.
-3. Start the original development stack through the process observer. Require
+1. **Preflight:** assert source identities and clean tracked application tree;
+   check tools, available RAM, child spawning and ports. Instantiate reviewed
+   local configs, initialize local schemas only, build/start Workers and verify authenticated access, stop the stack, and write a
+   passing preflight receipt.
+2. **Dive:** resume only from a matching passing preflight receipt. Start the
+   original development stack through the process observer. Require
    wrong-secret `/test/session` rejection, successful synthetic authentication
-   and authenticated `/api/apps` responses from both Workers.
-4. Run the unchanged candidate's `e2e/dive-check.mjs`, retain Worker stdout and
-   stderr, native exit observations, memory and last completed requests. The
-   existing `/main/thumbnail` fixture remains unchanged. Failure stops the job.
-5. Clean up, then run every original `int35.sh` stage in its original order,
-   plus the corrected local answer-routing browser harness after sketch.
-   This includes full units, nanoGPT fixture, both application modes, all
-   browser stages, both production-bundle checks, journeys J1–J8 and Tutor
-   stages. Existing conditional folders/share/project-menu checks remain.
-6. Require the exact candidate's `scripts/dev-deploy.mjs` gate verifier to
+   and authenticated `/api/apps` responses from both Workers. Run the
+   unchanged candidate's `e2e/dive-check.mjs`, retain Worker stdout/stderr,
+   native exit observations, memory and last completed requests, then clean up
+   and write a passing Dive receipt.
+3. **Gate:** resume only from a matching passing Dive receipt. Run every
+   original `int35.sh` stage in its original order, plus the corrected local
+   answer-routing browser harness after sketch. This includes full units,
+   nanoGPT fixture, both application modes, browser stages, bundle checks,
+   journeys and Tutor stages.
+4. Require the exact candidate's `scripts/dev-deploy.mjs` gate verifier to
    accept the terminal log; additionally require routing and project-menu
    counts and zero provider-tripwire hits. Cleanup failure invalidates pass.
 

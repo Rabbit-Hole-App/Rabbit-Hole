@@ -3,16 +3,19 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, appen
 import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SOURCE, prepare, files, sha256 } from './prepare.mjs';
+import { prerequisite } from './phases.mjs';
 
 const APP_SHA='46fbe04283a424e69db5272f9e1f3c7b9c19e846', APP_TREE='2555e2aa4a6784b2984e629ee5ed77dd37bff0be';
+const phase=process.argv[2]||'all',fresh=phase==='all'||phase==='preflight';
 const app=resolve(process.env.APP_ROOT||''),state=resolve(process.env.GATE_ROOT||''),out=resolve(process.env.ARTIFACT_ROOT||'');
+const config=join(app,'packages/control-plane/integ-local.jsonc'),persist=join(state,'gates/int35/fork/local');
 for(const name of ['APP_ROOT','GATE_ROOT','ARTIFACT_ROOT','HARNESS_SHA','GATE_GRANT_ID'])if(!process.env[name])throw Error(`Missing ${name}`);
 if(!process.env.GITHUB_ACTIONS && process.env.R36_LOCAL_VALIDATION!=='1')throw Error('Use the authorized isolated Windows CI job');
 if(process.platform!=='win32')throw Error('This complete gate uses the supported Windows/Bash stack');
 if(process.version!=='v24.19.0')throw Error(`Node pin mismatch: ${process.version}`);
 if((process.env.TESTED_SHA||APP_SHA)!==APP_SHA||(process.env.TESTED_TREE||APP_TREE)!==APP_TREE)throw Error('Application candidate is frozen');
 if([app,state,out].some(p=>p===resolve('.'))||app===state||out===state||out===app)throw Error('Use separate app, state and artifact paths');
-if(existsSync(join(out,'receipt.json'))||existsSync(join(state,'gates')))throw Error('Use fresh runner state; do not append to an earlier receipt');
+if(fresh&&(existsSync(join(out,'receipt.json'))||existsSync(join(state,'gates'))))throw Error('Use fresh runner state; do not append to an earlier receipt');
 mkdirSync(out,{recursive:true});
 const git=(...args)=>execFileSync('git',args,{cwd:app,encoding:'utf8',windowsHide:true}).trim();
 const unchanged=()=>{
@@ -26,9 +29,13 @@ const denied=Object.keys(process.env).filter(k=>process.env[k]&&/_API_KEY|^ELEVE
 if(denied.length)throw Error(`Provider/deployment environment refused: ${denied.join(', ')}`);
 const pins={wrangler:'4.129.0','@playwright/test':'1.62.1',vite:'8.2.2'};
 for(const [name,version] of Object.entries(pins))if(JSON.parse(readFileSync(join(app,'node_modules',name,'package.json'),'utf8')).version!==version)throw Error(`Dependency mismatch: ${name}`);
-const receipt={applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,grant:process.env.GATE_GRANT_ID,started:new Date().toISOString(),node:process.version,pins,lockfiles:{npm:sha256(join(app,'package-lock.json')),uv:sha256(join(app,'uv.lock'))},stages:[],pass:false};
-writeFileSync(join(out,'identity.json'),JSON.stringify(receipt,null,2));
-let gate,secret;
+const receipt={applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,grant:process.env.GATE_GRANT_ID,phase,started:new Date().toISOString(),node:process.version,pins,lockfiles:{npm:sha256(join(app,'package-lock.json')),uv:sha256(join(app,'uv.lock'))},stages:[],pass:false};
+const priorFile=join(out,`${phase==='dive'?'preflight':'dive'}-receipt.json`);
+const prior=!fresh&&existsSync(priorFile)?JSON.parse(readFileSync(priorFile,'utf8')):null;
+const priorError=prerequisite(phase,prior,receipt);if(priorError)throw Error(priorError);
+if(prior)receipt.prerequisite={phase:prior.phase,sha256:sha256(priorFile)};
+writeFileSync(join(out,fresh?'identity.json':`identity-${phase}.json`),JSON.stringify(receipt,null,2));
+let gate=fresh?null:resolve(state,'gates/int35').replaceAll('\\','/'),secret;
 let env={...process.env,CI:'true',INT35_EXPECTED_SHA:APP_SHA,INT35_EXPECTED_TREE:APP_TREE,INT35_GRANT_ID:process.env.GATE_GRANT_ID};
 for(const name of Object.keys(env))if(!env[name]&&/_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/i.test(name))delete env[name];
 function command(file,args,{cwd=app,log,timeout=1800000,allowFailure=false,extra={},stream=false}={}) {
@@ -90,12 +97,13 @@ async function tripwire() {
 }
 try {
   await memory('preflight');
+  if(fresh) {
   await command(process.execPath,['-e','const c=require("node:child_process").spawnSync(process.execPath,["-e","process.exit(0)"]);if(c.status!==0)process.exit(1)']);
   await command('powershell.exe',['-NoProfile','-Command','$ErrorActionPreference="Stop"; $self=Get-CimInstance Win32_Process -Filter "ProcessId = $PID"; if (-not $self.CreationDate) { throw "Process identity unavailable" }; $null=(Get-Process -Id $PID).Handle; $null=Get-NetTCPConnection -State Listen; "Process observation capability passed"'],{log:join(out,'process-preflight.log')});
   await command(bash,['-c','for tool in make timeout curl sed python powershell; do command -v "$tool" || exit 1; done; make --version && python --version'],{log:join(out,'tools.log')});
   ({gate,secret}=prepare({app,state,sha:APP_SHA,tree:APP_TREE,grant:env.INT35_GRANT_ID}));
   await command('powershell.exe',['-NoProfile','-Command','if (@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in @(8878,8879,9318,9319) }).Count) { throw "Required ports occupied" }']);
-  const wrangler=join(app,'node_modules/wrangler/bin/wrangler.js'),config=join(app,'packages/control-plane/integ-local.jsonc'),persist=join(gate,'fork/local');
+  const wrangler=join(app,'node_modules/wrangler/bin/wrangler.js');
   for(const [db,file] of [['rabbit-hole-dev','packages/control-plane/bootstrap.sql'],['rabbit-hole-dev',null],['rabbit-hole-learn-dev','packages/control-plane/repository-schema.sql'],['rabbit-hole-byoc-dev','packages/byoc/schema.sql']]) {
     const args=file?['d1','execute',db,'--file',file]:['d1','migrations','apply',db];
     await command(process.execPath,[wrangler,...args,'--local','--config',config,'--persist-to',persist],{log:join(out,'schema.log')});
@@ -106,7 +114,17 @@ try {
   writeFileSync(join(gate,'fork/SCHEMA-PREPARED-TREE'),APP_TREE+'\n');
   await command(process.execPath,[join(gate,'preflight.cjs')],{log:join(out,'preflight.log')});
   await command(bash,[join(gate,'fork/stack.sh'),'dev'],{log:join(out,'dive-stack.log')});
-  await auth();await memory('dive-start');
+  await auth();
+  } else {
+    const vars=readFileSync(join(app,'packages/control-plane/.dev.vars'),'utf8');
+    secret=vars.match(/^TEST_BYPASS_SECRET=([a-f0-9]{48})\r?$/m)?.[1];
+    if(!secret||vars!==readFileSync(join(app,'packages/web/.dev.vars'),'utf8'))throw Error('Prepared local authentication changed or missing');
+    for(const [file,hash] of Object.entries(prior.localConfigHashes||{}))if(sha256(join(app,file))!==hash)throw Error(`Prepared local configuration changed: ${file}`);
+    if(!prior.localConfigHashes||Object.keys(prior.localConfigHashes).length<3)throw Error('Prepared local configuration receipt missing');
+  }
+  if(phase!=='preflight'&&phase!=='gate') {
+  if(!fresh) {await command(bash,[join(gate,'fork/stack.sh'),'restart'],{log:join(out,'dive-stack.log')});await auth();}
+  await memory('dive-start');
   const browserEnv={BASE:'http://127.0.0.1:8878',SMALL_CP:'http://127.0.0.1:8879',PERSIST:persist,D1_CONFIG:config};
   try {
     await command(process.execPath,[join(gate,'supervise.mjs'),join(gate,'dive-reproduction'),'--','e2e/dive-check.mjs',join(gate,'dive-reproduction-shots')],{cwd:join(app,'packages/web'),log:join(out,'dive-reproduction.log'),timeout:1200000,extra:browserEnv});
@@ -114,6 +132,8 @@ try {
   await tripwire();unchanged();
   writeFileSync(join(out,'dive-verdict.json'),JSON.stringify({sha:APP_SHA,tree:APP_TREE,harness:actualHarness,pass:true,providerHits:0}));
   await stop();await memory('after-dive-cleanup');
+  }
+  if(phase==='all'||phase==='gate') {
   await command(bash,[join(gate,'int35.sh')],{log:join(out,'gate.log'),timeout:7200000,stream:true});
   unchanged();
   const {gateVerdict,stageCount}=await import(pathToFileURL(join(app,'scripts/dev-deploy.mjs')));
@@ -125,6 +145,8 @@ try {
   const extraPassed=routing?.[1]==='0'&&stageCount(routing[2])>=15&&project?.[1]==='0'&&stageCount(project[2])===12&&/^answer-routing provider-tripwire hits: 0\r?$/m.test(record)&&/^project-menu provider-tripwire hits: 0\r?$/m.test(record);
   writeFileSync(join(out,'gate-verdict.json'),JSON.stringify({applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,gateVerdict:verdict,extraPassed,pass:verdict===null&&extraPassed},null,2));
   if(verdict||!extraPassed)throw Error(`Complete gate rejected: ${verdict||'routing/project-menu receipts missing'}`);
+  }
+  receipt.localConfigHashes=Object.fromEntries(['packages/control-plane/.dev.vars','packages/web/.dev.vars',...files(join(gate,'config-templates')).map(p=>p.slice(join(gate,'config-templates').length+1).replaceAll('\\','/'))].map(p=>[p,sha256(join(app,p))]));
   receipt.pass=true;
 } catch(error) {
   receipt.failure=error.message;console.error(error.message);process.exitCode=1;
@@ -145,6 +167,6 @@ try {
     if(p.endsWith('.png'))copyFileSync(p,target);else writeFileSync(target,scrub(readFileSync(p,'utf8')));
   }
   for(const p of files(out))if(!p.endsWith('.png'))writeFileSync(p,scrub(readFileSync(p,'utf8')));
-  receipt.ended=new Date().toISOString();writeFileSync(join(out,'receipt.json'),JSON.stringify(receipt,null,2));
+  receipt.ended=new Date().toISOString();writeFileSync(join(out,phase==='all'||phase==='gate'?'receipt.json':`${phase}-receipt.json`),JSON.stringify(receipt,null,2));
   console.log(JSON.stringify({applicationSha:APP_SHA,harnessSha:actualHarness,pass:receipt.pass,failure:receipt.failure,artifacts:out}));
 }
