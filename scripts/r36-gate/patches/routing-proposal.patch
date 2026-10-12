@@ -1,0 +1,33 @@
+diff --git a/packages/web/src/answer-destination.js b/packages/web/src/answer-destination.js
+index 6d619273..e94e1d4d 100644
+--- a/packages/web/src/answer-destination.js
++++ b/packages/web/src/answer-destination.js
+@@ -14,6 +14,8 @@ export const teaching = (turn, reading) => turn?.mode === 'teach' || reading?.in
+ 
+ export function destinationOf(result, target = null, { setup = false } = {}) {
+   const actions = result?.actions || [];
++  // A proposed path is setup too: its journey does not exist until the learner accepts the chip.
++  setup = setup || actions.some(action => action.type === 'suggest_journey');
+   const material = actions.some(SHOWS);
+   const failed = ['failed', 'refused'].includes(result?.bench?.handoff?.outcome);
+   const questions = actions.filter(action => action.type === 'ask_question').map(action => String(action.text || '').trim()).filter(Boolean);
+diff --git a/packages/web/src/answer-destination.test.mjs b/packages/web/src/answer-destination.test.mjs
+index 16e2eff0..8e189ebe 100644
+--- a/packages/web/src/answer-destination.test.mjs
++++ b/packages/web/src/answer-destination.test.mjs
+@@ -95,4 +95,13 @@ test('automatic hole openings stay above chat instead of keeping an empty hole w
+   const carried = { ...opening, turn: { ...opening.turn, next_step: { suggestion_id: 'hook-1' } } };
+   assert.equal(destinationOf(carried).to, 'card');
+   assert.equal(destinationOf({ ...opening, turn: { raw_user_message: 'Explain attention' } }).to, 'card');
+-});
+\ No newline at end of file
++});
++
++test('a proposed learning path is setup before a journey exists: no canvas card or selected-card conversation', () => {
++  const proposal = result([say('Let us build a learning path.'), { type: 'suggest_journey', request: 'logistic regression' }], {
++    raw: 'I want to learn logistic regression',
++  });
++  for (const target of [null, selected]) {
++    assert.deepEqual(destinationOf(proposal, target), { material: false, to: 'tray', text: proposal.text });
++  }
++});

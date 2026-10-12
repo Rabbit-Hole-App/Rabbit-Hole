@@ -1,0 +1,124 @@
+name: r36-precommit-units
+
+on:
+  push:
+    branches: [home/r36-precommit]
+    paths:
+      - '.github/workflows/r36-precommit.yml'
+      - 'scripts/r36-gate/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: r36-precommit-units
+  cancel-in-progress: false
+
+jobs:
+  units:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      APP_SHA: 46fbe04283a424e69db5272f9e1f3c7b9c19e846
+      APP_TREE: 2555e2aa4a6784b2984e629ee5ed77dd37bff0be
+      TESTED_TREE: 3f28a065c11254583d4e3eb88372e9f7dfa63f78
+      HARNESS_SHA: ${{ github.sha }}
+      CI: true
+      GATE_BASH: C:\Program Files\Git\bin\bash.exe
+    steps:
+      - name: Checkout precommit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Setup locked toolchain
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24.19.0
+          cache: npm
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
+        with:
+          version: 0.9.5
+          python-version: '3.13'
+          enable-cache: true
+      - name: Wait for same-SHA canonical verify
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $deadline = (Get-Date).ToUniversalTime().AddMinutes(45)
+          $sha = $env:GITHUB_SHA
+          $repo = $env:GITHUB_REPOSITORY
+          $out = Join-Path $env:RUNNER_TEMP 'r36-precommit\artifacts'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          while ($true) {
+            $raw = gh run list --repo $repo --workflow verify.yml --commit $sha --limit 20 --json databaseId,status,conclusion,url,headSha
+            if ($LASTEXITCODE -ne 0) { throw "gh run list failed for verify.yml/$sha (exit $LASTEXITCODE)" }
+            $runs = @($raw | ConvertFrom-Json | Where-Object { $_ -and $_.headSha -eq $sha })
+            if ($runs.Count -gt 0) {
+              $run = $runs[0]
+              if ($run.status -eq 'completed') {
+                "verify_run=$($run.url);verify_conclusion=$($run.conclusion);verify_sha=$sha" | Set-Content (Join-Path $out 'verify-workflow.txt')
+                if ($run.conclusion -ne 'success') { throw "canonical verify failed: $($run.conclusion)" }
+                break
+              }
+            }
+            if ((Get-Date).ToUniversalTime() -gt $deadline) { throw "no successful verify.yml run for $sha before timeout" }
+            Start-Sleep -Seconds 30
+          }
+      - name: Prepare exact application base
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'r36-precommit'
+          $app = Join-Path $root 'app'
+          $out = Join-Path $root 'artifacts'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          git fetch --no-tags origin $env:APP_SHA
+          if ($LASTEXITCODE -ne 0) { throw "git fetch failed: $LASTEXITCODE" }
+          git worktree add --detach $app $env:APP_SHA
+          if ($LASTEXITCODE -ne 0) { throw "git worktree failed: $LASTEXITCODE" }
+          $actual = git -C $app rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw "git identity failed: $LASTEXITCODE" }
+          $tree = git -C $app rev-parse 'HEAD^{tree}'
+          if ($LASTEXITCODE -ne 0) { throw "git tree lookup failed: $LASTEXITCODE" }
+          if ($actual -ne $env:APP_SHA -or $tree -ne $env:APP_TREE) { throw "base identity mismatch: $actual / $tree" }
+          $ram = [math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)
+          [ordered]@{phase='preflight';baseSha=$actual;baseTree=$tree;harnessSha=$env:HARNESS_SHA;freeMiB=$ram;utc=(Get-Date).ToUniversalTime().ToString('o')} | ConvertTo-Json | Set-Content (Join-Path $out 'preflight.json')
+          if ($ram -lt 1500) { throw "free RAM below 1500 MiB" }
+          "APP_ROOT=$app" | Out-File $env:GITHUB_ENV -Append
+          "ARTIFACT_ROOT=$out" | Out-File $env:GITHUB_ENV -Append
+      - name: Install exact locked dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:APP_ROOT
+          try {
+            npm ci --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) { throw "npm ci failed: $LASTEXITCODE" }
+            node scripts/lock-natives.mjs --check
+            if ($LASTEXITCODE -ne 0) { throw "lock check failed: $LASTEXITCODE" }
+            node scripts/ensure-natives.mjs
+            if ($LASTEXITCODE -ne 0) { throw "native setup failed: $LASTEXITCODE" }
+            uv sync --locked
+            if ($LASTEXITCODE -ne 0) { throw "uv sync failed: $LASTEXITCODE" }
+          } finally { Pop-Location }
+      - name: Apply patch and run precommit units
+        shell: pwsh
+        env:
+          UV_OFFLINE: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          node scripts/r36-gate/precommit.mjs
+          if ($LASTEXITCODE -ne 0) { throw "precommit units failed: $LASTEXITCODE" }
+      - name: Upload sanitized precommit receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: r36-precommit-${{ github.run_id }}
+          path: ${{ runner.temp }}/r36-precommit/artifacts/
+          if-no-files-found: error
+          retention-days: 14
