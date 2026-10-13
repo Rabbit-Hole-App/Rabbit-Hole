@@ -128,6 +128,9 @@ const POLYGONS = {
 };
 
 // Direct tool keys (docs/features/canvas-editing.md) and the arrow keys' nudge directions.
+// Picking one of these, by button or key, lets go of the selection, as in Excalidraw (owner, 2026-10-13); Space-pan's
+// held Hand does not.
+const DRAWING_TOOLS = new Set([...DRAW_TOOLS, ...SHAPE_TOOLS].map(([value]) => value));
 const TOOL_KEYS = { v: 'select', h: 'hand', r: 'rect', o: 'ellipse', a: 'arrow', l: 'line', p: 'pen', t: 'text', e: 'eraser', n: 'sticky' };
 const NUDGE = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 
@@ -1499,6 +1502,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // handles or ports; one plain ring is drawn over the selected card instead (data-view-selection).
   const isSelected = id => !readOnly && selection.includes(id);
   const setSelected = value => setSelection(value == null ? [] : [value]);
+  const pickTool = value => { setTool(value); if (DRAWING_TOOLS.has(value)) setSelection([]); };
   // Selecting on the canvas takes the keyboard away from the composer so
   // Delete acts on the selection; editable notes keep their own focus.
   const select = (id, event = null) => {
@@ -2757,7 +2761,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const commands = commandsRef.current;
       // One key per tool (familiar Excalidraw mappings), only while the canvas owns the keyboard: V select, H hand,
       // R rectangle, O ellipse, A arrow, L line, P pen, T text, E eraser, N sticky note. C is Comment, above.
-      if (plain && !busy && TOOL_KEYS[event.key.toLowerCase()]) { event.preventDefault(); setTool(TOOL_KEYS[event.key.toLowerCase()]); return; }
+      if (plain && !busy && TOOL_KEYS[event.key.toLowerCase()]) { event.preventDefault(); pickTool(TOOL_KEYS[event.key.toLowerCase()]); return; }
       // Arrow keys nudge the selection one canvas unit, Shift+arrow ten.
       if (!event.ctrlKey && !event.metaKey && !event.altKey && !busy && !drawTargetRef.current && NUDGE[event.key] && selectedRef.current.length) {
         const [dx, dy] = NUDGE[event.key], by = event.shiftKey ? 10 : 1;
@@ -4593,9 +4597,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase @max-[640px]:col-span-1 @max-[640px]:px-1.5">Sketch</div>}
           {NAV_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
-          {DRAW_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
+          {DRAW_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => pickTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
-          {SHAPE_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
+          {SHAPE_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => pickTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
           {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
           <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}
