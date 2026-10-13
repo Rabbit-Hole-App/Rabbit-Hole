@@ -273,6 +273,72 @@ await run('code colors', async () => {
   await context.close();
 });
 
+// Open in Notebook (canvas-notebook.md, owner 2026-10-13): a new notebook card from one code card, next to it covering
+// nothing, selected and in view; the code card unchanged; one undo step; Python only.
+await run('open in notebook', async () => {
+  const exercise = { id: 'ex', type: 'code', dx: 0, dy: 0, title: 'Finish encode', brief: 'Complete encode.', setup: 'stoi = {"a": 0}', starter: 'def encode(s):\n    return [stoi[c] for c in s]', checks: 'assert encode("a") == [0]', hint: '', draft: null };
+  const after = { id: 'after', type: 'snippet', dx: 0, dy: 0, title: 'Next', brief: 'After the exercise.', code: 'x = 1', output: '' };
+  const { page, context, saved, shot } = await open('open-notebook', {
+    blocks: [exercise, after],
+    items: [textItem('py', 760, 120, { w: undefined, text: 'print(1)\n  # two spaces kept', mode: 'code' }), textItem('js', 760, 320, { w: undefined, text: 'let a = 1', mode: 'code', lang: 'javascript' })],
+    shapes: [{ id: 's1', kind: 'rect', x1: 40, y1: 640, x2: 520, y2: 700, ...style }],
+  });
+  const notebooks = async () => (await saved()).blocks.filter(block => block.type === 'notebook');
+  // Every content box on screen against the new card's: none may meet it.
+  const overlaps = id => page.evaluate(id => {
+    const mine = document.querySelector(`[data-block-id="${id}"]`).getBoundingClientRect();
+    const meet = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    return [...document.querySelectorAll('[data-block-id],[data-item-id],[data-shape-id]')].filter(node => node.dataset.blockId !== id && !node.contains(document.querySelector(`[data-block-id="${id}"]`)))
+      .filter(node => { const box = node.getBoundingClientRect(); return box.width && box.height && meet(mine, box); }).map(node => node.dataset.blockId || node.dataset.itemId || node.dataset.shapeId);
+  }, id);
+  const inView = id => page.evaluate(id => {
+    const card = document.querySelector(`[data-block-id="${id}"]`).getBoundingClientRect(), frame = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
+    return card.top < frame.bottom && card.bottom > frame.top && card.left < frame.right && card.right > frame.left;
+  }, id);
+  const placed = async (label, cells) => {
+    const [made] = await notebooks();
+    check(`${label}: one notebook card, cells as expected`, !!made && JSON.stringify(made.ipynb.cells.map(cell => cell.source)) === JSON.stringify(cells), JSON.stringify(made?.ipynb?.cells?.map(cell => cell.source)));
+    if (!made) return;
+    await page.locator(`[data-block-id="${made.id}"]`).waitFor();
+    await page.waitForTimeout(600);
+    const hits = await overlaps(made.id);
+    check(`${label}: it covers nothing`, !hits.length, hits.join());
+    await shot(`open-notebook-${label.replace(/\W+/g, '-')}`);
+    check(`${label}: it is selected and in view`, (await page.locator(`[data-block-id="${made.id}"]`).getAttribute('aria-current')) === 'true' && await inView(made.id));
+    await page.keyboard.press('Escape');
+    await page.mouse.click(1300, 880);
+    await page.keyboard.press('Control+z');
+    check(`${label}: one Ctrl+Z removes it`, !(await notebooks()).length);
+  };
+
+  await page.locator('[data-item-id="js"]').click();
+  const pill = page.locator('[data-item-id="js"] [data-open-notebook]');
+  check('a JavaScript box shows the item off, with the reason', (await pill.isDisabled()) && (await pill.getAttribute('title')) === 'Notebooks run Python only');
+  await page.locator('[data-item-id="js"]').click({ button: 'right' });
+  const row = page.locator('[data-menu-open-notebook]');
+  check('and so does the right-click menu', (await row.isDisabled()) && (await row.innerText()).includes('Notebooks run Python only'), await row.innerText());
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  check('nothing was made for it', !(await notebooks()).length);
+
+  await page.locator('[data-block-id="ex"]').getByText('Finish encode').click();
+  await page.locator('[data-block-id="ex"] [data-open-notebook]').click();
+  const kept = (await saved()).blocks.find(block => block.id === 'ex');
+  check('the Code exercise is still there, unchanged', kept && ['setup', 'starter', 'checks', 'draft'].every(key => kept[key] === exercise[key]), JSON.stringify(kept));
+  await placed('exercise', [exercise.setup, exercise.starter]);
+
+  await page.locator('[data-item-id="py"]').click();
+  await page.locator('[data-item-id="py"] [data-open-notebook]').click();
+  check('the Code box is still there, unchanged', (await saved()).items.find(item => item.id === 'py')?.text === 'print(1)\n  # two spaces kept');
+  await placed('code box', ['print(1)\n  # two spaces kept']);
+
+  await page.locator('[data-item-id="py"]').click({ button: 'right' });
+  await page.locator('[data-menu-open-notebook]').click();
+  await placed('right-click menu', ['print(1)\n  # two spaces kept']);
+
+  await context.close();
+});
+
 
 const shapeOf = async (saved, id) => (await saved()).shapes.find(shape => shape.id === id);
 const near = (a, b, tolerance = 0.6) => Math.abs(a - b) <= tolerance;

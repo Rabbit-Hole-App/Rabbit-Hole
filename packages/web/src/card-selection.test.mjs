@@ -135,7 +135,8 @@ test('Ask in chat on a dropped image, a text box and a sticky note: the cards\' 
   assert.match(canvas, /\{ask && sticky && askPill\}/);
   assert.match(canvas, /style=\{sticky \? \{ left: item\.x \+ \(item\.w \|\| 160\), top: item\.y - 40 \} : null\}/, 'on the cards\' pill row, right-aligned to the note');
   // The pin slot reserves the pill for an image (a block) and a text box or note (an item): PILL.ask (comments.test.mjs).
-  assert.match(canvas, /if \(block\) return PILL\.ask \+ \(block\.type === 'whiteboard' \|\| block\.type === 'paper' \? PILL\.gap \+ PILL\.select : 0\);\n\s+if \(exchanges\.some\(entry => entry\.id === id\)\) return PILL\.explain \+ PILL\.gap \+ PILL\.more;\n\s+return PILL\.ask;/);
+  // A Code exercise's row also holds Open in Notebook (canvas-notebook.md).
+  assert.match(canvas, /if \(block\) return PILL\.ask \+ \(block\.type === 'whiteboard' \|\| block\.type === 'paper' \? PILL\.gap \+ PILL\.select : 0\) \+ \(block\.type === 'code' \? PILL\.gap \+ PILL\.notebook : 0\);\n\s+if \(exchanges\.some\(entry => entry\.id === id\)\) return PILL\.explain \+ PILL\.gap \+ PILL\.more;\n\s+return PILL\.ask;/);
 });
 
 // Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc... each options should have an icon next to it".

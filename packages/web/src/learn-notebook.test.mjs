@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyNotebook, newNotebookBlock, trimOutputs, describeNotebook, activePath, ipynbPath, notebookUrl } from './learn-notebook.js';
+import { emptyNotebook, newNotebookBlock, trimOutputs, describeNotebook, activePath, ipynbPath, notebookUrl, notebookFromCode } from './learn-notebook.js';
 
 test('a new notebook block is a workspace holding one plain nbformat 4 Python notebook', () => {
   const block = newNotebookBlock();
@@ -47,4 +47,33 @@ test('describeNotebook gives the tutor the workspace shape, not file contents', 
   assert.doesNotMatch(text, /SECRET/);
   const editing = describeNotebook({ ...block, active_path: 'helper.py' }).text;
   assert.match(editing, /Open file: helper\.py\./);
+});
+
+test('Open in Notebook: a Code box gives one cell holding its text verbatim, and the box is untouched', () => {
+  const box = Object.freeze({ id: 'box', kind: 'text', mode: 'code', lang: 'python', text: 'x = 1\n  print(x)  # kept as typed' });
+  const before = JSON.stringify(box);
+  const { block } = notebookFromCode(box);
+  assert.equal(block.type, 'notebook');
+  assert.notEqual(block.id, box.id);
+  assert.deepEqual(block.ipynb.cells.map(cell => [cell.cell_type, cell.source]), [['code', box.text]]);
+  assert.deepEqual({ ...block.ipynb, cells: [] }, { ...emptyNotebook(), cells: [] });
+  assert.equal(JSON.stringify(box), before);
+  assert.equal(notebookFromCode({ kind: 'text', mode: 'code', text: 'y' }).block.ipynb.cells[0].source, 'y');
+});
+
+test('Open in Notebook: a Code exercise gives its Given setup, then its current code, never its checks', () => {
+  const exercise = Object.freeze({ id: 'ex', type: 'code', setup: 'a = 1', starter: 'def f():\n    ...', checks: 'assert f()', draft: null });
+  const sources = entry => notebookFromCode(entry).block.ipynb.cells.map(cell => [cell.cell_type, cell.source]);
+  assert.deepEqual(sources(exercise), [['code', 'a = 1'], ['code', exercise.starter]]);
+  assert.deepEqual(sources({ ...exercise, draft: 'def f():\n    return a' }), [['code', 'a = 1'], ['code', 'def f():\n    return a']]);
+  const cells = notebookFromCode(exercise).block.ipynb.cells;
+  assert.notEqual(cells[0].id, cells[1].id);
+  assert.equal(exercise.draft, null);
+});
+
+test('Open in Notebook is Python only, and only for a code card', () => {
+  assert.deepEqual(notebookFromCode({ kind: 'text', mode: 'code', lang: 'javascript', text: 'let a' }), { disabled: 'Notebooks run Python only' });
+  assert.deepEqual(notebookFromCode({ type: 'code', language: 'r', starter: 'x <- 1' }), { disabled: 'Notebooks run Python only' });
+  assert.equal(notebookFromCode({ kind: 'text', text: 'x = 1' }), null);
+  assert.equal(notebookFromCode({ type: 'snippet', code: 'x = 1' }), null);
 });

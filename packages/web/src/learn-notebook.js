@@ -3,6 +3,8 @@
 // storage under the card's notebook_id; the card keeps the manifest (active
 // path, file list) and a plain nbformat 4 copy of its active notebook.
 
+import { codeLang } from './code-lang.js';
+
 export const NOTEBOOK_PROTOCOL = 'rh-notebook/1';
 // Production sets VITE_NOTEBOOK_ORIGIN (rabbit-hole-canvas-notebook); the default is the rabbit-hole account's dev site.
 export const NOTEBOOK_ORIGIN = import.meta.env?.VITE_NOTEBOOK_ORIGIN || 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev';
@@ -41,6 +43,20 @@ export function emptyNotebook() {
 
 export function newNotebookBlock() {
   return { id: crypto.randomUUID(), type: 'notebook', notebook_id: crypto.randomUUID(), language: 'python', dx: 0, dy: 0, active_path: FIRST_NOTEBOOK, files: [FIRST_NOTEBOOK], ipynb_path: FIRST_NOTEBOOK, ipynb: emptyNotebook() };
+}
+
+// Open in Notebook (docs/features/canvas-notebook.md): a new notebook card holding a code card's code - a Code box's text
+// in one cell; a Code exercise's Given setup, then its current code, so Run all runs - and otherwise a default notebook.
+// { disabled } for code a notebook cannot run; null for anything that is not a code card. The code card is never touched.
+export function notebookFromCode(entry) {
+  const box = entry?.kind === 'text' && entry.mode === 'code';
+  if (!box && entry?.type !== 'code') return null;
+  if ((box ? codeLang(entry) : String(entry.language || 'python').toLowerCase()) !== 'python') return { disabled: 'Notebooks run Python only' };
+  const block = newNotebookBlock();
+  const [cell] = block.ipynb.cells;
+  const sources = box ? [entry.text] : [entry.setup, entry.draft ?? entry.starter];
+  const cells = sources.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') }));
+  return { block: { ...block, ipynb: { ...block.ipynb, cells } } };
 }
 
 // Cards made before workspaces carry only `ipynb`; they open as notebook.ipynb.
