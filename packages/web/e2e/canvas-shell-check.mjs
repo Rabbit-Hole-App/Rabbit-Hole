@@ -1,6 +1,7 @@
 // The Learn canvas shell at every Rabbit Hole depth, against the LOCAL stack only (see dive-check.mjs):
-// Home top left, tools left, navigator top right, minimap lower right, composer at the
-// bottom, no app rail - none of them over the canvas, the minimap clear of the composer - at the
+// Home top left, tools left, navigator top right, composer at the bottom, no app rail - none of them over the
+// canvas - and the minimap lower left, left of and clear of the composer (the floating bottom strip, owner
+// 2026-10-08, as canvas-toolbar-check asserts it) - at the
 // root, a child and a grandchild, and still usable after zooming and panning.
 // Usage: node e2e/canvas-shell-check.mjs [outDir]
 import { chromium } from '@playwright/test';
@@ -44,7 +45,7 @@ async function checkShell(label) {
   assert.ok(g.home.x < 24 && g.home.y < 24 && g.home.right <= g.surface.x + 0.5, `${label}: Home in the top-left corner, off the canvas`);
   assert.equal(await page.getByRole('button', { name: 'Open sidebar' }).count(), 0, `${label}: no Open sidebar button in Learn`);
   assert.ok(g.nav.x >= g.surface.right - 0.5 && g.nav.y < g.surface.y + 120, `${label}: navigator top right, beside the canvas`);
-  assert.ok(g.minimap.y >= g.surface.bottom - 0.5 && g.minimap.x >= g.composer.right, `${label}: minimap lower right, below the canvas and clear of the composer`);
+  assert.ok(g.minimap.right <= g.composer.x + 0.5 && g.minimap.y > (g.surface.y + g.surface.bottom) / 2, `${label}: minimap lower left, left of the composer: ${JSON.stringify({ minimap: g.minimap, composer: g.composer })}`);
   for (const [a, b] of [['home', 'toolbar'], ['nav', 'minimap'], ['minimap', 'composer'], ['toolbar', 'composer']]) assert.ok(apart(g[a], g[b]), `${label}: ${a} and ${b} do not overlap`);
   return g;
 }
@@ -69,6 +70,7 @@ await slash('/whiteboard Softmax sketch'); await persisted(); await page.waitFor
 await checkShell('child'); await stillUsable('child');
 await page.screenshot({ path: `${OUT}/shell-2-child.png` });
 
+const child = new URL(page.url()).pathname;
 await slash('/dive numerical stability'); await page.waitForFunction(() => location.search.includes('hole=')); await settle();
 await slash('/whiteboard Stability sketch'); await persisted(); await page.waitForTimeout(600);
 await checkShell('grandchild'); await stillUsable('grandchild');
@@ -81,9 +83,11 @@ await page.keyboard.press('Escape'); await page.mouse.click(700, 500); await pag
 assert.equal(new URL(page.url()).searchParams.get('hole'), null, 'Ctrl+K with no card does not dive');
 await page.keyboard.press('Escape');
 
-// Home: from the grandchild, the Home page - not the parent hole.
+// The corner is Back (2b0d32ed, owner 2026-10-04): from the grandchild to the child hole, then to the root.
 await page.locator('[data-learn-home]').click();
-await page.waitForFunction(() => location.pathname === '/apps', null, { timeout: 15000 });
+await page.waitForFunction(path => location.pathname === path, child, { timeout: 15000 });
+await page.locator('[data-learn-home]').click();
+await page.waitForFunction(path => location.pathname === path, `/apps/${root.name}`, { timeout: 15000 });
 
 await browser.close();
 if (errors.length) { console.log('page errors:', errors); process.exit(1); }
