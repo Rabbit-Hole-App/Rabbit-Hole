@@ -341,7 +341,9 @@ assert.equal((await api(`/api/learn/boards/${shapesCanvas.name}/main`, { method:
 } }) })).status, 200, 'the shapes canvas is saved');
 const shape = id => page.locator(`[data-shape-id="${id}"]`);
 const centre = async locator => { const box = await locator.boundingBox(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
-const dragBy = async (from, dx, dy) => { await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(from.x + dx, from.y + dy, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(400); };
+// The selection's style panel floats over the canvas's left side: close it (an overlay, so nothing reflows) or it takes the press.
+const noStylePanel = async () => { if (await page.locator('[data-style-panel]').isVisible()) await page.getByRole('button', { name: 'Style', exact: true }).click(); };
+const dragBy = async (from, dx, dy) => { await noStylePanel(); await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(from.x + dx, from.y + dy, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(400); };
 const send = async text => { await composer().fill(text); await composer().press('Enter'); await panel().locator('[data-comment-thread-view]').waitFor(); };
 // Zoom to fit (Shift+1) - from the canvas, not the composer the page focuses on open.
 const fit = async () => { await page.evaluate(() => document.activeElement?.blur?.()); await page.keyboard.press('Shift+Digit1'); await page.waitForTimeout(800); };
@@ -373,6 +375,7 @@ await check('15 right-click a drawn shape: Add comment (hint C) puts the pin on 
 await check('16 right-click a group (its outline, or its name chip): Add comment on the group, and the pin follows the group', async () => {
   const left = await shape('g-a').boundingBox(), right = await shape('g-b').boundingBox();
   const gap = { x: (left.x + left.width + right.x) / 2, y: left.y + left.height / 2 };
+  await noStylePanel();
   await page.mouse.click(gap.x, gap.y, { button: 'right' });
   assert.ok((await menuItems()).includes('Add comment'), `the outline: ${(await menuItems()).join(' | ')}`);
   await page.keyboard.press('Escape');
@@ -402,6 +405,7 @@ await check('16 right-click a group (its outline, or its name chip): Add comment
 await check('17 C with a selection: a card, a shape and a group each get a draft anchored to them; C typed in the composer stays text', async () => {
   const draftFor = async (locator, offset, label) => {
     await page.evaluate(() => document.activeElement?.blur?.());
+    await noStylePanel();
     const at = await centre(locator);
     await page.mouse.click(at.x + offset.x, at.y + offset.y);
     await page.keyboard.press('c');
