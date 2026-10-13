@@ -4155,6 +4155,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (drawing || tool !== 'select') return setHoverGap(null);
     // On a rail's own buttons it stays put, even as [+]/[-] move its line.
     if (event.target.closest?.('[data-gap-rail]')) return;
+    // Never over an object, never while something is selected (owner, 2026-10-13): the rail is for blank canvas.
+    if (selectedRef.current.length || event.target.closest?.('[data-item-id],[data-block-id],[data-shape-id],[data-connection]')) return setHoverGap(null);
     // Near a dotted line - anywhere along it - brings its buttons to full strength.
     const found = nearestGap(gaps, local(event).y, 40 / view.z);
     setHoverGap(found ? found.index : null);
@@ -4316,7 +4318,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             className="pointer-events-none absolute z-20 rounded-[14px] ring-2 ring-[#2383e2]" />
         )}
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
-        {presenting === null && !readOnly && gaps.filter(gap => gap.index === hoverGap).map(gap => (
+        {presenting === null && !readOnly && !selection.length && gaps.filter(gap => gap.index === hoverGap).map(gap => (
           <GapRail key={gap.index} gap={gap} zoom={view.z} span={railSpan}
             // Its buttons start at the far left; the toolbar is in its own gutter, never over them.
             edge={-view.x / view.z}

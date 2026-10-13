@@ -580,6 +580,26 @@ await run('ask pill edge', async () => {
   await context.close();
 });
 
+// The gap insert rail (owner, 2026-10-13): never while the pointer is over an object or while something is selected;
+// on blank canvas near a gap, with nothing selected, it still shows.
+await run('gap rail guard', async () => {
+  const circle = (id, x) => ({ id, kind: 'ellipse', x1: x, y1: 200, x2: x + 100, y2: 300, ...style, fill: '#e8f0fe' });
+  const { page, context, screen } = await open('gap-rail-guard', { shapes: [circle('a', 200), circle('b', 400), circle('c', 600)], items: [textItem('t', 200, 330, { text: 'below' })] });
+  const rails = () => page.locator('[data-gap-rail]').count();
+  const near = await screen(450, 290); // inside circle b, 25px above the gap's middle (315)
+  await page.mouse.move(near.x, near.y, { steps: 3 });
+  check('no rail while the pointer is over an object', (await rails()) === 0);
+  await page.mouse.click(near.x, near.y);
+  check('no rail after a plain click selects it', (await rails()) === 0);
+  const blank = await screen(900, 315);
+  await page.mouse.move(blank.x, blank.y, { steps: 3 });
+  check('no rail on blank canvas while something is selected', (await rails()) === 0);
+  await page.keyboard.press('Escape');
+  await page.mouse.move(blank.x, blank.y - 4, { steps: 3 });
+  check('the rail still shows on blank canvas near a gap with nothing selected', (await rails()) === 1);
+  await context.close();
+});
+
 await run('shortcuts', async () => {
   const { page, context } = await open('shortcuts', {});
   for (const [key, label] of [['r', 'Rectangle'], ['o', 'Ellipse'], ['a', 'Arrow'], ['l', 'Line'], ['p', 'Pen'], ['t', 'Text'], ['e', 'Eraser'], ['n', 'Sticky note'], ['h', 'Hand'], ['v', 'Select']]) {

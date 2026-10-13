@@ -93,6 +93,7 @@ await page.waitForTimeout(400);
 const secondNow = await page.locator('[data-block-id="t2"]').boundingBox();
 const shapeNow = await page.locator('[data-shape-id="r"] rect').first().boundingBox();
 const gapNow = (secondNow.y + secondNow.height + shapeNow.y) / 2;
+await page.keyboard.press('Escape'); // the dragged card is still selected, and the rail never shows over a selection
 await page.mouse.move(canvasBox.x + canvasBox.width * 0.7, gapNow, { steps: 5 });
 await rail.getByRole('button', { name: 'Insert a section here' }).click();
 const menu = page.getByRole('menu', { name: 'Insert a section' });
