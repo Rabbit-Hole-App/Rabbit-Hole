@@ -273,7 +273,8 @@ export default function RichText({ entry, base, colorOf = color => color, code =
     if (!caretFrom(element, point)) { const end = plainOf(shown).length; setOffsets(element, end, end); }
     state.sel = offsetsOf(element);
     const selectionChange = () => {
-      if (document.activeElement !== element) return;
+      // A composition moves the caret as it grows; the pending format waits for it to land (compositionend).
+      if (document.activeElement !== element || state.composing) return;
       const sel = offsetsOf(element);
       if (!sel) return;
       if (state.pending && (sel.from !== state.pendingAt || sel.to !== state.pendingAt)) state.pending = null;

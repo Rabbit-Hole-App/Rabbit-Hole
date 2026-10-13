@@ -1,5 +1,5 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -57,28 +57,28 @@ const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
 // save/restore comes with the lesson content model.
 
 const NAV_TOOLS = [
-  ['select', MousePointer2, 'Select and move'],
-  ['hand', Hand, 'Hand — pan the canvas'],
+  ['select', MousePointer2, 'Select and move (V) · drag empty canvas to select an area'],
+  ['hand', Hand, 'Hand — pan the canvas (H) · or hold Space and drag'],
   // Ask about selection (user, 2026-09-30): drag over anything - cards, slides, images - to ask about that area.
   ['askArea', Scan, 'Ask about selection — drag over any part of the canvas'],
 ];
 const DRAW_TOOLS = [
-  ['pen', Pencil, 'Pen'],
+  ['pen', Pencil, 'Pen (P)'],
   ['highlighter', Highlighter, 'Highlighter'],
-  ['eraser', Eraser, 'Eraser'],
-  ['text', Type, 'Text'],
+  ['eraser', Eraser, 'Eraser (E)'],
+  ['text', Type, 'Text (T)'],
   ['equation', Sigma, 'Equation'],
-  ['sticky', StickyNote, 'Sticky note'],
+  ['sticky', StickyNote, 'Sticky note (N)'],
 ];
 const SHAPE_TOOLS = [
-  ['rect', Square, 'Rectangle'],
-  ['ellipse', Circle, 'Ellipse'],
+  ['rect', Square, 'Rectangle (R) · Shift for a square, Alt from the centre'],
+  ['ellipse', Circle, 'Ellipse (O) · Shift for a circle, Alt from the centre'],
   ['triangle', Triangle, 'Triangle'],
   ['diamond', Diamond, 'Diamond'],
   ['hexagon', Hexagon, 'Hexagon'],
   ['star', Star, 'Star'],
-  ['line', Slash, 'Line'],
-  ['arrow', ArrowUpRight, 'Arrow'],
+  ['line', Slash, 'Line (L) · Shift snaps to 45°'],
+  ['arrow', ArrowUpRight, 'Arrow (A) · Shift snaps to 45°'],
   ['curve', Spline, 'Curved arrow'],
   ['elbow', CornerDownRight, 'Elbow arrow'],
 ];
@@ -1273,7 +1273,8 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
 function ToolButton({ Icon, label, active, onPick }) {
   return (
     <button type="button" title={label} aria-label={label} aria-pressed={active}
-      onPointerDown={e => e.stopPropagation()} onClick={onPick}
+      // A pointer press never leaves the tool focused (keyboard Tab still does), so Space after a click pans instead of pressing it again.
+      onPointerDown={e => { e.stopPropagation(); e.preventDefault(); }} onClick={onPick}
       className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? 'bg-ink text-white' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
       <Icon size={15} strokeWidth={1.7} />
     </button>
@@ -4306,7 +4307,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {described && <MenuRow icon={CircleHelp} onClick={act(() => askBlock(block))}>Ask about this</MenuRow>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
-              <MenuRow icon={CopyPlus} disabled={!selection.length} onClick={act(() => pasteIds(selection))}>Duplicate</MenuRow>
+              <MenuRow icon={Scissors} disabled={!selection.length} hint="Ctrl X" onClick={act(cutSelection)}>Cut</MenuRow>
+              <MenuRow icon={Copy} disabled={!selection.length} hint="Ctrl C" onClick={act(copySelection)}>Copy</MenuRow>
+              <MenuRow icon={ClipboardPaste} disabled={!canPaste} hint="Ctrl V" onClick={act(() => clipboard.current?.length && pasteIds(clipboard.current))}>Paste</MenuRow>
+              <MenuRow icon={CopyPlus} disabled={!selection.length} hint="Ctrl D" onClick={act(() => pasteIds(selection))}>Duplicate</MenuRow>
+              <MenuRow icon={Pipette} disabled={!selection.length} hint="Ctrl Alt C" onClick={act(copyStyleCommand)}>Copy style</MenuRow>
+              <MenuRow icon={PaintRoller} disabled={!selection.length || !canPasteStyle} hint="Ctrl Alt V" onClick={act(pasteStyleCommand)}>Paste style</MenuRow>
+              <MenuRow icon={selectionLocked ? LockOpen : Lock} disabled={!selection.length} hint="Ctrl Shift L" onClick={act(lockSelection)}>{selectionLocked ? 'Unlock' : 'Lock'}</MenuRow>
+              <div className="my-1 h-px bg-line" />
+              <MenuRow icon={BringToFront} disabled={!selection.length} hint="Ctrl Shift ]" onClick={act(() => reorderSelection('front', selection))}>Bring to front</MenuRow>
+              <MenuRow icon={ArrowUp} disabled={!selection.length} hint="Ctrl ]" onClick={act(() => reorderSelection('forward', selection))}>Bring forward</MenuRow>
+              <MenuRow icon={ArrowDown} disabled={!selection.length} hint="Ctrl [" onClick={act(() => reorderSelection('backward', selection))}>Send backward</MenuRow>
+              <MenuRow icon={SendToBack} disabled={!selection.length} hint="Ctrl Shift [" onClick={act(() => reorderSelection('back', selection))}>Send to back</MenuRow>
+              <div className="my-1 h-px bg-line" />
               <MenuRow icon={ZoomIn} disabled={!selection.length} onClick={act(zoomToSelection)}>Zoom to selection</MenuRow>
               <div className="my-1 h-px bg-line" />
               <MenuRow icon={Group} disabled={selection.length < 2} onClick={act(groupSelection)}>Group</MenuRow>
