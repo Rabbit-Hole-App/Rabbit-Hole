@@ -47,7 +47,10 @@ function setup(t, vars = {}) {
   const base = `/api/learn/c/${BOARD_ID}`;
   const tokenOf = message => message.text.match(/\/i#([A-Za-z0-9_-]+)/)[1];
   const codeOf = message => message.text.match(/Your code: (\d{6})/)[1];
-  return { sqlite, env, mail, mailer, call, base, tokenOf, codeOf };
+  // The CONTROL_PLANE stub above matches a session header byte for byte against the one signed in `ready`. A token signed
+  // again later differs whenever the clock has crossed a second (exp), so a test that calls a route directly takes this one.
+  const session = async as => { await ready; return sessions[PEOPLE[as].uid]; };
+  return { sqlite, env, mail, mailer, call, session, base, tokenOf, codeOf };
 }
 const invite = (f, emails, as = 'ana') => f.call('POST', `${f.base}/members`, { as, body: { emails } });
 
@@ -252,7 +255,7 @@ test('a member reads only the files the board uses now: a removed notebook\'s wo
   const token = f.tokenOf(f.mail[0]);
   await f.call('POST', '/api/learn/invites/code', { as: 'ben', body: { token } });
   await f.call('POST', '/api/learn/invites/accept', { as: 'ben', body: { token, code: f.codeOf(f.mail.at(-1)) } });
-  const session = await sign({ t: 'sess', uid: PEOPLE.ben.uid, email: PEOPLE.ben.email, ep: 0, prov: 'google', exp: Math.floor(Date.now() / 1000) + 3600 }, KEY);
+  const session = await f.session('ben');
   const file = async key => {
     const path = `${f.base}/assets/${encodeURIComponent(key)}`;
     return (await canvasCommentsRoute(path, new Request(`${ORIGIN}${path}`, { headers: { 'X-Small-Session': session } }), f.env)).status;
