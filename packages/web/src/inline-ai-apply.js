@@ -113,11 +113,14 @@ export function describeChange(change) {
   return { id: change.id, before: String(change.before[field] ?? ''), after: String(change.after[field] ?? ''), style: styleKeys.map(key => [key, change.before[key] ?? null, change.after[key] ?? null]) };
 }
 
-// Annotation placement (§9): beside the target, in free space, inside what the learner can see when possible; never
-// moving anything or the camera. obstacles: the boxes of everything else on the canvas.
+// Annotation placement (§9, A7): beside the target, in free space, inside what the learner can see when possible; never
+// moving anything. obstacles: the boxes of everything else on the canvas (obstaclesOf). The one placer for every result
+// the editor adds: a note, a card, their connector.
 const GAP = 40, PAD = 12, STEP = 28;
 const overlaps = (a, b) => a.x < b.x + b.w + PAD && a.x + a.w + PAD > b.x && a.y < b.y + b.h + PAD && a.y + a.h + PAD > b.y;
 const inside = (a, v) => a.x >= v.x && a.y >= v.y && a.x + a.w <= v.x + v.w && a.y + a.h <= v.y + v.h;
+// A spot is free when it keeps clear of every obstacle and the target (with PAD all round).
+export const freeSpot = (spot, obstacles, target = null) => !obstacles.some(box => overlaps(spot, box)) && !(target && overlaps(spot, target));
 export function placeNote(target, size, obstacles, visible = null) {
   const bases = [
     ['right', { x: target.x + target.w + GAP, y: target.y + target.h / 2 - size.h / 2 }, [0, 1]],
@@ -131,9 +134,22 @@ export function placeNote(target, size, obstacles, visible = null) {
     const push = { right: [out, 0], left: [-out, 0], bottom: [0, out], top: [0, -out] }[side];
     tries.push({ side, x: at.x + ax * sign * k * STEP + push[0], y: at.y + ay * sign * k * STEP + push[1] });
   }
-  const free = spot => !obstacles.some(box => overlaps({ ...spot, ...size }, box)) && !overlaps({ ...spot, ...size }, target);
-  return tries.find(spot => free(spot) && (!visible || inside({ ...spot, ...size }, visible)))
-    || tries.find(free) || { ...tries[0], crowded: true };
+  const free = spot => freeSpot({ ...spot, ...size }, obstacles, target);
+  const seen = spot => !visible || inside({ ...spot, ...size }, visible);
+  const found = tries.find(spot => free(spot) && seen(spot)) || tries.find(free);
+  // Nothing free in the rings: right of everything on the board, level with the target - free by construction, never
+  // on top of anything. The caller pans to it when it is off-screen.
+  const spot = found || { side: 'right', x: Math.max(target.x + target.w, ...obstacles.map(box => box.x + box.w)) + GAP, y: target.y + target.h / 2 - size.h / 2 };
+  return { ...spot, offscreen: !seen(spot) };
+}
+// Every kind of thing on the board as boxes the placer keeps clear of (A7): measured boxes (cards, chat cards, shapes,
+// lines, text, stickies, ink), connectors along their drawn paths (sampled points), group frames, areas and comment
+// pins. exclude: ids that are not obstacles (the target itself is kept clear by the placer).
+const PATH_PAD = 10;
+export function obstaclesOf({ boxes = [], paths = [], frames = [], areas = [], pins = [] }, exclude = []) {
+  const keep = entry => !exclude.includes(entry.id);
+  const along = path => path.points.map(point => ({ id: path.id, x: point.x - PATH_PAD, y: point.y - PATH_PAD, w: PATH_PAD * 2, h: PATH_PAD * 2 }));
+  return [...boxes.filter(keep), ...paths.filter(keep).flatMap(along), ...frames.filter(keep), ...areas.filter(keep), ...pins];
 }
 const FACING = { right: ['left', 'right'], left: ['right', 'left'], bottom: ['top', 'bottom'], top: ['bottom', 'top'] };
 

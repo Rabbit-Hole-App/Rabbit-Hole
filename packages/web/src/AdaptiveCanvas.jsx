@@ -46,7 +46,7 @@ import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { createContextCache, freezeTarget } from './inline-ai-context.js';
-import { applyTx } from './inline-ai-apply.js';
+import { applyTx, obstaclesOf } from './inline-ai-apply.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
@@ -2630,12 +2630,32 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   useEffect(() => () => flushTelemetry(true), []); // eslint-disable-line react-hooks/exhaustive-deps
   const NOTE_LIKE = { kind: 'rect', color: '#6b7280', textColor: '#37352f', align: 'left' };
+  // A connector's drawn path as world points every 16 units (its own hit path, in the world's coordinates).
+  const inlinePaths = () => [...(shell.current?.querySelectorAll('[data-connection] path[stroke="transparent"]') || [])].map(path => {
+    const length = path.getTotalLength(), points = [];
+    for (let at = 0; at <= length; at += 16) points.push(path.getPointAtLength(at));
+    points.push(path.getPointAtLength(length));
+    return { id: path.closest('[data-connection]').dataset.connection, points: points.map(({ x, y }) => ({ x, y })) };
+  });
+  // Rendered elements in world units, from their screen boxes (group frames and comment pins are drawn, not stored).
+  const inlineScreenBoxes = (selector, idKey = null) => {
+    const at = surface.current?.getBoundingClientRect(), v = viewRef.current;
+    if (!at) return [];
+    return [...(shell.current?.querySelectorAll(selector) || [])].map(element => {
+      const rect = element.getBoundingClientRect();
+      return { ...(idKey ? { id: element.dataset[idKey] } : {}), x: (rect.left - at.left - v.x) / v.z, y: (rect.top - at.top - v.y) / v.z, w: rect.width / v.z, h: rect.height / v.z };
+    }).filter(box => box.w && box.h);
+  };
   const inlineCanvas = {
     boardKey: inlineKey.current, cache: inlineCache.current,
     board: inlineBoard,
     layout: () => Object.fromEntries(contentBoxes().filter(box => box.id).map(({ id, ...box }) => [id, box])),
     boxOf: id => boxesOf([id])[0] || null,
-    obstacles: exclude => contentBoxes().filter(box => !exclude.includes(box.id)).map(({ id: _id, ...box }) => box),
+    // Every kind of thing on the board (A7): measured boxes, connectors along their drawn paths, group frames, areas and
+    // comment pins, in world units.
+    obstacles: exclude => obstaclesOf({ boxes: contentBoxes(), paths: inlinePaths(), frames: inlineScreenBoxes('[data-group-box]', 'groupBox'), areas: areas.map(stored => ({ ...areaBox(stored), id: stored.id })), pins: inlineScreenBoxes('[data-comment-pin]') }, exclude).map(({ id: _id, ...box }) => box),
+    // The camera moves to show a world box (a ghost placed off-screen), the way an inserted card is shown.
+    reveal: box => showBox(box, true),
     visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
     // The part of the surface on screen: a phone's keyboard shrinks the visual viewport, not the surface.
     surfaceSize: () => {
