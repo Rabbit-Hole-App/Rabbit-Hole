@@ -18,7 +18,7 @@ must be free. Old recovery ports 8868/8869 are not used by this gate.
 
 Install from the application's locks: Node 24.19.0, Python 3.13, `npm ci`,
 `uv sync --locked`, and `npx playwright install chromium`. The application lock
-pins Wrangler 4.129.0, Playwright 1.62.1 and Vite 8.2.2. Preserve the original
+pins Wrangler 4.129.0 or 4.150.0, Playwright 1.62.1 and Vite 8.2.2. Preserve the original
 1500 MiB available-memory guard. `make`, GNU `timeout`, `curl`, `sed`, Python
 and Windows PowerShell must be available to Git Bash.
 

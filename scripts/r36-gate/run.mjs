@@ -29,8 +29,9 @@ const actualHarness=execFileSync('git',['rev-parse','HEAD'],{cwd:harnessRoot,enc
 if(actualHarness!==process.env.HARNESS_SHA)throw Error('Harness revision mismatch');
 const denied=Object.keys(process.env).filter(k=>process.env[k]&&/_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_|^(?:CLOUDFLARE|CF)_.*(?:TOKEN|KEY)$/i.test(k));
 if(denied.length)throw Error(`Provider/deployment environment refused: ${denied.join(', ')}`);
-const pins={wrangler:'4.129.0','@playwright/test':'1.62.1',vite:'8.2.2'};
-for(const [name,version] of Object.entries(pins))if(JSON.parse(readFileSync(join(app,'node_modules',name,'package.json'),'utf8')).version!==version)throw Error(`Dependency mismatch: ${name}`);
+// Wrangler 4.150.0 is allowed beside 4.129.0 while branches move to it: 4.129 dev exits when its proxy reuses a dropped keep-alive.
+const allowed={wrangler:['4.129.0','4.150.0'],'@playwright/test':['1.62.1'],vite:['8.2.2']};
+const pins=Object.fromEntries(Object.entries(allowed).map(([name,ok])=>{const version=JSON.parse(readFileSync(join(app,'node_modules',name,'package.json'),'utf8')).version;if(!ok.includes(version))throw Error(`Dependency mismatch: ${name}`);return [name,version];}));
 const receipt={applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,grant:process.env.GATE_GRANT_ID,phase,started:new Date().toISOString(),node:process.version,pins,lockfiles:{npm:sha256(join(app,'package-lock.json')),uv:sha256(join(app,'uv.lock'))},stages:[],pass:false};
 const priorFile=join(out,`${phase==='dive'?'preflight':'dive'}-receipt.json`);
 const prior=!fresh&&existsSync(priorFile)?JSON.parse(readFileSync(priorFile,'utf8')):null;
