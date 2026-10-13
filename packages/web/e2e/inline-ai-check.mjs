@@ -632,6 +632,123 @@ await run('A2: a long stream stays out of undo and autosave, and panning keeps i
   await context.close();
 });
 // ---- end of scenarios ----
+
+// ---- Accept checks the preview's own snapshot (review of cf9216b2..5b3552a5): (a) (b) (d) failed on 5b3552a5 ----
+const editMember = async (page, id) => {
+  const at = await reveal(page, page.locator(`[data-item-id="${id}"]`));
+  await page.keyboard.down('Control'); await page.mouse.click(at.x + 8, at.y + at.height / 2); await page.keyboard.up('Control');
+  await ctrlK(page);
+  await page.locator('[data-inline-mode="edit"]').click();
+};
+const openWords = async (page, id) => {
+  await page.evaluate(() => document.activeElement?.blur());
+  const words = await reveal(page, page.locator(`[data-item-id="${id}"] [aria-label="Text"]`));
+  await page.mouse.dblclick(words.x + 4, words.y + words.height / 2);
+  await page.locator(`[data-item-id="${id}"] [data-rich-editor]`).waitFor();
+  await page.keyboard.press('End');
+};
+const typeWords = async (page, id, words) => {
+  await openWords(page, id);
+  await page.keyboard.type(words);
+  await page.keyboard.press('Escape');
+  await page.locator(`[data-item-id="${id}"] [data-rich-editor]`).waitFor({ state: 'detached' });
+  await page.waitForFunction(([id, w]) => document.querySelector(`[data-item-id="${id}"]`)?.innerText.includes(w), [id, words.trim()]);
+};
+const refine = async (page, words) => { await page.locator('[data-inline-prompt]').fill(words); await page.locator('[data-inline-prompt]').press('Enter'); };
+const savedText = async (saved, id) => (await saved()).items.find(item => item.id === id).text;
+
+await run('accept snapshot (a): the target edited after the preview, then a cancelled refine: Accept is refused', async () => {
+  const { page, context, saved } = await open('snap-cancel');
+  await editMember(page, 'para2');
+  await submitPrompt(page, 'Rewrite this');
+  await waitStatus(page, ['preview']);
+  await typeWords(page, 'para2', ' typed meanwhile');
+  await hold(page);
+  await refine(page, 'Make it shorter');
+  await waitStatus(page, ['generating', 'streaming']);
+  await page.locator('[data-inline-stop]').click();
+  await waitStatus(page, ['preview']);
+  await release(page);
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-stale]').waitFor();
+  const kept = await savedText(saved, 'para2');
+  check('(a) refused as stale; the words typed meanwhile stay', kept.includes('typed meanwhile') && !kept.includes('(edited)'), kept);
+  await context.close();
+});
+
+await run('accept snapshot (b): the target edited after the preview, then a failed refine: Accept is refused', async () => {
+  const { page, context, saved } = await open('snap-failed');
+  await editMember(page, 'para2');
+  await submitPrompt(page, 'Rewrite this');
+  await waitStatus(page, ['preview']);
+  check('(b) Selection only is locked while a preview made with it shows', await page.locator('[data-inline-selection-only]').isDisabled());
+  await typeWords(page, 'para2', ' typed meanwhile');
+  await page.evaluate(() => { window.__inlineMock.failNext = 'http'; });
+  await refine(page, 'Make it shorter');
+  await page.locator('[data-inline-error]').waitFor();
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-stale]').waitFor();
+  const kept = await savedText(saved, 'para2');
+  check('(b) refused as stale; the words typed meanwhile stay', kept.includes('typed meanwhile') && !kept.includes('(edited)'), kept);
+  await context.close();
+});
+
+await run('accept snapshot (c): a successful refine takes the new snapshot; Accept only while the source still matches it', async () => {
+  const made = await open('snap-refined');
+  await editMember(made.page, 'para2');
+  await submitPrompt(made.page, 'Rewrite this');
+  await waitStatus(made.page, ['preview']);
+  await typeWords(made.page, 'para2', ' typed meanwhile');
+  await refine(made.page, 'Make it shorter');
+  await made.page.waitForFunction(() => /Shorter/.test(document.querySelector('[data-inline-preview="edit"]')?.innerText || ''));
+  await made.page.locator('[data-inline-accept]').click();
+  await made.page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  const applied = await savedText(made.saved, 'para2');
+  check('(c) the refined preview, made after the edit, is accepted onto the edited words', applied === 'A second line in the same group.', applied);
+  await made.context.close();
+  const again = await open('snap-refined-again');
+  await editMember(again.page, 'para2');
+  await submitPrompt(again.page, 'Rewrite this');
+  await waitStatus(again.page, ['preview']);
+  await typeWords(again.page, 'para2', ' typed meanwhile');
+  await refine(again.page, 'Make it shorter');
+  await again.page.waitForFunction(() => /Shorter/.test(document.querySelector('[data-inline-preview="edit"]')?.innerText || ''));
+  await typeWords(again.page, 'para2', ' and again');
+  await again.page.locator('[data-inline-accept]').click();
+  await again.page.locator('[data-inline-stale]').waitFor();
+  const kept = await savedText(again.saved, 'para2');
+  check('(c) an edit after the refined preview makes it stale too', kept.endsWith('typed meanwhile and again'), kept);
+  await again.context.close();
+});
+
+await run('accept snapshot (d): unsaved words typed in an open editor after the preview: Accept is refused', async () => {
+  const { page, context, saved } = await open('snap-unsaved');
+  await editMember(page, 'para2');
+  await submitPrompt(page, 'Rewrite this');
+  await waitStatus(page, ['preview']);
+  await openWords(page, 'para2');
+  await page.keyboard.type(' unsaved words');
+  // Accept activated with the text editor still open (a keyboard or assistive activation moves no focus first).
+  await page.locator('[data-inline-accept]').dispatchEvent('click');
+  await page.locator('[data-inline-stale]').waitFor({ timeout: 5000 });
+  const kept = await savedText(saved, 'para2');
+  check('(d) refused as stale; the unsaved words are kept', kept.includes('unsaved words') && !kept.includes('(edited)'), kept);
+  await context.close();
+});
+
+await run('accept snapshot (e): an unrelated edit after the preview does not invalidate it (passes on 5b3552a5 too)', async () => {
+  const { page, context, saved } = await open('snap-unrelated');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await submitPrompt(page, 'Explain this node');
+  await waitStatus(page, ['preview']);
+  await typeWords(page, 'para2', ' unrelated words');
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  const board = await saved();
+  check('(e) Accept lands the note; the unrelated edit stays', inlineShapes(board).length === 1 && board.items.find(item => item.id === 'para2').text.includes('unrelated words'));
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);

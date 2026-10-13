@@ -2655,6 +2655,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     describe: object => describeObject(object),
     measureNote: (text, width) => { const base = shapeBase(NOTE_LIKE); return measureHeight([{ t: text }], base, inkAware, shapeTextCss(NOTE_LIKE, base), width); },
     apply: applyInline,
+    // An open text editor's words land first (flushed), so Accept's stale check reads them, not the last committed copy.
+    flushEdits: () => { if (editorRef.current) flushSync(() => editorRef.current.commit('blur')); },
     telemetry: rows => { for (const row of rows) telemetryQueue.current.set(row.request_id, row); clearTimeout(telemetryTimer.current); telemetryTimer.current = setTimeout(() => flushTelemetry(), 4000); },
   };
   // Delete/Backspace removes the selected sticky, text or shape; ctrl+z

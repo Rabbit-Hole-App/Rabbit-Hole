@@ -143,8 +143,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   const accept = () => {
     const out = session.accept(preview => {
+      canvas.flushEdits?.();
       const now = board();
-      const frozen = { ...target, prints: prepared?.context.prints };
+      const frozen = preview.frozen;
       const check = staleness(frozen, now, canvas.cache, canvas.boardKey, canvas.describe);
       if (check.gone.length) return { stale: { gone: check.gone, text: 'The selection was deleted while this was being made.' } };
       if (check.content) return { stale: { content: true, text: 'The selection changed while this was being made.' } };
@@ -274,7 +275,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <button type="button" data-inline-context aria-expanded={contextOpen} onClick={() => setContextOpen(open => !open)} className="flex min-w-0 items-center gap-1 rounded px-0.5 hover:text-ink">
             {contextOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}<span className="truncate">Context: {contextLine}{omittedTotal ? ` · ${omittedTotal} left out` : ''}</span>
           </button>
-          <label className="ml-auto flex shrink-0 items-center gap-1"><input type="checkbox" data-inline-selection-only checked={selectionOnly} disabled={busy(status)} onChange={event => setSelectionOnly(event.target.checked)} className="h-3 w-3" />Selection only</label>
+          <label className="ml-auto flex shrink-0 items-center gap-1"><input type="checkbox" data-inline-selection-only checked={selectionOnly} disabled={busy(status) || !!preview} title={preview ? 'This preview was made with this scope. Reject it to change the scope.' : undefined} onChange={event => setSelectionOnly(event.target.checked)} className="h-3 w-3" />Selection only</label>
         </div>
         {contextOpen && prepared && (
           <ul data-inline-context-list data-scroll className="max-h-36 overflow-y-auto rounded-lg bg-hover px-2 py-1 text-xs text-ink-2">

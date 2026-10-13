@@ -125,7 +125,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     }
     results.set(request.key, { result, plan });
     mark(id, 'complete');
-    set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
+    set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind, frozen: request.frozen }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
     if (result.kind !== 'proposal') finish(id, 'previewed');
   }
 
@@ -154,7 +154,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
         const checked = validate(kept.result, kept.plan, request);
         if (checked.ok) {
           mark(id, 'complete');
-          set({ status: kept.result.kind === 'proposal' ? 'proposal' : 'preview', preview: { ...checked.preview, requestId: id, route: kept.plan.route, kind: kept.result.kind }, proposal: kept.result.kind === 'proposal' ? { message: kept.result.message, primitive: kept.result.primitive } : null, route: kept.plan.route, via: kept.plan.via, accepted: false });
+          set({ status: kept.result.kind === 'proposal' ? 'proposal' : 'preview', preview: { ...checked.preview, requestId: id, route: kept.plan.route, kind: kept.result.kind, frozen: request.frozen }, proposal: kept.result.kind === 'proposal' ? { message: kept.result.message, primitive: kept.result.primitive } : null, route: kept.plan.route, via: kept.plan.via, accepted: false });
           finish(id, 'reused');
           return 'reused';
         }
