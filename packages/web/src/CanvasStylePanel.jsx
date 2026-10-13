@@ -175,7 +175,7 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
         </Row>
       )}
       {text && <>
-        {rule}
+        {(panel.stroke || panel.fill || panel.widths || panel.heads || panel.route) && rule}
         <Row label="Text style">
           {TEXT_LEVELS.map(entry => <Btn key={entry.id} label={entry.label === 'Text' ? 'Body text' : `Heading ${entry.label.slice(1)}`} pressed={values.level === entry.id} onClick={() => on.level(entry.id)} style={{ fontWeight: entry.weight }}>{entry.label}</Btn>)}
         </Row>

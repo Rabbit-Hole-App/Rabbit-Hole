@@ -634,6 +634,159 @@ await run('legacy and read-only', async () => {
   await view.context.close();
 });
 
+
+await run('composer and suggestions', async () => {
+  const name = 'composer-hooks';
+  const context = await browser.newContext({ viewport: { width: 1500, height: 950 } });
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(`${name}: ${error.message}`));
+  await page.goto(`${BASE}?board=${name}&hooks=1`);
+  await page.locator('[data-canvas-surface]').waitFor();
+  await page.locator('[data-next-step]').first().waitFor();
+  const strip = () => page.evaluate(() => { const r = document.querySelector('[data-canvas-composer]')?.getBoundingClientRect(); return r ? r.height : 0; });
+  const view = await viewOf(page);
+  // Select something, type a draft, hide.
+  await page.evaluate(() => window.canvasApi.current.insertText());
+  await page.keyboard.press('Escape');
+  await page.locator('[data-item-id]').first().click();
+  const selectedBefore = await page.locator('[data-item-id].ring-2').count();
+  await page.locator('[data-chat-composer]').fill('my unsent draft');
+  const tall = await strip();
+  await page.getByRole('button', { name: 'Hide chat composer' }).click();
+  check('Hide chat composer removes it from view and frees its room', (await strip()) === 0 && tall > 0 && await page.getByRole('button', { name: 'Show chat composer' }).isVisible());
+  check('hiding keeps the viewport and the selection', (await viewOf(page)) === view && (await page.locator('[data-item-id].ring-2').count()) === selectedBefore);
+  const showBox = await page.getByRole('button', { name: 'Show chat composer' }).boundingBox();
+  check('the Show button is small and unobtrusive', showBox.width < 120 && showBox.height <= 34, JSON.stringify(showBox));
+  await page.getByRole('button', { name: 'Show chat composer' }).click();
+  check('Show brings the composer back with the draft intact', (await page.locator('[data-chat-composer]').inputValue()) === 'my unsent draft' && (await strip()) > 0);
+  // Suggestions: minimize is local, restore asks for nothing.
+  const posts = await page.evaluate(() => window.hookPosts);
+  await page.getByRole('button', { name: 'Minimize suggestions' }).click();
+  check('Minimize folds the suggestions to a chip that frees their room', (await page.locator('[data-next-step]').count()) === 0 && await page.locator('[data-next-steps-minimized]').isVisible());
+  await page.getByRole('button', { name: 'Restore suggestions' }).click();
+  const shown = await page.locator('[data-next-step]').allInnerTexts();
+  check('Restore shows the same suggestions with no new request', shown.length === 3 && shown[0].includes('Suggestion 1.1') && (await page.evaluate(() => window.hookPosts)) === posts);
+  check('composer visibility and the card are independent', (await strip()) > 0);
+  // Refresh: loading, no duplicate, replaced.
+  await page.evaluate(() => { window.hookPost.delay = 600; });
+  await page.getByRole('button', { name: 'Refresh suggestions' }).click();
+  const busy = await page.getByRole('button', { name: 'Refresh suggestions' }).getAttribute('aria-busy');
+  await page.getByRole('button', { name: 'Refresh suggestions' }).click({ force: true });
+  const kept = await page.locator('[data-next-step]').first().innerText();
+  check('Refresh shows loading, keeps the current suggestions and blocks a second request', busy === 'true' && kept.includes('Suggestion 1.1') && (await page.evaluate(() => window.hookPosts)) === posts + 1);
+  await page.waitForTimeout(800);
+  check('a successful refresh replaces the suggestions', (await page.locator('[data-next-step]').first().innerText()).includes(`Suggestion ${posts + 1}.1`));
+  // Failure: kept, with a retry.
+  await page.evaluate(() => { window.hookPost.delay = 50; window.hookPost.fail = true; });
+  await page.getByRole('button', { name: 'Refresh suggestions' }).click();
+  await page.waitForTimeout(300);
+  check('a failed refresh keeps the suggestions and offers Try again', (await page.locator('[data-next-step]').count()) === 3 && await page.getByRole('button', { name: 'Try again' }).isVisible());
+  await page.evaluate(() => { window.hookPost.fail = false; });
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await page.waitForTimeout(300);
+  check('Try again succeeds and clears the error', !(await page.getByRole('button', { name: 'Try again' }).isVisible()) && (await page.locator('[data-next-step]').count()) === 3);
+  // Stale: the canvas moves on before the refresh lands; its reply never shows.
+  await page.evaluate(() => { window.hookPost.delay = 500; });
+  await page.getByRole('button', { name: 'Refresh suggestions' }).click();
+  const staleN = await page.evaluate(() => window.hookPosts);
+  await page.evaluate(() => window.hookBasis('b'));
+  await page.waitForTimeout(1400);
+  const after = await page.locator('[data-next-step]').allInnerTexts();
+  check('a refresh reply for a canvas the learner left is never shown', !after.some(text => text.includes(`Suggestion ${staleN}.`)), JSON.stringify(after));
+  check('refresh never sent a chat message, picked a hook or added a card', (await page.locator('[data-chat-composer]').inputValue()) === 'my unsent draft' && !(await page.evaluate(() => window.picked)) && (await page.locator('[data-block-id]').count()) === 0);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/composer-hooks.png` });
+  await context.close();
+});
+
+await run('narrow', async () => {
+  const { page, context, screen, shot } = await open('narrow', { shapes: [{ id: 'r1', kind: 'rect', x1: 40, y1: 200, x2: 260, y2: 300, ...style, text: 'words here' }] }, { viewport: { width: 390, height: 844 } });
+  const centre = await screen(150, 250);
+  await page.mouse.dblclick(centre.x, centre.y);
+  await page.waitForTimeout(200);
+  const panel = await page.locator('[data-style-panel]').boundingBox();
+  const editor = await page.locator('[data-shape-id="r1"] [data-shape-text]').boundingBox();
+  const canvas = await page.locator('[data-canvas-surface]').boundingBox();
+  const overlaps = panel && editor && !(panel.y + panel.height <= editor.y || editor.y + editor.height <= panel.y || panel.x + panel.width <= editor.x || editor.x + editor.width <= panel.x);
+  check('on a phone the style panel sits in the tools strip, never over the text being edited or the canvas', panel && !overlaps && panel.y + panel.height <= canvas.y + 1 && panel.x >= 0 && panel.x + panel.width <= 391, JSON.stringify({ panel, editor, canvas }));
+  check('no horizontal page scroll on a phone', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  await shot('narrow-panel');
+  await context.close();
+});
+
+
+await run('explain back sketch', async () => {
+  const block = { id: 'eb1', type: 'challenge', mode: 'explain_back', title: 'Explain softmax', prompt: 'Explain it back, with a sketch.', sketchOpen: true, sketch: { strokes: [], shapes: [], items: [] }, dx: 0, dy: 0 };
+  const { page, context, saved, shot } = await open('explain-back', { blocks: [block] });
+  const area = page.locator('[data-sketch="eb1"]');
+  await area.waitFor();
+  const box = await area.boundingBox();
+  await page.mouse.click(box.x + box.width - 30, box.y + box.height - 20); // make the sketch the draw target
+  await page.getByRole('button', { name: /^Rectangle/ }).click();
+  await page.keyboard.down('Shift');
+  await page.mouse.move(box.x + 40, box.y + 40); await page.mouse.down();
+  await page.mouse.move(box.x + 140, box.y + 80, { steps: 5 }); await page.mouse.up();
+  await page.keyboard.up('Shift');
+  let marks = (await saved()).blocks[0].sketch.shapes;
+  const s = marks[0];
+  check('Shift draws a square inside an Explain Back sketch too', marks.length === 1 && Math.abs(Math.abs(s.x2 - s.x1) - Math.abs(s.y2 - s.y1)) < 1, JSON.stringify(s));
+  await page.getByRole('button', { name: /^Ellipse/ }).click();
+  await page.mouse.move(box.x + 300, box.y + 60); await page.mouse.down();
+  await page.mouse.move(box.x + 360, box.y + 100, { steps: 4 });
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  marks = (await saved()).blocks[0].sketch.shapes;
+  check('Esc cancels an unfinished sketch shape', marks.length === 1);
+  check('the sketch marks stay on the card, never on the canvas', ((await saved()).shapes || []).length === 0);
+  await shot('explain-back-sketch');
+  await context.close();
+});
+
+
+await run('text boxes', async () => {
+  const card = { id: 'card1', type: 'explanation', title: 'A card', body: 'Some words on a card.', dx: 0, dy: 0 };
+  const { page, context, saved, screen, shot } = await open('text-boxes', { blocks: [card], items: [{ id: 'n1', kind: 'sticky', x: 700, y: 100, w: 160, h: 160, text: 'note', color: '#37352f', opacity: 1 }] });
+  // A new text box grows with its words, transparent, no big empty card.
+  await page.keyboard.press('t');
+  const at = await screen(200, 420);
+  await page.mouse.click(at.x, at.y);
+  await page.keyboard.type('short');
+  const narrow = await page.locator('[data-item-id][data-text-mode="text"]').last().boundingBox();
+  await page.keyboard.type(' and then a much longer line of words');
+  const wide = await page.locator('[data-item-id][data-text-mode="text"]').last().boundingBox();
+  const bg = await page.locator('[data-item-id][data-text-mode="text"]').last().evaluate(node => getComputedStyle(node).backgroundColor);
+  await page.keyboard.press('Escape');
+  check('a new text box grows with its words on a transparent background', wide.width > narrow.width + 100 && narrow.width < 140 && bg === 'rgba(0, 0, 0, 0)', JSON.stringify([narrow.width, wide.width, bg]));
+  const item = (await saved()).items.find(entry => entry.kind === 'text');
+  check('a new text box carries no fixed width until one is set', item.w === undefined);
+  // Resize: wrapping changes, the font size does not.
+  const id = item.id;
+  const before = await page.locator(`[data-item-id="${id}"] [aria-label="Text"]`).evaluate(node => [getComputedStyle(node).fontSize, node.getBoundingClientRect().height]);
+  const grip = await page.getByRole('button', { name: 'Resize text box' }).boundingBox();
+  await page.mouse.move(grip.x + 4, grip.y + 4); await page.mouse.down(); await page.mouse.move(grip.x - 160, grip.y + 4, { steps: 5 }); await page.mouse.up();
+  const after = await page.locator(`[data-item-id="${id}"] [aria-label="Text"]`).evaluate(node => [getComputedStyle(node).fontSize, node.getBoundingClientRect().height]);
+  check('resizing a text box wraps the words and keeps the font size', after[0] === before[0] && after[1] > before[1] && (await saved()).items.find(entry => entry.id === id).w > 0, JSON.stringify([before, after]));
+  // A note grows with its words instead of clipping them.
+  await page.locator('[data-item-id="n1"]').dblclick();
+  await page.keyboard.press('End');
+  for (let i = 0; i < 12; i += 1) { await page.keyboard.press('Enter'); await page.keyboard.type(`line ${i}`); }
+  await page.keyboard.press('Escape');
+  const note = await page.locator('[data-item-id="n1"]').boundingBox();
+  const words = await page.locator('[data-item-id="n1"] [aria-label="Sticky note"]').boundingBox();
+  check('a sticky note grows to hold its words', note.height > 165 && words.y + words.height <= note.y + note.height + 2, JSON.stringify([note.height, words.height]));
+  // A locked card is selected but never moved or deleted.
+  await page.locator('[data-block-id="card1"]').click();
+  await page.keyboard.press('Control+Shift+L');
+  const handle = await page.locator('[data-block-id="card1"] [data-drag-handle]').boundingBox();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + 3); await page.mouse.down(); await page.mouse.move(handle.x + 200, handle.y + 100, { steps: 5 }); await page.mouse.up();
+  await page.keyboard.press('Delete');
+  const block = (await saved()).blocks.find(entry => entry.id === 'card1');
+  check('a locked card stays put and is not deleted', block && block.locked === true && block.dx === 0 && block.dy === 0, JSON.stringify(block && [block.dx, block.dy, block.locked]));
+  await page.keyboard.press('Control+Shift+L');
+  check('Ctrl+Shift+L again unlocks it', !(await saved()).blocks.find(entry => entry.id === 'card1').locked);
+  await shot('text-boxes');
+  await context.close();
+});
+
 await browser.close();
 if (errors.length) { console.log('page errors:'); for (const error of errors) console.log(`  ${error}`); }
 check('no page errors', errors.length === 0, errors.length ? `${errors.length}` : '');
