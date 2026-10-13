@@ -48,10 +48,11 @@ const badAnswer = (q, b) => (b.slot ?? q.slot) !== q.slot || (b.option_id == nul
 const goodTray = t => t != null && typeof t === 'object' && typeof t.prompt === 'string' && t.prompt.length <= 300 && (t.mode == null || TRAY_MODES.includes(t.mode))
   && (t.options == null || (Array.isArray(t.options) && t.options.length <= 6 && t.options.every(o => sized(o?.id, 40) && sized(o?.label, 120))));
 
-// Only a planner's own verdicts reach the learner: a rejected plan, or the model's HTTP failure (modelFailure's message).
+// Only a planner's own verdicts reach the learner: a rejected plan, the model's HTTP failure (modelFailure's message), or
+// the spend guard's refusal (its fixed spendMessage sentence, no learner text).
 // Anything else is internal: the generic message, and one log line with ids only (never learner text).
 function plannerMessage(error, journeyId, op) {
-  if (error instanceof PlannerInvalid || /\(model HTTP \d{3}/.test(error?.message) || error?.message === MODEL_NOT_CONFIGURED) return error.message;
+  if (error instanceof PlannerInvalid || /\(model HTTP \d{3}/.test(error?.message) || error?.message === MODEL_NOT_CONFIGURED || error?.code === 'spend_limited') return error.message;
   console.error(JSON.stringify({ event: 'learn_journey_planner_error', journey_id: journeyId, op, error: error?.name || 'Error' }));
   return FAILED;
 }

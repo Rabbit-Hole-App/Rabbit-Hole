@@ -120,6 +120,7 @@ test('dev-worker.js sends every fall-through through the barrier', () => {
 test('a canvas Learn ask with an @-mention runs on dev storage and reads nothing from production D1', async t => {
   const f = fixture(t), original = globalThis.fetch, prompts = [];
   f.env.ANTHROPIC_API_KEY = 'test';
+  f.env.USAGE_PLATFORM_DAY_USD = '10'; // the preview's configured cap (wrangler.dev.jsonc): spend is enforced here
   globalThis.fetch = async (url, init) => {
     assert.equal(new URL(String(url)).hostname, 'api.anthropic.com');
     prompts.push(init.body);

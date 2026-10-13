@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { journeyRoute } from '../src/learn-journey.js';
+import { spendMessage } from '../src/learn-spend.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { JourneyConflict, appendJourneyEvidence, archiveJourney, loadJourney } from '../src/learn-journey-store.js';
 import { validatePath } from '../../web/src/learn-journey.js';
@@ -367,6 +368,19 @@ test('an internal planner error is never shown: a generic message, and a log lin
   assert.equal(logged.length, 1);
   assert.equal(logged[0].includes('logistic'), false);
   assert.deepEqual(JSON.parse(logged[0]), { event: 'learn_journey_planner_error', journey_id: r.body.journey.id, op: 'diagnostic', error: 'TypeError' });
+});
+
+// r36: spend enforcement covers every non-test environment, so a journey planner can be refused before transport.
+test('a spend refusal reaches the learner as the platform sentence, not as a planner failure', async t => {
+  const { post, replies } = setup(t);
+  const paused = spendMessage('daily_cap_reached');
+  replies.journey_diagnostic = () => { throw Object.assign(new Error(paused), { code: 'spend_limited', status: 429, reason: 'daily_cap_reached' }); };
+  await post('start', { text: LEARN });
+  const r = await post('intake_skip');
+  assert.equal(r.status, 502);
+  assert.equal(r.body.error, paused);
+  assert.equal(r.body.journey.error.message, paused);
+  assert.equal(r.body.journey.error.retryable, true);
 });
 
 test('an intake answer must name an option of the open question, or be goal text', async t => {
