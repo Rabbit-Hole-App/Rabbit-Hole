@@ -80,3 +80,11 @@ test('refine: the worker sends the earlier result and the original request, and 
   assert.equal('earlier' in JSON.parse(sent.messages[0].content), false, 'no refine, no earlier result');
   assert.equal((await ask({ revise: { prompt: 'x', result: '' } })).status, 400, 'a refine with no earlier result is refused, not sent as a new request');
 });
+
+import { telemetryRow, summarize } from '../src/learn-inline.js';
+
+test('refine telemetry: a refined row is kept and is not a failure', () => {
+  const row = telemetryRow({ request_id: 'req-refined-0001', route: 'bypassed', capability: 'note', outcome: 'refined', metrics: {} }, { userId: 'u', board: 'canvas-0a1b2c3d' });
+  assert.equal(row.outcome, 'refined');
+  assert.equal(summarize([{ ...row, metrics_json: row.metrics_json }]).note.failures, 0);
+});

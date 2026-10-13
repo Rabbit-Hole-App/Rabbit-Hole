@@ -230,7 +230,7 @@ const STAGES = ['open', 'prep', 'refresh', 'routing', 'providerFirst', 'firstPre
 const COUNTS = ['modelCalls', 'routeCalls', 'chunks', 'flushes', 'duplicates', 'cancels', 'stale', 'errors', 'timeouts', 'reused', 'objects', 'chars', 'omitted', 'inputTokens', 'outputTokens', 'longTasks', 'longTaskMs', 'frameP95', 'frameMax'];
 const WORDS = { prepCache: ['hit', 'miss'], selection: ['text', 'code', 'group', 'shape', 'card', 'image', 'connection', 'range', 'mixed'], board: ['small', 'large'], output: ['text', 'edit', 'card', 'media'], open: ['cold', 'repeat'] };
 const ROUTE_WAYS = ['direct', 'jev', 'bypassed'];
-const OUTCOMES = ['accepted', 'rejected', 'cancelled', 'stale', 'error', 'timeout', 'invalid', 'clarify', 'unavailable', 'limitation', 'previewed', 'reused', 'closed', 'board-switch', 'proposal-declined', 'unsupported'];
+const OUTCOMES = ['accepted', 'rejected', 'cancelled', 'stale', 'error', 'timeout', 'invalid', 'clarify', 'unavailable', 'limitation', 'previewed', 'reused', 'closed', 'board-switch', 'proposal-declined', 'unsupported', 'refined'];
 const number = value => (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value < 1e9 ? Math.round(value * 10) / 10 : null);
 export function cleanMetrics(metrics) {
   const out = { stages: {}, counts: {} };
@@ -295,7 +295,7 @@ export function summarize(rows, by = row => row.capability) {
     if (!groups.has(key)) groups.set(key, { n: 0, failures: 0, stages: {} });
     const group = groups.get(key);
     group.n += 1;
-    if (!['accepted', 'previewed', 'rejected', 'reused', 'clarify', 'proposal-declined'].includes(row.outcome)) group.failures += 1;
+    if (!['accepted', 'previewed', 'rejected', 'reused', 'clarify', 'proposal-declined', 'refined'].includes(row.outcome)) group.failures += 1;
     for (const [stage, value] of Object.entries(metrics.stages || {})) if (typeof value === 'number') (group.stages[stage] ||= []).push(value);
   }
   return Object.fromEntries([...groups].map(([key, group]) => [key, { n: group.n, failures: group.failures, stages: Object.fromEntries(Object.entries(group.stages).map(([stage, values]) => {

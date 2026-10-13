@@ -143,6 +143,8 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     mark(id, 'complete');
     set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind, frozen: request.frozen, mode: request.mode, origin: request.revise?.prompt ?? request.prompt }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
     if (result.kind !== 'proposal') finish(id, 'previewed');
+    // The candidate a refine revised is settled: it was neither accepted nor rejected, it was refined.
+    if (request.replaces) finish(request.replaces, 'refined');
   }
 
   return {
@@ -168,7 +170,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       Object.assign(metric(id), { context: snapshot.shape || null, prep: { ms: snapshot.prepMs ?? null, cacheHit: !!snapshot.cacheHit } });
       const key = idempotencyKey({ boardKey, prints: snapshot.prints, mode, prompt: previous ? `${previous.requestId}|${prompt}` : prompt, selectionOnly: snapshot.selectionOnly });
       const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: snapshot.frozen, key,
-        ...(previous ? { revise: { prompt: String(previous.origin || ''), result: earlierResult(previous) } } : {}) };
+        ...(previous ? { replaces: previous.requestId, revise: { prompt: String(previous.origin || ''), result: earlierResult(previous) } } : {}) };
       set({ requestId: id, mode, error: null, notice: null, clarify: null, stale: null });
       const kept = results.get(key);
       if (kept) {

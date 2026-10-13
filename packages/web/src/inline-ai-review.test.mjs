@@ -203,3 +203,12 @@ test('refine: a card is revised by its own handler, with the card and the origin
   const context = transportModule.artifactContext({ target: { ids: ['n23'] } }, seen[1].revise);
   assert.match(context, /^Revise this earlier card .* original request was: "Explain this with a diagram"\nEarlier card: \{"type":"flow","title":"Where node 23 sits 1"/);
 });
+
+test('refine telemetry: the candidate a refine revised is settled as refined, not left provisional', async () => {
+  const rows = [];
+  const session = make({ generate: async () => ({ result: { kind: 'note', text: 'x' } }) }, { onMetrics: entry => rows.push([entry.requestId, entry.outcome]) });
+  await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() });
+  const first = session.state.preview.requestId;
+  await session.submit({ mode: 'explain', prompt: 'shorter', prepare: snapshot() });
+  assert.deepEqual(rows.filter(([id]) => id === first).map(([, outcome]) => outcome), ['previewed', 'refined']);
+});
