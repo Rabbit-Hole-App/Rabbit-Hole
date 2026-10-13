@@ -36,19 +36,24 @@ second execution model and no custom cell format.
   jupyterlab card") makes a new notebook card from a code card. A code card is
   a Code-mode text box (canvas-editing.md section 3) or a Code exercise card
   (block type `code`).
-  - Where: on the selected code card's own controls (a Code box's Text | Code
-    row; a Code exercise's action row above the card), and in the canvas
-    right-click menu, when exactly one code card is selected.
-  - What: a new card from `newNotebookBlock()` and `emptyNotebook()`. Its
-    first code cell holds the code card's code verbatim: a Code box's text; a
-    Code exercise's current code (the learner's draft, else the starter), not
-    its Given setup or its checks. Everything else is a default new notebook.
-    The code card is unchanged, and the two cards are not linked.
-  - Place: right next to the code card, in the column place nearest it that
-    covers nothing (cards, notes, text, shapes and ink), found by the canvas's
-    free-slot search (`canvas-slots.js` `freeSlot`, as a reserved card slot
-    uses). It is brought into view and selected. The whole action is one undo
-    step.
+  - Where: a button on the selected code card's own row (a Code box's
+    Text | Code row; a Code exercise's action row above the card, beside Ask
+    in chat), and the canvas right-click menu, when exactly one code card is
+    selected.
+  - What: a new card from `newNotebookBlock()` and `emptyNotebook()`. A Code
+    box gives one code cell holding its text verbatim. A Code exercise gives
+    two: its Given setup, then its current code (the learner's draft, else the
+    starter), so **Run all** runs; never its checks. Everything else is a
+    default new notebook. The code card is unchanged, and the two cards are
+    not linked.
+  - Place: right next to the code card, in free space, covering nothing:
+    cards, chat cards, notes, text, shapes, ink, connectors along their drawn
+    paths, and comment pins. The spot comes from the inline editor's placer
+    (`inline-ai-apply.js` `placeNote`: right of the card, then left, below,
+    above, stepping out until free, inside the view when it can be), so
+    nothing else on the canvas moves. The card joins the end of the column
+    and is drawn at that spot by its offset. It is brought into view and
+    selected. The whole action is one undo step.
   - Python only: notebooks run Python (Pyodide). A Code box is Python when its
     `lang` is; a Code exercise is Python unless it names another `language`.
     Otherwise the item shows disabled, with the reason
@@ -148,6 +153,18 @@ origin. The shared site deploys from the same config with
 `--name small-learn-canvas-notebook-dev`.
 
 ## Verification
+
+Open in Notebook, locally:
+
+- `node --test packages/web/src/learn-notebook.test.mjs`: a Code box gives one
+  cell with its text verbatim; an exercise gives setup then current code,
+  never checks; neither card changes; a non-Python card gives the disabled
+  reason; anything else gives nothing.
+- `packages/web/e2e/canvas-editing-check.mjs --only="open in notebook"`: from an
+  exercise's row, a Code box's row and the right-click menu, the notebook
+  holds the expected cells, covers no card, text box or shape, is selected
+  and in view, and one Ctrl+Z removes it; a JavaScript box shows the item
+  disabled with its reason in both places.
 
 On the deployed clone:
 
