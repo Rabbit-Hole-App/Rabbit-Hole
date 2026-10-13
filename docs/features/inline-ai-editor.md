@@ -634,3 +634,71 @@ Identify any capability that the router can select but the inline adapter cannot
 Keep this feature-specific coverage separate from the r36 gate results. Passing r36 does not establish that the new inline routes work.
 
 Please continue overnight with this broader coverage. Do not describe the inline system as fully verified while its real generation paths remain untested.
+
+## A7. Ghost preview on the canvas, and placement you can trust (owner, 2026-10-13)
+
+Owner: "before we click accept, i think we need to show on the canvas in pale what will be generated like cursor
+editor does. we can see the new card or text or shapes etc...then pressing accept. also make sure the card/shapes/
+lines/text etc...are positioned correctly and not behind the shape or overlapping others but make sure we are confident
+of where the position of the generate output should be."
+
+### What the ghost shows
+
+- Every object Accept would add is drawn on the canvas before Accept, pale (reduced opacity), with no pointer or
+  keyboard interaction, at exactly the position and size Accept will use:
+  - an explanation note (the note shape with its words) and its annotation connector, drawn along the same path the
+    connector will have;
+  - a card from a / command or a routed request (the card's own rendering, at its final size);
+  - a paid proposal's card (the card frame with its title; nothing of the job starts);
+  - any shape, line, connector or text a result adds.
+- An edit to existing text shows the new text pale in place over the object, diff style: removed words struck
+  through, added words marked. A style change shows the object's text restyled, pale, in place. The object itself is
+  untouched until Accept.
+- The ghost is drawn above all board content (its own top layer in the canvas's world), so nothing on the board can
+  hide it, and it never takes clicks from what is under it.
+
+### Lifecycle
+
+- Streaming updates the ghost: a note's words fill in as they arrive, inside the space already reserved for it (see
+  Placement), so the ghost never jumps while it streams.
+- A Refine or a Regenerate replaces the ghost with the new candidate's. A failed or stopped Refine keeps the earlier
+  candidate and its ghost.
+- Reject, Esc, Stop with no earlier candidate, closing the editor, Accept and a board switch remove the ghost.
+- The ghost is never in the board: never saved or autosaved, never in undo or redo, never in the outline, comments,
+  search or the context of a later request, never in the board thumbnail (the ghost layer carries
+  data-thumbnail-hide, which card-thumbnail.js CHROME strips) and never in an export or capture.
+
+### Placement
+
+- The placement is computed once, before the ghost first shows, by the one existing placer (inline-ai-apply.js
+  placeNote, fed by the canvas's obstacle boxes). There is no second placer.
+- Obstacles are the live boxes of every object kind on the board: cards, chat cards, shapes, lines and arrows, text
+  and stickies, ink, connectors along their drawn paths, group frames, areas and comment pins.
+- The placed box overlaps none of them, nor the target, and keeps the placer's gap from each. Because the ghost layer
+  is above everything and the spot is free, nothing is ever behind or in front of it.
+- Preference order: right of the selection, then left, below and above, then rings further out (placeNote's order),
+  first a spot inside the visible canvas.
+- A note reserves the room for its longest allowed answer (NOTE_MAX_CHARS), so the streamed words fit without moving
+  it. A card's room is its rendered size, measured once on a hidden render before the ghost shows.
+- A lone connector stands at its midpoint between the two objects it joins (as Accept already does).
+- If the only free spot is off-screen, the camera pans to show the ghost before Accept is offered.
+- A card is placed like a note, beside the selection, rather than in the column after the target: it keeps its slot
+  at the end of the column and is offset to the placed spot, so no other card moves.
+
+### Accept
+
+- Accept applies exactly the placement the ghost shows: the same position and size.
+- At Accept the spot is checked again against the board as it is now. If something now occupies it (the learner moved
+  or added an object), the result is re-placed, the new ghost is shown with a line saying the place changed, and Accept
+  must be pressed again. It is never put somewhere else silently.
+- Everything else about Accept is unchanged: one transaction, one undo step, the stale checks of section 11, and paid
+  proposals only from their own Generate.
+
+### Checks
+
+- Unit: placement on a crowded board with every object kind (cards, shapes, lines, text, stickies, ink, connectors,
+  groups, areas, comment pins) has zero overlap; and the edge cases: a selection at the board's edge, a board where the
+  only free spot is off-screen, a lone connector.
+- Browser (inline-ai-check, mocked provider): the ghost's box equals the accepted object's box; the ghost is topmost
+  (elementFromPoint at its centre is the ghost); it goes on Reject and on Esc; the board thumbnail and the undo stack
+  do not contain it.
