@@ -35,7 +35,7 @@ const prior=!fresh&&existsSync(priorFile)?JSON.parse(readFileSync(priorFile,'utf
 const priorError=prerequisite(phase,prior,receipt);if(priorError)throw Error(priorError);
 if(prior)receipt.prerequisite={phase:prior.phase,sha256:sha256(priorFile)};
 writeFileSync(join(out,fresh?'identity.json':`identity-${phase}.json`),JSON.stringify(receipt,null,2));
-let gate=fresh?null:resolve(state,'gates/int35').replaceAll('\\','/'),secret;
+let gate=fresh||units?null:resolve(state,'gates/int35').replaceAll('\\','/'),secret;
 let env={...process.env,CI:'true',INT35_EXPECTED_SHA:APP_SHA,INT35_EXPECTED_TREE:APP_TREE,INT35_GRANT_ID:process.env.GATE_GRANT_ID};
 for(const name of Object.keys(env))if(!env[name]&&/_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/i.test(name))delete env[name];
 function command(file,args,{cwd=app,log,timeout=1800000,allowFailure=false,extra={},stream=false}={}) {
