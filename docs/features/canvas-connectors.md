@@ -22,10 +22,17 @@ Shapes on the Learn canvas connect with arrows that stay attached.
 - The toolbar has an **Elbow arrow** tool beside Arrow and Curved arrow for
   free-drawn right-angle arrows.
 - **Labels:** a selected connector or drawn arrow shows a dot in its middle;
-  clicking it (or double-clicking the line) opens a label editor there. Enter
-  commits, Shift+Enter breaks the line, Esc commits. The label sits on a
+  clicking it (or double-clicking the line, or Enter on the selected line) opens
+  a label editor there. Since 2026-10-12 a label edits like every canvas text
+  ([canvas editing](canvas-editing.md)): Enter breaks the line; Esc or
+  Ctrl/Cmd+Enter commits (and keeps the line selected); a press elsewhere
+  commits. Labels take the six formatting controls and alignment, stored as
+  `runs` and object fields beside the plain `label`. The label sits on a
   paper patch in the middle of the line and moves with it; once a line has a
-  label, clicking the label of the selected line edits it.
+  label, clicking the label of the selected line edits it, caret where pressed.
+- **Arrowheads:** `startHead` / `endHead` (none, arrow, triangle, dot, bar) on
+  connectors and drawn lines, set from the style panel. Without them a drawn
+  arrow or diagram connector ends in the open arrow it always had.
 - Card-to-card connections made before this keep their original vertical
   curve and no arrowhead until a route is chosen for them.
 

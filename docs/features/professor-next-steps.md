@@ -107,8 +107,15 @@ steps -> {
   generated_at: string | null,
   options: [{ id, hook, selected_next_step }],      // [] unless ready or stale
   select(id) -> { ok: true, selected_next_step } | { ok: false, reason: 'stale' | 'unknown' | 'busy' },
+  refresh() -> boolean,                              // 2026-10-12 (canvas-editing.md section 9): a new set for the basis on screen
+  refresh_state?: 'loading' | 'error',               // on a ready set only, while a refresh runs or after it failed
+  refresh_reason?: 'failed' | 'limited',
 }
 ```
+
+`refresh()` posts through the same route (its authorization, model, spend limits and tab ceiling) only while a ready set
+is on screen and nothing is in flight; the set stays until a usable one replaces it, a failure keeps it (retryable), and a
+reply for a basis the canvas has left is dropped. The card's Minimize and Restore are UI state and make no request.
 
 Both hooks live in `packages/web/src/LearnNextSteps.jsx`. `select()` only validates the click and returns the payload (a copy); it never runs a turn. `canvasVersion` is telemetry only; `board` defaults to `main`; `describe` is `describeBlock` and supplies card titles, never a card's answers (a `text` or `heading` card with no title, which `describe` does not name, travels as its first 80 characters, 2.1); `title` is a fallback: the live title is the server title inside `useTutor` (1.7).
 

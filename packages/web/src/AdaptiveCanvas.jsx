@@ -51,8 +51,8 @@ const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
 // as movable cards; the learner adds ink, shapes, stickies and text from the
-// right-hand toolbar. Hand or empty-space drag pans; wheel pans, ctrl+wheel
-// zooms.
+// right-hand toolbar. The Hand, Space+drag, the middle button and the wheel
+// pan; an empty-space drag selects an area; ctrl+wheel zooms.
 // ponytail: canvas content persists per-browser via localStorage; cross-device
 // save/restore comes with the lesson content model.
 
@@ -3142,8 +3142,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const connectionPath = link => linkRoute(link)?.d || '';
   const shapeTool = SHAPE_TOOLS.some(([kind]) => kind === tool);
   const pan = event => startDrag(event, { x: view.x, y: view.y }, (x, y) => setView(v => ({ ...v, x, y })));
-  // Ctrl-drag (either button) rubber-bands a selection: every card, shape and
-  // text box the rectangle touches becomes one group the next drag moves.
+  // A drag on empty canvas (or Ctrl-drag, either button) rubber-bands a selection: every card, shape and
+  // text box the rectangle touches is selected, and the next drag moves them together.
   const marqueeRef = useRef(null);
   const selectWithin = (rect, additive = false) => {
     const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2);

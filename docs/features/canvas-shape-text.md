@@ -10,11 +10,20 @@ The same H1 / H2 / H3 / H4 / Text ladder as text boxes (`TEXT_LEVELS` in
 the only selection. The shape keeps its corner handles: resizing reflows the
 text, which wraps inside an inset box per shape kind (`TEXT_BOX` in
 `AdaptiveCanvas.jsx`) so it stays inside the outline. Text is drawn in the
-shape's stroke colour and opacity. To change the text colour, pick the shape
-(one click shows its style panel) and choose a colour: outline and text change
-together.
+shape's stroke colour and opacity until it is given its own.
 
-Stored on the shape: `text` (with line breaks) and `level`. Undo covers both.
-Text longer than the shape has room for overflows it rather than shrinking.
+Since 2026-10-12 ([canvas editing](canvas-editing.md)): the style panel's
+labelled **Text color** and **Font size** controls style the words on their
+own, independent of the outline, fill and stroke width, beside the six
+formatting controls and left/center/right plus top/middle/bottom alignment.
+Changing the outline colour of a shape whose words followed it first gives the
+words that colour as their own `textColor`, so they keep it. Words never
+overflow silently: the shape grows downward to hold them as they are typed or
+formatted, and a resize stops at the height they need (the font never shrinks).
 
-Verification: `packages/web/e2e/canvas-shape-text.mjs` on the deployed clone.
+Stored on the shape: `text` (plain, with line breaks), `level`, and optionally
+`runs`, `font`, `fontSize`, `bold`, `italic`, `underline`, `textColor`, `align`
+and `valign`. Undo, duplicate, copy/paste, save and forks carry all of them.
+
+Verification: `packages/web/e2e/canvas-shape-text.mjs` on the deployed clone;
+`packages/web/e2e/canvas-editing-check.mjs` (shape text) in the local harness.
