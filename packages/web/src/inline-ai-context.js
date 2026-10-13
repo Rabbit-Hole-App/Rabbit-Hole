@@ -7,7 +7,7 @@
 // what an object is and says; where it is comes from `boxes` on each build, so a move never rebuilds a description.
 
 export const CONTEXT_VERSION = 'inline-context-1';
-export const LIMITS = Object.freeze({ objects: 24, targetChars: 4000, chars: 400, total: 8000, nearby: 3, nearbyGap: 60, touch: 14, rangeAround: 200 });
+export const LIMITS = Object.freeze({ objects: 24, targetChars: 4000, chars: 400, total: 8000, nearby: 3, nearbyGap: 60, touch: 14, rangeAround: 200, connections: 40 });
 // What a move changes and a description never reads.
 const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'w', 'h', 'fresh']);
 const LINEAR = new Set(['line', 'arrow', 'curve', 'elbow']);
@@ -153,7 +153,7 @@ export function freezeTarget(board, selection, { range = null } = {}) {
 export function buildContext(board, target, { cache, boardKey, describeCard = null, selectionOnly = false, extras = {}, limits = LIMITS } = {}) {
   const look = cache.lookups(board, boardKey, describeCard);
   const boxes = board.boxes || {};
-  const omitted = { connected: 0, sibling: 0, inferred: 0, group: 0, annotation: 0, nearby: 0, truncated: 0 };
+  const omitted = { connected: 0, sibling: 0, inferred: 0, group: 0, annotation: 0, nearby: 0, truncated: 0, connections: 0 };
   let chars = 0, objects = 0;
   const seen = new Set();
   const take = (record, relation, extra = {}, max = limits.chars) => {
@@ -180,6 +180,14 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
   }).filter(Boolean);
   const connections = [], related = [];
   const complete = {};
+  // ponytail: the first limits.connections stored links, in board order; the rest are only counted (omitted.connections)
+  // and the target is marked incomplete, so a node with hundreds of links stays inside the request body limit. Rank
+  // them (structure before annotations, nearest first) if a capped list ever hides the link that matters.
+  const addConnection = (entry, of = null) => {
+    if (connections.length < limits.connections) { connections.push(entry); return; }
+    omitted.connections += 1;
+    if (of) complete[of] = false;
+  };
   const targetBox = unionBox(present.map(id => boxes[id]));
   if (!selectionOnly) {
     // 2. Stored connections, both ways, with their other end - near or far.
@@ -195,7 +203,7 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
         const entry = take(otherRecord, kind === 'annotation' ? 'annotation' : 'connected', { via: link.id });
         if (otherRecord && !entry && !seen.has(other)) complete[id] = false;
         if (entry) related.push(entry);
-        connections.push({ id: link.id, kind, from: link.from, to: link.to, ...(link.label ? { label: String(link.label).slice(0, limits.chars) } : {}), direction: link.from === id ? 'outgoing' : 'incoming', of: id, other });
+        addConnection({ id: link.id, kind, from: link.from, to: link.to, ...(link.label ? { label: String(link.label).slice(0, limits.chars) } : {}), direction: link.from === id ? 'outgoing' : 'incoming', of: id, other }, id);
       }
     }
     // 3. Siblings: the parent's other children (one more level, only through a parent).
@@ -204,7 +212,7 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
         if (link.kind === 'annotation' || link.from !== parent || link.to === child || present.includes(link.to)) continue;
         const entry = take(look.record(link.to), 'sibling', { via: parent });
         if (entry) related.push(entry);
-        if (!connections.some(known => known.id === link.id)) connections.push({ id: link.id, kind: 'connection', from: link.from, to: link.to, ...(link.label ? { label: String(link.label).slice(0, limits.chars) } : {}), direction: 'sibling', of: parent, other: link.to });
+        if (!connections.some(known => known.id === link.id)) addConnection({ id: link.id, kind: 'connection', from: link.from, to: link.to, ...(link.label ? { label: String(link.label).slice(0, limits.chars) } : {}), direction: 'sibling', of: parent, other: link.to });
       }
     }
     // 4. Drawn arrows touching the target: what the picture suggests, not a stored connection.

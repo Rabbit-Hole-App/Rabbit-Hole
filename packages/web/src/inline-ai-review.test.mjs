@@ -270,3 +270,18 @@ test('M2: a refine of a long edit sends at most the worker limit, cut per operat
   assert.ok(read.ops[0].text.endsWith('…'));
   assert.equal(sessionModule.earlierResult({ kind: 'edit', summary: 's', raw: { ops: [ops[1]] } }), JSON.stringify({ summary: 's', ops: [ops[1]] }), 'a short edit goes whole');
 });
+
+import * as contextModule from './inline-ai-context.js';
+
+test('M3: a node with hundreds of links lists a capped number and counts the rest', () => {
+  const hub = { id: 'hub', kind: 'ellipse', x1: 0, y1: 0, x2: 60, y2: 60, text: 'hub' };
+  const leaves = Array.from({ length: 300 }, (_, i) => ({ id: `leaf${i}`, kind: 'ellipse', x1: 100 + i, y1: 200, x2: 160 + i, y2: 260, text: `leaf ${i}` }));
+  const links = leaves.map((leaf, i) => ({ id: `l${i}`, from: 'hub', to: leaf.id, label: 'a fairly long label on this link '.repeat(4) }));
+  const board = { shapes: [hub, ...leaves], items: [], links, blocks: [], groups: [], exchanges: [], boxes: {} };
+  const target = contextModule.freezeTarget(board, ['hub']);
+  const context = contextModule.buildContext(board, target, { cache: contextModule.createContextCache(), boardKey: 'b' });
+  assert.equal(context.connections.length, contextModule.LIMITS.connections);
+  assert.equal(context.omitted.connections, 300 - contextModule.LIMITS.connections);
+  assert.equal(context.complete.hub, false, 'the model is told it did not see every link');
+  assert.ok(JSON.stringify(context).length < 60000, String(JSON.stringify(context).length));
+});
