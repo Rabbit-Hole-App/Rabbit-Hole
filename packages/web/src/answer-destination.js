@@ -14,6 +14,8 @@ export const teaching = (turn, reading) => turn?.mode === 'teach' || reading?.in
 
 export function destinationOf(result, target = null, { setup = false } = {}) {
   const actions = result?.actions || [];
+  // A proposed path is setup too: its journey does not exist until the learner accepts the chip.
+  setup = setup || actions.some(action => action.type === 'suggest_journey');
   const material = actions.some(SHOWS);
   const failed = ['failed', 'refused'].includes(result?.bench?.handoff?.outcome);
   const questions = actions.filter(action => action.type === 'ask_question').map(action => String(action.text || '').trim()).filter(Boolean);

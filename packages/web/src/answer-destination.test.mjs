@@ -96,3 +96,12 @@ test('automatic hole openings stay above chat instead of keeping an empty hole w
   assert.equal(destinationOf(carried).to, 'card');
   assert.equal(destinationOf({ ...opening, turn: { raw_user_message: 'Explain attention' } }).to, 'card');
 });
+
+test('a proposed learning path is setup before a journey exists: no canvas card or selected-card conversation', () => {
+  const proposal = result([say('Let us build a learning path.'), { type: 'suggest_journey', request: 'logistic regression' }], {
+    raw: 'I want to learn logistic regression',
+  });
+  for (const target of [null, selected]) {
+    assert.deepEqual(destinationOf(proposal, target), { material: false, to: 'tray', text: proposal.text });
+  }
+});
