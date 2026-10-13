@@ -38,6 +38,7 @@ import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
+import { inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
@@ -248,6 +249,10 @@ export default {
     // (docs/features/learn-artifact-generation.md).
     // Both refuse a non-owner in subscription mode after their own authorization.
     if (path === '/api/learn/artifact') return artifactFetch(req, env);
+    // The inline AI editor (docs/features/inline-ai-editor.md): JEV routing, the streamed note or edit, and its telemetry.
+    if (path === '/api/learn/inline/route') return inlineRouteFetch(req, env);
+    if (path === '/api/learn/inline/generate') return inlineGenerateFetch(req, env);
+    if (path === '/api/learn/inline/telemetry') return inlineTelemetryFetch(req, env);
     if (path === '/api/learn/board') return boardFetch(req, env);
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
