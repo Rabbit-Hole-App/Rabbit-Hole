@@ -47,6 +47,9 @@ const blocks = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes
 const select = async id => { const strip = page.locator(`[data-block-id="${id}"] [data-drag-zone]`).last(); await strip.scrollIntoViewIfNeeded(); await strip.click({ position: { x: 12, y: 8 } }); await page.waitForTimeout(300); };
 const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"]):not([data-slash-search])').first();
 const slash = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(150); await composer().press('Enter'); await page.waitForTimeout(800); };
+// Down from the selected card by /dive with no topic (dive-v1.md: "Selected card. /dive [topic] dives from it"): the
+// picker fills "/dive ", Enter runs it. Ctrl/Cmd+K on a selected card is the inline AI editor's (owner 2026-10-13).
+const diveFromSelected = async () => { await slash('/dive'); await composer().press('Enter'); await page.waitForTimeout(800); };
 const deselect = async () => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }; // never a click: it could land on a card
 const nav = () => page.locator('[data-dive-navigator]');
 const waitPersisted = async () => { await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 15000 }); await page.waitForTimeout(600); };
@@ -190,10 +193,18 @@ await select(card1);
 await shot('02-selected-card');
 
 // ---- A: an empty dive is a pending hole with a temporary portal; leaving the tree discards it ----
+// Ctrl/Cmd+K on a selected card opens the inline AI editor (owner 2026-10-13, docs/features/inline-ai-editor.md §2):
+// no hole, no Search. /dive and Start Rabbit Hole stay the ways down.
 await page.keyboard.press('Control+k');
+await page.locator('[data-inline-ai]').waitFor();
+assert.equal(url().searchParams.get('hole'), null, 'Ctrl+K on a selected card opens the inline editor, not a hole');
+assert.equal(await page.locator('[role="dialog"][aria-label*="earch"]').count(), 0, 'Ctrl+K on a selected card is not Search');
+await page.keyboard.press('Escape');
+await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+await diveFromSelected();
 await page.waitForFunction(() => location.search.includes('hole='));
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
-assert.equal(await page.locator('[role="dialog"][aria-label*="earch"]').count(), 0, 'Ctrl+K on a selected card dives, not Search');
+assert.equal(await page.locator('[role="dialog"][aria-label*="earch"]').count(), 0, '/dive on a selected card dives, not Search');
 const pendingName = url().searchParams.get('hole');
 await shot('03-pending-empty-hole');
 assert.equal((await get(`/api/canvases/dives?app=${root.name}&board=${BOARD}`)).children.length, 0, 'a pending hole is not persisted');
@@ -264,7 +275,7 @@ await page.locator('[data-dive-grip]').dblclick();
 near(await mapAt(), home, 'reset before the card flows');
 await shot('06-parent-hole-outline');
 
-// ---- C: the portal enters the child; Ctrl+K on a card with a child enters it, never a duplicate ----
+// ---- C: the portal enters the child; /dive on a card with a child enters it, never a duplicate ----
 await page.locator(`[data-dive-portal="${softmax}"]`).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 await up();
@@ -272,7 +283,7 @@ await page.locator(`[data-block-id="${card1}"]`).first().dblclick({ position: { 
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 await up();
 await select(card1);
-await page.keyboard.press('Control+k');
+await diveFromSelected();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 assert.equal((await tree(root.name, BOARD)).children.length, 1, 'no duplicate child');
 await up();
@@ -292,7 +303,7 @@ assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(
 await page.locator(`[data-block-id="${anchor}"]`).scrollIntoViewIfNeeded();
 await shot('07b-anchor-card-no-outline');
 await select(anchor);
-await page.keyboard.press('Control+k');
+await diveFromSelected();
 await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
 await addObject('Stability sketch');
 await up();

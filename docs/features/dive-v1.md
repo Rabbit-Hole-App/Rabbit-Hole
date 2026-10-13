@@ -59,8 +59,12 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 
 - **Every hole has exactly one originating card** (owner correction, 2026-09-30). That card is the
   selected card, or a topic anchor card made from the request.
-- **Selected card.** Ctrl+K or `/dive [topic]` dives from it (`diveFromCard`). The hole's title is
+- **Selected card.** `/dive [topic]` dives from it (`diveFromCard`). The hole's title is
   taken from the request ("explain softmax" gives Softmax), or else from the card's title.
+  Ctrl/Cmd+K on an eligible selection, a card included, opens the inline AI editor (Explain or Edit) instead
+  (`docs/features/inline-ai-editor.md` §2, that spec's default; which one Ctrl+K does is the owner's call). Dive's
+  Ctrl+K stands down when the canvas claims the key (`inlineClaims`) and still dives on a canvas without the inline
+  editor.
 - **No card selected, with a topic.** `/dive explain softmax` adds a topic anchor card to the current
   canvas and opens its pending child (`diveFromTopic`). The anchor is an ordinary `explanation`
   block: its title is Softmax, its body is the learner's words, and it carries
@@ -82,7 +86,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   - **Nested holes are hidden** from Home, Library and Search (`ownerCanvases` leaves out every
     `canvas_dives` child). They open through the navigator, their portal, or their URL.
   - **Double-click** a card with a hole, saved or pending, to go down it. A single click selects;
-    Ctrl+K on a selected portal card enters too.
+    Ctrl/Cmd+K on a selected portal card opens the inline AI editor, not the hole; double-click enters.
   - **Navigator:**
     - No ↑ at the root, and no ↓ when there is nothing below.
     - The current level is a green square and a green label with white text (dark text on the lighter dark-mode green).
