@@ -1,6 +1,6 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Sparkles } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -9,7 +9,7 @@ import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './Lea
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
-import RichText, { measureHeight } from './RichText.jsx';
+import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
 import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
@@ -45,9 +45,13 @@ import { anchorAt, objectLabel } from './comments/anchors.js';
 import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
+import { createContextCache, freezeTarget } from './inline-ai-context.js';
+import { applyTx } from './inline-ai-apply.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
+// The inline AI editor arrives with its first Ctrl/Cmd+K (docs/features/inline-ai-editor.md), never with the canvas.
+const InlineAiEditor = lazy(() => import('./InlineAiEditor.jsx'));
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -1344,7 +1348,7 @@ const CARDS_COPIED = 'rabbit-hole:copied-cards';
 // menu's MenuItem, its icon at 16px beside the label. A new row passes only its icon.
 const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1369,6 +1373,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     window.addEventListener('small:ask-focus', show);
     return () => window.removeEventListener('small:ask-focus', show);
   }, [composerHidden]);
+  // The inline AI editor (docs/features/inline-ai-editor.md): its frozen target while open. Ctrl/Cmd+K, the canvas menu and
+  // the page's Edit menu open it; a request's whole life is InlineAiEditor.jsx's, and it lands only through applyInline.
+  const [inline, setInline] = useState(null);
+  const inlineRef = useRef(null);
+  inlineRef.current = inline;
+  const inlineAiRef = useRef(inlineAi);
+  inlineAiRef.current = inlineAi;
+  const [inlineHint, setInlineHint] = useState(0);
+  const inlineOpens = useRef(0);
   const menuOpenRef = useRef(false);
   menuOpenRef.current = !!menuAt;
   // Where the menu actually goes (owner, 2026-10-07): measured after it renders, so it opens beside the cursor and stays
@@ -1723,6 +1736,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return true;
       },
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
+      // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
+      inlineAi: () => openInline(), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
       paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
       duplicate: () => !!pasteIds(selectedRef.current),
@@ -2536,10 +2551,121 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     observer.observe(shell.current);
     return () => observer.disconnect();
   }, []);
+  // ---------- Inline AI editor hooks (docs/features/inline-ai-editor.md) ----------
+  // The live lists, never the last saved copy (§4). Layout comes separately (layout()), so content stays cheap to read.
+  const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: blocksRef.current, groups: groupsRef.current, exchanges: exchangesRef.current });
+  // One context cache per board (A1): a board switch remounts the canvas with a new one; a permission change clears it.
+  const inlineCache = useRef(null);
+  if (!inlineCache.current) inlineCache.current = createContextCache();
+  const inlineKey = useRef(null);
+  if (!inlineKey.current) inlineKey.current = storageKey || `canvas:${crypto.randomUUID()}`;
+  useEffect(() => { inlineCache.current.reset(); }, [readOnly]);
+  // What Ctrl/Cmd+K would act on now: the words selected in the open text editor (precedence 1), that editor's object, or
+  // the canvas selection - frozen (§2). null: nothing eligible, or the focus is somewhere that is not the canvas's.
+  // fromKey: only the keyboard path asks where the focus is (a menu row's own focus is the menu's).
+  const inlineTarget = (fromKey = false) => {
+    if (!inlineAiRef.current || presentingRef.current !== null) return null;
+    const board = inlineBoard();
+    const editing = document.activeElement?.closest?.('[data-rich-editor]');
+    if (editing && shell.current?.contains(editing)) {
+      const owner = editing.closest('[data-item-id],[data-shape-id],[data-connection]');
+      const id = owner?.dataset.itemId || owner?.dataset.shapeId || owner?.dataset.connection || null;
+      if (!id) return null;
+      const text = plainOf(readRuns(editing)), at = offsetsOf(editing);
+      const range = at && at.to > at.from ? { id, from: at.from, to: at.to, text: text.slice(at.from, at.to) } : null;
+      const target = freezeTarget(board, [id], range ? { range } : {});
+      return target && { target, liveText: { id, text } };
+    }
+    const held = document.activeElement;
+    if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
+    const target = freezeTarget(board, selectedRef.current);
+    return target && { target, liveText: null };
+  };
+  const openInline = (opened = performance.now(), fromKey = false) => {
+    if (inlineRef.current) { shell.current?.querySelector('[data-inline-ai] textarea')?.focus(); return true; }
+    const found = inlineTarget(fromKey);
+    if (!found) return false;
+    setMenuAt(null);
+    setInline({ ...found, opened, cold: inlineOpens.current === 0, opener: document.activeElement, n: (inlineOpens.current += 1) });
+    return true;
+  };
+  const closeInline = () => {
+    const opener = inlineRef.current?.opener;
+    setInline(null);
+    // Focus goes back where it was when that was a card or a control; from a closed text editor, to the canvas (body).
+    requestAnimationFrame(() => { if (opener?.isConnected && opener.matches?.('[data-block-id],button,a,[tabindex]:not([tabindex="-1"])')) opener.focus({ preventScroll: true }); });
+  };
+  const inlineKeyRef = useRef(null);
+  inlineKeyRef.current = event => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k' || event.isComposing || event.keyCode === 229) return false;
+    if (!inlineAiRef.current) return false;
+    if (openInline(performance.now(), true)) { event.preventDefault(); event.stopImmediatePropagation(); return true; }
+    // Nothing eligible: the page's own Ctrl+K (Search) keeps the key. Only when nobody took it does this say what it does.
+    const held = document.activeElement;
+    if (!held || held === document.body || shell.current?.contains(held)) setTimeout(() => { if (!event.defaultPrevented) setInlineHint(n => n + 1); }, 0);
+    return false;
+  };
+  useEffect(() => { if (!inlineHint) return undefined; const timer = setTimeout(() => setInlineHint(0), 2200); return () => clearTimeout(timer); }, [inlineHint]);
+  // The accepted result as one transaction and one undo step, applied to the lists as they are now: an unrelated edit made
+  // meanwhile stays (§11). Then the existing save path at once, so persistence is measured apart from acceptance (A3).
+  const applyInline = (tx, requestId, onPersisted) => {
+    if (!alive.current) return false;
+    editorRef.current?.commit('blur');
+    if (tx.kind === 'card' && !tx.after) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
+    snapshot();
+    for (const [list, set] of [['shapes', setShapes], ['items', setItems], ['links', setLinks], ['blocks', setBlocks]]) {
+      set(previous => applyTx({ shapes: [], items: [], links: [], blocks: [], [list]: previous }, tx)[list]);
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => commandsRef.current?.persist().then(result => { if (result?.ok) onPersisted?.(requestId); })));
+    return true;
+  };
+  // Telemetry rows (A3/A5), batched and sent a few seconds after the last change - never on the request's path.
+  const telemetryQueue = useRef(new Map()), telemetryTimer = useRef(null);
+  // Only settled rows go (A5: after Accept, Reject or Cancel); a preview still on screen waits. On unmount everything goes.
+  const flushTelemetry = (all = false) => {
+    clearTimeout(telemetryTimer.current);
+    const batch = [...telemetryQueue.current.values()].filter(row => all || !['previewed', 'reused'].includes(row.outcome));
+    for (const row of batch) telemetryQueue.current.delete(row.request_id);
+    if (batch.length) inlineAiRef.current?.sendTelemetry?.(batch);
+  };
+  useEffect(() => () => flushTelemetry(true), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const NOTE_LIKE = { kind: 'rect', color: '#6b7280', textColor: '#37352f', align: 'left' };
+  const inlineCanvas = {
+    boardKey: inlineKey.current, cache: inlineCache.current,
+    board: inlineBoard,
+    layout: () => Object.fromEntries(contentBoxes().filter(box => box.id).map(({ id, ...box }) => [id, box])),
+    boxOf: id => boxesOf([id])[0] || null,
+    obstacles: exclude => contentBoxes().filter(box => !exclude.includes(box.id)).map(({ id: _id, ...box }) => box),
+    visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
+    // The part of the surface on screen: a phone's keyboard shrinks the visual viewport, not the surface.
+    surfaceSize: () => {
+      const element = surface.current, port = window.visualViewport;
+      if (!element) return { w: 0, h: 0 };
+      const top = element.getBoundingClientRect().top;
+      return { w: element.clientWidth, h: Math.max(120, Math.min(element.clientHeight, port ? port.height + port.offsetTop - top : element.clientHeight)) };
+    },
+    // The canvas's own floating chrome over the surface, in surface pixels: the popover keeps clear of it.
+    chromeRects: () => {
+      const at = surface.current?.getBoundingClientRect();
+      if (!at) return [];
+      return [...(shell.current?.querySelectorAll('[data-style-panel], [data-canvas-bottom] > * > *, [data-chat-sheet]') || [])].flatMap(boxesIn)
+        .filter(rect => rect.width && rect.height).map(rect => ({ x: rect.left - at.left, y: rect.top - at.top, w: rect.width, h: rect.height }));
+    },
+    objectCount: () => blocksRef.current.length + itemsRef.current.length + shapesRef.current.length + present.current.links.length,
+    describe: object => describeObject(object),
+    measureNote: (text, width) => { const base = shapeBase(NOTE_LIKE); return measureHeight([{ t: text }], base, inkAware, shapeTextCss(NOTE_LIKE, base), width); },
+    apply: applyInline,
+    telemetry: rows => { for (const row of rows) telemetryQueue.current.set(row.request_id, row); clearTimeout(telemetryTimer.current); telemetryTimer.current = setTimeout(() => flushTelemetry(), 4000); },
+  };
   // Delete/Backspace removes the selected sticky, text or shape; ctrl+z
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
+      // Ctrl/Cmd+K (docs/features/inline-ai-editor.md §2): the inline editor on an eligible selection - or on the words
+      // selected in the open text editor, captured here before focus moves. Anything else leaves the key to the page.
+      if (inlineKeyRef.current(event)) return;
+      // The inline editor owns its keys while it has the focus: Esc closes it first, never the selection.
+      if (document.activeElement?.closest?.('[data-inline-ai]')) return;
       // An open text editor (RichText) owns every key while it is open: Enter, Esc, undo, clipboard and the arrows.
       if (document.activeElement?.closest?.('[data-rich-editor]')) return;
       // A drag in progress owns Esc: it cancels the gesture (startDrag) and nothing else.
@@ -4070,6 +4196,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />
+        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} liveText={inline.liveText} opened={inline.opened} cold={inline.cold}
+          canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
+        {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         <div ref={worldRef} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
         {/* Page guides sit inside the camera, so they pin to the content: the
             boundary keeps its width in cards, not in screen pixels. */}
@@ -4090,7 +4219,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             const ink = inkAware(link.color);
             return (
               <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
-                <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" />
+                <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />
                 {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end')}
                 {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start')}
                 <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
@@ -4366,6 +4495,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {addComment && commentOn && <MenuRow icon={MessageCircle} data-menu-add-comment aria-keyshortcuts="C" hint="C" onClick={act(addComment)}>Add comment</MenuRow>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
+              {inlineAi && <MenuRow icon={Sparkles} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline())}>Edit or explain with AI</MenuRow>}
               {described && <MenuRow icon={CircleHelp} onClick={act(() => askBlock(block))}>Ask about this</MenuRow>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}

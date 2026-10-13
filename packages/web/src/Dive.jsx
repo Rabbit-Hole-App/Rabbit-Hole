@@ -122,6 +122,9 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     const key = event => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k') return;
       if (!stateRef.current.card || !treeRef.current) return;
+      // The inline AI editor owns Ctrl/Cmd+K on an eligible selection (docs/features/inline-ai-editor.md §2); /dive and
+      // Start Rabbit Hole stay the ways down. Without it (a canvas with no inline editor) Ctrl+K dives as before.
+      if (canvasApi.current?.inlineClaims?.()) return;
       event.preventDefault(); event.stopImmediatePropagation();
       diveRef.current('', 'learner_ctrl_k');
     };
