@@ -19,27 +19,41 @@ const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.cla
 // A title that says what a canvas is about, else '' (owner 2026-10-08, blank canvases): not blank, not the default Untitled
 // (start.js UNTITLED) and not an auto canvas name (canvas-<8 hex>).
 export const informativeTitle = title => { const t = String(title || '').trim(); return /^(untitled( canvas)?|canvas-[0-9a-f]{8})$/i.test(t) ? '' : t; };
+// Owner task 2 (2026-10-13, Curious): a plain canvas's title is background, never its goal (background, sent as
+// canvas.title): the planner reads the canvas's content for what the learner is working on, and the title only when the
+// canvas holds nothing. A journey, course or hole goal stays the goal.
 export function goalOf({ context = null, record = null, title = '', liveTitle = null }) {
   const domain = context?.domain ?? null, holeTitle = liveTitle || record?.title;
   const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
+  const plain = context?.source === 'canvas' && !record;
   const goal = context?.source === 'journey' ? domain.context?.goal || title
-    // A plain canvas or a canvas-domain hole (fix round 2): the goal tutorContext built from the live title (a hole's
-    // learning_goal first), so a rename reaches the input and the basis.
-    // An uninformative title (blank, Untitled, an auto name) is no goal: a blank canvas then gets distinct starter hooks.
+    // A canvas-domain hole (fix round 2): the goal tutorContext built from the live title (its learning_goal first), so a
+    // rename reaches the input and the basis. An uninformative title (blank, Untitled, an auto name) is no goal.
+    : plain ? ''
     : context?.source === 'canvas' ? informativeTitle(domain.subject || title)
     : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(holeTitle, 80)}` : holeTitle)
     : domain?.subject || title;
-  return { goal, parentGoal };
+  // An uninformative title is no background either: a blank canvas then gets distinct starter hooks.
+  return { goal, parentGoal, background: plain ? informativeTitle(domain.subject || title) : '' };
 }
+
+// Owner task 2: the canvas's native content, from the shared snapshot (canvas-semantics.js semanticSnapshot, already
+// budgeted and free of hidden practice answers): objects with their words, relations with their source (connector,
+// annotation or inferred), groups, and what the budget cut. Positions never travel.
+const nativeOf = snapshot => (!snapshot ? {} : {
+  objects: (snapshot.objects || []).map(({ id, kind, text, groupId, sectionId }) => ({ id, kind, text, ...(groupId ? { groupId } : {}), ...(sectionId ? { sectionId } : {}) })),
+  relations: snapshot.relations || [], groups: snapshot.groups || [], omitted: snapshot.omitted || { objects: 0, chars: 0 },
+});
 
 // context: tutorContext's (or a hook turn's) { domain, source }, null where none resolves; a plain canvas or hole has the
 // canvas domain (Task 10: empty scope, block titles as grounding). store: the canvas's Tutor session store. journey:
 // useJourney's view. record/parent: a hole's dive record and its parent journey (read only). liveTitle: the hole's live
 // title (fix round 3; the record title is its creation title). previous: { hooks, goals } already shown and chosen.
-// describe: LearningBlocks' describeBlock when the page passes it; only its title is read.
+// describe: LearningBlocks' describeBlock when the page passes it; only its title is read. snapshot: the canvas's semantic
+// snapshot (canvasApi.semantic(), owner task 2), its native content carried beside the cards.
 // Returns { input, trim } - trim is structured counts beside the input, never inside it (owner sixth message 4) - or
 // { problem: 'input_too_large' } when the 9000-character cap would leave a registry canvas with no claim, or nothing fits.
-export function nextStepsInput({ context = null, store = null, journey = null, blocks = [], record = null, parent = null, title = '', liveTitle = null, lastTurn = null, previous = {}, basis, describe = null }) {
+export function nextStepsInput({ context = null, store = null, journey = null, blocks = [], record = null, parent = null, title = '', liveTitle = null, lastTurn = null, previous = {}, basis, describe = null, snapshot = null }) {
   const domain = context?.domain ?? null, claims = domain?.claims || {}, concepts = domain?.concepts || {}, events = store?.events || [];
   const known = id => typeof id === 'string' && Object.hasOwn(claims, id);
   const states = domain ? deriveClaimStates(events, claims) : {};
@@ -94,7 +108,7 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     for (const id of back) { excluded.delete(id); for (const g of gapsOf(scope.claims, id)) pinned.add(g); }
   }
 
-  const { goal, parentGoal } = goalOf({ context, record, title, liveTitle });
+  const { goal, parentGoal, background } = goalOf({ context, record, title, liveTitle });
   const next = mode === 'journey' ? nextSectionOf(journey?.journey, journey?.path) : null, completion = sectionCompletion(journey?.journey);
   const tutorSaid = cap(store?.turns?.at(-1)?.tutor || '', 300);
   const asked = ['question', 'request'].includes(lastTurn?.kind) && lastTurn.question ? cap(lastTurn.question, L.question) : null;
@@ -112,7 +126,7 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
       // completes says whether moving on completes this section or skips it (the journey route decides).
       ...(next && completion.attempted ? { next: { id: next.id, title: cap(next.title, 80), completes: completion.met } } : {}),
     } } : {}),
-    canvas: { blocks: shown }, scope,
+    canvas: { ...(background ? { title: cap(background, L.block_title) } : {}), blocks: shown, ...nativeOf(snapshot) }, scope,
     recent: {
       intent: lastTurn?.kind ?? null, ...(asked ? { question: asked } : {}),
       // r29: the Tutor's last reply on this canvas (the session store, as the Tutor planner reads it): the example being taught.
@@ -171,7 +185,8 @@ export function nextStepsBasis({ lastTurn = null, store = null, journey = null, 
   const j = journey?.journey;
   return `nb_${fnv(JSON.stringify([lastTurn?.turn_id ?? null, store?.seq ?? 0, j?.evidence?.seq ?? null, journey?.path?.version ?? null, j?.active_section_id ?? null,
     j?.section_plan?.heading_block_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded, record?.dive_id ?? null, !!store?.returned,
-    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title, liveTitle }).goal ?? null, record ? liveTitle || record.title : null]))}`;
+    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title, liveTitle }).goal ?? null, record ? liveTitle || record.title : null,
+    goalOf({ context, record, title, liveTitle }).background]))}`;
 }
 
 // Not a stopping point (contract §1.2): the Tutor answering, journey work (a pending action, a section being built) or
@@ -179,12 +194,13 @@ export function nextStepsBasis({ lastTurn = null, store = null, journey = null, 
 // deliberately not an input: hooks stay visible and clickable while it is on. plain: a canvas-domain canvas that is not a
 // hole. A blank plain canvas gets hooks at rest (owner 2026-10-08, reversing the eleventh message 8): grounded in an
 // informative title, else three distinct starter directions (goalOf gives no goal). blocks are the canvas blocks
-// (canvasApi.blocks()); chat exchanges are not among them.
-export function stoppingPoint({ busy = false, journey = null, store = null, here = null, blocks = [], goal = '', plain = false }) {
+// (canvasApi.blocks()); chat exchanges are not among them. objects: how many native objects it holds (owner task 2): a
+// canvas of shapes and text alone is not blank.
+export function stoppingPoint({ busy = false, journey = null, store = null, here = null, blocks = [], objects = 0, goal = '', plain = false }) {
   const j = journey?.journey;
   if (busy || journey?.busy || j?.pending || (j && SETUP.includes(j.state)) || journey?.trayProps) return 'not_now';
   if ((store?.open && sameCanvas(store.open.canvas, here)) || (store?.returned && sameCanvas(store.returned.parent, here))) return 'not_now';
-  if (!blocks.length && !plain && !String(goal || '').trim()) return 'not_now';
+  if (!blocks.length && !objects && !plain && !String(goal || '').trim()) return 'not_now';
   return null;
 }
 

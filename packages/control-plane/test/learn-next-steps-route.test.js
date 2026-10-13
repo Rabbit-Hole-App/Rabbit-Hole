@@ -108,7 +108,7 @@ test('planNextSteps: Sonnet first; a missing tool call, a validator failure or a
   assert.equal(ok.calls[0].body.output_config.effort, 'low');
   assert.match(plain.telemetry.prompt_version, /^[0-9a-f]{12}$/);
   assert.equal(plain.telemetry.cost_usd, costUsd({ model: 'claude-sonnet-5-5', input_tokens: 2000, output_tokens: 400 }));
-  assert.deepEqual([plain.telemetry.model_role, plain.telemetry.model_id, plain.telemetry.planner_version], ['tutor_next_steps', 'claude-sonnet-5-5', 'next-steps-planner-1']);
+  assert.deepEqual([plain.telemetry.model_role, plain.telemetry.model_id, plain.telemetry.planner_version], ['tutor_next_steps', 'claude-sonnet-5-5', 'next-steps-planner-2']);
   // Before Task 6 fix round 2: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }. A count
   // no reply reported is unknown (null), not 0: this reply reports no cache counts.
   assert.deepEqual(plain.telemetry.usage, { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: null, cache_read_input_tokens: null });

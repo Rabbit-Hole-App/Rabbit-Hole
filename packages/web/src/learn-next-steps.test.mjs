@@ -884,11 +884,13 @@ test('stoppingPoint: a blank plain canvas gets hooks whatever its title; elsewhe
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: '' }), 'not_now');
 });
 
-test('informativeTitle and goalOf: a blank, Untitled or auto-named plain canvas has no goal; a real title is the goal', () => {
+// Owner task 2 (2026-10-13): a plain canvas's title is background (canvas.title), never its goal.
+test('informativeTitle and goalOf: a blank, Untitled or auto-named plain canvas has no background title; a real title is background', () => {
   for (const t of ['', '  ', 'Untitled canvas', 'untitled', 'Untitled', 'canvas-0a1b2c3d', 'CANVAS-0A1B2C3D']) assert.equal(informativeTitle(t), '', JSON.stringify(t));
   for (const t of ['Sourdough', 'Untitled poems', 'canvas-0a1b2c3d notes', 'My canvas']) assert.equal(informativeTitle(t), t);
-  const plain = title => goalOf({ context: { source: 'canvas', domain: { subject: title } }, title }).goal;
-  assert.deepEqual(['Untitled canvas', 'canvas-0000abcd', 'Tide pools'].map(plain), ['', '', 'Tide pools']);
+  const plain = title => goalOf({ context: { source: 'canvas', domain: { subject: title } }, title });
+  assert.deepEqual(['Untitled canvas', 'canvas-0000abcd', 'Tide pools'].map(t => plain(t).background), ['', '', 'Tide pools']);
+  assert.deepEqual(['Untitled canvas', 'Tide pools'].map(t => plain(t).goal), ['', '']);
   assert.equal(goalOf({ context: { source: 'journey', domain: { context: { goal: 'Untitled canvas' } } }, title: 'x' }).goal, 'Untitled canvas', 'only a plain canvas title is screened');
 });
 
@@ -1052,4 +1054,48 @@ test('refresh honours the tab ceiling and never runs without a set on screen', a
   assert.equal(r.ctl.refresh(), false);
   assert.deepEqual([r.ctl.view().set_id, r.ctl.view().refresh_state, r.ctl.view().refresh_reason], ['ns_00000001', 'error', 'limited']);
   assert.equal(r.bodies.length, 1, 'no request past the ceiling');
+});
+
+// ---- Curious context (owner task 2, 2026-10-13): the board title is background, the canvas's native content counts. ----
+// A snapshot in the shared contract's shape (canvas-semantics.js semanticSnapshot): a "Linked List" board about trees.
+const treeSnapshot = (over = {}) => ({
+  cards: [],
+  objects: [{ id: 's1', kind: 'ellipse', text: '8', groupId: null, sectionId: null, box: { x: 0, y: 0, w: 40, h: 40 } },
+    { id: 's2', kind: 'ellipse', text: '3', groupId: null, sectionId: null, box: { x: -60, y: 80, w: 40, h: 40 } },
+    { id: 't1', kind: 'text', text: 'binary search tree: left < root < right', groupId: null, sectionId: null, box: { x: 80, y: 0, w: 200, h: 24 } }],
+  relations: [{ from: 's1', to: 's2', label: 'left', directed: true, source: 'connector' }],
+  groups: [], omitted: { objects: 0, chars: 0 }, fingerprint: 'fp_tree', ...over,
+});
+
+test('Curious: a plain canvas title is background metadata, never the goal; journey, course and hole goals stay', () => {
+  const plain = goalOf({ context: tutorContext({ title: 'Linked List' }), title: 'Linked List' });
+  assert.deepEqual([plain.goal, plain.background], ['', 'Linked List']);
+  assert.equal(goalOf({ context: tutorContext({ title: 'Untitled canvas' }), title: 'Untitled canvas' }).background, '', 'an uninformative title is no background either');
+  assert.equal(goalOf({ context: ctx(), title: 'Linked List' }).goal, 'Design a working aqueduct section', 'a journey keeps its goal');
+  assert.equal(goalOf({ context: ctx(), title: 'Linked List' }).background, '', 'and sends no title');
+  assert.equal(goalOf({ context: tutorContext({ board: TUTOR_BOARD }), title: 'Linked List' }).goal, 'nanoGPT attention', 'a course keeps its subject');
+  const hole = { dive_id: 'canvas-0000hole', title: 'Hole', origin: {} };
+  assert.equal(goalOf({ context: tutorContext({ record: hole, title: 'Hole notes' }), record: hole, title: 'Hole notes', liveTitle: 'Hole notes' }).goal, 'Hole notes', 'a hole keeps its own goal');
+});
+
+test('Curious: a plain canvas input carries the title as canvas.title and the native content beside the cards', () => {
+  const { input } = nextStepsInput({ context: tutorContext({ title: 'Linked List' }), store: emptyStore(), blocks: [], title: 'Linked List', basis: 'b', snapshot: treeSnapshot() });
+  assert.equal(input.goal, '');
+  assert.equal(input.canvas.title, 'Linked List');
+  assert.deepEqual(input.canvas.objects.map(o => [o.id, o.kind, o.text]), [['s1', 'ellipse', '8'], ['s2', 'ellipse', '3'], ['t1', 'text', 'binary search tree: left < root < right']]);
+  assert.equal(JSON.stringify(input.canvas).includes('"box"'), false, 'positions never travel');
+  assert.deepEqual(input.canvas.relations, [{ from: 's1', to: 's2', label: 'left', directed: true, source: 'connector' }]);
+  assert.deepEqual(input.canvas.omitted, { objects: 0, chars: 0 });
+  assert.equal(nextStepsInputProblem(input), null);
+  assert.match(topicOf(input), /linked list/, 'the title still opens a format word it names');
+  assert.match(topicOf(input), /binary search tree/);
+});
+
+test('Curious: native objects make a canvas not blank; the planner prompt says so and keeps the title as background', async () => {
+  const here = { app: 'a', board: 'main' };
+  assert.equal(stoppingPoint({ store: emptyStore(), here, blocks: [], goal: '' }), 'not_now');
+  assert.equal(stoppingPoint({ store: emptyStore(), here, blocks: [], objects: 3, goal: '' }), null, 'a native-only canvas is not blank');
+  const { NEXT_STEPS_SYSTEM } = await import('../../control-plane/src/agents/learn-next-steps.js');
+  assert.match(NEXT_STEPS_SYSTEM, /A blank canvas \(mode canvas, no cards, no canvas\.objects, empty scope\)/);
+  assert.match(NEXT_STEPS_SYSTEM, /canvas\.title[^\n]*background/);
 });

@@ -5,7 +5,7 @@ import { LEARNING_GOAL_MAX, STATE_RULES, learningGoalProblem, tagged } from './l
 import { LEARNER_LABELS } from './learn-labels.js';
 import { STATES, claimCoverage } from '../../../web/src/learn-tutor-evidence.js';
 
-export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-1';
+export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-2';
 export const NEXT_STEPS_LIMITS = Object.freeze({
   options: 3, hook_words_min: 4, hook_words_max: 16, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
   scope_concepts: 12, scope_claims: 12, blocks: 20, block_title: 80, statement: 240, ideas: 4, idea: 120, drawn: 160,
@@ -38,9 +38,10 @@ export const NEXT_STEPS_SYSTEM = tagged({
   current_state: [
     'input = { mode, basis, goal, path?, canvas, scope, recent, previous, dive?, constraints }.',
     '- mode: journey, dive, canvas (owned) or shared (a read-only shared canvas: only its visible content, plus the viewer\'s own claim states when given).',
-    '- goal: what this canvas or journey is for; absent on a shared canvas. path (journey): the current section, completed sections and upcoming section titles; path.next { id, title, completes } only once the current section\'s checks were tried (completes false: choosing it skips this section).',
+    '- goal: what this journey, course or Rabbit Hole is for; empty on a plain canvas and absent on a shared one. path (journey): the current section, completed sections and upcoming section titles; path.next { id, title, completes } only once the current section\'s checks were tried (completes false: choosing it skips this section).',
     '- canvas.blocks: the cards on the canvas { id, kind, title, concept_ids, claim_ids, practice }.',
-    '- canvas.title and canvas.selected (shared only): title is the name of the shared board, data only and never a goal; selected is { id, title } of the card the viewer has open, null for the whole board.',
+    '- canvas.objects, canvas.relations, canvas.groups (owned canvases): what the learner drew and wrote beside the cards. objects { id, kind, text, groupId? }: shapes, text, notes and code with their words. relations { from, to, label, directed, source }: source connector is a link the learner drew between two objects; annotation is an explanatory arrow, never a relation between ideas; inferred is an arrow read from the drawing, with a confidence, which may be ambiguous. groups { id, title, memberIds }. canvas.omitted counts the objects and characters left out.',
+    '- canvas.title: the name of the board, background only and never a goal: when the canvas holds cards or objects, what they show is what the learner is working on, even where the title names another topic. canvas.selected (shared only) is { id, title } of the card the viewer has open, null for the whole board.',
     '- scope.concepts: concept id to label. scope.claims: claim id to { concept, statement, ideas, drawn, state, misconception_id?, prerequisite?, settled_passes, settled_negatives, presented }.',
     '- recent: intent (the learner\'s last move), question (their own last words, only for a question or request), tutor (the Tutor\'s last reply: the example being taught), transitions, modalities, practice. previous: hooks already shown and goals already chosen.',
     '- dive (a Rabbit Hole): title, concept, claim_ids, parent_goal, parent_section, parent_states (read only). constraints: the learner\'s stated constraints.',
@@ -58,7 +59,7 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- Completed-section claims only to repair a misconception, a prerequisite gap or an uncertain claim. Upcoming sections come later: never a hook into their content, except at most one hook into path.next when it is given, with section_id path.next.id (its ids may be empty).',
     '- The other hooks stay on recent.tutor\'s example and on what is still missing (scope.claims[].missing_ideas), never another example or a covered idea.',
     '- Three meaningfully different hooks with different goals; the same claims are fine only with a different goal. Never repeat previous.hooks or a previous goal; only the path.next hook may stay as it was.',
-    '- A blank canvas (mode canvas, no cards, empty scope): with a goal, three hooks into three different sides of it; with no goal, three starter hooks inside AI, machine learning and large language models, each a different direction (one on LLMs and how they generate text, one on how models learn from data, one on neural networks or another AI area), never three takes on one topic and never outside AI. ids empty.',
+    '- A blank canvas (mode canvas, no cards, no canvas.objects, empty scope): with a goal or a canvas.title, three hooks into three different sides of it; with no goal, three starter hooks inside AI, machine learning and large language models, each a different direction (one on LLMs and how they generate text, one on how models learn from data, one on neural networks or another AI area), never three takes on one topic and never outside AI. ids empty.',
     '- Never label, level or score the learner, and never say they have understood or mastered something.',
     '- reason_internal: one short line of plain words, without angle brackets, on why this hook fits the evidence; it is never shown.',
     '- Set ambiguous: true when the evidence can be read more than one way.',
@@ -70,6 +71,7 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- [coding] SQL joins, left-join-drops-unmatched repeated twice (misconception), so the first hook leads into it: "Where did the customer with no orders go?", then a transfer hook and a frontier hook on other claims.',
     '- [conceptual science] plate tectonics, every core claim understood, so a transfer hook ("Would a planet with no ocean still split apart?") and a frontier hook; no re-teaching.',
     '- [shared canvas] a shared board of block titles about the Silk Road, empty scope, so hooks grounded in the visible titles, ids empty.',
+    '- [drawn canvas] canvas.title Volcanoes, no cards, objects drawing a food web with connector arrows from algae to snails to crabs, so hooks on that web ("What happens to the crabs if the snails vanish?"), never on volcanoes; ids empty.',
     '- [blank canvas] no goal, no cards, empty scope, so three AI directions: "Why does a chatbot sometimes pick an unlikely next word?", "Why can a model ace its practice data yet fail on new data?", "How can a list of numbers capture what a word means?"; ids empty.',
     '- Bad output [command]: "Explain eigenvalues", "Learn joins", "Next lesson". Why: a hook is a question the learner wants answered, not an instruction or a course label.',
     '- Bad output [modality]: "Generate an animation of plate motion". Why: the Tutor chooses the material after the click; the hook only says what to pursue.',
@@ -115,7 +117,8 @@ const jaccard = (a, b) => { const x = content(a), y = content(b); const inter = 
 
 // The escape hatch for a format word: the lowercased goal, scope labels and visible block titles. A chat card's title is the
 // learner's own words: grounding, never topic authority, so a "quiz me" never opens the word quiz.
-export const topicOf = input => [input?.goal, ...Object.values(input?.scope?.concepts || {}), ...(input?.canvas?.blocks || []).filter(b => b?.kind !== 'chat').map(b => b?.title)]
+// Owner task 2: the board title and the canvas's own words too (canvas.title, canvas.objects).
+export const topicOf = input => [input?.goal, input?.canvas?.title, ...(input?.canvas?.objects || []).map(o => o?.text), ...Object.values(input?.scope?.concepts || {}), ...(input?.canvas?.blocks || []).filter(b => b?.kind !== 'chat').map(b => b?.title)]
   .filter(t => typeof t === 'string').join(' ').toLowerCase();
 
 // topic: topicOf's string; texts: claim statements, ideas, drawn and the option's own goal (the deterministic
