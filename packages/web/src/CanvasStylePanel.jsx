@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlignCenter, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignLeft, AlignRight, AlignStartHorizontal, AlignStartVertical, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalSpaceBetween, ArrowDown, ArrowUp, Bold, BringToFront, CornerDownRight, Group, Italic, Lock, LockOpen, Minus, PaintRoller, Pipette, Plus, SendToBack, Slash, Spline, Square, Squircle, Underline, Ungroup } from 'lucide-react';
 import { DASH_STYLES, HEADS, OPACITIES, TEXT_LEVELS, dashStyle } from './learn-style-panel.js';
 import { FONTS, FONT_KEYS, SIZE_PRESETS, fontSize as validSize, hexColor } from './learn-rich-text.js';
+import { CODE_LANGS } from './code-lang.js';
 
 export const COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'];
 export const WIDTHS = [2, 3.5, 6];
@@ -208,6 +209,12 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
         {panel.code && (
           <Row label="Show as">
             {[['text', 'Text'], ['code', 'Code']].map(([value, label]) => <Btn key={value} label={value === 'code' ? 'Show as code' : 'Show as text'} pressed={(values.mode || 'text') === value} onClick={() => on.mode(value)} className={`px-2 ${value === 'code' ? 'font-mono' : ''}`}>{label}</Btn>)}
+            {values.mode === 'code' && (
+              <select aria-label="Code language" title="Code language" value={values.lang} onChange={event => on.lang(event.target.value)}
+                className="ml-1 cursor-pointer rounded border border-line bg-white px-1 py-0.5 text-[11px] text-ink-2 outline-none hover:bg-hover hover:text-ink">
+                {CODE_LANGS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            )}
           </Row>
         )}
       </>}

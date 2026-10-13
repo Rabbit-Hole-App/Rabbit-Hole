@@ -93,6 +93,18 @@ export function paint(root, runs, base, colorOf) {
   if (plainOf(runs).endsWith('\n')) root.append(document.createElement('br'));
 }
 
+// A Code box's syntax colors (code-lang.js colorRuns): colors only, so it lays out exactly like paint's plain text. The dark
+// theme's color rides in --shiki-dark (index.css).
+function paintColors(root, runs) {
+  root.replaceChildren(...runs.map(run => {
+    const span = document.createElement('span');
+    if (run.color) { span.style.color = run.color; span.style.setProperty('--shiki-dark', run.dark || run.color); }
+    span.textContent = run.t;
+    return span;
+  }));
+  if (plainOf(runs).endsWith('\n')) root.append(document.createElement('br'));
+}
+
 export function offsetsOf(root) {
   const selection = document.getSelection();
   if (!selection?.rangeCount) return null;
@@ -158,15 +170,15 @@ export function measureHeight(runs, base, colorOf, style, width) {
 // entry: { text, runs }. base: the object's formatting (baseOf), code-adjusted by the caller. editing: open for typing.
 // point: where a double-click landed (the caret goes there). onCommit(runs, how): how is 'blur', 'esc' or 'enter'.
 // onApi: the open editor's handle for the style panel (format, toggle, state, refocus, commit, subscribe), null on close.
-export default function RichText({ entry, base, colorOf = color => color, code = false, editing = false, point = null, placeholder = '', className = '', style = null, onCommit, onApi = null, rootRef = null, ...rest }) {
+export default function RichText({ entry, base, colorOf = color => color, code = false, colors = null, editing = false, point = null, placeholder = '', className = '', style = null, onCommit, onApi = null, rootRef = null, ...rest }) {
   const root = useRef(null);
   const live = useRef({ runs: [], sel: null, pending: null, pendingAt: null, undo: [], redo: [], lastType: 0, composing: false, done: false, listeners: new Set() });
   const latest = useRef(null);
   latest.current = { base, colorOf, code, onCommit, onApi, editing };
   const shown = code ? (entry.text ? [{ t: String(entry.text) }] : []) : runsOf(entry);
-  const shownKey = JSON.stringify([shown, base, code]);
+  const shownKey = JSON.stringify([shown, base, code, colors]);
   // Closed: drawn from the saved runs. Open: never repainted from props, only by the editor's own edits.
-  useLayoutEffect(() => { if (!editing) paint(root.current, shown, base, colorOf); }, [shownKey, editing]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (!editing) { if (code && colors) paintColors(root.current, colors); else paint(root.current, shown, base, colorOf); } }, [shownKey, editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const api = useRef(null);
   if (!api.current) {
@@ -326,7 +338,7 @@ export default function RichText({ entry, base, colorOf = color => color, code =
   return (
     <div ref={node => { root.current = node; if (rootRef) rootRef.current = node; }} {...rest} contentEditable={editing} suppressContentEditableWarning spellCheck={editing}
       role={editing ? 'textbox' : undefined} aria-multiline={editing || undefined} aria-label={rest['aria-label'] || placeholder || 'Text'}
-      data-rich-editor={editing ? '' : undefined} data-placeholder={placeholder} data-code={code ? '' : undefined}
+      data-rich-editor={editing ? '' : undefined} data-placeholder={placeholder} data-code={code ? '' : undefined} data-code-colors={code && colors && !editing ? '' : undefined}
       style={{ whiteSpace: code ? 'pre' : 'pre-wrap', overflowWrap: code ? undefined : 'break-word', tabSize: 2, ...style }}
       onKeyDown={keyDown}
       onPaste={editing ? event => { event.preventDefault(); const text = event.clipboardData.getData('text/plain').replace(/\r\n?/g, '\n'); if (text) api.current.insert(text); } : undefined}

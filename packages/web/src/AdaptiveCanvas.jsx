@@ -47,6 +47,7 @@ import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, 
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf } from './inline-ai-apply.js';
+import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
@@ -833,7 +834,7 @@ function LevelPill({ level, onLevel, className = '', style = null, levels = TEXT
 
 // The Text / Code switch on a selected text box (docs/features/canvas-editing.md): the same object, words, place and
 // size; Code shows it literally in monospace and keeps the text formatting aside for the switch back. Nothing runs.
-function ModePill({ mode, onMode }) {
+function ModePill({ mode, onMode, lang = 'python', onLang = null }) {
   return (
     <div role="group" aria-label="Text or code" data-keep-focus data-thumbnail-hide style={{ fontSize: 12, fontWeight: 400, fontStyle: 'normal', textDecoration: 'none' }}
       className="flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 font-sans shadow-md"
@@ -843,6 +844,13 @@ function ModePill({ mode, onMode }) {
           onClick={() => onMode(value)}
           className={`rounded px-1.5 py-0.5 text-[11px] ${(mode || 'text') === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'} ${value === 'code' ? 'font-mono' : ''}`}>{label}</button>
       ))}
+      {/* The language (canvas-editing.md section 3). Its own press is let through: a prevented one never opens the list. */}
+      {mode === 'code' && onLang && (
+        <select aria-label="Code language" title="Code language" value={lang} onChange={event => onLang(event.target.value)} onPointerDown={event => event.stopPropagation()}
+          className="cursor-pointer rounded bg-white px-1 py-0.5 text-[11px] text-ink-2 outline-none hover:bg-hover hover:text-ink">
+          {CODE_LANGS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      )}
     </div>
   );
 }
@@ -858,8 +866,18 @@ const itemBase = item => {
 // onAsk: only while this text box or note is the one selected object (a multi-selection asks through its group or area).
 // editOn: { id, n } - the canvas asking this item to open for typing (Enter on a selected text box). onEditStart: the
 // edit began (its undo step opens). onCommit(id, runs, how): the edit ended. onEditorApi: the open editor's handle.
-function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null }) {
+function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null }) {
   const [editing, setEditing] = useState(!!item.fresh);
+  // A Code box not being edited is drawn in its language's colors, once they are ready for exactly these words.
+  const [colors, setColors] = useState(null);
+  const lang = codeLang(item);
+  const colorKey = item.kind === 'text' && item.mode === 'code' && !editing ? `${lang}\n${item.text || ''}` : null;
+  useEffect(() => {
+    if (!colorKey) return undefined;
+    let live = true;
+    highlightCode(item.text || '', lang).then(runs => { if (live) setColors(runs && { key: colorKey, runs }); });
+    return () => { live = false; };
+  }, [colorKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [point, setPoint] = useState(null);
   const edit = useContext(CanvasEdit), locked = edit.locked.has(item.id);
   const body = useRef(null);
@@ -956,15 +974,15 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
           its own line above them; the ladder and pill keep their row. */}
       {(ladder || (ask && !sticky)) && (
         <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full flex-col items-start gap-1.5">
-          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} />}
+          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} />}
           <div className="flex items-center gap-2 self-stretch">
             {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
-            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} />}
+            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} />}
             {ask && !sticky && askPill}
           </div>
         </div>
       )}
-      <RichText entry={item} base={base} colorOf={ink} code={code} editing={editing} point={point}
+      <RichText entry={item} base={base} colorOf={ink} code={code} colors={colors?.key === colorKey ? colors.runs : null} editing={editing} point={point}
         placeholder={sticky ? 'Note…' : code ? 'Code…' : 'Text…'} aria-label={sticky ? 'Sticky note' : code ? 'Code' : 'Text'}
         style={{ ...objectStyle(item, base, ink), ...(code ? { fontWeight: 400, fontStyle: 'normal', textAlign: 'left' } : {}) }}
         className={`${sticky ? 'flex-1 empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}
@@ -2457,6 +2475,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!before || (before.mode || 'text') === mode || lockedRef.current.has(id)) return;
     snapshot();
     markLists().setItems(previous => previous.map(item => (item.id === id ? { ...item, mode: mode === 'code' ? 'code' : undefined } : item)));
+  };
+  // A Code box's language (canvas-editing.md section 3): its own undo step, after any open edit is committed.
+  const setCodeLang = (id, lang) => {
+    if (editorRef.current) flushSync(() => editorRef.current.commit('blur'));
+    const sketch = drawTargetRef.current ? blocksRef.current.find(block => block.id === drawTargetRef.current)?.sketch : null;
+    const before = (sketch ? sketch.items || [] : itemsRef.current).find(item => item.id === id);
+    if (!before || codeLang(before) === lang || lockedRef.current.has(id)) return;
+    snapshot();
+    markLists().setItems(previous => withCodeLang(previous, id, lang));
   };
   // H1 to Text: the preset decides size and weight again, so the object's own size and bold, and any characters' sizes
   // and bold, let go (the other formatting stays).
@@ -4060,6 +4087,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     align: textEntries.length ? common(textEntries, entry => entry.align || (entry.kind === 'text' || entry.kind === 'sticky' ? 'left' : 'center')) : textArm.align || 'left',
     valign: textEntries.length ? common(textEntries, entry => entry.valign || 'middle') : 'middle',
     mode: panel.code ? markItems.find(entry => entry.id === panel.code)?.mode || 'text' : 'text',
+    lang: codeLang(panel.code ? markItems.find(entry => entry.id === panel.code) : null),
   };
   // Text formatting: the open editor's characters (a range, or what the caret types next), else every selected object
   // that holds words, else the armed default. A text box's colour is its words' colour (its `color`).
@@ -4121,6 +4149,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     align: value => { setTextArm(previous => ({ ...previous, align: value })); patchText({ align: value }); },
     valign: value => patchText({ valign: value }),
     mode: value => panel.code && setTextMode(panel.code, value),
+    lang: value => panel.code && setCodeLang(panel.code, value),
     order: how => reorderSelection(how, panel.targets),
     arrange, group: groupSelection, ungroup: ungroupSelection,
     lock: lockSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand,
@@ -4459,7 +4488,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
             onAsk={selected === item.id ? askItem : null} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}

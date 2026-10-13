@@ -233,6 +233,46 @@ await run('text code', async () => {
   await context.close();
 });
 
+// Language and colors (canvas-editing.md section 3, owner 2026-10-13): colors only, so the box keeps its size; plain while
+// it is edited; the language is one undo step.
+await run('code colors', async () => {
+  const { page, context, saved } = await open('code-colors', { items: [textItem('t1', 100, 100, { w: undefined, text: 'const a = 1;\nfunction f() { return a }', mode: 'code' })] });
+  const box = page.locator('[data-item-id="t1"]'), code = box.locator('[aria-label="Code"]');
+  const lang = box.locator('select[aria-label="Code language"]');
+  const colored = () => code.locator('span[style*="--shiki-dark"]').count();
+  const size = () => code.evaluate(node => [node.offsetWidth, node.offsetHeight, node.innerText]);
+  const colorsBack = () => page.waitForFunction(() => document.querySelectorAll('[data-item-id="t1"] [aria-label="Code"] span[style*="--shiki-dark"]').length > 0, null, { timeout: 15000 }).then(() => true, () => false);
+  await box.click();
+  check('a Code box offers the language list, Python first', (await lang.count()) === 1 && (await lang.inputValue()) === 'python', String(await lang.count()));
+  await lang.selectOption('text');
+  const plain = await size();
+  check('Plain text has no colors', (await colored()) === 0);
+  await lang.selectOption('javascript');
+  const shown = await colorsBack();
+  const highlighted = await size();
+  check('JavaScript draws colored spans', shown, String(await colored()));
+  check('the colored box has exactly the plain size and lines', JSON.stringify(plain) === JSON.stringify(highlighted), JSON.stringify({ plain, highlighted }));
+  check('the language persists as lang', (await saved()).items.find(entry => entry.id === 't1').lang === 'javascript');
+  const themed = await code.locator('span[style*="--shiki-dark"]').first().evaluate(span => {
+    const read = () => getComputedStyle(span).color;
+    const light = read(); document.documentElement.classList.add('dark'); const dark = read(); document.documentElement.classList.remove('dark');
+    return { light, dark };
+  });
+  check('the dark theme draws its own token colors', themed.light !== themed.dark, JSON.stringify(themed));
+  await page.keyboard.press('Control+z');
+  check('changing the language is one undo step', (await saved()).items.find(entry => entry.id === 't1').lang === 'text');
+  await page.keyboard.press('Control+y');
+  await colorsBack();
+  await box.dblclick();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' // more');
+  check('while edited the box is plain', (await colored()) === 0);
+  await page.keyboard.press('Escape');
+  check('leaving the editor draws the colors again', await colorsBack());
+  check('the edit is kept', (await saved()).items.find(entry => entry.id === 't1').text.endsWith('// more'));
+  await context.close();
+});
+
 
 const shapeOf = async (saved, id) => (await saved()).shapes.find(shape => shape.id === id);
 const near = (a, b, tolerance = 0.6) => Math.abs(a - b) <= tolerance;

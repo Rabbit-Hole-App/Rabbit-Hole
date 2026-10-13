@@ -515,6 +515,10 @@ html {
 .dark [class*='bg-danger'] {
   --color-white: #ffffff;
 }
+/* A Code box's syntax colors (canvas-editing.md section 3): each token carries its github-dark color as --shiki-dark. */
+.dark [data-code-colors] span[style*='--shiki-dark'] {
+  color: var(--shiki-dark) !important;
+}
 /* toast is inverted chrome: ink surface flips light in dark mode, keep its text dark */
 .dark .bg-ink {
   --color-white: #191919;
