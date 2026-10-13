@@ -11,7 +11,7 @@
 // The same model, auth, ownership and spend admission as a slash-command card: LEARN_TASKS.artifact's model through
 // planModel, authorizedBoardApp, subscriptionOwnerRefusal, and spendTransport inside anthropic().
 import { askJev, JEV_TRANSPORTS, JevError } from './learn-grade-jev.js';
-import { PROMPT_MAX, promptTooLong, readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
+import { PROMPT_MAX, PROMPT_ROOM, promptTooLong, readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
@@ -128,7 +128,8 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const { body, response } = await readBody(req, 60000);
   if (response) return response;
   const { mode, route } = body;
-  if (typeof body.prompt === 'string' && body.prompt.length > PROMPT_MAX) return json({ error: promptTooLong(body.prompt.length), code: 'too_long' }, 400);
+  // The learner's words plus, for /simplify, /example and /deeper, the instruction the editor puts in front of them.
+  if (typeof body.prompt === 'string' && body.prompt.length > PROMPT_MAX + PROMPT_ROOM) return json({ error: promptTooLong(), code: 'too_long' }, 400);
   // A refine (§10) carries the candidate it revises and the original request.
   const revise = body.revise ?? null;
   if (revise !== null && (typeof revise !== 'object' || typeof revise.result !== 'string' || !revise.result || revise.result.length > 8000 || typeof revise.prompt !== 'string' || revise.prompt.length > PROMPT_MAX)) return json({ error: 'Invalid inline request' }, 400);

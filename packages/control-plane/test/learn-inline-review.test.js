@@ -57,7 +57,8 @@ test('prompt limit: the worker enforces the shared limit on route and generate, 
   const routed = await route.json();
   assert.equal(routed.code, 'too_long');
   assert.match(routed.error, /1001 characters; inline requests stop at 1000/);
-  const generate = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: long, context }), {}, { authorize, callModel: async () => assert.fail('no model call') });
+  // generate leaves room for a /simplify, /example or /deeper instruction in front of the learner's words (M1).
+  const generate = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'a'.repeat(PROMPT_MAX + (inlineRoute.PROMPT_ROOM ?? 0) + 1), context }), {}, { authorize, callModel: async () => assert.fail('no model call') });
   assert.equal(generate.status, 400);
   assert.equal((await generate.json()).code, 'too_long');
   const atLimit = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'a'.repeat(PROMPT_MAX), context }), {}, { authorize, callModel: async () => sse('ok') });
@@ -105,4 +106,19 @@ test('S4: askJev marks a refusal before any request as not called', async () => 
   const error = await askJev({ SMALL_ENV: 'dev' }, { model: 'x' }, { fetchImpl: async () => assert.fail('no request') }).catch(failure => failure);
   assert.equal(error.code, 'cap_unset');
   assert.equal(error.called, false);
+});
+
+test('M1: /simplify on a full-length request is accepted; the worker never quotes a length the learner did not type', async () => {
+  const { NOTE_COMMANDS, PROMPT_ROOM } = inlineRoute;
+  const authorize = async () => ({ name: 'canvas-0a1b2c3d' });
+  const generate = prompt => inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt, context }), {}, { authorize, callModel: async () => sse('ok') });
+  // The learner typed /simplify and 990 more characters (1000 in all); the editor sends the instruction in front.
+  const sent = `${NOTE_COMMANDS.simplify} ${'a'.repeat(PROMPT_MAX - '/simplify '.length)}`;
+  assert.ok(sent.length > PROMPT_MAX);
+  assert.equal((await generate(sent)).status, 200);
+  const over = await generate('a'.repeat(PROMPT_MAX + PROMPT_ROOM + 1));
+  assert.equal(over.status, 400);
+  const body = await over.json();
+  assert.equal(body.code, 'too_long');
+  assert.doesNotMatch(body.error, /\d{4} characters/, 'no length the learner did not type');
 });
