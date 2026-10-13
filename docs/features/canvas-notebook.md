@@ -31,6 +31,28 @@ second execution model and no custom cell format.
   notebook's folder.
 - Hidden: title bar, menus, launcher, side tab strips, right sidebar, running
   kernels, extension manager, status bar.
+- **Open in Notebook** (owner, 2026-10-13: "for a Code card we should have an
+  option of Open in Notebook so we keep the code card but generate a
+  jupyterlab card") makes a new notebook card from a code card. A code card is
+  a Code-mode text box (canvas-editing.md section 3) or a Code exercise card
+  (block type `code`).
+  - Where: on the selected code card's own controls (a Code box's Text | Code
+    row; a Code exercise's action row above the card), and in the canvas
+    right-click menu, when exactly one code card is selected.
+  - What: a new card from `newNotebookBlock()` and `emptyNotebook()`. Its
+    first code cell holds the code card's code verbatim: a Code box's text; a
+    Code exercise's current code (the learner's draft, else the starter), not
+    its Given setup or its checks. Everything else is a default new notebook.
+    The code card is unchanged, and the two cards are not linked.
+  - Place: right next to the code card, in the column place nearest it that
+    covers nothing (cards, notes, text, shapes and ink), found by the canvas's
+    free-slot search (`canvas-slots.js` `freeSlot`, as a reserved card slot
+    uses). It is brought into view and selected. The whole action is one undo
+    step.
+  - Python only: notebooks run Python (Pyodide). A Code box is Python when its
+    `lang` is; a Code exercise is Python unless it names another `language`.
+    Otherwise the item shows disabled, with the reason
+    "Notebooks run Python only".
 
 ## Storage contract
 
