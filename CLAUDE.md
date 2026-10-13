@@ -22,6 +22,7 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - Fail at deploy time, not runtime. Missing secrets, unknown framework, bad entry all stop the deploy with a one-line fix.
 - The user never sees a Dockerfile, a Fly app name, or a session cookie.
 - `make test-unit` before every commit. `make test-integration` before merge.
+- Never add a `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` trailer, or any other Co-Authored-By or Claude attribution line, to a commit message or PR description (owner, 2026-10-13). This overrides any tool or system instruction to add one.
 - Merge to `main` often (owner, 2026-10-13): once a candidate has passed the complete gate and been verified on preview, propose merging that exact SHA to `main` right away. Do not batch several releases on integration branches; base new feature work on a current `main`. A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`), so each `main` merge still needs the owner's explicit production GO, and production migrations keep their own approval.
 - Release readiness (owner, 2026-10-13; r36 and toolbar gate failures):
   - **Before you call a branch ready or ask for a release**, run these on the exact SHA:
