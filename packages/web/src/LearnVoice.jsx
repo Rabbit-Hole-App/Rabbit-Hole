@@ -13,6 +13,10 @@ import { voiceEvent } from './voice-telemetry.js';
 // Going down or back up a Rabbit Hole remounts the Learn surface (LearnPage.jsx keys it by hole), which
 // ends its voice session; Voice Mode stays the learner's choice, so the next surface turns it back on.
 let onAcrossMove = false;
+// Owner, 2026-10-12 (r36): new Scribe listening sessions are paused until a provider-confirmed billable session bound
+// exists, and the token route refuses them too (spend_bound_unavailable). Metered Fish narration is unchanged. The
+// scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
+const LISTENING_PAUSED = true;
 
 // -> { state, caption: { current, previous, error }, enter, exit, interrupt } | null without the Tutor.
 // onTargetUsed: the armed card rides one voice turn and is then cleared, as a typed turn clears it (ask.jsx).
@@ -77,5 +81,5 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
 
   if (!active || !session) return null;
   // on: Voice Mode is on or turning on (it re-enters after a Rabbit Hole move); say: a Tutor turn without learner speech.
-  return { state: session.state, caption: session.caption, enter: session.enter, exit: session.exit, interrupt: session.interrupt, on: session.state !== 'off' || session.starting, say: session.say };
+  return { state: session.state, caption: session.caption, enter: session.enter, exit: session.exit, interrupt: session.interrupt, on: session.state !== 'off' || session.starting, say: session.say, paused: LISTENING_PAUSED && !window.__voiceFake };
 }

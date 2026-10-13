@@ -3,7 +3,7 @@ import { platformCaps, spendEnforced, spendTransport, spendMessage } from './lea
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { base64 } from './token.js';
-import { MODEL, planUsesOpenAI, loggedModel, notConfiguredReply } from './learn-models.js';
+import { MODEL, autoModel, planUsesOpenAI, loggedModel, notConfiguredReply } from './learn-models.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
@@ -300,10 +300,12 @@ export async function anthropic(env, body, model, org) {
   // Unknown provider pricing fails closed; do not switch providers to manufacture a price.
   const provider = ai?.provider === 'bedrock' ? 'bedrock' : ai?.provider === 'openai'
     ? (ai.openai_base_url?.replace(/\/+$/, '') === 'https://api.openai.com/v1' ? 'openai' : 'unpriced') : 'anthropic';
-  const pricedModel = ai?.provider === 'bedrock' || ai?.provider === 'openai' ? ai.model : model || ai?.model || MODEL;
+  // Auto is sent as exactly autoModel(env) where spend is enforced, so admission prices the model that runs.
+  const chosen = model || ai?.model || autoModel(env);
+  const pricedModel = ai?.provider === 'bedrock' || ai?.provider === 'openai' ? ai.model : chosen || MODEL;
   if (!ai?.provider && !env.ANTHROPIC_API_KEY) return notConfiguredReply();
-  const boundedBody = model || ai?.model ? body : { model: MODEL, fallbacks: 'default', ...body };
-  return spendTransport(env, boundedBody, pricedModel, org, callEnv => anthropicTransport(callEnv, body, model, org, ai), { provider });
+  const boundedBody = chosen ? body : { model: MODEL, fallbacks: 'default', ...body };
+  return spendTransport(env, boundedBody, pricedModel, org, callEnv => anthropicTransport(callEnv, body, chosen, org, ai), { provider });
 }
 
 async function anthropicTransport(env, body, model, org, ai) {

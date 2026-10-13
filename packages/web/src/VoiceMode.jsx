@@ -10,6 +10,10 @@ import { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
 // breathing, in every on state. Clicking the red mic always turns Voice Mode off. disabled: a typed
 // answer is still in flight (its Stop lives where VoiceField would go), so voice waits for it.
 export function VoiceToggle({ voice, disabled = false }) {
+  // Listening paused (r36, LearnVoice.jsx): a mic that says so and does nothing, never a mic prompt that then fails.
+  if (voice.paused) return <button type="button" aria-label="Voice mode is paused" title="Voice listening is paused for now. Narration still plays." aria-disabled="true" data-voice-paused className={`${COMPOSER_ADD} cursor-default opacity-45`}>
+    <Mic size={16} strokeWidth={1.5} />
+  </button>;
   if (voice.state === 'off') return <button type="button" aria-label="Voice mode" title="Talk with the Tutor" aria-pressed={false} disabled={disabled} onClick={() => voice.enter()} className={`${COMPOSER_ADD} ${disabled ? 'cursor-default opacity-45' : ''}`}>
     <Mic size={16} strokeWidth={1.5} />
   </button>;

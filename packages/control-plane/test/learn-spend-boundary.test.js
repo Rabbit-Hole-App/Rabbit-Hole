@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { admitSpend, settleSpend, requestSpendBound, spendTransport } from '../src/learn-spend.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
 import { anthropic, planModel, aiCacheDrop } from '../src/ask.js';
+import { loggedModel } from '../src/learn-models.js';
 
 function ledger(t) {
   const sqlite = new DatabaseSync(':memory:');
@@ -235,6 +236,47 @@ test('existing explicit Opus 5 and Sonnet 5 requests keep their model identities
     assert.equal(sent.at(-1).model, model);
     assert.equal(sent.at(-1).fallbacks, undefined);
   }
+});
+
+// Owner decision, 2026-10-12: Auto keeps its pinned Opus model and drops only the unpriceable server-side fallback.
+test('default Auto is sent as exactly claude-opus-5 without a fallback, admitted, settled and logged under that id', async t => {
+  const { sqlite, LEARN_DB } = ledger(t);
+  const original = globalThis.fetch; const sent = [];
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (_url, options) => {
+    sent.push({ body: JSON.parse(options.body), beta: options.headers['anthropic-beta'] ?? null });
+    return Response.json({ model: 'claude-opus-5', usage: { input_tokens: 100, output_tokens: 20 }, content: [{ type: 'text', text: 'Synthetic.' }], stop_reason: 'end_turn' });
+  };
+  const lines = [], log = console.log;
+  t.after(() => { console.log = log; });
+  console.log = (...args) => lines.push(args.join(' '));
+  const env = { SMALL_ENV: 'dev', LEARN_DB, ANTHROPIC_API_KEY: 'synthetic-not-a-credential', USAGE_PLATFORM_DAY_USD: '1' };
+  const call = loggedModel('chat', anthropic);
+  for (let i = 0; i < 2; i++) {
+    const response = await call(env, { max_tokens: 20, messages: [{ role: 'user', content: 'Synthetic' }] }, null, null);
+    assert.equal(response.status, 200, 'successive affordable Auto calls are admitted');
+  }
+  assert.deepEqual(sent.map(({ body, beta }) => ({ model: body.model, fallbacks: body.fallbacks, beta })),
+    [0, 1].map(() => ({ model: 'claude-opus-5', fallbacks: undefined, beta: null })));
+  const rows = sqlite.prepare('SELECT status, model, cost_usd FROM usage_operations ORDER BY admitted_at').all();
+  assert.deepEqual(rows.map(row => [row.status, row.model]), [['settled', 'claude-opus-5'], ['settled', 'claude-opus-5']]);
+  assert.ok(rows.every(row => row.cost_usd > 0 && row.cost_usd < 0.01), 'each row settles at its measured cost');
+  const logged = lines.filter(line => line.includes('"learn_model"')).map(line => JSON.parse(line));
+  assert.deepEqual(logged.map(({ requested, source, fallback, served }) => ({ requested, source, fallback, served })),
+    [0, 1].map(() => ({ requested: 'claude-opus-5', source: 'auto', fallback: 'none', served: 'claude-opus-5' })));
+});
+
+test('an explicit test environment keeps Auto unchanged: the server-side fallback, no spend admission', async t => {
+  const original = globalThis.fetch; const sent = [];
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (_url, options) => {
+    sent.push({ body: JSON.parse(options.body), beta: options.headers['anthropic-beta'] ?? null });
+    return Response.json({ model: 'claude-opus-5', content: [{ type: 'text', text: 'Synthetic.' }], stop_reason: 'end_turn' });
+  };
+  const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'synthetic-not-a-credential' };
+  assert.equal((await anthropic(env, { max_tokens: 20, messages: [{ role: 'user', content: 'Synthetic' }] }, null, null)).status, 200);
+  assert.deepEqual(sent.map(({ body, beta }) => ({ model: body.model, fallbacks: body.fallbacks, beta })),
+    [{ model: 'claude-opus-5', fallbacks: 'default', beta: 'server-side-fallback-2026-07-01' }]);
 });
 
 test('private admission cannot be reused for a larger mutated request', async t => {

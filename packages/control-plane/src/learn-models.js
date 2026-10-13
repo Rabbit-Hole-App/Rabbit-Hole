@@ -4,9 +4,13 @@
 // A leaf module, so ask.js, learn-research.js and the browser-side test can
 // all import it without a cycle.
 import { sha256 } from './token.js';
+import { spendEnforced } from './learn-spend-ledger.js'; // imports nothing
 import { sha256Hex } from './learn-grade-jev.js'; // learn-grade-jev.js imports nothing, so this module stays a leaf
 
 export const MODEL = 'claude-opus-5';
+// Auto where spend is enforced (owner, 2026-10-12): exactly MODEL, without the server-side fallback, whose fallback
+// model cannot be priced before admission. Only unenforced test runs keep Auto's fallback (null: no model is sent).
+export const autoModel = env => (spendEnforced(env) ? MODEL : null);
 // No Anthropic key on this deployment (a preview without one): no model request leaves the worker, and every AI
 // feature says so in these words (owner, 2026-10-08). anthropic() and review.js return or throw it before any fetch.
 export const MODEL_NOT_CONFIGURED = 'AI answers aren’t configured on this preview.';
@@ -32,10 +36,10 @@ export const askModel = (key, fallback = null) => (typeof key === 'string' && Ob
 export const LEARN_TASKS = Object.freeze({
   // Sheet asks, Ask in chat, Continue convo and chat-answered slash commands,
   // on every canvas kind. The picker key resolves through askModel.
-  chat: Object.freeze({ provider: 'anthropic', model: null, picker: true, fallback: 'server-side default on Auto only', thinking: 'model default', toolChoice: 'auto; none on the last research step', maxTokens: 2400 }),
+  chat: Object.freeze({ provider: 'anthropic', model: null, picker: true, fallback: 'server-side default on Auto only, where spend is not enforced', thinking: 'model default', toolChoice: 'auto; none on the last research step', maxTokens: 2400 }),
   // The visible grade (/api/learn/assess, learn-grade-routes.js): Auto, one
   // call with no tools, a thinking-only turn replayed once.
-  grading: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
+  grading: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default where spend is not enforced', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
   // The Tutor v1 planner (/api/learn/tutor/plan, learn-tutor-routes.js): pinned to Opus 5.5,
   // no fallback, one forced tool call returning the turn's TutorResponse.
   tutor: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the tutor_response tool; no tool call is an invalid turn)', maxTokens: 2000 }),
@@ -92,9 +96,9 @@ export function loggedModel(task, callModel) {
       const provider = env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : LEARN_TASKS[task].provider === 'plan' && planUsesOpenAI(env) ? 'openai' : 'anthropic';
       console.log(JSON.stringify({
         event: 'learn_model', task, provider,
-        requested: provider === 'openai' ? env.LEARN_PLAN_MODEL : model ?? 'auto',
+        requested: provider === 'openai' ? env.LEARN_PLAN_MODEL : model ?? (provider === 'anthropic' ? autoModel(env) : null) ?? 'auto',
         source: provider === 'openai' ? 'LEARN_PLAN_MODEL' : model == null ? 'auto' : model === LEARN_TASKS[task].model ? 'task' : 'request',
-        fallback: provider === 'anthropic' && model == null ? 'default' : 'none',
+        fallback: provider === 'anthropic' && model == null && !autoModel(env) ? 'default' : 'none',
         served: result?.model ?? null,
         fellBack: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
         prompt: (await sha256(String(body.system ?? ''))).slice(0, 12),

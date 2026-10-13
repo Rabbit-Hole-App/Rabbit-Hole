@@ -30,6 +30,10 @@ and its Rabbit Holes). In production the Tutor is the Learn composer on a `karpa
 Rabbit Holes under it ([production-tutor-entry.md](production-tutor-entry.md)). There is no voice brain of its own. Without the Tutor there is no mic button.
 
 - ponytail: canvases without the Tutor have no voice. Add it when the Tutor runs on every canvas.
+- Paused in r36 (owner, 2026-10-12): new Scribe listening sessions are off until ElevenLabs confirms a billable
+  session bound the spend cap can reserve. The mic shows "Voice mode is paused" and does nothing, and
+  `/api/learn/voice/scribe-token` refuses with `spend_bound_unavailable`. Metered Fish narration still plays. The
+  scripted `?voice=fake` adapters stay available for the checks. Revisit after r36.
 - Voice Mode stays on until the learner clicks the red mic (owner, 2026-10-01). Going down or back up a
   Rabbit Hole remounts the Learn surface and ends its session, so the next surface turns Voice Mode back
   on by itself (a new mic stream and a new Scribe token).

@@ -50,6 +50,19 @@ test('VOICE-01: off, the mic is the neutral composer button; it waits while a ty
   assert.match(ask, /\{dock && chatControl\}\n\s+\{dock && voice && voice\.state === 'off' && <VoiceToggle voice=\{voice\} disabled=\{busy\} \/>\}\n\s+<\/>\}/);
 });
 
+test('r36: with listening paused, the mic says so, is disabled and cannot start Voice Mode', () => {
+  let entered = 0;
+  const [paused] = buttons(render(VoiceToggle, { voice: { ...voiceIn('off'), paused: true, enter: () => { entered++; } } }));
+  assert.match(paused, /aria-label="Voice mode is paused"/);
+  assert.match(paused, /title="Voice listening is paused for now. Narration still plays."/);
+  assert.match(paused, /aria-disabled="true"/);
+  assert.doesNotMatch(paused, /aria-pressed/, 'not a toggle while paused');
+  assert.equal(entered, 0);
+  const voice = read('LearnVoice.jsx');
+  assert.match(voice, /const LISTENING_PAUSED = true;/);
+  assert.match(voice, /paused: LISTENING_PAUSED && !window\.__voiceFake \}/, 'only the scripted adapters stay available');
+});
+
 test('VOICE-03: in every on state the mic is the red breathing one, with the state in a live label', () => {
   for (const [state, label] of [['listening', 'Listening'], ['thinking', 'Thinking…'], ['speaking', 'Tutor speaking']]) {
     const html = render(VoiceField, { voice: voiceIn(state) });
@@ -78,7 +91,7 @@ test('VOICE-03: in every on state the mic is the red breathing one, with the sta
 
 test('VOICE-04/06: no learner transcript has a rendering path', () => {
   const used = (source, pattern) => new Set([...source.matchAll(pattern)].map(match => match[1]));
-  const voiceFields = new Set(['state', 'caption', 'enter', 'exit', 'interrupt', 'on', 'say']);
+  const voiceFields = new Set(['state', 'caption', 'enter', 'exit', 'interrupt', 'on', 'say', 'paused']); // paused: the r36 listening pause, a flag, never learner words
   for (const [name, source] of [['VoiceMode.jsx', mode], ['ask.jsx', ask]]) {
     for (const key of used(source, /\bvoice\??\.(\w+)/g)) assert.ok(voiceFields.has(key), `${name} reads voice.${key}`);
     for (const key of used(source, /\bcaption\??\.(\w+)/g)) assert.ok(['current', 'previous', 'error'].includes(key), `${name} reads caption.${key}`);
