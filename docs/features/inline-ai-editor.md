@@ -2,12 +2,21 @@
 
 Owner brief, 2026-10-12. Implement this spec; don't expand it.
 
-## Implementation status (2026-10-13, branch feature/inline-ai-editor)
+## Implementation status
 
-**INCOMPLETE.** Built into the existing canvas; not merged, not in production. The fixes from the review of
-cf9216b2..5b3552a5 are in, and the editor stays incomplete until they pass the dispatcher's independent verification.
-Real provider paths were verified on a local spend-enforced stack only (see the handoff report for results, spend and
-the remaining gaps).
+**Shipped c044b86a, 2026-10-13** (production, digrabbithole.com), with learn migration 0018. In production the inline
+routes run in rabbit-hole-app (app-worker.js runs dev-worker.js), under that worker's own secrets: TYPESAFE_API_KEY
+for JEV routing and the Anthropic keys for notes and edits. Spend is enforced there, so every paid call, routing
+included, needs USAGE_PLATFORM_DAY_USD on rabbit-hole-app. Without it, routing comes back unavailable and every
+request falls back to the short note (Couldn't choose a format).
+
+Follow-ups after c044b86a (branch fix/inline-prod-routes):
+- A release refuses when rabbit-hole-app or rabbit-hole-cp lacks USAGE_PLATFORM_DAY_USD (prod-release.mjs).
+- A routing call refused with a 400 is recorded as skipped (bypassed), never jev.
+- A short target left out by the context budget gets its own message (select fewer objects), not the long-text one.
+- The clipped-target list stays with the frozen target and is never sent (500 stickies stayed under the body limit).
+- Still open: Motion is not enabled in production builds; the A2 frame-rate browser check is load-sensitive on a
+  busy machine; the local app worker can die under load in dive-check (also on the base without this lane).
 
 Where it lives:
 - `web/src/inline-ai-context.js` - the bounded context package (§3), its per-board incremental cache (A1) and the
