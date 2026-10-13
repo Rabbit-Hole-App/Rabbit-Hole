@@ -1,0 +1,30 @@
+name: gate on push
+
+# Owner GO 2026-10-13: the complete release gate runs on every pushed branch. This job only dispatches the sharded
+# release gate (.github/workflows/gate-sharded.yml on the harness branch parallel/gate-sharded) for the pushed commit
+# and its tree; the gate itself waits for this commit's canonical verify run. A workflow_dispatch made with the
+# GITHUB_TOKEN does start a run. Cost per pushed commit (measured, run 38434586206): this job under 1 Linux minute,
+# then one sharded gate run of about 86 Windows runner minutes (seven Windows-2022 jobs at once, each also waiting
+# out the commit's verify run) plus under 1 Linux minute, about 15 minutes wall. Superseded pushes are not cancelled.
+on:
+  push:
+    branches-ignore: [main, dev]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github.event.deleted != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch the sharded release gate for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tree=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq .tree.sha)
+          gh workflow run gate-sharded.yml --repo "$GITHUB_REPOSITORY" --ref parallel/gate-sharded -f app_sha="$GITHUB_SHA" -f app_tree="$tree"
+          echo "Sharded release gate dispatched for $GITHUB_SHA (tree $tree) from $GITHUB_REF_NAME" >> "$GITHUB_STEP_SUMMARY"
