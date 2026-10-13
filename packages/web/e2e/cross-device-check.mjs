@@ -167,7 +167,8 @@ await check('1c on B: the Rabbit Hole opens with its content', async () => {
 await check('2 edit on B, then reopen A: B\'s edit is there', async () => {
   // A leaves C1 and its last save settles before B opens it. A's running notebook otherwise saves the board after B loaded
   // it, and B's stroke is then a stale save (409): the flake in gates 38439684073 and 38445300464.
-  await A.page.goto('about:blank');
+  // The hole, not about:blank: the init script reads localStorage, which about:blank refuses (a page error).
+  await open(A.page, hole);
   let last = null;
   await until('A\'s last save settled', async () => { const now = (await boardOf(C1.name)).version; await new Promise(r => setTimeout(r, 1500)); const settled = now === last; last = now; return settled; });
   await open(B.page, C1.name, '[data-block-id="e1"]');
