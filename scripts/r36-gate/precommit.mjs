@@ -30,15 +30,22 @@ if (process.argv.includes('--unit-child')) {
   try {
     const harness = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dirname(fileURLToPath(import.meta.url)), encoding: 'utf8' }).trim();
     if (receipt.harnessSha !== harness || process.version !== 'v24.19.0') throw Error('Harness identity or Node pin mismatch');
-    receipt.patchSha256 = createHash('sha256').update(readFileSync(patch)).digest('hex');
+    const patchText=readFileSync(patch,'utf8').replaceAll('\r\n','\n');
+    receipt.patchSha256 = createHash('sha256').update(patchText).digest('hex');
+    if(receipt.patchSha256!=='0a78a297bd24c6b299c5f32f9f491151a29f21d961a2db81837286d0e7034758')throw Error('Reviewed patch content changed');
+    const normalizedPatch=join(out,'routing-proposal.patch');
+    writeFileSync(normalizedPatch,patchText);
     receipt.lockfiles = Object.fromEntries(['package-lock.json', 'uv.lock'].map(name => [name, createHash('sha256').update(readFileSync(join(app, name))).digest('hex')]));
-    if (git('rev-parse', 'HEAD') !== baseSha || git('rev-parse', 'HEAD^{tree}') !== baseTree || git('status', '--porcelain', '--untracked-files=no')) throw Error('Base application identity or clean tracked tree mismatch');
+    receipt.baseCheck={sha:git('rev-parse','HEAD'),tree:git('rev-parse','HEAD^{tree}'),indexTree:git('write-tree'),changed:git('diff','--name-only','HEAD')};
+    // npm rewrites bin line endings on Windows. Match the application's verifier:
+    // normalized tracked content and index identity, not the stat-cache status flag.
+    if (receipt.baseCheck.sha !== baseSha || receipt.baseCheck.tree !== baseTree || receipt.baseCheck.indexTree !== baseTree || receipt.baseCheck.changed) throw Error('Base application identity or tracked content mismatch');
     const privateBindings = Object.entries(process.env).filter(([name, value]) => value && /_API_KEY$|^CLOUDFLARE_API_TOKEN$|^ELEVENLABS_|^SUBSCRIPTION_/i.test(name));
     if (privateBindings.length) throw Error(`Disallowed credential binding names: ${privateBindings.map(([name]) => name).join(', ')}`);
     receipt.freeMiB = Number(execFileSync('powershell.exe', ['-NoProfile', '-Command', '[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1024)'], { encoding: 'utf8', timeout: 30000 }).trim());
     if (!Number.isFinite(receipt.freeMiB) || receipt.freeMiB < 1500) throw Error('Precommit memory guard requires at least1500MiB free');
-    git('apply', '--check', patch);
-    git('apply', '--index', patch);
+    git('apply', '--check', normalizedPatch);
+    git('apply', '--index', normalizedPatch);
     const changed = git('diff', '--cached', '--name-only').split(/\r?\n/).sort();
     if (JSON.stringify(changed) !== JSON.stringify(expectedFiles) || git('write-tree') !== testedTree || git('diff', '--name-only')) throw Error('Reviewed patch tree or changed-file scope mismatch');
     const unitLog = join(out, 'unit.log');
