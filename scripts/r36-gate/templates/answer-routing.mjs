@@ -92,6 +92,8 @@ try {
   await page.locator('[data-card-conversation="seed-1"]').getByText('Other-card answer.', { exact: true }).waitFor();
   const plansBeforeReturn = calls.filter(c => c.path === '/api/learn/tutor/plan').length;
   await pick('seed-0');
+  // Gate 38348435978: read before the panel switched back (the screenshot shows it restored). Wait, then check the same.
+  await panel.getByText('Selected-card answer.', { exact: true }).waitFor({ timeout: 10000 }).catch(() => {});
   check('reselecting a previous card restores its conversation without a model request', await panel.getByText('Selected-card answer.', { exact: true }).isVisible() && calls.filter(c => c.path === '/api/learn/tutor/plan').length === plansBeforeReturn);
   check('card conversations remain isolated', await panel.getByText('Other-card answer.', { exact: true }).count() === 0);
   await send('Which one?', { ...say('Do you mean the left curve or the right curve?'), clarification_requested: true });

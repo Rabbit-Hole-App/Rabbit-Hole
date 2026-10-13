@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { adaptAll, adaptSelectedPill, adaptSharedCanvas, adaptTutorSlice } from './fixture-adapters.mjs';
+import { adaptAll, adaptSelectedPill, adaptSharedCanvas, adaptTutorSlice, adaptRepoBrowser } from './fixture-adapters.mjs';
 
 assert.ok(process.env.R36_FIXTURE_SOURCE_ROOT, 'set R36_FIXTURE_SOURCE_ROOT to the exact frozen app checkout');
 const fixture = name => readFileSync(resolve(process.env.R36_FIXTURE_SOURCE_ROOT, 'packages/web/e2e', name), 'utf8');
 const shared = fixture('shared-canvas-ask-check.mjs');
 const tutor = fixture('tutor-slice-check.mjs');
 const selected = fixture('selected-pill-check.mjs');
+const repo = fixture('repo-browser-check.mjs');
 
 test('shared canvas adapter binds D1 to gate-local paths and preserves checks', () => {
   const out = adaptSharedCanvas(shared);
@@ -58,4 +59,12 @@ test('combined transformation preserves all source test markers', () => {
   for (const marker of ['provider tripwire', 'the ask route answers a dead link 404', 'GT-04', 'GT-D1', 'selected card', 'Send carries it']) {
     assert.ok(Object.values(out).some(text => text.includes(marker)), marker);
   }
+});
+
+test('repo-browser adapter waits for each expected highlighted line and keeps every assertion (gate 38348435978)', () => {
+  const out = adaptRepoBrowser(repo);
+  const asserts = s => s.replaceAll(String.fromCharCode(13), '').split(String.fromCharCode(10)).filter(l => l.includes('assert.deepEqual(await lit()')).map(l => l.trim());
+  assert.deepEqual(asserts(out), asserts(repo), 'the same lit() assertions, unchanged');
+  assert.ok(out.includes(`  await reader.locator('[data-highlighted][data-source-line="29"]').first().waitFor({ timeout: 10000 }).catch(() => {});\n  assert.deepEqual(await lit(), [29]);`), 'line 29 is waited for, then asserted');
+  assert.throws(() => adaptRepoBrowser(repo.replace("const lit = () =>", "const lit2 = () =>")), /refusing an unreviewed transformation/);
 });

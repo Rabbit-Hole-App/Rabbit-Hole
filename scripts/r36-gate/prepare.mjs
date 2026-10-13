@@ -2,11 +2,12 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } fro
 import { resolve, dirname, join } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { adaptSharedCanvas, adaptSelectedPill, adaptTutorSlice } from './fixture-adapters.mjs';
+import { adaptSharedCanvas, adaptSelectedPill, adaptTutorSlice, adaptRepoBrowser } from './fixture-adapters.mjs';
 export const FIXTURE_ADAPTERS = {
   'shared-canvas-ask-check.mjs': adaptSharedCanvas,
   'selected-pill-check.mjs': adaptSelectedPill,
   'tutor-slice-check.mjs': adaptTutorSlice,
+  'repo-browser-check.mjs': adaptRepoBrowser,
 };
 export const SOURCE = fileURLToPath(new URL('.', import.meta.url));
 export function files(root) {

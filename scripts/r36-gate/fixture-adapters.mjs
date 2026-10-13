@@ -94,6 +94,16 @@ ${bare.replace('if (element', 'if (!onObject && element')}`);
   return out;
 }
 
+// Gate 38348435978: Graph -> Files read the highlight before the reader loaded (the screenshot shows line 29 lit).
+export function adaptRepoBrowser(source) {
+  source = source.replaceAll('\r\n', '\n');
+  const pattern = /^(\s*)(assert\.deepEqual\(await lit\(\), \[(\d+)[^\n]*)$/gm;
+  const found = [...source.matchAll(pattern)].length;
+  if (!source.includes("const lit = () => reader.locator('[data-highlighted]')") || found < 6) throw Error('repo-browser highlight checks changed; refusing an unreviewed transformation');
+  return source.replace(pattern, (_, indent, assertion, line) =>
+    `${indent}await reader.locator('[data-highlighted][data-source-line="${line}"]').first().waitFor({ timeout: 10000 }).catch(() => {});\n${indent}${assertion}`);
+}
+
 export function adaptAll({ shared, tutor, selected }) {
   return { shared: adaptSharedCanvas(shared), tutor: adaptTutorSlice(tutor), selected: adaptSelectedPill(selected) };
 }
