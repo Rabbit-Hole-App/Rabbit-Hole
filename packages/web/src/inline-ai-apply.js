@@ -5,6 +5,7 @@
 // Pure: the canvas applies the transaction this returns in one undo step.
 import { reconcileRuns, runsOf, sliceRuns, spliceRuns, textPatch, fontSize as validSize, hexColor } from './learn-rich-text.js';
 import { TEXT_LEVELS } from './learn-style-panel.js';
+import { LIMITS } from './inline-ai-context.js';
 
 export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style'];
 const STYLE_KEYS = ['fontSize', 'level', 'bold', 'italic', 'underline', 'textColor'];
@@ -60,6 +61,8 @@ export function validateEdit(edit, frozen, board) {
     if (op.op === 'replace_text') {
       if (frozen.range) { errors.push('Only the selected words may change.'); continue; }
       if (!where.field) { errors.push('Cards are changed in the card itself, not inline.'); continue; }
+      // The model saw only part of a longer text (the context clipped it): a whole replace would erase the rest.
+      if ((frozen.clipped || []).includes(op.id) || wordsOf(where.entity, where.field).length > LIMITS.targetChars) { errors.push(`This text is longer than the ${LIMITS.targetChars} characters an edit can read, so it can't be rewritten whole. Select the words to change, then press Ctrl+K.`); continue; }
       if (typeof op.text !== 'string' || op.text.length > MAX_EDIT_TEXT) { errors.push('The new text is missing or too long.'); continue; }
       after = withText(current, where.field, where.runs, op.text);
     } else if (op.op === 'replace_range') {

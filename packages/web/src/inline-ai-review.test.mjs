@@ -226,3 +226,23 @@ test('S2: an Accept that throws or cannot apply is undone and says so; Accept st
   assert.match(said.error, /no place on the canvas/);
   assert.deepEqual(session.accept(() => ({ ok: true })), { ok: true }, 'a later Accept still applies');
 });
+
+import * as applyModule from './inline-ai-apply.js';
+
+test('S3: a whole-text replace is refused on a target longer than the edit could read', () => {
+  const long = 'word '.repeat(1000); // 5000 characters: the context clips it at 4000
+  const board = { shapes: [], items: [{ id: 't1', kind: 'text', x: 0, y: 0, w: 300, text: long }], links: [], blocks: [] };
+  const frozen = { ids: ['t1'], range: null };
+  const checked = applyModule.validateEdit({ summary: 'Shorter', ops: [{ op: 'replace_text', id: 't1', text: 'word' }] }, frozen, board);
+  assert.equal(checked.ok, false);
+  assert.match(checked.errors[0], /longer than the 4000 characters an edit can read.*Select the words to change/);
+  const short = { ...board, items: [{ ...board.items[0], text: 'a short line' }] };
+  assert.equal(applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 't1', text: 'a shorter line' }] }, frozen, short).ok, true, 'a target the edit read whole can still be replaced');
+});
+
+test('S3: a target the context clipped (the total budget, not only its own length) is not replaced whole', () => {
+  const board = { shapes: [], items: [{ id: 't2', kind: 'text', x: 0, y: 0, w: 300, text: 'x'.repeat(3000) }], links: [], blocks: [] };
+  const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 't2', text: 'y' }] }, { ids: ['t2'], range: null, clipped: ['t2'] }, board);
+  assert.equal(checked.ok, false);
+  assert.match(checked.errors[0], /Select the words to change/);
+});

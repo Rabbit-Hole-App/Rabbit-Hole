@@ -126,7 +126,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         canvas.flushEdits?.();
         const made = prepare();
         setPrepared(made);
-        return { context: made.context, frozen: { ...target, prints: made.context.prints }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { context: made.context, frozen: { ...target, prints: made.context.prints, clipped: made.context.target.objects.filter(entry => entry.truncated).map(entry => entry.id) }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
     });
   };
