@@ -22,6 +22,7 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - Fail at deploy time, not runtime. Missing secrets, unknown framework, bad entry all stop the deploy with a one-line fix.
 - The user never sees a Dockerfile, a Fly app name, or a session cookie.
 - `make test-unit` before every commit. `make test-integration` before merge.
+- Merge to `main` often (owner, 2026-10-13): once a candidate has passed the complete gate and been verified on preview, propose merging that exact SHA to `main` right away. Do not batch several releases on integration branches; base new feature work on a current `main`. A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`), so each `main` merge still needs the owner's explicit production GO, and production migrations keep their own approval.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Feature specs live in `docs/features/<name>.md`. Implement the spec; don't expand it.
 - Build every testable feature into an app in the existing Apps list/sidebar and app UI. Never create a separate feature/demo page as the deliverable. Reuse the existing tabs, panels, and Settings connection flow.
