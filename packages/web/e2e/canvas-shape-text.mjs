@@ -102,6 +102,7 @@ check('text stays inside the resized shape', inside(reflowed, resized));
 // a second shape kind, and a line does not take text
 const ellipse = page.locator('[data-shape-id="ellipse-1"]');
 const e = await ellipse.locator('ellipse').first().boundingBox();
+await page.keyboard.press('Escape'); // deselect: the selected rect's style panel would cover the ellipse
 await page.mouse.dblclick(e.x + e.width / 2, e.y + e.height / 2);
 await page.keyboard.type('Normalise');
 await empty();
