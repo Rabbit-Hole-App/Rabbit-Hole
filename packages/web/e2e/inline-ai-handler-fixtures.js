@@ -20,7 +20,7 @@ export const HANDLERS = {
   // /image inserts a photo-search card with no model (runLearnCommand's own branch): the same block, staged.
   image: args => ({ result: 'artifact', primitive: 'image', block: imageSearchBlock(args) }),
 };
-export const MOTION = args => motionProposal(args, { concept: 'Inline AI test board' });
+export const MOTION = (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection);
 export const ERRORS = {
   clarification: { result: 'clarification', question: 'Which part of the tree should the diagram show?' },
   unsupported: { result: 'unsupported', message: 'Code exercises are not available yet.' },

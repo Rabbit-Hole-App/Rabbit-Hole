@@ -659,7 +659,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
     enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name])],
-    motion: isLearnCommand('motion') ? args => motionProposal(args, { concept: app.title || null }) : null,
+    motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
     extras: () => ({ title: app.title || '' }),
     sendTelemetry: rows => { apiFetch('/api/learn/inline/telemetry', { method: 'POST', body: JSON.stringify({ app: app.name, ...(askScope.pending ? { pending: askScope.pending } : {}), rows }) }).catch(() => {}); },
   } : null;

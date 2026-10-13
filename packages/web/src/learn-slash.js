@@ -110,10 +110,13 @@ const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a cha
 
 // The /motion paid proposal's card (M7A): built here with no model call; the card starts the paid job only once it is
 // inserted already confirmed. The inline editor (inline-ai-session.js) stages the same card.
-export function motionProposal(args, location = null) {
+// selection: the inline editor's compact summary of what the request is about, kept on the /motion line the orchestrator
+// reads (validateMotionRequest takes only request and location.concept). The direct command passes none.
+export function motionProposal(args, location = null, selection = '') {
+  const about = String(selection || '').replace(/\s+/g, ' ').trim();
   const block = {
     type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
-    operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null } },
+    operation: { op: 'motion_request', request: `/motion ${args}${about ? ` (about the selected canvas material: ${about})` : ''}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null } },
   };
   return { block, message: 'This uses paid generation.' };
 }

@@ -103,3 +103,66 @@ test('prompt limit: a refused routing call (400) is an error with its reason, ne
   assert.equal(await other.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'preview');
   assert.match(other.state.notice, /short note/);
 });
+
+import * as slashModule from './learn-slash.js';
+
+// A session whose handlers record what they were given. route: what JEV answers for a routed sentence.
+const recorder = (route = null) => {
+  const seen = { artifact: [], generate: [], motion: [] };
+  const session = make({
+    route: async () => route,
+    artifact: async input => { seen.artifact.push(input.args); return { result: 'artifact', primitive: input.command, block: { type: 'flow' } }; },
+    generate: async input => { seen.generate.push(input.prompt); return { result: { kind: 'note', text: 'x' } }; },
+  }, { motion: (args, about) => { const proposal = slashModule.motionProposal(args, { concept: about?.concept || null }, about?.selection); seen.motion.push(proposal.block.operation); return proposal; } });
+  return { session, seen };
+};
+const empty = [{ id: 's1', type: 'shape', kind: 'rect', text: '' }];
+
+test('command input: a bare /motion builds its request from the selection, never the token or the canvas title', async () => {
+  const { session, seen } = recorder();
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/motion', prepare: snapshot() }), 'proposal');
+  assert.deepEqual(seen.motion, [{ op: 'motion_request', request: '/motion explain the selected canvas material (about the selected canvas material: shape:ellipse "23")', location: { concept: '23' } }]);
+  const none = recorder();
+  assert.equal(await none.session.submit({ mode: 'explain', prompt: '/motion', prepare: snapshot('e', empty) }), 'clarify');
+  assert.match(none.session.state.clarify.question, /What should the video explain\?/);
+  assert.equal(none.seen.motion.length, 0);
+});
+
+test('command input: a bare /image searches the selection\'s words; with none it asks', async () => {
+  const { session, seen } = recorder();
+  await session.submit({ mode: 'explain', prompt: '/image', prepare: snapshot() });
+  await session.submit({ mode: 'explain', prompt: '/image an oak tree', prepare: snapshot('t2') });
+  assert.deepEqual(seen.artifact, ['23', 'an oak tree']);
+  const none = recorder();
+  assert.equal(await none.session.submit({ mode: 'explain', prompt: '/image', prepare: snapshot('e', empty) }), 'clarify');
+  assert.match(none.session.state.clarify.question, /What should the photo show\?/);
+  assert.equal(none.seen.artifact.length, 0);
+});
+
+test('command input: a bare /diagram names the selection as its subject; with none it asks', async () => {
+  const { session, seen } = recorder();
+  await session.submit({ mode: 'explain', prompt: '/diagram', prepare: snapshot() });
+  assert.deepEqual(seen.artifact, ['the selected canvas material: 23']);
+  const none = recorder();
+  assert.equal(await none.session.submit({ mode: 'explain', prompt: '/diagram', prepare: snapshot('e', empty) }), 'clarify');
+  assert.match(none.session.state.clarify.question, /What should the diagram show\?/);
+  assert.equal(none.seen.artifact.length, 0);
+});
+
+test('command input: a routed sentence goes as written with the selection as Motion\'s concept; a routed photo searches the selection', async () => {
+  const video = recorder({ choice: 'motion', confidence: 0.95, probability: 0.95, ranked: ['motion'] });
+  await video.session.submit({ mode: 'explain', prompt: 'Explain this in a video', prepare: snapshot() });
+  assert.deepEqual(video.seen.motion, [{ op: 'motion_request', request: '/motion Explain this in a video (about the selected canvas material: shape:ellipse "23")', location: { concept: '23' } }]);
+  const photo = recorder({ choice: 'image', confidence: 0.95, probability: 0.95, ranked: ['image'] });
+  await photo.session.submit({ mode: 'explain', prompt: 'Show me a real photo of this', prepare: snapshot() });
+  assert.deepEqual(photo.seen.artifact, ['23']);
+  const diagram = recorder({ choice: 'diagram', confidence: 0.95, probability: 0.95, ranked: ['diagram'] });
+  await diagram.session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
+  assert.deepEqual(diagram.seen.artifact, ['Explain this with a diagram']);
+});
+
+test('command input: the page gives inline Motion the selection, never the canvas title', async () => {
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
+  assert.match(page, /motion: isLearnCommand\('motion'\) \? \(args, about = \{\}\) => motionProposal\(args, \{ concept: about\.concept \|\| null \}, about\.selection\) : null,/);
+});

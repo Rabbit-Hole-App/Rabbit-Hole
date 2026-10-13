@@ -132,5 +132,31 @@ export function decideRoute(read, { enabled = ['note'], thresholds = ROUTE_THRES
   return { route: choice, via: 'jev' };
 }
 
+// The words the selection says - a selected range first, else each target's own text: what a bare command or a photo
+// search is about. Never the canvas title. '' when the selection has no words (a bare shape, an untitled image).
+export const selectionSubject = context => (context?.target?.objects || [])
+  .map(entry => String(entry.range?.text ?? entry.text ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).join('; ').slice(0, 200);
+const askFor = route => (route === 'image' ? 'What should the photo show? Type it after /image, for example /image an oak tree.'
+  : route === 'motion' ? 'What should the video explain? Type it after /motion, for example /motion 15s explain this tree.'
+  : `What should the ${(ROUTES[route]?.label || route).toLowerCase()} show? Type it after /${route}, for example /${route} how this connects to the rest.`);
+// What an inline request hands its handler (§7), resolved before the call: an explicit command's own words; for a bare
+// command, the selection's words as its subject; a routed sentence as written - except a photo search, which searches
+// the selection's words, never a sentence. With no subject to use, a question for the missing input instead. Never the
+// bare slash token, never the canvas title. concept: the selection's subject, for Motion's location.
+export function commandInput(plan, { prompt = '', context = null } = {}) {
+  const command = explicitCommand(prompt);
+  const words = (plan.via === 'command' ? String(plan.args || '') : command ? command.args : String(prompt)).trim();
+  if (plan.route === 'note' || plan.route === 'edit') return { args: words };
+  const subject = selectionSubject(context);
+  const ask = { clarify: { question: askFor(plan.route), options: [] } };
+  if (plan.route === 'image') {
+    const query = plan.via === 'command' && words ? words : subject;
+    return query ? { args: query.slice(0, 100) } : ask;
+  }
+  if (!words && !subject) return ask;
+  const args = words || (plan.route === 'motion' ? 'explain the selected canvas material' : `the selected canvas material: ${subject}`);
+  return { args: args.slice(0, PROMPT_MAX), concept: subject.slice(0, 100) || null };
+}
+
 // The compact selection summary JEV reads: types and the first words, never more than 1500 characters.
 export const selectionSummary = context => context.target.objects.map(entry => `${entry.type}${entry.kind ? `:${entry.kind}` : ''} "${String(entry.range?.text ?? entry.text).slice(0, 200)}"`).join('; ').slice(0, 1500);

@@ -9,7 +9,7 @@
 // - A completed result is kept by idempotency key (board, target fingerprints, mode, prompt, scope): the same request
 //   again reuses it instead of generating twice.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
-import { decideRoute, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
+import { commandInput, decideRoute, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
 
 export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…', proposal: 'Preparing the paid proposal…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
@@ -71,9 +71,13 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
   async function generate(mine, id, plan, request) {
     const { route } = plan;
     const signal = controller.signal;
+    // The handler's input, resolved first: no subject for a bare command or a photo search asks for one, calls nothing.
+    const input = commandInput(plan, request);
+    if (input.clarify) return { kind: 'clarify', question: input.clarify.question };
     if (route === 'motion') {
-      // /motion is a paid proposal with no model call before Generate (learn-slash.js motionProposal).
-      const proposal = motion?.(plan.args || request.prompt, request);
+      // /motion is a paid proposal with no model call before Generate (learn-slash.js motionProposal). Its /motion line
+      // carries the selection it is about; its concept is the selection's subject, never the canvas title.
+      const proposal = motion?.(input.args, { selection: request.summary || '', concept: input.concept });
       if (!proposal) throw Object.assign(new Error('Video explainers (Motion) are not available on this canvas.'), { code: 'unavailable' });
       return { kind: 'proposal', route, block: proposal.block, message: proposal.message, primitive: 'motion' };
     }
@@ -81,7 +85,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       set({ status: 'generating', stage: STAGES[route], stream: null });
       mark(id, 'providerStart');
       count(id, 'modelCalls');
-      const out = await transport.generate({ requestId: id, mode: request.mode, route, prompt: plan.args || request.prompt, context: request.context }, { signal, onEvent: onEvent(mine, id) });
+      const out = await transport.generate({ requestId: id, mode: request.mode, route, prompt: input.args, context: request.context }, { signal, onEvent: onEvent(mine, id) });
       if (!live(mine)) return null;
       if (out.usage) metric(id).tokens = { input: out.usage.input_tokens ?? null, output: out.usage.output_tokens ?? null };
       return out.result;
@@ -89,7 +93,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     set({ status: 'generating', stage: STAGES.artifact.replace('{label}', (ROUTES[route]?.label || route).toLowerCase()), stream: null });
     mark(id, 'providerStart');
     count(id, 'modelCalls');
-    const answer = await transport.artifact({ requestId: id, command: route, args: plan.args || request.prompt, context: request.context }, { signal });
+    const answer = await transport.artifact({ requestId: id, command: route, args: input.args, context: request.context }, { signal });
     if (!live(mine)) return null;
     mark(id, 'firstOutput');
     if (answer.result === 'artifact') return { kind: 'card', route, block: answer.block, primitive: answer.primitive };

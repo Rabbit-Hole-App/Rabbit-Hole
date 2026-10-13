@@ -784,6 +784,40 @@ await run('prompt limit: the count shows the supported limit; over it nothing is
   check('Enter over the limit: an actionable error, no routing or generation call, no note', /1200 characters; inline requests stop at 1000\. Shorten it/.test(await page.locator('[data-inline-error]').innerText()) && (await calls(page, 'route')).length === 0 && (await calls(page, 'generate')).length === 0 && (await page.locator('[data-inline-preview]').count()) === 0);
   await context.close();
 });
+
+// ---- Inline command input (review of cf9216b2..5b3552a5): failed on 5b3552a5 ----
+await run('command input: bare /image, /diagram and /motion use the selection; a routed photo searches it; no subject asks', async () => {
+  const { page, context, saved } = await open('command-input');
+  await page.evaluate(() => { window.__inlineMock.routeAnswers = { 'Show me a real photo of this': { choice: 'image', confidence: 0.95, probabilities: { image: 0.95, note: 0.05 } } }; });
+  const send = async words => { await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, words); await waitStatus(page, ['preview', 'proposal', 'clarify']); };
+  await send('/image');
+  check('a bare /image searches the node\'s words, never "/image"', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
+  await page.locator('[data-inline-reject]').click();
+  await send('Show me a real photo of this');
+  check('a routed photo request searches the node\'s words, not the sentence', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
+  await page.locator('[data-inline-reject]').click();
+  await send('/diagram');
+  check('a bare /diagram names the selection, never "/diagram"', (await calls(page, 'artifact')).at(-1).args === 'the selected canvas material: 23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
+  await page.locator('[data-inline-reject]').click();
+  await send('/motion');
+  await page.locator('[data-paid-generate]').click();
+  await page.waitForFunction(key => JSON.parse(localStorage.getItem(key) || '{}').blocks?.some(block => block.type === 'video'), 'harness:command-input');
+  const video = (await saved()).blocks.find(block => block.type === 'video');
+  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', video?.operation?.request === '/motion explain the selected canvas material (about the selected canvas material: shape:ellipse "23")' && video.operation.location.concept === '23', JSON.stringify(video?.operation));
+  await context.close();
+  const blank = await open('command-input-blank', { shapes: [{ id: 'blank1', kind: 'rect', x1: 600, y1: 300, x2: 760, y2: 380, color: '#2383e2', width: 2, dash: 'solid', fill: null, opacity: 1, round: true, text: '' }] });
+  for (const [command, asks] of [['/image', /What should the photo show\?/], ['/diagram', /What should the diagram show\?/], ['/motion', /What should the video explain\?/]]) {
+    await clickShape(blank.page, 'blank1');
+    await ctrlK(blank.page);
+    await submitPrompt(blank.page, command);
+    await waitStatus(blank.page, ['clarify']);
+    check(`${command} on a shape with no words asks for the missing input`, asks.test(await blank.page.locator('[data-inline-clarify]').innerText()));
+    await blank.page.keyboard.press('Escape');
+    await blank.page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  }
+  check('nothing was asked of a handler for the shape with no words', (await calls(blank.page, 'artifact')).length === 0 && (await blank.page.locator('[data-paid-generate]').count()) === 0);
+  await blank.context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);
