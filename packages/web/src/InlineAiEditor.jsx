@@ -38,7 +38,7 @@ const selectionKind = (target, board) => {
   return (board.links || []).some(entry => entry.id === id) ? 'connection' : 'shape';
 };
 
-export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, liveText = null, onClose }) {
+export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, onClose }) {
   const [mode, setMode] = useState(target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
   const [selectionOnly, setSelectionOnly] = useState(false);
@@ -85,7 +85,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // A1: context prepared while the learner writes - local work only, scheduled off the input path; refreshed at submit.
   const prepare = (only = selectionOnly) => {
     const started = performance.now(), misses = canvas.cache.stats.misses;
-    const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, extras: config.extras?.() || {}, liveText });
+    const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, extras: config.extras?.() || {} });
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -121,6 +121,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     session.submit({
       mode, prompt: text,
       prepare: () => {
+        // An open text editor's words are saved first, so what the model reads and the fingerprint Accept checks come
+        // from the same saved text - never from words captured when the editor opened.
+        canvas.flushEdits?.();
         const made = prepare();
         setPrepared(made);
         return { context: made.context, frozen: { ...target, prints: made.context.prints }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };

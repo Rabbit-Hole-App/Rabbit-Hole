@@ -129,11 +129,14 @@ test('A1 cache: a move reuses the description, an edit rebuilds only that record
   assert.ok(cache.stats.resets >= 2, 'switching boards cleared the cache');
 });
 
-test('live editor text wins over the last committed text (A1: unsaved edits reach the request)', () => {
+test('the target is read as saved, and its fingerprint is of the same text (the editor saves open words first)', () => {
   const board = withBoxes(flowBoard());
-  const target = freezeTarget(board, ['para2']);
-  const context = buildContext(board, target, { cache: createContextCache(), boardKey: 'b', liveText: { id: 'para2', text: 'Typed just now, not saved yet.' } });
-  assert.equal(context.target.objects[0].text, 'Typed just now, not saved yet.');
+  const saved = { ...board, items: board.items.map(item => (item.id === 'para2' ? { ...item, text: 'Typed just now, then saved.' } : item)) };
+  const target = freezeTarget(saved, ['para2']);
+  const cache = createContextCache();
+  const context = buildContext(saved, target, { cache, boardKey: 'b' });
+  assert.equal(context.target.objects[0].text, 'Typed just now, then saved.');
+  assert.equal(staleness({ ...target, prints: context.prints }, saved, cache, 'b').content, false);
 });
 
 test('stale checks: content change and deletion are stale, a move is not, a distant edit is not, a new connection is', () => {

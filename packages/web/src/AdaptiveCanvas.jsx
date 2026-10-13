@@ -2574,12 +2574,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const text = plainOf(readRuns(editing)), at = offsetsOf(editing);
       const range = at && at.to > at.from ? { id, from: at.from, to: at.to, text: text.slice(at.from, at.to) } : null;
       const target = freezeTarget(board, [id], range ? { range } : {});
-      return target && { target, liveText: { id, text } };
+      return target && { target };
     }
     const held = document.activeElement;
     if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
     const target = freezeTarget(board, selectedRef.current);
-    return target && { target, liveText: null };
+    return target && { target };
   };
   const openInline = (opened = performance.now(), fromKey = false) => {
     if (inlineRef.current) { shell.current?.querySelector('[data-inline-ai] textarea')?.focus(); return true; }
@@ -4198,7 +4198,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />
-        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} liveText={inline.liveText} opened={inline.opened} cold={inline.cold}
+        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         <div ref={worldRef} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>

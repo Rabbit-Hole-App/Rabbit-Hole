@@ -150,7 +150,7 @@ export function freezeTarget(board, selection, { range = null } = {}) {
 // away), its siblings through a shared parent, visually touching arrows (inferred, not stored), its group, earlier
 // annotations about it, labels right beside it, then the canvas's title and goal. Everything past the limits is
 // counted in `omitted`; nothing says the model saw the whole canvas.
-export function buildContext(board, target, { cache, boardKey, describeCard = null, selectionOnly = false, extras = {}, limits = LIMITS, liveText = null } = {}) {
+export function buildContext(board, target, { cache, boardKey, describeCard = null, selectionOnly = false, extras = {}, limits = LIMITS } = {}) {
   const look = cache.lookups(board, boardKey, describeCard);
   const boxes = board.boxes || {};
   const omitted = { connected: 0, sibling: 0, inferred: 0, group: 0, annotation: 0, nearby: 0, truncated: 0 };
@@ -164,16 +164,16 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     seen.add(record.id); objects += 1; chars += words.text.length;
     return { ...record, text: words.text, ...(words.truncated ? { truncated: true } : {}), relation, at: round(boxes[record.id]), ...extra };
   };
-  // 1. The exact target; text being edited counts as it is in the editor now (A1), not as last committed.
+  // 1. The exact target, as saved: the editor saves an open text editor's words before it builds this (A1), so the
+  // words here and the fingerprint below are the same text.
   const present = target.ids.filter(id => look.entities.has(id) || look.links.has(id));
   const gone = target.ids.filter(id => !present.includes(id));
   const targets = present.map(id => {
     const link = look.links.get(id);
     const base = link ? { id, type: 'connection', text: String(link.label || ''), native: true, from: link.from, to: link.to } : look.record(id);
-    const live = liveText && liveText.id === id ? { ...base, text: liveText.text } : base;
-    const taken = take(live, 'target', {}, limits.targetChars);
+    const taken = take(base, 'target', {}, limits.targetChars);
     if (taken && target.range && target.range.id === id) {
-      const whole = live.text, { from, to } = target.range;
+      const whole = base.text, { from, to } = target.range;
       taken.range = { from, to, text: whole.slice(from, to), before: whole.slice(Math.max(0, from - limits.rangeAround), from), after: whole.slice(to, to + limits.rangeAround) };
     }
     return taken;

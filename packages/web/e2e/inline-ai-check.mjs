@@ -835,6 +835,43 @@ await run('command input: bare /image, /diagram and /motion use the selection; a
   check('nothing was asked of a handler for the shape with no words', (await calls(blank.page, 'artifact')).length === 0 && (await blank.page.locator('[data-paid-generate]').count()) === 0);
   await blank.context.close();
 });
+
+// ---- B1 (review of 2bdeb288..f862f826): words typed in a text box and not saved, then Ctrl+K. Failed on f862f826 ----
+await run('B1: typed but unsaved words, Ctrl+K, Explain, Accept: the note lands with no stale refusal', async () => {
+  const { page, context, saved } = await open('b1-explain');
+  await openWords(page, 'label23');
+  await page.keyboard.type(' typed now');
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  await submitPrompt(page, 'Explain this');
+  await waitStatus(page, ['preview']);
+  check('B1: the request reads the typed words', (await calls(page, 'generate')).at(-1).context.target.objects[0].text === 'bottom row typed now');
+  await page.locator('[data-inline-accept]').click();
+  const closed = await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 5000 }).then(() => true, () => false);
+  const stale = await page.locator('[data-inline-stale]').innerText().catch(() => '');
+  const board = await saved();
+  check('B1: Accept places the note, no stale refusal, and the typed words are saved', closed && inlineShapes(board).length === 1 && board.items.find(item => item.id === 'label23').text === 'bottom row typed now', stale);
+  await context.close();
+});
+
+await run('B1: typed words, then a range Edit on them previews and applies', async () => {
+  const { page, context, saved } = await open('b1-range');
+  await openWords(page, 'label23');
+  await page.keyboard.type(' extra words');
+  for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowLeft');
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  check('B1: Ctrl+K on the selected typed words opens Edit on them', (await page.locator('[data-inline-mode="edit"]').getAttribute('aria-checked')) === 'true' && (await page.locator('[data-inline-target-label]').innerText()).includes('words'));
+  await submitPrompt(page, 'Rewrite this');
+  await waitStatus(page, ['preview', 'error']);
+  const error = await page.locator('[data-inline-error]').innerText().catch(() => '');
+  check('B1: the range Edit previews, never "The selected words changed since you asked"', (await status(page)) === 'preview' && !error, error);
+  await page.locator('[data-inline-accept]').click();
+  const closed = await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 5000 }).then(() => true, () => false);
+  const text = (await saved()).items.find(item => item.id === 'label23').text;
+  check('B1: Accept replaces only the selected typed words', closed && text === 'bottom row extra WORDS', text);
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);
