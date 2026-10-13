@@ -51,10 +51,15 @@ export function httpTransport({ app, pending = null, board = 'main', fetchRaw, p
   const json = (path, body, signal) => fetchRaw(path, { method: 'POST', body: JSON.stringify({ ...scope, ...body }), signal });
   return {
     async route({ requestId, prompt, selection }, { signal }) {
-      const response = await json('/api/learn/inline/route', { request_id: requestId, prompt, selection }, signal);
+      let response;
+      // A request that never reached the worker (the network) never reached JEV either: called false. A stop or a
+      // timeout is the session's to handle, as before.
+      try { response = await json('/api/learn/inline/route', { request_id: requestId, prompt, selection }, signal); }
+      catch (error) { if (error.name === 'AbortError' || error.name === 'TimeoutError') throw error; return { error: 'unavailable', called: false }; }
       const body = await response.json().catch(() => ({}));
-      // A refused request (400) carries the worker's reason: the editor shows it rather than routing around it.
-      if (!response.ok) return { error: body.code || 'unavailable', status: response.status, message: body.error || null };
+      // A refused request (any non-2xx: too long, auth, too large) was refused before any JEV call. A 400 carries the
+      // worker's reason, which the editor shows rather than routing around it.
+      if (!response.ok) return { error: body.code || 'unavailable', status: response.status, message: body.error || null, called: false };
       return body;
     },
     async generate({ requestId, mode, route, prompt, context, revise = null }, { signal, onEvent }) {

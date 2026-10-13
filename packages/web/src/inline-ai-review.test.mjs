@@ -356,3 +356,20 @@ test('re-review S3 gap: a group of more stickies than the object budget clips th
   const context = contextModule.buildContext(board, target, { cache: contextModule.createContextCache(), boardKey: 'b' });
   assert.deepEqual(context.target.clipped, ['s24', 's25']);
 });
+
+test('re-review M8: a routing request refused by the worker or lost on the network says JEV was not called', async () => {
+  const transport = fetchRaw => transportModule.httpTransport({ app: 'canvas-0a1b2c3d', fetchRaw, post: async () => ({}) });
+  const signal = new AbortController().signal;
+  for (const status of [401, 413]) {
+    const read = await transport(async () => new Response(JSON.stringify({ error: 'refused' }), { status })).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal });
+    assert.deepEqual([read.status, read.called], [status, false]);
+  }
+  const lost = await transport(async () => { throw new TypeError('Failed to fetch'); }).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal });
+  assert.deepEqual(lost, { error: 'unavailable', called: false });
+  await assert.rejects(transport(async () => { throw Object.assign(new Error('stopped'), { name: 'AbortError' }); }).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal }), { name: 'AbortError' });
+  // The session records such a request as bypassed, never jev.
+  const rows = [];
+  const session = make({ route: async () => lost, generate: async () => ({ result: { kind: 'note', text: 'x' } }) }, { onMetrics: entry => rows.push(entry) });
+  await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() });
+  assert.equal(sessionModule.routeColumn(rows.at(-1)), 'bypassed');
+});
