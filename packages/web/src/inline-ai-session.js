@@ -240,7 +240,15 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const id = state.preview.requestId;
       mark(id, 'acceptClick');
       state.accepted = true;
-      const out = apply(state.preview);
+      let out;
+      // An Accept that cannot apply (it threw, or said why not) is undone, says so, and leaves Accept usable.
+      try { out = apply(state.preview); } catch (error) { out = { error: `That could not be added to the canvas: ${error.message || 'an unexpected error'}.` }; }
+      if (out?.error) {
+        state.accepted = false;
+        count(id, 'errors');
+        set({ error: out.error });
+        return out;
+      }
       if (out?.stale) {
         state.accepted = false;
         count(id, 'stale');

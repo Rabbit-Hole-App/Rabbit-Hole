@@ -872,6 +872,33 @@ await run('B1: typed words, then a range Edit on them previews and applies', asy
   check('B1: Accept replaces only the selected typed words', closed && text === 'bottom row extra WORDS', text);
   await context.close();
 });
+
+// ---- S2 (review of 2bdeb288..f862f826): Explain on a lone connector. Failed on f862f826 ----
+const linkPoint = (page, id, at = 0.3) => page.evaluate(([id, at]) => {
+  const path = document.querySelector(`[data-connection="${id}"] path[stroke="transparent"]`);
+  const point = path.getPointAtLength(path.getTotalLength() * at), m = path.getScreenCTM();
+  return { x: point.x * m.a + point.y * m.c + m.e, y: point.x * m.b + point.y * m.d + m.f };
+}, [id, at]);
+await run('S2: Explain on a lone connector: Accept places the note at its midpoint', async () => {
+  const { page, context, saved } = await open('s2-connector');
+  await reveal(page, page.locator('[data-shape-id="n23"]').first());
+  const at = await linkPoint(page, 'e4-23');
+  await page.mouse.click(at.x, at.y);
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  check('S2: the connector alone is the target', (await page.locator('[data-inline-target-label]').innerText()).length > 0 && (await calls(page, 'generate')).length === 0);
+  await submitPrompt(page, 'Explain this connection');
+  await waitStatus(page, ['preview']);
+  await page.locator('[data-inline-accept]').click();
+  const closed = await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 5000 }).then(() => true, () => false);
+  const board = await saved();
+  const note = inlineShapes(board)[0];
+  const n4 = board.shapes.find(shape => shape.id === 'n4'), n23 = board.shapes.find(shape => shape.id === 'n23');
+  const mid = { x: (n4.x1 + n4.x2 + n23.x1 + n23.x2) / 4, y: (n4.y1 + n4.y2 + n23.y1 + n23.y2) / 4 };
+  const near = note && Math.hypot((note.x1 + note.x2) / 2 - mid.x, (note.y1 + note.y2) / 2 - mid.y) < 400;
+  check('S2: Accept adds one note beside the connector, with no arrow to a line', closed && inlineShapes(board).length === 1 && near && !board.links.some(link => link.kind === 'annotation'), JSON.stringify(note && { x1: note.x1, y1: note.y1 }));
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);

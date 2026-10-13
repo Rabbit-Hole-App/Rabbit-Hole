@@ -212,3 +212,17 @@ test('refine telemetry: the candidate a refine revised is settled as refined, no
   await session.submit({ mode: 'explain', prompt: 'shorter', prepare: snapshot() });
   assert.deepEqual(rows.filter(([id]) => id === first).map(([, outcome]) => outcome), ['previewed', 'refined']);
 });
+
+test('S2: an Accept that throws or cannot apply is undone and says so; Accept stays usable', async () => {
+  const session = make({ generate: async () => ({ result: { kind: 'note', text: 'x' } }) });
+  await session.submit({ mode: 'explain', prompt: 'Explain this', prepare: snapshot() });
+  let out;
+  assert.doesNotThrow(() => { out = session.accept(() => { throw new TypeError('no place for the note'); }); });
+  assert.match(out.error, /could not be added to the canvas: no place for the note/);
+  assert.equal(session.state.accepted, false);
+  assert.equal(session.state.status, 'preview');
+  assert.match(session.state.error, /could not be added/);
+  const said = session.accept(() => ({ error: 'There is no place on the canvas beside the selection for this note.' }));
+  assert.match(said.error, /no place on the canvas/);
+  assert.deepEqual(session.accept(() => ({ ok: true })), { ok: true }, 'a later Accept still applies');
+});

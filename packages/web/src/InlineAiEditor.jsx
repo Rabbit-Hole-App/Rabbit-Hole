@@ -130,10 +130,18 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       },
     });
   };
+  // A connector has no box of its own: it stands at the midpoint between the two objects it joins.
+  const boxOfTarget = id => {
+    const own = canvas.boxOf(id);
+    if (own) return own;
+    const link = (board().links || []).find(entry => entry.id === id);
+    const a = link && canvas.boxOf(link.from), b = link && canvas.boxOf(link.to);
+    return a && b ? { x: (a.x + a.w / 2 + b.x + b.w / 2) / 2 - 1, y: (a.y + a.h / 2 + b.y + b.h / 2) / 2 - 1, w: 2, h: 2 } : null;
+  };
   // The note's landing spot for the ghost: once per finished preview (and once when streaming starts, at a fixed height).
   const noteSpot = text => {
     const now = board();
-    const targetBox = unionBox(target.ids.map(id => canvas.boxOf(id)));
+    const targetBox = unionBox(target.ids.map(boxOfTarget));
     if (!targetBox) return null;
     const size = text == null ? { w: 260, h: 96 } : noteSize(text, canvas.measureNote);
     return { ...placeNote(targetBox, size, canvas.obstacles(target.ids), canvas.visibleWorld()), size, target: targetBox, board: now };
@@ -156,6 +164,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       let tx;
       if (preview.kind === 'note') {
         const spot = noteSpot(preview.text);
+        if (!spot) return { error: 'There is no place on the canvas beside the selection for this note.' };
         tx = explainTx({ requestId: preview.requestId, text: preview.text, frozen, board: now, boxes: { target: spot.target, obstacles: canvas.obstacles(target.ids) }, size: spot.size, visible: canvas.visibleWorld(), route: preview.route });
       } else if (preview.kind === 'edit') {
         const again = validateEdit(preview.raw, frozen, now);
@@ -192,7 +201,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // Where the popover goes: beside the target, never over it, inside the canvas surface (§10).
   const surface = canvas.surfaceSize();
   const targetScreen = (() => {
-    const world = unionBox(target.ids.map(id => canvas.boxOf(id)));
+    const world = unionBox(target.ids.map(boxOfTarget));
     if (!world) return null;
     return { x: world.x * view.z + view.x, y: world.y * view.z + view.y, w: world.w * view.z, h: world.h * view.z };
   })();
