@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applied, applyTx, cardTx, describeChange, editTx, explainTx, placeNote, validateEdit } from './inline-ai-apply.js';
+import { applyTx, cardTx, describeChange, editTx, explainTx, placeNote, validateEdit } from './inline-ai-apply.js';
 import { freezeTarget } from './inline-ai-context.js';
 import { flowBoard, treeBoard, withBoxes } from './inline-ai-fixtures.js';
 
@@ -103,7 +103,6 @@ test('explain: one note and one annotation connector, with provenance; Accept tw
   const twice = applyTx(once, tx);
   assert.equal(twice.shapes.length, board.shapes.length + 1);
   assert.equal(twice.links.length, board.links.length + 1);
-  assert.equal(applied(once, tx), true);
   assert.deepEqual(once.shapes.slice(0, board.shapes.length), board.shapes, 'the tree itself is unchanged');
   assert.deepEqual(once.links.slice(0, board.links.length), board.links);
   // A group gets one note and no per-member arrows.

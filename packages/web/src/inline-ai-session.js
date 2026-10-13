@@ -11,7 +11,7 @@
 // - Metrics are per request id, monotonic (now()), content-free (A3).
 import { commandInput, decideRoute, EARLIER_MAX, explicitCommand, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
 
-export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…', proposal: 'Preparing the paid proposal…' });
+export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
 export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }) => JSON.stringify([boardKey, prints.target, prints.relations, mode, String(prompt).trim(), !!selectionOnly]);
 // The A5 route column of one request's metrics. jev: this request asked JEV, or tried to and fell back
@@ -131,7 +131,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const timeout = error.name === 'TimeoutError' || error.code === 'timeout';
       count(id, timeout ? 'timeouts' : 'errors');
       // A recoverable error keeps the prompt and the last valid preview (§10).
-      set({ status: state.preview ? 'preview' : 'error', stage: null, stream: null, error: timeout ? 'That took too long. Try again.' : error.message || 'Something went wrong. Try again.', requestId: state.preview ? state.requestId : id });
+      set({ status: state.preview ? 'preview' : 'error', stage: null, stream: null, error: timeout ? 'That took too long. Try again.' : error.message || 'Something went wrong. Try again.' });
       finish(id, timeout ? 'timeout' : 'error');
       return;
     }

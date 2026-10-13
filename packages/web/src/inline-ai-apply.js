@@ -193,4 +193,3 @@ export function applyTx(state, tx) {
   if (tx.links?.length) next.links = [...state.links, ...tx.links.filter(link => !has('links', link.id))];
   return next;
 }
-export const applied = (state, tx) => (tx.kind === 'edit' ? false : [...(tx.shapes || []).map(shape => ['shapes', shape.id]), ...(tx.block ? [['blocks', tx.block.id]] : [])].some(([list, id]) => (state[list] || []).some(entry => entry.id === id)));

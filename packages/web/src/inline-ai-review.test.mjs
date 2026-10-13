@@ -295,3 +295,12 @@ test('M4: the telemetry streaming flag is the mode the worker reports, not a gue
   await streamed.submit({ mode: 'explain', prompt: 'Explain this', prepare: snapshot('s') });
   assert.equal(rows.at(-1).streaming, true);
 });
+
+test('M5: the dead code the review found is gone', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8');
+  assert.equal('applied' in applyModule, false, 'applied (used only by its own test)');
+  assert.equal('proposal' in sessionModule.STAGES, false, 'STAGES.proposal (never shown)');
+  assert.doesNotMatch(source('inline-ai-session.js'), /requestId: state\.preview \? state\.requestId : id/, 'the no-op requestId conditional');
+  assert.doesNotMatch(source('inline-ai-route.js'), /inline-ai-route-bench\.mjs/, 'a reference to a file that does not exist');
+});

@@ -48,7 +48,7 @@ const META = {
   none: 'None of these fits: the request asks for something else (audio, a quiz, a translation, or to change the selection itself).',
 };
 // Separate from the grader's THRESHOLDS (learn-grade-jev.js): this is a Choice routing task. Initial values, to be tuned
-// on the routing benchmark (e2e/inline-ai-route-bench.mjs) with real JEV before anyone calls the router reliable.
+// with real JEV on a routing benchmark (none exists yet) before anyone calls the router reliable.
 export const ROUTE_THRESHOLDS = Object.freeze({ probability: 0.6, confidence: 0.35 });
 export const ROUTE_TIMEOUT_MS = 2500;
 // One limit for the learner's inline request, shared by the editor and the worker (learn-inline.js): the smallest any
