@@ -1,7 +1,7 @@
 // Full units for one reviewed, uncommitted application tree on the clean Windows runner.
 // This is precommit evidence only, never a complete gate attestation.
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -24,7 +24,10 @@ if (process.argv.includes('--unit-child')) {
   const baseTree = '2555e2aa4a6784b2984e629ee5ed77dd37bff0be';
   const testedTree = '3f28a065c11254583d4e3eb88372e9f7dfa63f78';
   const expectedFiles = ['packages/web/src/answer-destination.js', 'packages/web/src/answer-destination.test.mjs'];
-  const git = (...args) => execFileSync('git', args, { cwd: app, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const git = (...args) => {
+    try { return execFileSync('git', args, { cwd: app, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(); }
+    catch(error) { throw Error(`git ${args.join(' ')} failed: status=${error.status}, signal=${error.signal}, code=${error.code}; ${String(error.stderr||error.message).slice(-2000)}`); }
+  };
   const receipt = { kind: 'precommit-unit-only', baseSha, baseTree, testedTree, harnessSha: process.env.HARNESS_SHA,
     node: process.version, command: 'make test-unit', started: new Date().toISOString(), pass: false };
   try {
@@ -63,6 +66,10 @@ if (process.argv.includes('--unit-child')) {
     } finally { clearTimeout(timer); }
     const monitorFiles = readdirSync(out).filter(name => name.startsWith('unit-process-') && name.endsWith('.monitor-exit.json'));
     receipt.cleanupPassed = monitorFiles.length === 1 && JSON.parse(readFileSync(join(out, monitorFiles[0]), 'utf8')).code === 0;
+    receipt.postUnit = { appExists:existsSync(app),gitPointerExists:existsSync(join(app,'.git')),node:process.execPath };
+    const owned = readdirSync(out).filter(name => name.startsWith('unit-process-') && name.endsWith('.owned.json'))
+      .flatMap(name => JSON.parse(readFileSync(join(out,name),'utf8').replace(/^\uFEFF/,'')) || []);
+    receipt.observedProcessNames=[...new Set(owned.map(item=>item.name))];
     receipt.unchanged = git('rev-parse', 'HEAD') === baseSha && git('write-tree') === testedTree && !git('diff', '--name-only');
     receipt.pass = receipt.exit === 0 && !receipt.timeout && receipt.cleanupPassed && receipt.unchanged;
     if (!receipt.pass) throw Error('Precommit units, cleanup or tested-tree integrity failed');
