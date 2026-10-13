@@ -1,0 +1,244 @@
+// One inline AI editor session (docs/features/inline-ai-editor.md §6, §10-§12, A2, A3): a request's life from submit
+// to Accept, Reject or Cancel. Pure apart from the injected transport and clock, so the node tests drive every path.
+//
+// - One request at a time: a second submit while one runs is a counted duplicate, not a second call.
+// - Every await re-checks the request's token: a cancel, a supersede, a refine or a closed editor drops late results and
+//   late stream chunks; nothing of an old request reaches a new one.
+// - Streamed text lives only here and in the preview layer, coalesced to one update per flushMs (A2): never the board,
+//   never autosave or undo. The result is accepted only once complete and validated.
+// - A completed result is kept by idempotency key (board, target fingerprints, mode, prompt, scope): the same request
+//   again reuses it instead of generating twice.
+// - Metrics are per request id, monotonic (now()), content-free (A3).
+import { decideRoute, planRoute, ROUTES } from './inline-ai-route.js';
+
+export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…', proposal: 'Preparing the paid proposal…' });
+const busyStates = new Set(['routing', 'generating', 'streaming']);
+export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }) => JSON.stringify([boardKey, prints.target, prints.relations, mode, String(prompt).trim(), !!selectionOnly]);
+const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `r${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
+
+// transport: { route(input, { signal }) -> readRoute() result, or throws;
+//              generate(input, { signal, onEvent }) -> { result, usage, streaming } (onEvent gets { type: 'delta' | 'preview', ... });
+//              artifact(input, { signal }) -> the /api/learn/artifact answer }
+// validate(result, plan) -> { ok, preview, errors }: the editor's check against the live board (inline-ai-apply.js).
+export function createInlineSession({ transport, boardKey, enabled = ['note'], validate, motion = null, now = () => performance.now(), flushMs = 50, setTimer = setTimeout, clearTimer = clearTimeout, onChange = () => {}, onMetrics = () => {} }) {
+  let token = 0, controller = null, closed = false, flushTimer = null, pending = '', pendingRequest = null;
+  const results = new Map();
+  const metrics = new Map();
+  const state = { status: 'idle', stage: null, requestId: null, mode: null, route: null, via: null, notice: null, stream: null, preview: null, clarify: null, error: null, proposal: null, accepted: false, stale: null };
+  const emit = () => { if (!closed) onChange({ ...state }); };
+  const set = patch => { Object.assign(state, patch); emit(); };
+  const metric = id => {
+    if (!metrics.has(id)) metrics.set(id, { requestId: id, marks: {}, counts: { modelCalls: 0, routeCalls: 0, chunks: 0, flushes: 0, duplicates: 0, cancels: 0, stale: 0, errors: 0, timeouts: 0, reused: 0 }, routing: null, streaming: false, outcome: null });
+    return metrics.get(id);
+  };
+  const mark = (id, name, at = now()) => { const entry = metric(id); if (entry.marks[name] == null) entry.marks[name] = at; };
+  const count = (id, name, by = 1) => { metric(id).counts[name] += by; };
+  // previewed and reused are provisional: Accept, Reject, a stale refusal or closing the editor settles them.
+  const PROVISIONAL = new Set(['previewed', 'reused']);
+  const finish = (id, outcome) => { const entry = metric(id); if (entry.outcome && !PROVISIONAL.has(entry.outcome)) return; entry.outcome = outcome; entry.marks.end = now(); onMetrics({ ...entry, marks: { ...entry.marks }, counts: { ...entry.counts } }); };
+  const live = mine => mine === token && !closed;
+  const flush = (mine, id) => {
+    flushTimer = null;
+    if (!live(mine) || !pending) return;
+    state.stream = { ...(state.stream || {}), text: (state.stream?.text || '') + pending };
+    pending = '';
+    count(id, 'flushes');
+    mark(id, 'firstPreview');
+    set({ status: 'streaming' });
+  };
+  // One streamed event: note text is appended (coalesced); an edit's partial text replaces its object's line.
+  const onEvent = (mine, id) => event => {
+    if (!live(mine)) return;
+    count(id, 'chunks');
+    mark(id, 'firstOutput');
+    metric(id).streaming = true;
+    if (event.type === 'delta' && event.text) {
+      pending += event.text;
+      if (flushMs <= 0) flush(mine, id);
+      else if (!flushTimer) flushTimer = setTimer(() => flush(mine, id), flushMs);
+    } else if (event.type === 'preview' && typeof event.text === 'string') {
+      state.stream = { ...(state.stream || {}), edits: { ...(state.stream?.edits || {}), [event.id]: event.text } };
+      if (!flushTimer) flushTimer = setTimer(() => { flushTimer = null; if (live(mine)) { count(id, 'flushes'); mark(id, 'firstPreview'); set({ status: 'streaming' }); } }, Math.max(0, flushMs));
+    }
+  };
+  const stopTimers = () => { if (flushTimer) clearTimer(flushTimer); flushTimer = null; pending = ''; };
+
+  // Generate for a settled route. plan: { route, via, args }, request: { mode, prompt, context, summary, frozen, key }.
+  async function generate(mine, id, plan, request) {
+    const { route } = plan;
+    const signal = controller.signal;
+    if (route === 'motion') {
+      // /motion is a paid proposal with no model call before Generate (learn-slash.js motionProposal).
+      const proposal = motion?.(plan.args || request.prompt, request);
+      if (!proposal) throw Object.assign(new Error('Video explainers (Motion) are not available on this canvas.'), { code: 'unavailable' });
+      return { kind: 'proposal', route, block: proposal.block, message: proposal.message, primitive: 'motion' };
+    }
+    if (route === 'note' || route === 'edit') {
+      set({ status: 'generating', stage: STAGES[route], stream: null });
+      mark(id, 'providerStart');
+      count(id, 'modelCalls');
+      const out = await transport.generate({ requestId: id, mode: request.mode, route, prompt: plan.args || request.prompt, context: request.context }, { signal, onEvent: onEvent(mine, id) });
+      if (!live(mine)) return null;
+      if (out.usage) metric(id).tokens = { input: out.usage.input_tokens ?? null, output: out.usage.output_tokens ?? null };
+      return out.result;
+    }
+    set({ status: 'generating', stage: STAGES.artifact.replace('{label}', (ROUTES[route]?.label || route).toLowerCase()), stream: null });
+    mark(id, 'providerStart');
+    count(id, 'modelCalls');
+    const answer = await transport.artifact({ requestId: id, command: route, args: plan.args || request.prompt, context: request.context }, { signal });
+    if (!live(mine)) return null;
+    mark(id, 'firstOutput');
+    if (answer.result === 'artifact') return { kind: 'card', route, block: answer.block, primitive: answer.primitive };
+    if (answer.result === 'paid_proposal') return { kind: 'proposal', route, block: answer.block, message: answer.message, primitive: answer.primitive };
+    if (answer.result === 'clarification') return { kind: 'clarify', question: answer.question };
+    if (answer.result === 'unsupported') return { kind: 'unsupported', message: answer.message };
+    throw Object.assign(new Error(answer.error || 'That could not be made. Try again.'), { code: answer.result || 'error' });
+  }
+
+  async function run(mine, id, plan, request) {
+    Object.assign(metric(id), { capability: plan.route, via: plan.via });
+    let result;
+    try { result = await generate(mine, id, plan, request); }
+    catch (error) {
+      if (!live(mine)) return;
+      stopTimers();
+      const timeout = error.name === 'TimeoutError' || error.code === 'timeout';
+      count(id, timeout ? 'timeouts' : 'errors');
+      // A recoverable error keeps the prompt and the last valid preview (§10).
+      set({ status: state.preview ? 'preview' : 'error', stage: null, stream: null, error: timeout ? 'That took too long. Try again.' : error.message || 'Something went wrong. Try again.', requestId: state.preview ? state.requestId : id });
+      finish(id, timeout ? 'timeout' : 'error');
+      return;
+    }
+    if (!live(mine) || !result) return;
+    stopTimers();
+    if (result.kind === 'clarify' || result.kind === 'unsupported') {
+      set({ status: 'clarify', stage: null, stream: null, clarify: { question: result.question || result.message, options: result.kind === 'unsupported' ? ['note'] : [] } });
+      finish(id, result.kind);
+      return;
+    }
+    const checked = validate(result, plan, request);
+    if (!checked.ok) {
+      count(id, 'errors');
+      set({ status: state.preview ? 'preview' : 'error', stage: null, stream: null, error: checked.errors?.[0] || checked.limitation || 'The result could not be checked.', ...(checked.limitation && !state.preview ? { notice: checked.limitation } : {}) });
+      finish(id, checked.limitation ? 'limitation' : 'invalid');
+      return;
+    }
+    results.set(request.key, { result, plan });
+    mark(id, 'complete');
+    set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
+    if (result.kind !== 'proposal') finish(id, 'previewed');
+  }
+
+  return {
+    get state() { return { ...state }; },
+    metrics: id => metrics.get(id),
+    // request: { mode, prompt, prepare() -> { context, frozen, summary, prints, selectionOnly, prepMs, cacheHit } } -
+    // prepare runs here, at submit, so the snapshot is the board as it is now (A1).
+    async submit({ mode, prompt, prepare }) {
+      if (closed) return 'closed';
+      if (busyStates.has(state.status)) { if (state.requestId) count(state.requestId, 'duplicates'); return 'duplicate'; }
+      const id = uuid(), mine = ++token;
+      controller?.abort();
+      controller = new AbortController();
+      mark(id, 'submit');
+      const snapshot = prepare();
+      mark(id, 'refreshed');
+      Object.assign(metric(id), { context: snapshot.shape || null, prep: { ms: snapshot.prepMs ?? null, cacheHit: !!snapshot.cacheHit } });
+      const key = idempotencyKey({ boardKey, prints: snapshot.prints, mode, prompt, selectionOnly: snapshot.selectionOnly });
+      const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: snapshot.frozen, key };
+      set({ requestId: id, mode, error: null, notice: null, clarify: null, stale: null });
+      const kept = results.get(key);
+      if (kept) {
+        // The same request again: its result, re-checked against the board now; no second generation or charge.
+        count(id, 'reused'); Object.assign(metric(id), { routing: 'reused', capability: kept.plan.route, via: kept.plan.via });
+        const checked = validate(kept.result, kept.plan, request);
+        if (checked.ok) {
+          mark(id, 'complete');
+          set({ status: kept.result.kind === 'proposal' ? 'proposal' : 'preview', preview: { ...checked.preview, requestId: id, route: kept.plan.route, kind: kept.result.kind }, proposal: kept.result.kind === 'proposal' ? { message: kept.result.message, primitive: kept.result.primitive } : null, route: kept.plan.route, via: kept.plan.via, accepted: false });
+          finish(id, 'reused');
+          return 'reused';
+        }
+        results.delete(key);
+      }
+      let plan = planRoute({ mode, prompt, enabled });
+      if (plan.classify) {
+        set({ status: 'routing', stage: STAGES.routing });
+        mark(id, 'routeStart');
+        count(id, 'routeCalls');
+        let read;
+        try { read = await transport.route({ requestId: id, prompt, selection: snapshot.summary }, { signal: controller.signal }); }
+        catch (error) { read = { error: error.code === 'timeout' || error.name === 'TimeoutError' ? 'timeout' : error.message || 'unavailable' }; if (read.error === 'timeout') count(id, 'timeouts'); }
+        if (!live(mine)) return 'dropped';
+        mark(id, 'routeEnd');
+        plan = decideRoute(read, { enabled });
+        metric(id).routing = plan.via === 'fallback' ? `fallback:${read.error}` : 'jev';
+      } else metric(id).routing = 'bypassed';
+      pendingRequest = request;
+      if (plan.clarify) { set({ status: 'clarify', stage: null, clarify: plan.clarify }); finish(id, 'clarify'); return 'clarify'; }
+      if (plan.unavailable) { metric(id).capability = plan.unavailable.route; set({ status: state.preview ? 'preview' : 'error', stage: null, error: plan.unavailable.text }); finish(id, 'unavailable'); return 'unavailable'; }
+      if (plan.notice) set({ notice: plan.notice });
+      await run(mine, id, plan, request);
+      return live(mine) ? state.status : 'dropped';
+    },
+    // A clarification answered: generate with that route, no second routing call.
+    async choose(route) {
+      if (closed || state.status !== 'clarify' || !pendingRequest) return 'ignored';
+      const mine = ++token, id = uuid();
+      controller?.abort(); controller = new AbortController();
+      mark(id, 'submit'); mark(id, 'refreshed');
+      metric(id).routing = 'clarified';
+      set({ clarify: null, requestId: id });
+      if (!enabled.includes(route) && route !== 'note') { set({ status: 'error', error: `${ROUTES[route]?.label || route} isn't available on this canvas.` }); finish(id, 'unavailable'); return 'unavailable'; }
+      await run(mine, id, { route, via: 'clarified', args: pendingRequest.prompt }, pendingRequest);
+      return state.status;
+    },
+    // Stop: abort locally and upstream where the transport can; late results and chunks are dropped. A paid job a card
+    // already started is not stopped by this (the editor says so); nothing here has started one.
+    cancel() {
+      const was = state.status;
+      token += 1; controller?.abort(); stopTimers();
+      if (state.requestId && busyStates.has(was)) { count(state.requestId, 'cancels'); finish(state.requestId, 'cancelled'); }
+      if (busyStates.has(was)) set({ status: state.preview ? 'preview' : 'idle', stage: null, stream: null });
+      return was;
+    },
+    // Accept once: apply(preview) returns { ok } or { stale } (inline-ai-apply.js / the canvas). A second Accept, or one
+    // for a request that is not previewed, does nothing.
+    accept(apply) {
+      if (closed || state.accepted || !['preview', 'proposal'].includes(state.status) || !state.preview) return { ignored: true };
+      const id = state.preview.requestId;
+      mark(id, 'acceptClick');
+      state.accepted = true;
+      const out = apply(state.preview);
+      if (out?.stale) {
+        state.accepted = false;
+        count(id, 'stale');
+        set({ status: 'stale', stale: out.stale });
+        finish(id, 'stale');
+        return out;
+      }
+      mark(id, 'committed');
+      set({ status: 'accepted' });
+      finish(id, 'accepted');
+      return out || { ok: true };
+    },
+    reject() { if (state.preview) finish(state.preview.requestId, 'rejected'); token += 1; controller?.abort(); stopTimers(); set({ status: 'idle', preview: null, stream: null, proposal: null, stale: null }); },
+    // The editor closed, the board changed or the canvas unmounted: nothing of this session lands anywhere after this.
+    dispose(reason = 'closed') {
+      if (state.requestId && busyStates.has(state.status)) { count(state.requestId, 'cancels'); finish(state.requestId, reason); }
+      else if (state.preview && !state.accepted) finish(state.preview.requestId, reason);
+      token += 1; controller?.abort(); stopTimers(); closed = true;
+    },
+    // Persistence measured apart from acceptance (A3): the canvas reports when the accepted board was saved.
+    persisted(id, at = now()) { const entry = metrics.get(id); if (entry && entry.marks.persisted == null) { entry.marks.persisted = at; onMetrics({ ...entry, marks: { ...entry.marks }, counts: { ...entry.counts }, update: 'persisted' }); } },
+  };
+}
+
+// The A3 stage durations of one request's marks (ms, monotonic within this browser).
+export function stageTimings(entry) {
+  const m = entry.marks, d = (a, b) => (m[a] != null && m[b] != null ? Math.round((m[b] - m[a]) * 10) / 10 : null);
+  return {
+    refresh: d('submit', 'refreshed'), routing: entry.routing === 'bypassed' ? 'bypassed' : d('routeStart', 'routeEnd'),
+    providerFirst: d('providerStart', 'firstOutput'), firstPreview: d('submit', 'firstPreview'), complete: d('submit', 'complete'),
+    accept: d('acceptClick', 'committed'), persist: d('committed', 'persisted'),
+  };
+}

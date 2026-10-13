@@ -108,6 +108,27 @@ const ARTIFACT_TIMEOUT_MS = 120000;
 const afterPaint = run => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => requestAnimationFrame(run)) : run());
 const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a challenge', explain_back: 'an explain-back', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot' };
 
+// The /motion paid proposal's card (M7A): built here with no model call; the card starts the paid job only once it is
+// inserted already confirmed. The inline editor (inline-ai-session.js) stages the same card.
+export function motionProposal(args, location = null) {
+  const block = {
+    type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
+    operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null } },
+  };
+  return { block, message: 'This uses paid generation.' };
+}
+
+// /image's card: a real photo search the card runs itself once placed, with no model (the inline editor stages the same card).
+export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title: args || 'Image', src: '', alt: '', caption: '', prompt: args, autoSearch: !!args });
+
+// One artifact command's generation, with no side effect: the /api/learn/artifact answer ({ result: 'artifact' |
+// 'paid_proposal' | 'clarification' | 'unsupported' | ... }). runLearnCommand inserts what comes back; the inline editor
+// stages it as a preview (docs/features/inline-ai-editor.md §7). A caller's signal (Cancel) aborts it too.
+export function generateCommand(name, args, { app, selection = null, context = null, post, signal = null }) {
+  const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
+  return post('/api/learn/artifact', { app, command: name, args, selection, context }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+}
+
 // Run one typed command. Returns what the composer shows next:
 //   { prompt }   send this through the existing Learn ask (Auto commands)
 //   { catalog }  open the full tool list
@@ -141,15 +162,12 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   // development orchestrator (operation motion_request), which plans, reviews and renders it.
   if (request.action === 'motion') {
     if (!args) return { notice: { tone: 'info', text: 'Add what to explain after /motion, for example /motion 15s explain softmax.' } };
-    const block = {
-      type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
-      operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null } },
-    };
-    return { proposal: { primitive: 'motion', message: 'This uses paid generation.', generate: () => canvas.insertBlock({ ...block, confirmedStart: true }) } };
+    const { block, message } = motionProposal(args, location);
+    return { proposal: { primitive: 'motion', message, generate: () => canvas.insertBlock({ ...block, confirmedStart: true }) } };
   }
   // /image finds a real picture: the card searches and the learner chooses.
   if (name === 'image') {
-    canvas.insertBlock({ type: 'image', mode: 'search', title: args || 'Image', src: '', alt: '', caption: '', prompt: args, autoSearch: !!args });
+    canvas.insertBlock(imageSearchBlock(args));
     return { notice: { tone: 'done', text: args ? `Searching photos for "${args}".` : 'Added an image card; search for a picture.' } };
   }
   if (!request.allowedPrimitives) return request.prompt ? { prompt: request.prompt } : { notice: { tone: 'info', text: `Add what you want after /${name}.` } };
@@ -160,7 +178,7 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   const hold = () => canvas.reserve?.({ label: `Creating /${name}…`, card: cardsFor(name)[0]?.card ?? null });
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
-  try { result = await post('/api/learn/artifact', { app, command: name, args, selection, context: target?.text ? String(target.text).slice(0, 8000) : null }, { signal: AbortSignal.timeout(ARTIFACT_TIMEOUT_MS) }); }
+  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, post }); }
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.
