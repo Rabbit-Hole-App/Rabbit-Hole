@@ -236,3 +236,14 @@ test('a dirty-tree refusal names the changed paths, and the CLI bin is committed
   const mode = execFileSync('git', ['ls-tree', 'HEAD', 'packages/cli/bin/small.js'], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
   assert.match(mode, /^100755 /);
 });
+
+test('a release refuses when either worker lacks the daily spend cap (USAGE_PLATFORM_DAY_USD)', async () => {
+  const release = await import('./prod-release.mjs');
+  for (const worker of ['rabbit-hole-cp', 'rabbit-hole-app']) {
+    const all = release.SECRETS[worker].required;
+    assert.ok(all.includes('USAGE_PLATFORM_DAY_USD'), `${worker} requires the cap`);
+    assert.deepEqual(release.secretBlockers(worker, all.filter(n => n !== 'USAGE_PLATFORM_DAY_USD')), [`${worker} is missing secret USAGE_PLATFORM_DAY_USD`]);
+    assert.deepEqual(release.secretBlockers(worker, all), [], 'with every required secret, nothing blocks');
+    assert.deepEqual(release.secretBlockers(worker, [...all, 'TEST_BYPASS_SECRET']), [`${worker} must not have secret TEST_BYPASS_SECRET`]);
+  }
+});

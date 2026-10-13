@@ -17,12 +17,19 @@ export const HOLD = false;
 export const ACCOUNT = 'c08d3dbdc53a3afd3cb09a536ac42318';
 const CONFIG = 'wrangler.rabbit-hole-prod.jsonc';
 export const SECRETS = {
-  'rabbit-hole-cp': { required: ['MASTER_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'RESEND_API_KEY'] },
+  // USAGE_PLATFORM_DAY_USD: the daily model spend cap. Spend is enforced on both workers (no SMALL_ENV there), and with
+  // no cap every paid call is refused (cap_unset): Learn chat, the inline editor's routing and notes, voice and images.
+  'rabbit-hole-cp': { required: ['MASTER_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'RESEND_API_KEY', 'USAGE_PLATFORM_DAY_USD'] },
   'rabbit-hole-app': {
-    required: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'TYPESAFE_API_KEY', 'FISH_AUDIO_API_KEY', 'ELEVENLABS_API_KEY', 'SCENE_WORKER_TOKEN'],
+    required: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'TYPESAFE_API_KEY', 'FISH_AUDIO_API_KEY', 'ELEVENLABS_API_KEY', 'SCENE_WORKER_TOKEN', 'USAGE_PLATFORM_DAY_USD'],
     forbidden: ['RESEND_API_KEY', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_SECRET', 'MASTER_KEY'],
   },
 };
+// The secret gaps that refuse a release, from one worker's secret names: a required one missing, a forbidden one set.
+export const secretBlockers = (worker, names) => [
+  ...SECRETS[worker].required.filter(n => !names.includes(n)).map(n => `${worker} is missing secret ${n}`),
+  ...[...NEVER_ON_PRODUCTION, ...(SECRETS[worker].forbidden || [])].filter(n => names.includes(n)).map(n => `${worker} must not have secret ${n}`),
+];
 // Dev-only sign-in: the test bypass, the mock OAuth and the dev Access bridge (dev-access.js) must never be configured here.
 export const NEVER_ON_PRODUCTION = ['TEST_BYPASS_SECRET', 'SMALL_TEST_BYPASS', 'OAUTH_MOCK', 'DEV_TEST_BYPASS', 'ACCESS_AUD', 'ACCESS_TEAM_DOMAIN', 'ACCESS_ALLOWED_EMAILS', 'ACCESS_HOST', 'ACCESS_SMOKE_CLIENT_ID'];
 // The production build (rabbit-hole-production.md): never the dev/review tools or BYOC.
@@ -240,8 +247,7 @@ async function release(opts) {
   const blockers = [];
   for (const [worker, cwd] of [['rabbit-hole-cp', CP], ['rabbit-hole-app', WEB]]) {
     const names = JSON.parse(run('npx', ['wrangler', 'secret', 'list', '--format', 'json', '--config', CONFIG], cwd)).map(s => s.name);
-    for (const n of SECRETS[worker].required) if (!names.includes(n)) blockers.push(`${worker} is missing secret ${n}`);
-    for (const n of [...NEVER_ON_PRODUCTION, ...(SECRETS[worker].forbidden || [])]) if (names.includes(n)) blockers.push(`${worker} must not have secret ${n}`);
+    blockers.push(...secretBlockers(worker, names));
   }
   const select = (db, sql) => JSON.parse(run('npx', ['wrangler', 'd1', 'execute', db, '--remote', '--json', '--config', CONFIG, '--command', sql], CP))[0].results;
   blockers.push(...schemaBlockers({
