@@ -52,6 +52,7 @@ import { applyTx, obstaclesOf } from './inline-ai-apply.js';
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
 // The inline AI editor arrives with its first Ctrl/Cmd+K (docs/features/inline-ai-editor.md), never with the canvas.
 const InlineAiEditor = lazy(() => import('./InlineAiEditor.jsx'));
+const noop = () => {};
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -1376,6 +1377,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The inline AI editor (docs/features/inline-ai-editor.md): its frozen target while open. Ctrl/Cmd+K, the canvas menu and
   // the page's Edit menu open it; a request's whole life is InlineAiEditor.jsx's, and it lands only through applyInline.
   const [inline, setInline] = useState(null);
+  // A7: a generated card's ghost - rendered only, never in the board: at the end of the column, offset (dx, dy) to the
+  // spot the editor placed it. hidden: drawn invisibly once so its real size can be measured before it is placed.
+  const [cardGhost, setCardGhost] = useState(null);
   const inlineRef = useRef(null);
   inlineRef.current = inline;
   const inlineAiRef = useRef(inlineAi);
@@ -2611,7 +2615,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const applyInline = (tx, requestId, onPersisted) => {
     if (!alive.current) return false;
     editorRef.current?.commit('blur');
-    if (tx.kind === 'card' && !tx.after) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
+    // A placed card (A7) goes at the end of the column, offset to the spot its ghost showed; no other card moves.
+    if (tx.kind === 'card' && !tx.after && !tx.end) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
+    setCardGhost(null);
     snapshot();
     for (const [list, set] of [['shapes', setShapes], ['items', setItems], ['links', setLinks], ['blocks', setBlocks]]) {
       set(previous => applyTx({ shapes: [], items: [], links: [], blocks: [], [list]: previous }, tx)[list]);
@@ -2675,6 +2681,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     describe: object => describeObject(object),
     measureNote: (text, width) => { const base = shapeBase(NOTE_LIKE); return measureHeight([{ t: text }], base, inkAware, shapeTextCss(NOTE_LIKE, base), width); },
     apply: applyInline,
+    // A7 card ghost: show (hidden first, to measure), measure (its world box where it is now drawn), clear.
+    cardGhost: {
+      show: (block, { dx = 0, dy = 0, hidden = false } = {}) => setCardGhost({ block: { ...block, dx, dy }, hidden }),
+      measure: () => {
+        const node = shell.current?.querySelector('[data-inline-card-ghost] [data-block-id]');
+        const at = surface.current?.getBoundingClientRect(), v = viewRef.current;
+        if (!node || !at) return null;
+        const rect = node.getBoundingClientRect();
+        return { x: (rect.left - at.left - v.x) / v.z, y: (rect.top - at.top - v.y) / v.z, w: rect.width / v.z, h: rect.height / v.z };
+      },
+      clear: () => setCardGhost(null),
+    },
     // An open text editor's words land first (flushed), so Accept's stale check reads them, not the last committed copy.
     flushEdits: () => { if (editorRef.current) flushSync(() => editorRef.current.commit('blur')); },
     telemetry: rows => { for (const row of rows) telemetryQueue.current.set(row.request_id, row); clearTimeout(telemetryTimer.current); telemetryTimer.current = setTimeout(() => flushTelemetry(), 4000); },
@@ -4284,6 +4302,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onAskImage={selected === block.id ? askImage : null} />)}
           </CardOpen.Provider></SketchHost.Provider>
         </div>
+        {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
+            gap), laid out like a column card - so no card moves, now or at Accept. Pale, untouchable (the editor's overlay
+            covers it in the free spot it stands in), in no thumbnail; never in the board, its bounds or undo. */}
+        {cardGhost && (
+          <div data-inline-card-ghost data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute left-0 flex flex-col"
+            style={{ top: (column.current?.offsetHeight || 0) + (column.current?.children.length ? 20 : 0), width: COLUMN, opacity: cardGhost.hidden ? 0 : 0.5 }}>
+            <LessonBlockCard block={cardGhost.block} zoom={view.z} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={noop} onChangeQuiet={noop} onLayout={noop} onConnect={noop} onSnap={noop} onAsk={noop} onFile={noop} appName={appName} onAskRegion={noop} onGrade={noop} onWiki={noop} onWatch={noop} />
+          </div>
+        )}
         {readOnly && selected && bounds[selected] && (
           <div data-view-selection={selected} aria-hidden="true" style={{ left: bounds[selected].x - 3, top: bounds[selected].y - 3, width: bounds[selected].w + 6, height: bounds[selected].h + 6 }}
             className="pointer-events-none absolute z-20 rounded-[14px] ring-2 ring-[#2383e2]" />

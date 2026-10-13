@@ -208,14 +208,16 @@ export function explainTx({ requestId, text, frozen, board, boxes, size, visible
 
 // A generated card (an existing handler's validated block) goes in the column after the target card, or where the
 // learner is looking; it carries its provenance and, beside a card target, an annotation connector.
-export function cardTx({ requestId, block, frozen, board, route }) {
+// place (A7): the spot its ghost showed - the card goes at the end of the column (end: no other card moves), offset
+// (dx, dy) to that spot, its connector on the facing sides. Without one, it follows the target card in the column.
+export function cardTx({ requestId, block, frozen, board, route, place = null }) {
   const inline = { requestId, mode: 'explain', route, sources: frozen.ids.slice() };
-  const card = { ...block, id: cardId(requestId), dx: 0, dy: 0, inline };
-  const after = frozen.ids.find(id => (board.blocks || []).some(entry => entry.id === id)) || null;
-  const one = frozen.ids.length === 1 ? frozen.ids[0] : null;
-  const connectable = one && ((board.shapes || []).some(shape => shape.id === one && BOXED.has(shape.kind)) || (board.blocks || []).some(entry => entry.id === one));
-  const link = connectable ? { id: linkId(requestId), from: card.id, fromSide: 'top', to: one, toSide: 'bottom', color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
-  return { id: requestId, kind: 'card', block: card, after, links: link ? [link] : [] };
+  const card = { ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline };
+  const after = place ? null : frozen.ids.find(id => (board.blocks || []).some(entry => entry.id === id)) || null;
+  const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
+  const [fromSide, toSide] = place ? FACING[place.side] : ['top', 'bottom'];
+  const link = one ? { id: linkId(requestId), from: card.id, fromSide, to: one, toSide, color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
+  return { id: requestId, kind: 'card', block: card, after, ...(place ? { end: true } : {}), links: link ? [link] : [] };
 }
 
 export const editTx = ({ requestId, changes }) => ({ id: requestId, kind: 'edit', changes: changes.map(({ id, list, after }) => ({ id, list, after })) });

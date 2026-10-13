@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
-import { cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
+import { cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
 
@@ -166,13 +166,49 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     }
   }, [state.status, state.preview, state.requestId, !!state.stream?.text]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A7 card ghost: drawn once invisibly at the end of the column to learn its real size (waiting until its size holds
+  // for two frames, up to a second), then placed once beside the selection and shown pale there.
+  const isCard = preview => preview && (preview.kind === 'card' || preview.kind === 'proposal');
+  const ghostBlock = preview => ({ ...preview.block, id: cardId(preview.requestId) });
+  useEffect(() => {
+    const preview = state.preview;
+    if (!isCard(preview) || !['preview', 'proposal'].includes(state.status) || !canvas.cardGhost) { canvas.cardGhost?.clear(); return undefined; }
+    const known = placements[preview.requestId];
+    if (known?.size) { canvas.cardGhost.show(ghostBlock(preview), { dx: known.dx, dy: known.dy }); return undefined; }
+    let alive = true, last = null, frames = 0;
+    canvas.cardGhost.show(ghostBlock(preview), { hidden: true });
+    const settle = () => {
+      if (!alive) return;
+      const box = canvas.cardGhost.measure();
+      frames += 1;
+      const steady = box && last && Math.abs(box.w - last.w) < 0.5 && Math.abs(box.h - last.h) < 0.5;
+      if (!steady && frames < 60) { last = box; requestAnimationFrame(settle); return; }
+      if (!box) { canvas.cardGhost.clear(); return; }
+      const size = { w: box.w, h: box.h }, spot = placeFor(size);
+      if (!spot) { canvas.cardGhost.clear(); return; }
+      const placed = { ...spot, final: true, dx: spot.x - box.x, dy: spot.y - box.y };
+      keep(preview.requestId, placed);
+      canvas.cardGhost.show(ghostBlock(preview), { dx: placed.dx, dy: placed.dy });
+    };
+    requestAnimationFrame(settle);
+    return () => { alive = false; };
+  }, [state.status, state.preview]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => canvas.cardGhost?.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const accept = () => {
     // A7: the spot the ghost shows must still be free. If something now takes it, the note is placed again and its new
     // ghost shown; Accept is pressed again. It never lands somewhere the learner did not see.
-    const shown = state.preview?.kind === 'note' && placements[state.preview.requestId];
+    const shown = (state.preview?.kind === 'note' || isCard(state.preview)) && placements[state.preview.requestId];
     if (shown?.size && !freeSpot({ x: shown.x, y: shown.y, ...shown.size }, canvas.obstacles(target.ids), unionBox(target.ids.map(boxOfTarget)))) {
       const again = placeFor(shown.size);
-      if (again) { keep(state.preview.requestId, { ...again, final: true }); setMoved(state.preview.requestId); return; }
+      if (again) {
+        // A card's offset is from its slot at the end of the column: the slot is where its ghost is drawn less its offset.
+        const drawn = isCard(state.preview) && canvas.cardGhost.measure();
+        const slot = drawn ? { x: drawn.x - shown.dx, y: drawn.y - shown.dy } : null;
+        keep(state.preview.requestId, { ...again, final: true, ...(slot ? { dx: again.x - slot.x, dy: again.y - slot.y } : {}) });
+        setMoved(state.preview.requestId);
+        return;
+      }
     }
     setMoved(null);
     const out = session.accept(preview => {
@@ -194,7 +230,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         tx = editTx({ requestId: preview.requestId, changes: again.changes });
       } else {
         const block = preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
-        tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route });
+        // The ghost's spot, from the slot the card will take at the end of the column (where its ghost is drawn now).
+        const spot = placements[preview.requestId], drawn = spot?.size && canvas.cardGhost?.measure();
+        const place = drawn ? { side: spot.side, dx: spot.x - (drawn.x - spot.dx), dy: spot.y - (drawn.y - spot.dy) } : null;
+        tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route, place });
       }
       return canvas.apply(tx, preview.requestId, id => session.persisted(id)) ? { ok: true } : { stale: { gone: true, text: 'This canvas closed.' } };
     });
@@ -285,6 +324,23 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 style={{ left, top, width: w, height: h, fontSize: 14 * z, lineHeight: 1.25 }}>
                 {text}{status === 'streaming' && <span className="ml-0.5 inline-block h-[1em] w-[2px] animate-pulse bg-ink-3 align-middle" />}
               </div>
+            </>
+          );
+        })()}
+        {(() => {
+          // A7: the card ghost (drawn by the canvas at the end of its column, offset here) is framed and covered at its spot,
+          // which is free, so the pointer there reaches only the ghost; its connector along the path Accept will draw.
+          const g = isCard(preview) && placements[preview.requestId];
+          if (!g?.size || !['preview', 'proposal'].includes(status)) return null;
+          const left = g.x * z + view.x, top = g.y * z + view.y, w = g.size.w * z, h = g.size.h * z;
+          const port = (box, side) => ({ x: side === 'left' ? box.x : side === 'right' ? box.x + box.w : box.x + box.w / 2, y: side === 'top' ? box.y : side === 'bottom' ? box.y + box.h : box.y + box.h / 2 });
+          const [fromSide, toSide] = FACING[g.side];
+          const from = port({ x: left, y: top, w, h }, fromSide), t = g.target, to = port({ x: t.x * z + view.x, y: t.y * z + view.y, w: t.w * z, h: t.h * z }, toSide);
+          return (
+            <>
+              {explainConnects(target.ids, board()) && <svg data-inline-ghost-link className="absolute inset-0 h-full w-full overflow-visible opacity-50"><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#6b7280" strokeWidth={2 * z} strokeDasharray="6 5" /></svg>}
+              <div data-inline-ghost data-ghost-kind="card" onPointerDown={event => event.stopPropagation()} className="pointer-events-auto absolute rounded-xl border-2 border-dashed border-[#6b7280]/70"
+                style={{ left, top, width: w, height: h }} />
             </>
           );
         })()}

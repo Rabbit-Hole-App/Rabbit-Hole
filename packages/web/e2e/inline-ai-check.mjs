@@ -27,6 +27,10 @@ async function open(name, board = both(), { query = '', viewport = { width: 1500
   // Belt and braces: the harness makes no network calls of its own; anything non-GET leaving the page is refused and counted.
   const posts = [];
   await page.route('**/api/**', route => { if (route.request().method() !== 'GET') { posts.push(route.request().url()); return route.abort(); } return route.continue(); });
+  // Cards read their own config when drawn (a card's ghost is drawn before Accept, A7). The harness has no server: a
+  // graph card gets no Desmos key (it says so) and a photo search finds nothing, rather than a 401 that signs out.
+  await page.route('**/api/learn/graph-config**', route => route.fulfill({ json: { desmosApiKey: null } }));
+  await page.route('**/api/learn/photos**', route => route.fulfill({ json: { photos: [] } }));
   const key = `harness:${name}`;
   // The board is seeded before any page script runs, once per tab (a reload keeps what the page saved since). Seeding
   // after a first load raced that page's own debounced save of its empty board: under CPU load the save landed after the
@@ -1048,6 +1052,58 @@ await run('A7 edit ghost: the new words pale in place, removed struck through, a
   const whole = page.locator('[data-ghost-kind="edit"][data-ghost-for="para2"]');
   await whole.waitFor({ timeout: 5000 });
   check('A7: a whole-text edit marks what it adds', (await whole.locator('[data-ghost-add]').allInnerTexts()).join('').trim() === '(edited)' && (await whole.locator('[data-ghost-del]').count()) === 0);
+  await context.close();
+});
+
+// ---- A7 ghost preview, cards (owner 2026-10-13: beside the selection, nothing moves). Failed before the card ghost ----
+await run('A7 card ghost: the card pale beside the selection, clear of everything, no card moves; Accept lands it on the ghost', async () => {
+  const { page, context, saved } = await open('a7-card');
+  const other = page.locator('[data-block-id="img1"]').first();
+  await clickShape(page, 'n4');
+  await ctrlK(page);
+  await submitPrompt(page, '/compare about this');
+  await waitStatus(page, ['preview']);
+  const ghost = page.locator('[data-ghost-kind="card"]');
+  await ghost.waitFor({ timeout: 5000 });
+  // The camera glides to show the ghost (200 ms): measure once the board has stopped moving.
+  await page.waitForFunction(() => { const r = document.querySelector('[data-block-id="img1"]').getBoundingClientRect(); const same = window.__lastImg && window.__lastImg === r.left; window.__lastImg = r.left; return same; }, null, { polling: 100 });
+  const box = await ghost.boundingBox(), otherBefore = await other.boundingBox();
+  check('A7: the card ghost is topmost at its centre', await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-inline-ghost]'), [box.x + box.width / 2, box.y + box.height / 2]));
+  check('A7: the card ghost is pale, in no thumbnail, and not in the board', Number(await page.locator('[data-inline-card-ghost]').evaluate(node => getComputedStyle(node).opacity)) < 1
+    && await page.locator('[data-inline-card-ghost]').evaluate(node => !!node.closest('[data-thumbnail-hide]')) && !(await saved()).blocks.some(block => block.inline));
+  // Boxes for objects; for a connector, points along its drawn path (its bounding box would be the whole diagonal).
+  const overlapping = await page.evaluate(g => {
+    const inBox = (x, y) => x > g.x && x < g.x + g.width && y > g.y && y < g.y + g.height;
+    const boxes = [...document.querySelectorAll('[data-shape-id], [data-item-id], [data-block-id], [data-group-box], [data-comment-pin]')].filter(node => !node.closest('[data-inline-card-ghost]'))
+      .map(node => ({ id: node.dataset.shapeId || node.dataset.itemId || node.dataset.blockId || 'other', r: node.getBoundingClientRect() }))
+      .filter(({ r }) => r.width && r.height && r.left < g.x + g.width && r.right > g.x && r.top < g.y + g.height && r.bottom > g.y).map(({ id }) => id);
+    const paths = [...document.querySelectorAll('[data-connection] path[stroke="transparent"]')].filter(path => {
+      const m = path.getScreenCTM(), length = path.getTotalLength();
+      for (let at = 0; at <= length; at += 4) { const p = path.getPointAtLength(at); if (inBox(p.x * m.a + p.y * m.c + m.e, p.x * m.b + p.y * m.d + m.f)) return true; }
+      return false;
+    }).map(path => path.closest('[data-connection]').dataset.connection);
+    return [...boxes, ...paths];
+  }, box);
+  check('A7: the card ghost overlaps nothing on the board', overlapping.length === 0, overlapping.join(','));
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  const card = (await saved()).blocks.find(block => block.inline);
+  const landed = card && await page.locator(`[data-block-id="${card.id}"]`).first().boundingBox();
+  check('A7: Accept lands the card exactly on its ghost', near(landed, box), JSON.stringify({ ghost: box, card: landed }));
+  check('A7: no other card moved', near(await other.boundingBox(), otherBefore, 1));
+  check('A7: the card ghost is gone after Accept', (await page.locator('[data-inline-card-ghost]').count()) === 0);
+  await page.mouse.click(60, 120);
+  await page.keyboard.press('Control+z');
+  check('A7: one Undo removes the card (the ghost added no step)', !(await saved()).blocks.some(block => block.inline));
+  // Reject removes a card's ghost.
+  await clickShape(page, 'n4');
+  await ctrlK(page);
+  await submitPrompt(page, '/compare about this, again');
+  await waitStatus(page, ['preview']);
+  await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
+  await page.locator('[data-inline-reject]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  check('A7: Reject removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
   await context.close();
 });
 await browser.close();
