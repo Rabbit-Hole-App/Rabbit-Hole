@@ -59,13 +59,13 @@ const strip = id => page.locator(`[data-block-id="${id}"] [data-drag-zone]`).las
 const select = async (id, modifiers = []) => { await strip(id).click({ position: { x: 12, y: 8 }, modifiers }); await page.waitForTimeout(250); };
 const menu = () => page.locator('[data-canvas-menu]');
 const startItem = () => menu().locator('[data-menu-start-rabbit-hole]');
-// Owner, 2026-10-08: "each options should have an icon next to it" - every menu item, on every menu, has its icon (an svg),
-// left of the label. Returns the labels, to say which menu it was.
+// Owner, 2026-10-08: "each options should have an icon next to it" - every menu item, on every menu, has its icon (an svg,
+// or the product mark's img for an AI action: owner 2026-10-13, never lucide Sparkles), left of the label. Returns the labels, to say which menu it was.
 const iconsOnEveryItem = async (where) => {
   const rows = await menu().locator('[role="menuitem"]').evaluateAll(items => items.map(item => {
-    const svg = item.querySelector(':scope > svg'), label = item.querySelector(':scope > span');
+    const icon = item.querySelector(':scope > svg, :scope > img'), label = item.querySelector(':scope > span');
     // The label alone, without its key hint.
-    return { text: (label || item).innerText.trim(), icon: !!svg, left: !!svg && !!label && svg.getBoundingClientRect().right <= label.getBoundingClientRect().left };
+    return { text: (label || item).innerText.trim(), icon: !!icon, left: !!icon && !!label && icon.getBoundingClientRect().right <= label.getBoundingClientRect().left };
   }));
   assert.ok(rows.length > 0, `${where}: a menu with items`);
   for (const row of rows) assert.ok(row.icon && row.left, `${where}: "${row.text}" has its icon left of the label`);

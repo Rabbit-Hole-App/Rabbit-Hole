@@ -68,7 +68,8 @@ for (const title of ['Insert', 'Edit', 'Arrange', 'View']) {
   await page.waitForTimeout(200);
   const rows = page.locator('[role="menubar"] [class*="top-9"] button[role="menuitem"]');
   const count = await rows.count();
-  const withIcon = await rows.evaluateAll(buttons => buttons.filter(button => button.querySelector('svg.lucide')).length);
+  // A lucide icon, or the product mark's img for an AI action (owner 2026-10-13: never lucide Sparkles).
+  const withIcon = await rows.evaluateAll(buttons => buttons.filter(button => button.querySelector('svg.lucide, :scope > img')).length);
   ok(`every ${title} row has an icon`, count > 0 && withIcon === count, `${withIcon}/${count}`);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
