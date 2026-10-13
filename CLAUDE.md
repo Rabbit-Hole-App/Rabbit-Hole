@@ -23,6 +23,17 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - The user never sees a Dockerfile, a Fly app name, or a session cookie.
 - `make test-unit` before every commit. `make test-integration` before merge.
 - Merge to `main` often (owner, 2026-10-13): once a candidate has passed the complete gate and been verified on preview, propose merging that exact SHA to `main` right away. Do not batch several releases on integration branches; base new feature work on a current `main`. A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`), so each `main` merge still needs the owner's explicit production GO, and production migrations keep their own approval.
+- Release readiness (owner, 2026-10-13; r36 and toolbar gate failures):
+  - **Before you call a branch ready or ask for a release**, run these on the exact SHA:
+    - `make test-unit`;
+    - the production build plus `packages/web/e2e/production-bundle-check.mjs`;
+    - every existing browser check that exercises the screens you changed. To find them, grep `packages/web/e2e` for the components, labels, accessible names, `data-` attributes and shortcuts you touched.
+  - New checks of your own do not replace the existing ones.
+  - When a change alters a label, accessible name, shortcut, placement or flow, update the existing tests that assert it **in the same commit**. Never adapt a test by text rewriting in the harness.
+  - When an owner decision replaces behaviour that a release test asserts, update that test to the new decision and cite the decision in the commit.
+  - After changing the gate harness or a workflow, run the changed phase locally before pushing.
+  - Browser checks wait for the state they assert. No instant reads of async UI.
+  - A stage that fails and then passes on an unchanged rerun is a flake. Record it in the release receipt and fix it in the next release. The green retry is never its explanation.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Feature specs live in `docs/features/<name>.md`. Implement the spec; don't expand it.
 - Build every testable feature into an app in the existing Apps list/sidebar and app UI. Never create a separate feature/demo page as the deliverable. Reuse the existing tabs, panels, and Settings connection flow.
