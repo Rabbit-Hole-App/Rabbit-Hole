@@ -58,6 +58,85 @@ Shared state, kept inside one shard. The stage times are from run 38352166115 at
 `canary_fail_stage` (dispatch input, proof only) swaps one run-line stage's check for a missing file, so the gate must
 fail. It can only fail a stage, never pass or skip one.
 
+## Speed baseline (2026-10-13)
+
+Measured with `node scripts/r36-gate/timing.mjs <run> [attempt] --artifacts <dir>` on three green runs of
+`gate-sharded.yml`: job records from the GitHub API, per-process receipts from the artifacts. Minutes throughout.
+Wall is run created to last job done; queue is run created to first job started; runner is the sum of every job's run
+time (a runner held by the verify wait counts). Pass `--artifacts` only the `shard-*`, `units` and `preflight`
+artifacts: `focused`, `checkpoints` and `dive` repeat sca, selected-pill, dive and the journey stages, so their
+receipts would be counted twice.
+
+| Run | Candidate | Wall | Queue | Runner | Slowest part | Verify-wait idle (all jobs) |
+|---|---|---|---|---|---|---|
+| 38469483022 | bc32c0a1, wrangler 4.150.0 | 13.12 | 0.07 | 71.92 | shard-3 12.40 | 1.34 |
+| 38443590589 | 2bdeb288, wrangler 4.129.0 | 14.62 | 0.08 | 78.78 | shard-3 13.78 | 7.92 |
+| 38458116477 (attempt 2) | c044b86a, wrangler 4.129.0 | 18.23 | 0.05 | 75.21 | shard-4 14.60 | 0.73 |
+
+- Wall is the slowest shard plus `collect`: 12.40 + 0.60, 13.78 + 0.68, 14.60 + 3.53.
+- 38458116477 attempt 2 is the retry of a run whose shard-2 failed; only attempt 2 is measured. Its `collect` spent
+  3.00 in "Download checkpoint and shard evidence" (0.05 in the other two runs). That step only downloads artifacts, so
+  it is transfer time, not gate work, and it is why this wall is 18.2. Its shard-4 also reran rh-local on a restarted
+  stack (about +2).
+- The verify wait is idle runner time and depends on when the canonical verify finishes. 38443590589 waited 1.10-1.20
+  in each of its 7 jobs (7.92 runner minutes); the other two found it done (0.08-0.17 per job, and 0.63 for
+  `checkpoints` in 38469483022).
+
+Per part, median of the three runs:
+
+| Part | Setup | Verify wait | Run step | Preflight | Unit tests | Builds + stops | Stack starts | Checks | Other | Post | Job |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| units | 1.92 | 0.17 | 1.77 | - | - | - | - | - | - | 0.17 | 4.20 |
+| checkpoints | 1.86 | 0.63 | 5.33 | - | - | - | - | - | - | 0.37 | 8.48 |
+| focused | 1.77 | 0.10 | 8.28 | - | - | - | - | - | - | 0.25 | 10.43 |
+| shard-1 | 1.84 | 0.12 | 10.03 | 1.38 | 1.65 | 1.25 | 0.50 | 4.01 | 1.22 | 0.21 | 12.62 |
+| shard-2 | 1.62 | 0.12 | 9.85 | 1.35 | - | 0.39 | 0.19 | 6.85 | 1.00 | 0.18 | 12.27 |
+| shard-3 | 1.78 | 0.10 | 10.57 | 1.39 | - | 0.39 | 0.20 | 7.01 | 1.50 | 0.24 | 12.82 |
+| shard-4 | 1.75 | 0.17 | 10.43 | 1.38 | - | 1.27 | 0.38 | 6.37 | 1.01 | 0.20 | 13.50 |
+| collect | 0.47 | - | 0.10 | - | - | - | - | - | - | 0.08 | 0.68 |
+
+- Setup is every step before the verify wait: two checkouts, Node, uv, the Playwright cache and "Install locked
+  application dependencies" (0.97-1.05 in 38469483022, 0.38-0.72 in the other two). For `collect`, Run step is the
+  merge and upload after its download (the download step is 0.05, 0.05 and 3.00 for the three runs).
+- The shard columns split the Run step with the receipts. Preflight: harness start to the start of `shard-N.sh` (tool
+  checks, local D1 schema, one full stack build and start, its stops). Unit tests: `make test-unit` plus the fixture
+  regression, shard-1 only. Builds + stops: the time from the script start (after the unit tests) or the previous
+  stack's stop to the next stack's app worker start: `stop.ps1` (about 8 s) and the two `vite build` runs (about 6 s
+  each). Stack starts: app worker start to the first check (for shard-1's `stack.sh prod`, to the final stop, less the
+  bundle checks). Checks: the sum of the check processes. Other: the per-check overhead (memcheck, tree check,
+  tripwire probe: 4.6 s median from one check's exit to the next one's start, 99 gaps) plus the script's closing stop
+  and the harness exit.
+- shard-1 carries the three stacks (stack-app, stack, prod) and the unit tests; shards 2 and 3 carry one stack.
+
+### Per-stage durations (`durations.json`)
+
+`durations.json` is `{ "<stage>": <median minutes> }` for every name in `ORDER` in `shards.mjs`: the median of the
+three runs. All 43 stages are measured; none is null.
+
+- Check stages (39 of the 43): the check process only, from `process-<check>-<ms>-<pid>.start.json` to `.exit.json`.
+  Every `timeout N node e2e/...` is wrapped by `prepare.mjs`, so the journey-stack checks (journey J1-J8, tutor-slice,
+  blank-hooks, practice-card, canvas-chrome) and rh-local have receipts too. Receipt names follow the prepared script,
+  not `int35.sh`: `r36-shared-canvas-ask-check.mjs` (sca), `r36-selected-pill-check.mjs`, `r36-tutor-slice-check.mjs`,
+  `r36-repo-browser-check.mjs`, `r36-routing-operator.mjs` (answer-routing, inserted after sketch) and
+  `rabbit-hole-check.mjs` (rh-local). `shared-rabbit-hole-check.mjs` runs twice in shard-1, so the first receipt is
+  rh-app and the second rh-dev.
+- A stage the old gate reran on failure has two receipts; the LAST is used. That happened once: rh-local in
+  38458116477 (1.36 on the first try with the stack down, 1.13 on the rerun).
+- Not in a check duration: the stack starts, the unit tests, the preflight and the per-check overhead of about 0.08 per
+  stage (the 4.6 s gap above). Add them when balancing shards from this file.
+- make test-unit (1.64, 1.58, 1.42): the units job's supervised `make test-unit`, `unit-process-*.start.json` to
+  `.exit.json`. It is the same command on the same tree. In shard-1 the script start to the first app worker is 2.09,
+  2.11 and 2.06, which holds it plus the fixture regression, a stop and two vite builds.
+- fixture regression (0.07 in all three): the TAP `# duration_ms` of the `node --test` run, in
+  `diag13/gate35/fixture.log` (4.16 s).
+- bundle(dist) and bundle(dist-dev) (0.04 each; 0.042, 0.042, 0.045 per run): `production-bundle-check.mjs` is not run
+  under `timeout`, so it has no receipt. Both run on shard-1's `stack.sh prod` stack. Their combined time is bracketed
+  by that stack's cp worker start and the start of the script's final `stop.ps1` (script end less the 7.8 s that stop
+  takes), minus `stack.sh`'s fixed 3 s sleep, and split in halves. It is an upper bound: the bracket also holds the
+  readiness wait and two `clear-local.ps1` calls.
+- Largest stages: dive 2.75, selected-pill 2.17, cross-device 1.89, make test-unit 1.58, tutor-slice 1.57, thumbnails
+  1.29, rh-local 1.13. Per shard (check minutes only): shard-1 5.76, shard-2 6.81, shard-3 7.00, shard-4 6.36.
+
 ## Sequence
 
 1. Assert source identities and clean tracked application tree; check tools,
