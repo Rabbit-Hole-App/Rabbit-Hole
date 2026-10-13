@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
-import { cardTx, describeChange, editTx, explainTx, noteSize, placeNote, validateEdit } from './inline-ai-apply.js';
+import { cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
 
@@ -45,7 +45,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [contextOpen, setContextOpen] = useState(false);
   const [prepared, setPrepared] = useState(null);
   const [state, setState] = useState({ status: 'idle' });
-  const [ghost, setGhost] = useState(null); // where the note would land: computed once per preview, never per chunk (A2)
+  // A7: each candidate's placement, by request id - computed once, before its ghost shows, and the one Accept applies.
+  const [placements, setPlacements] = useState({});
+  const [moved, setMoved] = useState(null); // the request whose spot was taken: its new place is shown, Accept again
   const box = useRef(null), field = useRef(null);
   const openMs = useRef(null);
   const rows = useRef([]);
@@ -138,21 +140,41 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     const a = link && canvas.boxOf(link.from), b = link && canvas.boxOf(link.to);
     return a && b ? { x: (a.x + a.w / 2 + b.x + b.w / 2) / 2 - 1, y: (a.y + a.h / 2 + b.y + b.h / 2) / 2 - 1, w: 2, h: 2 } : null;
   };
-  // The note's landing spot for the ghost: once per finished preview (and once when streaming starts, at a fixed height).
-  const noteSpot = text => {
-    const now = board();
+  // A note's room while it streams: the prompt's longest note (400 characters), so streamed words never move it (A7).
+  const reserved = () => noteSize('word '.repeat(80), canvas.measureNote);
+  // One placement: the one placer (placeNote) over every kind of object on the board, beside the target; the camera
+  // pans to it when the only free spot is off-screen.
+  const placeFor = size => {
     const targetBox = unionBox(target.ids.map(boxOfTarget));
     if (!targetBox) return null;
-    const size = text == null ? { w: 260, h: 96 } : noteSize(text, canvas.measureNote);
-    return { ...placeNote(targetBox, size, canvas.obstacles(target.ids), canvas.visibleWorld()), size, target: targetBox, board: now };
+    const spot = placeNote(targetBox, size, canvas.obstacles(target.ids), canvas.visibleWorld());
+    if (spot.offscreen) canvas.reveal?.({ x: spot.x, y: spot.y, ...size });
+    return { ...spot, size, target: targetBox };
   };
+  const keep = (id, placement) => setPlacements(previous => ({ ...previous, [id]: placement }));
   useEffect(() => {
-    if (state.status === 'streaming' && state.stream?.text && !ghost) setGhost(noteSpot(null));
-    if (state.status === 'preview' && state.preview?.kind === 'note') setGhost(noteSpot(state.preview.text));
-    if (state.status === 'idle' || (state.preview && state.preview.kind !== 'note')) setGhost(null);
-  }, [state.status, state.preview, !!state.stream?.text]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Streaming: the room is reserved once, before the first words show.
+    if (state.status === 'streaming' && state.stream?.text && state.requestId && !placements[state.requestId]) { const room = placeFor(reserved()); if (room) keep(state.requestId, room); }
+    // The finished note: it keeps its streamed place when it fits the room; a note placed for the first time (no stream)
+    // or one longer than the room is placed once, now, before Accept is offered.
+    const preview = state.preview;
+    if (preview?.kind === 'note' && !placements[preview.requestId]?.final) {
+      const final = noteSize(preview.text, canvas.measureNote), had = placements[preview.requestId];
+      const fresh = had && final.h <= had.size.h && final.w <= had.size.w ? { ...had, size: final } : placeFor(final);
+      // No target box (the selection is gone): no ghost; Accept then refuses it as stale.
+      keep(preview.requestId, fresh ? { ...fresh, final: true } : { final: true });
+    }
+  }, [state.status, state.preview, state.requestId, !!state.stream?.text]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const accept = () => {
+    // A7: the spot the ghost shows must still be free. If something now takes it, the note is placed again and its new
+    // ghost shown; Accept is pressed again. It never lands somewhere the learner did not see.
+    const shown = state.preview?.kind === 'note' && placements[state.preview.requestId];
+    if (shown?.size && !freeSpot({ x: shown.x, y: shown.y, ...shown.size }, canvas.obstacles(target.ids), unionBox(target.ids.map(boxOfTarget)))) {
+      const again = placeFor(shown.size);
+      if (again) { keep(state.preview.requestId, { ...again, final: true }); setMoved(state.preview.requestId); return; }
+    }
+    setMoved(null);
     const out = session.accept(preview => {
       canvas.flushEdits?.();
       const now = board();
@@ -163,9 +185,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       if (check.relations && preview.kind !== 'edit') return { stale: { relations: true, text: 'Its connections changed since this was written.' } };
       let tx;
       if (preview.kind === 'note') {
-        const spot = noteSpot(preview.text);
-        if (!spot) return { error: 'There is no place on the canvas beside the selection for this note.' };
-        tx = explainTx({ requestId: preview.requestId, text: preview.text, frozen, board: now, boxes: { target: spot.target, obstacles: canvas.obstacles(target.ids) }, size: spot.size, visible: canvas.visibleWorld(), route: preview.route });
+        const spot = placements[preview.requestId];
+        if (!spot?.size) return { error: 'There is no place on the canvas beside the selection for this note.' };
+        tx = explainTx({ requestId: preview.requestId, text: preview.text, frozen, board: now, boxes: { target: spot.target }, size: spot.size, place: spot, route: preview.route });
       } else if (preview.kind === 'edit') {
         const again = validateEdit(preview.raw, frozen, now);
         if (!again.ok) return { stale: { content: true, text: again.errors[0] || 'The edit no longer fits the selection.' } };
@@ -235,22 +257,32 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const z = view.z;
   return (
     <>
-      {/* The overlay: the frozen target's outline and the note's ghost. Never in the board; pointer events pass through. */}
-      <div data-inline-ai-overlay aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+      {/* The overlay: the frozen target's outline and the ghost of what Accept adds (A7). Never in the board, the undo
+          history, the thumbnail (data-thumbnail-hide) or an export; only the ghost itself takes the pointer, so nothing
+          under it is clicked by mistake. */}
+      <div data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
         {target.ids.map(id => canvas.boxOf(id)).filter(Boolean).map((world, index) => (
           <div key={index} data-inline-target className="absolute rounded-md outline-2 outline-offset-4 outline-dashed outline-[#2383e2]"
             style={{ left: world.x * z + view.x, top: world.y * z + view.y, width: world.w * z, height: world.h * z }} />
         ))}
-        {ghost && (streamText || preview?.kind === 'note') && (() => {
-          const g = ghost, text = preview?.kind === 'note' && status !== 'streaming' ? preview.text : streamText;
-          const left = g.x * z + view.x, top = g.y * z + view.y;
-          const from = { x: g.side === 'right' ? left : g.side === 'left' ? left + g.size.w * z : left + (g.size.w * z) / 2, y: g.side === 'bottom' ? top : g.side === 'top' ? top + g.size.h * z : top + (g.size.h * z) / 2 };
-          const t = g.target, to = { x: g.side === 'right' ? (t.x + t.w) * z + view.x : g.side === 'left' ? t.x * z + view.x : (t.x + t.w / 2) * z + view.x, y: g.side === 'bottom' ? (t.y + t.h) * z + view.y : g.side === 'top' ? t.y * z + view.y : (t.y + t.h / 2) * z + view.y };
+        {(() => {
+          // A7: the note Accept would add, pale, at exactly its placement and size, above everything; its connector along
+          // the path Accept will draw. While it streams, the words fill the room reserved for them.
+          const id = status === 'streaming' ? state.requestId : preview?.kind === 'note' ? preview.requestId : null;
+          const g = id && placements[id];
+          const text = status === 'streaming' ? streamText : preview?.kind === 'note' ? preview.text : null;
+          if (!g?.size || !text) return null;
+          const left = g.x * z + view.x, top = g.y * z + view.y, w = g.size.w * z, h = g.size.h * z;
+          const port = (box, side) => ({ x: side === 'left' ? box.x : side === 'right' ? box.x + box.w : box.x + box.w / 2, y: side === 'top' ? box.y : side === 'bottom' ? box.y + box.h : box.y + box.h / 2 });
+          const [fromSide, toSide] = FACING[g.side];
+          const from = port({ x: left, y: top, w, h }, fromSide);
+          const t = g.target, to = port({ x: t.x * z + view.x, y: t.y * z + view.y, w: t.w * z, h: t.h * z }, toSide);
           return (
             <>
-              {target.ids.length === 1 && <svg className="absolute inset-0 h-full w-full overflow-visible"><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#6b7280" strokeWidth="1.5" strokeDasharray="5 4" /></svg>}
-              <div data-inline-ghost className="absolute overflow-hidden rounded-[14px] border-2 border-dashed border-[#6b7280]/70 bg-white/85 px-2 py-1.5 text-ink shadow-sm dark:bg-[#202020]/85"
-                style={{ left, top, width: g.size.w * z, maxHeight: Math.max(g.size.h, 96) * z * 1.6, fontSize: 14 * z, lineHeight: 1.25 }}>
+              {explainConnects(target.ids, board()) && <svg data-inline-ghost-link className="absolute inset-0 h-full w-full overflow-visible opacity-50"><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#6b7280" strokeWidth={2 * z} strokeDasharray="6 5" /></svg>}
+              <div data-inline-ghost data-ghost-kind="note" onPointerDown={event => event.stopPropagation()}
+                className="pointer-events-auto absolute overflow-hidden rounded-[14px] border-2 border-dashed border-[#6b7280] bg-white/90 px-2 py-1.5 text-ink opacity-50 dark:bg-[#202020]/90"
+                style={{ left, top, width: w, height: h, fontSize: 14 * z, lineHeight: 1.25 }}>
                 {text}{status === 'streaming' && <span className="ml-0.5 inline-block h-[1em] w-[2px] animate-pulse bg-ink-3 align-middle" />}
               </div>
             </>
@@ -303,6 +335,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </ul>
         )}
         {state.notice && <p data-inline-notice className="text-xs text-ink-2">{state.notice}</p>}
+        {moved && moved === preview?.requestId && <p data-inline-moved role="status" className="text-xs text-ink-2">Something is where this was going, so it has a new place on the canvas. Check it, then Accept again.</p>}
         {busy(status) && (
           <div className="flex items-center gap-1.5 text-xs text-ink-2">
             {!streamText && !state.stream?.edits && <p data-inline-stage role="status" className="flex min-w-0 items-center gap-1.5"><Loader2 size={12} className="shrink-0 animate-spin" /><span className="truncate">{state.stage}{preview ? ' (your last preview stays until this one is ready)' : ''}</span></p>}

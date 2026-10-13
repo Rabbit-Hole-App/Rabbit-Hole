@@ -151,7 +151,9 @@ export function obstaclesOf({ boxes = [], paths = [], frames = [], areas = [], p
   const along = path => path.points.map(point => ({ id: path.id, x: point.x - PATH_PAD, y: point.y - PATH_PAD, w: PATH_PAD * 2, h: PATH_PAD * 2 }));
   return [...boxes.filter(keep), ...paths.filter(keep).flatMap(along), ...frames.filter(keep), ...areas.filter(keep), ...pins];
 }
-const FACING = { right: ['left', 'right'], left: ['right', 'left'], bottom: ['top', 'bottom'], top: ['bottom', 'top'] };
+export const FACING = { right: ['left', 'right'], left: ['right', 'left'], bottom: ['top', 'bottom'], top: ['bottom', 'top'] };
+// Whether an explanation draws its annotation connector: one target, a boxed shape or a card.
+export const explainConnects = (ids, board) => ids.length === 1 && ((board.shapes || []).some(shape => shape.id === ids[0] && BOXED.has(shape.kind)) || (board.blocks || []).some(block => block.id === ids[0]));
 
 export const noteId = requestId => `inline-${requestId}-note`;
 export const linkId = requestId => `inline-${requestId}-link`;
@@ -168,14 +170,15 @@ export const noteSize = (text, measure = null) => {
 // The explanation's transaction: one editable text note (a native shape) beside the target and, when the target is one
 // object with ports, one connector marked as an annotation - never a structural edge, so the next explanation does not
 // count it as a child. Provenance (inline.sources) persists on both.
-export function explainTx({ requestId, text, frozen, board, boxes, size, visible, mode = 'explain', route = 'note' }) {
+// place: the placement the ghost showed (A7) - Accept applies exactly that; without one, the placer runs here.
+export function explainTx({ requestId, text, frozen, board, boxes, size, visible, mode = 'explain', route = 'note', place: shown = null }) {
   const targetBox = boxes.target;
-  const place = placeNote(targetBox, size, boxes.obstacles, visible);
+  const place = shown || placeNote(targetBox, size, boxes.obstacles, visible);
   const inline = { requestId, mode, route, sources: frozen.ids.slice(), ...(frozen.range ? { range: { id: frozen.range.id, from: frozen.range.from, to: frozen.range.to } } : {}) };
   const note = { id: noteId(requestId), kind: 'rect', x1: place.x, y1: place.y, x2: place.x + size.w, y2: place.y + size.h,
     color: '#6b7280', width: 2, dash: 'dashed', fill: null, opacity: 1, round: true, text: String(text), textColor: '#37352f', align: 'left', valign: 'top', inline };
-  const one = frozen.ids.length === 1 ? frozen.ids[0] : null;
-  const connectable = one && (board.shapes || []).some(shape => shape.id === one && BOXED.has(shape.kind)) || (one && (board.blocks || []).some(block => block.id === one));
+  const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
+  const connectable = !!one;
   const [fromSide, toSide] = FACING[place.side];
   const link = connectable ? { id: linkId(requestId), from: note.id, fromSide, to: one, toSide, color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
   return { id: requestId, kind: 'explain', shapes: [note], links: link ? [link] : [], place };

@@ -678,8 +678,9 @@ of where the position of the generate output should be."
   is above everything and the spot is free, nothing is ever behind or in front of it.
 - Preference order: right of the selection, then left, below and above, then rings further out (placeNote's order),
   first a spot inside the visible canvas.
-- A note reserves the room for its longest allowed answer (NOTE_MAX_CHARS), so the streamed words fit without moving
-  it. A card's room is its rendered size, measured once on a hidden render before the ghost shows.
+- A note reserves the room for the prompt's longest note (400 characters), so the streamed words fit without moving it.
+  A longer answer is placed once more when it completes, before Accept is offered. A card's room is its rendered size,
+  measured once on a hidden render before the ghost shows.
 - A lone connector stands at its midpoint between the two objects it joins (as Accept already does).
 - If the only free spot is off-screen, the camera pans to show the ghost before Accept is offered.
 - A card is placed like a note, beside the selection, rather than in the column after the target: it keeps its slot

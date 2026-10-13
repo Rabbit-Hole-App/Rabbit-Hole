@@ -946,6 +946,78 @@ await run('Submit: no sparkles icon when idle; the spinner while busy', async ()
   await release(page);
   await context.close();
 });
+
+// ---- A7 ghost preview, notes and their connector (owner 2026-10-13). Failed before the ghost change ----
+const ghostOf = page => page.locator('[data-inline-ghost]').first();
+// Where a stored shape is drawn on screen: its world box through the canvas's camera (the shape's own element carries a
+// hit margin, so its rectangle is a little larger than the shape).
+const screenOf = (page, shape) => page.evaluate(n => {
+  const surface = document.querySelector('[data-canvas-surface]'), world = [...surface.querySelectorAll('div')].find(d => /scale\(/.test(d.style.transform));
+  const [x, y, z] = world.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([-\d.]+)\)/).slice(1).map(Number), at = surface.getBoundingClientRect();
+  return { x: at.left + x + Math.min(n.x1, n.x2) * z, y: at.top + y + Math.min(n.y1, n.y2) * z, width: Math.abs(n.x2 - n.x1) * z, height: Math.abs(n.y2 - n.y1) * z };
+}, shape);
+const near = (a, b, slack = 3) => a && b && Math.abs(a.x - b.x) <= slack && Math.abs(a.y - b.y) <= slack && Math.abs(a.width - b.width) <= slack && Math.abs(a.height - b.height) <= slack;
+await run('A7 note ghost: pale and topmost, exactly where Accept puts the note, never in the board; Reject and Esc remove it; no undo step', async () => {
+  const { page, context, saved } = await open('a7-note');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await submitPrompt(page, 'Explain this node');
+  await waitStatus(page, ['preview']);
+  const ghost = ghostOf(page);
+  await ghost.waitFor();
+  const box = await ghost.boundingBox();
+  check('A7: the ghost is topmost at its centre', await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-inline-ghost]'), [box.x + box.width / 2, box.y + box.height / 2]));
+  check('A7: the ghost is pale, in no thumbnail, and its connector is drawn too', Number(await ghost.evaluate(node => getComputedStyle(node).opacity)) < 1 && await ghost.evaluate(node => !!node.closest('[data-thumbnail-hide]')) && (await page.locator('[data-inline-ghost-link]').count()) === 1);
+  check('A7: the ghost is not in the board or its saved copy', inlineShapes(await saved()).length === 0);
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  const note = inlineShapes(await saved())[0];
+  const landed = note && await screenOf(page, note);
+  check('A7: Accept puts the note exactly where its ghost was', near(landed, box), JSON.stringify({ ghost: box, note: landed }));
+  check('A7: the ghost is gone after Accept', (await page.locator('[data-inline-ghost]').count()) === 0);
+  // Reject removes the ghost; so does Esc.
+  for (const [how, leave] of [['Reject', () => page.locator('[data-inline-reject]').click()], ['Esc', () => page.keyboard.press('Escape')]]) {
+    await clickShape(page, 'n4');
+    await ctrlK(page);
+    await submitPrompt(page, 'Explain this node');
+    await waitStatus(page, ['preview']);
+    await ghostOf(page).waitFor();
+    if (how === 'Esc') await page.locator('[data-inline-prompt]').focus();
+    await leave();
+    await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+    check(`A7: ${how} removes the ghost`, (await page.locator('[data-inline-ghost]').count()) === 0);
+  }
+  // No undo step of its own: the next Undo takes back the accepted note, the last thing that changed the board.
+  await page.mouse.click(60, 120);
+  await page.keyboard.press('Control+z');
+  check('A7: the ghost left nothing in undo (Undo takes back the accepted note)', inlineShapes(await saved()).length === 0);
+  await context.close();
+});
+
+await run('A7 note ghost: if something takes its spot before Accept, it is placed again visibly and Accept is pressed again', async () => {
+  const { page, context, saved } = await open('a7-moved');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await submitPrompt(page, 'Explain this node');
+  await waitStatus(page, ['preview']);
+  // The learner drags node 7 onto the spot the ghost shows (an unrelated edit through the canvas). Node 7 is brought
+  // into view first, then the ghost is measured where it now is on screen.
+  const at = await shapeCenter(page, 'n7');
+  const first = await ghostOf(page).boundingBox();
+  await page.mouse.move(at.x, at.y); await page.mouse.down();
+  await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2, { steps: 10 }); await page.mouse.up();
+  await page.waitForFunction(([x, y]) => { const r = document.querySelector('[data-shape-id="n7"]')?.getBoundingClientRect(); return r && Math.abs(r.x + r.width / 2 - x) < 30 && Math.abs(r.y + r.height / 2 - y) < 30; }, [first.x + first.width / 2, first.y + first.height / 2]);
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-moved]').waitFor({ timeout: 5000 });
+  const second = await ghostOf(page).boundingBox();
+  check('A7: the ghost moved to a new free place and nothing was added yet', !near(second, first) && inlineShapes(await saved()).length === 0);
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  const note = inlineShapes(await saved())[0];
+  const landed = note && await screenOf(page, note);
+  check('A7: the second Accept puts the note at the new ghost', near(landed, second), JSON.stringify({ ghost: second, note: landed }));
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);
