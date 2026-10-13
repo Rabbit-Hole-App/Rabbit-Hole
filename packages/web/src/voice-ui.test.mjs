@@ -60,7 +60,10 @@ test('r36: with listening paused, the mic says so, is disabled and cannot start 
   assert.equal(entered, 0);
   const voice = read('LearnVoice.jsx');
   assert.match(voice, /const LISTENING_PAUSED = true;/);
-  assert.match(voice, /paused: LISTENING_PAUSED && !window\.__voiceFake \}/, 'only the scripted adapters stay available');
+  assert.match(voice, /paused: LISTENING_PAUSED && !scripted\.current \}/, 'only the scripted adapters stay available');
+  // From the review-build flag, never window.__voiceFake: production must not name the harness (production-bundle-check, gate 38343974325).
+  assert.match(voice, /const fake = reviewTools && [^\n]+\n\s+scripted\.current = fake;/);
+  assert.doesNotMatch(voice, /paused:[^}]*__voiceFake/);
 });
 
 test('VOICE-03: in every on state the mic is the red breathing one, with the state in a live label', () => {

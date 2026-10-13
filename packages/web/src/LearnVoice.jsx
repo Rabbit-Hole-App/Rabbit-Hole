@@ -28,6 +28,8 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
   const [session, setSession] = useState(null);
   const [, rerender] = useReducer(count => count + 1, 0);
   const appName = app?.name ?? app;
+  // Whether the scripted ?voice=fake adapters run: false in production, which never names the harness.
+  const scripted = useRef(false);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -36,6 +38,7 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
     const onStt = event => voice?.sttEvent(event);
     const onTts = event => voice?.ttsEvent(event);
     const fake = reviewTools && new URLSearchParams(window.location.search).get('voice') === 'fake';
+    scripted.current = fake;
     let stt, tts;
     if (fake) {
       const ttsOptions = { onEvent: onTts };
@@ -81,5 +84,5 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
 
   if (!active || !session) return null;
   // on: Voice Mode is on or turning on (it re-enters after a Rabbit Hole move); say: a Tutor turn without learner speech.
-  return { state: session.state, caption: session.caption, enter: session.enter, exit: session.exit, interrupt: session.interrupt, on: session.state !== 'off' || session.starting, say: session.say, paused: LISTENING_PAUSED && !window.__voiceFake };
+  return { state: session.state, caption: session.caption, enter: session.enter, exit: session.exit, interrupt: session.interrupt, on: session.state !== 'off' || session.starting, say: session.say, paused: LISTENING_PAUSED && !scripted.current };
 }
