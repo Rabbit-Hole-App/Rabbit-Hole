@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { prerequisite } from './phases.mjs';
+import { prerequisite, keepsProbeStack } from './phases.mjs';
 
 const identity={applicationSha:'a'.repeat(40),applicationTree:'b'.repeat(40),harnessSha:'c'.repeat(40),grant:'isolated-job-1'};
 const passing={...identity,phase:'preflight',pass:true,ended:'2026-10-12T22:00:00Z'};
@@ -17,4 +17,9 @@ test('full gate cannot skip a failed or absent Dive receipt',()=>{
   assert.equal(prerequisite('preflight',null,identity),null);
   assert.equal(prerequisite('all',null,identity),null);
   assert.match(prerequisite('unknown',null,identity),/Unknown/);
+});
+test('full units need no prior receipt; only the all phase keeps the sign-in probe stack for its Dive',()=>{
+  assert.equal(prerequisite('units',null,identity),null);
+  assert.equal(keepsProbeStack('all'),true);
+  for(const phase of ['preflight','focused'])assert.equal(keepsProbeStack(phase),false,`${phase} releases the gate ports before the next preflight`);
 });

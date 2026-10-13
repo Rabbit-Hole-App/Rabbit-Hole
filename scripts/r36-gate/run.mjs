@@ -3,11 +3,11 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, appen
 import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SOURCE, prepare, files, sha256 } from './prepare.mjs';
-import { prerequisite } from './phases.mjs';
+import { prerequisite, keepsProbeStack } from './phases.mjs';
 
 const APP_SHA=process.env.TESTED_SHA, APP_TREE=process.env.TESTED_TREE;
 if(!/^[a-f0-9]{40}$/.test(APP_SHA||'')||!/^[a-f0-9]{40}$/.test(APP_TREE||''))throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
-const phase=process.argv[2]||'all',fresh=phase==='all'||phase==='preflight'||phase==='focused';
+const phase=process.argv[2]||'all',fresh=phase==='all'||phase==='preflight'||phase==='focused',units=phase==='units';
 const app=resolve(process.env.APP_ROOT||''),state=resolve(process.env.GATE_ROOT||''),out=resolve(process.env.ARTIFACT_ROOT||'');
 const config=join(app,'packages/control-plane/integ-local.jsonc'),persist=join(state,'gates/int35/fork/local');
 for(const name of ['APP_ROOT','GATE_ROOT','ARTIFACT_ROOT','HARNESS_SHA','GATE_GRANT_ID'])if(!process.env[name])throw Error(`Missing ${name}`);
@@ -15,7 +15,7 @@ if(!process.env.GITHUB_ACTIONS && process.env.R36_LOCAL_VALIDATION!=='1')throw E
 if(process.platform!=='win32')throw Error('This complete gate uses the supported Windows/Bash stack');
 if(process.version!=='v24.19.0')throw Error(`Node pin mismatch: ${process.version}`);
 if([app,state,out].some(p=>p===resolve('.'))||app===state||out===state||out===app)throw Error('Use separate app, state and artifact paths');
-if(fresh&&(existsSync(join(out,'receipt.json'))||existsSync(join(state,'gates'))))throw Error('Use fresh runner state; do not append to an earlier receipt');
+if((fresh||units)&&(existsSync(join(out,'receipt.json'))||existsSync(join(state,'gates'))))throw Error('Use fresh runner state; do not append to an earlier receipt');
 mkdirSync(out,{recursive:true});
 const git=(...args)=>execFileSync('git',args,{cwd:app,encoding:'utf8',windowsHide:true}).trim();
 const unchanged=()=>{
@@ -97,7 +97,11 @@ async function tripwire() {
 }
 try {
   await memory('preflight');
-  if(fresh) {
+  if(units) {
+  // Full units on the exact committed tree, supervised like every gate child: no stack and no local credentials.
+  await command(process.execPath,[join(SOURCE,'supervise.mjs'),join(out,'unit-process'),'--','-e',"const c=require('node:child_process').spawnSync(process.env.GATE_BASH,['-c','make test-unit'],{stdio:'inherit',windowsHide:true});process.exit(c.status??1)"],{log:join(out,'unit.log'),timeout:2400000,stream:true,extra:{UV_OFFLINE:'1'}});
+  unchanged();
+  } else if(fresh) {
   await command(process.execPath,['-e','const c=require("node:child_process").spawnSync(process.execPath,["-e","process.exit(0)"]);if(c.status!==0)process.exit(1)']);
   await command('powershell.exe',['-NoProfile','-Command','$ErrorActionPreference="Stop"; $self=Get-CimInstance Win32_Process -Filter "ProcessId = $PID"; if (-not $self.CreationDate) { throw "Process identity unavailable" }; $null=(Get-Process -Id $PID).Handle; $null=Get-NetTCPConnection -State Listen; "Process observation capability passed"'],{log:join(out,'process-preflight.log')});
   await command(bash,['-c','for tool in make timeout curl sed python powershell; do command -v "$tool" || exit 1; done; make --version && python --version'],{log:join(out,'tools.log')});
@@ -115,6 +119,7 @@ try {
   await command(process.execPath,[join(gate,'preflight.cjs')],{log:join(out,'preflight.log')});
   await command(bash,[join(gate,'fork/stack.sh'),'dev'],{log:join(out,'dive-stack.log')});
   await auth();
+  if(!keepsProbeStack(phase))await stop();
   } else {
     const vars=readFileSync(join(app,'packages/control-plane/.dev.vars'),'utf8');
     secret=vars.match(/^TEST_BYPASS_SECRET=([a-f0-9]{48})\r?$/m)?.[1];
@@ -160,7 +165,7 @@ try {
   writeFileSync(join(out,'gate-verdict.json'),JSON.stringify({applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,gateVerdict:verdict,extraPassed,pass:verdict===null&&extraPassed},null,2));
   if(verdict||!extraPassed)throw Error(`Complete gate rejected: ${verdict||'routing/project-menu receipts missing'}`);
   }
-  receipt.localConfigHashes=Object.fromEntries(['packages/control-plane/.dev.vars','packages/web/.dev.vars',...files(join(gate,'config-templates')).map(p=>p.slice(join(gate,'config-templates').length+1).replaceAll('\\','/'))].map(p=>[p,sha256(join(app,p))]));
+  if(!units)receipt.localConfigHashes=Object.fromEntries(['packages/control-plane/.dev.vars','packages/web/.dev.vars',...files(join(gate,'config-templates')).map(p=>p.slice(join(gate,'config-templates').length+1).replaceAll('\\','/'))].map(p=>[p,sha256(join(app,p))]));
   receipt.pass=true;
 } catch(error) {
   receipt.failure=error.message;console.error(error.message);process.exitCode=1;
