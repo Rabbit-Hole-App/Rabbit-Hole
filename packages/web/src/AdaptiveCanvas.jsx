@@ -1,6 +1,6 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { AppIcon, IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -26,7 +26,7 @@ import SourcesDisclosure from './SourcesDisclosure.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
-import { activePath, newNotebookBlock } from './learn-notebook.js';
+import { activePath, newNotebookBlock, notebookFromCode } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
 import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
@@ -46,7 +46,7 @@ import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { createContextCache, freezeTarget } from './inline-ai-context.js';
-import { applyTx, obstaclesOf } from './inline-ai-apply.js';
+import { applyTx, obstaclesOf, placeNote } from './inline-ai-apply.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
@@ -751,7 +751,7 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onAskImage = null }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onAskImage = null, onNotebook = null }) {
   // Tool Performance v1: visible on first paint; simple cards are complete then (learn-perf.js).
   usePaintedMarks(block.id, block.type);
   // A block that declares its evidence carries it collapsed at its foot; the
@@ -803,6 +803,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
             className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
             <MessageCircle size={13} />Ask in chat
           </button>
+          <NotebookButton entry={block} onNotebook={onNotebook} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink shadow-md hover:bg-hover" />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
@@ -832,9 +833,23 @@ function LevelPill({ level, onLevel, className = '', style = null, levels = TEXT
   );
 }
 
+// Open in Notebook (docs/features/canvas-notebook.md) on a code card's own row: off, with its reason, for code a notebook
+// cannot run.
+function NotebookButton({ entry, onNotebook, className = '' }) {
+  const made = notebookFromCode(entry);
+  if (!made || !onNotebook) return null;
+  return (
+    <button type="button" data-open-notebook disabled={!!made.disabled} title={made.disabled || 'Open this code in a new notebook card'}
+      onPointerDown={event => event.stopPropagation()} onClick={() => onNotebook(entry.id)}
+      className={`flex items-center gap-1.5 whitespace-nowrap disabled:cursor-default disabled:text-ink-3 ${className}`}>
+      <NotebookPen size={13} />Open in Notebook
+    </button>
+  );
+}
+
 // The Text / Code switch on a selected text box (docs/features/canvas-editing.md): the same object, words, place and
 // size; Code shows it literally in monospace and keeps the text formatting aside for the switch back. Nothing runs.
-function ModePill({ mode, onMode, lang = 'python', onLang = null }) {
+function ModePill({ mode, onMode, lang = 'python', onLang = null, notebook = null }) {
   return (
     <div role="group" aria-label="Text or code" data-keep-focus data-thumbnail-hide style={{ fontSize: 12, fontWeight: 400, fontStyle: 'normal', textDecoration: 'none' }}
       className="flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 font-sans shadow-md"
@@ -851,6 +866,7 @@ function ModePill({ mode, onMode, lang = 'python', onLang = null }) {
           {CODE_LANGS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       )}
+      {mode === 'code' && notebook}
     </div>
   );
 }
@@ -866,7 +882,7 @@ const itemBase = item => {
 // onAsk: only while this text box or note is the one selected object (a multi-selection asks through its group or area).
 // editOn: { id, n } - the canvas asking this item to open for typing (Enter on a selected text box). onEditStart: the
 // edit began (its undo step opens). onCommit(id, runs, how): the edit ended. onEditorApi: the open editor's handle.
-function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null }) {
+function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null, onNotebook = null }) {
   const [editing, setEditing] = useState(!!item.fresh);
   // A Code box not being edited is drawn in its language's colors, once they are ready for exactly these words.
   const [colors, setColors] = useState(null);
@@ -974,10 +990,10 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
           its own line above them; the ladder and pill keep their row. */}
       {(ladder || (ask && !sticky)) && (
         <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full flex-col items-start gap-1.5">
-          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} />}
+          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded px-1.5 py-0.5 text-[11px] text-ink-2 hover:bg-hover hover:text-ink" />} />}
           <div className="flex items-center gap-2 self-stretch">
             {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
-            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} />}
+            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded px-1.5 py-0.5 text-[11px] text-ink-2 hover:bg-hover hover:text-ink" />} />}
             {ask && !sticky && askPill}
           </div>
         </div>
@@ -3214,10 +3230,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // pill. In world units: where the reserved row starts (`right`), its top and height. A dropped image, a text box and a
   // sticky note have the same Ask in chat (r35); a shape keeps the slot it would take. PILL: the pills' rendered widths,
   // with a little room.
-  const PILL = { ask: 112, select: 124, explain: 144, more: 138, gap: 6 };
+  const PILL = { ask: 112, select: 124, explain: 144, more: 138, notebook: 150, gap: 6 };
   const pillRow = id => {
     const block = blocks.find(entry => entry.id === id);
-    if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0);
+    if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0) + (block.type === 'code' ? PILL.gap + PILL.notebook : 0);
     if (exchanges.some(entry => entry.id === id)) return PILL.explain + PILL.gap + PILL.more;
     return PILL.ask;
   };
@@ -3888,6 +3904,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (slot) setSlots(previous => fillSlot(previous, into, block.id));
     return revealAfter(block.id, slot?.moves);
   };
+  // Open in Notebook: a new notebook card from one code card, beside it in free space - placeNote and its obstacles
+  // (inlineCanvas.obstacles: obstaclesOf), the inline editor's, so nothing else moves - selected, and panned to when the
+  // spot is off-screen, as the editor's ghost is; one undo step. The code card is left as it is.
+  const openInNotebook = id => {
+    if (editorRef.current) flushSync(() => editorRef.current.commit('blur'));
+    const code = blocksRef.current.find(entry => entry.id === id);
+    const made = notebookFromCode(code || itemsRef.current.find(entry => entry.id === id))?.block;
+    const target = boxesOf([id])[0];
+    if (!made || !target || readOnlyRef.current) return null;
+    // NotebookCard's opening size. It joins the end of the column (gap-5, a wide card centred on it, as insertBlock's)
+    // and is drawn at the placed spot by its offset from there.
+    const size = { w: 640, h: 540 };
+    const spot = placeNote(target, size, inlineCanvas.obstacles([id]), inlineCanvas.visibleWorld());
+    const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
+    const added = { ...made, dx: Math.round(spot.x - (COLUMN - size.w) / 2), dy: Math.round(spot.y - flowY) };
+    snapshot();
+    perfMark(added.id, 'insert');
+    setBlocks(previous => [...previous, added]);
+    setSelection([added.id]);
+    if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...size });
+    return added.id;
+  };
   // Once the new card is measured, nudge the camera only if it landed off
   // screen - a card inserted in view leaves the view alone. One correction, on
   // its settled size (the [bounds] effect above); `moves` is the learner's camera
@@ -4334,7 +4372,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onAskImage={selected === block.id ? askImage : null} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onAskImage={selected === block.id ? askImage : null} onNotebook={readOnly ? null : openInNotebook} />)}
           </CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -4488,7 +4526,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
             onAsk={selected === item.id ? askItem : null} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}
@@ -4523,6 +4561,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             </MenuRow>
           );
           const typed = [];
+          // Open in Notebook, for exactly one selected code card (canvas-notebook.md); off with its reason otherwise.
+          const codeCard = selection.length === 1 && selection[0] === menuAt.id ? block || items.find(entry => entry.id === menuAt.id) : null;
+          const fromCode = notebookFromCode(codeCard);
+          if (fromCode) {
+            typed.push(<MenuRow key="nb" icon={NotebookPen} data-menu-open-notebook disabled={!!fromCode.disabled} title={fromCode.disabled} className={fromCode.disabled ? 'h-auto py-1' : undefined}
+              onClick={act(() => openInNotebook(codeCard.id))}>Open in Notebook{fromCode.disabled && <span className="block text-xs text-ink-3">{fromCode.disabled}</span>}</MenuRow>);
+          }
           if (block?.type === 'wiki') {
             typed.push(<MenuRow key="wr" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('wiki-reader', { title: block.title, section: block.section || 0 }))}>Open in reader</MenuRow>);
             typed.push(<MenuRow key="ww" icon={ExternalLink} onClick={act(() => window.open(`https://en.wikipedia.org/wiki/${encodeURIComponent(block.title)}`, '_blank', 'noopener'))}>Open on Wikipedia</MenuRow>);

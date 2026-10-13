@@ -46,14 +46,16 @@ second execution model and no custom cell format.
     starter), so **Run all** runs; never its checks. Everything else is a
     default new notebook. The code card is unchanged, and the two cards are
     not linked.
-  - Place: right next to the code card, in free space, covering nothing:
-    cards, chat cards, notes, text, shapes, ink, connectors along their drawn
-    paths, and comment pins. The spot comes from the inline editor's placer
-    (`inline-ai-apply.js` `placeNote`: right of the card, then left, below,
-    above, stepping out until free, inside the view when it can be), so
-    nothing else on the canvas moves. The card joins the end of the column
-    and is drawn at that spot by its offset. It is brought into view and
-    selected. The whole action is one undo step.
+  - Place: right next to the code card, in free space, covering nothing.
+    The spot and what it keeps clear of are the inline editor's (A7,
+    `inline-ai-apply.js`): `placeNote` (right of the card, then left, below,
+    above, stepping out until free, inside the view when it can be, else past
+    everything on the board) over `obstaclesOf` (cards, chat cards, notes,
+    text, shapes, ink, connectors along their drawn paths, group frames,
+    areas and comment pins). Nothing else on the canvas moves. The card joins
+    the end of the column and is drawn at that spot by its offset. It is
+    selected, and when the spot is off-screen the camera pans to it, as the
+    editor's ghost does. The whole action is one undo step.
   - Python only: notebooks run Python (Pyodide). A Code box is Python when its
     `lang` is; a Code exercise is Python unless it names another `language`.
     Otherwise the item shows disabled, with the reason
