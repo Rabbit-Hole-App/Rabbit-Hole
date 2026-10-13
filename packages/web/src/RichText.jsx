@@ -149,7 +149,8 @@ let ruler = null;
 export function measureHeight(runs, base, colorOf, style, width) {
   if (typeof document === 'undefined') return 0;
   if (!ruler) { ruler = document.createElement('div'); ruler.setAttribute('aria-hidden', 'true'); Object.assign(ruler.style, { position: 'absolute', left: '-99999px', top: '0', visibility: 'hidden', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }); document.body.append(ruler); }
-  Object.assign(ruler.style, style, { width: `${Math.max(1, width)}px` });
+  // React adds px to a bare number; a DOM style does not, so a numeric font size is written with its unit here.
+  Object.assign(ruler.style, style, typeof style.fontSize === 'number' ? { fontSize: `${style.fontSize}px` } : {}, { width: `${Math.max(1, width)}px` });
   paint(ruler, runs.length ? runs : [{ t: 'M' }], base, colorOf);
   return ruler.offsetHeight;
 }

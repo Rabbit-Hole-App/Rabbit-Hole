@@ -235,7 +235,7 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
           <Btn label="Ungroup (Ctrl Shift G)" disabled={!flags.grouped} onClick={on.ungroup} className="disabled:opacity-40"><Ungroup size={14} strokeWidth={1.7} /></Btn>
         </Row>
       )}
-      {(panel.order || panel.locked?.length > 0) && (
+      {(panel.order || panel.locked?.length > 0) && !flags.sketch && (
         <Row label="Object">
           <Btn label={flags.allLocked ? 'Unlock (Ctrl Shift L)' : 'Lock (Ctrl Shift L)'} pressed={flags.allLocked} onClick={on.lock} data-lock-toggle>{flags.allLocked ? <Lock size={14} /> : <LockOpen size={14} />}</Btn>
           <Btn label="Copy style (Ctrl Alt C)" onClick={on.copyStyle} disabled={!panel.order}><Pipette size={14} strokeWidth={1.7} /></Btn>

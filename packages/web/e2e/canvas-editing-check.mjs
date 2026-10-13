@@ -787,6 +787,100 @@ await run('text boxes', async () => {
   await context.close();
 });
 
+
+await run('review regressions', async () => {
+  const rect = { id: 'r1', kind: 'rect', x1: 100, y1: 100, x2: 300, y2: 180, ...style };
+  const locked = { id: 'lk', kind: 'rect', x1: 400, y1: 100, x2: 500, y2: 180, ...style, locked: true };
+  const a = { id: 'a', kind: 'rect', x1: 100, y1: 400, x2: 180, y2: 440, ...style }, b = { id: 'b', kind: 'rect', x1: 300, y1: 400, x2: 380, y2: 440, ...style };
+  const link = { id: 'k', from: 'a', fromSide: 'right', to: 'b', toSide: 'left', color: '#37352f', route: 'straight', head: true };
+  const { page, context, saved, screen } = await open('review-regressions', { items: [textItem('t1', 700, 100, { text: 'keep me' })], shapes: [rect, locked, a, b], links: [link] });
+  const click = async (x, y) => { const at = await screen(x, y); await page.mouse.click(at.x, at.y); };
+  // 1: Enter-edit, finish, delete, undo: the box comes back closed, and redo still works.
+  await page.locator('[data-item-id="t1"]').click();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Delete');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(150);
+  check('undo brings a text box back without reopening its editor', (await page.locator('[data-item-id="t1"]').count()) === 1 && (await editorText(page)) === null);
+  await page.keyboard.press('Control+y');
+  check('and redo still works after it', (await page.locator('[data-item-id="t1"]').count()) === 0);
+  await page.keyboard.press('Control+z');
+  // 2: an eraser sweep crossing a locked shape leaves it.
+  await page.keyboard.press('e');
+  const e1 = await screen(380, 140), e2 = await screen(620, 140);
+  await page.mouse.move(e1.x, e1.y); await page.mouse.down(); await page.mouse.move(e2.x, e2.y, { steps: 12 }); await page.mouse.up();
+  check('an eraser sweep never removes a locked shape', (await saved()).shapes.some(shape => shape.id === 'lk'));
+  await page.keyboard.press('v');
+  // 3: Alt-click copies nothing; Esc during an Alt-drag takes the copy back.
+  const count = async () => (await saved()).shapes.length;
+  const before = await count();
+  const r = await screen(200, 140);
+  await page.keyboard.down('Alt'); await page.mouse.click(r.x, r.y); await page.keyboard.up('Alt');
+  check('an Alt-click makes no copy', (await count()) === before);
+  await page.keyboard.down('Alt');
+  await page.mouse.move(r.x, r.y); await page.mouse.down(); await page.mouse.move(r.x + 150, r.y + 60, { steps: 6 });
+  await page.keyboard.press('Escape');
+  await page.mouse.up(); await page.keyboard.up('Alt');
+  check('Esc during an Alt-drag removes the copy', (await count()) === before);
+  // 4: copy two linked shapes, delete their link, duplicate them: no ghost link.
+  await click(140, 420);
+  await page.keyboard.down('Shift'); await click(340, 420); await page.keyboard.up('Shift');
+  await page.keyboard.press('Control+c');
+  const mid = await screen(240, 420);
+  await page.keyboard.press('Escape');
+  await page.mouse.click(mid.x, mid.y);
+  await page.keyboard.press('Delete');
+  await click(140, 420);
+  await page.keyboard.down('Shift'); await click(340, 420); await page.keyboard.up('Shift');
+  await page.keyboard.press('Control+d');
+  check('a duplicate never brings back a link deleted since the copy', (await saved()).links.length === 0, JSON.stringify((await saved()).links.length));
+  // 5 + 6: an H1 shape; double-click inside its open editor leaves one undo step; a height-only shrink keeps the words in.
+  await page.keyboard.press('Escape');
+  await page.mouse.dblclick(r.x, r.y);
+  await page.keyboard.type('Big heading words that wrap');
+  await page.mouse.dblclick(r.x, r.y); // select a word inside the editor
+  await page.keyboard.press('Escape');
+  await page.locator('[data-shape-id="r1"]').locator('rect').first().click({ force: true });
+  await page.getByRole('button', { name: 'Heading 1' }).click();
+  await page.waitForTimeout(150);
+  const r1 = async () => { const s = (await saved()).shapes.find(shape => shape.id === 'r1'); return JSON.stringify([s.text, s.level]); };
+  const trail = [await r1()];
+  await page.keyboard.press('Control+z'); trail.push(await r1());
+  await page.keyboard.press('Control+z'); trail.push(await r1());
+  check('double-clicking inside an open shape editor adds no extra undo step', !(await saved()).shapes.find(shape => shape.id === 'r1').text, trail.join(' -> '));
+  await page.keyboard.press('Control+y');
+  await page.keyboard.press('Control+y');
+  await page.locator('[data-shape-id="r1"]').locator('rect').first().click({ force: true });
+  const grip = await page.locator('[data-shape-id="r1"] [data-handle="01"]').boundingBox();
+  await page.mouse.move(grip.x + 5, grip.y + 5); await page.mouse.down(); await page.mouse.move(grip.x + 5, grip.y - 300, { steps: 6 }); await page.mouse.up();
+  const words = await page.locator('[data-shape-id="r1"] [data-shape-text]').boundingBox();
+  const outline = await page.locator('[data-shape-id="r1"] rect').first().boundingBox();
+  check('a height-only shrink of an H1 shape still holds its words', words.y + words.height <= outline.y + outline.height + 1, JSON.stringify([words.y + words.height, outline.y + outline.height]));
+  // 7: type in a text box, then switch to Code: one undo takes back only the switch.
+  await page.locator('[data-item-id="t1"]').dblclick();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' typed');
+  await page.locator('[data-item-id="t1"] [data-text-mode="code"]').click();
+  await page.keyboard.press('Control+z');
+  const t = (await saved()).items.find(item => item.id === 't1');
+  check('undo after typing then Code takes back only the switch', t.mode === undefined && t.text === 'keep me typed', JSON.stringify(t));
+  await context.close();
+  // 10: a click in a note's blank lower part keeps editing.
+  const note = await open('review-note', { items: [{ id: 'n1', kind: 'sticky', x: 100, y: 100, w: 160, h: 200, text: 'top', color: '#37352f', opacity: 1 }] });
+  await note.page.locator('[data-item-id="n1"]').dblclick();
+  const nb = await note.page.locator('[data-item-id="n1"]').boundingBox();
+  await note.page.mouse.click(nb.x + nb.width / 2, nb.y + nb.height - 20);
+  await note.page.keyboard.type('X');
+  check('a click in the blank part of a note keeps editing, caret at the end', (await editorText(note.page)) === 'topX');
+  // 11: Ask in chat shows a hidden composer.
+  await note.page.keyboard.press('Escape');
+  await note.page.getByRole('button', { name: 'Hide chat composer' }).click();
+  await note.page.evaluate(() => window.dispatchEvent(new CustomEvent('small:ask-focus', { detail: { text: 'Explain this' } })));
+  check('Ask in chat brings a hidden composer back', !(await note.page.locator('[data-canvas-composer][data-composer-hidden]').count()));
+  await note.context.close();
+});
+
 await browser.close();
 if (errors.length) { console.log('page errors:'); for (const error of errors) console.log(`  ${error}`); }
 check('no page errors', errors.length === 0, errors.length ? `${errors.length}` : '');

@@ -1,4 +1,5 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
@@ -874,13 +875,23 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
     if (event.button !== 0) return;
     if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); if (!locked) onDelete(item.id); return; }
     if (tool !== 'select') return;
-    // While typing, a press places the caret and a drag selects words: neither moves the box nor pans the canvas.
-    if (editing) { event.stopPropagation(); return; }
+    // While typing, a press places the caret and a drag selects words: neither moves the box nor pans the canvas. A press
+    // on the box's own padding (a note's blank lower part) keeps the editor's focus and puts the caret at the end.
+    if (editing) {
+      event.stopPropagation();
+      if (!event.target.closest('[data-rich-editor]')) {
+        event.preventDefault();
+        const editor = event.currentTarget.querySelector('[data-rich-editor]');
+        if (editor) { editor.focus({ preventScroll: true }); document.getSelection()?.selectAllChildren(editor); document.getSelection()?.collapseToEnd(); }
+      }
+      return;
+    }
     if (pickOnPress(selected, event)) onSelect(item.id, event);
     if (locked || (selected && event.shiftKey)) { event.preventDefault(); event.stopPropagation(); return; }
     if (event.altKey && edit.altDrag) { edit.altDrag(item.id, event); return; }
-    onGesture();
-    startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom, onSnap?.(item.id));
+    // The undo step is taken on the first real movement: a click that only selects leaves none.
+    let stepped = false;
+    startDrag(event, { x: item.x, y: item.y }, (x, y) => { if (!stepped) { stepped = true; onGesture(); } onMove(item.id, x, y); }, zoom, onSnap?.(item.id));
   };
   if (section) {
     // A divider is only a rule now - Section / Sub-section headings do the
@@ -924,7 +935,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
         // it. The border is always there and only gains a colour on hover, so
         // nothing shifts; the padding is cancelled by the margin for the same
         // reason - glyphs stay exactly where they were placed.
-        ? '-rotate-1 overflow-hidden rounded-sm border p-3 text-[13px] leading-snug shadow-md'
+        ? '-rotate-1 flex flex-col overflow-hidden rounded-sm border p-3 text-[13px] leading-snug shadow-md'
         : `min-w-24 -mx-1 -my-0.5 rounded border px-1 py-0.5 leading-snug ${code ? 'border-line bg-hover/60' : 'border-transparent'} ${tool === 'select' && !code ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={event => { if (tool === 'select') startEdit(event); }}>
       {/* A selected or editing text box offers its ladder right there - H1 to
@@ -940,7 +951,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
       <RichText entry={item} base={base} colorOf={ink} code={code} editing={editing} point={point}
         placeholder={sticky ? 'Note…' : code ? 'Code…' : 'Text…'} aria-label={sticky ? 'Sticky note' : code ? 'Code' : 'Text'}
         style={{ ...objectStyle(item, base, ink), ...(code ? { fontWeight: 400, fontStyle: 'normal', textAlign: 'left' } : {}) }}
-        className={`${sticky ? 'h-full empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}
+        className={`${sticky ? 'flex-1 empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}
         onApi={onEditorApi} onCommit={(runs, how) => { setEditing(false); setPoint(null); onCommit(item.id, runs, how); }} />
       {/* Text gets the same corner control as a note: the box scales, the
           type does not - wrapping is what changes, never the font size. The
@@ -980,8 +991,9 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
     if (pickOnPress(selected, event)) onSelect(item.id, event);
     if (locked || (selected && event.shiftKey)) { event.preventDefault(); event.stopPropagation(); return; }
     if (event.altKey && edit.altDrag) { edit.altDrag(item.id, event); return; }
-    onGesture();
-    startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom, onSnap?.(item.id));
+    // The undo step is taken on the first real movement: a click that only selects leaves none.
+    let stepped = false;
+    startDrag(event, { x: item.x, y: item.y }, (x, y) => { if (!stepped) { stepped = true; onGesture(); } onMove(item.id, x, y); }, zoom, onSnap?.(item.id));
   };
   return (
     <div data-block data-item-id={item.id} data-equation={editing ? 'editing' : ''} style={{ left: item.x, top: item.y, fontSize: size, color: inkAware(item.color || COLORS[0]) }}
@@ -1178,7 +1190,7 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
   // Words never overflow silently: while typing, and after any change to the words or their formatting, a shape whose
   // words need more height grows to hold them. Never on load - opening a board changes nothing on it.
   const changed = useRef(false);
-  const textKey = textBox ? JSON.stringify([shape.text, shape.runs, shape.font, shape.fontSize, shape.level, shape.bold, shape.italic, Math.round(boxW)]) : '';
+  const textKey = textBox ? JSON.stringify([shape.text, shape.runs, shape.font, shape.fontSize, shape.level, shape.bold, shape.italic, Math.round(boxW), Math.round(boxH)]) : '';
   useLayoutEffect(() => {
     const element = textRef.current;
     if (!element || !textBox || !onGrow) return undefined;
@@ -1212,7 +1224,8 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
   return (
     <g data-shape-id={shape.id} data-locked={locked ? '' : undefined} className="group" style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? (locked ? 'default' : 'move') : undefined }} onPointerDown={down}
       onDoubleClick={event => {
-        if (tool !== 'select' || locked) return;
+        // A double-click inside the open editor selects a word; it never starts the edit again.
+        if (tool !== 'select' || locked || editing || labelEditing) return;
         if (textBox && onEdit) onEdit(shape.id, { x: event.clientX, y: event.clientY });
         else if (linear && onLabel) onLabel(shape.id);
       }}>
@@ -1339,6 +1352,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
   const [composerHidden, setComposerHidden] = useState(false);
+  // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
+  useEffect(() => {
+    if (!composerHidden) return undefined;
+    const show = () => setComposerHidden(false);
+    window.addEventListener('small:ask-focus', show);
+    return () => window.removeEventListener('small:ask-focus', show);
+  }, [composerHidden]);
   const menuOpenRef = useRef(false);
   menuOpenRef.current = !!menuAt;
   // Where the menu actually goes (owner, 2026-10-07): measured after it renders, so it opens beside the cursor and stays
@@ -1694,7 +1714,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
       copy: copySelection,
-      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current)),
+      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
       duplicate: () => !!pasteIds(selectedRef.current),
       cut: cutSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand, lockSelection, nudge,
       // Enter on one selected object: a text box or note opens for typing, a closed shape its words, a line its label.
@@ -1967,8 +1987,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // duplicate is new material, never a new member of the original group. A
   // copy is never locked. step: how far the copies land from their sources.
   // Returns { ids, copies } (copies for Alt-drag to place), or null.
-  const pasteIds = (picked, step = 28) => {
-    const saved = clipCopies.current || {};
+  // clip: a paste from the clipboard, which may name objects since cut or deleted (Duplicate and Alt-drag never do).
+  const pasteIds = (picked, step = 28, clip = false) => {
+    const saved = (clip && clipCopies.current) || {};
     const live = (list, kept = []) => picked.map(id => list.find(entry => entry.id === id) || kept.find(entry => entry.id === id)).filter(Boolean);
     const pickedBlocks = live(blocksRef.current, saved.blocks);
     const pickedItems = live(itemsRef.current, saved.items);
@@ -1995,7 +2016,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
     const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + step, y: item.y + step, fresh: false }));
     const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }));
-    const linkSource = [...present.current.links, ...(saved.links || []).filter(link => !present.current.links.some(other => other.id === link.id))];
+    // Live links first; a saved link only where one of its ends is gone (a cut), never one deleted on its own since.
+    const liveIds = new Set(everything().map(entry => entry.id));
+    const linkSource = [...present.current.links, ...(saved.links || []).filter(link => !liveIds.has(link.from) || !liveIds.has(link.to))];
     const linksCopy = linkSource.filter(link => ids.has(link.from) && ids.has(link.to)).map(link => ({ ...link, id: crypto.randomUUID(), from: ids.get(link.from), to: ids.get(link.to) }));
     // Each copy lands directly after its source rather than at the end of the
     // column, where on a long canvas it was off-screen and read as nothing
@@ -2024,12 +2047,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const altDrag = (id, event) => {
     const current = selectedRef.current;
     const ids = current.includes(id) ? current : groupOf(id) ? membersOf(groupOf(id)) : [id];
-    const made = pasteIds(ids, 0);
-    if (!made) return;
-    const { blocks: cards, items: notes, shapes: marks, chats } = made.copies;
     const start = local(event);
-    // ponytail: copies placed absolutely from where they started; no alignment snapping while Alt-dragging.
-    startDrag(event, start, (x, y) => {
+    // The copies are made once the pointer actually travels: an Alt-click copies nothing, and Esc takes them back.
+    let made = null, cards = [], notes = [], marks = [], chats = [];
+    const apply = (x, y) => {
+      if (!made) {
+        made = pasteIds(ids, 0);
+        if (!made) return;
+        ({ blocks: cards, items: notes, shapes: marks, chats } = made.copies);
+      }
       const ddx = x - start.x, ddy = y - start.y;
       const at = list => new Map(list.map(entry => [entry.id, entry]));
       const cardAt = at(cards), noteAt = at(notes), markAt = at(marks);
@@ -2037,7 +2063,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (notes.length) setItems(previous => previous.map(item => noteAt.has(item.id) ? { ...item, x: noteAt.get(item.id).x + ddx, y: noteAt.get(item.id).y + ddy } : item));
       if (marks.length) setShapes(previous => previous.map(shape => { const from = markAt.get(shape.id); return from ? { ...shape, x1: from.x1 + ddx, y1: from.y1 + ddy, x2: from.x2 + ddx, y2: from.y2 + ddy } : shape; }));
       for (const chat of chats) onMove(chat.id, chat.dx + ddx, chat.dy + ddy);
-    }, view.z);
+    };
+    apply.cancel = () => { if (!made) return; cancelGesture(); selectedRef.current = ids; setSelection(ids); };
+    // ponytail: copies placed absolutely from where they started; no alignment snapping while Alt-dragging.
+    startDrag(event, start, apply, view.z);
   };
   const pasteIdsRef = useRef(pasteIds);
   // Pasted text lands as one text card at the view's centre, as Insert text does, already written.
@@ -2330,7 +2359,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const ids = selectedRef.current.filter(lockable);
     if (!ids.length) return false;
     const lock = !ids.every(id => lockedRef.current.has(id));
-    if (lock) editorRef.current?.commit('blur');
+    // An open edit lands first (flushed, so this step starts from the committed words).
+    if (lock && editorRef.current) flushSync(() => editorRef.current.commit('blur'));
     snapshot();
     const patch = entry => (ids.includes(entry.id) ? { ...entry, locked: lock || undefined } : entry);
     setBlocks(previous => previous.map(patch));
@@ -2384,11 +2414,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Text / Code: an open edit is committed first, so its words are what switches; the switch is its own undo step.
   const setTextMode = (id, mode) => {
-    editorRef.current?.commit('blur');
-    const before = itemsRef.current.find(item => item.id === id);
+    if (editorRef.current) flushSync(() => editorRef.current.commit('blur'));
+    const sketch = drawTargetRef.current ? blocksRef.current.find(block => block.id === drawTargetRef.current)?.sketch : null;
+    const before = (sketch ? sketch.items || [] : itemsRef.current).find(item => item.id === id);
     if (!before || (before.mode || 'text') === mode || lockedRef.current.has(id)) return;
     snapshot();
-    setItems(previous => previous.map(item => (item.id === id ? { ...item, mode: mode === 'code' ? 'code' : undefined } : item)));
+    markLists().setItems(previous => previous.map(item => (item.id === id ? { ...item, mode: mode === 'code' ? 'code' : undefined } : item)));
   };
   // H1 to Text: the preset decides size and weight again, so the object's own size and bold, and any characters' sizes
   // and bold, let go (the other formatting stays).
@@ -2403,7 +2434,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!ids.length) return;
     // The open editor's characters let go too; the object's own preset changes below.
     if (editorRef.current && ids.includes(editStep.current?.id)) editorRef.current.strip(['s', 'b']);
-    snapshot();
+    if (!editorRef.current) snapshot();
     const lists = markLists();
     lists.setItems(previous => previous.map(item => (ids.includes(item.id) ? presetPatch(item, value) : item)));
     lists.setShapes(previous => previous.map(shape => (ids.includes(shape.id) ? presetPatch(shape, value) : shape)));
@@ -2430,6 +2461,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!entry) return;
     history.current.pop();
     setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(entry.blocks);
+    if (entry.exchanges) onRestoreRef.current?.(entry.exchanges);
   };
   // A text edit is one undo step: opened when typing starts, dropped at the end if the edit changed nothing.
   const editStep = useRef(null);
@@ -2566,6 +2598,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // nothing half-done. An open canvas menu closes first, on its own.
       if (event.key === 'Escape') {
         if (menuOpenRef.current) { setMenuAt(null); return; }
+        // A text edit still open while a style-panel field has the focus: Esc lands the words, nothing else.
+        if (editorRef.current) { event.preventDefault(); editorRef.current.commit('esc'); return; }
         const focused = document.activeElement;
         // Esc in the composer (or any field off the canvas) is that field's - closing its / menu, say: the selected
         // card, which is the question's context, stays.
@@ -2662,7 +2696,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
       const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code });
       if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
-      if (kind === 'cards' && pasteIdsRef.current(clipboard.current)) { event.preventDefault(); return; }
+      if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true)) { event.preventDefault(); return; }
       if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text); return; }
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
@@ -3287,6 +3321,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const point = store.local(e);
         store.setStrokes(previous => previous.filter(stroke => !stroke.points.some(q => Math.hypot(q.x - point.x, q.y - point.y) < radius)));
         store.setShapes(previous => previous.filter(shape => {
+          if (lockedRef.current.has(shape.id)) return true; // a locked shape survives a sweep of the eraser
           const { points, closed } = outlineOf(shape);
           const last = closed ? points.length : points.length - 1;
           for (let index = 0; index < last; index++) if (segmentDistance(point, points[index], points[(index + 1) % points.length]) < radius) return false;
@@ -3514,9 +3549,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
   // quiet: a slider's drag, whose one undo step was taken when it started.
+  // While a text edit is open, its undo step (opened when typing started) covers the change: one gesture, one step.
   const applyStyle = (patch, targets, quiet = false) => {
     if (!targets.length) return;
-    if (!quiet) snapshot();
+    if (!quiet && !editorRef.current) snapshot();
     const lists = markLists();
     // Words keep their own colour (docs/features/canvas-editing.md): a shape or line whose text followed its stroke takes
     // that colour as its text colour before the stroke changes, so a new outline never recolours the words.
@@ -3760,12 +3796,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setStyleOpen(null);
     // Alt/Option on the body drags a copy away (a handle's Alt resizes from the centre instead).
     if (event.altKey) { altDrag(shape.id, event); return; }
-    snapshot();
+    // The undo step is taken on the first real movement: a click that only selects leaves none.
+    let stepped = false;
+    const step = () => { if (!stepped) { stepped = true; snapshot(); } };
     // A shape inside a selection drags the whole selection, the way cards do.
     const targets = groupTargets(shape.id);
     if (targets.length > 1) {
       let last = { x: shape.x1, y: shape.y1 };
       startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
+        step();
         shift(x - last.x, y - last.y, targets);
         last = { x, y };
       }, view.z);
@@ -3776,6 +3815,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const base = { x: Math.min(shape.x1, shape.x2) - shape.x1, y: Math.min(shape.y1, shape.y2) - shape.y1 };
     const size = { w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) };
     startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
+      step();
       const dx = x - shape.x1, dy = y - shape.y1;
       setShapes(previous => previous.map(s => s.id === shape.id ? { ...s, x1: shape.x1 + dx, y1: shape.y1 + dy, x2: shape.x2 + dx, y2: shape.y2 + dy } : s));
     }, view.z, makeSnap([shape.id], size, base));
@@ -3842,7 +3882,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (editor && !editor.state().code) { editor.format(key, value); return; }
     const ids = panel.textTargets;
     if (!ids.length) return;
-    snapshot();
+    if (!editorRef.current) snapshot();
     const apply = entry => (ids.includes(entry.id) ? formatEntry(entry, key, value) : entry);
     const lists = markLists();
     lists.setShapes(previous => previous.map(apply));
@@ -3853,7 +3893,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const patchText = patch => {
     const ids = panel.textTargets;
     if (!ids.length) return;
-    snapshot();
+    if (!editorRef.current) snapshot();
     const apply = entry => (ids.includes(entry.id) ? { ...entry, ...patch } : entry);
     const lists = markLists();
     lists.setShapes(previous => previous.map(apply));
@@ -3950,7 +3990,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
         const editor = editorRef.current;
-        if (editor && !editor.root?.contains(event.target) && !event.target.closest?.('[data-keep-focus]')) editor.commit('blur');
+        const frame = editor?.root?.closest('[data-item-id],[data-shape-id],[data-connection]');
+        if (editor && !frame?.contains(event.target) && !event.target.closest?.('[data-keep-focus]')) editor.commit('blur');
         const active = document.activeElement;
         if (!active || active === document.body) return;
         const editable = typingIn(active);
@@ -4214,7 +4255,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} editOn={editTarget} onEditStart={beginEdit} onEditorApi={onEditorApi}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
             onAsk={selected === item.id ? askItem : null} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}
@@ -4225,7 +4266,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           ))}
           {/* A lock on each locked object, so a press that does nothing says why; select it and Unlock (panel, menu,
               Ctrl+Shift+L). Never in the thumbnail. */}
-          {presenting === null && [...lockedIds].map(id => {
+          {presenting === null && !readOnly && [...lockedIds].map(id => {
             const box = boxesOf([id])[0];
             return box ? <span key={`lock-${id}`} data-lock-badge={id} data-thumbnail-hide aria-hidden="true" title="Locked"
               style={{ left: box.x + box.w - 6, top: box.y - 10, transform: `scale(${1 / view.z})`, transformOrigin: 'left bottom' }}
@@ -4310,7 +4351,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
               <MenuRow icon={Scissors} disabled={!selection.length} hint="Ctrl X" onClick={act(cutSelection)}>Cut</MenuRow>
               <MenuRow icon={Copy} disabled={!selection.length} hint="Ctrl C" onClick={act(copySelection)}>Copy</MenuRow>
-              <MenuRow icon={ClipboardPaste} disabled={!canPaste} hint="Ctrl V" onClick={act(() => clipboard.current?.length && pasteIds(clipboard.current))}>Paste</MenuRow>
+              <MenuRow icon={ClipboardPaste} disabled={!canPaste} hint="Ctrl V" onClick={act(() => clipboard.current?.length && pasteIds(clipboard.current, 28, true))}>Paste</MenuRow>
               <MenuRow icon={CopyPlus} disabled={!selection.length} hint="Ctrl D" onClick={act(() => pasteIds(selection))}>Duplicate</MenuRow>
               <MenuRow icon={Pipette} disabled={!selection.length} hint="Ctrl Alt C" onClick={act(copyStyleCommand)}>Copy style</MenuRow>
               <MenuRow icon={PaintRoller} disabled={!selection.length || !canPasteStyle} hint="Ctrl Alt V" onClick={act(pasteStyleCommand)}>Paste style</MenuRow>
@@ -4435,7 +4476,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div aria-hidden="true" className="mt-auto @max-[640px]:hidden" />
         {!readOnly && showStyle && (
           <StylePanel side={toolSide} panel={panel} values={panelValues} on={panelOn}
-            flags={{ units, grouped, allLocked: selectionLocked, canPasteStyle }} />
+            flags={{ units, grouped, allLocked: selectionLocked, canPasteStyle, sketch: !!drawTarget }} />
         )}
         {!showStyle && pickedPin?.can.color && onPinColor && presenting === null && <StylePanel colorOnly side={toolSide} values={{ color: pickedPin.color || PIN_DEFAULT }} on={{ color: colorPin }} />}
         </div>
