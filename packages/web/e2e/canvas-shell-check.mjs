@@ -75,7 +75,8 @@ await checkShell('grandchild'); await stillUsable('grandchild');
 assert.equal(await page.locator('[data-dive-navigator] [data-dive-level]').count(), 3, 'root, child, grandchild in the navigator');
 await page.screenshot({ path: `${OUT}/shell-3-grandchild.png` });
 
-// Ctrl+K never dives: a selected card opens the inline AI editor (owner 2026-10-13), none opens Search.
+// Ctrl+K here, where the canvas has the inline AI editor: a selected card opens that editor (owner 2026-10-13) and no
+// selection opens Search; neither dives. Dive.jsx still dives on Ctrl+K on a canvas without the inline editor.
 await page.keyboard.press('Escape'); await page.mouse.click(700, 500); await page.keyboard.press('Control+k'); await page.waitForTimeout(500);
 assert.equal(new URL(page.url()).searchParams.get('hole'), null, 'Ctrl+K with no card does not dive');
 await page.keyboard.press('Escape');
