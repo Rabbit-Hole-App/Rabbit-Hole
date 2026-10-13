@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Sparkles, Square, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
 import { cardTx, describeChange, editTx, explainTx, noteSize, placeNote, validateEdit } from './inline-ai-apply.js';
@@ -281,7 +281,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           {/* Submit keeps its place while a request runs (disabled, spinning): Stop is never under the pointer or finger that
               just pressed Submit, so a double press cannot cancel what it sent. */}
           <button type="button" data-inline-submit disabled={readOnly || status === 'proposal' || busy(status) || prompt.length > PROMPT_MAX} onClick={() => submit(prompt)} title={preview ? 'Refine (Enter)' : 'Submit (Enter)'}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-ink px-2.5 text-xs font-medium text-white disabled:opacity-40">{busy(status) ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}{preview ? 'Refine' : 'Submit'}<kbd className="ml-0.5 flex items-center font-sans text-[10px] text-white/70"><CornerDownLeft size={10} /></kbd></button>
+            className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-ink px-2.5 text-xs font-medium text-white disabled:opacity-40">{busy(status) && <Loader2 size={12} className="animate-spin" />}{preview ? 'Refine' : 'Submit'}<kbd className="ml-0.5 flex items-center font-sans text-[10px] text-white/70"><CornerDownLeft size={10} /></kbd></button>
         </div>
         {/* The supported limit, shown while writing; over it Submit waits and the count says what to do. Nothing is cut. */}
         {prompt.length > 0 && <p data-inline-count className={`-mt-1 text-right text-[11px] ${prompt.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{prompt.length} / {PROMPT_MAX}{prompt.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}

@@ -1,5 +1,5 @@
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Sparkles, Volume2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -1427,7 +1427,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
         </button>
         <button type="button" data-image-generate disabled={busy || !query.trim()} onClick={() => setConfirming(true)} title="Generate an illustration instead of searching"
           className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-medium text-white disabled:opacity-40">
-          <Sparkles size={14} />Generate
+          Generate
         </button>
       </div>
       {confirming && !busy && <div className="mt-2"><PaidConfirm onGenerate={() => { setConfirming(false); generate(); }} onCancel={() => setConfirming(false)} /></div>}

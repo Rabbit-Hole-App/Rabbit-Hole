@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownToLine, Clock, GitFork, Info, Lock, Shapes, Sparkles, Users } from 'lucide-react';
+import { ArrowDownToLine, Clock, GitFork, Info, Lock, Shapes, Users } from 'lucide-react';
 import { Button, SlidePanel, Tabs, TabsList, TabsTrigger } from './ui.jsx';
 import { CREATOR_TOTALS, EXPLAINER_SECTIONS, INSUFFICIENT, NOT_COLLECTED, RANGES, THRESHOLD, TRAFFIC_SOURCES, creatorAnalytics, explainerAnalytics, metricText } from './creator-analytics.js';
 
@@ -78,7 +78,7 @@ export function ExplainerAnalytics({ a, onClose }) {
       <Section title="What your audience is telling you" data-analytics-insights>
         <p data-insights-empty className="py-1.5 text-sm text-ink-3">No insights yet. They come only from what learners do here - a concept they dig into, where they get stuck or leave, a comparison they keep asking for - and that is not collected yet.</p>
         <div className="flex items-center gap-3 pt-1">
-          <Button size="sm" variant="secondary" disabled data-create-next title="Needs a real learner signal first"><Sparkles size={13} strokeWidth={1.8} />Create next learning board</Button>
+          <Button size="sm" variant="secondary" disabled data-create-next title="Needs a real learner signal first">Create next learning board</Button>
           <span className="text-xs text-ink-3">Available once learners show what they want next.</span>
         </div>
       </Section>

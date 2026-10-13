@@ -931,6 +931,21 @@ await run('M7: words typed and selected, then Ctrl+K: the context list shows tho
   check('M7: the Selected row reads the selected words', /Selected · Text · words$/.test(row.trim()), row);
   await context.close();
 });
+
+// ---- Owner 2026-10-13: no sparkles icon on Submit. Failed on 14b346b1 ----
+await run('Submit: no sparkles icon when idle; the spinner while busy', async () => {
+  const { page, context } = await open('submit-icon');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  check('the idle Submit has no sparkles icon', (await page.locator('[data-inline-submit] svg.lucide-sparkles').count()) === 0 && (await page.locator('[data-inline-submit]').innerText()).includes('Submit'));
+  await hold(page);
+  await submitPrompt(page, 'Explain this node');
+  await waitStatus(page, ['generating']);
+  check('a busy Submit shows the spinner', (await page.locator('[data-inline-submit] svg.animate-spin').count()) === 1);
+  await release(page);
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);
