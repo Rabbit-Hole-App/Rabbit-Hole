@@ -1,6 +1,6 @@
 export function prerequisite(phase, receipt, identity) {
-  if (!['all','preflight','dive','gate'].includes(phase)) return `Unknown gate phase: ${phase}`;
-  if (phase==='all'||phase==='preflight') return null;
+  if (!['all','preflight','dive','gate','focused'].includes(phase)) return `Unknown gate phase: ${phase}`;
+  if (phase==='all'||phase==='preflight'||phase==='focused') return null;
   const prior=phase==='dive'?'preflight':'dive';
   if (!receipt) return `Required ${prior} receipt missing`;
   if (receipt.phase!==prior) return `Required ${prior} phase not completed`;

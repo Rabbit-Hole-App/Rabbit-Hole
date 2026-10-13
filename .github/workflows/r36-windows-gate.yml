@@ -1,20 +1,20 @@
-name: r36 complete Windows gate
+name: r36 focused Windows checks
 
 on:
   push:
-    branches: [home/r36-windows-gate]
+    branches: [parallel/r36-focused]
   workflow_dispatch:
     inputs:
       app_sha:
         description: Exact application commit to verify
         required: true
         type: string
-        default: 46fbe04283a424e69db5272f9e1f3c7b9c19e846
+        default: 455896d0df33b751317a73f07e5500955096e6d4
       app_tree:
         description: Expected application tree for the exact commit
         required: true
         type: string
-        default: 2555e2aa4a6784b2984e629ee5ed77dd37bff0be
+        default: 3f28a065c11254583d4e3eb88372e9f7dfa63f78
 
 permissions:
   contents: read
@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: app
-          ref: ${{ inputs.app_sha || '46fbe04283a424e69db5272f9e1f3c7b9c19e846' }}
+          ref: ${{ inputs.app_sha || '455896d0df33b751317a73f07e5500955096e6d4' }}
           fetch-depth: 0
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -93,8 +93,8 @@ jobs:
           $head = (git -C $app rev-parse HEAD).Trim()
           $tree = (git -C $app rev-parse 'HEAD^{tree}').Trim()
           $harness = (git -C (Join-Path $env:GITHUB_WORKSPACE 'harness') rev-parse HEAD).Trim()
-          if ($head -ne '${{ inputs.app_sha || '46fbe04283a424e69db5272f9e1f3c7b9c19e846' }}') { throw "application SHA mismatch: $head" }
-          if ($tree -ne '${{ inputs.app_tree || '2555e2aa4a6784b2984e629ee5ed77dd37bff0be' }}') { throw "application tree mismatch: $tree" }
+          if ($head -ne '${{ inputs.app_sha || '455896d0df33b751317a73f07e5500955096e6d4' }}') { throw "application SHA mismatch: $head" }
+          if ($tree -ne '${{ inputs.app_tree || '3f28a065c11254583d4e3eb88372e9f7dfa63f78' }}') { throw "application tree mismatch: $tree" }
           "APP_ROOT=$(Join-Path $env:GITHUB_WORKSPACE 'app')`nTESTED_SHA=$head`nTESTED_TREE=$tree`nHARNESS_SHA=$harness" | Add-Content $env:GITHUB_ENV
           "app_sha=$head`napp_tree=$tree`nharness_sha=$harness" | Set-Content (Join-Path $env:RUNNER_TEMP 'r36-identities.txt')
       - name: Install locked application dependencies
@@ -125,57 +125,18 @@ jobs:
           node --version
           bash --version | head -n 1
           make --version | head -n 1
-      - name: Run gate preflight checkpoint
-        id: preflight
+      - name: Run four failed stages
+        id: focused
         shell: pwsh
         working-directory: harness
-        continue-on-error: true
         run: |
-          if (-not (Test-Path 'scripts/r36-gate/run.mjs')) { throw 'gate bundle missing: scripts/r36-gate/run.mjs' }
-          node scripts/r36-gate/run.mjs preflight
-      - name: Upload preflight checkpoint
+          node scripts/r36-gate/run.mjs focused
+          if ($LASTEXITCODE -ne 0) { throw "Focused checks failed: $LASTEXITCODE" }
+      - name: Upload focused evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: r36-windows-preflight-${{ inputs.app_sha || '46fbe04283a424e69db5272f9e1f3c7b9c19e846' }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/r36/artifacts/**
-            ${{ runner.temp }}/r36-identities.txt
-          if-no-files-found: warn
-          retention-days: 30
-      - name: Run instrumented Dive checkpoint
-        id: dive
-        if: steps.preflight.outcome == 'success'
-        shell: pwsh
-        working-directory: harness
-        continue-on-error: true
-        run: |
-          node scripts/r36-gate/run.mjs dive
-      - name: Upload Dive checkpoint
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: r36-windows-dive-${{ inputs.app_sha || '46fbe04283a424e69db5272f9e1f3c7b9c19e846' }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/r36/artifacts/**
-            ${{ runner.temp }}/r36-identities.txt
-          if-no-files-found: warn
-          retention-days: 30
-      - name: Run complete gate
-        id: gate
-        if: steps.dive.outcome == 'success'
-        shell: pwsh
-        working-directory: harness
-        run: node scripts/r36-gate/run.mjs gate
-      - name: Fail when a checkpoint did not pass
-        if: steps.preflight.outcome != 'success' || steps.dive.outcome != 'success'
-        shell: pwsh
-        run: throw "Preflight or Dive checkpoint failed; complete gate was not started"
-      - name: Upload complete gate artifacts
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: r36-windows-gate-${{ inputs.app_sha || '46fbe04283a424e69db5272f9e1f3c7b9c19e846' }}-${{ github.run_attempt }}
+          name: r36-windows-focused-${{ inputs.app_sha || '455896d0df33b751317a73f07e5500955096e6d4' }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/r36/artifacts/**
             ${{ runner.temp }}/r36-identities.txt

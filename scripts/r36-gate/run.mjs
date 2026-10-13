@@ -5,15 +5,15 @@ import { pathToFileURL } from 'node:url';
 import { SOURCE, prepare, files, sha256 } from './prepare.mjs';
 import { prerequisite } from './phases.mjs';
 
-const APP_SHA='46fbe04283a424e69db5272f9e1f3c7b9c19e846', APP_TREE='2555e2aa4a6784b2984e629ee5ed77dd37bff0be';
-const phase=process.argv[2]||'all',fresh=phase==='all'||phase==='preflight';
+const APP_SHA=process.env.TESTED_SHA, APP_TREE=process.env.TESTED_TREE;
+if(!/^[a-f0-9]{40}$/.test(APP_SHA||'')||!/^[a-f0-9]{40}$/.test(APP_TREE||''))throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
+const phase=process.argv[2]||'all',fresh=phase==='all'||phase==='preflight'||phase==='focused';
 const app=resolve(process.env.APP_ROOT||''),state=resolve(process.env.GATE_ROOT||''),out=resolve(process.env.ARTIFACT_ROOT||'');
 const config=join(app,'packages/control-plane/integ-local.jsonc'),persist=join(state,'gates/int35/fork/local');
 for(const name of ['APP_ROOT','GATE_ROOT','ARTIFACT_ROOT','HARNESS_SHA','GATE_GRANT_ID'])if(!process.env[name])throw Error(`Missing ${name}`);
 if(!process.env.GITHUB_ACTIONS && process.env.R36_LOCAL_VALIDATION!=='1')throw Error('Use the authorized isolated Windows CI job');
 if(process.platform!=='win32')throw Error('This complete gate uses the supported Windows/Bash stack');
 if(process.version!=='v24.19.0')throw Error(`Node pin mismatch: ${process.version}`);
-if((process.env.TESTED_SHA||APP_SHA)!==APP_SHA||(process.env.TESTED_TREE||APP_TREE)!==APP_TREE)throw Error('Application candidate is frozen');
 if([app,state,out].some(p=>p===resolve('.'))||app===state||out===state||out===app)throw Error('Use separate app, state and artifact paths');
 if(fresh&&(existsSync(join(out,'receipt.json'))||existsSync(join(state,'gates'))))throw Error('Use fresh runner state; do not append to an earlier receipt');
 mkdirSync(out,{recursive:true});
@@ -122,7 +122,7 @@ try {
     for(const [file,hash] of Object.entries(prior.localConfigHashes||{}))if(sha256(join(app,file))!==hash)throw Error(`Prepared local configuration changed: ${file}`);
     if(!prior.localConfigHashes||Object.keys(prior.localConfigHashes).length<3)throw Error('Prepared local configuration receipt missing');
   }
-  if(phase!=='preflight'&&phase!=='gate') {
+  if(phase==='all'||phase==='dive') {
   if(!fresh) {await command(bash,[join(gate,'fork/stack.sh'),'restart'],{log:join(out,'dive-stack.log')});await auth();}
   await memory('dive-start');
   const browserEnv={BASE:'http://127.0.0.1:8878',SMALL_CP:'http://127.0.0.1:8879',PERSIST:persist,D1_CONFIG:config};
@@ -132,6 +132,20 @@ try {
   await tripwire();unchanged();
   writeFileSync(join(out,'dive-verdict.json'),JSON.stringify({sha:APP_SHA,tree:APP_TREE,harness:actualHarness,pass:true,providerHits:0}));
   await stop();await memory('after-dive-cleanup');
+  }
+  if(phase==='focused') {
+    await command(bash,[join(gate,'focused.sh')],{log:join(out,'focused.log'),timeout:5400000,stream:true});
+    unchanged();
+    const {stageCount}=await import(pathToFileURL(join(app,'scripts/dev-deploy.mjs')));
+    const record=readFileSync(join(out,'focused.log'),'utf8');
+    const required=[['sca','sca'],['selected-pill','selected-pill'],['journey J1-J8','journey'],['tutor-slice','slice']];
+    const results=required.map(([stage,wire])=>{
+      const line=[...record.matchAll(new RegExp(`^${stage} exit (\\d+)\\b(.*)$`,'gm'))].at(-1);
+      return {stage,exit:line?.[1],count:stageCount(line?.[2]),pass:line?.[1]==='0'&&stageCount(line[2])>0&&new RegExp(`^${wire} provider-tripwire hits: 0\\r?$`,'m').test(record)};
+    });
+    const pass=results.every(r=>r.pass)&&/^R36-FOCUSED-DONE\r?$/m.test(record);
+    writeFileSync(join(out,'focused-verdict.json'),JSON.stringify({applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,kind:'focused-only',results,pass},null,2));
+    if(!pass)throw Error('Focused four-stage verification failed; see focused-verdict.json');
   }
   if(phase==='all'||phase==='gate') {
   await command(bash,[join(gate,'int35.sh')],{log:join(out,'gate.log'),timeout:7200000,stream:true});

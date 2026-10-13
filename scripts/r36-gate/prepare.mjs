@@ -2,11 +2,33 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } fro
 import { resolve, dirname, join } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { adaptSharedCanvas, adaptSelectedPill, adaptTutorSlice } from './fixture-adapters.mjs';
+export const FIXTURE_ADAPTERS = {
+  'shared-canvas-ask-check.mjs': adaptSharedCanvas,
+  'selected-pill-check.mjs': adaptSelectedPill,
+  'tutor-slice-check.mjs': adaptTutorSlice,
+};
 export const SOURCE = fileURLToPath(new URL('.', import.meta.url));
 export function files(root) {
   return readdirSync(root,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(join(root,e.name)):[join(root,e.name)]);
 }
 export const sha256 = p=>createHash('sha256').update(readFileSync(p)).digest('hex');
+export function focusedScript(full) {
+  const unit=full.indexOf('memcheck unit\n');
+  const journey=full.indexOf('# Journeys + tutor slice');
+  const after=full.indexOf('# Next Steps on a blank canvas',journey);
+  if(unit<0||journey<unit||after<journey)throw Error('Original gate section boundaries changed');
+  return full.slice(0,unit)+[
+    'bash $F/stack.sh restart | tail -1 || exit 6',
+    'run stack.sh sca r36-shared-canvas-ask-check.mjs',
+    'run stack.sh selected-pill r36-selected-pill-check.mjs',
+    'powershell -NoProfile -ExecutionPolicy Bypass -File "$F/stop.ps1" | tail -1',
+    full.slice(journey,after),
+    'powershell -NoProfile -ExecutionPolicy Bypass -File "$LP/stop.ps1" | tail -1',
+    'echo R36-FOCUSED-DONE',
+    '',
+  ].join('\n');
+}
 export function prepare({app,state,sha,tree,grant}) {
   const gate=resolve(state,'gates/int35').replaceAll('\\','/');
   app=resolve(app).replaceAll('\\','/');
@@ -29,6 +51,8 @@ export function prepare({app,state,sha,tree,grant}) {
       }).join('\n');
     }
     if(relative==='int35.sh') {
+      for (const name of Object.keys(FIXTURE_ADAPTERS)) text=text.replaceAll(name, `r36-${name}`);
+      text=text.replace('E="BASE=', 'E="WRANGLER_BIN=$W/node_modules/wrangler/bin/wrangler.js BASE=');
       // Every existing e2e invocation is retained, with a supervisor around its Node child.
       text=text.replace(/timeout (\d+) node e2e\/([^\s]+)/g,'timeout $1 node "$J/supervise.mjs" "$J/process-$2" -- e2e/$2');
       text=text.replace('run stack.sh sketch explain-back-sketch-check.mjs','run stack.sh sketch explain-back-sketch-check.mjs\nexport LOCAL_CP_VARS="$W/packages/control-plane/.dev.vars"\nrun stack.sh answer-routing r36-routing-operator.mjs');
@@ -44,8 +68,9 @@ Start-Sleep -Seconds 5
 $taskSnapshot = @(Get-CimInstance Win32_Process)`);
     }
     const out=join(gate,relative);mkdirSync(dirname(out),{recursive:true});writeFileSync(out,text);
+    if(relative==='int35.sh')writeFileSync(join(gate,'focused.sh'),focusedScript(text));
   }
-  for(const name of ['supervise.mjs','process-watch.ps1'])copyFileSync(join(SOURCE,name),join(gate,name));
+  for(const name of ['supervise.mjs','process-watch.ps1','process-ownership.ps1'])copyFileSync(join(SOURCE,name),join(gate,name));
   // Every template stays byte-identical to the ignored config the original preflight compares.
   for(const f of files(join(gate,'config-templates'))) {
     const out=join(app,f.slice(join(gate,'config-templates').length+1));
@@ -55,6 +80,9 @@ $taskSnapshot = @(Get-CimInstance Win32_Process)`);
   const vars=`SMALL_ENV=test\nTEST_BYPASS_SECRET=${secret}\nMASTER_KEY=${master}\nOAUTH_MOCK=true\nJOURNEY_MODEL_STUB=fixtures\n`;
   for(const folder of ['packages/web','packages/control-plane'])writeFileSync(join(app,folder,'.dev.vars'),vars);
   copyFileSync(join(gate,'answer-routing.mjs'),join(app,'packages/web/e2e/r36-routing-operator.mjs'));
+  for (const [name, adapt] of Object.entries(FIXTURE_ADAPTERS)) {
+    writeFileSync(join(app,'packages/web/e2e',`r36-${name}`), adapt(readFileSync(join(app,'packages/web/e2e',name),'utf8')));
+  }
   mkdirSync(state,{recursive:true});
   writeFileSync(join(state,'heavy-tests.md'),`## Slot\nState: RUNNING\nHolder: Parallel (r35)\nGrant ID: ${grant}\nTarget: ${sha} / ${tree}\nCommand: portable complete gate after Dive reproduction\nStart time: ${new Date().toISOString()}\n`);
   return {gate,secret};

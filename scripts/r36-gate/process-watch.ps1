@@ -1,5 +1,6 @@
 param([Parameter(Mandatory=$true)][int]$RootPid,[Parameter(Mandatory=$true)][string]$LogBase)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'process-ownership.ps1')
 $owned = @{}
 $handles = @{}
 $done = @{}
@@ -9,15 +10,7 @@ while (-not (Test-Path -LiteralPath "$LogBase.stop")) {
   $snapshot = @(Get-CimInstance Win32_Process)
   $currentRoot = $snapshot | Where-Object { $_.ProcessId -eq $RootPid }
   if (-not $currentRoot -or $currentRoot.CreationDate -ne $rootIdentity.CreationDate) { break }
-  $ids = @{$RootPid=$true}
-  do {
-    $added = $false
-    foreach ($p in $snapshot) {
-      if ($p.ProcessId -ne $PID -and $ids.ContainsKey([int]$p.ParentProcessId) -and -not $ids.ContainsKey([int]$p.ProcessId)) {
-        $ids[[int]$p.ProcessId]=$true; $added=$true
-      }
-    }
-  } while ($added)
+  $ids = Get-ObservedProcessIds -Snapshot $snapshot -RootPid $RootPid -ObserverPid $PID
   foreach ($p in $snapshot) {
     if ($p.ProcessId -eq $RootPid -or -not $ids.ContainsKey([int]$p.ProcessId)) { continue }
     $key="$($p.ProcessId):$($p.CreationDate.ToUniversalTime().ToString('o'))"
