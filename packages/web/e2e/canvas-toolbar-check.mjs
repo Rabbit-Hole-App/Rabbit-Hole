@@ -255,8 +255,9 @@ async function probeEdge(page, card, title, label, side = 'right') {
   // The right panel starts closed (Learn, 2026-09-28); opened, it stacks under the canvas on a phone.
   const showPanel = page.getByRole('button', { name: 'Show the right panel' }).first();
   if (await showPanel.count()) { await showPanel.click(); await page.waitForTimeout(500); }
-  // The panel's outline list is the table of contents (Learn dropped its 'Table of contents' heading on 2026-09-22).
-  const toc = page.locator('aside[aria-label="Learn agent chat"] ol').first();
+  // The Table of contents tab's block, heading and outline (a8a674ad, docs/features/panel-header.md, owner 2026-10-07): the
+  // first list in the panel is now Find's hidden results, and a board with no headings has an empty outline.
+  const toc = page.locator('aside[aria-label="Learn agent chat"] [data-toc]');
   await toc.scrollIntoViewIfNeeded();
   const tocVisible = await toc.isVisible();
   if (!tocVisible) fail('phone: the table of contents cannot be scrolled into view');
