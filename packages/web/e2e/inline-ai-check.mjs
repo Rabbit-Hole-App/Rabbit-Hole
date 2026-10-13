@@ -579,7 +579,7 @@ await run('a view-only canvas: the editor says why and writes nothing', async ()
 
 await run('A2: a long stream stays out of undo and autosave, and panning keeps its frame rate while it streams (mocked stream)', async () => {
   const { page, context, saved } = await open('long-stream');
-  await page.evaluate(() => { Object.assign(window.__inlineMock, { firstMs: 100, chunkMs: 150 }); }); // about 4 s of stream
+  await page.evaluate(() => { Object.assign(window.__inlineMock, { firstMs: 100, chunkMs: 400 }); }); // about 10 s of stream
   await clickShape(page, 'n23');
   const before = await saved();
   // Frame gaps and long tasks while the mouse wheel pans the canvas for 40 steps.
@@ -595,27 +595,36 @@ await run('A2: a long stream stays out of undo and autosave, and panning keeps i
     return page.evaluate(() => { window.__sampling = false; window.__lt.disconnect(); const f = window.__frames.slice(2).sort((a, b) => a - b); return { frames: f.length, p50: Math.round(f[Math.floor(f.length / 2)]), p95: Math.round(f[Math.floor(f.length * 0.95)]), longTasks: window.__longTasks.length, longMs: Math.round(window.__longTasks.reduce((a, b) => a + b, 0)) }; });
   };
   const idle = await pan();
+  // Typing into a canvas text box with nothing streaming: the baseline the streaming case is held to.
+  const typeIn = async words => {
+    const box = await reveal(page, page.locator('[data-item-id="label23"]'));
+    await page.mouse.dblclick(box.x + 4, box.y + box.height / 2);
+    await page.keyboard.press('End');
+    const started = Date.now();
+    await page.keyboard.type(words, { delay: 10 });
+    const ms = Date.now() - started;
+    await page.keyboard.press('Escape');
+    await page.mouse.click(60, 900);
+    return ms;
+  };
+  const typedIdle = await typeIn(' typed while at rest..');
+  await page.keyboard.press('Control+z');
+  await clickShape(page, 'n23');
   await ctrlK(page);
   await submitPrompt(page, 'Explain this node');
   await waitStatus(page, ['streaming']);
   const streaming = await pan();
-  // Typing on the canvas while it streams: a text box takes every key at once.
+  // Typing on the canvas while it streams: no slower than at rest (this harness's text box costs about 100 ms a key
+  // either way), and the stream is still running when the words are in.
   await page.mouse.click(60, 900);
-  const box = await reveal(page, page.locator('[data-item-id="label23"]'));
-  await page.mouse.dblclick(box.x + 4, box.y + box.height / 2);
-  await page.keyboard.press('End');
-  const typedAt = Date.now();
-  await page.keyboard.type(' typed while streaming', { delay: 10 });
-  const typedMs = Date.now() - typedAt;
-  check('typing into a canvas text box keeps up while it streams', (await page.locator('[data-item-id="label23"]').innerText()).includes('typed while streaming') && (await status(page)) === 'streaming', `${typedMs} ms for 22 keys`);
-  await page.keyboard.press('Escape');
-  await page.mouse.click(60, 900);
+  const typedStreaming = await typeIn(' typed while streaming');
+  check('typing into a canvas text box while it streams is as fast as at rest', (await page.locator('[data-item-id="label23"]').innerText()).includes('typed while streaming') && (await status(page)) === 'streaming' && typedStreaming <= typedIdle * 1.25 + 300, `${typedStreaming} ms streaming vs ${typedIdle} ms at rest (22 keys each)`);
   await page.keyboard.press('Control+z');
   const midway = await saved(450);
   check('Ctrl+Z during the stream undoes nothing of it, and autosave holds none of it', JSON.stringify(midway.shapes) === JSON.stringify(before.shapes) && !JSON.stringify(midway).includes('inline-') && !midway.items.find(item => item.id === 'label23').text.includes('typed while streaming'));
   console.log(`  frames while panning - idle ${JSON.stringify(idle)}, streaming ${JSON.stringify(streaming)}`);
   check('panning while it streams keeps the idle frame rate (p95 within 1.25x + 8 ms of idle)', streaming.p95 <= idle.p95 * 1.25 + 8, JSON.stringify({ idle, streaming }));
-  await waitStatus(page, ['preview'], 15000);
+  await waitStatus(page, ['preview'], 30000);
   await page.locator('[data-inline-accept]').click();
   await page.mouse.click(60, 900);
   await page.keyboard.press('Control+z');
