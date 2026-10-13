@@ -4,10 +4,11 @@ import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SOURCE, prepare, files, sha256 } from './prepare.mjs';
 import { prerequisite, keepsProbeStack } from './phases.mjs';
+import { SHARDS, CONDITIONAL, canary } from './shards.mjs';
 
 const APP_SHA=process.env.TESTED_SHA, APP_TREE=process.env.TESTED_TREE;
 if(!/^[a-f0-9]{40}$/.test(APP_SHA||'')||!/^[a-f0-9]{40}$/.test(APP_TREE||''))throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
-const phase=process.argv[2]||'all',fresh=phase==='all'||phase==='preflight'||phase==='focused',units=phase==='units';
+const phase=process.argv[2]||'all',shard=/^shard-\d+$/.test(phase),fresh=phase==='all'||phase==='preflight'||phase==='focused'||shard,units=phase==='units';
 const app=resolve(process.env.APP_ROOT||''),state=resolve(process.env.GATE_ROOT||''),out=resolve(process.env.ARTIFACT_ROOT||'');
 const config=join(app,'packages/control-plane/integ-local.jsonc'),persist=join(state,'gates/int35/fork/local');
 for(const name of ['APP_ROOT','GATE_ROOT','ARTIFACT_ROOT','HARNESS_SHA','GATE_GRANT_ID'])if(!process.env[name])throw Error(`Missing ${name}`);
@@ -22,6 +23,7 @@ const unchanged=()=>{
   if(git('rev-parse','HEAD')!==APP_SHA||git('rev-parse','HEAD^{tree}')!==APP_TREE||git('write-tree')!==APP_TREE||git('diff','--name-only','HEAD'))throw Error('Tested application checkout changed');
 };
 unchanged();
+const inTree=p=>{try{git('cat-file','-e',`${APP_SHA}:${p}`);return true;}catch{return false;}};
 const harnessRoot=resolve(SOURCE,'../..');
 const actualHarness=execFileSync('git',['rev-parse','HEAD'],{cwd:harnessRoot,encoding:'utf8',windowsHide:true}).trim();
 if(actualHarness!==process.env.HARNESS_SHA)throw Error('Harness revision mismatch');
@@ -152,12 +154,30 @@ try {
     writeFileSync(join(out,'focused-verdict.json'),JSON.stringify({applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,kind:'focused-only',results,pass},null,2));
     if(!pass)throw Error('Focused four-stage verification failed; see focused-verdict.json');
   }
+  if(shard) {
+    // One slice of int35.sh on this fresh runner (shards.mjs). collect.mjs merges the slices and runs gateVerdict.
+    const n=Number(phase.slice(6)),script=join(gate,`${phase}.sh`);
+    if(!SHARDS[n-1])throw Error(`Unknown gate shard: ${phase}`);
+    writeFileSync(script,canary(readFileSync(script,'utf8'),process.env.GATE_CANARY_FAIL_STAGE));
+    await command(bash,[script],{log:join(out,'gate-shard.log'),timeout:7200000,stream:true});
+    unchanged();
+    const {stageCount}=await import(pathToFileURL(join(app,'scripts/dev-deploy.mjs')));
+    const record=readFileSync(join(out,'gate-shard.log'),'utf8');
+    const exits=[...record.matchAll(/^([^:\r\n]+?) exit (\d+)\b(.*)$/gm)];
+    const results=SHARDS[n-1].filter(s=>!CONDITIONAL[s]||inTree(CONDITIONAL[s])).map(stage=>{
+      const line=exits.filter(m=>m[1]===stage).at(-1);
+      return {stage,exit:line?.[2],count:stageCount(line?.[3]),pass:line?.[2]==='0'&&stageCount(line[3])>0};
+    });
+    const counts=[...record.matchAll(/(tripwire hits|model key bindings in app log): (\S+)/g)].map(m=>m[2]);
+    const pass=results.every(r=>r.pass)&&counts.every(v=>v==='0')&&/^INT35-DONE\r?$/m.test(record);
+    writeFileSync(join(out,'shard-verdict.json'),JSON.stringify({applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,kind:'shard-only',shard:n,results,providerCounts:counts,pass},null,2));
+    if(!pass)throw Error(`Gate ${phase} failed; see shard-verdict.json`);
+  }
   if(phase==='all'||phase==='gate') {
   await command(bash,[join(gate,'int35.sh')],{log:join(out,'gate.log'),timeout:7200000,stream:true});
   unchanged();
   const {gateVerdict,stageCount}=await import(pathToFileURL(join(app,'scripts/dev-deploy.mjs')));
   const record=readFileSync(join(out,'gate.log'),'utf8');
-  const inTree=p=>{try{git('cat-file','-e',`${APP_SHA}:${p}`);return true;}catch{return false;}};
   const verdict=gateVerdict(record,APP_TREE,inTree);
   const last=name=>[...record.matchAll(new RegExp(`^${name} exit (\\d+)\\b(.*)$`,'gm'))].at(-1);
   const routing=last('answer-routing'),project=last('project-menu');

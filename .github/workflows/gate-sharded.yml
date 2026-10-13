@@ -1,0 +1,271 @@
+name: sharded release gate
+
+# Owner GO 2026-10-13 ("cut this 1h without compromising the test"): the release gate of r36-windows-gate.yml - full
+# units, the four focused stages, the preflight and Dive checkpoints and every int35.sh stage - with the complete gate's
+# stages split over four fresh Windows runners (scripts/r36-gate/shards.mjs), each with its own preflight-prepared stack.
+# The collect job merges the four records into the one gate.log the candidate's gateVerdict reads and judges it as the
+# unsharded gate phase does. All seven runners start at once; each installs while canonical verify runs and waits for
+# both verify runs before its phase. Any failed job, shard, checkpoint or stage fails the gate.
+on:
+  push:
+    branches: [parallel/gate-sharded]
+  workflow_dispatch:
+    inputs:
+      app_sha:
+        description: Exact application commit to verify
+        required: true
+        type: string
+        default: d443ecf4ca2e711c19abc0211521805711652407
+      app_tree:
+        description: Expected application tree for the exact commit
+        required: true
+        type: string
+        default: 96d21e7c27fdefe7ce867d32648c429aec3b4a91
+      canary_fail_stage:
+        description: Proof only - force this one int35 run-line stage to fail (the gate must then fail); empty normally
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gate-sharded-${{ inputs.app_sha || 'd443ecf4ca2e711c19abc0211521805711652407' }}
+  cancel-in-progress: false
+
+env:
+  APP_SHA: ${{ inputs.app_sha || 'd443ecf4ca2e711c19abc0211521805711652407' }}
+  APP_TREE: ${{ inputs.app_tree || '96d21e7c27fdefe7ce867d32648c429aec3b4a91' }}
+
+jobs:
+  run:
+    if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole'
+    runs-on: windows-2022
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [units, focused, checkpoints, shard-1, shard-2, shard-3, shard-4]
+    env:
+      CI: true
+      SMALL_ENV: test
+      ANTHROPIC_API_KEY: ''
+      OPENAI_API_KEY: ''
+      CLOUDFLARE_API_TOKEN: ''
+      GATE_CANARY_FAIL_STAGE: ${{ inputs.canary_fail_stage }}
+    steps:
+      - name: Checkout gate harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: harness
+          fetch-depth: 0
+      - name: Checkout exact application candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: app
+          ref: ${{ env.APP_SHA }}
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.13'
+          check-latest: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: app/uv.lock
+      # A miss only means playwright install downloads the browsers, as before.
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
+      - name: Verify exact source identities
+        shell: pwsh
+        run: |
+          $app = Join-Path $env:GITHUB_WORKSPACE 'app'
+          $head = (git -C $app rev-parse HEAD).Trim()
+          $tree = (git -C $app rev-parse 'HEAD^{tree}').Trim()
+          $harness = (git -C (Join-Path $env:GITHUB_WORKSPACE 'harness') rev-parse HEAD).Trim()
+          if ($head -ne $env:APP_SHA) { throw "application SHA mismatch: $head" }
+          if ($tree -ne $env:APP_TREE) { throw "application tree mismatch: $tree" }
+          "APP_ROOT=$(Join-Path $env:GITHUB_WORKSPACE 'app')`nTESTED_SHA=$head`nTESTED_TREE=$tree`nHARNESS_SHA=$harness" | Add-Content $env:GITHUB_ENV
+          "app_sha=$head`napp_tree=$tree`nharness_sha=$harness" | Set-Content (Join-Path $env:RUNNER_TEMP 'r36-identities.txt')
+      - name: Install locked application dependencies
+        shell: bash
+        working-directory: app
+        run: |
+          set -euo pipefail
+          node scripts/lock-natives.mjs --check
+          npm ci --no-audit --no-fund
+          node scripts/ensure-natives.mjs
+          uv sync --locked
+          npx playwright install chromium
+      - name: Prepare isolated gate state
+        shell: pwsh
+        run: |
+          $state = Join-Path $env:RUNNER_TEMP 'r36'
+          $out = Join-Path $state 'artifacts'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          if ($state.Contains(' ')) { throw "runner temp path contains spaces: $state" }
+          $bash = (Get-Command bash.exe -ErrorAction Stop).Source
+          if ($bash -notmatch '\\Git\\') { throw "bash is not Git Bash: $bash" }
+          "GATE_ROOT=$state`nARTIFACT_ROOT=$out`nGATE_GRANT_ID=r36-windows-${{ github.run_id }}-${{ github.run_attempt }}`nGATE_BASH=$bash`nGIT_BASH_PATH=$bash" | Add-Content $env:GITHUB_ENV
+      - name: Check required Windows tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tool in bash make timeout curl sed; do command -v "$tool" >/dev/null || { echo "missing tool: $tool"; exit 1; }; done
+          node --version
+          bash --version | head -n 1
+          make --version | head -n 1
+      # After install, so install runs while canonical verify does; still before any phase writes a receipt or verdict.
+      - name: Wait for same-SHA canonical verify
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $deadline = (Get-Date).ToUniversalTime().AddMinutes(45)
+          $repo = $env:GITHUB_REPOSITORY
+          $artifact = Join-Path $env:RUNNER_TEMP 'r36/artifacts'
+          New-Item -ItemType Directory -Force -Path $artifact | Out-Null
+          foreach ($sha in @($env:GITHUB_SHA, $env:APP_SHA)) {
+          while ($true) {
+            $raw = gh run list --repo $repo --workflow verify.yml --commit $sha --limit 20 --json databaseId,status,conclusion,url,headSha
+            if ($LASTEXITCODE -ne 0) { throw "gh run list failed for verify.yml/$sha (exit $LASTEXITCODE)" }
+            $runs = @($raw | ConvertFrom-Json | Where-Object { $_ -and $_.headSha -eq $sha })
+            if ($runs.Count -gt 0) {
+              $run = $runs[0]
+              if ($run.status -eq 'completed') {
+                "verify_run=$($run.url)`nverify_conclusion=$($run.conclusion)`nverify_sha=$sha" | Add-Content (Join-Path $artifact 'verify-workflow.txt')
+                "Canonical verify: $($run.url) ($($run.conclusion))" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+                if ($run.conclusion -ne 'success') { throw "canonical verify failed: $($run.conclusion)" }
+                break
+              }
+            }
+            if ((Get-Date).ToUniversalTime() -gt $deadline) { throw "no successful verify.yml run for $sha before timeout" }
+            Start-Sleep -Seconds 30
+          }
+          }
+      - name: Run ${{ matrix.part }}
+        if: matrix.part != 'checkpoints'
+        shell: pwsh
+        working-directory: harness
+        run: |
+          node scripts/r36-gate/run.mjs ${{ matrix.part }}
+          if ($LASTEXITCODE -ne 0) { throw "${{ matrix.part }} failed: $LASTEXITCODE" }
+      - name: Upload ${{ matrix.part }} evidence
+        if: always() && matrix.part != 'checkpoints'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: r36-windows-${{ matrix.part }}-${{ env.APP_SHA }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/r36/artifacts/**
+            ${{ runner.temp }}/r36-identities.txt
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Run gate preflight checkpoint
+        id: preflight
+        if: matrix.part == 'checkpoints'
+        shell: pwsh
+        working-directory: harness
+        continue-on-error: true
+        run: |
+          node scripts/r36-gate/run.mjs preflight
+          if ($LASTEXITCODE -ne 0) { throw "preflight failed: $LASTEXITCODE" }
+      - name: Upload preflight checkpoint
+        if: always() && matrix.part == 'checkpoints'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: r36-windows-preflight-${{ env.APP_SHA }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/r36/artifacts/**
+            ${{ runner.temp }}/r36-identities.txt
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Run instrumented Dive checkpoint
+        id: dive
+        if: matrix.part == 'checkpoints' && steps.preflight.outcome == 'success'
+        shell: pwsh
+        working-directory: harness
+        continue-on-error: true
+        run: |
+          node scripts/r36-gate/run.mjs dive
+          if ($LASTEXITCODE -ne 0) { throw "Dive failed: $LASTEXITCODE" }
+      - name: Upload Dive checkpoint
+        if: always() && matrix.part == 'checkpoints'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: r36-windows-dive-${{ env.APP_SHA }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/r36/artifacts/**
+            ${{ runner.temp }}/r36-identities.txt
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Fail when a checkpoint did not pass
+        if: matrix.part == 'checkpoints' && (steps.preflight.outcome != 'success' || steps.dive.outcome != 'success')
+        shell: pwsh
+        run: throw "Preflight or Dive checkpoint failed"
+
+  collect:
+    needs: run
+    if: ${{ !cancelled() && github.repository == 'Rabbit-Hole-App/Rabbit-Hole' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout gate harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: harness
+      - name: Checkout exact application candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: app
+          ref: ${{ env.APP_SHA }}
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.19.0
+      - name: Verify exact source identities
+        shell: pwsh
+        run: |
+          $app = Join-Path $env:GITHUB_WORKSPACE 'app'
+          $head = (git -C $app rev-parse HEAD).Trim()
+          $tree = (git -C $app rev-parse 'HEAD^{tree}').Trim()
+          $harness = (git -C (Join-Path $env:GITHUB_WORKSPACE 'harness') rev-parse HEAD).Trim()
+          if ($head -ne $env:APP_SHA) { throw "application SHA mismatch: $head" }
+          if ($tree -ne $env:APP_TREE) { throw "application tree mismatch: $tree" }
+          "APP_ROOT=$(Join-Path $env:GITHUB_WORKSPACE 'app')`nTESTED_SHA=$head`nTESTED_TREE=$tree`nHARNESS_SHA=$harness" | Add-Content $env:GITHUB_ENV
+          "app_sha=$head`napp_tree=$tree`nharness_sha=$harness" | Set-Content (Join-Path $env:RUNNER_TEMP 'r36-identities.txt')
+      - name: Download checkpoint and shard evidence
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: r36-windows-*-${{ env.APP_SHA }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/r36/in
+      - name: Merge the shard records and judge the complete gate
+        shell: bash
+        env:
+          GATE_GRANT_ID: r36-windows-${{ github.run_id }}-${{ github.run_attempt }}
+          ARTIFACT_ROOT: ${{ runner.temp }}/r36/artifacts
+          MATRIX_RESULT: ${{ needs.run.result }}
+        run: node harness/scripts/r36-gate/collect.mjs "$RUNNER_TEMP/r36/in"
+      - name: Upload complete gate artifacts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: r36-windows-gate-${{ env.APP_SHA }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/r36/artifacts/**
+            ${{ runner.temp }}/r36-identities.txt
+          if-no-files-found: warn
+          retention-days: 30

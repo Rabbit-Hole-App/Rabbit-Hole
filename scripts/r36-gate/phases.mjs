@@ -3,8 +3,9 @@
 export const keepsProbeStack = phase => phase === 'all';
 
 export function prerequisite(phase, receipt, identity) {
-  if (!['all','preflight','dive','gate','focused','units'].includes(phase)) return `Unknown gate phase: ${phase}`;
-  if (phase==='all'||phase==='preflight'||phase==='focused'||phase==='units') return null;
+  const shard=/^shard-\d+$/.test(phase);
+  if (!shard&&!['all','preflight','dive','gate','focused','units'].includes(phase)) return `Unknown gate phase: ${phase}`;
+  if (shard||phase==='all'||phase==='preflight'||phase==='focused'||phase==='units') return null;
   const prior=phase==='dive'?'preflight':'dive';
   if (!receipt) return `Required ${prior} receipt missing`;
   if (receipt.phase!==prior) return `Required ${prior} phase not completed`;

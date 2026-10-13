@@ -30,6 +30,34 @@ A third runner runs preflight, Dive and the complete gate at the same time, uplo
 deployment needs all three to pass. Every
 phase except `all` stops the sign-in probe stack and proves 8878/8879/9318/9319 free before the next preflight.
 
+## Sharded gate (workflow gate-sharded.yml, owner GO 2026-10-13)
+
+The same checks on seven clean Windows runners at once: `units`, `focused`, `checkpoints` (preflight then Dive,
+uploaded as today) and `shard-1`..`shard-4`. Each shard is `run.mjs shard-N`: the fresh preflight of `focused`, then
+`shard-N.sh`, which is the prepared `int35.sh` with only the other shards' stages removed (`shards.mjs`). A shard keeps
+the header, its stage lines in the original order, the stacks those stages run on, their stops and every `export`. The
+`collect` job (Linux) merges the four `gate-shard.log` records into one `gate.log`: same stage lines, same order, same
+counts. It then applies run.mjs's gate-phase verdict (the candidate's `gateVerdict` plus the routing and project-menu
+receipts) with the passed Dive receipt as the prerequisite. A failed matrix job, a failed or missing shard, or a missing,
+duplicated or stray stage fails it. Every runner installs first and then waits for both canonical verify runs before its phase.
+
+Shared state, kept inside one shard. The stage times are from run 38352166115 attempt 2:
+- rh-app, comments and comments-invite run on the stack-app.sh build, so they stay with their stack start (shard 1).
+- explore's phone creator-card row needs a second creator with a live publication. In the unsharded order,
+  comments-check publishes one (comments-check.mjs:233) and never unpublishes it. project-canvases deletes its own
+  canvases. So explore follows comments on the same persisted D1 (shard 1).
+- bundle(dist) and bundle(dist-dev) check the `stack.sh prod` rebuild directly before them (shard 1).
+- journey, tutor-slice, blank-hooks, practice-card and canvas-chrome share the journey stack and its `.dev.vars` (shard 4).
+- answer-routing reads `LOCAL_CP_VARS`, exported after sketch; the export stays in every shard script.
+- Every other browser check signs in as a per-run user (`Date.now().toString(36)`) and finds its own rows. dive and
+  answer-routing use the preflight identity, but each creates its own canvases. sca's D1 seed uses the gate-local
+  PERSIST through its fixture adapter.
+- The provider tripwire counts hits over a stack's lifetime. A hit still shows in the tripwire line of the stage that
+  caused it, as it did unsharded, so any hit still fails the gate.
+
+`canary_fail_stage` (dispatch input, proof only) swaps one run-line stage's check for a missing file, so the gate must
+fail. It can only fail a stage, never pass or skip one.
+
 ## Sequence
 
 1. Assert source identities and clean tracked application tree; check tools,

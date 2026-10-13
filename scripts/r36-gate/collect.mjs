@@ -1,0 +1,65 @@
+// The sharded gate's collect job: the shard records merged into the one gate.log (shards.mjs mergeShards), judged by
+// the candidate's own gateVerdict plus run.mjs's routing/project-menu receipts, exactly as the unsharded gate phase
+// judges its record; the passed Dive checkpoint stays its prerequisite. A failed matrix job, a failed or missing shard,
+// a missing or duplicated stage, or a rejected record fails it.
+//   node scripts/r36-gate/collect.mjs <downloaded artifacts dir>
+// Env: APP_ROOT TESTED_SHA TESTED_TREE HARNESS_SHA GATE_GRANT_ID ARTIFACT_ROOT GITHUB_RUN_ATTEMPT MATRIX_RESULT
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import { SHARDS, mergeShards } from './shards.mjs';
+import { prerequisite } from './phases.mjs';
+import { sha256 } from './prepare.mjs';
+
+const APP_SHA = process.env.TESTED_SHA, APP_TREE = process.env.TESTED_TREE;
+if (!/^[a-f0-9]{40}$/.test(APP_SHA || '') || !/^[a-f0-9]{40}$/.test(APP_TREE || '')) throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
+for (const name of ['APP_ROOT', 'HARNESS_SHA', 'GATE_GRANT_ID', 'ARTIFACT_ROOT', 'GITHUB_RUN_ATTEMPT']) if (!process.env[name]) throw Error(`Missing ${name}`);
+const app = resolve(process.env.APP_ROOT), out = resolve(process.env.ARTIFACT_ROOT), input = resolve(process.argv[2] || '');
+const identity = { applicationSha: APP_SHA, applicationTree: APP_TREE, harnessSha: process.env.HARNESS_SHA, grant: process.env.GATE_GRANT_ID };
+const started = new Date().toISOString();
+mkdirSync(out, { recursive: true });
+const inTree = p => { try { execFileSync('git', ['cat-file', '-e', `${APP_SHA}:${p}`], { cwd: app, stdio: 'ignore' }); return true; } catch { return false; } };
+const dir = part => join(input, `r36-windows-${part}-${APP_SHA}-${process.env.GITHUB_RUN_ATTEMPT}`, 'r36', 'artifacts');
+const json = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
+const failures = [];
+if (process.env.MATRIX_RESULT !== 'success') failures.push(`matrix jobs: ${process.env.MATRIX_RESULT || 'unknown'}`);
+
+// The Dive checkpoint (after its preflight) is the complete gate's prerequisite, as in run.mjs's gate phase.
+const diveFile = join(dir('dive'), 'dive-receipt.json');
+const diveError = prerequisite('gate', json(diveFile), identity);
+if (diveError) failures.push(`checkpoint: ${diveError}`);
+
+const shards = SHARDS.map((_, k) => {
+  const part = `shard-${k + 1}`, d = dir(part), receiptFile = join(d, `${part}-receipt.json`), receipt = json(receiptFile);
+  const wrong = Object.keys(identity).filter(key => receipt?.[key] !== identity[key]);
+  if (!receipt?.pass || !receipt.ended || receipt.cleanupFailure || wrong.length) failures.push(`${part}: ${receipt?.failure || receipt?.cleanupFailure || (wrong.length ? `identity mismatch: ${wrong.join(', ')}` : 'receipt missing or not passed')}`);
+  const logFile = join(d, 'gate-shard.log'), log = existsSync(logFile) ? readFileSync(logFile, 'utf8') : null;
+  if (log === null) failures.push(`${part}: gate-shard.log missing`);
+  // The shard's record and receipts travel with the merged record; its diagnostics stay in its own artifact.
+  mkdirSync(join(out, 'shards', part), { recursive: true });
+  for (const f of ['gate-shard.log', 'shard-verdict.json', `${part}-receipt.json`, 'identity.json']) if (existsSync(join(d, f))) copyFileSync(join(d, f), join(out, 'shards', part, f));
+  return { part, pass: !!receipt?.pass, receiptSha256: receipt ? sha256(receiptFile) : null, logSha256: log === null ? null : sha256(logFile), log };
+});
+
+let verdict = 'not computed: shard records incomplete', extraPassed = false;
+if (shards.every(s => s.log !== null)) {
+  try {
+    const record = mergeShards(shards.map(s => s.log), inTree);
+    writeFileSync(join(out, 'gate.log'), record);
+    // Identical to run.mjs's gate phase verdict.
+    const { gateVerdict, stageCount } = await import(pathToFileURL(join(app, 'scripts/dev-deploy.mjs')));
+    verdict = gateVerdict(record, APP_TREE, inTree);
+    const last = name => [...record.matchAll(new RegExp(`^${name} exit (\\d+)\\b(.*)$`, 'gm'))].at(-1);
+    const routing = last('answer-routing'), project = last('project-menu');
+    extraPassed = routing?.[1] === '0' && stageCount(routing[2]) >= 15 && project?.[1] === '0' && stageCount(project[2]) === 12 && /^answer-routing provider-tripwire hits: 0\r?$/m.test(record) && /^project-menu provider-tripwire hits: 0\r?$/m.test(record);
+    if (verdict || !extraPassed) failures.push(`complete gate rejected: ${verdict || 'routing/project-menu receipts missing'}`);
+  } catch (error) { verdict = `not computed: ${error.message}`; failures.push(`merge: ${error.message}`); }
+}
+const pass = failures.length === 0;
+const sharded = { shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), matrix: process.env.MATRIX_RESULT, failures };
+writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, sharded }, null, 2));
+writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version,
+  prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, shards: shards.map(({ log, ...s }) => s), failures, pass }, null, 2));
+console.log(JSON.stringify({ applicationSha: APP_SHA, harnessSha: identity.harnessSha, gateVerdict: verdict, extraPassed, pass, failures }));
+if (!pass) process.exitCode = 1;

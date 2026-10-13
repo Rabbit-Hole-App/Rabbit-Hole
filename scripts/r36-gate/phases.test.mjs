@@ -21,5 +21,7 @@ test('full gate cannot skip a failed or absent Dive receipt',()=>{
 test('full units need no prior receipt; only the all phase keeps the sign-in probe stack for its Dive',()=>{
   assert.equal(prerequisite('units',null,identity),null);
   assert.equal(keepsProbeStack('all'),true);
-  for(const phase of ['preflight','focused'])assert.equal(keepsProbeStack(phase),false,`${phase} releases the gate ports before the next preflight`);
+  for(const phase of ['preflight','focused','shard-2'])assert.equal(keepsProbeStack(phase),false,`${phase} releases the gate ports before the next preflight`);
+  assert.equal(prerequisite('shard-2',null,identity),null,'each gate shard is a fresh runner with its own preflight');
+  assert.match(prerequisite('shard-x',null,identity),/Unknown/);
 });
