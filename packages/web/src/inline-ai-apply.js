@@ -61,8 +61,11 @@ export function validateEdit(edit, frozen, board) {
     if (op.op === 'replace_text') {
       if (frozen.range) { errors.push('Only the selected words may change.'); continue; }
       if (!where.field) { errors.push('Cards are changed in the card itself, not inline.'); continue; }
-      // The model saw only part of a longer text (the context clipped it): a whole replace would erase the rest.
-      if ((frozen.clipped || []).includes(op.id) || wordsOf(where.entity, where.field).length > LIMITS.targetChars) { errors.push(`This text is longer than the ${LIMITS.targetChars} characters an edit can read, so it can't be rewritten whole. Select the words to change, then press Ctrl+K.`); continue; }
+      // The model did not read this target whole: a whole replace would erase what it never saw. A long text was cut
+      // short; a short one was left out because the selection is past the context budget.
+      const longText = wordsOf(where.entity, where.field).length > LIMITS.targetChars;
+      if (longText) { errors.push(`This text is longer than the ${LIMITS.targetChars} characters an edit can read, so it can't be rewritten whole. Select the words to change, then press Ctrl+K.`); continue; }
+      if ((frozen.clipped || []).includes(op.id)) { errors.push(`This selection is more than an edit can read at once (${LIMITS.objects} objects, ${LIMITS.total} characters). Select fewer objects, then press Ctrl+K.`); continue; }
       if (typeof op.text !== 'string' || op.text.length > MAX_EDIT_TEXT) { errors.push('The new text is missing or too long.'); continue; }
       after = withText(current, where.field, where.runs, op.text);
     } else if (op.op === 'replace_range') {

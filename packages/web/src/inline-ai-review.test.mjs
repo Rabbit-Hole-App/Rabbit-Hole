@@ -244,7 +244,7 @@ test('S3: a target the context clipped (the total budget, not only its own lengt
   const board = { shapes: [], items: [{ id: 't2', kind: 'text', x: 0, y: 0, w: 300, text: 'x'.repeat(3000) }], links: [], blocks: [] };
   const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 't2', text: 'y' }] }, { ids: ['t2'], range: null, clipped: ['t2'] }, board);
   assert.equal(checked.ok, false);
-  assert.match(checked.errors[0], /Select the words to change/);
+  assert.match(checked.errors[0], /Select fewer objects, then press Ctrl.K/);
 });
 
 test('S4: a routing call the worker refused before calling JEV is recorded as bypassed, never jev', async () => {
@@ -346,7 +346,7 @@ test('re-review S3 gap: a target the budget left out entirely is clipped, so a w
   assert.deepEqual(context.target.clipped, ['c']);
   const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 'c', text: 'invented' }] }, { ...target, clipped: context.target.clipped }, board);
   assert.equal(checked.ok, false);
-  assert.match(checked.errors[0], /Select the words to change/);
+  assert.match(checked.errors[0], /Select fewer objects, then press Ctrl.K/);
 });
 
 test('re-review S3 gap: a group of more stickies than the object budget clips the ones left out', () => {
@@ -399,4 +399,11 @@ test('re-review M9 (B1/S1): submit saves an open editor before it builds the req
   assert.ok(flushAt > prepareAt && flushAt < buildAt, 'flushEdits runs first in submit');
   assert.doesNotMatch(editor, /liveText/);
   assert.doesNotMatch(canvas, /liveText/);
+});
+
+test('delta (b): a short target left out by the budget says to select fewer objects', () => {
+  const board = { shapes: [], items: [{ id: 's30', kind: 'sticky', x: 0, y: 0, w: 160, text: 'note 30' }], links: [], blocks: [] };
+  const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 's30', text: 'fixed' }] }, { ids: ['s30'], range: null, clipped: ['s30'] }, board);
+  assert.equal(checked.ok, false);
+  assert.equal(checked.errors[0], 'This selection is more than an edit can read at once (24 objects, 8000 characters). Select fewer objects, then press Ctrl+K.');
 });
