@@ -24,9 +24,10 @@ and Windows PowerShell must be available to Git Bash.
 
 ## Final r36 verification (workflow r36-windows-gate.yml)
 
-Pinned to the frozen candidate in the workflow env. Two clean runners in parallel: `run.mjs units` (supervised
+Pinned to the frozen candidate in the workflow env. Three clean runners in parallel: `run.mjs units` (supervised
 `make test-unit` on the exact tree, no stack) and `run.mjs focused` (SCA, selected-pill, J1-J8, Tutor slice).
-Only when both pass does a third runner run preflight, Dive and the complete gate, uploading after each. Every
+A third runner runs preflight, Dive and the complete gate at the same time, uploading after each; preview
+deployment needs all three to pass. Every
 phase except `all` stops the sign-in probe stack and proves 8878/8879/9318/9319 free before the next preflight.
 
 ## Sequence

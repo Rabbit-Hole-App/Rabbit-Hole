@@ -1,7 +1,9 @@
 name: r36 final Windows verification
 
-# Exact frozen r36 candidate (owner GO, 2026-10-12): full units and the four corrected focused stages on separate clean
-# runners, then, only when both pass, the complete integrated gate with preflight and Dive checkpoint uploads.
+# Exact frozen r36 candidate (owner GO, 2026-10-12): full units, the four corrected focused stages and the complete
+# integrated gate (preflight, Dive and gate checkpoint uploads) on three separate clean runners at once (owner,
+# 2026-10-13: the gate no longer waits for the other two). Each still waits for both canonical verify runs. Preview
+# deployment needs all three to pass for the same frozen application SHA and tree.
 on:
   push:
     branches: [parallel/r36-focused]
@@ -156,7 +158,6 @@ jobs:
   gate:
     if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole'
     runs-on: windows-2022
-    needs: checks
     timeout-minutes: 180
     env:
       CI: true
