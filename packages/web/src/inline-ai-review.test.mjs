@@ -373,3 +373,25 @@ test('re-review M8: a routing request refused by the worker or lost on the netwo
   await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() });
   assert.equal(sessionModule.routeColumn(rows.at(-1)), 'bypassed');
 });
+
+test('re-review M9 (B1/S1): the request text and its fingerprint come from the same saved text, never words captured at open', () => {
+  const board = { shapes: [], items: [{ id: 'para', kind: 'text', x: 0, y: 0, w: 300, text: 'Saved words.' }], links: [], blocks: [], groups: [], exchanges: [], boxes: {} };
+  const target = contextModule.freezeTarget(board, ['para']);
+  const cache = contextModule.createContextCache();
+  // Words captured when the editor opened (the old liveText) are not an input any more.
+  const context = contextModule.buildContext(board, target, { cache, boardKey: 'b', liveText: { id: 'para', text: 'Typed at open, never saved.' } });
+  assert.equal(context.target.objects[0].text, 'Saved words.');
+  assert.equal(contextModule.staleness({ ...target, prints: context.prints }, board, cache, 'b').content, false, 'what the model read is what Accept checks');
+});
+
+test('re-review M9 (B1/S1): submit saves an open editor before it builds the request; the canvas captures no words at open', async () => {
+  const { readFileSync } = await import('node:fs');
+  const editor = readFileSync(new URL('./InlineAiEditor.jsx', import.meta.url), 'utf8');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const prepareAt = editor.indexOf('prepare: () => {');
+  assert.ok(prepareAt > 0);
+  const flushAt = editor.indexOf('canvas.flushEdits?.();', prepareAt), buildAt = editor.indexOf('const made = prepare();', prepareAt);
+  assert.ok(flushAt > prepareAt && flushAt < buildAt, 'flushEdits runs first in submit');
+  assert.doesNotMatch(editor, /liveText/);
+  assert.doesNotMatch(canvas, /liveText/);
+});
