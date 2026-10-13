@@ -150,7 +150,7 @@ export function commandInput(plan, { prompt = '', context = null } = {}) {
   const subject = selectionSubject(context);
   const ask = { clarify: { question: askFor(plan.route), options: [] } };
   if (plan.route === 'image') {
-    const query = plan.via === 'command' && words ? words : subject;
+    const query = (plan.via === 'command' || plan.via === 'refine') && words ? words : subject;
     return query ? { args: query.slice(0, 100) } : ask;
   }
   if (!words && !subject) return ask;

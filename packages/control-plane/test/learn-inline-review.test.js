@@ -63,3 +63,20 @@ test('prompt limit: the worker enforces the shared limit on route and generate, 
   const atLimit = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'a'.repeat(PROMPT_MAX), context }), {}, { authorize, callModel: async () => sse('ok') });
   assert.equal(atLimit.status, 200);
 });
+
+import * as inlineAgents from '../src/agents/learn-inline.js';
+import { readGeneration } from '../../web/src/inline-ai-transport.js';
+
+test('refine: the worker sends the earlier result and the original request, and the model is told to revise it', async () => {
+  let sent = null;
+  const callModel = async (env, body) => { sent = body; return sse('Child of 4.'); };
+  const ask = extra => inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'make it much shorter', context, ...extra }), {}, { authorize: async () => ({ name: 'canvas-0a1b2c3d' }), callModel });
+  const out = await readGeneration(await ask({ revise: { prompt: 'Explain this node', result: 'Node 23 is a child of node 4.' } }), () => {});
+  assert.equal(out.result.text, 'Child of 4.');
+  const message = JSON.parse(sent.messages[0].content);
+  assert.deepEqual([message.request, message.earlier], ['make it much shorter', { request: 'Explain this node', result: 'Node 23 is a child of node 4.' }]);
+  for (const system of [inlineAgents.INLINE_NOTE_SYSTEM, inlineAgents.INLINE_EDIT_SYSTEM]) assert.match(system, /`earlier`, the learner is refining that earlier result/);
+  await readGeneration(await ask({}), () => {});
+  assert.equal('earlier' in JSON.parse(sent.messages[0].content), false, 'no refine, no earlier result');
+  assert.equal((await ask({ revise: { prompt: 'x', result: '' } })).status, 400, 'a refine with no earlier result is refused, not sent as a new request');
+});

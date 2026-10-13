@@ -9,7 +9,7 @@
 // - A completed result is kept by idempotency key (board, target fingerprints, mode, prompt, scope): the same request
 //   again reuses it instead of generating twice.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
-import { commandInput, decideRoute, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
+import { commandInput, decideRoute, explicitCommand, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
 
 export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…', proposal: 'Preparing the paid proposal…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
@@ -18,6 +18,14 @@ export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }
 // (fallback:<reason>). direct: an explicit / command. bypassed: no routing call for this request - a plain explain,
 // Edit, a reused result, an answered clarification (its routing call, if any, was the earlier request's row).
 export const routeColumn = entry => (entry.routing === 'jev' || String(entry.routing || '').startsWith('fallback:') ? 'jev' : entry.via === 'command' ? 'direct' : 'bypassed');
+// The candidate a refine revises (§10), as the handler reads it: a note's words, an edit's operations, a card's type,
+// title and text.
+export function earlierResult(preview) {
+  if (preview.kind === 'note') return String(preview.text || '');
+  if (preview.kind === 'edit') return JSON.stringify({ summary: preview.summary || '', ops: preview.raw?.ops || [] });
+  const block = preview.block || {};
+  return JSON.stringify({ type: block.type, title: block.title || '', text: block.brief || block.caption || block.body || block.code || '' }).slice(0, 8000);
+}
 const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `r${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
 
 // transport: { route(input, { signal }) -> readRoute() result, or throws;
@@ -85,7 +93,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       set({ status: 'generating', stage: STAGES[route], stream: null });
       mark(id, 'providerStart');
       count(id, 'modelCalls');
-      const out = await transport.generate({ requestId: id, mode: request.mode, route, prompt: input.args, context: request.context }, { signal, onEvent: onEvent(mine, id) });
+      const out = await transport.generate({ requestId: id, mode: request.mode, route, prompt: input.args, context: request.context, ...(request.revise ? { revise: request.revise } : {}) }, { signal, onEvent: onEvent(mine, id) });
       if (!live(mine)) return null;
       if (out.usage) metric(id).tokens = { input: out.usage.input_tokens ?? null, output: out.usage.output_tokens ?? null };
       return out.result;
@@ -93,7 +101,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     set({ status: 'generating', stage: STAGES.artifact.replace('{label}', (ROUTES[route]?.label || route).toLowerCase()), stream: null });
     mark(id, 'providerStart');
     count(id, 'modelCalls');
-    const answer = await transport.artifact({ requestId: id, command: route, args: input.args, context: request.context }, { signal });
+    const answer = await transport.artifact({ requestId: id, command: route, args: input.args, context: request.context, ...(request.revise ? { revise: request.revise } : {}) }, { signal });
     if (!live(mine)) return null;
     mark(id, 'firstOutput');
     if (answer.result === 'artifact') return { kind: 'card', route, block: answer.block, primitive: answer.primitive };
@@ -133,7 +141,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     }
     results.set(request.key, { result, plan });
     mark(id, 'complete');
-    set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind, frozen: request.frozen }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
+    set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind, frozen: request.frozen, mode: request.mode, origin: request.revise?.prompt ?? request.prompt }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
     if (result.kind !== 'proposal') finish(id, 'previewed');
   }
 
@@ -147,6 +155,10 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       if (busyStates.has(state.status)) { if (state.requestId) count(state.requestId, 'duplicates'); return 'duplicate'; }
       // Over the one limit nothing is sent (the editor also holds Submit back and shows the count).
       if (String(prompt).length > PROMPT_MAX) { set({ error: promptTooLong(String(prompt).length), notice: null }); return 'too_long'; }
+      // A refine (§10): new words while a preview shows revise that candidate - the same output, its result and the
+      // original request go with the instruction, and the preview stays until the revision succeeds. A / command or the
+      // other pill is a new request instead.
+      const previous = state.status === 'preview' && state.preview && !state.accepted && state.preview.mode === mode && !explicitCommand(prompt) ? state.preview : null;
       const id = uuid(), mine = ++token;
       controller?.abort();
       controller = new AbortController();
@@ -154,8 +166,9 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const snapshot = prepare();
       mark(id, 'refreshed');
       Object.assign(metric(id), { context: snapshot.shape || null, prep: { ms: snapshot.prepMs ?? null, cacheHit: !!snapshot.cacheHit } });
-      const key = idempotencyKey({ boardKey, prints: snapshot.prints, mode, prompt, selectionOnly: snapshot.selectionOnly });
-      const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: snapshot.frozen, key };
+      const key = idempotencyKey({ boardKey, prints: snapshot.prints, mode, prompt: previous ? `${previous.requestId}|${prompt}` : prompt, selectionOnly: snapshot.selectionOnly });
+      const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: snapshot.frozen, key,
+        ...(previous ? { revise: { prompt: String(previous.origin || ''), result: earlierResult(previous) } } : {}) };
       set({ requestId: id, mode, error: null, notice: null, clarify: null, stale: null });
       const kept = results.get(key);
       if (kept) {
@@ -164,13 +177,13 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
         const checked = validate(kept.result, kept.plan, request);
         if (checked.ok) {
           mark(id, 'complete');
-          set({ status: kept.result.kind === 'proposal' ? 'proposal' : 'preview', preview: { ...checked.preview, requestId: id, route: kept.plan.route, kind: kept.result.kind, frozen: request.frozen }, proposal: kept.result.kind === 'proposal' ? { message: kept.result.message, primitive: kept.result.primitive } : null, route: kept.plan.route, via: kept.plan.via, accepted: false });
+          set({ status: kept.result.kind === 'proposal' ? 'proposal' : 'preview', preview: { ...checked.preview, requestId: id, route: kept.plan.route, kind: kept.result.kind, frozen: request.frozen, mode: request.mode, origin: request.revise?.prompt ?? request.prompt }, proposal: kept.result.kind === 'proposal' ? { message: kept.result.message, primitive: kept.result.primitive } : null, route: kept.plan.route, via: kept.plan.via, accepted: false });
           finish(id, 'reused');
           return 'reused';
         }
         results.delete(key);
       }
-      let plan = planRoute({ mode, prompt, enabled });
+      let plan = previous ? { route: previous.route, via: 'refine', args: String(prompt).trim() } : planRoute({ mode, prompt, enabled });
       if (plan.classify) {
         set({ status: 'routing', stage: STAGES.routing });
         mark(id, 'routeStart');
@@ -189,7 +202,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
         }
         plan = decideRoute(read, { enabled });
         metric(id).routing = plan.via === 'fallback' ? `fallback:${read.error}` : 'jev';
-      } else metric(id).routing = 'bypassed';
+      } else metric(id).routing = previous ? 'refine' : 'bypassed';
       pendingRequest = request;
       if (plan.clarify) { set({ status: 'clarify', stage: null, clarify: plan.clarify }); finish(id, 'clarify'); return 'clarify'; }
       if (plan.unavailable) { metric(id).capability = plan.unavailable.route; set({ status: state.preview ? 'preview' : 'error', stage: null, error: plan.unavailable.text }); finish(id, 'unavailable'); return 'unavailable'; }

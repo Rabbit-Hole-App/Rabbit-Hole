@@ -127,6 +127,9 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   if (response) return response;
   const { mode, route } = body;
   if (typeof body.prompt === 'string' && body.prompt.length > PROMPT_MAX) return json({ error: promptTooLong(body.prompt.length), code: 'too_long' }, 400);
+  // A refine (§10) carries the candidate it revises and the original request.
+  const revise = body.revise ?? null;
+  if (revise !== null && (typeof revise !== 'object' || typeof revise.result !== 'string' || !revise.result || revise.result.length > 8000 || typeof revise.prompt !== 'string' || revise.prompt.length > PROMPT_MAX)) return json({ error: 'Invalid inline request' }, 400);
   if (!((mode === 'explain' && route === 'note') || (mode === 'edit' && route === 'edit')) || typeof body.prompt !== 'string'
     || !body.context || typeof body.context !== 'object' || !Array.isArray(body.context.target?.ids) || !body.context.target.ids.length || !REQUEST_ID.test(String(body.request_id))) {
     return json({ error: 'Invalid inline request' }, 400);
@@ -143,7 +146,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     const got = await images(env, allowed, { image_context: ref, board: typeof body.board === 'string' ? body.board : 'main' }).catch(() => null);
     if (got?.blocks) pictures = got.blocks;
   }
-  const text = JSON.stringify({ request: body.prompt, canvas: body.context });
+  const text = JSON.stringify({ request: body.prompt, canvas: body.context, ...(revise ? { earlier: { request: revise.prompt, result: revise.result } } : {}) });
   const request = {
     // The subscription bridge replays a streamed answer as text only, which would drop an edit's tool call: an edit asks
     // for the whole answer there (the non-streaming branch below reads it).

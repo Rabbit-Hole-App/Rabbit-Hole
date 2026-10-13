@@ -166,3 +166,40 @@ test('command input: the page gives inline Motion the selection, never the canva
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
   assert.match(page, /motion: isLearnCommand\('motion'\) \? \(args, about = \{\}\) => motionProposal\(args, \{ concept: about\.concept \|\| null \}, about\.selection\) : null,/);
 });
+
+import * as transportModule from './inline-ai-transport.js';
+
+test('refine: the instruction, the previous output and the original request go to the same output, which revises it', async () => {
+  const seen = [];
+  let routes = 0;
+  const session = make({
+    route: async () => { routes += 1; return { choice: 'diagram', confidence: 0.9, probability: 0.9, ranked: ['diagram'] }; },
+    generate: async input => { seen.push(input); return { result: { kind: 'note', text: ['Node 23 is a child of node 4.', 'Child of 4.', 'Leaf; child of 4.'][seen.length - 1] } }; },
+  });
+  await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() });
+  await session.submit({ mode: 'explain', prompt: 'make it much shorter', prepare: snapshot() });
+  assert.equal(routes, 0, 'a refine keeps its output: no routing call');
+  assert.deepEqual([seen[1].route, seen[1].prompt, seen[1].revise], ['note', 'make it much shorter', { prompt: 'Explain this node', result: 'Node 23 is a child of node 4.' }]);
+  assert.equal(session.state.preview.text, 'Child of 4.', 'the candidate on screen is the revision');
+  // A second refine revises the newest candidate, with the original request still as context.
+  await session.submit({ mode: 'explain', prompt: 'say it is a leaf', prepare: snapshot() });
+  assert.deepEqual(seen[2].revise, { prompt: 'Explain this node', result: 'Child of 4.' });
+  // A / command or the other pill while a preview shows is a new request, not a revision.
+  await session.submit({ mode: 'explain', prompt: '/simplify', prepare: snapshot() });
+  assert.equal(seen[3].revise, undefined);
+});
+
+test('refine: a card is revised by its own handler, with the card and the original request in its context', async () => {
+  const seen = [];
+  const session = make({
+    route: async () => ({ choice: 'diagram', confidence: 0.95, probability: 0.95, ranked: ['diagram'] }),
+    artifact: async input => { seen.push(input); return { result: 'artifact', primitive: 'diagram', block: { type: 'flow', title: `Where node 23 sits ${seen.length}` } }; },
+  });
+  await session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
+  await session.submit({ mode: 'explain', prompt: 'add the root', prepare: snapshot() });
+  assert.equal(seen[1].command, 'diagram');
+  assert.equal(seen[1].args, 'add the root');
+  assert.deepEqual(seen[1].revise, { prompt: 'Explain this with a diagram', result: JSON.stringify({ type: 'flow', title: 'Where node 23 sits 1', text: '' }) });
+  const context = transportModule.artifactContext({ target: { ids: ['n23'] } }, seen[1].revise);
+  assert.match(context, /^Revise this earlier card .* original request was: "Explain this with a diagram"\nEarlier card: \{"type":"flow","title":"Where node 23 sits 1"/);
+});
