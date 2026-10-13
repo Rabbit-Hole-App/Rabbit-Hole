@@ -48,19 +48,33 @@ export const TEXT_LEVELS = [
   { id: 'body', label: 'Text', size: 14, weight: 400 },
 ];
 
-export function panelFor({ tool, selection, shapes = [], links = [], items = [] }) {
+// Kinds that carry words as a label (lines and arrows); closed shapes carry them in their middle.
+const LINEAR_SHAPES = new Set(['line', 'arrow', 'curve', 'elbow']);
+const TEXT_TOOLS = new Set(['text', 'sticky']);
+
+// editing: the id whose text is open, if any. units: how many separately movable pieces are selected (a group is one).
+// locked: the locked ids, which keep their look as well as their place - never a style target.
+export function panelFor({ tool, selection, shapes = [], links = [], items = [], editing = null, units = 0, locked = [] }) {
   const has = entry => selection.includes(entry.id);
+  const free = entry => !locked.includes(entry.id);
   const pickedShapes = shapes.filter(has);
   const pickedLinks = links.filter(has);
   const pickedTexts = items.filter(entry => has(entry) && entry.kind === 'text');
   const pickedStickies = items.filter(entry => has(entry) && entry.kind === 'sticky');
-  const targets = [...pickedShapes, ...pickedLinks, ...pickedTexts, ...pickedStickies].map(entry => entry.id);
+  const lockedPicks = [...pickedShapes, ...pickedTexts, ...pickedStickies].filter(entry => !free(entry));
+  const targets = [...pickedShapes, ...pickedLinks, ...pickedTexts, ...pickedStickies].filter(free).map(entry => entry.id);
   // A control only shows when it applies to everything it would act on, so a
   // press can never quietly mean something different per object.
   const allShapes = kinds => pickedShapes.length > 0 && !pickedLinks.length && !pickedTexts.length && !pickedStickies.length
     && pickedShapes.every(shape => kinds.has(shape.kind));
+  const lines = (pickedLinks.length > 0 || pickedShapes.length > 0) && !pickedTexts.length && !pickedStickies.length
+    && pickedShapes.every(shape => LINEAR_SHAPES.has(shape.kind));
+  // Words: a text box or note always; a shape or a line once it holds some, or while it is written in.
+  const worded = entry => entry.kind === 'text' || entry.kind === 'sticky' || !!(entry.text || entry.label) || entry.id === editing;
+  const textTargets = [...pickedShapes, ...pickedLinks, ...pickedTexts, ...pickedStickies].filter(entry => free(entry) && worded(entry)).map(entry => entry.id);
+  const closedWords = pickedShapes.filter(shape => CLOSED_SHAPES.has(shape.kind) && free(shape) && worded(shape));
   return {
-    open: STYLED_TOOLS.has(tool) || targets.length > 0,
+    open: STYLED_TOOLS.has(tool) || targets.length > 0 || units >= 2 || lockedPicks.length > 0,
     // Text levels replace stroke widths, but only when nothing else is in the
     // selection - a mixed pick falls back to the ink controls both understand.
     text: tool === 'text' || (pickedTexts.length > 0 && !pickedShapes.length && !pickedLinks.length && !pickedStickies.length),
@@ -69,11 +83,73 @@ export function panelFor({ tool, selection, shapes = [], links = [], items = [] 
     order: targets.length > 0,
     // Straight / curved / elbow: for connectors and drawn arrows, and only
     // when nothing else is picked.
-    route: (pickedLinks.length > 0 || pickedShapes.length > 0) && !pickedTexts.length && !pickedStickies.length
-      && pickedShapes.every(shape => ROUTE_OF_KIND[shape.kind]),
+    route: lines && pickedShapes.every(shape => ROUTE_OF_KIND[shape.kind]),
     routeValue: [...pickedLinks, ...pickedShapes].map(routeOf)[0] || null,
+    // Arrowheads at either end: lines, arrows and connectors.
+    heads: LINEAR_SHAPES.has(tool) || (lines && targets.length > 0),
+    // The first colour row: a stroke, or a note's paper. A text box's colour is its words', in the Text section.
+    stroke: !TEXT_TOOLS.has(tool) && (STYLED_TOOLS.has(tool) || pickedShapes.length + pickedLinks.length + pickedStickies.length > 0),
+    paper: tool === 'sticky' || (pickedStickies.length > 0 && !pickedShapes.length && !pickedLinks.length),
+    widths: tool === 'pen' || tool === 'highlighter' || CLOSED_SHAPES.has(tool) || LINEAR_SHAPES.has(tool)
+      || (pickedShapes.length > 0 && !pickedLinks.length && !pickedTexts.length && !pickedStickies.length),
+    // Font, size, bold, italic, underline, text colour and alignment.
+    typography: TEXT_TOOLS.has(tool) || textTargets.length > 0,
+    textTargets,
+    // Top / middle / bottom: words inside closed shapes, and nothing else picked with words.
+    valign: closedWords.length > 0 && closedWords.length === textTargets.length,
+    // Text / Code: one standalone text box.
+    code: textTargets.length === 1 && pickedTexts.length === 1 && textTargets[0] === pickedTexts[0].id ? pickedTexts[0].id : null,
+    arrange: units >= 2,
+    locked: lockedPicks.map(entry => entry.id),
     targets,
   };
+}
+
+// One step through paint order: each selected entry trades places with the unselected neighbour above (forward) or
+// below it, so a selection keeps its own internal order.
+export function reorderStep(list, ids, forward) {
+  const next = [...list];
+  if (forward) {
+    for (let i = next.length - 2; i >= 0; i -= 1) if (ids.includes(next[i].id) && !ids.includes(next[i + 1].id)) [next[i], next[i + 1]] = [next[i + 1], next[i]];
+  } else {
+    for (let i = 1; i < next.length; i += 1) if (ids.includes(next[i].id) && !ids.includes(next[i - 1].id)) [next[i - 1], next[i]] = [next[i], next[i - 1]];
+  }
+  return next;
+}
+
+// Arrowheads: where none was ever chosen, a drawn arrow (or a diagram connector, head: true) ends in the open arrow
+// it always had, and nothing starts with one.
+export const HEADS = ['none', 'arrow', 'triangle', 'dot', 'bar'];
+const ARROWED = new Set(['arrow', 'curve', 'elbow']);
+export const headsOf = entry => ({
+  start: HEADS.includes(entry.startHead) ? entry.startHead : 'none',
+  end: HEADS.includes(entry.endHead) ? entry.endHead : (ARROWED.has(entry.kind) || entry.head ? 'arrow' : 'none'),
+});
+
+// Copy style / paste style: appearance only - never words, identity or position - and only what the target can show.
+const TEXT_STYLE = ['font', 'fontSize', 'bold', 'italic', 'underline', 'textColor', 'align', 'level'];
+export function styleKeysFor(entry, link = false) {
+  if (link) return ['color', 'startHead', 'endHead', ...TEXT_STYLE.filter(key => key !== 'level')];
+  if (entry.kind === 'text') return ['color', 'opacity', ...TEXT_STYLE.filter(key => key !== 'textColor')];
+  if (entry.kind === 'sticky') return ['color', 'opacity', ...TEXT_STYLE.filter(key => key !== 'level')];
+  if (entry.kind === 'equation') return ['color'];
+  if (LINEAR_SHAPES.has(entry.kind)) return ['color', 'width', 'dash', 'opacity', 'startHead', 'endHead', ...TEXT_STYLE];
+  if (CLOSED_SHAPES.has(entry.kind)) return ['color', 'width', 'dash', 'fill', 'fillOpacity', 'opacity', 'valign', ...TEXT_STYLE, ...(entry.kind === 'rect' ? ['round'] : [])];
+  return [];
+}
+export function copyStyle(entry, link = false) {
+  const style = {};
+  for (const key of styleKeysFor(entry, link)) if (entry[key] !== undefined) style[key] = entry[key];
+  // A text box's colour is its words' colour: it pastes as the text colour of anything that keeps one apart.
+  if (entry.kind === 'text' && entry.color) style.textColor = entry.color;
+  return style;
+}
+export function pasteStyle(entry, style, link = false) {
+  const next = { ...entry };
+  for (const key of styleKeysFor(entry, link)) if (key in style) next[key] = style[key];
+  // Onto a text box, a source's text colour is the box's colour.
+  if (entry.kind === 'text' && style.textColor) next.color = style.textColor;
+  return next;
 }
 
 // Post-it papers: each palette ink maps to a pastel note. The default and

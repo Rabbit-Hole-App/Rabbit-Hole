@@ -1,5 +1,5 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -7,7 +7,11 @@ import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
-import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES, ARROW_KINDS } from './learn-style-panel.js';
+import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
+import RichText, { measureHeight } from './RichText.jsx';
+import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
+import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
+import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
@@ -78,7 +82,6 @@ const SHAPE_TOOLS = [
   ['curve', Spline, 'Curved arrow'],
   ['elbow', CornerDownRight, 'Elbow arrow'],
 ];
-const COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'];
 // The default ink is Notion's near-black, stored as a hex in every saved
 // stroke and text item - so dark mode must translate it at render time or all
 // default writing reads as dark gray on a dark canvas. Only the default maps;
@@ -90,7 +93,6 @@ const DIVIDER_W = 1040;
 // Connectors take the colour of the node they start from, so a canvas reads
 // at a glance; picking an ink colour first overrides this.
 const LINK_COLORS = { chat: '#2383e2', quiz: '#7c3aed', flashcards: '#f59e0b', challenge: '#37352f', explanation: '#6b7280', table: '#0891b2', snippet: '#1a7f37', code: '#1a7f37', graph: '#2383e2', paper: '#b42318', model3d: '#7c3aed', image: '#0891b2', video: '#b42318' };
-const WIDTHS = [2, 3.5, 6];
 const COLUMN = 560;
 // A new card's one camera correction waits until its measured size has been still for SETTLE_MS (rows it
 // measures a frame or two after mount), REVEAL_MS after the insert at the latest (revealAfter).
@@ -118,11 +120,24 @@ const POLYGONS = {
   }),
 };
 
+// Direct tool keys (docs/features/canvas-editing.md) and the arrow keys' nudge directions.
+const TOOL_KEYS = { v: 'select', h: 'hand', r: 'rect', o: 'ellipse', a: 'arrow', l: 'line', p: 'pen', t: 'text', e: 'eraser', n: 'sticky' };
+const NUDGE = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+
 // Screen pixels of travel before a press counts as a drag rather than a click.
 const DRAG_THRESHOLD = 3;
 
+// A press that changes the selection (docs/features/canvas-editing.md, Excalidraw's rules): on anything not yet
+// selected; Shift adds or, on something already selected, takes it out; Ctrl/Cmd picks one member out of a group.
+const pickOnPress = (selected, event) => !selected || event.shiftKey || event.ctrlKey || event.metaKey;
+
 // Pointer drag with a live apply callback; used by blocks, stickies, text,
-// shapes and panning. scale converts screen pixels to world units.
+// shapes and panning. scale converts screen pixels to world units. apply gets
+// the held modifiers ({ shift, alt }) too, and runs again the moment one is
+// pressed or released, so a resize answers Shift or Alt without the pointer
+// moving. Esc cancels: apply.cancel if given, else the origin again.
+// One gesture at a time: the canvas's own Esc handling stands down while one runs.
+let gestureLive = false;
 function startDrag(event, origin, apply, scale = 1, snap = null) {
   event.preventDefault();
   event.stopPropagation();
@@ -130,21 +145,45 @@ function startDrag(event, origin, apply, scale = 1, snap = null) {
   // A press only becomes a drag once the pointer has actually travelled. Without
   // this, a click meant to select something shifts it by whatever the hand did
   // on the way down - worst on text, which has no handle to aim at.
-  let dragging = false;
+  let dragging = false, last = null;
   // An iframe under the pointer (a notebook, a PDF) would swallow the rest of
   // the drag; while one is in progress every iframe ignores the pointer.
   document.body.classList.add('canvas-dragging');
+  gestureLive = true;
+  const at = (pointer, keys = pointer) => {
+    const x = origin.x + (pointer.clientX - from.x) / scale;
+    const y = origin.y + (pointer.clientY - from.y) / scale;
+    const pulled = snap ? snap(x, y) : null;
+    apply(pulled ? pulled.x : x, pulled ? pulled.y : y, { shift: keys.shiftKey, alt: keys.altKey });
+  };
   const move = e => {
     if (!dragging && Math.hypot(e.clientX - from.x, e.clientY - from.y) < DRAG_THRESHOLD) return;
     dragging = true;
-    const x = origin.x + (e.clientX - from.x) / scale;
-    const y = origin.y + (e.clientY - from.y) / scale;
-    const pulled = snap ? snap(x, y) : null;
-    apply(pulled ? pulled.x : x, pulled ? pulled.y : y);
+    last = e;
+    at(e);
   };
-  const up = () => { document.body.classList.remove('canvas-dragging'); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); apply.done?.(); snap?.done?.(); };
+  const stop = () => {
+    gestureLive = false;
+    document.body.classList.remove('canvas-dragging');
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('keydown', key, true); window.removeEventListener('keyup', key, true);
+    apply.done?.(); snap?.done?.();
+  };
+  const up = () => stop();
+  const key = e => {
+    if (e.type === 'keydown' && e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      if (apply.cancel) apply.cancel(); else if (dragging) apply(origin.x, origin.y, {});
+      stop();
+      return;
+    }
+    if (e.key !== 'Shift' && e.key !== 'Alt') return;
+    if (e.key === 'Alt') e.preventDefault(); // Alt alone must not move focus to the browser's menu
+    if (dragging && last) at(last, e);
+  };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
+  window.addEventListener('keydown', key, true);
+  window.addEventListener('keyup', key, true);
 }
 
 const segmentDistance = (p, a, b) => {
@@ -168,6 +207,9 @@ function outlineOf(shape) {
 
 // Opening a card (card-open.js): { single, can(id), open(id, via) }, provided by the canvas around its blocks.
 const CardOpen = createContext(null);
+// Lock and Alt-drag (docs/features/canvas-editing.md), provided by the canvas around everything it draws: the locked
+// ids, and altDrag(id, event), which drags a copy of the pressed object (and the rest of its selection) away.
+const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
@@ -179,6 +221,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // Open (card-open.js): double-click, Enter, or the Open pill on the one selected card. A chat card never opens.
   const opener = useContext(CardOpen);
   const opens = !chat && opener ? opener.can(id) : null;
+  const edit = useContext(CanvasEdit), locked = edit.locked.has(id);
   // Whether the card was already selected when this double-click's first press landed: a selected PDF, video or
   // article body keeps its own pointer (data-pointer-body), so a double-click there is the reader's, not Open.
   const selectedAtPress = useRef(false), lastPress = useRef(-Infinity);
@@ -193,7 +236,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   }, [onLayout]);
   const drag = event => {
     if (event.button !== 0) return;
-    if (!selected) onSelect(id, event); // keep a multi-selection intact while dragging it
+    if (pickOnPress(selected, event)) onSelect(id, event); // a plain press keeps a multi-selection intact while dragging it
+    // A locked card is selected, never moved; Shift on a selected card only takes it out; Alt drags a copy away.
+    if (locked || (selected && event.shiftKey)) { event.preventDefault(); return; }
+    if (event.altKey && edit.altDrag) { edit.altDrag(id, event); return; }
     setLifted(true);
     const apply = (x, y) => onMove(id, x, y);
     apply.done = () => setLifted(false);
@@ -246,8 +292,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         data-node-tool
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, id, side)} />)}
-      <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
-        data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>
+      {!locked && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
+        data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
     </div>
   );
 }
@@ -774,27 +820,67 @@ function LevelPill({ level, onLevel, className = '', style = null, levels = TEXT
   );
 }
 
+// The Text / Code switch on a selected text box (docs/features/canvas-editing.md): the same object, words, place and
+// size; Code shows it literally in monospace and keeps the text formatting aside for the switch back. Nothing runs.
+function ModePill({ mode, onMode }) {
+  return (
+    <div role="group" aria-label="Text or code" data-keep-focus data-thumbnail-hide style={{ fontSize: 12, fontWeight: 400, fontStyle: 'normal', textDecoration: 'none' }}
+      className="flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 font-sans shadow-md"
+      onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}>
+      {[['text', 'Text'], ['code', 'Code']].map(([value, label]) => (
+        <button key={value} type="button" aria-pressed={(mode || 'text') === value} data-text-mode={value} title={value === 'code' ? 'Show as code: monospace, literal spacing' : 'Show as formatted text'}
+          onClick={() => onMode(value)}
+          className={`rounded px-1.5 py-0.5 text-[11px] ${(mode || 'text') === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'} ${value === 'code' ? 'font-mono' : ''}`}>{label}</button>
+      ))}
+    </div>
+  );
+}
+
+// The words of a text box or note as drawn: its level's size and weight, its own formatting, its colour.
+const itemBase = item => {
+  if (item.kind === 'sticky') return baseOf(item, { color: stickyTone(item.color).text, size: 13, weight: 400 });
+  const level = TEXT_LEVELS.find(entry => entry.id === item.level);
+  const base = baseOf({ ...item, textColor: undefined }, { color: item.color || COLORS[0], size: level?.size || item.size || 14, weight: level?.weight || 400 });
+  return item.mode === 'code' ? { ...base, b: false, i: false, u: false, f: 'mono' } : base;
+};
+
 // onAsk: only while this text box or note is the one selected object (a multi-selection asks through its group or area).
-function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null }) {
-  const [editing, setEditing] = useState(item.fresh);
+// editOn: { id, n } - the canvas asking this item to open for typing (Enter on a selected text box). onEditStart: the
+// edit began (its undo step opens). onCommit(id, runs, how): the edit ended. onEditorApi: the open editor's handle.
+function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null }) {
+  const [editing, setEditing] = useState(!!item.fresh);
+  const [point, setPoint] = useState(null);
+  const edit = useContext(CanvasEdit), locked = edit.locked.has(item.id);
   const body = useRef(null);
-  // The rendered children stay pinned to this ref while editing so re-renders
-  // (e.g. a streaming answer) never make React wipe the typed DOM text.
+  // A divider's old title keeps its plain editor; it is pinned while editing so a re-render never wipes it.
   const shown = useRef(item.text);
-  useEffect(() => { if (editing) body.current?.focus(); }, [editing]);
+  useEffect(() => { if (editing && item.kind === 'section') body.current?.focus(); }, [editing, item.kind]);
   const sticky = item.kind === 'sticky';
+  const code = item.kind === 'text' && item.mode === 'code';
   // A section is a rule across the column with a title under it - the thing that
   // turns a long canvas into chapters. It carries no colour or size of its own,
   // so it reads as structure rather than as another annotation.
   const section = item.kind === 'section';
-  const startEdit = () => { shown.current = item.text; setEditing(true); };
+  // Double-click (the caret lands where it was pressed) or Enter (the canvas's editOn) opens it; a locked one never.
+  const startEdit = (event = null) => {
+    if (locked || editing) return;
+    shown.current = item.text;
+    setPoint(event ? { x: event.clientX, y: event.clientY } : null);
+    onEditStart?.(item.id);
+    setEditing(true);
+  };
+  useEffect(() => { if (editOn?.id === item.id) startEdit(); }, [editOn]); // eslint-disable-line react-hooks/exhaustive-deps
   const down = event => {
     if (event.button !== 0) return;
-    if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); onDelete(item.id); return; }
+    if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); if (!locked) onDelete(item.id); return; }
     if (tool !== 'select') return;
-    if (!selected) onSelect(item.id, event);
-    if (!editing) { onGesture(); startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom, onSnap?.(item.id)); }
-    else event.stopPropagation();
+    // While typing, a press places the caret and a drag selects words: neither moves the box nor pans the canvas.
+    if (editing) { event.stopPropagation(); return; }
+    if (pickOnPress(selected, event)) onSelect(item.id, event);
+    if (locked || (selected && event.shiftKey)) { event.preventDefault(); event.stopPropagation(); return; }
+    if (event.altKey && edit.altDrag) { edit.altDrag(item.id, event); return; }
+    onGesture();
+    startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom, onSnap?.(item.id));
   };
   if (section) {
     // A divider is only a rule now - Section / Sub-section headings do the
@@ -803,54 +889,63 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     return (
       <div data-block data-section style={{ left: item.x, top: item.y, width: item.w || COLUMN }}
         className={`group absolute z-10 cursor-grab py-2 active:cursor-grabbing ${selected ? 'rounded ring-2 ring-accent ring-offset-2' : ''}`}
-        onPointerDown={down} onDoubleClick={titled ? startEdit : undefined}>
+        onPointerDown={down} onDoubleClick={titled && !locked ? () => { shown.current = item.text; setEditing(true); } : undefined}>
         <div className="h-px w-full bg-line-strong" />
         {titled && <div ref={body} contentEditable={editing} suppressContentEditableWarning
-          onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
+          onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onCommit(item.id, [{ t: text }], 'blur'); }}
           className="mt-2 text-sm font-medium text-ink outline-none">{shown.current}</div>}
         {/* Reachable without selecting first: a section is structure, and removing
             one should not need the same ceremony as editing it. */}
-        <button type="button" aria-label="Remove divider" title="Remove divider"
+        {!locked && <button type="button" aria-label="Remove divider" title="Remove divider"
           onPointerDown={event => event.stopPropagation()}
           onClick={() => onDelete(item.id)}
           className="absolute -top-2 right-0 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-ink-3 opacity-0 hover:bg-hover hover:text-ink focus-visible:opacity-100 group-hover:opacity-100">
           <X size={13} />
-        </button>
+        </button>}
       </div>
     );
   }
   // The cards' Ask in chat (r35), on a text box or note with words in it; never while it is edited. A text box's pill
   // shares the ladder's row and is pushed to the right edge, so a short text never has the two over each other.
-  const ladder = !sticky && item.kind === 'text' && onLevel && (editing || (selected && tool === 'select'));
+  const chrome = !locked && (editing || (selected && tool === 'select'));
+  const ladder = !sticky && item.kind === 'text' && onLevel && chrome;
   const ask = !!onAsk && selected && !editing && tool === 'select' && !!String(item.text || '').trim();
   const askPill = <AskPill title={sticky ? 'Ask the tutor about this note' : 'Ask the tutor about this text'} onAsk={() => onAsk(item)} className={sticky ? 'absolute z-30 -translate-x-full' : 'ml-auto'} style={sticky ? { left: item.x + (item.w || 160), top: item.y - 40 } : null} />;
+  const base = itemBase(item);
+  const ink = sticky ? (value => value) : inkAware;
   return (<>
-    <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160, background: stickyTone(item.color).bg, borderColor: stickyTone(item.color).border, color: stickyTone(item.color).text, '--sticky-ph': stickyTone(item.color).placeholder } : { color: inkAware(item.color), ...textStyle(item), ...(item.w ? { width: item.w } : {}), ...(item.h ? { minHeight: item.h } : {}) }) }}
-      className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky
+    <div data-block data-item-id={item.id} data-text-mode={item.kind === 'text' ? item.mode || 'text' : undefined}
+      style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky
+        // A note grows with its words rather than clipping them; its corner sets the least it can be.
+        ? { width: item.w || 160, minHeight: item.h || 160, background: stickyTone(item.color).bg, borderColor: stickyTone(item.color).border, color: stickyTone(item.color).text, '--sticky-ph': stickyTone(item.color).placeholder }
+        : { color: inkAware(item.color), ...textStyle(item), ...(code ? { minWidth: item.w || 96, width: 'max-content' } : item.w ? { width: item.w } : { width: 'max-content' }), ...(item.h ? { minHeight: item.h } : {}) }) }}
+      className={`absolute z-10 ${editing ? 'cursor-text' : selected && !locked ? 'cursor-move' : 'cursor-default'} ${sticky
         // Text has no card behind it, so its box is invisible until you are on
         // it. The border is always there and only gains a colour on hover, so
         // nothing shifts; the padding is cancelled by the margin for the same
         // reason - glyphs stay exactly where they were placed.
         ? '-rotate-1 overflow-hidden rounded-sm border p-3 text-[13px] leading-snug shadow-md'
-        : `min-w-24 -mx-1 -my-0.5 rounded border border-transparent px-1 py-0.5 leading-snug ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
-      onPointerDown={down} onDoubleClick={startEdit}>
+        : `min-w-24 -mx-1 -my-0.5 rounded border px-1 py-0.5 leading-snug ${code ? 'border-line bg-hover/60' : 'border-transparent'} ${tool === 'select' && !code ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
+      onPointerDown={down} onDoubleClick={event => { if (tool === 'select') startEdit(event); }}>
       {/* A selected or editing text box offers its ladder right there - H1 to
-          text - instead of asking the learner to find the style panel. One
-          click reaches it; no double-click needed. pointerdown is swallowed
-          so choosing a level never blurs or deselects the text. */}
+          text - and Text / Code, instead of asking the learner to find the style
+          panel. pointerdown is swallowed so choosing never blurs or deselects. */}
       {(ladder || (ask && !sticky)) && (
         <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full items-center gap-2">
-          {ladder && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+          {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+          {ladder && onMode && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} />}
           {ask && !sticky && askPill}
         </div>
       )}
-      <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
-        onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
-        className={`outline-none ${sticky ? 'h-full empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}>{shown.current}</div>
+      <RichText entry={item} base={base} colorOf={ink} code={code} editing={editing} point={point}
+        placeholder={sticky ? 'Note…' : code ? 'Code…' : 'Text…'} aria-label={sticky ? 'Sticky note' : code ? 'Code' : 'Text'}
+        style={{ ...objectStyle(item, base, ink), ...(code ? { fontWeight: 400, fontStyle: 'normal', textAlign: 'left' } : {}) }}
+        className={`${sticky ? 'h-full empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}
+        onApi={onEditorApi} onCommit={(runs, how) => { setEditing(false); setPoint(null); onCommit(item.id, runs, how); }} />
       {/* Text gets the same corner control as a note: the box scales, the
           type does not - wrapping is what changes, never the font size. The
           glyph is the card nodes' diagonal-lines corner, not a square. */}
-      {(sticky || item.kind === 'text') && selected && tool === 'select' && (
+      {(sticky || item.kind === 'text') && selected && tool === 'select' && !locked && (
         <button type="button" data-thumbnail-hide aria-label={sticky ? 'Resize note' : 'Resize text box'} title="Resize"
           style={sticky ? { color: stickyTone(item.color).placeholder } : undefined}
           className={`absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 ${sticky ? '' : 'text-ink-3 hover:text-ink-2'}`}
@@ -876,29 +971,32 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
   const [editing, setEditing] = useState(!!item.fresh);
   const size = item.size || EQUATION_SIZE;
   const still = item.latex ? <MathText expression={item.latex} display /> : <span className="text-[0.6em] text-ink-3 italic">Empty equation</span>;
+  const edit = useContext(CanvasEdit), locked = edit.locked.has(item.id);
   const down = event => {
     if (event.button !== 0) return;
-    if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); onDelete(item.id); return; }
+    if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); if (!locked) onDelete(item.id); return; }
     if (tool !== 'select') return;
     if (editing) { event.stopPropagation(); return; }
-    if (!selected) onSelect(item.id, event);
+    if (pickOnPress(selected, event)) onSelect(item.id, event);
+    if (locked || (selected && event.shiftKey)) { event.preventDefault(); event.stopPropagation(); return; }
+    if (event.altKey && edit.altDrag) { edit.altDrag(item.id, event); return; }
     onGesture();
     startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom, onSnap?.(item.id));
   };
   return (
     <div data-block data-item-id={item.id} data-equation={editing ? 'editing' : ''} style={{ left: item.x, top: item.y, fontSize: size, color: inkAware(item.color || COLORS[0]) }}
       className={`absolute z-10 -mx-1 rounded border px-1 [&_[data-chat-math]]:my-0 [&_[data-chat-math]]:py-0 ${editing ? 'cursor-text border-line bg-white' : `cursor-grab border-transparent active:cursor-grabbing ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
-      onPointerDown={down} onDoubleClick={() => { if (tool === 'select') setEditing(true); }}>
+      onPointerDown={down} onDoubleClick={() => { if (tool === 'select' && !locked) setEditing(true); }}>
       {editing
         ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
         : still}
       {/* The size ladder, where a text box shows its H1-to-text one; never while the LaTeX is edited (the palette is there). */}
-      {selected && !editing && tool === 'select' && (
+      {selected && !editing && !locked && tool === 'select' && (
         <LevelPill level={equationLevel(size)} levels={EQUATION_LEVELS} label="Equation size" fallback={null} className="absolute bottom-full left-0 z-20 mb-2.5"
           onLevel={value => { onGesture(); onPatch(item.id, { size: levelSize(value) }); }} />
       )}
       {/* The corner scales the type, as a text box's corner reflows its text. */}
-      {selected && !editing && tool === 'select' && (
+      {selected && !editing && !locked && tool === 'select' && (
         <button type="button" data-thumbnail-hide aria-label="Resize equation" title="Resize" className="absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 text-ink-3 hover:text-ink-2"
           onPointerDown={event => {
             if (event.button !== 0) return;
@@ -1000,38 +1098,42 @@ const inkPath = (stroke, index) => (stroke.tool === 'pen'
   ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={inkAware(stroke.color)} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
   : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />);
 
-const arrowHead = (tip, from, stroke) => {
+// An arrowhead (learn-style-panel.js HEADS) at `tip`, pointing away from `from`: open arrow, filled triangle, dot or bar.
+const headMark = (kind, tip, from, stroke, key = undefined) => {
+  if (!kind || kind === 'none' || !tip || !from) return null;
   const angle = Math.atan2(tip.y - from.y, tip.x - from.x), size = 8 + stroke.strokeWidth * 2;
-  return <path d={`M${tip.x - size * Math.cos(angle - 0.45)} ${tip.y - size * Math.sin(angle - 0.45)} L${tip.x} ${tip.y} L${tip.x - size * Math.cos(angle + 0.45)} ${tip.y - size * Math.sin(angle + 0.45)}`} {...stroke} strokeDasharray={undefined} />;
+  const at = (turn, reach) => `${tip.x - reach * Math.cos(angle + turn)} ${tip.y - reach * Math.sin(angle + turn)}`;
+  const solid = { stroke: stroke.stroke, strokeWidth: stroke.strokeWidth, opacity: stroke.opacity, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (kind === 'triangle') return <path key={key} data-head="triangle" d={`M${at(-0.42, size)} L${tip.x} ${tip.y} L${at(0.42, size)} Z`} {...solid} fill={stroke.stroke} />;
+  if (kind === 'dot') { const r = 2.5 + stroke.strokeWidth; return <circle key={key} data-head="dot" cx={tip.x - r * Math.cos(angle)} cy={tip.y - r * Math.sin(angle)} r={r} {...solid} fill={stroke.stroke} />; }
+  if (kind === 'bar') { const half = size / 2; return <path key={key} data-head="bar" d={`M${tip.x + half * Math.sin(angle)} ${tip.y - half * Math.cos(angle)} L${tip.x - half * Math.sin(angle)} ${tip.y + half * Math.cos(angle)}`} {...solid} fill="none" />; }
+  return <path key={key} data-head="arrow" d={`M${at(-0.45, size)} L${tip.x} ${tip.y} L${at(0.45, size)}`} {...solid} fill="none" />;
 };
+
+// The words on a line as drawn: 13px unless sized, the line's own colour unless given a text colour.
+const labelBase = entry => baseOf(entry, { color: entry.color || COLORS[0], size: 13, weight: 400 });
 
 // A label in the middle of a connector or a drawn arrow. It sits on a small
 // paper patch so the line does not run through the words; only the editor
-// takes the pointer. Enter commits, Shift+Enter breaks the line.
-function LineLabel({ at, text, color, editing, pickable = false, onPick = null, onDone }) {
-  const body = useRef(null);
-  const shown = useRef(text || '');
-  if (!editing) shown.current = text || '';
-  useEffect(() => {
-    if (!editing || !body.current) return;
-    body.current.focus();
-    document.getSelection()?.selectAllChildren(body.current);
-    document.getSelection()?.collapseToEnd();
-  }, [editing]);
+// takes the pointer. It edits like every canvas text (RichText): Enter breaks the
+// line, Esc or Ctrl/Cmd+Enter commits (docs/features/canvas-connectors.md).
+function LineLabel({ at, entry, editing, pickable = false, onPick = null, onDone, onApi = null }) {
+  const [point, setPoint] = useState(null);
+  const text = entry.label || '';
   if (!editing && !text) return null;
+  const base = labelBase(entry);
   return (
     <foreignObject x={at.x - 120} y={at.y - 40} width={240} height={80} style={{ overflow: 'visible', pointerEvents: 'none' }}>
       <div className="flex h-full w-full items-center justify-center">
-        <div ref={body} data-line-label contentEditable={editing} suppressContentEditableWarning
-          style={{ color: inkAware(color), pointerEvents: editing || pickable ? 'auto' : 'none' }}
+        <RichText entry={{ ...entry, text }} base={base} colorOf={inkAware} editing={editing} point={point} data-line-label aria-label="Line label"
+          style={{ ...objectStyle(entry, base, inkAware), textAlign: ALIGNS.includes(entry.align) ? entry.align : 'center', pointerEvents: editing || pickable ? 'auto' : 'none' }}
           onPointerDown={event => {
             event.stopPropagation();
-            // On a selected line, a click on its label edits it.
-            if (!editing && pickable) { event.preventDefault(); onPick?.(); }
+            // On a selected line, a click on its label edits it, the caret where it was pressed.
+            if (!editing && pickable) { event.preventDefault(); setPoint({ x: event.clientX, y: event.clientY }); onPick?.(); }
           }}
-          onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.blur(); } }}
-          onBlur={event => { const value = event.currentTarget.innerText.replace(/\n$/, ''); shown.current = value; onDone(value); }}
-          className="max-w-[240px] min-w-4 cursor-text rounded bg-white px-1.5 py-0.5 text-center text-[13px] leading-snug break-words whitespace-pre-wrap outline-none">{shown.current}</div>
+          onApi={onApi} onCommit={(runs, how) => { setPoint(null); onDone(runs, how); }}
+          className="max-w-[240px] min-w-4 cursor-text rounded bg-white px-1.5 py-0.5 leading-snug" />
       </div>
     </foreignObject>
   );
@@ -1047,46 +1149,71 @@ const LabelHandle = ({ at, zoom, onPick }) => (
 // Where a closed shape's text sits, as fractions of its box [left, top, right,
 // bottom]: inside the outline, so the words never cross the stroke.
 const TEXT_BOX = { rect: [0.06, 0.06, 0.94, 0.94], ellipse: [0.15, 0.15, 0.85, 0.85], triangle: [0.25, 0.45, 0.75, 0.95], diamond: [0.22, 0.22, 0.78, 0.78], hexagon: [0.15, 0.1, 0.85, 0.9], star: [0.3, 0.35, 0.7, 0.75] };
+// The words inside a closed shape as drawn: its level's size unless sized, its outline's colour unless given a text colour.
+const shapeBase = shape => { const level = textStyle(shape); return baseOf(shape, { color: shape.color || COLORS[0], size: level.fontSize, weight: level.fontWeight || 400 }); };
+const shapeTextCss = (shape, base) => ({ ...objectStyle(shape, base, inkAware), lineHeight: 1.25, textAlign: ALIGNS.includes(shape.align) ? shape.align : 'center' });
+const JUSTIFY = { top: 'justify-start', middle: 'justify-center', bottom: 'justify-end' };
+const MIN_SHAPE = 16;
 
-function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing = false, showPorts = false, onSelect, onMoveStart, onResize, onGesture, onDelete, onEdit, onText, onConnect, onLabel, onLabelDone }) {
+
+// onGestureCancel: Esc during a resize puts the shape back and drops the step. onGrow(id, height): the words need more
+// room than the shape has, so it grows downward instead of clipping them.
+function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = null, labelEditing = false, showPorts = false, onSelect, onMoveStart, onResize, onGesture, onGestureCancel = null, onDelete, onEdit, onText, onConnect, onLabel, onLabelDone, onGrow = null, onEditorApi = null }) {
   const { kind, x1, y1, x2, y2, color, width, dash, fill, opacity, round } = shape;
+  const locked = useContext(CanvasEdit).locked.has(shape.id);
   // Unfilled shapes paint a transparent fill so the pointer can grab the
   // interior, not just the hairline outline. Transparent paint still hit-tests
   // under visiblePainted; opacity 0 keeps it invisible.
-  const stroke = { stroke: inkAware(color), strokeWidth: width, fill: fill ? inkAware(fill) : 'transparent', fillOpacity: fill ? 0.25 : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const stroke = { stroke: inkAware(color), strokeWidth: width, fill: fill ? inkAware(fill) : 'transparent', fillOpacity: fill ? (shape.fillOpacity ?? 0.25) : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const control = kind === 'curve' ? curveControl(shape) : null;
   const linear = kind === 'line' || kind === 'arrow' || kind === 'curve' || kind === 'elbow';
   const elbow = kind === 'elbow' ? freeElbow(shape) : null;
   const middle = kind === 'curve' ? { x: 0.25 * x1 + 0.5 * control.x + 0.25 * x2, y: 0.25 * y1 + 0.5 * control.y + 0.25 * y2 } : elbow ? polylineMid(elbow) : { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+  const heads = headsOf(shape);
   const textBox = TEXT_BOX[kind];
-  const body = useRef(null);
-  // Pinned while editing so a re-render never wipes what is being typed.
-  const shown = useRef(shape.text || '');
-  if (!editing) shown.current = shape.text || '';
-  useEffect(() => {
-    if (!editing || !body.current) return;
-    body.current.focus();
-    document.getSelection()?.selectAllChildren(body.current);
-    document.getSelection()?.collapseToEnd();
-  }, [editing]);
+  const textRef = useRef(null);
+  const base = textBox ? shapeBase(shape) : null;
+  const boxW = textBox ? Math.max(1, (textBox[2] - textBox[0]) * w) : 0, boxH = textBox ? Math.max(1, (textBox[3] - textBox[1]) * h) : 0;
+  // Words never overflow silently: while typing, and after any change to the words or their formatting, a shape whose
+  // words need more height grows to hold them. Never on load - opening a board changes nothing on it.
+  const changed = useRef(false);
+  const textKey = textBox ? JSON.stringify([shape.text, shape.runs, shape.font, shape.fontSize, shape.level, shape.bold, shape.italic, Math.round(boxW)]) : '';
+  useLayoutEffect(() => {
+    const element = textRef.current;
+    if (!element || !textBox || !onGrow) return undefined;
+    const check = () => { if (element.offsetHeight > boxH + 0.5) onGrow(shape.id, element.offsetHeight / (textBox[3] - textBox[1])); };
+    if (editing) { const observer = new ResizeObserver(check); observer.observe(element); return () => observer.disconnect(); }
+    if (changed.current) check();
+    changed.current = true;
+    return undefined;
+  }, [editing, textKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const down = event => {
     if (event.button !== 0) return;
     if (editing || labelEditing) { event.stopPropagation(); return; }
-    if (tool === 'eraser') { event.stopPropagation(); onDelete(shape.id); return; }
+    if (tool === 'eraser') { event.stopPropagation(); if (!locked) onDelete(shape.id); return; }
     if (tool !== 'select') return;
-    if (!selected) onSelect(shape.id, event);
+    if (pickOnPress(selected, event)) onSelect(shape.id, event);
+    // Shift takes a selected shape out of the selection; a locked shape is selected, never moved.
+    if ((selected && event.shiftKey) || locked) { event.stopPropagation(); event.preventDefault(); return; }
     onMoveStart(event, shape);
   };
-  // Drag an endpoint (linear) or a corner (boxed) to resize the drawn shape.
+  // The least a shape with words can be at a width: tall enough to hold them (they never shrink to fit).
+  const minSize = boxWidth => {
+    if (!textBox || !(shape.text || editing)) return { w: MIN_SHAPE, h: MIN_SHAPE };
+    const tall = measureHeight(runsOf(shape), base, inkAware, shapeTextCss(shape, base), boxWidth * (textBox[2] - textBox[0]));
+    return { w: MIN_SHAPE, h: Math.max(MIN_SHAPE, tall / (textBox[3] - textBox[1])) };
+  };
+  // Drag an endpoint (linear) or a corner (boxed) to resize the drawn shape: Shift keeps the proportions (snaps a line
+  // to 45 degrees), Alt/Option keeps the centre.
   const handles = linear
-    ? [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })]]
-    : [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y1, p => ({ x2: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })], [x1, y2, p => ({ x1: p.x, y2: p.y })]];
+    ? [[x1, y1, 'start'], [x2, y2, 'end']]
+    : [[x, y, [0, 0]], [x + w, y, [1, 0]], [x + w, y + h, [1, 1]], [x, y + h, [0, 1]]];
   return (
-    <g data-shape-id={shape.id} className="group" style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}
-      onDoubleClick={() => {
-        if (tool !== 'select') return;
-        if (textBox && onEdit) onEdit(shape.id);
+    <g data-shape-id={shape.id} data-locked={locked ? '' : undefined} className="group" style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? (locked ? 'default' : 'move') : undefined }} onPointerDown={down}
+      onDoubleClick={event => {
+        if (tool !== 'select' || locked) return;
+        if (textBox && onEdit) onEdit(shape.id, { x: event.clientX, y: event.clientY });
         else if (linear && onLabel) onLabel(shape.id);
       }}>
       {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
@@ -1099,29 +1226,35 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing 
           and curves the same easy grab a filled shape's interior has. */}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
-      {kind === 'arrow' && arrowHead({ x: x2, y: y2 }, { x: x1, y: y1 }, stroke)}
-      {kind === 'curve' && arrowHead({ x: x2, y: y2 }, control, stroke)}
       {elbow && <path d={pathOf(elbow)} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinejoin="round" />}
-      {elbow && elbow.length > 1 && arrowHead(elbow[elbow.length - 1], elbow[elbow.length - 2], stroke)}
-      {linear && <LineLabel at={middle} text={shape.label} color={color} editing={labelEditing} pickable={selected && tool === 'select'} onPick={() => onLabel?.(shape.id)} onDone={value => onLabelDone(shape.id, value)} />}
-      {linear && selected && tool === 'select' && !labelEditing && !shape.label && onLabel && <LabelHandle at={middle} zoom={zoom} onPick={() => onLabel(shape.id)} />}
+      {linear && headMark(heads.end, kind === 'elbow' ? elbow[elbow.length - 1] : { x: x2, y: y2 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[elbow.length - 2] : { x: x1, y: y1 }, stroke, 'end')}
+      {linear && headMark(heads.start, { x: x1, y: y1 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[1] : { x: x2, y: y2 }, stroke, 'start')}
+      {linear && <LineLabel at={middle} entry={shape} editing={labelEditing} pickable={selected && tool === 'select' && !locked} onPick={() => onLabel?.(shape.id)} onDone={(runs, how) => onLabelDone(shape.id, runs, how)} onApi={onEditorApi} />}
+      {linear && selected && tool === 'select' && !locked && !labelEditing && !shape.label && onLabel && <LabelHandle at={middle} zoom={zoom} onPick={() => onLabel(shape.id)} />}
       {/* Text in the middle of a closed shape: it wraps inside the outline and
           reflows as the shape is resized. Only the editor takes the pointer. */}
       {textBox && (shape.text || editing) && (
-        <foreignObject x={x + textBox[0] * w} y={y + textBox[1] * h} width={Math.max(1, (textBox[2] - textBox[0]) * w)} height={Math.max(1, (textBox[3] - textBox[1]) * h)}
+        <foreignObject x={x + textBox[0] * w} y={y + textBox[1] * h} width={boxW} height={boxH}
           style={{ pointerEvents: editing ? 'all' : 'none', overflow: 'visible' }}>
-          <div className="flex h-full w-full items-center justify-center text-center" style={{ color: inkAware(color), opacity, lineHeight: 1.25, ...textStyle(shape) }}>
-            <div ref={body} data-shape-text contentEditable={editing} suppressContentEditableWarning
-              onBlur={event => { const text = event.currentTarget.innerText.replace(/\n$/, ''); shown.current = text; onText(shape.id, text); }}
-              className="max-w-full min-w-4 cursor-text break-words whitespace-pre-wrap outline-none">{shown.current}</div>
+          <div className={`flex h-full w-full flex-col ${JUSTIFY[shape.valign] || JUSTIFY.middle}`} style={{ opacity }}>
+            <RichText rootRef={textRef} entry={shape} base={base} colorOf={inkAware} editing={editing} point={editPoint} data-shape-text aria-label="Shape text"
+              style={shapeTextCss(shape, base)} className="w-full min-w-4"
+              onApi={onEditorApi} onCommit={(runs, how) => onText(shape.id, runs, how)} />
           </div>
         </foreignObject>
       )}
       {selected && !linear && <rect data-thumbnail-hide x={x - 5} y={y - 5} width={w + 10} height={h + 10} fill="none" stroke="#2383e2" strokeWidth="1" strokeDasharray="4 3" />}
-      {selected && tool === 'select' && handles.map(([hx, hy, patch], index) => (
-        <circle key={index} data-thumbnail-hide cx={hx} cy={hy} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
-          style={{ pointerEvents: 'all', cursor: linear ? 'move' : 'nwse-resize' }}
-          onPointerDown={event => { if (event.button !== 0) return; onGesture(); startDrag(event, { x: hx, y: hy }, (px, py) => onResize(shape.id, patch({ x: px, y: py })), zoom); }} />
+      {selected && tool === 'select' && !locked && handles.map(([hx, hy, grip], index) => (
+        <circle key={index} data-thumbnail-hide data-handle={linear ? grip : grip.join('')} cx={hx} cy={hy} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
+          style={{ pointerEvents: 'all', cursor: linear ? 'move' : grip[0] === grip[1] ? 'nwse-resize' : 'nesw-resize' }}
+          onPointerDown={event => {
+            if (event.button !== 0) return;
+            onGesture();
+            const from = { ...shape };
+            const apply = (px, py, keys) => onResize(shape.id, linear ? moveEnd(from, grip, { x: px, y: py }, keys) : resizeBox(from, grip, { x: px, y: py }, keys, minSize));
+            apply.cancel = () => onGestureCancel?.();
+            startDrag(event, { x: hx, y: hy }, apply, zoom);
+          }} />
       ))}
       {/* Connection ports on the four sides: drag to another shape or card, or
           click here and then click the target. */}
@@ -1134,106 +1267,6 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing 
         );
       })}
     </g>
-  );
-}
-
-// Colour, thickness and dash used to live in the tool column, which had grown to
-// 26 buttons and scrolled. They sit in their own island now, beside the tools,
-// shown only while a drawing tool is armed or something styleable is selected.
-// Text swaps the thickness row for Notion's heading ladder.
-// It opens from the tools' gutter, beside the toolbar on whichever side it docks.
-function StylePanel({ colorOnly = false, side = 'right', text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
-  const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
-  return (
-    <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
-      className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-24'} z-20 grid w-max max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:top-auto @max-[640px]:left-auto @max-[640px]:right-0 @max-[640px]:bottom-full @max-[640px]:mb-2 @max-[640px]:max-h-[60vh] @max-[640px]:translate-y-0`}>
-      {COLORS.map(value => (
-        <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
-          className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
-          <span style={{ background: value }} className={`h-3.5 w-3.5 rounded-full ${color === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
-        </button>
-      ))}
-      {/* A comment pin has a colour and nothing else (owner, 2026-10-08). */}
-      {!colorOnly && <>
-      {showFill && rule}
-      {showFill && (
-        <>
-          {/* Fill is drawn at a quarter opacity so a filled shape never buries
-              what is under it - the Excalidraw habit, without the hatching. */}
-          <button type="button" title="No fill" aria-label="No fill" aria-pressed={!fill} onClick={() => onFill(null)}
-            className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
-            <span className={`h-3.5 w-3.5 rounded-sm border border-line bg-white ${!fill ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}>
-              <svg viewBox="0 0 14 14" aria-hidden="true"><line x1="1" y1="13" x2="13" y2="1" stroke="#b42318" strokeWidth="1.5" /></svg>
-            </span>
-          </button>
-          {COLORS.map(value => (
-            <button key={value} type="button" title="Fill" aria-label={`Fill ${value}`} aria-pressed={fill === value} onClick={() => onFill(value)}
-              className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
-              <span style={{ background: value, opacity: 0.25, borderColor: value }} className={`h-3.5 w-3.5 rounded-sm border ${fill === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
-            </button>
-          ))}
-        </>
-      )}
-      {rule}
-      {text
-        ? TEXT_LEVELS.map(entry => (
-          <button key={entry.id} type="button" title={entry.label} aria-label={entry.label} aria-pressed={level === entry.id} onClick={() => onLevel(entry.id)}
-            className={`flex h-6 w-8 items-center justify-center rounded-lg text-[11px] ${level === entry.id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}
-            style={{ fontWeight: entry.weight }}>{entry.label}</button>
-        ))
-        : <>
-          {WIDTHS.map(value => (
-            <button key={value} type="button" title={`Stroke width ${value}`} aria-label={`Stroke width ${value}`} aria-pressed={width === value} onClick={() => onWidth(value)}
-              className={`flex h-6 w-8 items-center justify-center rounded-lg ${width === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
-              <span style={{ height: value }} className="w-4 rounded-full bg-current" />
-            </button>
-          ))}
-          {DASH_STYLES.map(value => (
-            <button key={value} type="button" title={value} aria-label={`${value} lines`} aria-pressed={dashStyle(dash) === value} onClick={() => onDash(value)}
-              className={`flex h-6 w-8 items-center justify-center rounded-lg ${dashStyle(dash) === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
-              <svg width="16" height="4" aria-hidden="true">
-                <line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                  strokeDasharray={value === 'dashed' ? '4 3' : value === 'dotted' ? '0 4' : undefined} />
-              </svg>
-            </button>
-          ))}
-        </>}
-      {route && (
-        <>
-          {rule}
-          {[['straight', Slash, 'Straight line'], ['curved', Spline, 'Curved line'], ['elbow', CornerDownRight, 'Elbow line']].map(([value, Icon, label]) => (
-            <button key={value} type="button" title={label} aria-label={label} aria-pressed={routeValue === value} onClick={() => onRoute(value)}
-              className={`flex h-6 w-8 items-center justify-center rounded-lg ${routeValue === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}><Icon size={14} strokeWidth={1.7} /></button>
-          ))}
-        </>
-      )}
-      {rule}
-      {OPACITIES.map(value => (
-        <button key={value} type="button" title={`Opacity ${Math.round(value * 100)}%`} aria-label={`Opacity ${Math.round(value * 100)}%`}
-          aria-pressed={(opacity ?? 1) === value} onClick={() => onOpacity(value)}
-          className={`flex h-6 w-8 items-center justify-center rounded-lg ${(opacity ?? 1) === value ? 'bg-hover' : 'hover:bg-hover'}`}>
-          <span style={{ background: color, opacity: value }} className="h-3.5 w-3.5 rounded-full" />
-        </button>
-      ))}
-      {corners && (
-        <>
-          <button type="button" title="Sharp corners" aria-label="Sharp corners" aria-pressed={!round} onClick={() => onRound(false)}
-            className={`flex h-6 w-8 items-center justify-center rounded-lg ${!round ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}><Square size={14} strokeWidth={1.7} /></button>
-          <button type="button" title="Rounded corners" aria-label="Rounded corners" aria-pressed={!!round} onClick={() => onRound(true)}
-            className={`flex h-6 w-8 items-center justify-center rounded-lg ${round ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}><Squircle size={14} strokeWidth={1.7} /></button>
-        </>
-      )}
-      {order && (
-        <>
-          {rule}
-          <button type="button" title="Send to back" aria-label="Send to back" onClick={() => onOrder(false)}
-            className="flex h-6 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><SendToBack size={14} strokeWidth={1.7} /></button>
-          <button type="button" title="Bring to front" aria-label="Bring to front" onClick={() => onOrder(true)}
-            className="flex h-6 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><BringToFront size={14} strokeWidth={1.7} /></button>
-        </>
-      )}
-      </>}
-    </div>
   );
 }
 
@@ -1304,6 +1337,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [dropHover, setDropHover] = useState(false);
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
+  const menuOpenRef = useRef(false);
+  menuOpenRef.current = !!menuAt;
   // Where the menu actually goes (owner, 2026-10-07): measured after it renders, so it opens beside the cursor and stays
   // inside both the window and the canvas surface (which clips it) at the right and bottom edges - flipped to the
   // cursor's other side, then clamped. Hidden for that one measuring pass, before paint.
@@ -1346,6 +1381,31 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [fill, setFill] = useState(null);
   const [opacity, setOpacity] = useState(1);
   const [round, setRound] = useState(false);
+  // Armed for the next thing drawn, like colour: fill opacity, arrowheads (null: the kind's own), and the text formatting
+  // a new text box, note or shape text starts with (docs/features/canvas-editing.md).
+  const [fillOpacity, setFillOpacity] = useState(0.25);
+  const [heads, setHeads] = useState({ start: null, end: null });
+  const [textArm, setTextArm] = useState({});
+  // The open text editor's handle (RichText onApi): the style panel formats its characters while it is open.
+  const editorRef = useRef(null);
+  const [, setEditorTick] = useState(0);
+  const editorUnsub = useRef(null);
+  const onEditorApi = useCallback(api => {
+    editorUnsub.current?.();
+    editorUnsub.current = null;
+    editorRef.current = api;
+    if (api) editorUnsub.current = api.subscribe(() => setEditorTick(tick => tick + 1));
+    setEditorTick(tick => tick + 1);
+  }, []);
+  // Enter on a selected text box or note opens it (CanvasItem editOn); a shape's text and a line's label open by id.
+  const [editTarget, setEditTarget] = useState(null);
+  const [editPoint, setEditPoint] = useState(null);
+  // Copy style / paste style: appearance only, never words, identity or position.
+  const styleClip = useRef(null);
+  const [canPasteStyle, setCanPasteStyle] = useState(false);
+  // Space held over a canvas that owns the keyboard: a drag pans, whatever is under it.
+  const [spacePan, setSpacePan] = useState(false);
+  const spacePanRef = useRef(false);
   // Lock keeps the armed tool armed, so three rectangles take three drags
   // instead of three trips back to the toolbar.
   const [lock, setLock] = useState(false);
@@ -1402,15 +1462,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setStyleOpen(null);
     const active = document.activeElement;
     if (id && active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
-    const additive = event && (event.ctrlKey || event.metaKey || event.shiftKey);
-    // A plain click on a grouped thing picks up its whole group; ctrl+click
-    // still reaches the single member underneath.
-    if (!additive) {
-      const gid = id == null ? null : groupOf(id);
-      setSelection(id == null ? [] : gid ? membersOf(gid) : [id]);
-      return;
+    // Excalidraw's rules (docs/features/canvas-editing.md): a plain click picks the object - its whole group when it is
+    // in one; Ctrl/Cmd+click picks the one member inside a group, without ungrouping it; Shift+click adds what is not
+    // selected and takes out what is (a group as one piece, unless Ctrl/Cmd is held too). Selection never rewrites groups.
+    const one = event && (event.ctrlKey || event.metaKey);
+    const gid = id == null ? null : groupOf(id);
+    const piece = id == null ? [] : gid && !one ? membersOf(gid) : [id];
+    let next = piece;
+    if (id != null && event?.shiftKey) {
+      const current = selectedRef.current;
+      next = piece.every(other => current.includes(other)) ? current.filter(other => !piece.includes(other)) : [...current, ...piece.filter(other => !current.includes(other))];
     }
-    setSelection(previous => previous.includes(id) ? previous.filter(other => other !== id) : [...previous, id]);
+    // Read at once by a drag that starts on this same press (groupTargets), before the re-render.
+    selectedRef.current = next;
+    setSelection(next);
   };
   const selectRef = useRef(select);
   selectRef.current = select;
@@ -1429,6 +1494,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Named groups. Membership lives on the members themselves (groupId), so
   // undo restores it with them; this list only carries each group's label.
   const [groups, setGroups] = useState(stored.current.groups || []);
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
   // Every area asked about stays on the canvas, outlined and lightly filled red, saved with the
   // board, until the learner clicks its outline to remove it.
   const [areas, setAreas] = useState(stored.current.areas || []);
@@ -1625,8 +1692,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
       copy: copySelection,
-      paste: () => !!clipboard.current?.length && pasteIds(clipboard.current),
-      duplicate: () => pasteIds(selectedRef.current),
+      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current)),
+      duplicate: () => !!pasteIds(selectedRef.current),
+      cut: cutSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand, lockSelection, nudge,
+      // Enter on one selected object: a text box or note opens for typing, a closed shape its words, a line its label.
+      editSelected: id => {
+        if (lockedRef.current.has(id)) return false;
+        const item = itemsRef.current.find(entry => entry.id === id && (entry.kind === 'text' || entry.kind === 'sticky'));
+        if (item) { setEditTarget({ id, n: Date.now() }); return true; }
+        const shape = shapesRef.current.find(entry => entry.id === id);
+        if (shape && TEXT_BOX[shape.kind]) { startShapeText(id); return true; }
+        if (shape || present.current.links.some(link => link.id === id)) { startLabel(id); return true; }
+        return false;
+      },
+      // Paint order: 'front', 'forward', 'backward', 'back'.
+      order: how => reorderSelection(how, selectedRef.current),
       group: groupSelection, ungroup: ungroupSelection, arrange,
       zoomIn: () => zoomCenter(1.25),
       zoomOut: () => zoomCenter(1 / 1.25),
@@ -1732,12 +1812,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertText: () => {
         snapshot();
         const center = viewCenter();
-        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 210, y: center.y - 16, w: 420, text: '', color, opacity, level, fresh: true }]);
+        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 48, y: center.y - 16, text: '', color: textArm.c || color, opacity, level, ...armedText('text'), fresh: true }]);
       },
       insertSticky: () => {
         snapshot();
         const center = viewCenter();
-        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'sticky', x: center.x - 80, y: center.y - 80, text: '', color, opacity, fresh: true }]);
+        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'sticky', x: center.x - 80, y: center.y - 80, text: '', color, opacity, ...armedText('sticky'), fresh: true }]);
       },
       // The Files panel's show and remove.
       // Framed once laid out (the camera effect): a card inserted this very tick is framed at its real
@@ -1850,8 +1930,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const markingCopy = useRef(false);
   const [canPaste, setCanPaste] = useState(false);
   // Copy works on every selected node, note and shape. The clipboard holds
-  // ids, never the objects: copy then edit then paste has to produce what is
-  // on the canvas now, not a snapshot taken at the moment of copy.
+  // ids, so copy then edit then paste produces what is on the canvas now; it
+  // also keeps a copy of each object, the links between them and their groups,
+  // for when the originals are gone - a cut, then a paste.
+  const clipCopies = useRef(null);
   const copySelection = () => {
     const picked = selectedRef.current;
     const has = list => list.some(entry => picked.includes(entry.id));
@@ -1859,6 +1941,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // was wiped by a copy that captured nothing.
     if (!has(blocksRef.current) && !has(itemsRef.current) && !has(shapesRef.current) && !has(exchangesRef.current)) return false;
     clipboard.current = picked.slice();
+    const pick = list => list.filter(entry => picked.includes(entry.id));
+    clipCopies.current = {
+      blocks: pick(blocksRef.current), items: pick(itemsRef.current), shapes: pick(shapesRef.current), chats: pick(exchangesRef.current),
+      links: present.current.links.filter(link => picked.includes(link.from) && picked.includes(link.to)),
+      groups: groupsRef.current.filter(group => { const members = membersOf(group.id); return members.length && members.every(id => picked.includes(id)); }),
+    };
     setCanPaste(true);
     // The system clipboard says which copy is newest: our marker there means
     // Ctrl+V pastes these cards; an image copied after it wins instead. Until
@@ -1870,26 +1958,43 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     toast(`Copied ${picked.length} item${picked.length === 1 ? '' : 's'}`);
     return true;
   };
-  // Shared by Ctrl+V and the context menu's Duplicate. Ids in, fresh copies
-  // out; the copy carries the latest text and position, never a snapshot.
-  // Copies leave their group - a duplicate is new material, not a new member.
-  const pasteIds = picked => {
-    const pickedBlocks = blocksRef.current.filter(block => picked.includes(block.id));
-    const pickedItems = itemsRef.current.filter(item => picked.includes(item.id));
-    const pickedShapes = shapesRef.current.filter(shape => picked.includes(shape.id));
-    const pickedChats = exchangesRef.current.filter(exchange => picked.includes(exchange.id));
-    if (!pickedBlocks.length && !pickedItems.length && !pickedShapes.length && !pickedChats.length) return false;
+  // Shared by Ctrl+V, Duplicate and Alt-drag. Ids in, fresh copies out; the copy
+  // carries the latest text, formatting and position (the clipboard's own copy
+  // once the original is gone). A link between two copied objects is copied
+  // with them; a whole group copied becomes a new group of the copies - a
+  // duplicate is new material, never a new member of the original group. A
+  // copy is never locked. step: how far the copies land from their sources.
+  // Returns { ids, copies } (copies for Alt-drag to place), or null.
+  const pasteIds = (picked, step = 28) => {
+    const saved = clipCopies.current || {};
+    const live = (list, kept = []) => picked.map(id => list.find(entry => entry.id === id) || kept.find(entry => entry.id === id)).filter(Boolean);
+    const pickedBlocks = live(blocksRef.current, saved.blocks);
+    const pickedItems = live(itemsRef.current, saved.items);
+    const pickedShapes = live(shapesRef.current, saved.shapes);
+    const pickedChats = live(exchangesRef.current, saved.chats);
+    if (!pickedBlocks.length && !pickedItems.length && !pickedShapes.length && !pickedChats.length) return null;
     snapshot(pickedChats.length > 0);
-    const step = 28;
-    const fresh = [];
+    const fresh = [], ids = new Map();
+    const newId = old => { const id = crypto.randomUUID(); ids.set(old, id); fresh.push(id); return id; };
+    // Groups whose every member is copied come along as new groups.
+    const wholeGroups = new Map();
+    for (const group of [...groupsRef.current, ...(saved.groups || [])]) {
+      if (wholeGroups.has(group.id)) continue;
+      const members = [...pickedBlocks, ...pickedItems, ...pickedShapes, ...pickedChats].filter(entry => entry.groupId === group.id);
+      const all = membersOf(group.id);
+      if (members.length >= 2 && (all.length ? all.every(id => picked.includes(id)) : true)) wholeGroups.set(group.id, { id: crypto.randomUUID(), label: group.label || '' });
+    }
+    const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook.
-    const copyNode = node => { const id = crypto.randomUUID(); fresh.push(id); return { ...node, id, groupId: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}) }; };
+    const copyNode = node => ({ ...node, id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}) });
     const blocksCopy = pickedBlocks.map(copyNode);
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
     const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
-    const itemsCopy = pickedItems.map(item => { const id = crypto.randomUUID(); fresh.push(id); return { ...item, id, groupId: undefined, x: item.x + step, y: item.y + step, fresh: false }; });
-    const shapesCopy = pickedShapes.map(shape => { const id = crypto.randomUUID(); fresh.push(id); return { ...shape, id, groupId: undefined, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }; });
+    const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + step, y: item.y + step, fresh: false }));
+    const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }));
+    const linkSource = [...present.current.links, ...(saved.links || []).filter(link => !present.current.links.some(other => other.id === link.id))];
+    const linksCopy = linkSource.filter(link => ids.has(link.from) && ids.has(link.to)).map(link => ({ ...link, id: crypto.randomUUID(), from: ids.get(link.from), to: ids.get(link.to) }));
     // Each copy lands directly after its source rather than at the end of the
     // column, where on a long canvas it was off-screen and read as nothing
     // having happened.
@@ -1903,11 +2008,34 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     });
     if (itemsCopy.length) setItems(previous => [...previous, ...itemsCopy]);
     if (shapesCopy.length) setShapes(previous => [...previous, ...shapesCopy]);
+    if (linksCopy.length) setLinks(previous => [...previous, ...linksCopy]);
+    if (wholeGroups.size) setGroups(previous => [...previous, ...wholeGroups.values()]);
     if (chatsCopy.length) onAddRef.current?.(chatsCopy);
+    selectedRef.current = fresh;
     setSelection(fresh);
     clipboard.current = fresh; // paste again and it stacks from the newest
     setCanPaste(true);
-    return true;
+    return { ids: fresh, copies: { blocks: blocksCopy, items: itemsCopy, shapes: shapesCopy, chats: chatsCopy } };
+  };
+  // Alt/Option-drag from an object's body: a copy of it (and of the rest of its selection, its group) follows the
+  // pointer and the originals stay. The copy and the move are one undo step. A resize handle's Alt keeps the centre.
+  const altDrag = (id, event) => {
+    const current = selectedRef.current;
+    const ids = current.includes(id) ? current : groupOf(id) ? membersOf(groupOf(id)) : [id];
+    const made = pasteIds(ids, 0);
+    if (!made) return;
+    const { blocks: cards, items: notes, shapes: marks, chats } = made.copies;
+    const start = local(event);
+    // ponytail: copies placed absolutely from where they started; no alignment snapping while Alt-dragging.
+    startDrag(event, start, (x, y) => {
+      const ddx = x - start.x, ddy = y - start.y;
+      const at = list => new Map(list.map(entry => [entry.id, entry]));
+      const cardAt = at(cards), noteAt = at(notes), markAt = at(marks);
+      if (cards.length) setBlocks(previous => previous.map(block => cardAt.has(block.id) ? { ...block, dx: cardAt.get(block.id).dx + ddx, dy: cardAt.get(block.id).dy + ddy } : block));
+      if (notes.length) setItems(previous => previous.map(item => noteAt.has(item.id) ? { ...item, x: noteAt.get(item.id).x + ddx, y: noteAt.get(item.id).y + ddy } : item));
+      if (marks.length) setShapes(previous => previous.map(shape => { const from = markAt.get(shape.id); return from ? { ...shape, x1: from.x1 + ddx, y1: from.y1 + ddy, x2: from.x2 + ddx, y2: from.y2 + ddy } : shape; }));
+      for (const chat of chats) onMove(chat.id, chat.dx + ddx, chat.dy + ddy);
+    }, view.z);
   };
   const pasteIdsRef = useRef(pasteIds);
   // Pasted text lands as one text card at the view's centre, as Insert text does, already written.
@@ -1988,7 +2116,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }).filter(Boolean);
   };
   const arrange = how => {
-    const units = arrangeUnits(selectedRef.current);
+    // A locked piece neither moves nor is lined up against.
+    const units = arrangeUnits(selectedRef.current).filter(unit => !unit.members.some(id => lockedRef.current.has(id)));
     const spread = how === 'spread-x' || how === 'spread-y';
     if (units.length < (spread ? 3 : 2)) return;
     snapshot(units.some(unit => unit.members.some(id => exchangesRef.current.some(exchange => exchange.id === id))));
@@ -2160,11 +2289,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const cardKey = JSON.stringify(card), content = canvasObjects({ blocks, exchanges, strokes, shapes, items, areas });
   // Practice attempts committed on this canvas (every card's attemptLog): a Professor Next Steps basis trigger (contract §1.7).
   const attempts = blocks.reduce((sum, block) => sum + (block.attemptLog?.length || 0), 0);
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, card: JSON.parse(cardKey), content, attempts }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, cardKey, content, attempts, onState]);
+  // Whether every selected lockable object is locked (the menus say Unlock then).
+  const selectionLocked = selection.length > 0 && selection.every(id => !blocks.concat(items, shapes).some(entry => entry.id === id) || blocks.concat(items, shapes).some(entry => entry.id === id && entry.locked)) && selection.some(id => blocks.concat(items, shapes).some(entry => entry.id === id && entry.locked));
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, card: JSON.parse(cardKey), content, attempts }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, cardKey, content, attempts, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = () => {
-    const ids = selectedRef.current;
+    // A locked object is never deleted by accident: it stays, selected, and says so.
+    const ids = selectedRef.current.filter(id => !lockedRef.current.has(id));
+    if (ids.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
     if (!ids.length) return;
     const chats = ids.filter(id => exchangesRef.current.some(exchange => exchange.id === id));
     snapshot(chats.length > 0);
@@ -2175,7 +2308,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setItems(previous => previous.filter(item => !ids.includes(item.id)));
     setShapes(previous => previous.filter(shape => !ids.includes(shape.id)));
     setLinks(previous => previous.filter(link => !ids.includes(link.id) && !nodes.has(link.from) && !nodes.has(link.to)));
-    setSelection([]);
+    setSelection(previous => previous.filter(id => !ids.includes(id)));
   };
   const presentingRef = useRef(null);
   // Present mode's laser pointer: on by default, L or the bar's Laser toggles it.
@@ -2184,6 +2317,95 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   presentingRef.current = presenting;
   const deleteSelectionRef = useRef(deleteSelection);
   deleteSelectionRef.current = deleteSelection;
+  // ---------- Everyday object controls (docs/features/canvas-editing.md) ----------
+  // Locked objects: cards, shapes, text, notes and equations. A locked object can be selected (to unlock it), never
+  // moved, resized, edited, restyled or deleted by accident. A connector follows its ends and has no lock of its own.
+  const lockedIds = new Set([...blocks, ...items, ...shapes].filter(entry => entry.locked).map(entry => entry.id));
+  const lockedRef = useRef(lockedIds);
+  lockedRef.current = lockedIds;
+  const lockable = id => [...blocksRef.current, ...itemsRef.current, ...shapesRef.current].some(entry => entry.id === id);
+  const lockSelection = () => {
+    const ids = selectedRef.current.filter(lockable);
+    if (!ids.length) return false;
+    const lock = !ids.every(id => lockedRef.current.has(id));
+    if (lock) editorRef.current?.commit('blur');
+    snapshot();
+    const patch = entry => (ids.includes(entry.id) ? { ...entry, locked: lock || undefined } : entry);
+    setBlocks(previous => previous.map(patch));
+    setItems(previous => previous.map(patch));
+    setShapes(previous => previous.map(patch));
+    return true;
+  };
+  // Cut: the copy machinery first; only a copy that succeeded deletes anything (and never a locked object).
+  const cutSelection = () => {
+    if (!copySelection()) return false;
+    deleteSelection();
+    return true;
+  };
+  // Copy style / paste style: appearance only (learn-style-panel.js copyStyle), from the first selected styleable object.
+  const styleSource = () => {
+    for (const id of selectedRef.current) {
+      const link = present.current.links.find(entry => entry.id === id);
+      if (link) return copyStyle(link, true);
+      const entry = [...shapesRef.current, ...itemsRef.current].find(other => other.id === id && other.kind !== 'section');
+      if (entry) return copyStyle(entry);
+    }
+    return null;
+  };
+  const copyStyleCommand = () => {
+    const style = styleSource();
+    if (!style) return false;
+    styleClip.current = style;
+    setCanPasteStyle(true);
+    toast('Style copied');
+    return true;
+  };
+  const pasteStyleCommand = () => {
+    const style = styleClip.current, targets = selectedRef.current.filter(id => !lockedRef.current.has(id));
+    if (!style || !targets.length) return false;
+    snapshot();
+    setShapes(previous => previous.map(shape => (targets.includes(shape.id) ? pasteStyle(shape, style) : shape)));
+    setItems(previous => previous.map(item => (targets.includes(item.id) && item.kind !== 'section' ? pasteStyle(item, style) : item)));
+    setLinks(previous => previous.map(link => (targets.includes(link.id) ? pasteStyle(link, style, true) : link)));
+    return true;
+  };
+  // Arrow keys nudge by one canvas unit, Shift by ten. A run of presses is one undo step.
+  const lastNudge = useRef(0);
+  const nudge = (dx, dy) => {
+    const ids = selectedRef.current.filter(id => !lockedRef.current.has(id));
+    if (!ids.length) return false;
+    const now = Date.now();
+    if (now - lastNudge.current > 700) snapshot(ids.some(id => exchangesRef.current.some(exchange => exchange.id === id)));
+    lastNudge.current = now;
+    shift(dx, dy, ids);
+    return true;
+  };
+  // Text / Code: an open edit is committed first, so its words are what switches; the switch is its own undo step.
+  const setTextMode = (id, mode) => {
+    editorRef.current?.commit('blur');
+    const before = itemsRef.current.find(item => item.id === id);
+    if (!before || (before.mode || 'text') === mode || lockedRef.current.has(id)) return;
+    snapshot();
+    setItems(previous => previous.map(item => (item.id === id ? { ...item, mode: mode === 'code' ? 'code' : undefined } : item)));
+  };
+  // H1 to Text: the preset decides size and weight again, so the object's own size and bold, and any characters' sizes
+  // and bold, let go (the other formatting stays).
+  const presetPatch = (entry, value) => {
+    const runs = Array.isArray(entry.runs) ? compactRuns(entry.runs.map(run => { const rest = { ...run }; delete rest.s; delete rest.b; return rest; })) : null;
+    return { ...entry, level: value, fontSize: undefined, bold: undefined, runs: runs || undefined };
+  };
+  const applyLevel = (ids, value) => {
+    setLevel(value);
+    setTextArm(previous => ({ ...previous, s: undefined, b: undefined }));
+    ids = ids.filter(id => !lockedRef.current.has(id));
+    if (!ids.length) return;
+    // The open editor's characters let go too; the object's own preset changes below.
+    if (editorRef.current && ids.includes(editStep.current?.id)) editorRef.current.strip(['s', 'b']);
+    snapshot();
+    const lists = markLists();
+    lists.setItems(previous => previous.map(item => (ids.includes(item.id) ? presetPatch(item, value) : item)));
+    lists.setShapes(previous => previous.map(shape => (ids.includes(shape.id) ? presetPatch(shape, value) : shape)));
+  };
   // Undo and redo: snapshot the artifact lists before every mutating gesture.
   // ponytail: single-level lists + 100-step cap; both stacks die with the tab.
   const present = useRef(null);
@@ -2193,10 +2415,30 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // withExchanges captures the chat blocks too, so deleting a block undoes.
   const capture = (withExchanges = false) => ({ ...present.current, ...(withExchanges ? { exchanges: exchangesRef.current } : {}) });
   const snapshot = (withExchanges = false) => {
-    history.current.push(capture(withExchanges));
+    const entry = capture(withExchanges);
+    history.current.push(entry);
     if (history.current.length > 100) history.current.shift();
     // A fresh gesture is a new branch, so anything redone is no longer reachable.
     future.current = [];
+    return entry;
+  };
+  // Esc on an unfinished resize: the shape goes back to how the gesture found it, and its step is dropped.
+  const cancelGesture = () => {
+    const entry = history.current[history.current.length - 1];
+    if (!entry) return;
+    history.current.pop();
+    setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(entry.blocks);
+  };
+  // A text edit is one undo step: opened when typing starts, dropped at the end if the edit changed nothing.
+  const editStep = useRef(null);
+  const beginEdit = id => { editStep.current = { id, entry: snapshot() }; };
+  const endEdit = (changed, list) => {
+    const step = editStep.current;
+    editStep.current = null;
+    if (!step || changed) return;
+    // A shape that grew while it was written in changed too.
+    const was = step.entry[list]?.find(entry => entry.id === step.id), now = present.current[list]?.find(entry => entry.id === step.id);
+    if (was === now && history.current[history.current.length - 1] === step.entry) history.current.pop();
   };
   const restore = state => {
     setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); setSelected(null);
@@ -2250,11 +2492,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
+      // An open text editor (RichText) owns every key while it is open: Enter, Esc, undo, clipboard and the arrows.
+      if (document.activeElement?.closest?.('[data-rich-editor]')) return;
+      // A drag in progress owns Esc: it cancels the gesture (startDrag) and nothing else.
+      if (gestureLive && event.key === 'Escape') return;
       // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;
       // Enter opens it - or the one selected card while nothing else holds the focus. Presenting keeps both keys.
       const focusedCard = document.activeElement?.matches?.('[data-block-id]') ? document.activeElement.dataset.blockId : null;
-      if (presentingRef.current === null && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      // Typing somewhere, an embedded editor or widget (focus inside a card), a dialog, a menu or the composer: the
+      // canvas's own letter, Space and arrow keys stand down there.
+      const held = document.activeElement;
+      const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
+        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
+      const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+      if (presentingRef.current === null && plain) {
         if (event.key === ' ' && focusedCard) { event.preventDefault(); if (!selectedRef.current.includes(focusedCard)) selectRef.current(focusedCard); return; }
+        // Space held over a canvas that owns the keyboard: a drag pans (never a space typed into anything, never a
+        // focused button's own Space).
+        if (event.key === ' ' && !busy && !held?.closest?.('button,a,[role="button"],[role="menuitem"],[role="tab"],summary')) {
+          event.preventDefault();
+          if (!spacePanRef.current) { spacePanRef.current = true; setSpacePan(true); }
+          return;
+        }
         const idle = !document.activeElement || document.activeElement === document.body;
         const target = event.key === 'Enter' && (focusedCard || (idle && selectedRef.current.length === 1 ? selectedRef.current[0] : null));
         if (target && openCardRef.current.can(target)) {
@@ -2263,13 +2522,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           openCardRef.current.open(target, 'learner_enter');
           return;
         }
+        // Enter on a selected text box, note, shape or line (not a card that opens): start typing in it.
+        if (target && !readOnlyRef.current && commandsRef.current.editSelected(target)) { event.preventDefault(); return; }
       }
       // C (docs/features/canvas-comments.md, Q14; owner 2026-10-08): comment on the selected or focused object, on any board
       // where you may comment; with nothing selected it does nothing. It stands down while typing, inside an embedded editor or widget (focus
       // inside a card), in a dialog or the composer, with Ctrl, Alt or Meta held (Ctrl+C still copies), and while presenting.
-      const held = document.activeElement;
-      const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
-        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
       if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey && !event.altKey && commentKeyRef.current && presentingRef.current === null && !busy
         && commentKeyRef.current(focusedCard ? [focusedCard] : selectedRef.current)) {
         event.preventDefault();
@@ -2282,6 +2540,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         pinKeyRef.current(event.key);
         return;
       }
+      // An open dialog or menu handles its own Esc first (the shortcuts sheet, the canvas menu, a composer menu).
+      if (event.key === 'Escape' && (held?.closest?.('[role="dialog"],[role="menu"]') || document.querySelector('[role="dialog"][aria-modal="true"]'))) return;
       // A view-only board: Esc puts the hand back, and lets go of the selected card
       // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
       if (readOnlyRef.current) {
@@ -2301,8 +2561,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return;
       }
       // Esc is the way home from anywhere: back to the pointer, nothing armed,
-      // nothing half-done. A text box being typed in commits and lets go.
+      // nothing half-done. An open canvas menu closes first, on its own.
       if (event.key === 'Escape') {
+        if (menuOpenRef.current) { setMenuAt(null); return; }
         const focused = document.activeElement;
         // Esc in the composer (or any field off the canvas) is that field's - closing its / menu, say: the selected
         // card, which is the question's context, stays.
@@ -2315,6 +2576,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       }
       const active = document.activeElement;
       const typing = typingIn(active);
+      const commands = commandsRef.current;
+      // One key per tool (familiar Excalidraw mappings), only while the canvas owns the keyboard: V select, H hand,
+      // R rectangle, O ellipse, A arrow, L line, P pen, T text, E eraser, N sticky note. C is Comment, above.
+      if (plain && !busy && TOOL_KEYS[event.key.toLowerCase()]) { event.preventDefault(); setTool(TOOL_KEYS[event.key.toLowerCase()]); return; }
+      // Arrow keys nudge the selection one canvas unit, Shift+arrow ten.
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && !busy && !drawTargetRef.current && NUDGE[event.key] && selectedRef.current.length) {
+        const [dx, dy] = NUDGE[event.key], by = event.shiftKey ? 10 : 1;
+        if (commands.nudge(dx * by, dy * by)) event.preventDefault();
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
         if (typing) return;
         event.preventDefault();
@@ -2329,14 +2600,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return;
       }
       const mod = event.ctrlKey || event.metaKey;
-      // While a sketch is the draw target, the canvas's select-all, duplicate, group and copy stand down: they
+      // While a sketch is the draw target, the canvas's select-all, duplicate, group, copy and cut stand down: they
       // would reach the canvas's things from inside the sketch. Delete reaches the sketch's own selection only.
       if (drawTargetRef.current) {
-        if (mod && ['a', 'd', 'g', 'c'].includes(event.key.toLowerCase())) return;
+        if (mod && ['a', 'd', 'g', 'c', 'x', 'l', '[', ']'].includes(event.key.toLowerCase())) return;
         if ((event.key === 'Delete' || event.key === 'Backspace') && !typing) deleteSketchSelectionRef.current();
         if (event.key === 'Delete' || event.key === 'Backspace') return;
       }
-      const commands = commandsRef.current;
       // The rest of the Edit and View menus, each standing down while typing
       // so text fields keep their own select-all and the browser keeps its
       // zoom there. Ctrl+D and Ctrl+G would otherwise bookmark and find.
@@ -2345,19 +2615,36 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (mod && event.key.toLowerCase() === 'g') { if (typing) return; event.preventDefault(); (event.shiftKey ? commands.ungroup : commands.group)(); return; }
       if (mod && ['=', '+', '-', '_'].includes(event.key)) { if (typing) return; event.preventDefault(); (event.key === '-' || event.key === '_' ? commands.zoomOut : commands.zoomIn)(); return; }
       if (!mod && event.shiftKey && (event.code === 'Digit1' || event.code === 'Digit0')) { if (typing) return; event.preventDefault(); (event.code === 'Digit1' ? commands.zoomFit : commands.zoomReset)(); return; }
-      if (mod && event.key.toLowerCase() === 'c') {
+      // Lock (Ctrl+Shift+L), layers (Ctrl+[ / ], with Shift all the way) and copy / paste style (Ctrl+Alt+C / V).
+      if (mod && event.shiftKey && event.code === 'KeyL') { if (typing) return; event.preventDefault(); commands.lockSelection(); return; }
+      if (mod && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
+        if (typing || !selectedRef.current.length) return;
+        event.preventDefault();
+        commands.order(event.code === 'BracketRight' ? (event.shiftKey ? 'front' : 'forward') : (event.shiftKey ? 'back' : 'backward'));
+        return;
+      }
+      if (mod && event.altKey && (event.code === 'KeyC' || event.code === 'KeyV')) {
+        if (typing || !selectedRef.current.length) return;
+        event.preventDefault();
+        (event.code === 'KeyC' ? commands.copyStyle : commands.pasteStyle)();
+        return;
+      }
+      if (mod && !event.altKey && (event.key.toLowerCase() === 'c' || event.key.toLowerCase() === 'x')) {
         // Only a real text selection should defer to the browser. Testing the
         // document for any selection at all let a stray highlight anywhere on
         // the page silently kill the copy.
         const text = window.getSelection();
         if (typing || !selectedRef.current.length || (text && !text.isCollapsed && text.toString())) return;
-        if (commands.copy()) event.preventDefault();
+        // Cut is copy, then delete - only once the copy succeeded.
+        if ((event.key.toLowerCase() === 'x' ? commands.cut : commands.copy)()) event.preventDefault();
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (typing) return;
       deleteSelectionRef.current();
     };
+    const keyUp = event => { if (event.key === ' ' && spacePanRef.current) { spacePanRef.current = false; setSpacePan(false); } };
+    const lost = () => { if (spacePanRef.current) { spacePanRef.current = false; setSpacePan(false); } };
     // Capture phase: several lesson blocks stop keydown on their own container
     // (an embedded graph, a chart, a 3D view), which otherwise kills copy,
     // paste, undo and delete for the whole canvas while one is focused.
@@ -2378,8 +2665,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
     window.addEventListener('keydown', key, true);
+    window.addEventListener('keyup', keyUp, true);
+    window.addEventListener('blur', lost);
     window.addEventListener('paste', paste, true);
-    return () => { window.removeEventListener('keydown', key, true); window.removeEventListener('paste', paste, true); };
+    return () => { window.removeEventListener('keydown', key, true); window.removeEventListener('keyup', keyUp, true); window.removeEventListener('blur', lost); window.removeEventListener('paste', paste, true); };
   }, []);
   // The Ask-in-chat button on a selected block arms the dock composer with
   // that block as context; plain selection stays just a selection. The armed
@@ -2854,7 +3143,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Ctrl-drag (either button) rubber-bands a selection: every card, shape and
   // text box the rectangle touches becomes one group the next drag moves.
   const marqueeRef = useRef(null);
-  const selectWithin = rect => {
+  const selectWithin = (rect, additive = false) => {
     const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2);
     const w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
     if (w < 4 && h < 4) return;
@@ -2866,8 +3155,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     for (const node of itemsLayer.current?.querySelectorAll('[data-item-id]') || []) {
       if (touches({ x: node.offsetLeft, y: node.offsetTop, w: node.offsetWidth, h: node.offsetHeight })) ids.push(node.dataset.itemId);
     }
-    setSelection([...new Set(ids)]);
+    const next = [...new Set([...(additive ? selectedRef.current : []), ...ids])];
+    selectedRef.current = next;
+    setSelection(next);
   };
+  // A plain drag on empty canvas draws a selection rectangle (Excalidraw; docs/features/canvas-editing.md): everything
+  // it touches is selected, Shift adds to what was. The Hand tool, Space+drag, the middle button and the trackpad pan.
+  const startMarquee = (event, additive) => {
+    if (!additive) setSelected(null);
+    const start = local(event);
+    marqueeRef.current = { x1: start.x, y1: start.y, x2: start.x, y2: start.y };
+    setMarquee(marqueeRef.current);
+    const apply = (px, py) => { marqueeRef.current = { x1: start.x, y1: start.y, x2: px, y2: py }; setMarquee(marqueeRef.current); };
+    apply.done = () => { if (marqueeRef.current) selectWithin(marqueeRef.current, additive); marqueeRef.current = null; setMarquee(null); };
+    startDrag(event, start, apply, view.z);
+  };
+  // Shared by the extra text formatting a new text box or note starts with (the panel's armed values).
+  const armedText = kind => ({
+    ...(textArm.f ? { font: textArm.f } : {}), ...(textArm.s ? { fontSize: textArm.s } : {}), ...(textArm.b != null ? { bold: textArm.b } : {}),
+    ...(textArm.i ? { italic: true } : {}), ...(textArm.u ? { underline: true } : {}), ...(textArm.align ? { align: textArm.align } : {}),
+    ...(kind === 'sticky' && textArm.c ? { textColor: textArm.c } : {}),
+  });
   // Ask about selection: a rectangle in page coordinates becomes a PNG of that part of the screen, the
   // cards it touches, and an ask target (LearnPage uploads the image so the tutor sees it).
   const askArea = async rect => {
@@ -2923,35 +3231,52 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The drawing tools' gestures, run against a store: the canvas's own lists, or an Explain Back sketch's
   // (sketchStore). One tool system for both - only where the marks land differs. False: the tool draws nothing.
   const drawGesture = (event, store) => {
+    // Esc cancels an unfinished stroke or shape: nothing is added, nothing is undoable (docs/features/canvas-editing.md).
+    const listen = (move, up, key) => {
+      gestureLive = true;
+      const stop = () => { gestureLive = false; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', finish); window.removeEventListener('keydown', keys, true); window.removeEventListener('keyup', keys, true); };
+      const finish = e => { stop(); up(e); };
+      const keys = e => {
+        if (e.type === 'keydown' && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); stop(); key('cancel'); return; }
+        if (e.key === 'Shift' || e.key === 'Alt') { if (e.key === 'Alt') e.preventDefault(); key(e); }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', finish);
+      window.addEventListener('keydown', keys, true);
+      window.addEventListener('keyup', keys, true);
+    };
     if (tool === 'pen' || tool === 'highlighter') {
       event.preventDefault();
       // The width row scales both inks: pen uses it directly, highlighter 4x.
       const ink = tool === 'pen' ? { tool, color, width, dash, opacity } : { tool, width: width * 4 };
       const points = [store.local(event)];
       store.setLive({ ...ink, points });
-      const move = e => { points.push(store.local(e)); store.setLive({ ...ink, points: [...points] }); };
-      const up = () => {
-        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-        store.setLive(null);
-        if (points.length > 1) { snapshot(); store.setStrokes(previous => [...previous, { ...ink, points }]); }
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
+      listen(
+        e => { points.push(store.local(e)); store.setLive({ ...ink, points: [...points] }); },
+        () => { store.setLive(null); if (points.length > 1) { snapshot(); store.setStrokes(previous => [...previous, { ...ink, points }]); } },
+        e => { if (e === 'cancel') store.setLive(null); },
+      );
     } else if (shapeTool) {
       event.preventDefault();
       const start = store.local(event);
-      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round };
-      store.setLiveShape(draft);
-      const move = e => { const p = store.local(e); store.setLiveShape({ ...draft, x2: p.x, y2: p.y }); };
-      const up = e => {
-        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-        const p = store.local(e);
-        store.setLiveShape(null);
-        if (Math.hypot(p.x - start.x, p.y - start.y) > 4) { snapshot(); store.setShapes(previous => [...previous, { ...draft, x2: p.x, y2: p.y }]); }
-        if (!lock) setTool('select');
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
+      const linear = tool === 'line' || tool === 'arrow' || tool === 'curve' || tool === 'elbow';
+      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round,
+        ...(TEXT_BOX[tool] && fill ? { fillOpacity } : {}), ...(linear && heads.start ? { startHead: heads.start } : {}), ...(linear && heads.end ? { endHead: heads.end } : {}) };
+      // Shift squares the box or snaps the line to 45 degrees; Alt draws from the centre. Pressing or letting go of
+      // either mid-drag redraws the preview at once, and the shape saved is the preview's (learn-draw-modifiers.js).
+      let point = start, keys = { shift: event.shiftKey, alt: event.altKey };
+      const shape = () => ({ ...draft, ...drawGeometry(linear, start, point, keys) });
+      store.setLiveShape(shape());
+      listen(
+        e => { point = store.local(e); keys = { shift: e.shiftKey, alt: e.altKey }; store.setLiveShape(shape()); },
+        e => {
+          point = store.local(e); keys = { shift: e.shiftKey, alt: e.altKey };
+          store.setLiveShape(null);
+          if (Math.hypot(point.x - start.x, point.y - start.y) > 4) { snapshot(); const made = shape(); store.setShapes(previous => [...previous, made]); }
+          if (!lock) setTool('select');
+        },
+        e => { if (e === 'cancel') { store.setLiveShape(null); return; } keys = { shift: e.shiftKey, alt: e.altKey }; store.setLiveShape(shape()); },
+      );
     } else if (tool === 'eraser') {
       event.preventDefault();
       snapshot();
@@ -2977,7 +3302,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const point = store.local(event);
       // A fresh text box opens long - a full writing line, not a stamp-sized
       // target - and the corner handle takes it anywhere from there.
-      store.setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, opacity, ...(tool === 'text' ? { level, w: store.textWidth(point) } : {}), fresh: true }]);
+      // A new text box grows with its words (Excalidraw's auto width); a corner drag gives it a width to wrap at. Inside a
+      // sketch it wraps at the sketch's edge. It starts with whatever text formatting is armed.
+      const width = store.textWidth(point);
+      store.setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color: tool === 'text' && textArm.c ? textArm.c : color, opacity, ...armedText(tool), ...(tool === 'text' ? { level, ...(width ? { w: width } : {}) } : {}), fresh: true }]);
       if (!lock) setTool('select');
     } else if (tool === 'equation' && store.equations) {
       // An equation opens for editing where it is placed (canvas-equations.md); an Explain Back sketch holds none.
@@ -2988,7 +3316,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     } else return false;
     return true;
   };
-  const canvasStore = { local, setStrokes, setShapes, setItems, setLive, setLiveShape, textWidth: () => 420, equations: true };
+  const canvasStore = { local, setStrokes, setShapes, setItems, setLive, setLiveShape, textWidth: () => null, equations: true };
   // ---------- Explain Back sketch (docs/features/explain-back-sketch.md) ----------
   // A sketch's marks live on its block (block.sketch) in the card's own pixels, so they save, move, fork and undo
   // with the card and are never canvas objects.
@@ -3066,21 +3394,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         onDoubleClick={event => event.stopPropagation()}>
         <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
           {[...shapes, ...(mine?.shape ? [mine.shape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={markTool} zoom={view.z} selected={marked(shape.id)}
-            editing={sketchEdit?.kind === 'text' && sketchEdit.id === shape.id} labelEditing={sketchEdit?.kind === 'label' && sketchEdit.id === shape.id}
-            onSelect={selectInSketch} onMoveStart={(event, pressed) => moveSketchShape(event, id, pressed)} onGesture={snapshot}
+            editing={sketchEdit?.kind === 'text' && sketchEdit.id === shape.id} editPoint={sketchEdit?.point || null} labelEditing={sketchEdit?.kind === 'label' && sketchEdit.id === shape.id}
+            onSelect={selectInSketch} onMoveStart={(event, pressed) => moveSketchShape(event, id, pressed)} onGesture={snapshot} onGestureCancel={cancelGesture}
             onResize={(markId, patch) => patchSketch(id, 'shapes', markId, patch)} onDelete={markId => dropFromSketch(id, [markId])}
-            onEdit={markId => setSketchEdit({ id: markId, kind: 'text' })}
-            onText={(markId, text) => { setSketchEdit(null); snapshot(); patchSketch(id, 'shapes', markId, { text }); }}
+            onEdit={(markId, point) => setSketchEdit({ id: markId, kind: 'text', point })} onEditorApi={onEditorApi}
+            onGrow={(markId, height) => editSketch(id, 'shapes', marks => marks.map(mark => { if (mark.id !== markId || Math.abs(mark.y2 - mark.y1) >= height) return mark; const top = Math.min(mark.y1, mark.y2); return mark.y2 >= mark.y1 ? { ...mark, y2: top + height } : { ...mark, y1: top + height }; }))}
+            onText={(markId, runs) => { setSketchEdit(null); snapshot(); patchSketch(id, 'shapes', markId, textPatch(runs)); }}
             onLabel={markId => setSketchEdit({ id: markId, kind: 'label' })}
-            onLabelDone={(markId, label) => { setSketchEdit(null); snapshot(); patchSketch(id, 'shapes', markId, { label }); }} />)}
+            onLabelDone={(markId, runs) => { setSketchEdit(null); snapshot(); const { text, runs: kept } = textPatch(runs); patchSketch(id, 'shapes', markId, { label: text, runs: kept }); }} />)}
           {[...strokes, ...(mine?.stroke ? [mine.stroke] : [])].map(inkPath)}
         </svg>
-        {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={markTool} selected={marked(item.id)} onSelect={selectInSketch} onGesture={snapshot}
-          onChange={(markId, text) => patchSketch(id, 'items', markId, { text, fresh: false })}
+        {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={markTool} selected={marked(item.id)} onSelect={selectInSketch} onGesture={snapshot} onEditorApi={onEditorApi}
+          onCommit={(markId, runs) => { const before = items.find(mark => mark.id === markId); const patch = textPatch(runs); if (before && !before.fresh && (before.text || '') !== patch.text) snapshot(); patchSketch(id, 'items', markId, { ...patch, fresh: false }); }}
           onMove={(markId, x, y) => patchSketch(id, 'items', markId, { x, y })}
           onResize={(markId, w, h) => patchSketch(id, 'items', markId, { w, h })}
           onDelete={markId => dropFromSketch(id, [markId])}
-          onLevel={(markId, value) => { snapshot(); patchSketch(id, 'items', markId, { level: value }); }} />)}
+          onLevel={(markId, value) => { snapshot(); patchSketch(id, 'items', markId, presetPatch(items.find(mark => mark.id === markId) || {}, value)); }} />)}
         {!fixed && <span data-sketch-chrome className={`pointer-events-none absolute top-1.5 right-2 text-[10px] ${active ? 'font-medium text-[#2383e2]' : 'text-ink-2'}`}>{active ? 'Toolbar draws here' : 'Click here, then draw with the toolbar'}</span>}
       </div>
     );
@@ -3114,14 +3443,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setInsertOpen(false); setMenuAt(null);
     if ((event.ctrlKey || event.metaKey) && tool === 'select' && (event.button === 0 || event.button === 2)
       && !event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) {
-      const start = local(event);
-      marqueeRef.current = { x1: start.x, y1: start.y, x2: start.x, y2: start.y };
-      setMarquee(marqueeRef.current);
-      const apply = (px, py) => { marqueeRef.current = { x1: start.x, y1: start.y, x2: px, y2: py }; setMarquee(marqueeRef.current); };
-      apply.done = () => { if (marqueeRef.current) selectWithin(marqueeRef.current); marqueeRef.current = null; setMarquee(null); };
-      startDrag(event, start, apply, view.z);
+      startMarquee(event, event.shiftKey);
       return;
     }
+    // The middle button pans, whatever tool is armed.
+    if (event.button === 1) { pan(event); return; }
     if (event.button !== 0) return;
     // A view-only board (a shared link) pans with the hand, and a click that does not pan selects the card under it,
     // so a viewer can start a Rabbit Hole from that card (docs/features/shared-canvas-rabbit-hole.md). Nothing else
@@ -3142,6 +3468,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (tool === 'hand') { pan(event); return; }
     if (event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) return;
     if (drawGesture(event, canvasStore)) return;
+    if (tool === 'select') { startMarquee(event, event.shiftKey); return; }
     setSelected(null);
     pan(event);
   };
@@ -3152,6 +3479,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Dragging one member of a multi-selection carries the whole group.
   const shift = (ddx, ddy, ids) => {
     for (const id of ids) {
+      if (lockedRef.current.has(id)) continue; // a locked object keeps its place, whatever moves around it
       const exchange = exchangesRef.current.find(item => item.id === id);
       if (exchange) { onMove(id, exchange.dx + ddx, exchange.dy + ddy); continue; }
       const block = blocksRef.current.find(item => item.id === id);
@@ -3183,13 +3511,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const changeBlockQuietly = updated => setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
-  const applyStyle = (patch, targets) => {
+  // quiet: a slider's drag, whose one undo step was taken when it started.
+  const applyStyle = (patch, targets, quiet = false) => {
     if (!targets.length) return;
-    snapshot();
+    if (!quiet) snapshot();
     const lists = markLists();
-    lists.setShapes(previous => previous.map(shape => targets.includes(shape.id) ? { ...shape, ...patch } : shape));
+    // Words keep their own colour (docs/features/canvas-editing.md): a shape or line whose text followed its stroke takes
+    // that colour as its text colour before the stroke changes, so a new outline never recolours the words.
+    const keepWords = entry => (patch.color && !entry.textColor && (entry.text || entry.label) ? { textColor: entry.color || COLORS[0] } : {});
+    lists.setShapes(previous => previous.map(shape => targets.includes(shape.id) ? { ...shape, ...keepWords(shape), ...patch } : shape));
     lists.setItems(previous => previous.map(item => targets.includes(item.id) ? { ...item, ...patch } : item));
-    if (patch.color) setLinks(previous => previous.map(link => targets.includes(link.id) ? { ...link, color: patch.color } : link));
+    const linkPatch = Object.fromEntries(Object.entries(patch).filter(([key]) => ['color', 'startHead', 'endHead'].includes(key)));
+    if (Object.keys(linkPatch).length) setLinks(previous => previous.map(link => targets.includes(link.id) ? { ...link, ...keepWords(link), ...linkPatch } : link));
   };
   // Every box a drag can line itself up against, gathered once when the drag
   // starts rather than every frame. Item sizes are read from the DOM here
@@ -3242,12 +3575,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return element ? makeSnap([id], { w: element.offsetWidth, h: element.offsetHeight }) : null;
   };
   // Paint order is array order for both lists, so one pass over each is enough.
-  const reorderSelection = (toFront, targets) => {
+  // how: 'front', 'back' (all the way), 'forward', 'backward' (one step) - within the shapes' layer and the notes'.
+  const reorderSelection = (how, targets) => {
+    targets = targets.filter(id => !lockedRef.current.has(id));
     if (!targets.length) return;
     snapshot();
     const lists = markLists();
-    lists.setShapes(previous => reorder(previous, targets, toFront));
-    lists.setItems(previous => reorder(previous, targets, toFront));
+    const order = list => (how === 'front' || how === 'back' ? reorder(list, targets, how === 'front') : reorderStep(list, targets, how === 'forward'));
+    lists.setShapes(order);
+    lists.setItems(order);
   };
   // Inserted into the column flow between two cards, so it needs no offset.
   const insertHeadingAt = (level, at) => {
@@ -3350,9 +3686,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setInsertFilter('');
     if (element) setView(v => ({ ...v, y: Math.min(v.y, chromeTop(v.x, v.x + COLUMN * v.z) - 280 - (24 + flowY + dy) * v.z) }));
   };
-  const changeItem = (id, text) => {
-    if (present.current.items.some(item => item.id === id && item.text !== text)) snapshot();
-    setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
+  // A text box or note's edit ends (RichText onCommit): its words and formatting saved as one undo step - the edit's, or
+  // for a fresh box its placement's. Code mode keeps the text formatting aside, carried over onto the edited words.
+  const commitItemText = (id, runs, how) => {
+    const before = present.current.items.find(item => item.id === id);
+    if (!before) return;
+    const patch = before.mode === 'code'
+      ? { text: plainOf(runs), runs: compactRuns(reconcileRuns(runsOf(before), plainOf(runs))) || undefined }
+      : textPatch(runs);
+    const changed = patch.text !== (before.text || '') || JSON.stringify(patch.runs || null) !== JSON.stringify(before.runs || null);
+    if (changed && !editStep.current && !before.fresh) snapshot();
+    if (changed || before.fresh) setItems(previous => previous.map(item => item.id === id ? { ...item, ...patch, fresh: false } : item));
+    endEdit(changed, 'items');
+    // Esc or Ctrl/Cmd+Enter finish typing and leave the box selected, as Excalidraw does.
+    if (how !== 'blur') { selectedRef.current = [id]; setSelection([id]); }
   };
   // An equation's edit ends with its source. A fresh one is still its placement's undo step; one left empty goes.
   const finishEquation = (id, latex) => {
@@ -3367,23 +3714,50 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [editingShape, setEditingShape] = useState(null);
   // The line (connector or drawn arrow) whose label is being written.
   const [editingLabel, setEditingLabel] = useState(null);
-  const changeLabel = (id, label) => {
+  const startLabel = id => { if (lockedRef.current.has(id)) return; beginEdit(id); setEditingLabel(id); };
+  const startShapeText = (id, point = null) => { if (lockedRef.current.has(id)) return; beginEdit(id); setEditPoint(point); setEditingShape(id); };
+  // A line's label and a shape's words end their edit the same way a text box does.
+  const changeLabel = (id, runs, how) => {
     setEditingLabel(null);
     const before = [...present.current.links, ...present.current.shapes].find(entry => entry.id === id);
-    if (!before || (before.label || '') === label) return;
-    snapshot();
-    setLinks(previous => previous.map(link => link.id === id ? { ...link, label } : link));
-    setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, label } : shape));
+    if (!before) return;
+    const { text, runs: kept } = textPatch(runs);
+    const changed = text !== (before.label || '') || JSON.stringify(kept || null) !== JSON.stringify(before.runs || null);
+    if (changed) {
+      if (!editStep.current) snapshot();
+      const patch = entry => entry.id === id ? { ...entry, label: text, runs: kept } : entry;
+      setLinks(previous => previous.map(patch));
+      setShapes(previous => previous.map(patch));
+    }
+    endEdit(changed, present.current.links.some(link => link.id === id) ? 'links' : 'shapes');
+    if (how !== 'blur') { selectedRef.current = [id]; setSelection([id]); }
   };
-  const changeShapeText = (id, text) => {
+  const changeShapeText = (id, runs, how) => {
     setEditingShape(null);
-    if (present.current.shapes.some(shape => shape.id === id && (shape.text || '') !== text)) snapshot();
-    setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, text } : shape));
+    setEditPoint(null);
+    const before = present.current.shapes.find(shape => shape.id === id);
+    if (!before) return;
+    const { text, runs: kept } = textPatch(runs);
+    const changed = text !== (before.text || '') || JSON.stringify(kept || null) !== JSON.stringify(before.runs || null);
+    if (changed) {
+      if (!editStep.current) snapshot();
+      setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, text, runs: kept } : shape));
+    }
+    endEdit(changed, 'shapes');
+    if (how !== 'blur') { selectedRef.current = [id]; setSelection([id]); }
   };
+  // Words that need more room than their shape: it grows downward (its top and width stay), inside the current step.
+  const growShape = (id, height) => setShapes(previous => previous.map(shape => {
+    if (shape.id !== id || Math.abs(shape.y2 - shape.y1) >= height) return shape;
+    const top = Math.min(shape.y1, shape.y2);
+    return shape.y2 >= shape.y1 ? { ...shape, y2: top + height } : { ...shape, y1: top + height };
+  }));
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
   const moveShapeStart = (event, shape) => {
     // Pressing a shape that is already selected reopens its style panel too.
     setStyleOpen(null);
+    // Alt/Option on the body drags a copy away (a handle's Alt resizes from the centre instead).
+    if (event.altKey) { altDrag(shape.id, event); return; }
     snapshot();
     // A shape inside a selection drags the whole selection, the way cards do.
     const targets = groupTargets(shape.id);
@@ -3407,16 +3781,118 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
   // Ask about selection: the crosshair wins over every card's own cursor, slides included.
-  const cursor = tool === 'askArea' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  // Select keeps the plain arrow (owner brief 2); only the Hand and Space+drag show the open hand, grabbing while held.
+  const cursor = spacePan ? 'cursor-grab active:cursor-grabbing [&_*]:!cursor-grab' : tool === 'askArea' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab active:cursor-grabbing' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? 'cursor-default' : 'cursor-copy';
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
   // With a sketch as the target, the style panel follows the sketch's selection and restyles its marks.
   const sketchMarks = drawTarget ? blocks.find(block => block.id === drawTarget)?.sketch : null;
+  const editingId = editStep.current?.id || editingShape || editingLabel || null;
   const panel = drawTarget
-    ? panelFor({ tool, selection: sketchSel, shapes: sketchMarks?.shapes || [], links: [], items: sketchMarks?.items || [] })
-    : panelFor({ tool, selection, shapes, links, items });
+    ? panelFor({ tool, selection: sketchSel, shapes: sketchMarks?.shapes || [], links: [], items: sketchMarks?.items || [], editing: sketchEdit?.id || null })
+    : panelFor({ tool, selection, shapes, links, items, editing: editingId, units, locked: [...lockedIds] });
   const showStyle = styleOpen === null ? panel.open : styleOpen;
+  // What the panel shows: the selection's own values, 'mixed' where it disagrees, else the armed defaults
+  // (docs/features/canvas-editing.md). The open editor's characters win for the text controls.
+  const markShapes = drawTarget ? sketchMarks?.shapes || [] : shapes, markItems = drawTarget ? sketchMarks?.items || [] : items;
+  const entryOf = id => markShapes.find(entry => entry.id === id) || markItems.find(entry => entry.id === id) || (drawTarget ? null : links.find(entry => entry.id === id)) || null;
+  const isLink = entry => !!entry && entry.from !== undefined;
+  const textBaseOf = entry => (isLink(entry) ? labelBase(entry) : entry.kind === 'text' || entry.kind === 'sticky' ? itemBase(entry) : TEXT_BOX[entry.kind] ? shapeBase(entry) : labelBase(entry));
+  const common = (entries, read) => { const seen = new Set(entries.map(read)); return seen.size === 1 ? [...seen][0] : seen.size ? 'mixed' : undefined; };
+  const styleEntries = panel.targets.map(entryOf).filter(Boolean);
+  const textEntries = panel.textTargets.map(entryOf).filter(Boolean);
+  const pick = (read, fallback, only = () => true) => { const some = styleEntries.filter(only); return some.length ? common(some, read) : fallback; };
+  const editorState = editorRef.current?.state();
+  const levelOf = entry => entry.level || 'body';
+  const textValue = (key, fallback) => {
+    if (editorState) return valueOver(editorState.runs, editorState.from, editorState.to, key, editorState.base, editorState.pending);
+    if (textEntries.length) return objectsValue(textEntries, key, textBaseOf);
+    return textArm[key] ?? fallback;
+  };
+  const closed = entry => !!TEXT_BOX[entry.kind];
+  const linear = entry => isLink(entry) || ['line', 'arrow', 'curve', 'elbow'].includes(entry.kind);
+  const panelValues = {
+    color: pick(entry => entry.color || COLORS[0], color),
+    fill: pick(entry => entry.fill || null, fill, closed),
+    fillOpacity: pick(entry => entry.fillOpacity ?? 0.25, fillOpacity, closed),
+    width: pick(entry => entry.width ?? WIDTHS[0], width, entry => !isLink(entry)),
+    dash: pick(entry => dashStyle(entry.dash), dash, entry => !isLink(entry)),
+    opacity: pick(entry => entry.opacity ?? 1, opacity, entry => !isLink(entry)),
+    round: pick(entry => !!entry.round, round, entry => entry.kind === 'rect'),
+    startHead: pick(entry => headsOf(entry).start, heads.start || 'none', linear),
+    endHead: pick(entry => headsOf(entry).end, heads.end || (tool === 'line' ? 'none' : 'arrow'), linear),
+    level: textEntries.length ? common(textEntries, levelOf) : level,
+    font: textValue('f', 'sans'),
+    size: textValue('s', TEXT_LEVELS.find(entry => entry.id === level)?.size || 14),
+    b: textValue('b', false), i: textValue('i', false), u: textValue('u', false),
+    textColor: textValue('c', color),
+    align: textEntries.length ? common(textEntries, entry => entry.align || (entry.kind === 'text' || entry.kind === 'sticky' ? 'left' : 'center')) : textArm.align || 'left',
+    valign: textEntries.length ? common(textEntries, entry => entry.valign || 'middle') : 'middle',
+    mode: panel.code ? markItems.find(entry => entry.id === panel.code)?.mode || 'text' : 'text',
+  };
+  // Text formatting: the open editor's characters (a range, or what the caret types next), else every selected object
+  // that holds words, else the armed default. A text box's colour is its words' colour (its `color`).
+  const formatEntry = (entry, key, value) => (entry.kind === 'text' && key === 'c' ? { ...formatObject(entry, 'c', null), color: value } : formatObject(entry, key, value));
+  const formatText = (key, value) => {
+    setTextArm(previous => ({ ...previous, [key]: value }));
+    const editor = editorRef.current;
+    if (editor && !editor.state().code) { editor.format(key, value); return; }
+    const ids = panel.textTargets;
+    if (!ids.length) return;
+    snapshot();
+    const apply = entry => (ids.includes(entry.id) ? formatEntry(entry, key, value) : entry);
+    const lists = markLists();
+    lists.setShapes(previous => previous.map(apply));
+    lists.setItems(previous => previous.map(apply));
+    if (!drawTarget) setLinks(previous => previous.map(apply));
+  };
+  // Alignment is the object's (a paragraph setting), even while its words are being edited.
+  const patchText = patch => {
+    const ids = panel.textTargets;
+    if (!ids.length) return;
+    snapshot();
+    const apply = entry => (ids.includes(entry.id) ? { ...entry, ...patch } : entry);
+    const lists = markLists();
+    lists.setShapes(previous => previous.map(apply));
+    lists.setItems(previous => previous.map(apply));
+    if (!drawTarget) setLinks(previous => previous.map(apply));
+  };
+  const panelOn = {
+    refocus: () => editorRef.current?.refocus(),
+    start: () => snapshot(),
+    color: value => { setColor(value); applyStyle({ color: value }, panel.targets); },
+    fill: value => { setFill(value); applyStyle({ fill: value, ...(value ? { fillOpacity: panelValues.fillOpacity === 'mixed' ? 0.25 : panelValues.fillOpacity ?? 0.25 } : {}) }, panel.targets.filter(id => closed(entryOf(id) || {}))); },
+    fillOpacity: value => { setFillOpacity(value); applyStyle({ fillOpacity: value }, panel.targets.filter(id => closed(entryOf(id) || {})), true); },
+    width: value => { setWidth(value); applyStyle({ width: value }, panel.targets); },
+    dash: value => { setDash(value); applyStyle({ dash: value }, panel.targets); },
+    opacity: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); },
+    opacitySlide: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets, true); },
+    round: value => { setRound(value); applyStyle({ round: value }, panel.targets); },
+    head: (end, kind) => { setHeads(previous => ({ ...previous, [end]: kind })); applyStyle({ [`${end}Head`]: kind }, panel.targets.filter(id => linear(entryOf(id) || {}))); },
+    route: value => {
+      setConnectorRoute(value);
+      if (!panel.targets.length) return;
+      snapshot();
+      setLinks(previous => previous.map(link => panel.targets.includes(link.id) ? { ...link, route: value } : link));
+      markLists().setShapes(previous => previous.map(shape => panel.targets.includes(shape.id) && shape.kind !== 'line' ? { ...shape, kind: ARROW_KINDS[value] } : shape));
+    },
+    level: value => applyLevel(panel.textTargets.length ? panel.textTargets : panel.targets, value),
+    font: value => formatText('f', value),
+    size: value => formatText('s', validSize(value)),
+    toggle: key => {
+      const editor = editorRef.current;
+      if (editor && !editor.state().code) { editor.toggle(key); setTextArm(previous => ({ ...previous, [key]: panelValues[key] !== true })); return; }
+      formatText(key, panelValues[key] !== true);
+    },
+    textColor: value => formatText('c', value),
+    align: value => { setTextArm(previous => ({ ...previous, align: value })); patchText({ align: value }); },
+    valign: value => patchText({ valign: value }),
+    mode: value => panel.code && setTextMode(panel.code, value),
+    order: how => reorderSelection(how, panel.targets),
+    arrange, group: groupSelection, ungroup: ungroupSelection,
+    lock: lockSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand,
+  };
   // The separator spans the viewport, converted into world units, so it looks
   // the same width at any zoom instead of growing and shrinking with the column.
   const railSpan = (() => {
@@ -3467,8 +3943,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // shape or a note and pressing Delete silently did nothing. Any pointer press
     // outside the focused field hands focus back to the canvas. Pressing inside
     // the field it belongs to is left alone, so typing still works.
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag }}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
+        // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
+        const editor = editorRef.current;
+        if (editor && !editor.root?.contains(event.target) && !event.target.closest?.('[data-keep-focus]')) editor.commit('blur');
         const active = document.activeElement;
         if (!active || active === document.body) return;
         const editable = typingIn(active);
@@ -3496,7 +3976,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
         <div data-left-stack className="absolute bottom-[calc(var(--chrome-left,0px)+0.75rem)] left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
       </div>}
-      <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+      <div ref={surface} data-canvas-surface data-space-pan={spacePan ? '' : undefined}
+        onPointerDownCapture={event => {
+          // Space held: this drag pans, over anything (cards and shapes included).
+          if (spacePanRef.current && event.button === 0 && !event.target.closest('[role="toolbar"],[data-zoom],[role="menu"]')) { pan(event); return; }
+          if (tool === 'askArea') startArea(event);
+        }} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
           event.preventDefault();
           if (event.ctrlKey || marqueeRef.current || presenting !== null) return;
@@ -3543,12 +4028,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             return (
               <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
                 <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" />
-                {link.head && arrowHead(path.tip, path.from, { stroke: ink, strokeWidth: 2.5, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' })}
+                {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end')}
+                {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start')}
                 <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
                   onPointerDown={event => { event.stopPropagation(); select(link.id, event); }}
-                  onDoubleClick={() => setEditingLabel(link.id)}><title>Select connection · choose a color, a route or press Delete · double-click to label</title></path>
-                <LineLabel at={path.mid} text={link.label} color={link.color} editing={editingLabel === link.id} pickable={isSelected(link.id) && tool === 'select'} onPick={() => setEditingLabel(link.id)} onDone={value => changeLabel(link.id, value)} />
-                {isSelected(link.id) && tool === 'select' && editingLabel !== link.id && !link.label && <LabelHandle at={path.mid} zoom={view.z} onPick={() => setEditingLabel(link.id)} />}
+                  onDoubleClick={() => startLabel(link.id)}><title>Select connection · choose a color, arrowheads, a route or press Delete · double-click or Enter to label</title></path>
+                <LineLabel at={path.mid} entry={link} editing={editingLabel === link.id} pickable={isSelected(link.id) && tool === 'select'} onPick={() => startLabel(link.id)} onDone={(runs, how) => changeLabel(link.id, runs, how)} onApi={onEditorApi} />
+                {isSelected(link.id) && tool === 'select' && editingLabel !== link.id && !link.label && <LabelHandle at={path.mid} zoom={view.z} onPick={() => startLabel(link.id)} />}
               </g>
             );
           })}
@@ -3556,9 +4042,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={inkAware(connecting.color)} strokeWidth="2.5" strokeLinejoin="round" className="dark:[filter:brightness(1.5)_saturate(1.2)]" />}
         </svg>
         <svg aria-hidden="true" data-ink width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
-          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} editing={editingShape === shape.id} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem}
-            onEdit={setEditingShape} onText={changeShapeText} onConnect={connect} showPorts={!!connecting}
-            labelEditing={editingLabel === shape.id} onLabel={setEditingLabel} onLabelDone={changeLabel} />)}
+          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} editing={editingShape === shape.id} editPoint={editPoint} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onGestureCancel={cancelGesture} onDelete={deleteItem}
+            onEdit={startShapeText} onText={changeShapeText} onConnect={connect} showPorts={!!connecting} onGrow={growShape} onEditorApi={onEditorApi}
+            labelEditing={editingLabel === shape.id} onLabel={startLabel} onLabelDone={changeLabel} />)}
           {[...strokes, ...(live ? [live] : [])].map(inkPath)}
         </svg>
         {/* The ends of a selected connector, above the shapes: its head sits on
@@ -3725,16 +4211,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
-            : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => { snapshot(); setItems(previous => previous.map(entry => entry.id === id ? { ...entry, level: value } : entry)); }}
+            : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} editOn={editTarget} onEditStart={beginEdit} onEditorApi={onEditorApi}
             onAsk={selected === item.id ? askItem : null} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}
-          {shapes.filter(shape => TEXT_BOX[shape.kind] && (editingShape === shape.id || (tool === 'select' && selection.length === 1 && selection[0] === shape.id))).map(shape => (
+          {shapes.filter(shape => TEXT_BOX[shape.kind] && !lockedIds.has(shape.id) && (editingShape === shape.id || (tool === 'select' && selection.length === 1 && selection[0] === shape.id))).map(shape => (
             <LevelPill key={`level-${shape.id}`} level={shape.level} className="absolute z-20"
               style={{ left: Math.min(shape.x1, shape.x2), top: Math.min(shape.y1, shape.y2) - 42 }}
-              onLevel={value => { snapshot(); setShapes(previous => previous.map(entry => entry.id === shape.id ? { ...entry, level: value } : entry)); }} />
+              onLevel={value => applyLevel([shape.id], value)} />
           ))}
+          {/* A lock on each locked object, so a press that does nothing says why; select it and Unlock (panel, menu,
+              Ctrl+Shift+L). Never in the thumbnail. */}
+          {presenting === null && [...lockedIds].map(id => {
+            const box = boxesOf([id])[0];
+            return box ? <span key={`lock-${id}`} data-lock-badge={id} data-thumbnail-hide aria-hidden="true" title="Locked"
+              style={{ left: box.x + box.w - 6, top: box.y - 10, transform: `scale(${1 / view.z})`, transformOrigin: 'left bottom' }}
+              className="pointer-events-none absolute z-30 flex h-4 w-4 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm"><Lock size={9} /></span> : null;
+          })}
         </div>
         </div>
         {/* Comment pins (docs/features/canvas-comments.md): over the camera at a constant size; never while presenting. */}
@@ -3926,26 +4420,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         )}
         <div aria-hidden="true" className="mt-auto @max-[640px]:hidden" />
         {!readOnly && showStyle && (
-          <StylePanel side={toolSide} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
-            route={panel.route} routeValue={panel.routeValue}
-            onRoute={value => {
-              setConnectorRoute(value);
-              if (!panel.targets.length) return;
-              snapshot();
-              setLinks(previous => previous.map(link => panel.targets.includes(link.id) ? { ...link, route: value } : link));
-              markLists().setShapes(previous => previous.map(shape => panel.targets.includes(shape.id) && shape.kind !== 'line' ? { ...shape, kind: ARROW_KINDS[value] } : shape));
-            }}
-            color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
-            onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
-            onFill={value => { setFill(value); applyStyle({ fill: value }, panel.targets); }}
-            onWidth={value => { setWidth(value); applyStyle({ width: value }, panel.targets); }}
-            onDash={value => { setDash(value); applyStyle({ dash: value }, panel.targets); }}
-            onOpacity={value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); }}
-            onRound={value => { setRound(value); applyStyle({ round: value }, panel.targets); }}
-            onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }}
-            onOrder={toFront => reorderSelection(toFront, panel.targets)} />
+          <StylePanel side={toolSide} panel={panel} values={panelValues} on={panelOn}
+            flags={{ units, grouped, allLocked: selectionLocked, canPasteStyle }} />
         )}
-        {!showStyle && pickedPin?.can.color && onPinColor && presenting === null && <StylePanel colorOnly side={toolSide} color={pickedPin.color || PIN_DEFAULT} onColor={colorPin} />}
+        {!showStyle && pickedPin?.can.color && onPinColor && presenting === null && <StylePanel colorOnly side={toolSide} values={{ color: pickedPin.color || PIN_DEFAULT }} on={{ color: colorPin }} />}
         </div>
       )}
       </div>
@@ -4005,5 +4483,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
       </div>}
     </div>
+    </CanvasEdit.Provider>
   );
 }

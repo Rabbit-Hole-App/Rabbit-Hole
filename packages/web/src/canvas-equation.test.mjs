@@ -42,9 +42,9 @@ test('the size ladder: S, M, L match the text ladder\'s H3, H2, H1; M is today\'
 test('the ladder sits where the text ladder does, as the same pill, on a selected equation and never while it is edited', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
   const equation = canvas.slice(canvas.indexOf('function EquationItem('), canvas.indexOf('// The lesson-block picker.'));
-  assert.match(equation, /\{selected && !editing && tool === 'select' && \(\n\s+<LevelPill level=\{equationLevel\(size\)\} levels=\{EQUATION_LEVELS\} label="Equation size" fallback=\{null\} className="absolute bottom-full left-0 z-20 mb-2\.5"\n\s+onLevel=\{value => \{ onGesture\(\); onPatch\(item\.id, \{ size: levelSize\(value\) \}\); \}\} \/>/);
+  assert.match(equation, /\{selected && !editing && !locked && tool === 'select' && \(\n\s+<LevelPill level=\{equationLevel\(size\)\} levels=\{EQUATION_LEVELS\} label="Equation size" fallback=\{null\} className="absolute bottom-full left-0 z-20 mb-2\.5"\n\s+onLevel=\{value => \{ onGesture\(\); onPatch\(item\.id, \{ size: levelSize\(value\) \}\); \}\} \/>/);
   // The text ladder's row also carries its Ask in chat (r35), on the cards' pill row (card-selection.test.mjs).
-  assert.match(canvas, /<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex min-w-full items-center gap-2">\n\s+\{ladder && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}/, 'the text ladder: same pill, same place');
+  assert.match(canvas, /<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex min-w-full items-center gap-2">\n\s+\{ladder && !code && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}/, 'the text ladder: same pill, same place');
   assert.equal((canvas.match(/function LevelPill\(/g) || []).length, 1, 'one ladder component');
 });
 
@@ -77,8 +77,8 @@ test('the equation is its LaTeX: saved, reloaded and compared by its source', as
 
 test('copy and duplicate keep the source: an item copy is the whole item under a new id', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.match(canvas, /const itemsCopy = pickedItems\.map\(item => \{ const id = crypto\.randomUUID\(\); fresh\.push\(id\); return \{ \.\.\.item, id, groupId: undefined, x: item\.x \+ step, y: item\.y \+ step, fresh: false \}; \}\);/);
-  assert.match(canvas, /duplicate: \(\) => pasteIds\(selectedRef\.current\)/);
+  assert.match(canvas, /const itemsCopy = pickedItems\.map\(item => \(\{ \.\.\.item, id: newId\(item\.id\), groupId: groupFor\(item\), locked: undefined, x: item\.x \+ step, y: item\.y \+ step, fresh: false \}\)\);/);
+  assert.match(canvas, /duplicate: \(\) => !!pasteIds\(selectedRef\.current\)/);
   // The same copy as the canvas makes, run here: latex and size ride.
   const item = { id: 'e1', kind: 'equation', x: 0, y: 0, latex: MATRIX, size: 40 };
   const copy = { ...item, id: 'e2', groupId: undefined, x: item.x + 28, y: item.y + 28, fresh: false };

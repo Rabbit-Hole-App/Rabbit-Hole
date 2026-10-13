@@ -84,20 +84,20 @@ export function elbowPoints(a, aSide, b, bSide) {
   return points.filter((point, i) => i === 0 || point.x !== points[i - 1].x || point.y !== points[i - 1].y);
 }
 
-// The path of a connector: its SVG `d`, its middle (for the label) and the
-// point its arrowhead points away from.
+// The path of a connector: its SVG `d`, its middle (for the label), the
+// point its end arrowhead points away from, and `next`, the point its start head points away from.
 export function routePath(a, aSide, b, bSide, route) {
   const toSide = bSide || entering(a, b);
-  if (route === 'straight') return { d: `M${a.x} ${a.y} L${b.x} ${b.y}`, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, from: a };
+  if (route === 'straight') return { d: `M${a.x} ${a.y} L${b.x} ${b.y}`, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, from: a, next: b };
   if (route === 'elbow') {
     const points = elbowPoints(a, aSide, b, toSide);
-    return { d: points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' '), mid: polylineMid(points), from: points[points.length - 2] };
+    return { d: points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' '), mid: polylineMid(points), from: points[points.length - 2], next: points[1] };
   }
   const bend = Math.max(40, Math.hypot(b.x - a.x, b.y - a.y) / 3);
   const c1 = { x: a.x + DIRECTION[aSide].x * bend, y: a.y + DIRECTION[aSide].y * bend };
   const c2 = { x: b.x + DIRECTION[toSide].x * bend, y: b.y + DIRECTION[toSide].y * bend };
   const mid = { x: 0.125 * a.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * b.x, y: 0.125 * a.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * b.y };
-  return { d: `M${a.x} ${a.y} C${c1.x} ${c1.y},${c2.x} ${c2.y},${b.x} ${b.y}`, mid, from: c2 };
+  return { d: `M${a.x} ${a.y} C${c1.x} ${c1.y},${c2.x} ${c2.y},${b.x} ${b.y}`, mid, from: c2, next: c1 };
 }
 
 // A drawn elbow arrow has no ports: it leaves sideways towards its end.

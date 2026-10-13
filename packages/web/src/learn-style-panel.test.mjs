@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { panelFor, textStyle, reorder, dashStyle, dashArray, TEXT_LEVELS, routeOf, ARROW_KINDS } from './learn-style-panel.js';
+import { panelFor, textStyle, reorder, dashStyle, dashArray, TEXT_LEVELS, routeOf, ARROW_KINDS, reorderStep, headsOf, copyStyle, pasteStyle } from './learn-style-panel.js';
 
 const shape = (id, kind = 'rect') => ({ id, kind });
 const text = id => ({ id, kind: 'text' });
@@ -150,4 +150,60 @@ test('connectors and drawn arrows get the straight / curved / elbow row, and not
   assert.equal(panelFor({ tool: 'select', selection: ['a', 'r'], shapes }).route, false);
   assert.equal(routeOf({ id: 'l0' }), 'curved', 'card connections made before routes are curves');
   assert.equal(ARROW_KINDS.elbow, 'elbow');
+});
+
+test('forward and backward move one step through paint order, keeping a selection in its own order', () => {
+  const list = ['a', 'b', 'c', 'd'].map(id => ({ id }));
+  const ids = list => list.map(entry => entry.id).join('');
+  assert.equal(ids(reorderStep(list, ['b'], true)), 'acbd');
+  assert.equal(ids(reorderStep(list, ['b', 'c'], true)), 'adbc');
+  assert.equal(ids(reorderStep(list, ['c'], false)), 'acbd');
+  assert.equal(ids(reorderStep(list, ['a'], false)), 'abcd');
+  assert.equal(ids(reorderStep(list, ['d'], true)), 'abcd');
+});
+
+test('arrowheads default to what each kind always drew', () => {
+  assert.deepEqual(headsOf({ kind: 'arrow' }), { start: 'none', end: 'arrow' });
+  assert.deepEqual(headsOf({ kind: 'line' }), { start: 'none', end: 'none' });
+  assert.deepEqual(headsOf({ head: true }), { start: 'none', end: 'arrow' });
+  assert.deepEqual(headsOf({}), { start: 'none', end: 'none' });
+  assert.deepEqual(headsOf({ kind: 'arrow', startHead: 'dot', endHead: 'none' }), { start: 'dot', end: 'none' });
+  assert.deepEqual(headsOf({ kind: 'line', endHead: 'sparkle' }), { start: 'none', end: 'none' });
+});
+
+test('paste style moves appearance only, and only what the target can show', () => {
+  const source = { id: 's', kind: 'rect', x1: 0, y1: 0, x2: 9, y2: 9, color: '#b42318', fill: '#2383e2', fillOpacity: 0.6, width: 6, round: true, text: 'words', font: 'serif', bold: true };
+  const style = copyStyle(source);
+  assert.equal(style.text, undefined);
+  assert.equal(style.x1, undefined);
+  const line = pasteStyle({ id: 'l', kind: 'line', x1: 5, y1: 5, x2: 50, y2: 5, label: 'mine' }, style);
+  assert.equal(line.color, '#b42318');
+  assert.equal(line.fill, undefined, 'a line has no inside to fill');
+  assert.equal(line.round, undefined);
+  assert.equal(line.font, 'serif');
+  assert.equal(line.label, 'mine');
+  assert.equal(line.x2, 50);
+  const ellipse = pasteStyle({ id: 'e', kind: 'ellipse' }, style);
+  assert.equal(ellipse.fill, '#2383e2');
+  assert.equal(ellipse.round, undefined, 'corners are a rectangle idea');
+  const text = pasteStyle({ id: 't', kind: 'text', text: 'hi', color: '#37352f' }, copyStyle({ kind: 'text', color: '#1a7f37', italic: true }));
+  assert.equal(text.color, '#1a7f37');
+  assert.equal(text.italic, true);
+  assert.equal(text.text, 'hi');
+});
+
+test('the panel reads a selection honestly: typography for words, locked objects are never targets', () => {
+  const words = panelFor({ tool: 'select', selection: ['s1'], shapes: [{ id: 's1', kind: 'rect', text: 'hi' }] });
+  assert.equal(words.typography, true);
+  assert.equal(words.valign, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['s1'], shapes: [{ id: 's1', kind: 'rect' }] }).typography, false);
+  const box = panelFor({ tool: 'select', selection: ['t1'], items: [text('t1')] });
+  assert.equal(box.code, 't1');
+  assert.equal(box.stroke, false, 'a text box colours its words, in the Text section');
+  const locked = panelFor({ tool: 'select', selection: ['s1'], shapes: [shape('s1')], locked: ['s1'] });
+  assert.deepEqual(locked.targets, []);
+  assert.deepEqual(locked.locked, ['s1']);
+  assert.equal(locked.open, true, 'the panel still offers Unlock');
+  assert.equal(panelFor({ tool: 'select', selection: ['b1', 'b2'], units: 2 }).arrange, true);
+  assert.equal(panelFor({ tool: 'arrow', selection: [] }).heads, true);
 });
