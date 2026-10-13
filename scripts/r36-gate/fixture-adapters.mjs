@@ -20,11 +20,21 @@ const TUTOR_NEW = `await page.waitForFunction(title => [...document.querySelecto
 await page.waitForFunction(prior => window.__tutorBench?.length > prior && window.__tutorBench.at(-1)?.ms?.canvas_done != null, priorTutorBenchCount, { timeout: 30000 });
 assert.equal(await page.getByText('Here is CausalSelfAttention.forward').count(), 0, 'navigation does not duplicate narration');`;
 
+// A canvas-only navigate turn has no reply line either (r36 routing: the card is the answer, ask.jsx returns before any
+// reply is drawn); its turn completes and focuses the Deep card, and the existing no-"Thinking..." assertion stays.
+const AGAIN_ASK = "await ask('Show me the implementation again.');";
+const AGAIN_WAIT = "await page.getByText('See the canvas.').first().waitFor({ timeout: 5000 });";
+const AGAIN_NEW = `await page.waitForFunction(prior => window.__tutorBench?.length > prior && window.__tutorBench.at(-1)?.ms?.canvas_done != null, priorAgainBenchCount, { timeout: 30000 });
+await page.waitForFunction(title => [...document.querySelectorAll('[data-block-id]:not([data-chat-block])')]
+  .some(node => node.textContent?.includes(title) && node.className.includes('ring-2')), TITLE('depth-attention-deep'), { timeout: 30000 });`;
+
 export function adaptTutorSlice(source) {
   if (!source.includes(TUTOR_WAIT)) throw Error('tutor navigation wait changed; refusing an unreviewed transformation');
   const ask = 'await ask("Don\'t simplify this. Show me the implementation.");';
   if (!source.includes(ask)) throw Error('tutor navigation trigger changed; refusing an unreviewed transformation');
-  return source.replace(ask, `const priorTutorBenchCount = await page.evaluate(() => window.__tutorBench?.length || 0);\n${ask}`).replace(TUTOR_WAIT, TUTOR_NEW);
+  if (!source.includes(AGAIN_ASK) || !source.includes(AGAIN_WAIT)) throw Error('tutor canvas-only turn changed; refusing an unreviewed transformation');
+  return source.replace(ask, `const priorTutorBenchCount = await page.evaluate(() => window.__tutorBench?.length || 0);\n${ask}`).replace(TUTOR_WAIT, TUTOR_NEW)
+    .replace(AGAIN_ASK, `const priorAgainBenchCount = await page.evaluate(() => window.__tutorBench?.length || 0);\n${AGAIN_ASK}`).replace(AGAIN_WAIT, AGAIN_NEW);
 }
 
 const PAN_MARKER = 'const press = async (page, kind, side = false) => {';
@@ -75,6 +85,12 @@ export function adaptSelectedPill(source) {
   const click = '  await page.mouse.click(side && !kind.item ? box.x + 40 : box.x + box.width / 2, kind.item ? box.y + box.height / 2 : box.y + 8);';
   if (!out.includes(click)) throw Error('selected-pill click changed; refusing an unreviewed transformation');
   out = out.replace(click, '  await page.mouse.click(selectionPoint.x, selectionPoint.y);');
+  // A view-only board's cards and notes take no pointer events, so elementFromPoint calls a point on a card bare canvas
+  // and the "blank" click selected that card (run 38343974325). A blank point is also outside every card and note box.
+  const bare = `      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],[data-learn-dock],button,a,iframe')) return { x, y };`;
+  if (!out.includes(bare)) throw Error('selected-pill blank point changed; refusing an unreviewed transformation');
+  out = out.replace(bare, `      const onObject = [...document.querySelectorAll('[data-block-id],[data-item-id]')].some(node => { const r = node.getBoundingClientRect(); return x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8; });
+${bare.replace('if (element', 'if (!onObject && element')}`);
   return out;
 }
 

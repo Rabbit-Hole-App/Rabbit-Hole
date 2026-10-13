@@ -27,6 +27,9 @@ test('tutor adapter waits for focused card and rejects duplicate narration', () 
   assert.match(out, /CausalSelfAttention\.forward.*ring-2/s);
   assert.match(out, /navigation does not duplicate narration/);
   assert.doesNotMatch(out, /Here is CausalSelfAttention\.forward'\.first\(\)\.waitFor/);
+  // run 38343974325: the canvas-only navigate turn has no reply line; it completes and focuses the Deep card.
+  assert.doesNotMatch(out, /See the canvas\.'\)\.first\(\)\.waitFor/);
+  assert.match(out, /priorAgainBenchCount[\s\S]*canvas_done[\s\S]*depth-attention-deep[\s\S]*no Tutor reply is left spinning/);
 });
 
 test('selected pill adapter uses a measured bare canvas point', () => {
@@ -38,6 +41,7 @@ test('selected pill adapter uses a measured bare canvas point', () => {
   assert.match(out, /intendedSelectionPoint/);
   assert.match(out, /target\.contains\(hit\)/);
   assert.match(out, /view-only board .* selects by the press point/, 'a view-only press point is accepted (run 38342747210)');
+  assert.match(out, /if \(!onObject && element\?\.closest\('\[data-canvas-surface\]'\)/, 'a blank point is off every card and note (run 38343974325)');
   assert.match(out, /selection point is visible/);
   assert.doesNotMatch(out.slice(out.indexOf('const safePanPoint')), /mouse\.move\(1250, 400\)/);
 });
