@@ -260,11 +260,13 @@ await run('shape text', async () => {
   const outline = await page.locator('[data-shape-id="r1"] rect').first().boundingBox();
   check('a bigger font size grows the shape so the words are never clipped', shape.fontSize === 32 && Math.abs(shape.y2 - shape.y1) > 80 && words.y + words.height <= outline.y + outline.height + 1, `h=${Math.abs(shape.y2 - shape.y1)}`);
   check('the font size never touched the stroke width', shape.width === 2);
+  // canvas-shape-text.mjs finds the stroke swatch by a loose 'Color #…' lookup; the text swatches must not match it.
+  check('a loose Color lookup finds exactly the one stroke swatch', (await page.getByRole('button', { name: 'Color #b42318' }).count()) === 1);
   await page.locator('[data-style-panel]').getByRole('button', { name: 'Color #b42318', exact: true }).click();
   shape = await shapeOf(saved, 'r1');
   const ink = await page.locator('[data-shape-id="r1"] [data-shape-text]').evaluate(node => getComputedStyle(node).color);
   check('a new outline colour leaves the words their own colour', shape.color === '#b42318' && shape.textColor === '#2383e2' && ink === 'rgb(35, 131, 226)', `${shape.textColor} ${ink}`);
-  await page.getByRole('button', { name: 'Text color #1a7f37' }).click();
+  await page.getByRole('button', { name: 'Text #1a7f37' }).click();
   shape = await shapeOf(saved, 'r1');
   check('text colour changes only the words', shape.textColor === '#1a7f37' && shape.color === '#b42318');
   await page.getByRole('button', { name: 'Text to the top' }).click();

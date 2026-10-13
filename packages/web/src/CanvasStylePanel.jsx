@@ -31,8 +31,10 @@ const Row = ({ label, mixed = false, children }) => (
 );
 
 // Swatches, a picker for any colour and a hex field. value 'mixed' presses nothing.
-// name labels the swatches when it differs from the row heading ('Color #2383e2' under Stroke, as it always was).
-function ColorRow({ label, name = label, value, onPick, none = null, tint = 1, refocus }) {
+// name labels the swatches when it differs from the row heading ('Color #2383e2' under Stroke, as it always was;
+// 'Text #2383e2' under Text color, so a lookup of 'Color #…' finds the one stroke swatch). custom adds the picker and the
+// hex field; a comment pin keeps to the six colours.
+function ColorRow({ label, name = label, value, onPick, none = null, tint = 1, refocus, custom: open = true }) {
   const picker = useRef(null);
   const [hex, setHex] = useState(value && value !== MIXED ? value : '');
   useEffect(() => { setHex(value && value !== MIXED ? value : ''); }, [value]);
@@ -56,7 +58,7 @@ function ColorRow({ label, name = label, value, onPick, none = null, tint = 1, r
           <span style={{ background: color, opacity: tint }} className={`h-3.5 w-3.5 rounded-full ${value === color ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
         </Btn>
       ))}
-      <label title={`Pick any ${label.toLowerCase()}`} className="relative flex h-6 min-w-7 cursor-pointer items-center justify-center rounded-md hover:bg-hover">
+      {open && <><label title={`Pick any ${label.toLowerCase()}`} className="relative flex h-6 min-w-7 cursor-pointer items-center justify-center rounded-md hover:bg-hover">
         <span aria-hidden="true" style={custom ? { background: value } : { background: 'conic-gradient(#b42318, #f59e0b, #1a7f37, #2383e2, #7c3aed, #b42318)' }}
           className={`h-3.5 w-3.5 rounded-full ${custom ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
         <input ref={picker} type="color" aria-label={`Custom ${label.toLowerCase()}`} value={value && value !== MIXED ? value : '#37352f'} onChange={() => {}}
@@ -65,7 +67,7 @@ function ColorRow({ label, name = label, value, onPick, none = null, tint = 1, r
       <input type="text" aria-label={`${label} hex`} placeholder={value === MIXED ? 'Mixed' : '#hex'} value={hex} spellCheck={false} maxLength={7}
         onChange={event => setHex(event.target.value)} onBlur={commitHex}
         onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); commitHex(); } if (event.key === 'Escape') { event.stopPropagation(); setHex(value && value !== MIXED ? value : ''); refocus?.(); } }}
-        className="h-6 w-[4.6rem] rounded-md border border-line px-1.5 font-mono text-[11px] outline-none focus:border-ink-3" />
+        className="h-6 w-[4.6rem] rounded-md border border-line px-1.5 font-mono text-[11px] outline-none focus:border-ink-3" /></>}
     </Row>
   );
 }
@@ -127,7 +129,7 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
     return (
       <div role="group" aria-label="Style" data-keep-focus onPointerDown={event => event.stopPropagation()}
         className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-24'} z-20 w-[232px] -translate-y-1/2 rounded-xl border border-line bg-white p-1 shadow-md`}>
-        <ColorRow label="Color" value={values.color} onPick={on.color} />
+        <ColorRow label="Color" value={values.color} onPick={on.color} custom={false} />
       </div>
     );
   }
@@ -195,7 +197,7 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
           <Btn label="Italic" keys="Ctrl I" pressed={values.i} onClick={() => on.toggle('i')} data-format="i"><Italic size={13} /></Btn>
           <Btn label="Underline" keys="Ctrl U" pressed={values.u} onClick={() => on.toggle('u')} data-format="u"><Underline size={13} /></Btn>
         </Row>
-        <ColorRow label="Text color" value={values.textColor} onPick={on.textColor} refocus={refocus} />
+        <ColorRow label="Text color" name="Text" value={values.textColor} onPick={on.textColor} refocus={refocus} />
         <Row label="Align" mixed={values.align === MIXED || values.valign === MIXED}>
           {[['left', AlignLeft], ['center', AlignCenter], ['right', AlignRight]].map(([value, Icon]) => <Btn key={value} label={`Align ${value}`} pressed={values.align === value} onClick={() => on.align(value)}><Icon size={13} /></Btn>)}
           {panel.valign && <>

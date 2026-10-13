@@ -49,7 +49,7 @@ await page.keyboard.press('Enter');
 await page.keyboard.type('into probabilities');
 for (let i = 0; i < 13; i += 1) await page.keyboard.press('Shift+ArrowLeft');
 await page.getByRole('button', { name: 'Bold', exact: true }).click();
-await page.getByRole('button', { name: 'Text color #2383e2' }).click();
+await page.getByRole('button', { name: 'Text #2383e2' }).click();
 check('a selected range keeps its selection through the panel', (await page.evaluate(() => getSelection().toString())) === 'probabilities');
 await shot('01-text-range-formatting');
 await page.keyboard.press('Escape');
@@ -61,7 +61,7 @@ await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(
 await page.mouse.dblclick((a.x + b.x) / 2, (a.y + b.y) / 2);
 await page.keyboard.type('Logits');
 await page.keyboard.press('Escape');
-await page.getByRole('button', { name: 'Text color #b42318' }).click();
+await page.getByRole('button', { name: 'Text #b42318' }).click();
 await page.locator('input[aria-label="Font size"]').fill('24');
 await page.locator('input[aria-label="Font size"]').press('Enter');
 await shot('02-shape-text-panel');

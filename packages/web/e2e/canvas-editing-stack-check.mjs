@@ -73,7 +73,7 @@ await page.mouse.move(r1.x, r1.y); await page.mouse.down(); await page.mouse.mov
 await page.mouse.dblclick((r1.x + r2.x) / 2, (r1.y + r2.y) / 2);
 await page.keyboard.type('Shape words');
 await page.keyboard.press('Escape');
-await page.getByRole('button', { name: 'Text color #1a7f37' }).click();
+await page.getByRole('button', { name: 'Text #1a7f37' }).click();
 await page.locator('input[aria-label="Font size"]').fill('24');
 await page.locator('input[aria-label="Font size"]').press('Enter');
 await page.keyboard.press('Control+Shift+L');
