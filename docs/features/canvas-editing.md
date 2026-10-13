@@ -80,7 +80,9 @@ plain text and use the same `runs`.
 
 ## 3. Text / Code
 
-A visible Text | Code switch sits on a selected standalone text box (beside its H1–Text ladder) and in the panel. Code
+A visible Text | Code switch sits on a selected standalone text box and in the panel. It sits beside the box's H1–Text ladder.
+When Ask in chat shares the ladder's row, the switch moves to a line of its own above it, so the pill stays at the box's
+right edge. Code
 shows the same object, words, line breaks and indentation in monospace with `white-space: pre`, on a light code tint,
 and Tab inserts two spaces. Nothing is executed, no model is called, and no notebook is made. Text formatting is kept
 aside while in Code mode. Words edited in Code mode are saved, and `reconcileRuns()` carries the old formatting over to

@@ -57,29 +57,31 @@ const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
 // ponytail: canvas content persists per-browser via localStorage; cross-device
 // save/restore comes with the lesson content model.
 
+// [value, icon, accessible name, tooltip hint]. The name stays the plain tool name (screen readers and every check
+// find a tool by it); the tooltip adds the key from TOOL_KEYS and the hint.
 const NAV_TOOLS = [
-  ['select', MousePointer2, 'Select and move (V) · drag empty canvas to select an area'],
-  ['hand', Hand, 'Hand — pan the canvas (H) · or hold Space and drag'],
+  ['select', MousePointer2, 'Select and move', 'drag empty canvas to select an area'],
+  ['hand', Hand, 'Hand — pan the canvas', 'or hold Space and drag'],
   // Ask about selection (user, 2026-09-30): drag over anything - cards, slides, images - to ask about that area.
   ['askArea', Scan, 'Ask about selection — drag over any part of the canvas'],
 ];
 const DRAW_TOOLS = [
-  ['pen', Pencil, 'Pen (P)'],
+  ['pen', Pencil, 'Pen'],
   ['highlighter', Highlighter, 'Highlighter'],
-  ['eraser', Eraser, 'Eraser (E)'],
-  ['text', Type, 'Text (T)'],
+  ['eraser', Eraser, 'Eraser'],
+  ['text', Type, 'Text'],
   ['equation', Sigma, 'Equation'],
-  ['sticky', StickyNote, 'Sticky note (N)'],
+  ['sticky', StickyNote, 'Sticky note'],
 ];
 const SHAPE_TOOLS = [
-  ['rect', Square, 'Rectangle (R) · Shift for a square, Alt from the centre'],
-  ['ellipse', Circle, 'Ellipse (O) · Shift for a circle, Alt from the centre'],
+  ['rect', Square, 'Rectangle', 'Shift for a square, Alt from the centre'],
+  ['ellipse', Circle, 'Ellipse', 'Shift for a circle, Alt from the centre'],
   ['triangle', Triangle, 'Triangle'],
   ['diamond', Diamond, 'Diamond'],
   ['hexagon', Hexagon, 'Hexagon'],
   ['star', Star, 'Star'],
-  ['line', Slash, 'Line (L) · Shift snaps to 45°'],
-  ['arrow', ArrowUpRight, 'Arrow (A) · Shift snaps to 45°'],
+  ['line', Slash, 'Line', 'Shift snaps to 45°'],
+  ['arrow', ArrowUpRight, 'Arrow', 'Shift snaps to 45°'],
   ['curve', Spline, 'Curved arrow'],
   ['elbow', CornerDownRight, 'Elbow arrow'],
 ];
@@ -921,6 +923,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
   const chrome = !locked && (editing || (selected && tool === 'select'));
   const ladder = !sticky && item.kind === 'text' && onLevel && chrome;
   const ask = !!onAsk && selected && !editing && tool === 'select' && !!String(item.text || '').trim();
+  const modeAbove = ladder && !!onMode && ask && !code;
   const askPill = <AskPill title={sticky ? 'Ask the tutor about this note' : 'Ask the tutor about this text'} onAsk={() => onAsk(item)} className={sticky ? 'absolute z-30 -translate-x-full' : 'ml-auto'} style={sticky ? { left: item.x + (item.w || 160), top: item.y - 40 } : null} />;
   const base = itemBase(item);
   const ink = sticky ? (value => value) : inkAware;
@@ -941,11 +944,16 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
       {/* A selected or editing text box offers its ladder right there - H1 to
           text - and Text / Code, instead of asking the learner to find the style
           panel. pointerdown is swallowed so choosing never blurs or deselects. */}
+      {/* Beside the ladder and Ask in chat, Text | Code would push the pill past the box's right edge, so it takes
+          its own line above them; the ladder and pill keep their row. */}
       {(ladder || (ask && !sticky)) && (
-        <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full items-center gap-2">
-          {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
-          {ladder && onMode && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} />}
-          {ask && !sticky && askPill}
+        <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full flex-col items-start gap-1.5">
+          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} />}
+          <div className="flex items-center gap-2 self-stretch">
+            {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} />}
+            {ask && !sticky && askPill}
+          </div>
         </div>
       )}
       <RichText entry={item} base={base} colorOf={ink} code={code} editing={editing} point={point}
@@ -1283,9 +1291,11 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
   );
 }
 
-function ToolButton({ Icon, label, active, onPick }) {
+const TOOL_KEY_OF = Object.fromEntries(Object.entries(TOOL_KEYS).map(([key, tool]) => [tool, key.toUpperCase()]));
+function ToolButton({ value, Icon, label, hint, active, onPick }) {
+  const key = TOOL_KEY_OF[value];
   return (
-    <button type="button" title={label} aria-label={label} aria-pressed={active}
+    <button type="button" title={[key ? `${label} (${key})` : label, hint].filter(Boolean).join(' · ')} aria-label={label} aria-keyshortcuts={key} aria-pressed={active}
       // A pointer press never leaves the tool focused (keyboard Tab still does), so Space after a click pans instead of pressing it again.
       onPointerDown={e => { e.stopPropagation(); e.preventDefault(); }} onClick={onPick}
       className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? 'bg-ink text-white' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
@@ -4447,11 +4457,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {/* The same tools, drawing into an Explain Back sketch: one toolbar, and it says where it draws. */}
           {drawTarget && <div data-sketch-badge title="These tools draw in the Explain Back sketch. Press the canvas or Esc to draw on the canvas again."
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase @max-[640px]:col-span-1 @max-[640px]:px-1.5">Sketch</div>}
-          {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
+          {NAV_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
-          {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
+          {DRAW_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
-          {SHAPE_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
+          {SHAPE_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
           {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
           <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}

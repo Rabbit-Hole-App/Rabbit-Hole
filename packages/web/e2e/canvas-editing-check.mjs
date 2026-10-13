@@ -113,7 +113,7 @@ await run('formatting', async () => {
   await page.keyboard.press('End');
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowLeft');
   check('a range is selected in the editor', (await selectionText(page)) === 'world');
-  await page.getByRole('button', { name: 'Bold (Ctrl B)' }).click();
+  await page.getByRole('button', { name: 'Bold', exact: true }).click();
   check('the selection survives pressing Bold', (await selectionText(page)) === 'world');
   await page.getByRole('button', { name: 'Serif font' }).click();
   await page.locator('[aria-label="Text color hex"]').fill('#b42318');
@@ -123,7 +123,7 @@ await run('formatting', async () => {
   await size.fill('28');
   await size.press('Enter');
   check('the selection survives a typed font size', (await selectionText(page)) === 'world');
-  check('the panel shows the range values', (await page.getByRole('button', { name: 'Bold (Ctrl B)' }).getAttribute('aria-pressed')) === 'true' && (await size.inputValue()) === '28');
+  check('the panel shows the range values', (await page.getByRole('button', { name: 'Bold', exact: true }).getAttribute('aria-pressed')) === 'true' && (await size.inputValue()) === '28');
   // A caret with no range: Italic applies to what is typed next.
   await page.keyboard.press('End');
   await page.keyboard.press('Control+i');
@@ -138,9 +138,9 @@ await run('formatting', async () => {
   check('the start keeps its own look', !runs[0].b && runs[0].t.startsWith('hello'), JSON.stringify(runs[0]));
   // Mixed: the whole text selected shows bold as mixed.
   await page.locator('[data-item-id="t1"]').click();
-  check('a mixed selection shows Mixed, not one value', (await page.getByRole('button', { name: 'Bold (Ctrl B)' }).getAttribute('aria-pressed')) === 'mixed' && (await page.locator('[data-style-panel] [data-mixed]').count()) > 0);
+  check('a mixed selection shows Mixed, not one value', (await page.getByRole('button', { name: 'Bold', exact: true }).getAttribute('aria-pressed')) === 'mixed' && (await page.locator('[data-style-panel] [data-mixed]').count()) > 0);
   // Object-level: the whole box takes underline.
-  await page.getByRole('button', { name: 'Underline (Ctrl U)' }).click();
+  await page.getByRole('button', { name: 'Underline', exact: true }).click();
   check('formatting a selected (not edited) text box applies to all of it', (await itemOf(saved, 't1')).underline === true);
   await page.keyboard.press('Control+z');
   check('undo takes back the object formatting', !(await itemOf(saved, 't1')).underline);
@@ -260,7 +260,7 @@ await run('shape text', async () => {
   const outline = await page.locator('[data-shape-id="r1"] rect').first().boundingBox();
   check('a bigger font size grows the shape so the words are never clipped', shape.fontSize === 32 && Math.abs(shape.y2 - shape.y1) > 80 && words.y + words.height <= outline.y + outline.height + 1, `h=${Math.abs(shape.y2 - shape.y1)}`);
   check('the font size never touched the stroke width', shape.width === 2);
-  await page.getByRole('button', { name: 'Stroke #b42318' }).click();
+  await page.locator('[data-style-panel]').getByRole('button', { name: 'Color #b42318', exact: true }).click();
   shape = await shapeOf(saved, 'r1');
   const ink = await page.locator('[data-shape-id="r1"] [data-shape-text]').evaluate(node => getComputedStyle(node).color);
   check('a new outline colour leaves the words their own colour', shape.color === '#b42318' && shape.textColor === '#2383e2' && ink === 'rgb(35, 131, 226)', `${shape.textColor} ${ink}`);
@@ -271,7 +271,7 @@ await run('shape text', async () => {
   await page.getByRole('button', { name: 'Align left' }).click();
   shape = await shapeOf(saved, 'r1');
   check('words align left/center/right and top/middle/bottom inside the shape', shape.valign === 'top' && shape.align === 'left');
-  await page.getByRole('button', { name: 'Heading 2' }).click();
+  await page.locator('[data-style-panel]').getByRole('button', { name: 'H2', exact: true }).click();
   shape = await shapeOf(saved, 'r1');
   check('H1-H4/Text presets sit beside the size control; a preset sets the level and drops the custom size', shape.level === 'h2' && shape.fontSize === undefined);
   // Resizing cannot squeeze the words out: the shape stops at the height they need.
@@ -318,7 +318,7 @@ await run('connector labels', async () => {
   saved1 = (await saved()).links.find(entry => entry.id === 'k');
   check('start and end arrowheads are set on a connector', saved1.startHead === 'dot' && saved1.endHead === 'triangle');
   check('the arrowheads draw', (await page.locator('[data-connection="k"] [data-head="dot"]').count()) === 1 && (await page.locator('[data-connection="k"] [data-head="triangle"]').count()) === 1);
-  await page.getByRole('button', { name: 'Italic (Ctrl I)' }).click();
+  await page.getByRole('button', { name: 'Italic', exact: true }).click();
   saved1 = (await saved()).links.find(entry => entry.id === 'k');
   check('a selected connector label takes the text formatting', saved1.italic === true);
   await reload();
@@ -564,6 +564,20 @@ await run('selection', async () => {
   await context.close();
 });
 
+// selected-pill-check's rule: a selected text box's Ask in chat sits above its top right. Text | Code takes its own
+// line above the ladder rather than pushing the pill past the right edge.
+await run('ask pill edge', async () => {
+  const { page, context } = await open('ask-pill-edge', { items: [textItem('t1', 100, 200, { text: 'the mask hides the future' })] });
+  const box = page.locator('[data-item-id="t1"]');
+  const at = await box.boundingBox();
+  await page.mouse.click(at.x + 10, at.y + at.height / 2);
+  const pill = await page.locator('[data-ask-pill] button').boundingBox();
+  const mode = await page.locator('[data-item-id="t1"] [aria-label="Text or code"]').boundingBox();
+  check('Ask in chat stays at the selected text box\'s right edge', Math.abs(pill.x + pill.width - (at.x + at.width)) < 12 && pill.y + pill.height <= at.y + 2, JSON.stringify([pill, at]));
+  check('Text | Code is still on the selected text box, above the pill row', !!mode && mode.y + mode.height <= pill.y + 1, JSON.stringify(mode));
+  await context.close();
+});
+
 await run('shortcuts', async () => {
   const { page, context } = await open('shortcuts', {});
   for (const [key, label] of [['r', 'Rectangle'], ['o', 'Ellipse'], ['a', 'Arrow'], ['l', 'Line'], ['p', 'Pen'], ['t', 'Text'], ['e', 'Eraser'], ['n', 'Sticky note'], ['h', 'Hand'], ['v', 'Select']]) {
@@ -572,6 +586,13 @@ await run('shortcuts', async () => {
     const title = await page.getByRole('button', { name: new RegExp(`^${label}`) }).first().getAttribute('title');
     check(`${key.toUpperCase()} arms ${label} and its tooltip names the key`, pressed === 'true' && title.includes(`(${key.toUpperCase()})`), title);
   }
+  // The accessible name stays the plain tool name (the release checks and screen readers find tools by it); only
+  // the tooltip carries the key and the hint.
+  const gutter = page.locator('[data-tool-gutter]');
+  const plain = [];
+  for (const name of ['Select and move', 'Rectangle', 'Ellipse', 'Pen', 'Text', 'Line', 'Arrow']) plain.push(await gutter.getByRole('button', { name, exact: true }).count());
+  check('every tool is found by its plain name, exactly', plain.every(count => count === 1), plain.join(','));
+  check('a tool names its key for assistive tech too', (await gutter.getByRole('button', { name: 'Rectangle', exact: true }).getAttribute('aria-keyshortcuts')) === 'R');
   await context.close();
 });
 
@@ -842,7 +863,7 @@ await run('review regressions', async () => {
   await page.mouse.dblclick(r.x, r.y); // select a word inside the editor
   await page.keyboard.press('Escape');
   await page.locator('[data-shape-id="r1"]').locator('rect').first().click({ force: true });
-  await page.getByRole('button', { name: 'Heading 1' }).click();
+  await page.locator('[data-style-panel]').getByRole('button', { name: 'H1', exact: true }).click();
   await page.waitForTimeout(150);
   const r1 = async () => { const s = (await saved()).shapes.find(shape => shape.id === 'r1'); return JSON.stringify([s.text, s.level]); };
   const trail = [await r1()];
@@ -894,7 +915,7 @@ await run('panel focus', async () => {
   await page.keyboard.press('t');
   const at = await screen(500, 400);
   await page.mouse.click(at.x, at.y);
-  check('a new text box shows the text panel while typing', await page.getByRole('button', { name: 'Bold (Ctrl B)' }).isVisible());
+  check('a new text box shows the text panel while typing', await page.getByRole('button', { name: 'Bold', exact: true }).isVisible());
   await context.close();
 });
 

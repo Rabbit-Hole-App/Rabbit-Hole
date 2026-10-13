@@ -14,8 +14,10 @@ const MIXED = 'mixed';
 // The whole panel is data-keep-focus and swallows pointerdown, so a press here restyles the text being edited without
 // taking its caret or selection; its two fields (hex, size) hand the focus back when they are done.
 
-const Btn = ({ label, pressed = undefined, onClick, children, className = '', ...rest }) => (
-  <button type="button" title={label} aria-label={label} aria-pressed={pressed === MIXED ? 'mixed' : pressed} onClick={onClick} {...rest}
+// The accessible name is the plain control name (screen readers and checks find a control by it); the tooltip adds
+// the shortcut (keys) or a longer description (tip).
+const Btn = ({ label, keys = null, tip = null, pressed = undefined, onClick, children, className = '', ...rest }) => (
+  <button type="button" title={tip || (keys ? `${label} (${keys})` : label)} aria-label={label} aria-pressed={pressed === MIXED ? 'mixed' : pressed} onClick={onClick} {...rest}
     className={`flex h-6 min-w-7 items-center justify-center rounded-md px-1 text-[11px] ${pressed === true ? 'bg-hover text-ink' : pressed === MIXED ? 'bg-hover/50 text-ink-2 outline outline-1 outline-dashed outline-line-strong' : 'text-ink-2 hover:bg-hover hover:text-ink'} ${className}`}>{children}</button>
 );
 
@@ -29,7 +31,8 @@ const Row = ({ label, mixed = false, children }) => (
 );
 
 // Swatches, a picker for any colour and a hex field. value 'mixed' presses nothing.
-function ColorRow({ label, value, onPick, none = null, tint = 1, refocus }) {
+// name labels the swatches when it differs from the row heading ('Color #2383e2' under Stroke, as it always was).
+function ColorRow({ label, name = label, value, onPick, none = null, tint = 1, refocus }) {
   const picker = useRef(null);
   const [hex, setHex] = useState(value && value !== MIXED ? value : '');
   useEffect(() => { setHex(value && value !== MIXED ? value : ''); }, [value]);
@@ -49,7 +52,7 @@ function ColorRow({ label, value, onPick, none = null, tint = 1, refocus }) {
         <span className="h-3.5 w-3.5 rounded-sm border border-line bg-white"><svg viewBox="0 0 14 14" aria-hidden="true"><line x1="1" y1="13" x2="13" y2="1" stroke="#b42318" strokeWidth="1.5" /></svg></span>
       </Btn>}
       {COLORS.map(color => (
-        <Btn key={color} label={`${label} ${color}`} pressed={value === color} onClick={() => onPick(color)}>
+        <Btn key={color} label={`${name} ${color}`} pressed={value === color} onClick={() => onPick(color)}>
           <span style={{ background: color, opacity: tint }} className={`h-3.5 w-3.5 rounded-full ${value === color ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
         </Btn>
       ))}
@@ -142,7 +145,7 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
           <button type="button" onClick={on.lock} className="rounded-md px-2 py-0.5 text-xs font-medium text-ink hover:bg-hover">Unlock</button>
         </div>
       )}
-      {panel.stroke && <ColorRow label={panel.paper ? 'Note' : 'Stroke'} value={values.color} onPick={on.color} refocus={refocus} />}
+      {panel.stroke && <ColorRow label={panel.paper ? 'Note' : 'Stroke'} name="Color" value={values.color} onPick={on.color} refocus={refocus} />}
       {panel.fill && <>
         {/* Fill keeps the Excalidraw habit of a light tint by default (25%), now adjustable. */}
         <ColorRow label="Fill" value={values.fill} onPick={on.fill} none="No fill" tint={0.35} refocus={refocus} />
@@ -180,7 +183,7 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
       {text && <>
         {(panel.stroke || panel.fill || panel.widths || panel.heads || panel.route) && rule}
         <Row label="Text style">
-          {TEXT_LEVELS.map(entry => <Btn key={entry.id} label={entry.label === 'Text' ? 'Body text' : `Heading ${entry.label.slice(1)}`} pressed={values.level === entry.id} onClick={() => on.level(entry.id)} style={{ fontWeight: entry.weight }}>{entry.label}</Btn>)}
+          {TEXT_LEVELS.map(entry => <Btn key={entry.id} label={entry.label} tip={entry.label === 'Text' ? 'Body text' : `Heading ${entry.label.slice(1)}`} pressed={values.level === entry.id} onClick={() => on.level(entry.id)} style={{ fontWeight: entry.weight }}>{entry.label}</Btn>)}
         </Row>
         <Row label="Font" mixed={values.font === MIXED}>
           {FONT_KEYS.map(key => <Btn key={key} label={`${FONTS[key].label} font`} pressed={values.font === key} onClick={() => on.font(key)} style={{ fontFamily: FONTS[key].stack }} className="px-2">{FONTS[key].label}</Btn>)}
@@ -188,9 +191,9 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
         <Row label="Font size" mixed={values.size === MIXED}>
           <SizeField value={values.size} onSize={on.size} refocus={refocus} />
           <span className="mx-0.5 h-4 w-px bg-line" />
-          <Btn label="Bold (Ctrl B)" pressed={values.b} onClick={() => on.toggle('b')} data-format="b"><Bold size={13} /></Btn>
-          <Btn label="Italic (Ctrl I)" pressed={values.i} onClick={() => on.toggle('i')} data-format="i"><Italic size={13} /></Btn>
-          <Btn label="Underline (Ctrl U)" pressed={values.u} onClick={() => on.toggle('u')} data-format="u"><Underline size={13} /></Btn>
+          <Btn label="Bold" keys="Ctrl B" pressed={values.b} onClick={() => on.toggle('b')} data-format="b"><Bold size={13} /></Btn>
+          <Btn label="Italic" keys="Ctrl I" pressed={values.i} onClick={() => on.toggle('i')} data-format="i"><Italic size={13} /></Btn>
+          <Btn label="Underline" keys="Ctrl U" pressed={values.u} onClick={() => on.toggle('u')} data-format="u"><Underline size={13} /></Btn>
         </Row>
         <ColorRow label="Text color" value={values.textColor} onPick={on.textColor} refocus={refocus} />
         <Row label="Align" mixed={values.align === MIXED || values.valign === MIXED}>
@@ -223,10 +226,10 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
       )}
       {panel.order && (
         <Row label="Layers">
-          <Btn label="Send to back (Ctrl Shift [)" onClick={() => on.order('back')}><SendToBack size={14} strokeWidth={1.7} /></Btn>
-          <Btn label="Send backward (Ctrl [)" onClick={() => on.order('backward')}><ArrowDown size={14} strokeWidth={1.7} /></Btn>
-          <Btn label="Bring forward (Ctrl ])" onClick={() => on.order('forward')}><ArrowUp size={14} strokeWidth={1.7} /></Btn>
-          <Btn label="Bring to front (Ctrl Shift ])" onClick={() => on.order('front')}><BringToFront size={14} strokeWidth={1.7} /></Btn>
+          <Btn label="Send to back" keys="Ctrl Shift [" onClick={() => on.order('back')}><SendToBack size={14} strokeWidth={1.7} /></Btn>
+          <Btn label="Send backward" keys="Ctrl [" onClick={() => on.order('backward')}><ArrowDown size={14} strokeWidth={1.7} /></Btn>
+          <Btn label="Bring forward" keys="Ctrl ]" onClick={() => on.order('forward')}><ArrowUp size={14} strokeWidth={1.7} /></Btn>
+          <Btn label="Bring to front" keys="Ctrl Shift ]" onClick={() => on.order('front')}><BringToFront size={14} strokeWidth={1.7} /></Btn>
         </Row>
       )}
       {panel.arrange && (
@@ -234,15 +237,15 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
           {[['left', AlignStartVertical, 'Align left'], ['center', AlignCenterVertical, 'Align center'], ['right', AlignEndVertical, 'Align right'], ['top', AlignStartHorizontal, 'Align top'], ['middle', AlignCenterHorizontal, 'Align middle'], ['bottom', AlignEndHorizontal, 'Align bottom']].map(([how, Icon, label]) => <Btn key={how} label={label} onClick={() => on.arrange(how)}><Icon size={14} strokeWidth={1.7} /></Btn>)}
           <Btn label="Distribute horizontally" disabled={flags.units < 3} onClick={() => on.arrange('spread-x')} className="disabled:opacity-40"><AlignHorizontalSpaceBetween size={14} strokeWidth={1.7} /></Btn>
           <Btn label="Distribute vertically" disabled={flags.units < 3} onClick={() => on.arrange('spread-y')} className="disabled:opacity-40"><AlignVerticalSpaceBetween size={14} strokeWidth={1.7} /></Btn>
-          <Btn label="Group (Ctrl G)" onClick={on.group}><Group size={14} strokeWidth={1.7} /></Btn>
-          <Btn label="Ungroup (Ctrl Shift G)" disabled={!flags.grouped} onClick={on.ungroup} className="disabled:opacity-40"><Ungroup size={14} strokeWidth={1.7} /></Btn>
+          <Btn label="Group" keys="Ctrl G" onClick={on.group}><Group size={14} strokeWidth={1.7} /></Btn>
+          <Btn label="Ungroup" keys="Ctrl Shift G" disabled={!flags.grouped} onClick={on.ungroup} className="disabled:opacity-40"><Ungroup size={14} strokeWidth={1.7} /></Btn>
         </Row>
       )}
       {(panel.order || panel.locked?.length > 0) && !flags.sketch && (
         <Row label="Object">
-          <Btn label={flags.allLocked ? 'Unlock (Ctrl Shift L)' : 'Lock (Ctrl Shift L)'} pressed={flags.allLocked} onClick={on.lock} data-lock-toggle>{flags.allLocked ? <Lock size={14} /> : <LockOpen size={14} />}</Btn>
-          <Btn label="Copy style (Ctrl Alt C)" onClick={on.copyStyle} disabled={!panel.order}><Pipette size={14} strokeWidth={1.7} /></Btn>
-          <Btn label="Paste style (Ctrl Alt V)" onClick={on.pasteStyle} disabled={!flags.canPasteStyle || !panel.order} className="disabled:opacity-40"><PaintRoller size={14} strokeWidth={1.7} /></Btn>
+          <Btn label={flags.allLocked ? 'Unlock' : 'Lock'} keys="Ctrl Shift L" pressed={flags.allLocked} onClick={on.lock} data-lock-toggle>{flags.allLocked ? <Lock size={14} /> : <LockOpen size={14} />}</Btn>
+          <Btn label="Copy style" keys="Ctrl Alt C" onClick={on.copyStyle} disabled={!panel.order}><Pipette size={14} strokeWidth={1.7} /></Btn>
+          <Btn label="Paste style" keys="Ctrl Alt V" onClick={on.pasteStyle} disabled={!flags.canPasteStyle || !panel.order} className="disabled:opacity-40"><PaintRoller size={14} strokeWidth={1.7} /></Btn>
         </Row>
       )}
     </div>

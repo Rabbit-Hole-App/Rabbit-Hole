@@ -44,7 +44,8 @@ test('the ladder sits where the text ladder does, as the same pill, on a selecte
   const equation = canvas.slice(canvas.indexOf('function EquationItem('), canvas.indexOf('// The lesson-block picker.'));
   assert.match(equation, /\{selected && !editing && !locked && tool === 'select' && \(\n\s+<LevelPill level=\{equationLevel\(size\)\} levels=\{EQUATION_LEVELS\} label="Equation size" fallback=\{null\} className="absolute bottom-full left-0 z-20 mb-2\.5"\n\s+onLevel=\{value => \{ onGesture\(\); onPatch\(item\.id, \{ size: levelSize\(value\) \}\); \}\} \/>/);
   // The text ladder's row also carries its Ask in chat (r35), on the cards' pill row (card-selection.test.mjs).
-  assert.match(canvas, /<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex min-w-full items-center gap-2">\n\s+\{ladder && !code && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}/, 'the text ladder: same pill, same place');
+  // Text | Code takes a line of its own above that row when Ask in chat is on it (selected-pill-check's right edge).
+  assert.match(canvas, /<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex min-w-full flex-col items-start gap-1\.5">\n\s+\{modeAbove && <ModePill[^\n]*\n\s+<div className="flex items-center gap-2 self-stretch">\n\s+\{ladder && !code && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}/, 'the text ladder: same pill, same place');
   assert.equal((canvas.match(/function LevelPill\(/g) || []).length, 1, 'one ladder component');
 });
 
@@ -141,5 +142,5 @@ test('MathLive loads with the first equation edited, never with the canvas', () 
 });
 
 test('the toolbar has the Equation tool right after Text', () => {
-  assert.match(read('./AdaptiveCanvas.jsx'), /\['text', Type, 'Text \(T\)'\],\n {2}\['equation', Sigma, 'Equation'\],/);
+  assert.match(read('./AdaptiveCanvas.jsx'), /\['text', Type, 'Text'\],\n {2}\['equation', Sigma, 'Equation'\],/);
 });

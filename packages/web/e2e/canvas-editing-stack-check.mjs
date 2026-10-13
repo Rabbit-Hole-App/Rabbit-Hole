@@ -61,7 +61,7 @@ await page.keyboard.press('ArrowUp');
 await page.keyboard.press('End');
 for (let i = 0; i < 3; i += 1) await page.keyboard.press('Shift+ArrowLeft');
 if (OUT) await page.screenshot({ path: `${OUT}/stack-text.png` });
-await page.getByRole('button', { name: 'Bold (Ctrl B)' }).click();
+await page.getByRole('button', { name: 'Bold', exact: true }).click();
 await page.locator('[aria-label="Text color hex"]').fill('#b42318');
 await page.locator('[aria-label="Text color hex"]').press('Enter');
 await page.keyboard.press('Escape');

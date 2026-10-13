@@ -48,7 +48,7 @@ await page.keyboard.type('Softmax turns scores');
 await page.keyboard.press('Enter');
 await page.keyboard.type('into probabilities');
 for (let i = 0; i < 13; i += 1) await page.keyboard.press('Shift+ArrowLeft');
-await page.getByRole('button', { name: 'Bold (Ctrl B)' }).click();
+await page.getByRole('button', { name: 'Bold', exact: true }).click();
 await page.getByRole('button', { name: 'Text color #2383e2' }).click();
 check('a selected range keeps its selection through the panel', (await page.evaluate(() => getSelection().toString())) === 'probabilities');
 await shot('01-text-range-formatting');
