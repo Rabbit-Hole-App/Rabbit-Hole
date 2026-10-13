@@ -11,7 +11,7 @@ grep -o '^[A-Z0-9_]*=' $WS/cfg/cp/.dev.vars | tr '\n' ' '; echo
 cd $R/packages/web
 L=${VITE_TLDRAW_LICENSE_KEY:-}
 base() { env -i PATH="$PATH" HOME="$HOME" APPDATA="$APPDATA" LOCALAPPDATA="$LOCALAPPDATA" USERPROFILE="$USERPROFILE" SYSTEMROOT="$SYSTEMROOT" TEMP="$TEMP" TMP="$TMP" VITE_TLDRAW_LICENSE_KEY="$L" "$@"; }
-base npx --no-install vite build > $J/build1.log 2>&1 && base env VITE_COACHING_DEV=true VITE_BYOC_DEV=true npx --no-install vite build --outDir dist-dev > $J/build2.log 2>&1 || { echo BUILD FAILED; exit 1; }
+W=$R; source "$J/../build-once.sh"; build_flavor dev "$J" || { echo BUILD FAILED; exit 1; }
 echo built
 powershell -NoProfile -ExecutionPolicy Bypass -File "$J/../clear-local.ps1" -Target journey || exit 1
 cd $R

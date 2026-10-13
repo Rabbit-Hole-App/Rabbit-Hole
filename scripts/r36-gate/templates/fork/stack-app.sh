@@ -24,13 +24,8 @@ cd $W/packages/web || exit 1
 L=${VITE_TLDRAW_LICENSE_KEY:-}
 base() { env -i PATH="$PATH" HOME="$HOME" APPDATA="$APPDATA" LOCALAPPDATA="$LOCALAPPDATA" USERPROFILE="$USERPROFILE" SYSTEMROOT="$SYSTEMROOT" TEMP="$TEMP" TMP="$TMP" VITE_TLDRAW_LICENSE_KEY="$L" "$@"; }
 # restart: no rebuild, just restart the stack on the current dist (a crashed stack mid-gate).
-if [ "$1" = restart ]; then echo RESTART_ONLY
-elif [ "$1" = prod ]; then
-  P2="VITE_RABBIT_HOLE=true VITE_NOTEBOOK_ORIGIN=https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev VITE_LESSON_NOTEBOOK_ORIGIN=https://rabbit-hole-notebook.tryrabbithole.workers.dev"
-  base env $P2 npx --no-install vite build > "$J/build1.log" 2>&1 && base env $P2 npx --no-install vite build --outDir dist-dev > "$J/build2.log" 2>&1 || { echo BUILD FAILED; exit 1; }
-else
-  base npx --no-install vite build > "$J/build1.log" 2>&1 && base env VITE_COACHING_DEV=true VITE_BYOC_DEV=true npx --no-install vite build --outDir dist-dev > "$J/build2.log" 2>&1 || { echo BUILD FAILED; exit 1; }
-fi
+source "$J/../build-once.sh"
+[ "$1" = restart ] && echo RESTART_ONLY || build_flavor "$1" "$J" || { echo BUILD FAILED; exit 1; }
 echo "built $1"
 cp $W/packages/control-plane/.dev.vars $W/packages/web/.dev.vars
 # Provider tripwire (owner, 2026-10-07): when the tree has e2e/provider-tripwire.js, the workers start through the tripwire
