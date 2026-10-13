@@ -1,0 +1,607 @@
+# Inline AI editor (Ctrl/Cmd + K)
+
+Owner brief, 2026-10-12. Implement this spec; don't expand it.
+
+## Implementation status (2026-10-13, branch feature/inline-ai-editor)
+
+Built into the existing canvas; not merged, not in production. Real provider paths were verified on a local
+spend-enforced stack only (see the handoff report for results, spend and the remaining gaps).
+
+Where it lives:
+- `web/src/inline-ai-context.js` - the bounded context package (§3), its per-board incremental cache (A1) and the
+  stale fingerprints (§11). Content records stay apart from layout, so a move reuses a description.
+- `web/src/inline-ai-route.js` - inline routes on the shared registry (A6), the plain-explain bypass, the JEV Choice
+  request and its own validator and thresholds (§6). The worker imports the same file.
+- `web/src/inline-ai-apply.js` - edits checked in code against the frozen target, the explain, card and edit
+  transactions, note placement (§8-§9).
+- `web/src/inline-ai-session.js` - one request's life: tokens against late results, idempotent reuse, coalesced
+  streaming, per-request metrics (§10-§11, A2, A3).
+- `web/src/inline-ai-transport.js` - the SSE reader and the page's transport; cards come from
+  `learn-slash.js generateCommand`, the same call `/command` makes, without its insert (§7).
+- `web/src/InlineAiEditor.jsx` - the popover and its preview overlay. `AdaptiveCanvas.jsx` holds the hooks
+  (Ctrl/Cmd+K, the canvas menu row, the adapter, one-step apply); `LearnPage.jsx` passes `inlineAi` and adds the Edit
+  menu row; `Dive.jsx` leaves Ctrl/Cmd+K to the inline editor on an eligible selection.
+- `control-plane/src/learn-inline.js` (prompts in `agents/learn-inline.js`) - `/api/learn/inline/route`,
+  `/api/learn/inline/generate` (SSE) and `/api/learn/inline/telemetry`; `learn-migrations/0018-inline-ai-telemetry.sql`
+  (A5). The migration is applied to local stacks only; shared dev and production wait for the owner's GO.
+
+Checks: unit (`web/src/inline-ai-*.test.mjs`, `control-plane/test/learn-inline.test.js`); browser with a mocked
+transport (`web/e2e/inline-ai-check.mjs`); real provider on a local stack (`web/e2e/inline-ai-real.mjs`, every request
+reserved in a spend ledger first); A3 benchmark and report from the telemetry rows (`web/e2e/inline-ai-bench.mjs`,
+`web/e2e/inline-ai-report.mjs`).
+
+Defaults taken within the spec:
+- Ctrl/Cmd+K on an eligible canvas selection opens the inline editor. Dive's Ctrl+K stands down there; /dive and Start
+  Rabbit Hole stay the ways down. With no eligible selection the page's Ctrl+K (Search) is unchanged.
+- Explain adds explanatory output, so /quiz, /practice and /flashcards are not inline (they stay direct commands);
+  /simplify, /example and /deeper are the direct note path inline, never a chat message.
+- A paid result (Motion, maths animation, video, 3D) is accepted as its existing card, already confirmed: the job runs
+  and keeps its durable record on that card, as the direct command's does. A finished video is not previewed before it
+  is on the canvas.
+- The explanation note is a native rect shape with editable text and a dashed annotation connector
+  (`kind: 'annotation'`); a connector is drawn when the target is one shape or card.
+
+Known limits: edit previews arrive whole (the provider streams tool input in one piece); notebook cells and card
+bodies other than a code sample's code are not edited inline; idempotency is per editor session in the browser, with
+no server-side request store (that would need a new table).
+
+Implement a selection-aware inline AI editor for the Rabbit Hole canvas, inspired by Cursor’s Ctrl/Cmd + K interaction.
+
+This is an addition to our existing canvas and Tutor features—not a replacement for the chat, slash-command system, or existing generation pipelines.
+
+Read the current branch and repository instructions first. Earlier inspection found existing canvas persistence, live selected-card descriptions, a shared command registry, artifact handlers, and the JEV client. Recheck those implementations before extending them.
+
+## 1. Intended experience
+
+The user selects a shape, group, text, code, or another supported canvas object, then presses:
+
+- Ctrl + K on Windows/Linux.
+- Cmd + K on macOS.
+
+A compact floating editor opens near the selection with two selectable pills:
+
+- **Edit:** change the selected content or objects.
+- **Explain:** add explanatory content beside the selection without changing the original.
+
+The editor contains the prompt field, a visible submit button, and clear generation/error states. Keep it lightweight and visually consistent with our canvas.
+
+Examples:
+
+| Mode | Request | Expected behavior |
+|---|---|---|
+| Edit | “Make this shorter” | Preview a shorter version of the selected text. |
+| Edit | “Make these labels larger” | Preview label-size changes on the selected objects only. |
+| Edit | “Fix this function” | Preview changes to the selected code; do not execute it. |
+| Explain | “Explain this node” | Preview a small native text annotation with a connector when useful. |
+| Explain | “Explain how these objects connect” | Explain their relationships using the selected group and relevant context. |
+| Explain | “Explain this with Python” | Add an explanation and code example. |
+| Explain | “Explain this with a diagram” | Use the existing diagram capability. |
+| Explain | “Explain this in a video” | Use the Motion explainer capability when available, preserving its confirmation and availability gates. |
+
+Do not open a new full chat interface for this interaction.
+
+## 2. Selection, focus, and keyboard behavior
+
+Capture the target before moving keyboard focus into the inline editor.
+
+Selection precedence:
+
+1. A selected text/code range.
+2. Selected individual objects.
+3. A selected group or multiselection.
+
+A text range inside an object must not accidentally become permission to rewrite the entire object or group.
+
+Freeze the target identities for the inline session. Keep a visible target indicator while the editor is open. Clicking another object must not silently redirect an existing prompt or in-flight result to it.
+
+For groups, resolve and retain the actual selected member IDs. Ctrl/Cmd selection inside a group must target the chosen member, not the whole saved group.
+
+Shortcut handling must be scoped:
+
+- Use inline Ctrl/Cmd + K only when the canvas or a canvas-owned editor has an eligible selection.
+- Preserve existing global command-palette or other editor behavior outside that scope.
+- With no eligible selection, preserve the existing global shortcut. If no existing action applies, show a short “Select something to edit or explain” message.
+- Do not silently interpret no selection as the entire canvas.
+- Do not intercept shortcuts during IME composition.
+
+Also expose the same entry point through the existing selection/context toolbar so the feature is usable without a keyboard shortcut.
+
+Follow the existing composer convention for Enter versus multiline input, and show the submit shortcut visibly. Escape should dismiss the innermost menu/editor first; it must not simultaneously close the editor and deselect the canvas.
+
+## 3. Context: selected objects plus relevant surroundings
+
+Do not send only the selected label or object. Build a bounded context package at submission time.
+
+Include, in priority order:
+
+1. **Exact target:** selected text/code, object content, IDs, types, relevant properties, and selected ranges.
+2. **Connected objects:** incoming/outgoing connections, direction, labels, and relevant connected nodes—even when off-screen.
+3. **Group/section context:** containing group, heading, and relevant sibling objects.
+4. **Nearby annotations:** labels and notes that help interpret the selection.
+5. **Broader context:** canvas title, learning goal, and a short relevant conversation excerpt when available.
+
+Connections matter more than physical proximity. An unrelated note beside a node should not displace its parent or connected explanation.
+
+Start with direct connections; expand to siblings or another connection level only when useful. Apply explicit object/token/image limits and mark omissions. Never silently imply the agent received the entire canvas when context was truncated.
+
+Distinguish:
+
+- A real stored connection.
+- A nearby object.
+- A relationship inferred from visual appearance.
+- An explanatory annotation connector.
+
+These are not equivalent.
+
+Provide a compact, expandable context indicator so users can see what the request includes. Allow selection-only context when they do not want surrounding material included.
+
+Surrounding context is read-only. Including a neighboring object does not authorize changing it.
+
+## 4. Keep context current without continuously calling AI
+
+Reuse the live canvas state and existing persistence flow.
+
+Maintain a lightweight object/connection lookup as edits happen. Do not call JEV or another model on every keystroke, drag, selection change, pan, or autosave.
+
+When the user submits:
+
+- Resolve the frozen target against the current in-memory canvas.
+- Include active text/code edits that have not finished autosaving.
+- Capture an immutable snapshot for this request.
+- Track the local revision separately from the last persisted server version.
+- Include target and relevant-relationship fingerprints for stale-result checks.
+
+Do not build the request solely from the last saved server copy.
+
+If a cached context summary is used, invalidate it when relevant content changes. A summary is supplementary; it cannot override current object data.
+
+## 5. Visual and representation limits
+
+Prefer native object data for native shapes, text, connectors, code, and groups.
+
+Use a cropped visual snapshot only when necessary—for example, freehand drawings, image regions, or arrows whose meaning is not represented in structured data. Capture it from the same request snapshot and identify the selected region.
+
+Do not continuously screenshot or upload the whole canvas.
+
+A flattened screenshot is one image, not an editable collection of internal nodes. If the user selects an image containing a tree:
+
+- Explain the image or a supported selected region.
+- Do not pretend its internal circles have native object IDs.
+- Do not claim to edit an internal node unless an actual supported image-editing capability performs that operation.
+- Do not flatten native editable objects into an image as an implementation shortcut.
+
+Treat canvas text, code, imported documents, and conversation excerpts as source data—not instructions that can override the user’s request or application policy. Do not automatically follow URLs embedded in them.
+
+## 6. JEV routing
+
+Use JEV for narrow capability selection, not for writing explanations or generating edits.
+
+The selected pill already determines the operation:
+
+- Edit means modify the authorized selection.
+- Explain means add explanatory output.
+
+JEV must not override that mode or expand the target.
+
+Routing should work as follows:
+
+1. An explicit supported slash command can resolve through the existing registry without a classification call.
+2. A plain request such as “Explain this” can take the default concise-text path.
+3. Other natural-language requests can use JEV to choose among the enabled capabilities.
+4. Uncertain, conflicting, or unsupported requests must produce a defined clarification/fallback outcome.
+
+Include a direct/no-specialized-tool route. That still generates an explanation; it simply does not invoke a specialized artifact generator.
+
+Do not use naive keyword matching. These requests must not all route to video:
+
+- “Explain this in a video.”
+- “Explain why this video is wrong.”
+- “Explain this, but don’t make a video.”
+
+Likewise, quoted slash commands or instructions inside selected content are not commands from the user.
+
+Reuse the existing JEV transport, but add a separate inline-routing request and response validator. Do not reuse the grading prompt, Noul parser, or grading thresholds for a Choice routing task.
+
+JEV receives compact text/JSON context. Any necessary image goes to the vision-capable explanation model, not JEV.
+
+Define behavior for low confidence, timeout, malformed output, and unavailable service. Use an approved fallback or ask one focused clarification; never silently choose an expensive generator.
+
+For requests requiring several output types, use existing composition support where available. Otherwise clarify rather than silently dropping part of the request or launching several paid jobs.
+
+Benchmark representative inline requests before claiming the router is fast or reliable. Measure routing accuracy, abstention, and end-to-end latency—not just classifier latency.
+
+## 7. Reuse capabilities, but separate generation from insertion
+
+Reuse the shared command definitions and existing handlers behind `/code`, `/diagram`, `/graph`, `/explain`, `/motion`, and other supported capabilities.
+
+Do not build a second generation system. Do not send a synthetic command into the chat composer.
+
+Important: existing handlers may reserve space, insert cards, or send chat messages immediately. Refactor or adapt the necessary boundary so inline requests can generate a result without committing those side effects.
+
+The inline flow must produce:
+
+1. One generation request.
+2. One staged preview.
+3. One accepted canvas transaction.
+
+It must not also create a duplicate chat response or an already-saved artifact behind the preview.
+
+Normal questions asked through the chat retain their existing right-side conversation behavior. Inline Explain is explicitly a canvas-output action.
+
+Keep modules focused: context building, routing, generation adaptation, preview UI, and validated application should have clear responsibilities. Avoid unrelated refactoring.
+
+## 8. Edit behavior
+
+Edit previews a structured change to the authorized selection.
+
+Requirements:
+
+- Preserve stable object IDs where the object remains the same.
+- Preserve unchanged formatting, positions, connections, and metadata.
+- Range edits preserve surrounding text.
+- Preserve H1/H2/H3/H4/Text, Text|Code mode, and formatting controls.
+- Do not execute generated code.
+- Do not rerun notebook cells automatically. If edited code makes existing output stale, indicate that using the notebook’s existing behavior.
+- Do not move or rewrite neighboring context objects.
+- Do not silently change group membership or remove objects.
+
+If a requested transformation requires operations beyond the selection, explain the limitation or ask the user to select the additional objects. Do not expand permission through model inference.
+
+Show a before/after or diff presentation appropriate to the content. The user must be able to understand what Accept will change.
+
+Validate permitted IDs, fields, ranges, and operation types in application code. A prompt saying “edit only the selection” is not sufficient enforcement.
+
+## 9. Explain behavior and the node example
+
+The default should be a short, native editable text annotation—not automatically a large teaching card or a long lesson.
+
+Use a connector when it helps identify what the explanation refers to. For a selected group, prefer one coherent explanation instead of a separate arrow and paragraph for every object.
+
+For our example:
+
+- Node 4 connects to nodes 3 and 23.
+- The user selects 23 and asks “Explain this node.”
+- Context includes 23, its connection to 4, the relevant sibling relationship, and nearby labels.
+- A suitable result is: “Node 23 is a child of node 4. In the tree shown, it is also a leaf because it has no children.”
+
+Place the annotation beside node 23 with an arrow pointing to the node. Do not change the existing nodes or tree edges.
+
+Do not confuse “child” and “leaf.” Do not infer that no children exist merely because none were included in a cropped viewport or truncated context.
+
+The new explanation connector must be marked as an annotation relationship. Otherwise, the next explanation might mistakenly count it as a child edge and conclude that node 23 is no longer a leaf.
+
+Placement requirements:
+
+- Use available nearby space without covering existing objects.
+- Respect zoom, pan, panels, and the visible canvas bounds.
+- Keep the connector bound when the source moves.
+- Do not automatically rearrange the source diagram or unexpectedly move the camera.
+- Keep the generated text independently selectable and editable.
+
+Persist source references on the new output so follow-up refinement can identify what it explains. Do not make the original content change just to attach an explanation.
+
+Test this behavior with different labels and diagram structures. Do not hard-code the example.
+
+## 10. Preview, Accept, Reject, Refine, and undo
+
+Generated content and edits remain staged until Accept.
+
+Streaming text, proposed geometry, and loading placeholders must stay outside the persisted board and normal undo history.
+
+- **Accept:** apply the complete result as one validated transaction.
+- **Reject:** discard the staged result without modifying the original.
+- **Refine:** keep the existing preview while generating a revision; replace it only after the revision succeeds.
+- **Undo:** revert the accepted result in one step, including its annotation and connector.
+- **Redo:** restore the result coherently.
+
+Do not autoaccept streamed output or partial patches.
+
+While a request runs, show useful states such as choosing format, generating explanation, or rendering video. Prevent duplicate submission and double acceptance.
+
+Keep prompt text and the last valid preview after a recoverable error.
+
+The popover should remain usable during pan, zoom, resize, and mobile keyboard changes. Clamp it to the viewport, and prevent its pointer and keyboard events from accidentally triggering canvas actions.
+
+## 11. Stale results, cancellation, and concurrent edits
+
+A response belongs to its original request, board, target, and mode.
+
+Before applying it:
+
+- Recheck target existence, relevant content/ranges, and write permission.
+- Reject attempts to overwrite newer target content.
+- Preserve unrelated edits made while generation was running.
+- If only the source position changed, recompute placement and bindings rather than treating it as a content rewrite.
+- If relevant connections changed, mark the explanation stale and offer regeneration.
+- Do not invalidate a result merely because an unrelated distant object changed.
+
+Closing, cancelling, rejecting, or superseding a request must prevent late responses from inserting anything. Navigating to another board must never cause the old result to land there.
+
+Use request IDs and idempotency keys to prevent duplicate generation, billing, and insertion across retries.
+
+Cancellation should abort local work and request provider cancellation where supported. Do not claim an already-started paid job was cancelled or refunded when the provider cannot guarantee that.
+
+Accepted changes must go through the existing save queue and conflict handling. Do not overwrite the whole board using an old request snapshot.
+
+## 12. Paid generation and capability availability
+
+Preserve existing authentication, ownership, read-only, model-selection, quota, and paid-generation controls.
+
+For Motion/video:
+
+- Respect the actual environment’s feature gate.
+- Show the existing paid-generation proposal before starting a chargeable job.
+- Do not treat choosing Explain or typing “video” as permission to bypass the required confirmation.
+- Make clear that generation may incur cost before the finished result is accepted onto the canvas.
+- Rejecting or undoing output is not a refund.
+- Refining or regenerating paid media requires the appropriate new confirmation.
+- Never silently substitute a different paid provider when Motion is unavailable.
+
+Reuse existing durable job records and progress handling. Keep job identity across retries and recover supported jobs after refresh without starting them again.
+
+If current infrastructure cannot support required recovery without a migration or new service, identify that specific dependency before making the change.
+
+On a read-only canvas, disable actions that would write to it with a clear reason. Do not silently redirect the request to another destination.
+
+## 13. Preserve the earlier canvas requirements
+
+Do not undo or replace the six previously requested changes:
+
+1. Excalidraw-like lightweight text editing, retaining H1/H2/H3/H4/Text and Text|Code, plus font family, size, bold, italic, underline, and text color.
+2. Normal arrow cursor and drag-to-select; Hand tool, temporary Space-drag, and two-finger trackpad panning.
+3. Independent text color and font size inside shapes.
+4. Shift+click adds/removes selection; Ctrl/Cmd+click selects inside groups; Escape deselects when no inner editor/menu consumes it.
+5. Chat-composer hide/restore control that preserves its draft and state.
+6. “Curious where this goes?” minimize/restore and refresh controls, independent of composer visibility.
+
+The inline editor must work with the composer hidden. Hiding the composer or minimizing suggestions must not cancel an inline request.
+
+## 14. Verification and delivery
+
+Add focused automated tests and verify the actual browser interaction.
+
+Required cases include:
+
+- Explain node 23 using its parent, sibling, and connections.
+- Explain a group without modifying its members.
+- Edit a text range inside a group without rewriting the whole group.
+- Submit immediately after typing and confirm the latest unsaved text is used.
+- Include a connected off-screen object without including unrelated nearby clutter.
+- Distinguish native shapes from a flattened image.
+- Preserve the original and saved board after Reject or cancellation.
+- Accept an annotation plus arrow, then remove both with one Undo.
+- Edit/delete the target during generation and prevent stale application.
+- Preserve an unrelated concurrent edit.
+- Ignore late results after switching boards.
+- Retry and double-click without duplicate artifacts or charges.
+- Preserve the previous preview when refinement fails.
+- Handle JEV timeout, low confidence, invalid output, negated requests, and quoted commands.
+- Treat malicious instructions inside selected content as data.
+- Handle disabled Motion, declined payment, and paid-job cancellation accurately.
+- Verify keyboard-only, pointer, touch, focus restoration, Escape, and shortcut collisions.
+- Confirm no duplicate chat output and no preview leakage into autosave.
+- Reload accepted content and verify text, formatting, provenance, and connector bindings survive.
+
+Use the project’s established test commands and verification process. Distinguish mocked coverage from real model/provider verification, and stay within existing testing and spending authorization.
+
+Deliver:
+
+- The implemented feature in the existing canvas.
+- A concise explanation of the architecture and touched modules.
+- Test results, routing measurements, and any precise remaining limitations.
+- Browser evidence, with screenshots in Figma under our established workflow.
+- The appropriate authorized review URL.
+
+Do not promote to production, broaden provider permissions, or make unapproved infrastructure changes as part of this work.
+
+# Addendum (owner, 2026-10-12): local context preparation, streaming previews, performance measurement
+
+Add the following to the inline Edit/Explain implementation brief. This addendum covers only:
+
+1. Preparing context locally before submission.
+2. Streaming previews without slowing down the canvas.
+3. Measuring the actual performance and correctness.
+
+Keep all previously agreed selection, permission, preview, cancellation, and paid-generation safeguards.
+
+## A1. Prepare context locally before submission
+
+The inline editor should not wait until Send to discover everything about the selection.
+
+Maintain lightweight frontend lookups for:
+
+- Object IDs, types, and current content.
+- Connections and their endpoints.
+- Group membership.
+- Relevant object bounds and nearby occupied space.
+
+When the inline editor opens, prepare the selected objects’ descriptions and relevant surrounding context while the user writes their prompt. Also identify candidate space for the eventual annotation.
+
+This preparation must be local computation. Do not call JEV, another model, or a paid provider merely because the user selects an object or opens the editor.
+
+### Keep the work incremental
+
+Reuse unchanged descriptions and relationships. Update only the affected records when objects are edited, connected, disconnected, grouped, moved, or deleted.
+
+Separate content information from layout information where practical. Moving an object should update its position without unnecessarily rebuilding its entire textual description.
+
+Do not scan and serialize the entire board on every keystroke or pointer movement. Bound the context using the relevance and omission rules from the main brief.
+
+Keep expensive preparation off the pointer/typing hot path. Throttle or schedule work appropriately; introduce background workers only if profiling shows they are necessary.
+
+### Refresh at submission
+
+Prepared context is a cache, not the source of truth.
+
+Immediately before submission:
+
+- Resolve the frozen target IDs against the current in-memory canvas.
+- Include current text/code editor content, including edits not yet autosaved.
+- Refresh changed objects and relationships.
+- Create one consistent request snapshot.
+- Record its local revision, persisted board version, and relevant fingerprints.
+
+Do not send stale prepared context or rely only on the server’s last saved copy.
+
+Clear or invalidate the appropriate caches when changing boards, deleting objects, or changing access permissions. Never reuse one board’s private context in another board’s request.
+
+If routing is required, independent context preparation may run while JEV processes the compact routing input. Do not start speculative generation before the route and required consent are settled.
+
+## A2. Stream the preview without making the canvas sluggish
+
+Stream useful explanatory text or editable-text previews as the model produces them.
+
+Use real streamed output where the generation path supports it. Do not wait for the complete answer and then simulate streaming with a typewriter animation.
+
+For handlers that cannot stream useful content, show truthful progress and display their result when ready. Do not expose incomplete diagram JSON or pretend a video is ready before it exists.
+
+### Isolate rendering
+
+Keep streaming output in the temporary preview layer—not in the persisted canvas scene.
+
+- Update only the preview component or affected text fragment.
+- Coalesce incoming chunks into bounded visual updates rather than rendering for every token.
+- Avoid rerendering the entire canvas.
+- Avoid recalculating all object bounds, connectors, or placement on each chunk.
+- Avoid reparsing or syntax-highlighting the entire response on every token.
+- Use the existing safe rendering boundaries; do not render arbitrary generated HTML or execute generated code.
+
+Use a stable preview width and predictable overflow behavior so the interface does not jump as text arrives. Expanding content must not push existing canvas objects around or repeatedly move the camera.
+
+The canvas should remain responsive to pan, zoom, selection, and ordinary editing while a preview streams. The request’s target must remain frozen.
+
+### Preserve acceptance semantics
+
+Streaming is provisional:
+
+- Keep Accept disabled until the complete result passes validation.
+- Do not autosave partial output.
+- Do not add streaming updates to undo history.
+- Accept applies the finished result as one transaction.
+- Reject removes the preview without changing the original.
+- During refinement, preserve the previous valid preview until its replacement succeeds.
+
+Stop/cancel must stop local updates promptly, abort the request where supported, and ignore late chunks. Switching boards or superseding a request must never allow its old stream to update the new session.
+
+Do not trade validation or stale-result protection for faster apparent output.
+
+## A3. Measure performance explicitly
+
+Instrument the stages separately using request IDs to correlate frontend and backend events. Use monotonic timings within each environment; do not subtract unsynchronized client and server clocks.
+
+| Measurement | What it should measure |
+|---|---|
+| Editor opening | Shortcut/action to editor rendered and input focused. |
+| Context preparation | Time spent building local context, including cache hits and invalidations. |
+| Submit-time refresh | Submission to the final fresh context snapshot being ready. |
+| Routing | JEV request duration, or an explicit “bypassed” classification. |
+| Provider response | Generation request to first output received. |
+| First useful preview | Submission to actual explanation/code text becoming visible—not a spinner or status label. |
+| Complete preview | Submission to the full validated result being available for acceptance. |
+| Acceptance | Accept click to the committed result appearing on the canvas. |
+| Persistence | Commit to server-save acknowledgment, reported separately from acceptance. |
+| Canvas responsiveness | Frame delays, long main-thread tasks, and interaction responsiveness while streaming. |
+
+Also record:
+
+- Model calls per request.
+- Context size and number of included/omitted objects.
+- Generation token usage when available.
+- Errors, timeouts, cancellations, and stale-result rejections.
+- Duplicate-generation or duplicate-insertion incidents.
+- Whether the request used streaming or a non-streaming handler.
+
+Do not put raw selected content, screenshots, code, or prompt text into performance logs by default.
+
+### Compare fairly
+
+Report baseline and improved results using the same fixtures and comparable configurations.
+
+Separate:
+
+- Cold opening from repeated opening.
+- Context-cache hits from misses.
+- Direct requests from JEV-routed requests.
+- Small boards from representative larger boards.
+- Text, code, and group selections.
+- Text generation from diagrams and long-running media jobs.
+
+Report median, p95, sample counts, failures, and test conditions. Do not describe a single favorable request as representative performance.
+
+Distinguish mocked browser responsiveness tests from real provider latency measurements. Stay within existing testing and spending authorization.
+
+## A4. Required verification
+
+Verify that:
+
+- Opening the editor prepares context without a model call.
+- An edit made immediately before Send reaches the request.
+- Cached context cannot leak between boards.
+- Pan, zoom, and typing remain responsive during a long stream.
+- Partial previews never reach autosave or undo history.
+- Cancelling or switching boards prevents late-stream updates.
+- Accept still creates one undoable transaction.
+- The displayed explanation is genuinely grounded in the selected objects and current relationships.
+
+Success means the editor opens promptly, context preparation adds minimal submission delay, useful content appears progressively, and the canvas stays responsive—without extra background AI calls, stale context, or premature canvas writes.
+
+Include the measurements and any remaining bottleneck in the handoff, not just “it feels faster.”
+
+## A5. Storage (owner, 2026-10-12)
+
+The results for measure performance should be saved in a DB.
+
+## A6. Slash-command coverage (owner, 2026-10-12)
+
+Please make the slash-command coverage explicit. Motion was only an example; the inline editor must work with the other supported capabilities too.
+
+### 1. Inventory and test the current command registry
+
+Use the current shared registry as the source of truth. Cover every registered canvas/Learn slash command, documenting which are available, disabled, or unsupported in this environment.
+
+Include explanation, code, diagrams, graphs, animations, images, video, Motion, and the other registered learning/material commands.
+
+Do not collapse distinct capabilities together—for example, `/animate`, `/video`, and `/motion` may have different handlers, outputs, and permission requirements.
+
+### 2. Check both entry points
+
+For each command:
+
+- Verify that its existing direct slash-command behavior has not regressed.
+- Where it is eligible for inline Edit/Explain, verify that natural-language requests reach the correct handler.
+- Confirm the selected content and relevant surrounding context reach that handler.
+- Confirm the output actually matches the requested format—not merely that a request succeeds or a card appears.
+- Verify inline results remain previews until accepted, with no duplicate chat output or premature insertion.
+
+Not every slash command belongs in the inline editor. Navigation and other unrelated actions must not become available merely because they exist in the registry. Mark those inline cases “not applicable” and preserve their existing direct behavior.
+
+Also test the direct explanation path with no specialized command.
+
+### 3. Missing keys do not remove commands from the test matrix
+
+Record coverage separately for each capability:
+
+- **Real end-to-end verified**
+- **UI/contract verified with fake responses; real provider untested**
+- **Blocked**, with the exact missing dependency
+- **Intentionally unavailable**, with its feature-gate reason
+
+A generic fake text response is not sufficient coverage for code, diagrams, graphs, or media. Use representative fixtures matching each handler’s actual response schema, including error and paid-proposal responses.
+
+Fake JEV decisions test integration, not real routing accuracy. Fake generation timings must not be presented as real model latency.
+
+Continue deterministic tests and available browser checks without keys. Do not add credentials, borrow another environment’s credentials, or bypass spending restrictions without authorization.
+
+Apply paid-confirmation, cancellation, retry, and duplicate-prevention checks to every relevant paid capability—not just Motion.
+
+### 4. Add a command-by-command morning report
+
+Include a matrix showing:
+
+**Command/capability → direct slash result → inline routing result or N/A → fake versus real verification → evidence or exact blocker.**
+
+Identify any capability that the router can select but the inline adapter cannot actually handle. Fix that mismatch or make the limitation explicit; do not silently substitute plain text.
+
+Keep this feature-specific coverage separate from the r36 gate results. Passing r36 does not establish that the new inline routes work.
+
+Please continue overnight with this broader coverage. Do not describe the inline system as fully verified while its real generation paths remain untested.
