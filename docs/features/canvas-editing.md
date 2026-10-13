@@ -38,6 +38,7 @@ comments, sharing and save/conflict handling are unchanged.
 - **IME.** Composition is never intercepted; Enter during composition is ignored by the editor. A pending caret format
   is applied to the composed text when it lands.
 - **Paste** inserts `text/plain` only, with line breaks kept. HTML is never kept or drawn.
+- **A new text box or note is selected** the moment it is placed, so the panel formats it while you type.
 - **Text boxes** (brief 2 §1) sit directly on the canvas with a transparent background. A new text box has no width and
   grows with its words (`width: max-content`). Dragging its corner gives it a width to wrap at, and wrapping changes,
   never the font size. Boxes saved before this keep their saved width.
@@ -132,7 +133,9 @@ and Object (lock, copy style, paste style). Every color row has swatches, a pick
 slider drag or a native picker choice is one undo step.
 
 The panel is `data-keep-focus` and swallows pointerdown, so a press there formats the open text without losing its
-caret or selection. Its fields (hex, size) take focus briefly and hand it back to the editor. On a phone (≤ 640 px of
+caret or selection. Its fields (hex, size) take focus briefly and hand it back to the editor, or to the canvas when no
+text is open, so the next shortcut reaches the canvas. As with stroke colour, and as in Excalidraw, a value set in the
+panel is also armed for the next new object. On a phone (≤ 640 px of
 canvas) the panel sits in the tools strip above the canvas and scrolls, so it never covers the text being edited.
 
 Arrowheads are stored as `startHead` / `endHead` on shapes and links. Without them, a drawn arrow, curve, elbow or
@@ -180,11 +183,15 @@ starts a Rabbit Hole. The hook view gains `refresh_state` / `refresh_reason`; th
 
 - `node --test src/learn-rich-text.test.mjs src/learn-draw-modifiers.test.mjs src/learn-style-panel.test.mjs
   src/learn-next-steps.test.mjs src/next-steps-wiring-ui.test.mjs` (pure logic), plus the full `npm run test:unit`.
-- `e2e/canvas-editing-check.mjs`: 145 real mouse and keyboard checks against the real `AdaptiveCanvas` in a Vite
+- `e2e/canvas-editing-stack-check.mjs` on the keyless local stack (`e2e/journey-local-stack.md`; no model key, nothing
+  deployed): formatting, shape text and lock made with real input on the real Learn page, then the server copy, a reload
+  in a fresh browser (no localStorage), the view-only share link (no editor, no lock badges) and a viewer's fork carrying
+  every field. 11/11.
+- `e2e/canvas-editing-check.mjs`: 158 real mouse and keyboard checks against the real `AdaptiveCanvas` in a Vite
   harness. They cover caret and drag selection, multiline persistence, range and caret formatting through panel
   presses and fields, IME (CDP composition), paste, editor undo, Text/Code round trips, shape text color, size and
   growth, labels, every drawing modifier pressed and released mid-drag at 100% and 200% zoom, resize modifiers and Esc,
   lock, nudge, cut/paste with links and groups, Alt-drag, layers, copy/paste style, selection rules, marquee versus Hand,
   Space-pan, wheel pan and pinch, tool keys, Esc with dialogs and menus, old boards, view-only boards, composer hide,
   suggestion minimize/refresh/failure/stale, the phone layout, the Explain Back sketch path, text box auto-width, note
-  growth and card lock. Trackpad and pinch are synthetic wheel events (CDP), not hardware.
+  growth, card lock, panel focus, and a regression check for each finding of the independent review. Trackpad and pinch are synthetic wheel events (CDP), not hardware.

@@ -1834,12 +1834,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertText: () => {
         snapshot();
         const center = viewCenter();
-        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 48, y: center.y - 16, text: '', color: textArm.c || color, opacity, level, ...armedText('text'), fresh: true }]);
+        const id = crypto.randomUUID();
+        setItems(previous => [...previous, { id, kind: 'text', x: center.x - 48, y: center.y - 16, text: '', color: textArm.c || color, opacity, level, ...armedText('text'), fresh: true }]);
+        setSelection([id]);
       },
       insertSticky: () => {
         snapshot();
         const center = viewCenter();
-        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'sticky', x: center.x - 80, y: center.y - 80, text: '', color, opacity, ...armedText('sticky'), fresh: true }]);
+        const id = crypto.randomUUID();
+        setItems(previous => [...previous, { id, kind: 'sticky', x: center.x - 80, y: center.y - 80, text: '', color, opacity, ...armedText('sticky'), fresh: true }]);
+        setSelection([id]);
       },
       // The Files panel's show and remove.
       // Framed once laid out (the camera effect): a card inserted this very tick is framed at its real
@@ -3341,8 +3345,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // target - and the corner handle takes it anywhere from there.
       // A new text box grows with its words (Excalidraw's auto width); a corner drag gives it a width to wrap at. Inside a
       // sketch it wraps at the sketch's edge. It starts with whatever text formatting is armed.
-      const width = store.textWidth(point);
-      store.setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color: tool === 'text' && textArm.c ? textArm.c : color, opacity, ...armedText(tool), ...(tool === 'text' ? { level, ...(width ? { w: width } : {}) } : {}), fresh: true }]);
+      const width = store.textWidth(point), id = crypto.randomUUID();
+      store.setItems(previous => [...previous, { id, kind: tool, x: point.x, y: point.y, text: '', color: tool === 'text' && textArm.c ? textArm.c : color, opacity, ...armedText(tool), ...(tool === 'text' ? { level, ...(width ? { w: width } : {}) } : {}), fresh: true }]);
+      // The new box is the selection, so the style panel formats it while it is typed in (Excalidraw does the same).
+      store.select(id);
       if (!lock) setTool('select');
     } else if (tool === 'equation' && store.equations) {
       // An equation opens for editing where it is placed (canvas-equations.md); an Explain Back sketch holds none.
@@ -3353,7 +3359,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     } else return false;
     return true;
   };
-  const canvasStore = { local, setStrokes, setShapes, setItems, setLive, setLiveShape, textWidth: () => null, equations: true };
+  const canvasStore = { local, setStrokes, setShapes, setItems, setLive, setLiveShape, textWidth: () => null, equations: true, select: id => { selectedRef.current = [id]; setSelection([id]); } };
   // ---------- Explain Back sketch (docs/features/explain-back-sketch.md) ----------
   // A sketch's marks live on its block (block.sketch) in the card's own pixels, so they save, move, fork and undo
   // with the card and are never canvas objects.
@@ -3368,6 +3374,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setLiveShape: shape => setSketchLive(shape && { id, shape }),
     // A text box opens to the sketch's right edge, never past it.
     textWidth: point => Math.max(96, Math.min(420, element.clientWidth - point.x - 8)),
+    select: markId => setSketchSel([markId]),
   });
   // Where the style panel, the order buttons and Delete write: the active sketch, else the canvas.
   const markLists = () => {
@@ -3901,7 +3908,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!drawTarget) setLinks(previous => previous.map(apply));
   };
   const panelOn = {
-    refocus: () => editorRef.current?.refocus(),
+    // A panel field is done (Enter, Esc, a picked colour): focus goes back to the open text, else to the canvas, so the
+    // next shortcut reaches the canvas rather than the field.
+    refocus: () => { if (editorRef.current) editorRef.current.refocus(); else if (document.activeElement?.closest?.('[data-style-panel]')) document.activeElement.blur(); },
     start: () => snapshot(),
     color: value => { setColor(value); applyStyle({ color: value }, panel.targets); },
     fill: value => { setFill(value); applyStyle({ fill: value, ...(value ? { fillOpacity: panelValues.fillOpacity === 'mixed' ? 0.25 : panelValues.fillOpacity ?? 0.25 } : {}) }, panel.targets.filter(id => closed(entryOf(id) || {}))); },

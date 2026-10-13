@@ -881,6 +881,23 @@ await run('review regressions', async () => {
   await note.context.close();
 });
 
+
+await run('panel focus', async () => {
+  const { page, context, screen } = await open('panel-focus', { shapes: [{ id: 'r1', kind: 'rect', x1: 100, y1: 100, x2: 300, y2: 180, ...style, text: 'words' }] });
+  const c = await screen(200, 140);
+  await page.mouse.click(c.x, c.y);
+  await page.locator('input[aria-label="Font size"]').fill('20');
+  await page.locator('input[aria-label="Font size"]').press('Enter');
+  await page.keyboard.press('r');
+  check('after Enter in a panel field, the next shortcut reaches the canvas', (await page.getByRole('button', { name: /^Rectangle/ }).getAttribute('aria-pressed')) === 'true' && (await page.locator('input[aria-label="Font size"]').count() === 0 || (await page.locator('input[aria-label="Font size"]').inputValue()) !== '20r'));
+  // A new text box is selected at once, so its panel shows while typing.
+  await page.keyboard.press('t');
+  const at = await screen(500, 400);
+  await page.mouse.click(at.x, at.y);
+  check('a new text box shows the text panel while typing', await page.getByRole('button', { name: 'Bold (Ctrl B)' }).isVisible());
+  await context.close();
+});
+
 await browser.close();
 if (errors.length) { console.log('page errors:'); for (const error of errors) console.log(`  ${error}`); }
 check('no page errors', errors.length === 0, errors.length ? `${errors.length}` : '');
