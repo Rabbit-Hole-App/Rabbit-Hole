@@ -1,95 +1,203 @@
-# CI: a verdict in minutes, and failures that mean bugs
+# CI speed: routine feedback in 4-6 minutes, the release gate in 12-15
 
-Owner, 2026-10-13: "lets brainstorm how we can stop avoiding all these errors for the CI tests and other github actions failed. this should be done in minutes".
+Owner, 2026-10-13:
+- "this should be done in minutes".
+- Then: "Prioritize speed. Target 4-6 minutes for routine push feedback and 12-15 minutes for the full release gate, then measure actual results... The deliverable is faster trustworthy feedback - not a larger CI redesign."
 
-The owner made four choices:
+The owner's choices:
 - two tiers;
-- a check whose stack died is retried once, then reported;
 - the fast tier runs on Linux;
-- affected checks come from a map file, with a safe default.
+- checks are selected from a map;
+- a recognized transient crash is retried once, then reported.
 
-## Why
+Deferred to separate work, unless it blocks speed:
+- broader production configuration validation;
+- reporting infrastructure;
+- unrelated cleanup.
 
-On 2026-10-13, gate runs failed for reasons that were not product bugs, and each rerun cost 14-33 minutes. The table covers the main causes; push resets and API errors added smaller delays.
+## Measured today (before)
 
-| Cause | Runs hit | Guard in this spec |
-|---|---|---|
-| wrangler 4.129 dev exits on a dropped keep-alive (dive, rh-local) | 5 | wrangler 4.150, plus retry once (sections 3 and 4) |
-| e2e checks stale after a UI change (comments, card-context-menu, connectors, navigator) | 4 | the fast tier runs a touched screen's checks on push (section 2) |
-| races inside checks (cross-device, plus an unrun test edit) | 3 | check-writing rules (section 6) |
-| flaky unit test canvas-members.test.js:260 | 1 | fixed and listed (section 6) |
-| collect only reads the current attempt, so a failed-only rerun cannot pass | 1 | latest attempt per part (section 3) |
-| push and gh API resets (502, 504, connection reset) | about 8 | retry wrapper (section 6) |
-| production lacked USAGE_PLATFORM_DAY_USD; all paid Learn calls refused for about 2 hours | 1 | production settings parity in the release preflight (section 5) |
+Release gate (`gate-sharded.yml`, harness 35f141b4), from the GitHub job records:
 
-Success means:
-- a normal push gets a pass or fail status in 4-6 minutes, and the full gate is no longer run on every push;
-- a release gate fails only for a real defect, or for a check that failed twice;
-- a setting the dev config has can never be missing in production unnoticed.
+| Run | Candidate | Wall | Runner minutes (Windows) |
+|---|---|---|---|
+| 38443590589 | 2bdeb288 | 14.5 min | 78.8 |
+| 38458116477 attempt 1 | c044b86a | 15.1 min | 82.6 |
+
+- **Per job**:
+  - checkout, Node, uv and `npm ci` take about 1.5 min;
+  - then **Wait for same-SHA canonical verify** takes 1.1-1.2 min, on every job and on the critical path;
+  - then the part runs: units 1.8, focused 8.3, checkpoints about 6, shard-1 to shard-4 9.8 to 10.7 min.
+- **Inside a shard**: about 2.8 min pass before the first check starts.
+  - The shard builds both web bundles itself (build1, build2).
+  - It starts a stack (about 45 s), and restarts stacks between check groups.
+  - The 7 parts therefore repeat the same build up to 7 times.
+- **Duplicate work**: shard-1 runs `make test-unit` and the fixture regression, which the `units` part also runs, on the same Windows configuration.
+- **Reruns**: one stack crash costs a whole gate rerun (+15 min). A failed-only rerun cannot pass, because collect reads only the current attempt.
+
+There is no routine-push feedback today, except `verify.yml`: Linux unit suites plus builds, about 3 min, with no browser checks.
 
 ## 1. Two tiers
 
-- **Fast tier**: every push to a branch other than main and dev. Unit suites plus the e2e checks for the screens the push touches. Linux. A status on the commit. It is advisory for development and is not the release evidence.
-- **Release gate**: the existing 43-stage sharded gate (`gate-sharded.yml` on `parallel/gate-sharded`), Windows, unchanged in scope. It runs only for a release candidate:
-  - dispatched by the release lead, or
-  - fired by `gate-on-push.yml` for a push to `release/*`. That workflow no longer fires on every branch.
-- It is still the only evidence `deploy-dev.yml` accepts, through the `refs/notes/gates` note.
+- **Fast tier**: every push to a branch other than main and dev. It reports affected browser checks on Linux in 4-6 min. It is a development signal, not release evidence.
+- **Release gate**: the complete gate, unchanged in coverage, plus canvas-shell and canvas-toolbar. It runs for a release candidate (dispatch, or a push to `release/*`).
+  - It stays the only evidence `deploy-dev.yml` accepts, through `refs/notes/gates`.
+  - `verify.yml` and its note stay unchanged.
+- `gate-on-push.yml` stops firing the full gate on every branch, because the fast tier replaces that.
 
-## 2. Fast tier
+## 2. Release gate: 12-15 min
 
-- **Where**: a second job, `affected-e2e`, in `.github/workflows/verify.yml`, after the existing `verify` job. It reuses that job's checkout, `npm ci`, natives and page build, with the dist-dev build passed as an artifact, so nothing is installed or built twice.
-  - The `verify` job and its `refs/notes/verify` note are unchanged, so `deploy-dev.yml` and `scripts/dev-deploy-gate.mjs` see no difference.
-- **Install cache**: npm's cache keyed by the `package-lock.json` digest (setup-node `cache: npm`) and Playwright's browser cache keyed by its version.
-- **Selection**: `scripts/ci/check-map.json` maps path globs to e2e check files. For example, `packages/web/src/AdaptiveCanvas.jsx` maps to canvas-editing-check, comments-check, card-context-menu-check, canvas-shell-check and canvas-toolbar-check.
-  - A changed path that matches no glob adds the DEFAULT set: about 10 checks covering canvas editing, cards, comments, dive, sharing and sign-in.
-  - A changed e2e check file always runs itself.
-  - `scripts/ci/affected.mjs` prints the chosen list and why each check is in it, one line per check: `canvas-shell-check: AdaptiveCanvas.jsx`.
-- **Run**: up to 3 parallel matrix jobs. Each starts one local stack (app and control plane, keyless, mocked providers, the same `PERSIST` seed as the gate) and runs its share of the list, one check at a time.
-- **Target**: 4-6 minutes from push to status for a typical change. A change that hits the DEFAULT set may take 8.
-- **Linux readiness**: the gate's stack scripts are Windows (PowerShell). The fast tier gets its own `scripts/ci/stack.sh` (start, health wait, stop), built from the same wrangler commands.
-  - Before the map covers a check, that check must pass 3 runs in a row on Linux. A check that cannot is listed as `windows-only` in the map and stays covered by the release gate.
+### 2.1 Changes
 
-## 3. Release gate reliability
+1. **Verify off the critical path.** The per-job "Wait for same-SHA canonical verify" step is removed. `collect` checks that the same-SHA `verify.yml` run succeeded before it passes the gate. The protection is the same and costs about 1.2 min less.
+2. **Build once, share the artifact.**
+   - A new `build` job (Windows) runs checkout, Node, `npm ci`, then both web bundles (dist and dist-dev with the gate's flags), and uploads them as `r36-build-<sha>`.
+   - Every part starts at the same time, does its own checkout, Node and `npm ci` while `build` runs, then downloads `r36-build-<sha>` and checks its digest before starting a stack.
+   - No part builds.
+3. **Duplicate stages removed.** `make test-unit` and the fixture regression run only in `units`. They are removed from shard-1, and the manifest (section 2.3) keeps each stage exactly once.
+4. **Shards balanced by measured duration.**
+   - `scripts/r36-gate/durations.json` records each stage's median duration from the last 5 gate runs, read from the per-process `start` and `exit` diagnostics the harness already writes.
+   - A small packer assigns stages to parts longest first. It keeps stages that share a stack type (fork, lp1h, dive) together, so a part restarts its stack as rarely as possible.
+   - The part count goes from 7 to 8 (units, checkpoints, and 6 browser parts).
+   - The durations file is refreshed from the gate's own artifacts after each release, as a commit reviewed like any other.
+5. **Isolated stacks.** Each part is its own runner, with its own stack, ports, persist directory and wrangler registry, as now. No part shares a server or a database.
+6. **Recognized transient retried in place.** See 2.2. A crash no longer costs a whole-gate rerun.
+7. **Caches.** The npm cache is keyed by the `package-lock.json` digest, and the Playwright browser cache by its version, on every job.
 
-- **Retry once**: when a check fails and its stack is dead ("stack alive: no"), the shard restarts the stack and reruns that check once. Shards already do this; the checkpoints job must do it too.
-  - A check that fails with a live stack is not retried.
-  - Every retry is written to the gate log and to the gate note as `<check>: retried after stack death`. The release report lists them.
-- **Latest attempt per part**: collect downloads every attempt's artifacts and takes, for each part (units, focused, checkpoints, shard-1 to shard-4), the newest attempt. A failed-only rerun then judges the whole gate correctly. The gate note names the attempt each part came from.
-- **Wrangler 4.150.0**: the app moves to it (fix/wrangler-4150, bc32c0a1). The harness accepts 4.129.0 or 4.150.0 until every open branch carries the bump, then 4.150.0 only (947f818a).
-- **Coverage**: canvas-shell-check and canvas-toolbar-check join a shard. Their stale assertions were fixed on feature/toolbar-next (0113ea1d, 7c611ef9).
-- **Known flakes**: `scripts/r36-gate/README.md` gains a table with one row per flaky check: the check, its symptom, the retry rule above, its owner and its fix status. A row with no owner or no fix in progress is a release blocker for whoever adds it.
+### 2.2 Recognized transient (one retry)
 
-## 4. Test-server crash
+Exactly one condition is recognized, listed in `scripts/r36-gate/transients.json`:
+- the check exited non-zero;
+- its stack's app or control-plane process exited during the check;
+- the process's wrangler debug log (`WRANGLER_LOG=debug`, captured to the artifact) contains `Error inside ProxyWorker` with cause `Network connection lost`;
+- the check printed no assertion failure (`✗`, `AssertionError`, `not ok`) before the stack died.
 
-- **Root cause**: wrangler 4.129.0's dev ProxyWorker reuses a keep-alive connection the runtime has closed after about 5 s idle. It reports the failure without retrying, and DevEnv exits 1 with an empty "X [ERROR]".
-  - Reproduced 8 of 8 runs on 4.129.0; on 4.150.0, 5 of 5 survived (investigation 2026-10-13).
-  - It affects only local wrangler dev, never deployed workers.
-- **Residual**: 4.150 retries only GET and HEAD. A PUT or POST that lands in the same window can still end the stack. That case is covered by the retry rule in section 3.
+That case restarts the stack and reruns the check once:
+- the first attempt's logs, wrangler log and screenshots stay under `attempt-1/`;
+- the gate note records `<check>: retried (proxy-keepalive)`.
 
-## 5. Production settings parity
+Anything else is a failure and is not retried:
+- an assertion failure;
+- any other crash, or a crash with no log;
+- an exception in our worker;
+- out of memory;
+- a timeout with a live stack.
 
-- The release preflight (`scripts/prod-release.mjs`) compares, for each production worker, the variable names in the dev config (`packages/web/wrangler.dev.jsonc`) against the production config's vars plus its secret names (`wrangler secret list`, names only).
-  - A dev variable missing in production is a blocker unless it is on `DEV_ONLY` in `prod-release.mjs`, a short commented list such as BYOC_PRINCIPAL_ARN and SUBSCRIPTION_OWNER_EMAIL.
-  - The refusal names the variable and the worker.
-- This generalizes `secretBlockers`, which now requires USAGE_PLATFORM_DAY_USD on both workers (fix/inline-prod-routes 39cbf4a5).
-- Test: a production config missing a dev variable is refused, and an allowlisted one is not.
+A second failure fails the gate.
 
-## 6. Writing and running checks
+### 2.3 Aggregation
 
-- **No fixed sleeps** for state: a check waits for an observed state (a selector, a server version, a request). A fixed wait needs a comment saying why no state exists.
-- **Run what you edit**: a commit that edits an e2e check runs that check once, alone, before it is pushed, and the report carries its pass line. The fast tier enforces this on push.
-- **Unit flake**: canvas-members.test.js:260 (401 where 200 was expected, intermittent) gets a reproduction and a fix, then leaves the known-flakes table.
-- **Network retry**: `scripts/ci/retry.sh <n> <cmd>` retries git push, git ls-remote and gh calls on connection reset, 502 and 504, with backoff. Workflows use the same for their network steps.
+- `scripts/r36-gate/manifest.json` lists every required stage once, with its part: today's 43, plus canvas-shell and canvas-toolbar, for **45** stages.
+- For this run id and this sha, `collect` reads every attempt of every part (`/actions/runs/{id}/attempts/{n}/jobs` plus the artifact `r36-windows-<part>-<sha>-<attempt>`). It takes each part's **newest attempt in which the job ran**:
+  - a part that was not rerun keeps its attempt;
+  - a newer failed or cancelled attempt is never replaced by an older pass.
+- The gate passes only when every manifest stage appears exactly once with pass, and the same-SHA `verify.yml` run succeeded. A missing, duplicate or extra stage fails the gate and names it.
+- With this, a failed-only rerun works: about 9 min for one part, not 15 for all.
 
-## 7. Rollout
+### 2.4 Critical path
 
-1. **Release gate fixes**: retry in checkpoints, latest attempt per part, the known-flakes table, wrangler 4.150 on every branch, then pin 4.150 only. These are harness and workflow changes, pushed by the owner (`!`).
-2. **Fast tier**: stack.sh, check-map.json and affected.mjs, the `affected-e2e` job, and Linux readiness for the mapped checks. gate-on-push moves to `release/*`.
-3. **Settings parity** in the release preflight, with its test.
-4. **Measure**: a weekly 3-line report covering median push-to-status, gate failures that were not defects, and retries used.
+```
+before: setup 1.5 | wait verify 1.2 | shard: build+stack 2.8 | checks 7.9 | collect 0.6     = 14.0-15.1 min
+after:  build job: setup 1.5 + both bundles 2.0 = 3.5 --+
+        parts:     setup 1.5 (in parallel) ............ +-- download 0.2 | stack 0.8 | checks ~6.5 | collect 0.6 = ~11.6 min
+```
 
-## Not in scope
+- "checks ~6.5" assumes the shard-check time today (four browser parts at about 7.9 min each, plus focused at 8.3 min) spread over 6 browser parts. The packer's real numbers replace this estimate.
+- **Expected**: about 11-12 min wall, inside the 12-15 target.
+- **Runner minutes**:
+  - removed: 7 × 1.2 waiting on verify, about 2 builds × 6 parts, and the duplicate unit run;
+  - added: one more part and the build job;
+  - net expected: **about 65-70 Windows minutes**, against 79-83.
 
-- Moving the release gate off Windows.
-- Changing which checks the release gate runs, beyond adding the two above.
-- Changing production deploys.
+## 3. Fast tier: 4-6 min
+
+### 3.1 Selection
+
+- `scripts/ci/check-map.json` maps path globs to e2e checks.
+- `scripts/ci/affected.mjs` sorts every changed path into one of four classes:
+  - **docs** (`docs/**`, `*.md`): no browser checks;
+  - **mapped**: the mapped checks, plus any edited check file;
+  - **broad**: the full Linux-ready set. This covers dependencies and lockfiles, wrangler configs, the worker entries (`dev-worker.js`, `app-worker.js`, `control-plane/src/index.js`), auth, spending, persistence, canvas infrastructure (`AdaptiveCanvas.jsx`, `LearnPage.jsx`, `RichText.jsx`), and CI and release scripts;
+  - **unmapped executable**: **selection fails** with `add <path> to scripts/ci/check-map.json`.
+- A unit test fails if a tracked executable file has no class, so a new file gets classified in the push that adds it.
+- A check that does not yet run on Linux is marked `windows-only`. The fast-tier summary lists it as "not covered here; release gate only", and the release manifest keeps it. No assertion is weakened to run on Linux.
+
+### 3.2 Job graph
+
+```
+push --+-- select (20 s): affected list, split into N parts by measured duration
+       +-- build (ubuntu): checkout | node_modules cache restore (or npm ci) | dist-dev | upload fast-dist-<sha>
+       +-- e2e[1..N] (ubuntu): checkout | restore the same cache | wait for build | download | stack | its checks
+       +-- verify.yml (unchanged, in parallel; unit suites)
+```
+
+- **Concurrency**: `group: fast-e2e-${{ github.ref }}` with `cancel-in-progress: true`. A newer push to the same branch cancels the older fast run. The release gate never cancels.
+- **Caching**:
+  - `node_modules` is cached by OS, Node major and the lock digest; `build` writes it on a miss, and the e2e jobs restore it;
+  - the Playwright Chromium cache is keyed by version.
+- **Build once**: the e2e jobs never build. They serve this sha's artifact.
+- **No waiting on unit tests**: the e2e jobs depend only on `select` and `build`.
+- **Allocation**: N = 3 for mapped pushes, N = 6 for broad ones, packed by measured check duration.
+
+### 3.3 Critical path
+
+```
+select 0.3 ----------------------------------------------+
+build: setup 0.5 | cache 0.3 | dist-dev 1.5 = 2.3 ----------+-- e2e: download 0.1 | stack 0.6 | checks 2-3 = ~5-6 min (mapped)
+e2e jobs: setup + cache restore in parallel (0.8) ..........+                       checks ~4  = ~7 min   (broad)
+```
+
+- **Runner minutes (Linux)**: about 2.5 for build plus 3 × 3.5 for the browser jobs, about **13** for a mapped push, against 0 today, since browser checks are new on push. The full gate no longer runs on routine pushes, which saves its 79-83 Windows minutes on each one.
+
+## 4. Flakes that cause reruns
+
+- **Wrangler dev crash**: wrangler 4.150.0 (fix/wrangler-4150, bc32c0a1; the harness accepts 4.129.0 or 4.150.0 from 947f818a).
+  - Locally, 4.129.0 crashed 8 of 8 reproduction runs and 4.150.0 survived 5 of 5.
+  - **CI confirmation pending**: gate run 38469483022 on bc32c0a1.
+  - The upstream reference for the retry is still to be found, and must be linked before the harness pins 4.150.0 only.
+  - Residual: a POST or PUT in the same window can still crash. It is covered by 2.2, retried once and recorded.
+- **cross-device**: fixed in df144158 (A leaves C1 and its last save settles before B edits). It passed in CI on c044b86a.
+- **canvas-members.test.js:260** (an intermittent 401): reproduce and fix.
+
+## 5. Bounded network retry
+
+`scripts/ci/net.mjs` wraps git push, ls-remote and gh calls, in scripts and workflows.
+- Retry only on: connection reset, timeout, 502, 503, 504. At most 3 attempts, with 5 s then 15 s backoff.
+- Never retry: 401 or 403, a rejected push, or another 4xx.
+- **Before resending a mutation, look at the remote:**
+  - a push whose ref already equals the target is done; a ref that moved elsewhere stops with a report;
+  - before dispatching again, find a run of that workflow created since the first attempt with the same ref and inputs, and use it;
+  - a notes push checks for the note first.
+
+## 6. Rollout, proof, rollback
+
+1. Build the gate changes on `parallel/gate-sharded-next`. Workflow pushes are made by the owner (`!`).
+2. **Proof before switching**:
+   - **Inventory**: on one candidate sha, run the current gate (947f818a) and the new one. Their stage and check-line inventories must match, apart from the two added stages.
+   - **Fault drills** on the new gate. Each must give its stated verdict:
+     - a failed stage (`canary_fail_stage`): fails;
+     - a missing part artifact: fails, naming the part;
+     - a failed-only rerun that passes: passes, and the note shows the attempt each part came from;
+     - a rerun that fails after an earlier pass: fails;
+     - a cancelled run: fails, with no note;
+     - an injected crash with the transient signature: retried once and recorded;
+     - an injected crash with another signature: fails.
+   - **Speed**: record wall and runner minutes for both gates on the same sha. Switch only if the new gate is faster and the inventory matches.
+3. **Switch**: move `parallel/gate-sharded` to the proven commit.
+4. **Fast tier**: stack.sh, the map and its unit test, affected.mjs, fast-e2e.yml, and Linux readiness for the mapped checks. Each mapped check must pass 3 runs in a row on Linux first; that is the entry bar, not proof of reliability. Then gate-on-push moves to `release/*`.
+5. **Rollback**:
+   - **Gate**: point `parallel/gate-sharded` back to 947f818a with the owner's `!`. The note format and its requirements are unchanged, so deploy-dev accepts the old gate's evidence.
+   - **Fast tier**: disable `fast-e2e.yml`. Nothing depends on it.
+
+## 7. Measure
+
+After 20 runs of each tier, a short report gives, per tier:
+- sample count;
+- median and p95 time to verdict;
+- runner minutes;
+- failures by cause (defect, stale check, race, recognized transient, infrastructure, unexplained);
+- retries used.
+
+The targets are met when:
+- **fast tier**: median 6 min or less, p95 9 min or less;
+- **release gate**: median 15 min or less, p95 18 min or less.
