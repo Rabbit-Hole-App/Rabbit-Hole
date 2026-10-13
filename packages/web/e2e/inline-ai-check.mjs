@@ -425,6 +425,8 @@ await run('Motion: off is said and never substituted; a paid proposal starts not
   const copy = await page.locator('[data-inline-paid]').innerText();
   check('the paid proposal says it may cost money even if rejected or undone, and is not a refund', /paid generation/.test(copy) && /not a refund/.test(copy) && /can't be cancelled from here/.test(copy));
   check('no model call before Generate', (await calls(page, 'generate')).length === 0 && (await calls(page, 'artifact')).length === 0);
+  await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
+  check('A7: the paid proposal card shows as a ghost, and nothing of its job starts', posts.length === 0 && !(await saved()).blocks.some(block => block.type === 'video'), posts.join(','));
   await shot('10-motion-paid-proposal');
   await page.locator('[data-paid-cancel]').click();
   check('Cancel declines: nothing on the board, no job request', !(await saved()).blocks.some(block => block.type === 'video') && posts.length === 0);
@@ -1104,6 +1106,14 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   await page.locator('[data-inline-reject]').click();
   await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
   check('A7: Reject removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
+  await clickShape(page, 'n4');
+  await ctrlK(page);
+  await submitPrompt(page, '/compare about this, once more');
+  await waitStatus(page, ['preview']);
+  await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
+  await page.keyboard.press('Escape');
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  check('A7: Esc removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
   await context.close();
 });
 await browser.close();
