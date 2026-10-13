@@ -64,7 +64,8 @@ const startItem = () => menu().locator('[data-menu-start-rabbit-hole]');
 const iconsOnEveryItem = async (where) => {
   const rows = await menu().locator('[role="menuitem"]').evaluateAll(items => items.map(item => {
     const svg = item.querySelector(':scope > svg'), label = item.querySelector(':scope > span');
-    return { text: item.innerText.trim(), icon: !!svg, left: !!svg && !!label && svg.getBoundingClientRect().right <= label.getBoundingClientRect().left };
+    // The label alone, without its key hint.
+    return { text: (label || item).innerText.trim(), icon: !!svg, left: !!svg && !!label && svg.getBoundingClientRect().right <= label.getBoundingClientRect().left };
   }));
   assert.ok(rows.length > 0, `${where}: a menu with items`);
   for (const row of rows) assert.ok(row.icon && row.left, `${where}: "${row.text}" has its icon left of the label`);
@@ -90,7 +91,8 @@ await check('1 right-click a card: a small menu by the cursor, "Start Rabbit Hol
   assert.equal((await startItem().innerText()).trim(), 'Start Rabbit Hole');
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
   const box = await menu().boundingBox();
-  assert.ok(Math.abs(box.x - (at.x + 30)) <= 2 && Math.abs(box.y - (at.y + 10)) <= 2, `the menu opens at the cursor: ${JSON.stringify(box)} vs ${at.x + 30},${at.y + 10}`);
+  // At the cursor's x; a menu too tall for either side of the cursor is clamped into the window, so it still covers the cursor.
+  assert.ok(Math.abs(box.x - (at.x + 30)) <= 2 && box.y <= at.y + 10 + 2 && box.y + box.height >= at.y + 10 - 2, `the menu opens at the cursor: ${JSON.stringify(box)} vs ${at.x + 30},${at.y + 10}`);
   assert.ok((await inside()).ok);
   const labels = await iconsOnEveryItem('a card');
   for (const label of ['Start Rabbit Hole', 'Duplicate', 'Delete']) assert.ok(labels.includes(label), `${label} in ${labels.join(', ')}`);
@@ -246,7 +248,7 @@ await check('6d keyboard: the context-menu key on a focused card opens its menu 
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
   assert.ok((await inside()).ok, JSON.stringify(await inside()));
   // The menu sits at the card the keyboard opened it on, even when the surface has been scrolled under it.
-  const near = await page.evaluate(() => { const m = document.querySelector('[data-canvas-menu]').getBoundingClientRect(), c = document.querySelector('[data-block-id="m-b"]').getBoundingClientRect(); return m.left >= c.left - 2 && m.left <= c.right && m.top >= c.top - 2 && m.top <= c.bottom; });
+  const near = await page.evaluate(() => { const m = document.querySelector('[data-canvas-menu]').getBoundingClientRect(), c = document.querySelector('[data-block-id="m-b"]').getBoundingClientRect(); return m.left >= c.left - 2 && m.left <= c.right && m.top <= c.bottom && m.bottom >= c.top - 2; }); // a tall menu is clamped up, still beside the card
   assert.ok(near, 'the keyboard menu opens on its card');
   await page.keyboard.press('Escape');
   await menu().waitFor({ state: 'detached' });
