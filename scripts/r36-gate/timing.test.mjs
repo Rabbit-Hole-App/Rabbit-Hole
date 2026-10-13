@@ -1,9 +1,20 @@
 // scripts/r36-gate/timing.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeRun, stageDurations } from './timing.mjs';
+import { summarizeRun, stageDurations, parseArgs } from './timing.mjs';
 
 const at = m => new Date(Date.UTC(2026, 9, 13, 18, 0) + m * 60000).toISOString();
+test('parseArgs never reads the --artifacts value as a run id or attempt', () => {
+  assert.deepEqual(parseArgs(['123']), { id: '123', attempt: '1', artifacts: undefined });
+  assert.deepEqual(parseArgs(['123', '2']), { id: '123', attempt: '2', artifacts: undefined });
+  assert.deepEqual(parseArgs(['123', '--artifacts', '/x']), { id: '123', attempt: '1', artifacts: '/x' });
+  assert.deepEqual(parseArgs(['--artifacts', '/x', '123', '2']), { id: '123', attempt: '2', artifacts: '/x' });
+});
+test('a run with no job that both started and completed reports null minutes and no jobs', () => {
+  const run = { id: 1, run_attempt: 1, created_at: at(0) };
+  const jobs = [{ name: 'queued only', created_at: at(0), started_at: at(1) }];
+  assert.deepEqual(summarizeRun(run, jobs), { runId: 1, attempt: 1, queueMin: null, wallMin: null, runnerMin: 0, jobs: [] });
+});
 test('queue, wall and runner minutes are separate; an idle wait step counts as runner time', () => {
   const run = { id: 1, run_attempt: 1, created_at: at(0) };
   const jobs = [
