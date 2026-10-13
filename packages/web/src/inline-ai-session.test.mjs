@@ -20,7 +20,7 @@ test('a plain explain: no routing call, one generation, streamed text coalesced,
   const calls = { route: 0, generate: 0 };
   const transport = {
     route: async () => { calls.route += 1; },
-    generate: async (input, { onEvent }) => { calls.generate += 1; onEvent({ type: 'delta', text: 'Node 23 ' }); onEvent({ type: 'delta', text: 'is a leaf.' }); return { result: { kind: 'note', text: 'Node 23 is a leaf.' } }; },
+    generate: async (input, { onEvent }) => { calls.generate += 1; onEvent({ type: 'meta', streaming: true }); onEvent({ type: 'delta', text: 'Node 23 ' }); onEvent({ type: 'delta', text: 'is a leaf.' }); return { result: { kind: 'note', text: 'Node 23 is a leaf.' } }; },
   };
   const { session, changes, metrics } = make(transport);
   assert.equal(await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() }), 'preview');
@@ -192,7 +192,7 @@ test('the wire: SSE split at any byte boundary parses the same; an error event o
   for (const size of [1, 3, 7, 64]) {
     const stream = new ReadableStream({ start(controller) { for (let i = 0; i < bytes.length; i += size) controller.enqueue(bytes.slice(i, i + size)); controller.close(); } });
     const deltas = [];
-    const out = await readGeneration(new Response(stream, { headers: { 'content-type': 'text/event-stream' } }), event => deltas.push(event.text));
+    const out = await readGeneration(new Response(stream, { headers: { 'content-type': 'text/event-stream' } }), event => event.type === 'delta' && deltas.push(event.text));
     assert.deepEqual(deltas, ['Node ', '23']);
     assert.equal(out.result.text, 'Node 23');
   }

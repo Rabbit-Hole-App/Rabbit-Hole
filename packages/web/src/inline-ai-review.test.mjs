@@ -285,3 +285,13 @@ test('M3: a node with hundreds of links lists a capped number and counts the res
   assert.equal(context.complete.hub, false, 'the model is told it did not see every link');
   assert.ok(JSON.stringify(context).length < 60000, String(JSON.stringify(context).length));
 });
+
+test('M4: the telemetry streaming flag is the mode the worker reports, not a guess from chunks', async () => {
+  const rows = [];
+  const whole = make({ generate: async (input, { onEvent }) => { onEvent({ type: 'meta', streaming: false }); onEvent({ type: 'delta', text: 'All at once.' }); return { result: { kind: 'note', text: 'All at once.' } }; } }, { onMetrics: entry => rows.push(entry) });
+  await whole.submit({ mode: 'explain', prompt: 'Explain this', prepare: snapshot() });
+  assert.equal(rows.at(-1).streaming, false, 'one delta from a whole answer is not streaming');
+  const streamed = make({ generate: async (input, { onEvent }) => { onEvent({ type: 'meta', streaming: true }); onEvent({ type: 'delta', text: 'a' }); return { result: { kind: 'note', text: 'a' } }; } }, { onMetrics: entry => rows.push(entry) });
+  await streamed.submit({ mode: 'explain', prompt: 'Explain this', prepare: snapshot('s') });
+  assert.equal(rows.at(-1).streaming, true);
+});

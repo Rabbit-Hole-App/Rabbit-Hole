@@ -122,3 +122,9 @@ test('M1: /simplify on a full-length request is accepted; the worker never quote
   assert.equal(body.code, 'too_long');
   assert.doesNotMatch(body.error, /\d{4} characters/, 'no length the learner did not type');
 });
+
+import { cleanMetrics } from '../src/learn-inline.js';
+
+test('M4: stage keys the browser never sends are not on the telemetry allowlist', () => {
+  assert.deepEqual(cleanMetrics({ stages: { complete: 900, serverFirst: 12, serverTotal: 40 } }).stages, { complete: 900 });
+});

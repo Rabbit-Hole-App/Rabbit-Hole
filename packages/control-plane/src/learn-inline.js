@@ -229,7 +229,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
 
 // ---------- A5: per-request telemetry rows (learn-migrations/0018-inline-ai-telemetry.sql) ----------
 // Only these keys, only numbers, booleans or the listed words: whatever a browser sends, no content can be stored.
-const STAGES = ['open', 'prep', 'refresh', 'routing', 'providerFirst', 'firstPreview', 'complete', 'accept', 'persist', 'serverFirst', 'serverTotal'];
+const STAGES = ['open', 'prep', 'refresh', 'routing', 'providerFirst', 'firstPreview', 'complete', 'accept', 'persist'];
 const COUNTS = ['modelCalls', 'routeCalls', 'chunks', 'flushes', 'duplicates', 'cancels', 'stale', 'errors', 'timeouts', 'reused', 'objects', 'chars', 'omitted', 'inputTokens', 'outputTokens', 'longTasks', 'longTaskMs', 'frameP95', 'frameMax'];
 const WORDS = { prepCache: ['hit', 'miss'], selection: ['text', 'code', 'group', 'shape', 'card', 'image', 'connection', 'range', 'mixed'], board: ['small', 'large'], output: ['text', 'edit', 'card', 'media'], open: ['cold', 'repeat'] };
 const ROUTE_WAYS = ['direct', 'jev', 'bypassed'];

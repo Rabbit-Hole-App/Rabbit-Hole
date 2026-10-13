@@ -70,9 +70,10 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
   // One streamed event: note text is appended (coalesced); an edit's partial text replaces its object's line.
   const onEvent = (mine, id) => event => {
     if (!live(mine)) return;
+    // The real mode: a provider that answers whole still arrives as one delta, so chunks never decide it.
+    if (event.type === 'meta') { metric(id).streaming = !!event.streaming; return; }
     count(id, 'chunks');
     mark(id, 'firstOutput');
-    metric(id).streaming = true;
     if (event.type === 'delta' && event.text) {
       pending += event.text;
       if (flushMs <= 0) flush(mine, id);

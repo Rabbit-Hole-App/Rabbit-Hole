@@ -64,8 +64,8 @@ test('generate (note): the model\'s real deltas stream through, the result is va
   const response = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'Explain this node', context }), {}, { authorize, callModel });
   assert.equal(response.headers.get('content-type'), 'text/event-stream');
   const deltas = [];
-  const out = await readGeneration(response, event => deltas.push(event.text));
-  assert.deepEqual(deltas, ['Node 23 is a child of node 4. ', 'It is also a leaf.'], 'thinking never reaches the preview');
+  const out = await readGeneration(response, event => deltas.push(event.type === 'meta' ? { streaming: event.streaming } : event.text));
+  assert.deepEqual(deltas, [{ streaming: true }, 'Node 23 is a child of node 4. ', 'It is also a leaf.'], 'the mode first; thinking never reaches the preview');
   assert.deepEqual(out.result, { kind: 'note', text: 'Node 23 is a child of node 4. It is also a leaf.' });
   assert.deepEqual(out.usage, { input_tokens: 900, output_tokens: 40 });
   assert.equal(seen[0].model, 'claude-opus-5', 'the slash-command card task\'s model, no new selection');
@@ -99,10 +99,11 @@ test('generate (edit): partial op text streams as previews; the finished tool in
 test('generate (edit) under the subscription bridge asks for the whole answer, so the tool call is kept', async () => {
   let streamed = null;
   const callModel = async (env, body) => { streamed = body.stream; return Response.json({ model: 'claude-opus-5', stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 5 }, content: [{ type: 'tool_use', id: 't', name: 'inline_edit', input: { summary: 'Bold', ops: [{ op: 'set_style', id: 'n23', style: { bold: true } }] } }] }); };
-  const out = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'edit', route: 'edit', prompt: 'bold', context }), { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'maker@test' }, { authorize: async () => ({ ...who }), callModel }), () => {});
+  const events = [];
+  const out = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'edit', route: 'edit', prompt: 'bold', context }), { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'maker@test' }, { authorize: async () => ({ ...who }), callModel }), event => events.push(event));
   assert.equal(streamed, false);
   assert.deepEqual(out.result.ops, [{ op: 'set_style', id: 'n23', style: { bold: true } }]);
-  assert.equal(out.streaming, false);
+  assert.deepEqual(events.filter(event => event.type === 'meta'), [{ type: 'meta', streaming: false }]);
 });
 
 test('generate: not configured, spend refusal, a cut-off answer and an empty note are errors, never previews', async () => {

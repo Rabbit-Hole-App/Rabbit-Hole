@@ -31,9 +31,10 @@ export async function readGeneration(response, onEvent) {
     const body = await response.json().catch(() => ({}));
     throw Object.assign(new Error(body.error || `HTTP ${response.status}`), { code: body.code || (response.status === 503 ? 'not_configured' : 'http'), status: response.status });
   }
-  let done = null, failure = null, meta = null;
+  let done = null, failure = null;
   await readSse(response.body, ({ event, data }) => {
-    if (event === 'meta') meta = data;
+    // The worker says up front whether the provider streams; telemetry records that, never a guess from chunks.
+    if (event === 'meta') onEvent({ type: 'meta', streaming: data.streaming === true });
     else if (event === 'delta') onEvent({ type: 'delta', text: String(data.text || '') });
     else if (event === 'preview') onEvent({ type: 'preview', id: data.id, text: String(data.text || '') });
     else if (event === 'done') done = data;
@@ -41,7 +42,7 @@ export async function readGeneration(response, onEvent) {
   });
   if (failure) throw Object.assign(new Error(failure.error || 'Generation failed.'), { code: failure.code || 'error' });
   if (!done?.result) throw Object.assign(new Error('The answer ended before it was complete.'), { code: 'incomplete' });
-  return { result: done.result, usage: done.usage || null, streaming: meta?.streaming !== false, serverMs: done.ms || null };
+  return { result: done.result, usage: done.usage || null };
 }
 
 // The page's transport. fetchRaw: apiFetch (api.js), so auth, the workspace header and the preview write guard apply.
