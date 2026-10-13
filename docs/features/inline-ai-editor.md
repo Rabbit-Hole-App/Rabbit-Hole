@@ -4,8 +4,10 @@ Owner brief, 2026-10-12. Implement this spec; don't expand it.
 
 ## Implementation status (2026-10-13, branch feature/inline-ai-editor)
 
-Built into the existing canvas; not merged, not in production. Real provider paths were verified on a local
-spend-enforced stack only (see the handoff report for results, spend and the remaining gaps).
+**INCOMPLETE.** Built into the existing canvas; not merged, not in production. The fixes from the review of
+cf9216b2..5b3552a5 are in, and the editor stays incomplete until they pass the dispatcher's independent verification.
+Real provider paths were verified on a local spend-enforced stack only (see the handoff report for results, spend and
+the remaining gaps).
 
 Where it lives:
 - `web/src/inline-ai-context.js` - the bounded context package (§3), its per-board incremental cache (A1) and the
@@ -25,7 +27,7 @@ Where it lives:
   `/api/learn/inline/generate` (SSE) and `/api/learn/inline/telemetry`; `learn-migrations/0018-inline-ai-telemetry.sql`
   (A5). The migration is applied to local stacks only; shared dev and production wait for the owner's GO.
 
-Checks: unit (`web/src/inline-ai-*.test.mjs`, `control-plane/test/learn-inline.test.js`); browser with a mocked
+Checks: unit (`web/src/inline-ai-*.test.mjs`, `control-plane/test/learn-inline*.test.js`); browser with a mocked
 transport (`web/e2e/inline-ai-check.mjs`); real provider on a local stack (`web/e2e/inline-ai-real.mjs`, every request
 reserved in a spend ledger first); A3 benchmark and report from the telemetry rows (`web/e2e/inline-ai-bench.mjs`,
 `web/e2e/inline-ai-report.mjs`).
@@ -39,7 +41,25 @@ Defaults taken within the spec:
   and keeps its durable record on that card, as the direct command's does. A finished video is not previewed before it
   is on the canvas.
 - The explanation note is a native rect shape with editable text and a dashed annotation connector
-  (`kind: 'annotation'`); a connector is drawn when the target is one shape or card.
+  (`kind: 'annotation'`); a connector is drawn when the target is one shape or card. An annotation is known by that
+  kind on the link, never by its dash. No other reader of a board's links treats them as structure: the Dive tree and
+  map read `canvas_dives`, the owned Tutor outline reads cards, the shared-canvas Ask and Tutor read words only; copy,
+  delete, save and the style panel only carry them (`inline-ai-annotation.test.mjs` lists every reader).
+- Accept checks the preview's own source snapshot (taken when that preview was made) against the source as it is
+  now, unsaved words in an open text editor included. A refine that is cancelled or fails keeps the earlier preview
+  and its snapshot; a refine that succeeds brings its own. Selection only is locked while a preview shows.
+- A refine (§10) revises the preview on screen: the same output, with the earlier candidate and the original request
+  sent beside the new words. A / command or the other pill is a new request. The replaced candidate's telemetry row
+  is settled as `refined`.
+- One request limit, `PROMPT_MAX` (1000) in `inline-ai-route.js`, shared by the editor and the worker: the editor
+  shows the count while writing and holds Submit back over it; the worker refuses an over-limit prompt with the
+  reason; a refused routing call is that error, never a quiet plain note.
+- A handler gets its input resolved first: an explicit command's own words; for a bare command, the selection's
+  words as its subject; a routed sentence as written, except a photo search, which searches the selection's words.
+  With no subject (a shape with no words) the editor asks for the missing input. Never the bare slash token, never
+  the canvas title (Motion's concept is the selection's subject).
+- Telemetry: `user_id` is users.id on every board kind (repo- and live-app boards read the signed-in person);
+  `route` is jev only when that request asked JEV, direct for an explicit / command, bypassed otherwise.
 
 Known limits: edit previews arrive whole (the provider streams tool input in one piece); notebook cells and card
 bodies other than a code sample's code are not edited inline; idempotency is per editor session in the browser, with
