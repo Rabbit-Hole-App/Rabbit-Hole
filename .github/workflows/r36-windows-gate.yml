@@ -13,12 +13,12 @@ on:
         description: Exact application commit to verify
         required: true
         type: string
-        default: a58b0f79573e5efa54016196cd2e27e6eeb6804b
+        default: 1c2a3721626474af39d4ccab80fe0ea0827e7f18
       app_tree:
         description: Expected application tree for the exact commit
         required: true
         type: string
-        default: 7ff6b0672cf7f83b0b8053f5b65300ef3f87767b
+        default: 39fd2a32b6394b99f508215c85795747b2e48da8
 
 permissions:
   contents: read
@@ -29,8 +29,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_SHA: ${{ inputs.app_sha || 'a58b0f79573e5efa54016196cd2e27e6eeb6804b' }}
-  APP_TREE: ${{ inputs.app_tree || '7ff6b0672cf7f83b0b8053f5b65300ef3f87767b' }}
+  APP_SHA: ${{ inputs.app_sha || '1c2a3721626474af39d4ccab80fe0ea0827e7f18' }}
+  APP_TREE: ${{ inputs.app_tree || '39fd2a32b6394b99f508215c85795747b2e48da8' }}
 
 jobs:
   checks:
