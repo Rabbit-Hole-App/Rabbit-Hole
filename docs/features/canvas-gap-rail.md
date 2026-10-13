@@ -16,6 +16,9 @@ left by default):
   Sub-sub-section, each with its heading icon). A press anywhere else closes
   it; after adding, the line goes away until the pointer comes back.
 
+The rail is for blank canvas only (owner, 2026-10-13). It never shows while the pointer is over an object, or while
+anything is selected. A plain click on a shape near a gap therefore leaves no dotted line behind.
+
 Undo reverses a push or a pull. Model and tests: `learn-gap-rail.js`.
 
 ## Free placement
