@@ -291,12 +291,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {/* A7: an edit, pale, in place over each object it changes - removed words struck through, added words marked, a
             style change shown on the new text. While it streams, the new words so far. The object is untouched until Accept. */}
         {(() => {
-          const stop = event => event.stopPropagation();
           const place = id => { const world = canvas.boxOf(id); return world && { left: world.x * z + view.x, top: world.y * z + view.y, minWidth: world.w * z, minHeight: world.h * z }; };
-          const frame = 'pointer-events-auto absolute rounded-md border border-dashed border-[#2383e2] bg-white/95 px-1 text-ink opacity-60 dark:bg-[#202020]/95';
+          // Over its own object, so it lets clicks through: the learner can still open and edit those words.
+          const frame = 'absolute rounded-md border border-dashed border-[#2383e2] bg-white/95 px-1 text-ink opacity-60 dark:bg-[#202020]/95';
           if (status === 'streaming' && state.stream?.edits) return Object.entries(state.stream.edits).map(([id, text]) => {
             const at = place(id);
-            return at && <div key={id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={id} onPointerDown={stop} className={frame} style={{ ...at, fontSize: 14 * z }}>{text}</div>;
+            return at && <div key={id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={id} className={frame} style={{ ...at, fontSize: 14 * z }}>{text}</div>;
           });
           if (preview?.kind !== 'edit' || status === 'streaming') return null;
           return (preview.changes || []).map(change => {
@@ -305,7 +305,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             const styled = Object.fromEntries((change.style || []).map(([key, , after]) => [key, after]));
             const look = { fontSize: (styled.fontSize || 14) * z, fontWeight: styled.bold ? 700 : undefined, fontStyle: styled.italic ? 'italic' : undefined, textDecoration: styled.underline ? 'underline' : undefined, color: styled.textColor || undefined };
             return (
-              <div key={change.id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={change.id} onPointerDown={stop} className={frame} style={{ ...at, ...look }}>
+              <div key={change.id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={change.id} className={frame} style={{ ...at, ...look }}>
                 {wordDiff(change.before, change.after).map((part, index) => (part.kind === 'same' ? <span key={index}>{part.t}</span>
                   : part.kind === 'del' ? <del key={index} data-ghost-del className="text-[#b42318]">{part.t}</del>
                     : <ins key={index} data-ghost-add className="bg-[#dcfce7] text-[#067647] no-underline">{part.t}</ins>))}

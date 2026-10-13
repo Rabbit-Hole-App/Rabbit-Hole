@@ -1034,7 +1034,9 @@ await run('A7 edit ghost: the new words pale in place, removed struck through, a
   check('A7: removed words struck through, added words marked', (await ghost.locator('[data-ghost-del]').allInnerTexts()).join('') === 'words' && (await ghost.locator('[data-ghost-add]').allInnerTexts()).join('') === 'WORDS');
   const box = await ghost.boundingBox(), own = await page.locator('[data-item-id="label23"]').boundingBox();
   check('A7: the edit ghost sits on the object it changes', Math.abs(box.x - own.x) <= 3 && Math.abs(box.y - own.y) <= 3, JSON.stringify({ box, own }));
-  check('A7: the edit ghost is topmost and pale', await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-inline-ghost]'), [box.x + box.width / 2, box.y + box.height / 2]) && Number(await ghost.evaluate(node => getComputedStyle(node).opacity)) < 1);
+  // It lets clicks through to its object, so it is made hit-testable for a moment to see what is painted on top.
+  const painted = await ghost.evaluate((node, [x, y]) => { node.style.pointerEvents = 'auto'; const top = !!document.elementFromPoint(x, y)?.closest('[data-inline-ghost]'); node.style.pointerEvents = ''; return top; }, [box.x + box.width / 2, box.y + box.height / 2]);
+  check('A7: the edit ghost is painted on top, pale, and lets clicks through to its object', painted && Number(await ghost.evaluate(node => getComputedStyle(node).opacity)) < 1 && (await ghost.evaluate(node => getComputedStyle(node).pointerEvents)) === 'none');
   check('A7: the object is untouched until Accept', (await saved()).items.find(item => item.id === 'label23').text === 'bottom row extra words');
   await page.locator('[data-inline-reject]').click();
   await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });

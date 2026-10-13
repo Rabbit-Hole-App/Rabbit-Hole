@@ -655,7 +655,9 @@ of where the position of the generate output should be."
   through, added words marked. A style change shows the object's text restyled, pale, in place. The object itself is
   untouched until Accept.
 - The ghost is drawn above all board content (its own top layer in the canvas's world), so nothing on the board can
-  hide it, and it never takes clicks from what is under it.
+  hide it, and it never takes clicks from what is under it: a new object's ghost stands in free space, so the pointer
+  there reaches only the ghost; an edit's ghost lies over its own object and lets clicks through, so the learner can
+  still open and edit those words.
 
 ### Lifecycle
 
