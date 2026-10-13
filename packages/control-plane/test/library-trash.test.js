@@ -138,7 +138,8 @@ test('the Trash list: your own canvases and projects, newest first; nobody else\
   f.sqlite.prepare("INSERT INTO repository_apps (org, name, owner_email, repo, branch) VALUES ('ana-ws', 'repo-optics', 'ana@test', 'ana/optics', 'main')").run();
   const c = await f.create('ana', 'Old notes');
   await f.call('POST', `/api/apps/${c.name}/trash`, { as: 'ana', body: {} });
-  await new Promise(resolve => setTimeout(resolve, 5));
+  // Past one tick of a coarse Windows clock (15.6 ms on hosted runners), or both rows share a trashed_at and tie.
+  await new Promise(resolve => setTimeout(resolve, 40));
   await f.call('POST', '/api/apps/repo-optics/trash', { as: 'ana', body: {} });
   const bens = await f.create('ben', 'Ben\'s');
   await f.call('POST', `/api/apps/${bens.name}/trash`, { as: 'ben', body: {} });
