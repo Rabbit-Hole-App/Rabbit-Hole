@@ -259,3 +259,14 @@ test('S4: a routing call the worker refused before calling JEV is recorded as by
   const [routing, column, stage] = await run({ error: 'timeout', called: true });
   assert.deepEqual([routing, column, typeof stage], ['fallback:timeout', 'jev', 'number'], 'a call that reached JEV and failed is still jev');
 });
+
+test('M2: a refine of a long edit sends at most the worker limit, cut per operation and marked', () => {
+  const ops = [{ op: 'replace_text', id: 't1', text: 'x'.repeat(20000) }, { op: 'replace_text', id: 't2', text: 'short' }];
+  const sent = sessionModule.earlierResult({ kind: 'edit', summary: 'Rewrote both', raw: { ops } });
+  assert.ok(sent.length <= routeModule.EARLIER_MAX, String(sent.length));
+  const read = JSON.parse(sent);
+  assert.equal(read.truncated, true);
+  assert.equal(read.ops[1].text, 'short');
+  assert.ok(read.ops[0].text.endsWith('…'));
+  assert.equal(sessionModule.earlierResult({ kind: 'edit', summary: 's', raw: { ops: [ops[1]] } }), JSON.stringify({ summary: 's', ops: [ops[1]] }), 'a short edit goes whole');
+});

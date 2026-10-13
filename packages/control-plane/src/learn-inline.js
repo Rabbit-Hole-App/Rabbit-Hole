@@ -11,7 +11,7 @@
 // The same model, auth, ownership and spend admission as a slash-command card: LEARN_TASKS.artifact's model through
 // planModel, authorizedBoardApp, subscriptionOwnerRefusal, and spendTransport inside anthropic().
 import { askJev, JEV_TRANSPORTS, JevError } from './learn-grade-jev.js';
-import { PROMPT_MAX, PROMPT_ROOM, promptTooLong, readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
+import { EARLIER_MAX, PROMPT_MAX, PROMPT_ROOM, promptTooLong, readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
@@ -132,7 +132,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   if (typeof body.prompt === 'string' && body.prompt.length > PROMPT_MAX + PROMPT_ROOM) return json({ error: promptTooLong(), code: 'too_long' }, 400);
   // A refine (§10) carries the candidate it revises and the original request.
   const revise = body.revise ?? null;
-  if (revise !== null && (typeof revise !== 'object' || typeof revise.result !== 'string' || !revise.result || revise.result.length > 8000 || typeof revise.prompt !== 'string' || revise.prompt.length > PROMPT_MAX)) return json({ error: 'Invalid inline request' }, 400);
+  if (revise !== null && (typeof revise !== 'object' || typeof revise.result !== 'string' || !revise.result || revise.result.length > EARLIER_MAX || typeof revise.prompt !== 'string' || revise.prompt.length > PROMPT_MAX)) return json({ error: 'Invalid inline request' }, 400);
   if (!((mode === 'explain' && route === 'note') || (mode === 'edit' && route === 'edit')) || typeof body.prompt !== 'string'
     || !body.context || typeof body.context !== 'object' || !Array.isArray(body.context.target?.ids) || !body.context.target.ids.length || !REQUEST_ID.test(String(body.request_id))) {
     return json({ error: 'Invalid inline request' }, 400);

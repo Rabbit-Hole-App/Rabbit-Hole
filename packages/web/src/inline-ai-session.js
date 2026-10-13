@@ -9,7 +9,7 @@
 // - A completed result is kept by idempotency key (board, target fingerprints, mode, prompt, scope): the same request
 //   again reuses it instead of generating twice.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
-import { commandInput, decideRoute, explicitCommand, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
+import { commandInput, decideRoute, EARLIER_MAX, explicitCommand, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
 
 export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…', proposal: 'Preparing the paid proposal…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
@@ -21,11 +21,19 @@ export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }
 export const routeColumn = entry => (entry.routing === 'jev' || String(entry.routing || '').startsWith('fallback:') ? 'jev' : entry.via === 'command' ? 'direct' : 'bypassed');
 // The candidate a refine revises (§10), as the handler reads it: a note's words, an edit's operations, a card's type,
 // title and text.
+// At most EARLIER_MAX characters, the worker's limit: a longer edit has each operation's text cut to fit, and says so.
 export function earlierResult(preview) {
-  if (preview.kind === 'note') return String(preview.text || '');
-  if (preview.kind === 'edit') return JSON.stringify({ summary: preview.summary || '', ops: preview.raw?.ops || [] });
+  if (preview.kind === 'note') return String(preview.text || '').slice(0, EARLIER_MAX);
+  if (preview.kind === 'edit') {
+    const summary = preview.summary || '', ops = preview.raw?.ops || [];
+    const full = JSON.stringify({ summary, ops });
+    if (full.length <= EARLIER_MAX) return full;
+    const each = Math.max(40, Math.floor((EARLIER_MAX - 600) / Math.max(1, ops.length)) - 120);
+    const cut = ops.map(op => (typeof op.text === 'string' && op.text.length > each ? { ...op, text: `${op.text.slice(0, each)}…` } : op));
+    return JSON.stringify({ summary, truncated: true, ops: cut }).slice(0, EARLIER_MAX);
+  }
   const block = preview.block || {};
-  return JSON.stringify({ type: block.type, title: block.title || '', text: block.brief || block.caption || block.body || block.code || '' }).slice(0, 8000);
+  return JSON.stringify({ type: block.type, title: block.title || '', text: block.brief || block.caption || block.body || block.code || '' }).slice(0, EARLIER_MAX);
 }
 const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `r${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
 
