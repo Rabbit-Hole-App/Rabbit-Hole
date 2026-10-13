@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Sparkles, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
-import { buildContext, contextShape, staleness, unionBox } from './inline-ai-context.js';
+import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
 import { cardTx, describeChange, editTx, explainTx, noteSize, placeNote, validateEdit } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
@@ -126,7 +126,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         canvas.flushEdits?.();
         const made = prepare();
         setPrepared(made);
-        return { context: made.context, frozen: { ...target, prints: made.context.prints, clipped: made.context.target.clipped }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context) }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
     });
   };

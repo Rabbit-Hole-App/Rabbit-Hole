@@ -343,8 +343,8 @@ test('re-review S3 gap: a target the budget left out entirely is clipped, so a w
   const target = contextModule.freezeTarget(board, ['a', 'b', 'c']);
   const context = contextModule.buildContext(board, target, { cache: contextModule.createContextCache(), boardKey: 'b' });
   assert.equal(context.target.objects.some(entry => entry.id === 'c'), false, 'the third box did not fit the 8000-character budget');
-  assert.deepEqual(context.target.clipped, ['c']);
-  const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 'c', text: 'invented' }] }, { ...target, clipped: context.target.clipped }, board);
+  assert.deepEqual(contextModule.clippedOf(context), ['c']);
+  const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 'c', text: 'invented' }] }, { ...target, clipped: contextModule.clippedOf(context) }, board);
   assert.equal(checked.ok, false);
   assert.match(checked.errors[0], /Select fewer objects, then press Ctrl.K/);
 });
@@ -354,7 +354,7 @@ test('re-review S3 gap: a group of more stickies than the object budget clips th
   const board = { shapes: [], items: stickies, links: [], blocks: [], groups: [{ id: 'g', label: 'Notes' }], exchanges: [], boxes: {} };
   const target = contextModule.freezeTarget(board, stickies.map(sticky => sticky.id));
   const context = contextModule.buildContext(board, target, { cache: contextModule.createContextCache(), boardKey: 'b' });
-  assert.deepEqual(context.target.clipped, ['s24', 's25']);
+  assert.deepEqual(contextModule.clippedOf(context), ['s24', 's25']);
 });
 
 test('re-review M8: a routing request refused by the worker or lost on the network says JEV was not called', async () => {
@@ -406,4 +406,16 @@ test('delta (b): a short target left out by the budget says to select fewer obje
   const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 's30', text: 'fixed' }] }, { ids: ['s30'], range: null, clipped: ['s30'] }, board);
   assert.equal(checked.ok, false);
   assert.equal(checked.errors[0], 'This selection is more than an edit can read at once (24 objects, 8000 characters). Select fewer objects, then press Ctrl+K.');
+});
+
+test('delta (c): clipped is computed for the frozen target only and never sent; 500 stickies stay under the body limit', () => {
+  const id = i => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+  const stickies = Array.from({ length: 500 }, (_, i) => ({ id: id(i), kind: 'sticky', x: i, y: 0, w: 160, text: `note ${i}`, groupId: 'g' }));
+  const board = { shapes: [], items: stickies, links: [], blocks: [], groups: [{ id: 'g', label: 'Notes' }], exchanges: [], boxes: {} };
+  const target = contextModule.freezeTarget(board, stickies.map(sticky => sticky.id));
+  const context = contextModule.buildContext(board, target, { cache: contextModule.createContextCache(), boardKey: 'b' });
+  assert.equal('clipped' in context.target, false, 'not part of what the worker receives');
+  assert.equal(contextModule.clippedOf(context).length, 500 - contextModule.LIMITS.objects);
+  const body = JSON.stringify({ app: 'canvas-0a1b2c3d', request_id: 'r', mode: 'edit', route: 'edit', prompt: 'fix the spelling', context, board: 'main' });
+  assert.ok(body.length < 60000, `the generate body is ${body.length} characters`);
 });

@@ -272,8 +272,7 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
   const counts = { target: targets.length, ...Object.fromEntries(['connected', 'sibling', 'inferred', 'group', 'annotation', 'nearby'].map(relation => [relation, related.filter(entry => entry.relation === relation).length])) };
   return {
     version: CONTEXT_VERSION,
-    // clipped: every target the model did not read whole - cut short, or left out by the object or character budget.
-    target: { ids: present, gone, ...(target.range ? { range: true } : {}), objects: targets, clipped: present.filter(id => !targets.some(entry => entry.id === id && !entry.truncated)), ...(group ? { group } : {}) },
+    target: { ids: present, gone, ...(target.range ? { range: true } : {}), objects: targets, ...(group ? { group } : {}) },
     connections, related, complete,
     broader,
     ...(image ? { image: { id: image.id, ...(imageEntity?.mediaId ? { mediaId: imageEntity.mediaId } : {}) } } : {}),
@@ -283,6 +282,10 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     prints: fingerprints(look, target),
   };
 }
+
+// Every target the model did not read whole - cut short, or left out by the object or character budget. For the frozen
+// target only (Accept refuses a whole replace on these); never sent: a large selection would only grow the request.
+export const clippedOf = context => context.target.ids.filter(id => !context.target.objects.some(entry => entry.id === id && !entry.truncated));
 
 // The compact, content-free shape of a context for telemetry (A3/A5): counts only.
 export const contextShape = context => ({ objects: context.size.objects, chars: context.size.chars, counts: context.counts,
