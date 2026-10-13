@@ -21,16 +21,27 @@ const both = () => { const tree = treeBoard(), flow = flowBoard(); return { shap
 async function open(name, board = both(), { query = '', viewport = { width: 1500, height: 950 }, touch = false } = {}) {
   const context = await browser.newContext({ viewport, hasTouch: touch });
   const page = await context.newPage();
+  if (process.env.THROTTLE) await (await context.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.THROTTLE) });
   page.on('pageerror', error => errors.push(`${name}: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error' && !/Failed to load resource|favicon|404/.test(message.text())) errors.push(`${name}: ${message.text()}`); });
   // Belt and braces: the harness makes no network calls of its own; anything non-GET leaving the page is refused and counted.
   const posts = [];
   await page.route('**/api/**', route => { if (route.request().method() !== 'GET') { posts.push(route.request().url()); return route.abort(); } return route.continue(); });
   const key = `harness:${name}`;
-  await page.goto(`${BASE}?board=${name}${query}`);
-  await page.evaluate(([key, board]) => { localStorage.clear(); localStorage.setItem(key, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [], groups: [], areas: [], ...board })); }, [key, board]);
+  // The board is seeded before any page script runs, once per tab (a reload keeps what the page saved since). Seeding
+  // after a first load raced that page's own debounced save of its empty board: under CPU load the save landed after the
+  // seed, the second load opened an empty canvas, and the first click on a shape waited 30 s for one that never came
+  // (the deletion scenario's boundingBox timeout, 2026-10-13: DIAG shapesOnPage 0, storedShapes 0).
+  await context.addInitScript(([key, board]) => {
+    if (sessionStorage.getItem('harness:seeded')) return;
+    localStorage.clear();
+    localStorage.setItem(key, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [], groups: [], areas: [], ...board }));
+    sessionStorage.setItem('harness:seeded', '1');
+  }, [key, board]);
   await page.goto(`${BASE}?board=${name}${query}`);
   await page.locator('[data-canvas-surface]').waitFor();
+  // Every seeded object is on the page before a scenario starts.
+  await page.waitForFunction(ids => ids.every(id => document.querySelector(`[data-shape-id="${id}"],[data-item-id="${id}"]`)), [...(board.shapes || []), ...(board.items || [])].map(entry => entry.id));
   await page.waitForTimeout(300);
   const saved = async (wait = 600) => { await page.waitForTimeout(wait); return page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}'), key); };
   const shot = async label => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${label}.png` }); };
@@ -44,11 +55,13 @@ const run = async (name, fn) => {
 // Pan (wheel) until a thing sits in the open middle of the canvas, clear of the composer, the hooks and the tools.
 const reveal = async (page, locator) => {
   const view = page.viewportSize();
+  await locator.waitFor({ state: 'attached' });
   for (let i = 0; i < 8; i += 1) {
     const b = await locator.boundingBox();
     if (b && b.y > 80 && b.y + b.height < view.height - 220 && b.x > 360 && b.x + b.width < view.width - 300) return b;
     const dy = b ? b.y + b.height / 2 - view.height * 0.4 : 0, dx = b ? b.x + b.width / 2 - view.width * 0.5 : 0;
-    await page.mouse.move(view.width * 0.5, view.height * 0.4); await page.mouse.wheel(Math.round(dx), Math.round(dy)); await page.waitForTimeout(150);
+    await page.mouse.move(view.width * 0.5, view.height * 0.4); await page.mouse.wheel(Math.round(dx), Math.round(dy));
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   }
   return locator.boundingBox();
 };
@@ -230,9 +243,13 @@ await run('the target deleted during generation: Accept is refused, nothing land
   await hold(page);
   await submitPrompt(page, 'Explain this');
   await waitStatus(page, ['generating']);
-  await page.mouse.click(60, 900);
+  // Focus leaves the popover (Delete is then the canvas's), with no click that could land on the canvas chrome.
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.locator('[data-shape-id="n7"]').first().waitFor({ state: 'visible' });
   await clickShape(page, 'n7');
+  await page.locator('[data-shape-id="n7"] [data-handle]').first().waitFor();
   await page.keyboard.press('Delete');
+  await page.locator('[data-shape-id="n7"]').first().waitFor({ state: 'detached' });
   await release(page);
   await waitStatus(page, ['preview']);
   await page.locator('[data-inline-accept]').click();
