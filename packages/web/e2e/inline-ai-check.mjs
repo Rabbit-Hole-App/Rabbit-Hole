@@ -917,6 +917,20 @@ await run('M6: a question asked while a preview shows goes back to the preview, 
   check('M6: Accept lands the earlier note', closed && inlineShapes(await saved()).length === 1);
   await context.close();
 });
+
+// ---- M7 (re-review of df144158): the context list shows the selected words as selected. Failed on df144158 ----
+await run('M7: words typed and selected, then Ctrl+K: the context list shows those words before Submit', async () => {
+  const { page, context } = await open('m7-range-row');
+  await openWords(page, 'label23');
+  await page.keyboard.type(' extra words');
+  for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowLeft');
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  await page.locator('[data-inline-context]').click();
+  const row = await page.locator('[data-inline-context-list] li').first().innerText();
+  check('M7: the Selected row reads the selected words', /Selected · Text · words$/.test(row.trim()), row);
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);

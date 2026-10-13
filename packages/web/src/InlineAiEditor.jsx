@@ -294,7 +294,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         </div>
         {contextOpen && prepared && (
           <ul data-inline-context-list data-scroll className="max-h-36 overflow-y-auto rounded-lg bg-hover px-2 py-1 text-xs text-ink-2">
-            {prepared.context.target.objects.map(entry => <li key={entry.id} className="truncate"><span className="text-ink">Selected</span> · {LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(entry.range?.text ?? entry.text)}</li>)}
+            {prepared.context.target.objects.map(entry => <li key={entry.id} className="truncate"><span className="text-ink">Selected</span> · {LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(target.range && target.range.id === entry.id ? target.range.text : entry.text)}</li>)}
             {prepared.context.related.map(entry => <li key={entry.id} className="truncate">{RELATION[entry.relation] || entry.relation} · {LABEL[entry.type] || entry.type} · {short(entry.text)}</li>)}
             {prepared.context.target.group && <li className="truncate">group “{short(prepared.context.target.group.label || 'untitled', 30)}”</li>}
             {prepared.context.broader.title && <li className="truncate">canvas title “{short(prepared.context.broader.title, 40)}”</li>}
