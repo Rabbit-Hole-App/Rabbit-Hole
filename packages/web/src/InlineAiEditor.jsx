@@ -3,7 +3,7 @@ import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, 
 import { composerKey } from './composer-keys.js';
 import { buildContext, contextShape, staleness, unionBox } from './inline-ai-context.js';
 import { cardTx, describeChange, editTx, explainTx, noteSize, placeNote, validateEdit } from './inline-ai-apply.js';
-import { createInlineSession, stageTimings } from './inline-ai-session.js';
+import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { ROUTES, selectionSummary } from './inline-ai-route.js';
 
 // The inline AI editor (docs/features/inline-ai-editor.md): a compact popover by the frozen selection, with Edit and
@@ -61,7 +61,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       const first = !rows.current.length || rows.current[0].request_id === entry.requestId;
       rows.current = rows.current.filter(row => row.request_id !== entry.requestId);
       rows.current.push({
-        request_id: entry.requestId, route: entry.routing === 'bypassed' ? (entry.via === 'command' ? 'direct' : 'bypassed') : entry.routing === 'reused' ? 'bypassed' : 'jev',
+        request_id: entry.requestId, route: routeColumn(entry),
         capability: entry.capability || null, outcome: entry.outcome || 'closed', streaming: !!entry.streaming, mocked: !!config.mocked,
         metrics: { stages: { ...(first && openMs.current != null ? { open: openMs.current } : {}), ...(entry.prep ? { prep: entry.prep.ms } : {}), ...Object.fromEntries(Object.entries(stageTimings(entry)).filter(([, value]) => value != null)) },
           counts: { ...entry.counts, ...(entry.context ? { objects: entry.context.objects, chars: entry.context.chars, omitted: entry.context.omitted } : {}), ...(entry.tokens ? { inputTokens: entry.tokens.input, outputTokens: entry.tokens.output } : {}) },

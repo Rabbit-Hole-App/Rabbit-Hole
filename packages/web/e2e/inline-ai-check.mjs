@@ -749,6 +749,23 @@ await run('accept snapshot (e): an unrelated edit after the preview does not inv
   check('(e) Accept lands the note; the unrelated edit stays', inlineShapes(board).length === 1 && board.items.find(item => item.id === 'para2').text.includes('unrelated words'));
   await context.close();
 });
+
+// ---- Telemetry route column (review of cf9216b2..5b3552a5): failed on 5b3552a5 ----
+await run('telemetry: an answered clarification is not labelled jev; the routing call that asked is', async () => {
+  const { page, context } = await open('telemetry-route');
+  await page.evaluate(() => { window.__inlineMock.routeAnswers = { 'Show the shape of this': { choice: 'diagram', confidence: 0.2, probabilities: { diagram: 0.45, note: 0.35, graph: 0.2 } } }; });
+  await clickShape(page, 'n4');
+  await ctrlK(page);
+  await submitPrompt(page, 'Show the shape of this');
+  await waitStatus(page, ['clarify']);
+  await page.locator('[data-inline-option="diagram"]').click();
+  await waitStatus(page, ['preview']);
+  await page.locator('[data-inline-reject]').click();
+  await page.waitForFunction(() => window.__inlineMock.telemetry.some(row => row.outcome === 'rejected'), null, { timeout: 10000 });
+  const rows = await page.evaluate(() => window.__inlineMock.telemetry.map(row => [row.outcome, row.route, row.capability]));
+  check('the clarify row (JEV asked) is jev; the chosen request (no routing call) is bypassed', JSON.stringify(rows) === JSON.stringify([['clarify', 'jev', null], ['rejected', 'bypassed', 'diagram']]), JSON.stringify(rows));
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);

@@ -14,6 +14,10 @@ import { decideRoute, planRoute, ROUTES } from './inline-ai-route.js';
 export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…', proposal: 'Preparing the paid proposal…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
 export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }) => JSON.stringify([boardKey, prints.target, prints.relations, mode, String(prompt).trim(), !!selectionOnly]);
+// The A5 route column of one request's metrics. jev: this request asked JEV, or tried to and fell back
+// (fallback:<reason>). direct: an explicit / command. bypassed: no routing call for this request - a plain explain,
+// Edit, a reused result, an answered clarification (its routing call, if any, was the earlier request's row).
+export const routeColumn = entry => (entry.routing === 'jev' || String(entry.routing || '').startsWith('fallback:') ? 'jev' : entry.via === 'command' ? 'direct' : 'bypassed');
 const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `r${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
 
 // transport: { route(input, { signal }) -> readRoute() result, or throws;

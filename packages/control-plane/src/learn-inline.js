@@ -259,14 +259,25 @@ export async function keepInlineTelemetry(db, rows, identity) {
   }
   return { kept, skipped };
 }
-export async function inlineTelemetryFetch(req, env, { authorize = authorizedBoardApp } = {}) {
+// users.id of the signed-in person, for a row whose board access does not carry it: canvasAccess sets user_id on its
+// access object; a repo- board's (repositoryAccess) and a live app's do not. Read the way canvasAccess reads it
+// (repositoryIdentity). Never an email; null when there is none.
+async function signedInUserId(req, env) {
+  try {
+    const { repositoryIdentity } = await import('./repositories.js');
+    const user = await repositoryIdentity(req, env);
+    return user instanceof Response ? null : user?.userId ?? null;
+  } catch { return null; }
+}
+export async function inlineTelemetryFetch(req, env, { authorize = authorizedBoardApp, identify = signedInUserId } = {}) {
   const { body, response } = await readBody(req, 100000);
   if (response) return response;
   if (!Array.isArray(body.rows)) return json({ error: 'rows required' }, 400);
   const allowed = await authorize(req, env, body.app, body.pending);
   if (allowed instanceof Response) return allowed;
   // Only a signed-in person's own board: authorizedBoardApp answered for this app and this person.
-  return json(await keepInlineTelemetry(env.LEARN_DB, body.rows, { userId: allowed.user_id || null, board: body.app }));
+  const userId = allowed.user_id ?? await identify(req, env);
+  return json(await keepInlineTelemetry(env.LEARN_DB, body.rows, { userId: userId || null, board: body.app }));
 }
 
 // The report numbers come from the rows (A5): median, p95 and n per stage, grouped by the given keys.
