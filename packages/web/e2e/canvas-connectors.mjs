@@ -135,7 +135,7 @@ const label = page.locator(`[data-connection="${dragged.id}"] [data-line-label]`
 await label.waitFor({ timeout: 5000 });
 check('the middle dot opens a label editor', await label.evaluate(node => node === document.activeElement));
 await page.keyboard.type('normalise');
-await page.keyboard.press('Enter');
+await page.keyboard.press('Escape'); // Enter breaks the line; Esc commits
 await settle();
 check('the label is saved on the connector', (await board()).links.find(link => link.id === dragged.id).label === 'normalise');
 await page.mouse.click(...Object.values(await onLink(dragged.id, 0.2)));
@@ -143,11 +143,12 @@ await settle();
 const noDot = await page.locator(`[data-connection="${dragged.id}"] [data-label-handle]`).count() === 0;
 await label.click();
 check('on a selected connector, clicking its label edits it (the dot is gone once labelled)', noDot && await label.evaluate(node => node === document.activeElement));
-await page.keyboard.press('Enter');
+await page.keyboard.press('Escape');
 await settle();
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/connectors.png` });
 
 // the Elbow arrow tool, and switching a drawn arrow
+await page.keyboard.press('Escape'); // deselect: the connector's style panel would cover the drag start
 await page.getByRole('button', { name: 'Elbow arrow' }).first().click();
 const canvas = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
 const s = { x: canvas.x + 120, y: canvas.y + canvas.height - 380 };
