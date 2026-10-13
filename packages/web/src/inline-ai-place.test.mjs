@@ -61,3 +61,12 @@ test('A7: a lone connector is placed clear of its path and of both ends', () => 
   const box = { x: spot.x, y: spot.y, ...size };
   for (const obstacle of [a, b, ...apply.obstaclesOf({ paths: [path] })]) assert.equal(hit(box, obstacle), false);
 });
+
+test('A7: the edit ghost diff keeps same words and marks removed and added ones', () => {
+  assert.deepEqual(apply.wordDiff('bottom row extra words', 'bottom row extra WORDS'), [{ kind: 'same', t: 'bottom row extra ' }, { kind: 'del', t: 'words' }, { kind: 'add', t: 'WORDS' }]);
+  assert.deepEqual(apply.wordDiff('one two', 'one two three'), [{ kind: 'same', t: 'one two ' }, { kind: 'add', t: 'three' }]);
+  const parts = apply.wordDiff('s =+ x and retrun s', 's += x and return s');
+  assert.equal(parts.filter(part => part.kind === 'del').map(part => part.t.trim()).join(','), '=+,retrun');
+  assert.equal(parts.filter(part => part.kind === 'add').map(part => part.t.trim()).join(','), '+=,return');
+  assert.equal(parts.filter(part => part.kind !== 'del').map(part => part.t).join(''), 's += x and return s', 'same and added words make the new text');
+});

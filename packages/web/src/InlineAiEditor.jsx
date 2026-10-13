@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
-import { cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit } from './inline-ai-apply.js';
+import { cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
 
@@ -287,6 +287,31 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
               </div>
             </>
           );
+        })()}
+        {/* A7: an edit, pale, in place over each object it changes - removed words struck through, added words marked, a
+            style change shown on the new text. While it streams, the new words so far. The object is untouched until Accept. */}
+        {(() => {
+          const stop = event => event.stopPropagation();
+          const place = id => { const world = canvas.boxOf(id); return world && { left: world.x * z + view.x, top: world.y * z + view.y, minWidth: world.w * z, minHeight: world.h * z }; };
+          const frame = 'pointer-events-auto absolute rounded-md border border-dashed border-[#2383e2] bg-white/95 px-1 text-ink opacity-60 dark:bg-[#202020]/95';
+          if (status === 'streaming' && state.stream?.edits) return Object.entries(state.stream.edits).map(([id, text]) => {
+            const at = place(id);
+            return at && <div key={id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={id} onPointerDown={stop} className={frame} style={{ ...at, fontSize: 14 * z }}>{text}</div>;
+          });
+          if (preview?.kind !== 'edit' || status === 'streaming') return null;
+          return (preview.changes || []).map(change => {
+            const at = place(change.id);
+            if (!at) return null;
+            const styled = Object.fromEntries((change.style || []).map(([key, , after]) => [key, after]));
+            const look = { fontSize: (styled.fontSize || 14) * z, fontWeight: styled.bold ? 700 : undefined, fontStyle: styled.italic ? 'italic' : undefined, textDecoration: styled.underline ? 'underline' : undefined, color: styled.textColor || undefined };
+            return (
+              <div key={change.id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={change.id} onPointerDown={stop} className={frame} style={{ ...at, ...look }}>
+                {wordDiff(change.before, change.after).map((part, index) => (part.kind === 'same' ? <span key={index}>{part.t}</span>
+                  : part.kind === 'del' ? <del key={index} data-ghost-del className="text-[#b42318]">{part.t}</del>
+                    : <ins key={index} data-ghost-add className="bg-[#dcfce7] text-[#067647] no-underline">{part.t}</ins>))}
+              </div>
+            );
+          });
         })()}
       </div>
       <div ref={box} role="dialog" aria-label="Edit or explain with AI" aria-modal="false" data-inline-ai data-keep-focus data-status={status}

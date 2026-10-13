@@ -1018,6 +1018,36 @@ await run('A7 note ghost: if something takes its spot before Accept, it is place
   check('A7: the second Accept puts the note at the new ghost', near(landed, second), JSON.stringify({ ghost: second, note: landed }));
   await context.close();
 });
+
+// ---- A7 ghost preview, edits (owner 2026-10-13). Failed before the edit ghost ----
+await run('A7 edit ghost: the new words pale in place, removed struck through, added marked; topmost; Reject removes it', async () => {
+  const { page, context, saved } = await open('a7-edit');
+  await openWords(page, 'label23');
+  await page.keyboard.type(' extra words');
+  for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowLeft');
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  await submitPrompt(page, 'Rewrite this');
+  await waitStatus(page, ['preview']);
+  const ghost = page.locator('[data-ghost-kind="edit"][data-ghost-for="label23"]');
+  await ghost.waitFor({ timeout: 5000 });
+  check('A7: removed words struck through, added words marked', (await ghost.locator('[data-ghost-del]').allInnerTexts()).join('') === 'words' && (await ghost.locator('[data-ghost-add]').allInnerTexts()).join('') === 'WORDS');
+  const box = await ghost.boundingBox(), own = await page.locator('[data-item-id="label23"]').boundingBox();
+  check('A7: the edit ghost sits on the object it changes', Math.abs(box.x - own.x) <= 3 && Math.abs(box.y - own.y) <= 3, JSON.stringify({ box, own }));
+  check('A7: the edit ghost is topmost and pale', await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-inline-ghost]'), [box.x + box.width / 2, box.y + box.height / 2]) && Number(await ghost.evaluate(node => getComputedStyle(node).opacity)) < 1);
+  check('A7: the object is untouched until Accept', (await saved()).items.find(item => item.id === 'label23').text === 'bottom row extra words');
+  await page.locator('[data-inline-reject]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  check('A7: Reject removes the edit ghost', (await page.locator('[data-inline-ghost]').count()) === 0);
+  // A whole-text edit: the added words marked.
+  await editMember(page, 'para2');
+  await submitPrompt(page, 'Rewrite this');
+  await waitStatus(page, ['preview']);
+  const whole = page.locator('[data-ghost-kind="edit"][data-ghost-for="para2"]');
+  await whole.waitFor({ timeout: 5000 });
+  check('A7: a whole-text edit marks what it adds', (await whole.locator('[data-ghost-add]').allInnerTexts()).join('').trim() === '(edited)' && (await whole.locator('[data-ghost-del]').count()) === 0);
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);

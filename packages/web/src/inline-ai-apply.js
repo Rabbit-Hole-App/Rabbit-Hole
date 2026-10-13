@@ -106,6 +106,28 @@ export function validateEdit(edit, frozen, board) {
   return { ok: !errors.filter(Boolean).length && list.length > 0, errors: errors.filter(Boolean), changes: list, limitation };
 }
 
+// An edit's words as a diff (A7 ghost): runs of same, removed and added words, by the longest common run of words
+// (spaces kept with the word before them). ponytail: O(n*m) over words, fine for one object's text (an edit is at most
+// one selection); a long document diff would want Myers.
+export function wordDiff(before, after) {
+  const words = text => String(text).match(/\S+\s*|\s+/g) || [];
+  const a = words(before), b = words(after);
+  const key = word => word.trimEnd();
+  const n = a.length, m = b.length, keep = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i -= 1) for (let j = m - 1; j >= 0; j -= 1) keep[i][j] = key(a[i]) === key(b[j]) ? keep[i + 1][j + 1] + 1 : Math.max(keep[i + 1][j], keep[i][j + 1]);
+  const out = [];
+  const push = (kind, t) => { const last = out[out.length - 1]; if (last?.kind === kind) last.t += t; else out.push({ kind, t }); };
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (key(a[i]) === key(b[j])) { push('same', b[j]); i += 1; j += 1; }
+    else if (keep[i + 1][j] >= keep[i][j + 1]) { push('del', a[i]); i += 1; }
+    else { push('add', b[j]); j += 1; }
+  }
+  while (i < n) push('del', a[i++]);
+  while (j < m) push('add', b[j++]);
+  return out;
+}
+
 // What the preview shows for one change: before and after words, and which style keys moved.
 export function describeChange(change) {
   const field = change.field || 'text';
