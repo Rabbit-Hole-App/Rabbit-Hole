@@ -46,7 +46,7 @@ export function setup(t, { visibility = 'public', vars = {} } = {}) {
   const mediaWrites = [];
   const LEARN_MEDIA = { put: async key => { mediaWrites.push(key); }, get: async () => null, list: async () => ({ objects: [], truncated: false }) };
   const DB = liveDb(), RUNS = liveRuns();
-  const env = { LEARN_DB: recorded, CONTROL_PLANE, LEARN_MEDIA, REPOSITORY_SNAPSHOTS, DB, RUNS, ANTHROPIC_API_KEY: 'test-key', ...vars };
+  const env = { SMALL_ENV: 'test', LEARN_DB: recorded, CONTROL_PLANE, LEARN_MEDIA, REPOSITORY_SNAPSHOTS, DB, RUNS, ANTHROPIC_API_KEY: 'test-key', ...vars };
   t.after(() => assert.deepEqual([DB.calls, RUNS.calls, liveWrites], [[], [], []], 'touched production storage'));
   // The repository behind the project, owned by ana (seeded: importing needs the indexer).
   sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(7,'ana-ws','repo-0a1b2c3d-nanogpt','ana@test','karpathy/nanoGPT','master','${SHA}','ready');

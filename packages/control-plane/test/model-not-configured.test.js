@@ -19,7 +19,7 @@ const outbound = t => {
 
 test('the model chokepoint answers for Anthropic without asking it when there is no key', async t => {
   const calls = outbound(t);
-  const reply = await anthropic({}, { messages: [{ role: 'user', content: 'Why does this exist?' }], max_tokens: 10 });
+  const reply = await anthropic({ SMALL_ENV: 'test' }, { messages: [{ role: 'user', content: 'Why does this exist?' }], max_tokens: 10 });
   assert.equal(reply.status, 503);
   assert.equal(await notConfiguredMessage(reply), MODEL_NOT_CONFIGURED);
   assert.equal((await modelFailure(reply, 'Learn answer unavailable')).message, MODEL_NOT_CONFIGURED, 'the sentence alone, no HTTP code');
@@ -29,7 +29,7 @@ test('the model chokepoint answers for Anthropic without asking it when there is
 
 test('a real upstream failure keeps its code: only the missing key reads as not configured', async t => {
   outbound(t);
-  const reply = await anthropic({ ANTHROPIC_API_KEY: 'k' }, { messages: [{ role: 'user', content: 'x' }], max_tokens: 10 });
+  const reply = await anthropic({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k' }, { messages: [{ role: 'user', content: 'x' }], max_tokens: 10 });
   assert.equal(reply.status, 401, 'with a key the request is made (here refused by the stub)');
   assert.equal(await notConfiguredMessage(reply), null);
   assert.match((await modelFailure(reply, 'Learn answer unavailable')).message, /model HTTP 401/);

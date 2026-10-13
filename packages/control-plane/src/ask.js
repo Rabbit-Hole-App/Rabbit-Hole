@@ -1,5 +1,5 @@
 import { subscriptionTransport } from './subscription-transport.js';
-import { platformCaps, platformSpendStatus, spendMessage } from './learn-spend.js';
+import { platformCaps, spendEnforced, spendTransport, spendMessage } from './learn-spend.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { base64 } from './token.js';
@@ -196,6 +196,7 @@ function sseFromMessage(msg) {
   const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
   const enc = new TextEncoder();
   const sse = [
+    `event: message_start\ndata: ${JSON.stringify({ type: 'message_start', message: { model: msg.model, usage: msg.usage || {} } })}\n\n`,
     `event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } })}\n\n`,
     `event: message_delta\ndata: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: msg.stop_reason || 'end_turn' }, usage: msg.usage || {} })}\n\n`,
     `event: message_stop\ndata: ${JSON.stringify({ type: 'message_stop' })}\n\n`,
@@ -254,6 +255,7 @@ export function fromOpenAI(j) {
     content.push({ type: 'tool_use', id: tc.id || `t_${crypto.randomUUID().slice(0, 8)}`, name: tc.function?.name, input });
   }
   return {
+    model: j.model,
     content,
     stop_reason: m.tool_calls?.length ? 'tool_use' : ch.finish_reason === 'length' ? 'max_tokens' : 'end_turn',
     usage: j.usage || {},
@@ -267,11 +269,11 @@ export async function planModel(env, body, model, org) {
   if (!planUsesOpenAI(env)) return anthropic(env, body, model, org);
   const { stream, ...rest } = body;
   const chosen = env.LEARN_PLAN_MODEL;
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await spendTransport(env, body, chosen, org, () => fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OPENAI_API_KEY}` },
     body: JSON.stringify(toOpenAI(rest, chosen)),
-  });
+  }), { provider: 'openai' });
   if (!response.ok) {
     console.warn('openai API error', response.status, (await response.clone().text().catch(() => '')).slice(0, 300),
       JSON.stringify({ model: chosen, tools: (body.tools || []).map(t => t.name) }));
@@ -285,21 +287,26 @@ export async function planModel(env, body, model, org) {
 // local LLM behind a tunnel, vLLM, a gateway). Non-Anthropic providers run
 // non-streaming and a stream:true request gets the answer replayed as SSE.
 export async function anthropic(env, body, model, org) {
-  // Every real dev/production provider path fails closed before transport while
-  // the platform dollar cap is unset. Tutor routes add the usage ledger for
-  // configured caps; this guard covers the other paid entry points as well.
-  if ((env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'production') && !platformCaps(env).usd) {
+  // Only explicit test environments bypass spend enforcement. App Workers may omit SMALL_ENV.
+  // Fail before selecting a transport while the platform daily dollar cap is unset.
+  if (spendEnforced(env) && !platformCaps(env).usd) {
     return Response.json({ error: spendMessage('cap_unset'), code: 'spend_limited', reason: 'cap_unset' }, { status: 429 });
-  }
-  if (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'production') {
-    const spend = await platformSpendStatus(env.LEARN_DB, env);
-    if (spend.refused) return Response.json({ error: spendMessage(spend.reason), code: 'spend_limited', reason: spend.reason }, { status: 429 });
   }
   if (env.SUBSCRIPTION_ONLY === 'true') {
     const response = await subscriptionTransport(env, body, model || MODEL);
     return body.stream ? sseFromMessage(await response.json()) : response;
   }
   const ai = await aiSettings(env, org);
+  // Unknown provider pricing fails closed; do not switch providers to manufacture a price.
+  const provider = ai?.provider === 'bedrock' ? 'bedrock' : ai?.provider === 'openai'
+    ? (ai.openai_base_url?.replace(/\/+$/, '') === 'https://api.openai.com/v1' ? 'openai' : 'unpriced') : 'anthropic';
+  const pricedModel = ai?.provider === 'bedrock' || ai?.provider === 'openai' ? ai.model : model || ai?.model || MODEL;
+  if (!ai?.provider && !env.ANTHROPIC_API_KEY) return notConfiguredReply();
+  const boundedBody = model || ai?.model ? body : { model: MODEL, fallbacks: 'default', ...body };
+  return spendTransport(env, boundedBody, pricedModel, org, callEnv => anthropicTransport(callEnv, body, model, org, ai), { provider });
+}
+
+async function anthropicTransport(env, body, model, org, ai) {
   if (ai?.provider === 'bedrock' && ai.bedrock_role_arn && ai.model) {
     const { assumeRole, bedrockInvoke } = await import('./aws.js');
     const creds = await assumeRole(env, ai.bedrock_role_arn, `small-ai-${org}`, org);

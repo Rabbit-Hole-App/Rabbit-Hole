@@ -1,3 +1,5 @@
+import { paidSubmissionRefusal } from './learn-paid-transport.js';
+
 // Voice Mode's speech-to-text token. See docs/features/voice-tutor-mvp.md §5.
 //
 // The browser streams the mic straight to ElevenLabs Scribe; this mints the
@@ -15,6 +17,7 @@ export async function scribeToken(env, deps = {}) {
     return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
   };
   if (!env.ELEVENLABS_API_KEY) return reply({ error: 'Voice input is not configured on this environment.' }, 503);
+  const refused = await paidSubmissionRefusal(env); if (refused) return refused;
   const unavailable = { error: 'Voice input is unavailable right now.' };
   let upstream;
   try {

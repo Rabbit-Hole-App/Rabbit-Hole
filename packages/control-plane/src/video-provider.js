@@ -1,3 +1,5 @@
+import { requirePaidSubmission } from './learn-paid-transport.js';
+
 // Provider-neutral asynchronous contract: submit(input) -> durable ticket;
 // poll(ticket) -> null while pending, or GeneratedVideo when complete.
 // No model/provider parameters cross the lesson-operation boundary.
@@ -9,6 +11,7 @@ export function videoProvider(env, transport = fetch) {
 
 export class FalSeedanceProvider {
   constructor(env, transport = fetch) {
+    this.env = env;
     this.key = env.FAL_API_KEY;
     this.transport = transport;
     this.model = 'fal-ai/bytedance/seedance/v1/lite';
@@ -19,6 +22,7 @@ export class FalSeedanceProvider {
     if (!this.key) throw new Error('Video generation is not configured');
     const parsed = new URL(url);
     if (parsed.origin !== 'https://queue.fal.run') throw new Error('Invalid provider queue URL');
+    if (init.method === 'POST') await requirePaidSubmission(this.env);
     const transport = this.transport; // Worker fetch requires the global receiver, not this adapter.
     const response = await transport(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(20000), headers: { Authorization: `Key ${this.key}`, 'Content-Type': 'application/json' } });
     if (!response.ok) throw new Error(`Video provider HTTP ${response.status}`);

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { voiceSpeech, VOICE_TTS_TIMEOUT_MS } from '../src/learn-voice-tts.js';
 
-const ENV = { FISH_AUDIO_API_KEY: 'fish-test-key' };
+const ENV = { SMALL_ENV: 'test', FISH_AUDIO_API_KEY: 'fish-test-key' };
 function recordFetch(reply) {
   const calls = [];
   const fetch = async (url, options) => { calls.push({ url, options }); return typeof reply === 'function' ? reply() : reply; };

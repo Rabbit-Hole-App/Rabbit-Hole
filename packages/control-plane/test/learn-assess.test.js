@@ -26,7 +26,7 @@ function world(t, envExtra = {}) {
   const { sqlite, LEARN_DB } = learnDb(t);
   sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','owner@test','example/project','main','${'a'.repeat(40)}','ready');
     INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Board')`);
-  const env = { LEARN_DB, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: { 'demo-app': { hosting: null, kind: 'server' } } }), ANTHROPIC_API_KEY: 'k', ...envExtra };
+  const env = { SMALL_ENV: 'test', LEARN_DB, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: { 'demo-app': { hosting: null, kind: 'server' } } }), ANTHROPIC_API_KEY: 'k', ...envExtra };
   const post = body => assessAnswer(new Request('https://dev.test/api/learn/assess', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env);
   const rows = () => ['threads', 'messages', 'learn_grades'].map(table => sqlite.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n);
   return { env, post, rows };

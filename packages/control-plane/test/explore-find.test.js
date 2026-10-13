@@ -25,7 +25,7 @@ function setup(t, vars = { ANTHROPIC_API_KEY: 'test-key' }) {
   const callModel = async (env, body, model) => { calls.push({ body, model }); return Response.json({ content: [{ type: 'text', text: JSON.stringify(reply) }] }); };
   let clock = 1_000_000;
   const cache = new Map();
-  const env = { LEARN_DB, ...vars };
+  const env = { SMALL_ENV: 'test', LEARN_DB, ...vars };
   const find = (q, { as = ANA, method = 'POST', model = callModel } = {}) => exploreFindFetch(new Request('https://app.test/api/learn/boards/published/find', { method, headers: { 'Content-Type': 'application/json' }, ...(method === 'POST' ? { body: JSON.stringify({ q }) } : {}) }), env,
     { identity: async () => as || new Response('sign in', { status: 401 }), callModel: model, cache, now: () => clock });
   return { sqlite, env, calls, find, cache, setReply: r => { reply = r; }, tick: ms => { clock += ms; } };

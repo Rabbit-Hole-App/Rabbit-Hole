@@ -24,7 +24,7 @@ import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
-import { admitSpend, operationId, settleSpend, spendMessage } from './learn-spend.js';
+import { spendTransport } from './learn-spend.js';
 import { journeyCallModel } from './learn-journey-planners.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -34,31 +34,11 @@ const CONTEXT_LIMIT = 60000; // characters of planner context (about 12k tokens,
 
 const text = (value, max) => typeof value === 'string' && value.length <= max;
 
-// One operation admission covers a Tutor request; retries/escalations get a fresh operation after settlement.
+// Each request/retry reserves independently. The private transport token prevents double admission.
 function spendCallModel(env, access, category, callModel) {
-  if (env.SMALL_ENV === 'test' || env.ANTHROPIC_API_KEY === 'test-key') return callModel;
-  let opId = null, admitted = false;
-  return async (callEnv, body, model, org, ...rest) => {
-    if (!admitted) {
-      opId = operationId(category);
-      const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: access.user_id || access.email, org: access.org, category });
-      if (gate.refused) return Response.json({ error: spendMessage(gate.reason), code: 'spend_limited', reason: gate.reason }, { status: 429 });
-      admitted = true;
-    }
-    try {
-      const response = await callModel(callEnv, body, model, org, ...rest);
-      const result = response.ok ? await response.clone().json().catch(() => null) : null;
-      const usage = result?.usage;
-      const cost = usage && result?.model ? costUsd({ model: result.model, ...usage }) : null;
-      await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, costUsd: cost, provider: env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : 'anthropic', model: result?.model || model, error: response.ok ? null : `http_${response.status}` });
-      admitted = false;
-      return response;
-    } catch (error) {
-      await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, error: error?.message || 'model_error' });
-      admitted = false;
-      throw error;
-    }
-  };
+  return (callEnv, body, model, org, ...rest) => spendTransport(callEnv, body, model, org || access.org,
+    admittedEnv => callModel(admittedEnv, body, model, org, ...rest),
+    { userId: access.user_id || access.email, category });
 }
 export function validateEvaluateBody(body) {
   const { message, spec } = body || {};

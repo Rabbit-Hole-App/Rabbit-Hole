@@ -30,7 +30,7 @@ export function world(t, { envExtra = {} } = {}) {
   };
   t.after(() => { globalThis.fetch = globalThis.__realFetch; });
   const env = {
-    LEARN_DB,
+    SMALL_ENV: 'test', LEARN_DB,
     VERCEL_TYPESAFE_API_KEY: 'vck_test',
     TYPESAFE_API_KEY: 'ts_test',
     LEARN_BENCH_SECRET: 'bench-secret-0123',

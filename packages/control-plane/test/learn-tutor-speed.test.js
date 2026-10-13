@@ -64,10 +64,10 @@ test('5B: ask.js anthropic() lifts betas into the anthropic-beta header and keep
   const sent = [], original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async (url, options) => { sent.push({ headers: options.headers, body: JSON.parse(options.body) }); return reply(); };
-  await anthropic({ ANTHROPIC_API_KEY: 'k' }, plannerRequest(context('Ada'), 2000, [], { speed: 'fast' }), 'claude-opus-5-5', null);
+  await anthropic({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k' }, plannerRequest(context('Ada'), 2000, [], { speed: 'fast' }), 'claude-opus-5-5', null);
   assert.equal(sent[0].headers['anthropic-beta'], 'fast-mode-2026-02-01');
   assert.deepEqual([sent[0].body.speed, 'betas' in sent[0].body, sent[0].body.model], ['fast', false, 'claude-opus-5-5']);
-  await anthropic({ ANTHROPIC_API_KEY: 'k' }, plannerRequest(context('Ada'), 2000), 'claude-opus-5-5', null);
+  await anthropic({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k' }, plannerRequest(context('Ada'), 2000), 'claude-opus-5-5', null);
   assert.equal('anthropic-beta' in sent[1].headers, false, 'no beta header without fast mode (Baseline A)');
 });
 

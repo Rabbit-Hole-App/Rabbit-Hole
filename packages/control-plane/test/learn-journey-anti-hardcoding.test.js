@@ -38,7 +38,7 @@ function serve(t, D) {
     },
   };
   sqlite.prepare('INSERT INTO canvases(org, name, owner_email, title) VALUES (?, ?, ?, ?)').run(WHO.org, APP, WHO.email, 'A canvas');
-  const env = { LEARN_DB, CONTROL_PLANE, TYPESAFE_API_KEY: 'jev' };
+  const env = { SMALL_ENV: 'test', LEARN_DB, CONTROL_PLANE, TYPESAFE_API_KEY: 'jev' };
   // The planners answer with this domain, as the model would; any other role is a failure of the test.
   const calls = [], REPLIES = { journey_diagnostic: D.diagnostic, journey_path: D.path, journey_section: D.plan };
   const callModel = async (_e, body) => {

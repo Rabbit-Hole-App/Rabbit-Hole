@@ -1,3 +1,5 @@
+import { fishSpendTransport, isPaidSpendReply } from './learn-paid-transport.js';
+
 // POST /api/learn/voice/tts (docs/features/voice-tutor-mvp.md §5): the Tutor's spoken words -> Fish
 // audio, streamed back as audio/mpeg. The caller (voiceRoute) has already run the method, origin,
 // auth, subscription and paid gates and parsed the body. Same pinned narrator as /api/learn/tts.
@@ -17,14 +19,15 @@ export async function voiceSpeech(env, body, deps = {}) {
   try {
     // ponytail: the timeout also covers streaming the body, so audio still generating after 20 s is
     // cut short; fine for the client's 600-character cap. Time only the headers if that bites.
-    const upstream = await (deps.fetch || fetch)('https://api.fish.audio/v1/tts', {
+    const upstream = await fishSpendTransport(env, text, () => (deps.fetch || fetch)('https://api.fish.audio/v1/tts', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
       // Calm and steady (owner, 2026-10-01): a little slower, and lower sampling so the narrator does not drift between replies.
       body: JSON.stringify({ text, reference_id: NARRATOR, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } }),
       signal: AbortSignal.timeout(VOICE_TTS_TIMEOUT_MS),
-    });
+    }));
     status = upstream.status;
+    if (isPaidSpendReply(upstream)) return upstream;
     if (!upstream.ok) return unavailable();
     return new Response(upstream.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
   } catch (error) {

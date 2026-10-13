@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { voiceRoute } from '../src/learn-voice-routes.js';
 
 const KEY = 'xi-secret-key-never-shown';
-const env = { ELEVENLABS_API_KEY: KEY, FISH_AUDIO_API_KEY: 'fish-secret-key-never-shown' };
+const env = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY, FISH_AUDIO_API_KEY: 'fish-secret-key-never-shown' };
 const allow = async (req, env, app) => ({ email: 'learner@test', org: 'team', app });
 const request = (path, { method = 'POST', origin, body = { app: 'canvas-0a1b2c3d', confirmed: true } } = {}) => new Request(`https://dev.test${path}`, {
   method, headers: { 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) },

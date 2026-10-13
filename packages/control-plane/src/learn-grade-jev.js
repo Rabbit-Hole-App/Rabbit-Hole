@@ -1,3 +1,5 @@
+import { admitSpend, settleSpend, operationId, spendEnforced, platformCaps } from './learn-spend-ledger.js';
+
 // Jev side-by-side grading for Learn challenges (docs/features/jev-grading.md).
 // The grader protocol - everything that turns an answer into Jev
 // probabilities - lives here, pinned by GRADER_PROTOCOL_VERSION and a
@@ -133,7 +135,19 @@ export async function verdictLogicFingerprint() {
 // time, retry wait included; `retries` (0 or 1) counts that 429/529 retry.
 export async function askJev(env, request, { transport = 'gateway', timeoutMs = 3000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
   const started = Date.now();
+  const enforced = spendEnforced(env);
+  // https://docs.typesafe.ai/models: pinned Jev 1.13, 64K total input, .042/M, free output.
+  // Gateway passes provider list prices through without markup:
+  // https://vercel.com/docs/ai-gateway/pricing (no optional add-ons are requested here).
+  const reservedUsd = Math.ceil(65536 * 0.042) / 1e6;
+  if (enforced && !platformCaps(env).usd) throw new JevError('cap_unset', 'Daily model spend cap is not configured.');
+  if (enforced && request?.model !== JEV_TRANSPORTS[transport]?.model) throw new JevError('spend_bound_unavailable', 'Jev request has no verified spend bound.');
   for (let attempt = 0; ; attempt += 1) {
+    const opId = enforced ? operationId('jev') : null;
+    if (enforced) {
+      const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'jev', reservedUsd });
+      if (gate.refused) throw new JevError(gate.reason, 'Jev refused by the daily spend guard.');
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let response;
@@ -148,10 +162,21 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
       });
       body = await response.json().catch(() => null);
     } catch (error) {
+      if (enforced) await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: `jev:${transport}`, model: request.model, error: controller.signal.aborted ? 'timeout' : 'network' });
       if (controller.signal.aborted) throw new JevError('timeout', `Jev timed out after ${timeoutMs} ms`);
       throw new JevError('network', `Jev unreachable: ${error.message}`);
     } finally {
       clearTimeout(timer);
+    }
+    if (enforced) {
+      const tokens = body?.usage?.input_tokens;
+      const reported = body?.provider_metadata?.gateway?.cost;
+      const directCost = body?.model === 'jev-1.13.0' && Number.isSafeInteger(tokens) && tokens >= 0 ? tokens * 0.042 / 1e6 : null;
+      const gatewayCost = (typeof reported === 'number' || (typeof reported === 'string' && reported.trim())) && Number.isFinite(Number(reported)) && Number(reported) >= 0 ? Number(reported) : null;
+      // Unpriced/absent usage and unsuccessful attempts retain the admitted liability.
+      await settleSpend(env.LEARN_DB, opId, { calls: 1, status: response.ok ? 'settled' : 'failed',
+        costUsd: response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null,
+        provider: `jev:${transport}`, model: body?.model || request.model, error: response.ok ? null : `http_${response.status}` });
     }
     if ((response.status === 429 || response.status === 529) && attempt === 0) {
       const seconds = Number(response.headers.get('retry-after'));

@@ -25,7 +25,7 @@ test('board accepts generic video and prohibits multiple clips; agent prompt has
 });
 test('adapter translates duration and references, validates provider URLs, and polls without submitting again', async () => {
   const calls = [];
-  const adapter = new FalSeedanceProvider({ FAL_API_KEY: 'test' }, async function (url, init) {
+  const adapter = new FalSeedanceProvider({ SMALL_ENV: 'test', FAL_API_KEY: 'test' }, async function (url, init) {
     assert.equal(this, undefined, 'Worker fetch must not receive the adapter as this');
     assert.equal(init.redirect, 'manual', 'Worker fetch does not implement redirect:error');
     calls.push([url, init]);
@@ -43,7 +43,7 @@ function fixture() {
   const data = new Map(); let lock = Promise.resolve();
   const state = { id: 'actor-test', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {} }, blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
   const assets = new Map();
-  const env = { LEARN_VIDEO_PROVIDER: 'fal-seedance-lite', FAL_API_KEY: 'test', LEARN_MEDIA: { put: async (k, v) => assets.set(k, v), get: async k => ({ body: assets.get(k), size: assets.get(k).byteLength }) }, RUNS: liveRuns() };
+  const env = { SMALL_ENV: 'test', LEARN_VIDEO_PROVIDER: 'fal-seedance-lite', FAL_API_KEY: 'test', LEARN_MEDIA: { put: async (k, v) => assets.set(k, v), get: async k => ({ body: assets.get(k), size: assets.get(k).byteLength }) }, RUNS: liveRuns() };
   return { state, env, assets, data, actor: new LearnVideos(state, env) };
 }
 const request = (extra = {}) => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: op, lessonId: 'lesson', page: 'freeform', confirmed: true, ...extra }) });

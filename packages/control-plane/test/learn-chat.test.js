@@ -135,7 +135,7 @@ function fixture(t) {
   const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
   for (const table of ['threads', 'messages', 'proposals']) db.exec(schema.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\([^]*?\\n\\);`))[0]);
   return {
-    ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', answers: [],
+    SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', answers: [],
     apps: { counter: { name: 'counter', canView: true, canEdit: false }, other: { name: 'other', canView: true, canEdit: false } },
     DB: { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
       first: async () => db.prepare(sql).get(...params) || null,

@@ -123,7 +123,7 @@ function withMockModel(fn) {
   return fn().finally(() => { globalThis.fetch = real; });
 }
 
-const env = (state) => ({ DB: fakeDb(state), ANTHROPIC_API_KEY: 'k' });
+const env = (state) => ({ SMALL_ENV: 'test', DB: fakeDb(state), ANTHROPIC_API_KEY: 'k' });
 
 test('run_failing and run_slow fire once with correct evidence; refire bumps last_seen only', async () => {
   const state = baseState();

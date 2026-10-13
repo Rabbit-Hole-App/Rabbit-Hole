@@ -58,7 +58,7 @@ const pinned = model => ({ host: 'api.anthropic.com', model, fallbacks: undefine
 const openai = model => ({ host: 'api.openai.com', model, fallbacks: undefined, beta: null });
 
 test('chat and grading on Auto run claude-opus-5 with the server-side fallback, with or without an OpenAI key', async t => {
-  for (const env of [{ ANTHROPIC_API_KEY: 'a' }, { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
+  for (const env of [{ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
     const calls = recordFetch(t), DB = recordingDb();
     await chat({ ...env, DB }, null);
     assert.deepEqual(shape(calls), [auto]);
@@ -69,7 +69,7 @@ test('chat and grading on Auto run claude-opus-5 with the server-side fallback, 
   // /api/learn/assess, which has no model key.
   const grade = readFileSync(new URL('../../web/src/learn-grade.js', import.meta.url), 'utf8');
   assert.match(grade, /fetch\('\/api\/learn\/assess'[^]*body: JSON\.stringify\(\{ app, \.\.\.assessBody\(block, answer, sketch\) \}\)/);
-  for (const env of [{ ANTHROPIC_API_KEY: 'a' }, { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
+  for (const env of [{ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
     const calls = recordFetch(t), DB = recordingDb();
     const graded = await assessAnswer(new Request('https://dev.test/api/learn/assess', { method: 'POST', body: JSON.stringify({ app: 'demo-app', mode: 'challenge', prompt: 'Why?', expects: [], answer: 'Because.' }) }),
       { ...env, DB, CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo-app' }) } });
@@ -82,23 +82,23 @@ test('chat and grading on Auto run claude-opus-5 with the server-side fallback, 
 
 test('chat with an explicit pick sends that id and no fallback', async t => {
   const calls = recordFetch(t);
-  await chat({ ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o' }, 'claude-sonnet-5');
+  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o' }, 'claude-sonnet-5');
   assert.deepEqual(shape(calls), [pinned('claude-sonnet-5')]);
 });
 
 test('cards and the whiteboard run claude-opus-5 without fallback when no OpenAI key is set', async t => {
   let calls = recordFetch(t);
-  await artifact({ ANTHROPIC_API_KEY: 'a' });
+  await artifact({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
   assert.deepEqual(shape(calls), [pinned('claude-opus-5')]);
   assert.equal(calls[0].maxTokens, 4000);
   calls = recordFetch(t);
-  await board({ ANTHROPIC_API_KEY: 'a' });
+  await board({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
   assert.deepEqual(shape(calls), [pinned('claude-opus-5'), pinned('claude-opus-5'), pinned('claude-opus-5')]);
   assert.deepEqual(calls.map(c => c.maxTokens), [1200, 3000, 1800]);
 });
 
 test('an OpenAI key with LEARN_PLAN_MODEL runs cards and the whiteboard on that OpenAI model', async t => {
-  const env = { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' };
+  const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' };
   let calls = recordFetch(t);
   await artifact(env);
   assert.deepEqual(shape(calls), [openai('gpt-4.1-mini')]);
@@ -110,7 +110,7 @@ test('an OpenAI key with LEARN_PLAN_MODEL runs cards and the whiteboard on that 
 // Owner decision 4: OpenAI only on an explicit LEARN_PLAN_MODEL. The key alone
 // also gates image generation and transcription, so it no longer flips these.
 test('an OpenAI key alone leaves cards and the whiteboard on claude-opus-5 (models-2)', async t => {
-  const env = { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o' };
+  const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o' };
   let calls = recordFetch(t);
   await artifact(env);
   assert.deepEqual(shape(calls), [pinned('claude-opus-5')]);
@@ -122,7 +122,7 @@ test('an OpenAI key alone leaves cards and the whiteboard on claude-opus-5 (mode
 // coaching.md: SUBSCRIPTION_ONLY routes canvas generation and reviews only
 // through the subscription bridge, never to a paid API.
 test('SUBSCRIPTION_ONLY sends cards and the whiteboard to the subscription bridge even with OpenAI configured (models-3)', async t => {
-  const env = { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 't', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' };
+  const env = { SMALL_ENV: 'test', SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 't', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' };
   let calls = recordFetch(t);
   await planModel(env, { max_tokens: 10, messages: [] }, 'claude-opus-5', null);
   assert.deepEqual(calls.map(c => c.host), ['bridge.test']);
@@ -134,15 +134,15 @@ test('SUBSCRIPTION_ONLY sends cards and the whiteboard to the subscription bridg
 
 test('the whiteboard still honours a crafted model key when no OpenAI key is set (models-7, kept)', async t => {
   const calls = recordFetch(t);
-  await board({ ANTHROPIC_API_KEY: 'a' }, { model: 'haiku-4.5' });
+  await board({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, { model: 'haiku-4.5' });
   assert.deepEqual(shape(calls).map(c => c.model), ['claude-haiku-4-5-20251001', 'claude-haiku-4-5-20251001', 'claude-haiku-4-5-20251001']);
 });
 
 test('no Learn task sets thinking, effort or temperature: the model defaults apply (models-10)', async t => {
   const calls = recordFetch(t);
-  await chat({ ANTHROPIC_API_KEY: 'a' }, null);
-  await artifact({ ANTHROPIC_API_KEY: 'a' });
-  await board({ ANTHROPIC_API_KEY: 'a' });
+  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, null);
+  await artifact({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
+  await board({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
   for (const { body } of calls) for (const key of ['thinking', 'output_config', 'temperature']) assert.equal(key in body, false, key);
 });
 
@@ -219,7 +219,7 @@ test('each Learn model call logs one sanitized learn_model line with the served 
   const logged = captureLog(t), original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async () => Response.json({ model: 'claude-opus-4-8', usage: { iterations: [{ type: 'message' }, { type: 'fallback_message' }] }, content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' });
-  await chat({ ANTHROPIC_API_KEY: 'secret-anthropic-key' }, null);
+  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'secret-anthropic-key' }, null);
   const [line] = logged();
   assert.equal(logged().length, 1);
   assert.deepEqual({ ...line, prompt: typeof line.prompt }, { event: 'learn_model', task: 'chat', provider: 'anthropic', requested: 'auto', source: 'auto', fallback: 'default', served: 'claude-opus-4-8', fellBack: true, prompt: 'string', status: 200, stopReason: 'end_turn' });
@@ -230,10 +230,10 @@ test('each Learn model call logs one sanitized learn_model line with the served 
 test('cards, the whiteboard and a picked chat model log their task, source and provider', async t => {
   const logged = captureLog(t);
   recordFetch(t);
-  await chat({ ANTHROPIC_API_KEY: 'a' }, 'claude-sonnet-5');
-  await artifact({ ANTHROPIC_API_KEY: 'a' });
-  await board({ ANTHROPIC_API_KEY: 'a' });
-  await artifact({ ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'secret-openai-key', LEARN_PLAN_MODEL: 'gpt-4.1-mini' });
+  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, 'claude-sonnet-5');
+  await artifact({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
+  await board({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
+  await artifact({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'secret-openai-key', LEARN_PLAN_MODEL: 'gpt-4.1-mini' });
   const pick = ({ task, provider, requested, source, fallback, fellBack }) => ({ task, provider, requested, source, fallback, fellBack });
   const task = { provider: 'anthropic', requested: 'claude-opus-5', source: 'task', fallback: 'none', fellBack: false };
   assert.deepEqual(logged().map(pick), [

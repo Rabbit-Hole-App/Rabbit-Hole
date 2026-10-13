@@ -19,7 +19,7 @@ test('503 with one line when the key is missing, and no provider call', async ()
 test('the token request: POST to realtime_scribe with xi-api-key and a timeout signal', async () => {
   const calls = [];
   const fetch = async (url, init) => { calls.push({ url, init }); return Response.json({ token: 'sutkn_abc' }); };
-  const { result, lines } = await quiet(() => scribeToken({ ELEVENLABS_API_KEY: KEY }, { fetch }));
+  const { result, lines } = await quiet(() => scribeToken({ SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY }, { fetch }));
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, 'https://api.elevenlabs.io/v1/single-use-token/realtime_scribe');
   assert.equal(calls[0].init.method, 'POST');
@@ -39,7 +39,7 @@ test('the token request: POST to realtime_scribe with xi-api-key and a timeout s
 });
 
 test('provider failures become a 502 that never forwards the provider body or the key', async () => {
-  const env = { ELEVENLABS_API_KEY: KEY };
+  const env = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY };
   const cases = [
     async () => new Response(`invalid api key ${KEY}`, { status: 401 }),
     async () => Response.json({ token: '' }),

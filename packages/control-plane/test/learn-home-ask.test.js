@@ -53,7 +53,7 @@ test('the model sees the question and the library, on the pinned Sonnet 5.5 at e
 });
 
 const request = (message, extra = {}) => new Request('https://digrabbithole.com/api/learn/home-ask', { method: 'POST', headers: { 'content-type': 'application/json', ...extra }, body: JSON.stringify({ message }) });
-const ENV = { ANTHROPIC_API_KEY: 'test', LEARN_DB: null };
+const ENV = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test', LEARN_DB: null };
 const modelReturning = (reply, seen = []) => async (env, body, model) => { seen.push({ body, model }); return Response.json({ content: [{ type: 'text', text: JSON.stringify(reply) }] }); };
 
 test('"What canvases do I have?" and "Where did I learn about softmax?" are answered in place from the library', async () => {

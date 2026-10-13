@@ -77,7 +77,7 @@ const owner = { email: 'owner@example.test', org: 'workspace-a' };
 // A Learn ask on a standalone canvas (the seam) or on an app (production small-cp).
 async function chat(t, body, { canvas = true, env: extra = {} } = {}) {
   const calls = modelBoundary(t);
-  const env = { ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', apps: { counter: { name: 'counter', canView: true, canEdit: false } }, ...extra };
+  const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', apps: { counter: { name: 'counter', canView: true, canEdit: false } }, ...extra };
   let seam = null;
   if (canvas) {
     env.LEARN_DB = d1(database(t, 'repository-schema.sql'));
@@ -95,7 +95,7 @@ async function repositoryChat(t, body, extra = {}) {
   const sqlite = database(t, 'repository-schema.sql');
   sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','owner@test','example/project','main','${sha}','ready'); INSERT INTO repository_versions VALUES(1,'${sha}','snapshot',datetime('now'));`);
   const env = {
-    ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', LEARN_DB: d1(sqlite), ...extra,
+    SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', LEARN_DB: d1(sqlite), ...extra,
     CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: 'owner@test', apps: [] }) },
     REPOSITORY_SNAPSHOTS: { get: async () => ({ json: async () => snapshot }) },
   };
@@ -327,6 +327,6 @@ test('the Papers read footer names an uploaded PDF by its title and keeps arXiv 
   modelBoundary(t);
   const papers = [{ id: 'upload:0123456789ab', title: 'My notes.pdf', pdfUrl: null }, { id: '1706.03762v7', title: 'Attention', pdfUrl: 'https://arxiv.org/pdf/1706.03762v7' }];
   let stored = '';
-  await askStream({ ANTHROPIC_API_KEY: 'test-only' }, 'context', [], 'What does page 2 say?', async full => { stored = full; }, {}, [], null, null, null, 'system', { papers }).text();
+  await askStream({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only' }, 'context', [], 'What does page 2 say?', async full => { stored = full; }, {}, [], null, null, null, 'system', { papers }).text();
   assert.ok(stored.endsWith('\n\nPapers read: My notes.pdf | [Attention (arXiv:1706.03762v7)](https://arxiv.org/pdf/1706.03762v7)'), stored);
 });
