@@ -206,6 +206,10 @@ starts a Rabbit Hole. The hook view gains `refresh_state` / `refresh_reason`; th
 
 - `node --test src/learn-rich-text.test.mjs src/learn-draw-modifiers.test.mjs src/learn-style-panel.test.mjs
   src/learn-next-steps.test.mjs src/next-steps-wiring-ui.test.mjs` (pure logic), plus the full `npm run test:unit`.
+- `node --test src/code-lang.test.mjs`: a Code box's language (default Python, persisted, the undo snapshot keeps the old
+  one) and highlighted runs that spell the text exactly with colors only. The harness's `code colors` step picks
+  JavaScript and checks colored spans, the same box size and lines as Plain text, one undo step, the dark theme's
+  colors, plain while edited and colors again after.
 - `e2e/canvas-editing-stack-check.mjs` on the keyless local stack (`e2e/journey-local-stack.md`; no model key, nothing
   deployed): formatting, shape text and lock made with real input on the real Learn page, then the server copy, a reload
   in a fresh browser (no localStorage), the view-only share link (no editor, no lock badges) and a viewer's fork carrying
