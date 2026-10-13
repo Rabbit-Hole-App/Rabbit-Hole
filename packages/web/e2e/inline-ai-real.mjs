@@ -491,6 +491,70 @@ await step('malicious-words', () => paid(`${RUN}-malicious`, 'note-malicious', 0
   return { ...out, text: text.slice(0, 400), routed: routeAnswers.length, paidShown, node4Kept: after.shapes.some(s => s.id === 'n4'), boardUnchanged: JSON.stringify(after.shapes) === JSON.stringify(before.shapes) };
 }));
 
+// ---- Review fixes (cf9216b2..5b3552a5), real: inline command input and Refine ----
+// A photo search with no words of its own searches the selection's words (Pexels: no model, no charge); a routed photo
+// request does too (one real JEV call); a bare /diagram names the selection as its subject (one real artifact call).
+const imageCard = async () => { const after = await savedBoard(); return after.blocks.filter(block => block.type === 'image').at(-1) || null; };
+const acceptAndSearch = async () => {
+  const before = (await savedBoard()).blocks.length;
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  // The accepted card searches real photos once; wait for its picture rather than a fixed time.
+  const end = Date.now() + 20000;
+  let card = null;
+  while (Date.now() < end) { card = await imageCard(); if (card?.src && (await savedBoard()).blocks.length > before) break; await page.waitForTimeout(500); }
+  return card;
+};
+await step('review-image-bare', () => paid(`${RUN}-review-image-bare`, 'inline-image-bare', 0.01, async () => {
+  fixture = 'review-image-bare';
+  await select(['dash']);
+  const out = await ask('explain', '/image');
+  const prompt = await page.locator('[data-inline-preview]').first().innerText().catch(() => '');
+  const card = out.status === 'preview' ? await acceptAndSearch() : null;
+  await shot('real-review-01-image-bare');
+  return { ...out, previewText: prompt.slice(0, 160), query: card?.prompt ?? null, photo: !!card?.src, photographer: card?.photo?.photographer ?? null };
+}));
+await step('review-image-routed', () => paid(`${RUN}-review-image-routed`, 'inline-image-routed', 0.01, async () => {
+  fixture = 'review-image-routed';
+  routeAnswers.length = 0; lastBody.route = null;
+  await select(['signin']);
+  const out = await ask('explain', 'Show me a real photo of this');
+  const routed = routeAnswers.at(-1);
+  const card = out.status === 'preview' ? await acceptAndSearch() : null;
+  await shot('real-review-02-image-routed');
+  return { ...out, routedPrompt: lastBody.route?.prompt ?? null, route: routed && { choice: routed.choice, confidence: routed.confidence, probability: routed.probability, cost: routed.cost }, query: card?.prompt ?? null, photo: !!card?.src };
+}));
+await step('review-diagram-bare', () => paid(`${RUN}-review-diagram-bare`, 'inline-diagram-bare', 0.62, async () => {
+  fixture = 'review-diagram-bare';
+  lastBody.artifact = null;
+  await select(['check']);
+  const out = await ask('explain', '/diagram');
+  const cardType = await page.locator('[data-inline-preview]').first().getAttribute('data-card-type').catch(() => null);
+  const text = await previewText();
+  await shot('real-review-03-diagram-bare');
+  if (out.status === 'preview') await page.locator('[data-inline-reject]').click();
+  return { ...out, sentArgs: lastBody.artifact?.args ?? null, sentCommand: lastBody.artifact?.command ?? null, cardType, text: text.slice(0, 200) };
+}));
+// Refine (§10): the instruction goes with the previous output and the original request; the candidate is revised.
+await step('review-refine', () => paid(`${RUN}-review-refine`, 'note-refine', 0.4, async () => {
+  fixture = 'review-refine';
+  lastBody.generate = null;
+  await select(['n23']);
+  const first = await ask('explain', 'Explain this node');
+  const before = await previewText();
+  const t0 = Date.now();
+  await page.locator('[data-inline-prompt]').fill('Say it in at most eight words.');
+  await page.locator('[data-inline-prompt]').press('Enter');
+  await page.waitForFunction(() => document.querySelector('[data-inline-ai]')?.dataset.status !== 'preview', null, { timeout: 10000 }).catch(() => {});
+  await page.waitForFunction(() => ['preview', 'error'].includes(document.querySelector('[data-inline-ai]')?.dataset.status), null, { timeout: 120000 });
+  const after = await previewText();
+  const sent = lastBody.generate;
+  await shot('real-review-04-refine');
+  await page.locator('[data-inline-reject]').click();
+  return { first: first.status, refineMs: Date.now() - t0, status: await status().catch(() => null), before: before.slice(0, 300), after: after.slice(0, 300), words: after.split(/\s+/).filter(Boolean).length,
+    sent: sent && { route: sent.route, prompt: sent.prompt, revise: sent.revise && { prompt: sent.revise.prompt, result: String(sent.revise.result).slice(0, 300) } } };
+}));
+
 // ---- Shortcut scope on the real page (free: nothing is generated) ----
 await step('shortcut-scope', async () => {
   await page.keyboard.press('Escape');
