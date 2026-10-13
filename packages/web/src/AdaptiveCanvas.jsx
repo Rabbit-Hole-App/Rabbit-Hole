@@ -3312,7 +3312,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         e => {
           point = store.local(e); keys = { shift: e.shiftKey, alt: e.altKey };
           store.setLiveShape(null);
-          if (Math.hypot(point.x - start.x, point.y - start.y) > 4) { snapshot(); const made = shape(); store.setShapes(previous => [...previous, made]); }
+          // The drawn shape is the selection (Excalidraw does the same), so its style panel stays open on it.
+          if (Math.hypot(point.x - start.x, point.y - start.y) > 4) { snapshot(); const made = shape(); store.setShapes(previous => [...previous, made]); store.select(made.id); }
           if (!lock) setTool('select');
         },
         e => { if (e === 'cancel') { store.setLiveShape(null); return; } keys = { shift: e.shiftKey, alt: e.altKey }; store.setLiveShape(shape()); },

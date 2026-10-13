@@ -132,7 +132,10 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
   return (
     <div role="group" aria-label="Style" data-keep-focus data-style-panel
       onPointerDown={event => { event.stopPropagation(); if (!event.target.closest('input')) event.preventDefault(); }}
-      className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-24'} z-20 flex max-h-full w-[244px] -translate-y-1/2 flex-col overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:static @max-[640px]:col-span-3 @max-[640px]:mt-1 @max-[640px]:max-h-[38vh] @max-[640px]:w-full @max-[640px]:translate-y-0`}>
+      // Centred in the gutter, and never as tall as the floating bottom strip on its side (the minimap and zoom on the
+      // left, the hooks on the right): it scrolls inside instead of running under them.
+      style={{ maxHeight: `calc(100% - 2 * var(${side === 'left' ? '--chrome-left' : '--chrome-right'}, 0px) - 16px)` }}
+      className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-24'} z-20 flex w-[244px] -translate-y-1/2 flex-col overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:static @max-[640px]:col-span-3 @max-[640px]:mt-1 @max-[640px]:max-h-[38vh]! @max-[640px]:w-full @max-[640px]:translate-y-0`}>
       {panel.locked?.length > 0 && (
         <div data-locked-note className="flex items-center justify-between gap-2 px-1 py-1 text-xs text-ink-2">
           <span className="flex items-center gap-1"><Lock size={12} />{panel.locked.length === 1 ? 'Locked' : `${panel.locked.length} locked`}</span>
