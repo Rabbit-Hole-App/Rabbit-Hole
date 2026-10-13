@@ -44,7 +44,13 @@ const intendedSelectionPoint = async (page, kind, box, side) => page.evaluate(({
   const x = side && !item ? box.x + 40 : box.x + box.width / 2;
   const y = item ? box.y + box.height / 2 : box.y + 8;
   const hit = document.elementFromPoint(x, y);
-  return hit && (hit === target || target.contains(hit)) ? { x, y } : null;
+  if (hit && (hit === target || target.contains(hit))) return { x, y };
+  // A view-only board (the hand tool) gives its cards and notes no pointer events and selects by the press point
+  // (AdaptiveCanvas): there the point is the bare canvas surface inside the target's rectangle, under no panel.
+  const r = target.getBoundingClientRect();
+  const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  const covered = '[data-block-id],[data-item-id],[role="dialog"],[data-shared-ask],[data-learn-dock],[data-comments-panel],[data-hooks-slot],button,a,iframe';
+  return inside && hit?.closest('[data-canvas-surface]') && !hit.closest(covered) ? { x, y } : null;
 }, { id: kind.id, item: Boolean(kind.item), box, side });
 `;
 

@@ -37,6 +37,7 @@ test('selected pill adapter uses a measured bare canvas point', () => {
   assert.match(out, /requested.*bounds/);
   assert.match(out, /intendedSelectionPoint/);
   assert.match(out, /target\.contains\(hit\)/);
+  assert.match(out, /view-only board .* selects by the press point/, 'a view-only press point is accepted (run 38342747210)');
   assert.match(out, /selection point is visible/);
   assert.doesNotMatch(out.slice(out.indexOf('const safePanPoint')), /mouse\.move\(1250, 400\)/);
 });
