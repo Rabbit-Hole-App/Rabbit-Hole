@@ -272,7 +272,8 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
   const counts = { target: targets.length, ...Object.fromEntries(['connected', 'sibling', 'inferred', 'group', 'annotation', 'nearby'].map(relation => [relation, related.filter(entry => entry.relation === relation).length])) };
   return {
     version: CONTEXT_VERSION,
-    target: { ids: present, gone, ...(target.range ? { range: true } : {}), objects: targets, ...(group ? { group } : {}) },
+    // clipped: every target the model did not read whole - cut short, or left out by the object or character budget.
+    target: { ids: present, gone, ...(target.range ? { range: true } : {}), objects: targets, clipped: present.filter(id => !targets.some(entry => entry.id === id && !entry.truncated)), ...(group ? { group } : {}) },
     connections, related, complete,
     broader,
     ...(image ? { image: { id: image.id, ...(imageEntity?.mediaId ? { mediaId: imageEntity.mediaId } : {}) } } : {}),

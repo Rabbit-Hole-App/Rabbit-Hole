@@ -336,3 +336,23 @@ test('re-review blocker: a paid proposal stays a proposal after a stale Generate
   await session.submit({ mode: 'explain', prompt: 'explain this again', prepare: snapshot('x') });
   assert.equal(session.state.status, 'proposal');
 });
+
+test('re-review S3 gap: a target the budget left out entirely is clipped, so a whole replace on it is refused', () => {
+  const box = (id, y) => ({ id, kind: 'text', x: 0, y, w: 300, text: `${id} `.repeat(2000).slice(0, 4000) });
+  const board = { shapes: [], items: [box('a', 0), box('b', 100), box('c', 200)], links: [], blocks: [], groups: [], exchanges: [], boxes: {} };
+  const target = contextModule.freezeTarget(board, ['a', 'b', 'c']);
+  const context = contextModule.buildContext(board, target, { cache: contextModule.createContextCache(), boardKey: 'b' });
+  assert.equal(context.target.objects.some(entry => entry.id === 'c'), false, 'the third box did not fit the 8000-character budget');
+  assert.deepEqual(context.target.clipped, ['c']);
+  const checked = applyModule.validateEdit({ summary: 'x', ops: [{ op: 'replace_text', id: 'c', text: 'invented' }] }, { ...target, clipped: context.target.clipped }, board);
+  assert.equal(checked.ok, false);
+  assert.match(checked.errors[0], /Select the words to change/);
+});
+
+test('re-review S3 gap: a group of more stickies than the object budget clips the ones left out', () => {
+  const stickies = Array.from({ length: 26 }, (_, i) => ({ id: `s${i}`, kind: 'sticky', x: i * 10, y: 0, w: 160, text: `note ${i}`, groupId: 'g' }));
+  const board = { shapes: [], items: stickies, links: [], blocks: [], groups: [{ id: 'g', label: 'Notes' }], exchanges: [], boxes: {} };
+  const target = contextModule.freezeTarget(board, stickies.map(sticky => sticky.id));
+  const context = contextModule.buildContext(board, target, { cache: contextModule.createContextCache(), boardKey: 'b' });
+  assert.deepEqual(context.target.clipped, ['s24', 's25']);
+});
