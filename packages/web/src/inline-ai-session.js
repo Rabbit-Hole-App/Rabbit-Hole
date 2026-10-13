@@ -58,6 +58,9 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
   const PROVISIONAL = new Set(['previewed', 'reused']);
   const finish = (id, outcome) => { const entry = metric(id); if (entry.outcome && !PROVISIONAL.has(entry.outcome)) return; entry.outcome = outcome; entry.marks.end = now(); onMetrics({ ...entry, marks: { ...entry.marks }, counts: { ...entry.counts } }); };
   const live = mine => mine === token && !closed;
+  // What the editor shows when a request ends without a new result: the preview still there - a paid proposal stays a
+  // proposal, with its cost disclosure and Generate, never a plain Accept - or, with none, the given state.
+  const shown = otherwise => (state.preview ? (state.preview.kind === 'proposal' ? 'proposal' : 'preview') : otherwise);
   const flush = (mine, id) => {
     flushTimer = null;
     if (!live(mine) || !pending) return;
@@ -131,7 +134,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const timeout = error.name === 'TimeoutError' || error.code === 'timeout';
       count(id, timeout ? 'timeouts' : 'errors');
       // A recoverable error keeps the prompt and the last valid preview (§10).
-      set({ status: state.preview ? 'preview' : 'error', stage: null, stream: null, error: timeout ? 'That took too long. Try again.' : error.message || 'Something went wrong. Try again.' });
+      set({ status: shown('error'), stage: null, stream: null, error: timeout ? 'That took too long. Try again.' : error.message || 'Something went wrong. Try again.' });
       finish(id, timeout ? 'timeout' : 'error');
       return;
     }
@@ -145,7 +148,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     const checked = validate(result, plan, request);
     if (!checked.ok) {
       count(id, 'errors');
-      set({ status: state.preview ? 'preview' : 'error', stage: null, stream: null, error: checked.errors?.[0] || checked.limitation || 'The result could not be checked.', ...(checked.limitation && !state.preview ? { notice: checked.limitation } : {}) });
+      set({ status: shown('error'), stage: null, stream: null, error: checked.errors?.[0] || checked.limitation || 'The result could not be checked.', ...(checked.limitation && !state.preview ? { notice: checked.limitation } : {}) });
       finish(id, checked.limitation ? 'limitation' : 'invalid');
       return;
     }
@@ -208,7 +211,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
         // The worker refused the request itself (400: too long, malformed): say why, never a quiet plain note.
         if (read.status === 400) {
           metric(id).routing = 'jev'; count(id, 'errors');
-          set({ status: state.preview ? 'preview' : 'error', stage: null, error: read.message || 'This request was refused. Change it and send again.' });
+          set({ status: shown('error'), stage: null, error: read.message || 'This request was refused. Change it and send again.' });
           finish(id, 'invalid');
           return 'invalid';
         }
@@ -217,7 +220,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       } else metric(id).routing = previous ? 'refine' : 'bypassed';
       pendingRequest = request;
       if (plan.clarify) { set({ status: 'clarify', stage: null, clarify: plan.clarify }); finish(id, 'clarify'); return 'clarify'; }
-      if (plan.unavailable) { metric(id).capability = plan.unavailable.route; set({ status: state.preview ? 'preview' : 'error', stage: null, error: plan.unavailable.text }); finish(id, 'unavailable'); return 'unavailable'; }
+      if (plan.unavailable) { metric(id).capability = plan.unavailable.route; set({ status: shown('error'), stage: null, error: plan.unavailable.text }); finish(id, 'unavailable'); return 'unavailable'; }
       if (plan.notice) set({ notice: plan.notice });
       await run(mine, id, plan, request);
       return live(mine) ? state.status : 'dropped';
@@ -239,7 +242,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     back() {
       if (closed || state.status !== 'clarify' || !state.preview || state.accepted) return 'ignored';
       pendingRequest = null;
-      set({ status: state.preview.kind === 'proposal' ? 'proposal' : 'preview', clarify: null, error: null });
+      set({ status: shown('idle'), clarify: null, error: null });
       return state.status;
     },
     // Stop: abort locally and upstream where the transport can; late results and chunks are dropped. A paid job a card
@@ -248,13 +251,15 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const was = state.status;
       token += 1; controller?.abort(); stopTimers();
       if (state.requestId && busyStates.has(was)) { count(state.requestId, 'cancels'); finish(state.requestId, 'cancelled'); }
-      if (busyStates.has(was)) set({ status: state.preview ? 'preview' : 'idle', stage: null, stream: null });
+      if (busyStates.has(was)) set({ status: shown('idle'), stage: null, stream: null });
       return was;
     },
     // Accept once: apply(preview) returns { ok } or { stale } (inline-ai-apply.js / the canvas). A second Accept, or one
     // for a request that is not previewed, does nothing.
     accept(apply) {
       if (closed || state.accepted || !['preview', 'proposal'].includes(state.status) || !state.preview) return { ignored: true };
+      // A paid proposal is accepted only from its own panel (the cost disclosure and Generate), never as a plain preview.
+      if (state.preview.kind === 'proposal' && state.status !== 'proposal') return { ignored: true };
       const id = state.preview.requestId;
       mark(id, 'acceptClick');
       state.accepted = true;

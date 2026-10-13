@@ -314,3 +314,25 @@ test('M6: a question asked while a preview shows can go back to that preview, an
   assert.equal(session.state.clarify, null);
   assert.deepEqual(session.accept(() => ({ ok: true })), { ok: true });
 });
+
+test('re-review blocker: a paid proposal stays a proposal after a stale Generate and a stopped or failed new request', async () => {
+  const wait = held();
+  let round = 0;
+  const session = make({ generate: async () => { round += 1; if (round === 1) await wait.gate; throw new Error('The model failed.'); } },
+    { motion: (args, about) => slashModule.motionProposal(args, { concept: about?.concept || null }, about?.selection) });
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/motion 15s explain this tree', prepare: snapshot() }), 'proposal');
+  // 1-2. Generate is refused as stale.
+  assert.equal(session.accept(() => ({ stale: { content: true, text: 'The selection changed while this was being made.' } })).stale.content, true);
+  assert.equal(session.state.status, 'stale');
+  // 3-4. The board matches again; the learner sends explain this, then Stop.
+  const stopped = session.submit({ mode: 'explain', prompt: 'explain this', prepare: snapshot() });
+  session.cancel();
+  wait.release();
+  await stopped;
+  // 5. The proposal is shown as the proposal (cost disclosure and Generate), never as a plain preview with Accept.
+  assert.equal(session.state.preview.kind, 'proposal');
+  assert.equal(session.state.status, 'proposal');
+  // The same after a request that fails.
+  await session.submit({ mode: 'explain', prompt: 'explain this again', prepare: snapshot('x') });
+  assert.equal(session.state.status, 'proposal');
+});

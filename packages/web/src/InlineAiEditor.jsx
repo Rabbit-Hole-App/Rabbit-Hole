@@ -188,7 +188,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       close();
       return;
     }
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && state.status === 'preview') { event.preventDefault(); accept(); }
+    // Ctrl/Cmd+Enter accepts a preview; a paid proposal starts only from its own Generate button.
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && state.status === 'preview' && state.preview?.kind !== 'proposal') { event.preventDefault(); accept(); }
   };
   const fieldKey = event => {
     const what = composerKey(event.nativeEvent);
