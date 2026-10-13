@@ -78,3 +78,28 @@ test('telemetry units: stage times are milliseconds to 0.1 ms from the monotonic
   assert.equal(timings.refresh, 3.3);
   assert.equal(timings.routing, 307.2);
 });
+
+import * as routeModule from './inline-ai-route.js';
+
+test('prompt limit: one shared limit; over it nothing is sent and the editor says why', async () => {
+  let calls = 0;
+  const session = make({ route: async () => { calls += 1; return { choice: 'note', confidence: 0.9, probability: 0.9, ranked: ['note'] }; }, generate: async () => { calls += 1; return { result: { kind: 'note', text: 'x' } }; } });
+  assert.equal(routeModule.PROMPT_MAX, 1000);
+  assert.equal(await session.submit({ mode: 'explain', prompt: 'a'.repeat(1001), prepare: snapshot() }), 'too_long');
+  assert.equal(calls, 0);
+  assert.match(session.state.error, /1001 characters; inline requests stop at 1000\. Shorten it/);
+  assert.equal(await session.submit({ mode: 'explain', prompt: `explain ${'a'.repeat(992)}`, prepare: snapshot() }), 'preview', 'exactly at the limit is sent');
+});
+
+test('prompt limit: a refused routing call (400) is an error with its reason, never a quiet plain note', async () => {
+  let generated = 0;
+  const session = make({ route: async () => ({ error: 'too_long', status: 400, message: 'This request is 1200 characters; inline requests stop at 1000. Shorten it and send again.' }), generate: async () => { generated += 1; return { result: { kind: 'note', text: 'x' } }; } });
+  assert.equal(await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'invalid');
+  assert.equal(generated, 0);
+  assert.equal(session.state.preview, null);
+  assert.match(session.state.error, /1200 characters/);
+  // Any other routing failure still falls back to a stated note (§6).
+  const other = make({ route: async () => ({ error: 'timeout' }), generate: async () => ({ result: { kind: 'note', text: 'x' } }) });
+  assert.equal(await other.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'preview');
+  assert.match(other.state.notice, /short note/);
+});

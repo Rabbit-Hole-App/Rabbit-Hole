@@ -766,6 +766,24 @@ await run('telemetry: an answered clarification is not labelled jev; the routing
   check('the clarify row (JEV asked) is jev; the chosen request (no routing call) is bypassed', JSON.stringify(rows) === JSON.stringify([['clarify', 'jev', null], ['rejected', 'bypassed', 'diagram']]), JSON.stringify(rows));
   await context.close();
 });
+
+// ---- One request limit (review of cf9216b2..5b3552a5): failed on 5b3552a5 ----
+await run('prompt limit: the count shows the supported limit; over it nothing is sent or cut, and the editor says why', async () => {
+  const { page, context } = await open('prompt-limit');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await page.locator('[data-inline-prompt]').fill('Explain this node');
+  check('the supported limit is shown while writing', (await page.locator('[data-inline-count]').innerText()) === '17 / 1000');
+  await page.locator('[data-inline-prompt]').fill('');
+  await page.locator('[data-inline-prompt]').focus();
+  await page.keyboard.insertText('a'.repeat(1200));
+  const kept = await page.locator('[data-inline-prompt]').evaluate(field => field.value.length);
+  check('over the limit: nothing is cut, the count says what to do, Submit waits', kept === 1200 && /1200 \/ 1000 - shorten it to send/.test(await page.locator('[data-inline-count]').innerText()) && await page.locator('[data-inline-submit]').isDisabled(), String(kept));
+  await page.keyboard.press('Enter');
+  await page.locator('[data-inline-error]').waitFor({ timeout: 5000 });
+  check('Enter over the limit: an actionable error, no routing or generation call, no note', /1200 characters; inline requests stop at 1000\. Shorten it/.test(await page.locator('[data-inline-error]').innerText()) && (await calls(page, 'route')).length === 0 && (await calls(page, 'generate')).length === 0 && (await page.locator('[data-inline-preview]').count()) === 0);
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);

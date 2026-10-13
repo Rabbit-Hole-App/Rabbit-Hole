@@ -52,7 +52,8 @@ export function httpTransport({ app, pending = null, board = 'main', fetchRaw, p
     async route({ requestId, prompt, selection }, { signal }) {
       const response = await json('/api/learn/inline/route', { request_id: requestId, prompt, selection }, signal);
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) return { error: body.code || 'unavailable' };
+      // A refused request (400) carries the worker's reason: the editor shows it rather than routing around it.
+      if (!response.ok) return { error: body.code || 'unavailable', status: response.status, message: body.error || null };
       return body;
     },
     async generate({ requestId, mode, route, prompt, context }, { signal, onEvent }) {

@@ -11,7 +11,7 @@
 // The same model, auth, ownership and spend admission as a slash-command card: LEARN_TASKS.artifact's model through
 // planModel, authorizedBoardApp, subscriptionOwnerRefusal, and spendTransport inside anthropic().
 import { askJev, JEV_TRANSPORTS, JevError } from './learn-grade-jev.js';
-import { readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
+import { PROMPT_MAX, promptTooLong, readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
@@ -46,7 +46,8 @@ export const jevTransport = env => (env.VERCEL_TYPESAFE_API_KEY ? 'gateway' : en
 export async function inlineRouteFetch(req, env, { authorize = authorizedBoardApp, ask = askJev } = {}) {
   const { body, response } = await readBody(req, 8000);
   if (response) return response;
-  if (typeof body.prompt !== 'string' || body.prompt.length > 1000 || (body.selection != null && (typeof body.selection !== 'string' || body.selection.length > 1500)) || !REQUEST_ID.test(String(body.request_id))) return json({ error: 'Invalid route request' }, 400);
+  if (typeof body.prompt === 'string' && body.prompt.length > PROMPT_MAX) return json({ error: promptTooLong(body.prompt.length), code: 'too_long' }, 400);
+  if (typeof body.prompt !== 'string' || (body.selection != null && (typeof body.selection !== 'string' || body.selection.length > 1500)) || !REQUEST_ID.test(String(body.request_id))) return json({ error: 'Invalid route request' }, 400);
   const allowed = await access(req, env, body, authorize);
   if (allowed instanceof Response) return allowed;
   const transport = jevTransport(env);
@@ -125,7 +126,8 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const { body, response } = await readBody(req, 60000);
   if (response) return response;
   const { mode, route } = body;
-  if (!((mode === 'explain' && route === 'note') || (mode === 'edit' && route === 'edit')) || typeof body.prompt !== 'string' || body.prompt.length > 2000
+  if (typeof body.prompt === 'string' && body.prompt.length > PROMPT_MAX) return json({ error: promptTooLong(body.prompt.length), code: 'too_long' }, 400);
+  if (!((mode === 'explain' && route === 'note') || (mode === 'edit' && route === 'edit')) || typeof body.prompt !== 'string'
     || !body.context || typeof body.context !== 'object' || !Array.isArray(body.context.target?.ids) || !body.context.target.ids.length || !REQUEST_ID.test(String(body.request_id))) {
     return json({ error: 'Invalid inline request' }, 400);
   }

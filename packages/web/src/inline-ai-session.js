@@ -9,7 +9,7 @@
 // - A completed result is kept by idempotency key (board, target fingerprints, mode, prompt, scope): the same request
 //   again reuses it instead of generating twice.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
-import { decideRoute, planRoute, ROUTES } from './inline-ai-route.js';
+import { decideRoute, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
 
 export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…', proposal: 'Preparing the paid proposal…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
@@ -141,6 +141,8 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     async submit({ mode, prompt, prepare }) {
       if (closed) return 'closed';
       if (busyStates.has(state.status)) { if (state.requestId) count(state.requestId, 'duplicates'); return 'duplicate'; }
+      // Over the one limit nothing is sent (the editor also holds Submit back and shows the count).
+      if (String(prompt).length > PROMPT_MAX) { set({ error: promptTooLong(String(prompt).length), notice: null }); return 'too_long'; }
       const id = uuid(), mine = ++token;
       controller?.abort();
       controller = new AbortController();
@@ -174,6 +176,13 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
         catch (error) { read = { error: error.code === 'timeout' || error.name === 'TimeoutError' ? 'timeout' : error.message || 'unavailable' }; if (read.error === 'timeout') count(id, 'timeouts'); }
         if (!live(mine)) return 'dropped';
         mark(id, 'routeEnd');
+        // The worker refused the request itself (400: too long, malformed): say why, never a quiet plain note.
+        if (read.status === 400) {
+          metric(id).routing = 'jev'; count(id, 'errors');
+          set({ status: state.preview ? 'preview' : 'error', stage: null, error: read.message || 'This request was refused. Change it and send again.' });
+          finish(id, 'invalid');
+          return 'invalid';
+        }
         plan = decideRoute(read, { enabled });
         metric(id).routing = plan.via === 'fallback' ? `fallback:${read.error}` : 'jev';
       } else metric(id).routing = 'bypassed';

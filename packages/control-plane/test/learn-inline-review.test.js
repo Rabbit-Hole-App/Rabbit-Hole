@@ -37,3 +37,29 @@ test('telemetry units: stage values are milliseconds as numbers; routing is a nu
   assert.equal(metrics('req-units-00001').counts.chunks, 41);
   assert.deepEqual(metrics('req-units-00002').stages, { routing: 'bypassed', complete: 95 });
 });
+
+import { inlineGenerateFetch, inlineRouteFetch } from '../src/learn-inline.js';
+import * as inlineRoute from '../../web/src/inline-ai-route.js';
+
+const PROMPT_MAX = inlineRoute.PROMPT_MAX ?? 1000;
+
+const context = { target: { ids: ['n23'], objects: [{ id: 'n23', type: 'shape', text: '23' }] }, connections: [], related: [], complete: { n23: true }, omitted: {} };
+const sse = text => new Response([
+  `event: content_block_start\ndata: ${JSON.stringify({ type: 'content_block_start', index: 0, content_block: { type: 'text' } })}\n\n`,
+  `event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } })}\n\n`,
+  `event: message_delta\ndata: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: {} })}\n\n`].join(''), { headers: { 'content-type': 'text/event-stream' } });
+
+test('prompt limit: the worker enforces the shared limit on route and generate, with the reason', async () => {
+  const authorize = async () => ({ name: 'canvas-0a1b2c3d' });
+  const long = 'a'.repeat(PROMPT_MAX + 1);
+  const route = await inlineRouteFetch(post('/api/learn/inline/route', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', prompt: long }), {}, { authorize, ask: async () => assert.fail('no JEV call') });
+  assert.equal(route.status, 400);
+  const routed = await route.json();
+  assert.equal(routed.code, 'too_long');
+  assert.match(routed.error, /1001 characters; inline requests stop at 1000/);
+  const generate = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: long, context }), {}, { authorize, callModel: async () => assert.fail('no model call') });
+  assert.equal(generate.status, 400);
+  assert.equal((await generate.json()).code, 'too_long');
+  const atLimit = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'a'.repeat(PROMPT_MAX), context }), {}, { authorize, callModel: async () => sse('ok') });
+  assert.equal(atLimit.status, 200);
+});

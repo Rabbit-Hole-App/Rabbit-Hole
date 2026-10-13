@@ -4,7 +4,7 @@ import { composerKey } from './composer-keys.js';
 import { buildContext, contextShape, staleness, unionBox } from './inline-ai-context.js';
 import { cardTx, describeChange, editTx, explainTx, noteSize, placeNote, validateEdit } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
-import { ROUTES, selectionSummary } from './inline-ai-route.js';
+import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
 
 // The inline AI editor (docs/features/inline-ai-editor.md): a compact popover by the frozen selection, with Edit and
 // Explain pills, the prompt, a context indicator, the streamed preview and Accept / Reject. Everything it shows before
@@ -267,9 +267,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             className="max-h-28 min-h-8 flex-1 resize-none rounded-lg border border-line bg-white px-2 py-1.5 text-sm leading-5 outline-none placeholder:text-ink-3 focus:border-[#2383e2]" />
           {/* Submit keeps its place while a request runs (disabled, spinning): Stop is never under the pointer or finger that
               just pressed Submit, so a double press cannot cancel what it sent. */}
-          <button type="button" data-inline-submit disabled={readOnly || status === 'proposal' || busy(status)} onClick={() => submit(prompt)} title={preview ? 'Refine (Enter)' : 'Submit (Enter)'}
+          <button type="button" data-inline-submit disabled={readOnly || status === 'proposal' || busy(status) || prompt.length > PROMPT_MAX} onClick={() => submit(prompt)} title={preview ? 'Refine (Enter)' : 'Submit (Enter)'}
             className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-ink px-2.5 text-xs font-medium text-white disabled:opacity-40">{busy(status) ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}{preview ? 'Refine' : 'Submit'}<kbd className="ml-0.5 flex items-center font-sans text-[10px] text-white/70"><CornerDownLeft size={10} /></kbd></button>
         </div>
+        {/* The supported limit, shown while writing; over it Submit waits and the count says what to do. Nothing is cut. */}
+        {prompt.length > 0 && <p data-inline-count className={`-mt-1 text-right text-[11px] ${prompt.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{prompt.length} / {PROMPT_MAX}{prompt.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
         {readOnly && <p data-inline-readonly className="text-xs text-ink-2">This canvas is view-only, so Edit and Explain can't add to it.</p>}
         <div className="flex items-center gap-2 text-xs text-ink-2">
           <button type="button" data-inline-context aria-expanded={contextOpen} onClick={() => setContextOpen(open => !open)} className="flex min-w-0 items-center gap-1 rounded px-0.5 hover:text-ink">
