@@ -90,6 +90,25 @@ the unchanged parts, with replaced words looking like what they replaced. Switch
 formatting without restoring stale words. The switch is one undo step and persists as `mode: 'code'`. Notebook and
 imported-code cards are untouched.
 
+**Language and colors** (owner, 2026-10-13: "does it show the code in colors based on the language? should be have a
+dropdown so that we can select the languages when selecting Code?"):
+
+- In Code mode a language dropdown sits beside the Text | Code switch, on the box and in the panel: Python (the
+  default), JavaScript, TypeScript, JSON, Bash, SQL, HTML, CSS, C, C++, Java, Go, Rust, Markdown, Plain text. The
+  choice persists as `lang` on the item (`python`, `javascript`, `typescript`, `json`, `bash`, `sql`, `html`, `css`,
+  `c`, `cpp`, `java`, `go`, `rust`, `markdown`, `text`); a box with no `lang`, or one not in the list, is Python.
+  Changing it is one undo step. Switching back to Text keeps `lang` for the next switch to Code.
+- A Code box that is not being edited is drawn with syntax colors from shiki (already a dependency, as in
+  MermaidDiagram.jsx), loaded by dynamic import the first time a board draws a Code box, so the canvas chunk does not
+  carry it. Until it loads, and for Plain text, the box is drawn plain, as before.
+- Colors only: a token's color changes, never its font, size, weight or style, so the highlighted box has exactly the
+  size and line wraps of the plain one. Words in the theme's plain color keep the box's own text color. Light uses
+  github-light; the dark theme uses github-dark, by a CSS variable on each token, so switching theme needs no
+  re-highlight.
+- While the editor is open the box is plain monospace, as before, so typing, the caret, IME and paste are untouched.
+  Leaving the editor draws the colors again.
+- Thumbnails and canvas captures copy the drawn box, so they show the colors (thumbnails in the light theme).
+
 ## 4. Drawing modifiers
 
 These run through the shared drawing gesture used by the canvas and by Explain Back sketches.
