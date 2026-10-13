@@ -203,6 +203,8 @@ export function stoppingPoint({ busy = false, journey = null, store = null, here
 // cap here is the tab ceiling: it shadows the capText import (also cap), which this function must not call.
 export function nextStepsController({ post, onSet = () => {}, onShown = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, now = Date.now, debounce = L.debounce_ms, cap = L.tab_cap }) {
   let basis = null, stop = 'off', build = null, shown = null, timer = null, flying = null, requests = 0, changedAt = 0, disposed = false;
+  // A learner's Refresh (owner brief 2 item 6): { basis, status: 'loading' | 'error', reason } while it runs or after it failed.
+  let again = null;
   const outcomes = new Map(), listeners = new Set(), previous = { hooks: [], goals: [] };
   // Ruling F3: the builder and callers get copies, never the live record.
   const copy = () => ({ hooks: [...previous.hooks], goals: [...previous.goals] });
@@ -213,8 +215,14 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
   // The current basis first; else limited once the ceiling leaves it unasked; else the last shown set, stale; else loading.
   const view = () => {
     const entry = outcomes.get(basis);
-    return stop ? unavailable(stop) : entry?.set ? showing('ready', entry.set) : entry ? unavailable(entry.failed)
+    const out = stop ? unavailable(stop) : entry?.set ? showing('ready', entry.set) : entry ? unavailable(entry.failed)
       : requests >= cap && flying !== basis ? unavailable('limited') : shown ? showing('stale', shown) : { status: 'loading', reason: null, ...empty };
+    // The set on screen stays while a refresh runs and after one fails; the card shows the refresh's own state beside it.
+    return again && again.basis === basis && out.status === 'ready' ? { ...out, refresh_state: again.status, ...(again.reason ? { refresh_reason: again.reason } : {}) } : out;
+  };
+  const usableSet = got => {
+    const usable = o => typeof o?.id === 'string' && typeof o.hook === 'string' && !!o.selected_next_step && typeof o.selected_next_step === 'object' && !Array.isArray(o.selected_next_step);
+    return Array.isArray(got?.options) && got.options.length === L.options && got.options.every(usable) && new Set(got.options.map(o => o.id)).size === L.options;
   };
   let told = JSON.stringify(view());
   // The set on screen (ready, no stop) is always the stale fallback; its hooks join previous only the first time it shows.
@@ -246,8 +254,7 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
       else {
         flying = sent; requests += 1;
         const got = await post(built.input);
-        const usable = o => typeof o?.id === 'string' && typeof o.hook === 'string' && !!o.selected_next_step && typeof o.selected_next_step === 'object' && !Array.isArray(o.selected_next_step);
-        outcome = Array.isArray(got?.options) && got.options.length === L.options && got.options.every(usable) && new Set(got.options.map(o => o.id)).size === L.options ? { set: got } : { failed: 'failed' };
+        outcome = usableSet(got) ? { set: got } : { failed: 'failed' };
       }
     } catch (error) { outcome = { failed: error?.status === 429 ? 'limited' : 'failed' }; }
     flying = null;
@@ -265,6 +272,7 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
       build = next.input;
       if (next.basis === basis && (next.stop ?? null) === stop) return;
       basis = next.basis; stop = next.stop ?? null; changedAt = now();
+      if (again && again.basis !== basis) again = null;
       schedule(debounce); sync();
     },
     view,
@@ -276,6 +284,36 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
       if (view().status !== 'ready') return { ok: false, reason: 'stale' };
       previous.goals = [...previous.goals, option.selected_next_step.learning_goal].slice(-L.previous_goals);
       return { ok: true, selected_next_step: structuredClone(option.selected_next_step) };
+    },
+    // Refresh: a new set for the basis on screen, through the same post (its authorization, model and spend limits; it
+    // counts toward the tab ceiling). Never while one flies or a stop holds; the shown set stays until the new one is
+    // usable; a failure keeps it and says so (retryable); a reply for a basis the canvas has left is dropped. Returns
+    // whether a request went out. Sends no chat message and changes nothing on the canvas.
+    refresh() {
+      if (disposed || stop || !basis || flying !== null || !outcomes.get(basis)?.set) return false;
+      const sent = basis;
+      if (requests >= cap) { again = { basis: sent, status: 'error', reason: 'limited' }; sync(); return false; }
+      again = { basis: sent, status: 'loading' };
+      flying = sent; requests += 1;
+      sync();
+      (async () => {
+        let got = null, built = {}, reason = null;
+        try {
+          built = build(copy());
+          if (built.problem) reason = 'failed';
+          else got = await post(built.input);
+        } catch (error) { reason = error?.status === 429 ? 'limited' : 'failed'; }
+        flying = null;
+        if (disposed) return;
+        if (sent !== basis) { again = null; sync(); schedule(Math.max(0, changedAt + debounce - now())); return; }
+        if (!reason && usableSet(got)) {
+          again = null;
+          outcomes.set(sent, { set: got });
+          safely(() => onSet(structuredClone(got), built.input, built.trim, { discarded: false, refreshed: true }));
+        } else again = { basis: sent, status: 'error', reason: reason || 'failed' };
+        sync();
+      })();
+      return true;
     },
     previous: copy,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

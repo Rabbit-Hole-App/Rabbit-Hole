@@ -79,6 +79,7 @@ export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-st
     view: life.view,
     subscribe: life.subscribe,
     select: id => life.controller().select(id, { busy: !!read().tutor?.busy }),
+    refresh: () => life.controller().refresh(),
     dispose: life.dispose,
   };
 }
@@ -95,7 +96,7 @@ export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, re
   const { basis, stop } = steps.state();
   useEffect(() => { steps.update({ basis, stop }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
-  return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select };
+  return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh };
 }
 
 // The signed-in viewer's own { org, email } (/api/me), only to find their own tab store. Read on each request, never kept: a
@@ -144,6 +145,7 @@ export function sharedSteps(read, { post = sharedPost(read), ...timers } = {}) {
     view: life.view,
     subscribe: life.subscribe,
     select: id => life.controller().select(id),
+    refresh: () => life.controller().refresh(),
     dispose: life.dispose,
   };
 }
@@ -157,5 +159,5 @@ export function useSharedNextSteps({ token, card = null, version = null, signedI
   const { basis, stop } = shared.state();
   useEffect(() => { shared.update({ basis, stop }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => shared.dispose, [shared]);
-  return { ...useSyncExternalStore(shared.subscribe, shared.view, shared.view), select: shared.select };
+  return { ...useSyncExternalStore(shared.subscribe, shared.view, shared.view), select: shared.select, refresh: shared.refresh };
 }

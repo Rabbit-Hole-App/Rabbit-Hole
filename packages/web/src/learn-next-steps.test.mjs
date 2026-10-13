@@ -1005,3 +1005,51 @@ test('r29 nextStepsInput: path.next only after the section checks were tried, wi
   assert.equal(said.tutor, 'Take a spam filter: each word adds to a score.');
   assert.equal('tutor' in nextStepsInput({ ...base, store: { ...base.store, turns: [] } }).input.recent, false);
 });
+
+// Refresh (owner brief 2 item 6): a learner's request for a new set on the basis on screen.
+test('refresh keeps the set on screen until a new one lands, and blocks a second press while it runs', async () => {
+  let release; const slow = new Promise(r => { release = r; });
+  const replies = [setFor(1), slow];
+  const r = rig(replies);
+  r.ctl.update({ basis: 'a', stop: null, input });
+  await r.c.fire();
+  assert.equal(r.ctl.refresh(), true);
+  assert.deepEqual([r.ctl.view().status, r.ctl.view().set_id, r.ctl.view().refresh_state], ['ready', 'ns_00000001', 'loading'], 'the current hooks stay while it loads');
+  assert.equal(r.ctl.refresh(), false, 'no duplicate request while one runs');
+  release(setFor(2)); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([r.ctl.view().status, r.ctl.view().set_id, r.ctl.view().refresh_state], ['ready', 'ns_00000002', undefined]);
+  assert.equal(r.bodies.length, 2);
+  assert.deepEqual(r.bodies[1].previous.hooks, setFor(1).options.map(o => o.hook), 'the hooks on screen travel as previous, so the new set differs');
+  assert.deepEqual(r.sets, ['ns_00000001', 'ns_00000002']);
+});
+
+test('a failed refresh keeps the hooks and says so, retryably; a refresh for a basis the canvas left is dropped', async () => {
+  const r = rig([setFor(1), new Error('boom'), setFor(3)]);
+  r.ctl.update({ basis: 'a', stop: null, input });
+  await r.c.fire();
+  r.ctl.refresh(); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([r.ctl.view().set_id, r.ctl.view().refresh_state, r.ctl.view().refresh_reason], ['ns_00000001', 'error', 'failed']);
+  assert.equal(r.ctl.refresh(), true, 'retry is allowed');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([r.ctl.view().set_id, r.ctl.view().refresh_state], ['ns_00000003', undefined]);
+  let release; const slow = new Promise(resolve => { release = resolve; });
+  const s = rig([setFor(1), slow, setFor(5)]);
+  s.ctl.update({ basis: 'a', stop: null, input });
+  await s.c.fire();
+  s.ctl.refresh();
+  s.ctl.update({ basis: 'b', stop: null, input });
+  release(setFor(4)); await new Promise(resolve => setImmediate(resolve));
+  assert.notEqual(s.ctl.view().set_id, 'ns_00000004', 'the stale refresh reply never shows');
+  await s.c.fire();
+  assert.equal(s.ctl.view().set_id, 'ns_00000005');
+});
+
+test('refresh honours the tab ceiling and never runs without a set on screen', async () => {
+  const r = rig([setFor(1)], { cap: 1 });
+  assert.equal(r.ctl.refresh(), false, 'nothing to refresh before a set');
+  r.ctl.update({ basis: 'a', stop: null, input });
+  await r.c.fire();
+  assert.equal(r.ctl.refresh(), false);
+  assert.deepEqual([r.ctl.view().set_id, r.ctl.view().refresh_state, r.ctl.view().refresh_reason], ['ns_00000001', 'error', 'limited']);
+  assert.equal(r.bodies.length, 1, 'no request past the ceiling');
+});

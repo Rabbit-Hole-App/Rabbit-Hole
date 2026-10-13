@@ -51,7 +51,9 @@ test('the hook card: loading and stale draw a skeleton with a spinner, never the
     assert.match(html, /<h2[^>]*>Curious where this goes\?<svg[^>]*animate-spin[^>]*motion-reduce:animate-none/, 'a spinner, still for reduced motion');
     assert.match(html, /<span class="sr-only">Loading suggestions<\/span>/);
     assert.equal((html.match(/data-next-step-placeholder="true"/g) || []).length, 3);
-    assert.doesNotMatch(html, /<button|data-next-step="|bread|dough|yeast/, `${status}: never a hook, never a button`);
+    assert.doesNotMatch(html, /data-next-step="|bread|dough|yeast/, `${status}: never a hook`);
+    // Owner brief 2 item 6: the header's Minimize is there in every state; no hook button is.
+    assert.deepEqual([...html.matchAll(/<button[^>]*?(data-next-steps-[a-z]+)/g)].map(m => m[1]), ['data-next-steps-minimize'], `${status}: only the header's Minimize`);
   }
   // No layout jump: a placeholder row and a hook button are both at least two lines (min-h-14).
   assert.match(ask, /const HOOK_ROW = 'min-h-14 rounded-lg border border-line';/);
@@ -200,4 +202,26 @@ test('r29 the hook card: the next-section hook says Next section, and skips this
   assert.match(completing, /<span data-next-section-note="true" class="block text-xs text-ink-3">Next section<\/span>/);
   assert.equal((skipping.match(/data-next-section=/g) || []).length, 1, 'only that hook');
   assert.doesNotMatch(card(set('ready')), /data-next-section/, 'no section, no note');
+});
+
+// Owner brief 2 item 6: Minimize and Refresh in the header. Refresh shows while it runs and keeps the hooks; a failure keeps
+// them with a retry; the ceiling says so without one. No refresh() (an older caller): no Refresh button.
+test('the hook card header: Refresh and Minimize, loading and failure kept beside the same hooks', () => {
+  const live = { ...set('ready'), refresh: () => true };
+  let html = card(live);
+  assert.match(html, /<button[^>]*data-next-steps-refresh[^>]*aria-label="Refresh suggestions"/);
+  assert.match(html, /<button[^>]*data-next-steps-minimize[^>]*aria-label="Minimize suggestions"/);
+  html = card({ ...live, refresh_state: 'loading' });
+  assert.match(html, /<button[^>]*data-next-steps-refresh[^>]*disabled=""[^>]*aria-busy="true"/, 'one refresh at a time');
+  assert.equal((html.match(/data-next-step="/g) || []).length, 3, 'the hooks stay while it loads');
+  html = card({ ...live, refresh_state: 'error', refresh_reason: 'failed' });
+  assert.match(html, /role="alert"[^>]*>Could not refresh; these suggestions stay\.<button[^>]*>Try again<\/button>/);
+  assert.equal((html.match(/data-next-step="/g) || []).length, 3);
+  html = card({ ...live, refresh_state: 'error', refresh_reason: 'limited' });
+  assert.match(html, /Refresh limit reached for now/);
+  assert.doesNotMatch(html, /Try again/);
+  assert.doesNotMatch(card(set('ready')), /data-next-steps-refresh/);
+  // Minimize and Restore are the card's own state: no select(), no refresh(), no request.
+  assert.match(ask, /onClick=\{\(\) => setMinimized\(false\)\}/);
+  assert.match(ask, /data-next-steps-minimize[^\n]*onClick=\{onMinimize\}/);
 });

@@ -9,7 +9,7 @@ import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourc
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useContext, useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
-import { ArrowUp, AtSign, BookOpen, CornerDownRight, Eraser, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -363,19 +363,48 @@ export function MaterialIcon({ type }) {
 const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
 // HOOK_ROW: one option's height, two lines of hook text, so the skeleton and the three hooks are the same size.
 const HOOK_ROW = 'min-h-14 rounded-lg border border-line';
+// The card's header (owner brief 2 item 6): Refresh asks the same pipeline for a new set (a ready set only, one at a time);
+// Minimize folds the card to a chip. Neither sends a message, navigates, adds a card or starts a Rabbit Hole.
+function NextStepsHeader({ steps, spinning = false, onMinimize }) {
+  const refreshing = steps.refresh_state === 'loading';
+  return (
+    <div className="flex items-center gap-1">
+      <h2 className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-ink-2">Curious where this goes?{spinning && <Loader2 size={12} aria-hidden="true" className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" />}</h2>
+      {typeof steps.refresh === 'function' && (
+        <button type="button" data-next-steps-refresh aria-label="Refresh suggestions" title="Refresh suggestions: a new set for this canvas" disabled={steps.status !== 'ready' || refreshing} aria-busy={refreshing || undefined}
+          onClick={() => steps.refresh()} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink disabled:opacity-50 disabled:hover:bg-transparent">
+          <RefreshCw size={13} className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
+        </button>
+      )}
+      <button type="button" data-next-steps-minimize aria-label="Minimize suggestions" title="Minimize suggestions" aria-expanded="true" onClick={onMinimize}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink"><Minus size={13} /></button>
+    </div>
+  );
+}
+
 export function NextStepsCard({ steps, onPick }) {
   const [working, setWorking] = useState(null);
+  // Minimized: a small chip that frees the card's room; Restore shows the same suggestions again, never asking for new ones.
+  const [minimized, setMinimized] = useState(false);
   // The last set's height: the skeleton that replaces it keeps it, so the card does not change size while the next set loads.
   const frame = useRef(null), height = useRef(0);
   useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
   if (!steps) return null;
+  const visible = steps.status === 'loading' || steps.status === 'stale' || (steps.status === 'ready' && steps.options.length === 3);
+  if (minimized && visible) return (
+    <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
+      <span className="truncate text-xs font-medium text-ink-2">Curious where this goes?</span>
+      <button type="button" data-next-steps-restore aria-label="Restore suggestions" title="Show the suggestions" aria-expanded="false" onClick={() => setMinimized(false)}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink"><ChevronUp size={14} /></button>
+    </section>
+  );
   // A set on its way for this basis, loading or stale (owner, 2026-10-08: "if the questions are still being loaded just show
   // the skeleton and a spinner and not the previous question"): the same card with three placeholder rows and a spinner,
   // never the previous hooks (contract §1.2). Unavailable, whatever its reason, draws nothing.
   if (steps.status === 'loading' || steps.status === 'stale') {
     return (
       <section data-next-steps={steps.status} data-next-steps-skeleton aria-label="Curious where this goes?" aria-busy="true" style={height.current ? { minHeight: height.current } : undefined} className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
-        <h2 className="flex items-center gap-1.5 text-xs font-medium text-ink-2">Curious where this goes?<Loader2 size={12} aria-hidden="true" className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" /></h2>
+        <NextStepsHeader steps={steps} spinning onMinimize={() => setMinimized(true)} />
         <span className="sr-only">Loading suggestions</span>
         {[0, 1, 2].map(row => <div key={row} aria-hidden="true" data-next-step-placeholder className={`${HOOK_ROW} flex-1 bg-hover motion-safe:animate-pulse`} />)}
       </section>
@@ -390,8 +419,15 @@ export function NextStepsCard({ steps, onPick }) {
     try { await onPick(r.selected_next_step, hook); } finally { setWorking(null); }
   };
   return (
-    <section ref={frame} data-next-steps={steps.status} aria-label="Curious where this goes?" className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
-      <h2 className="text-xs font-medium text-ink-2">Curious where this goes?</h2>
+    <section ref={frame} data-next-steps={steps.status} data-next-steps-refresh-state={steps.refresh_state || undefined} aria-label="Curious where this goes?" className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
+      <NextStepsHeader steps={steps} onMinimize={() => setMinimized(true)} />
+      {steps.refresh_state === 'loading' && <span role="status" className="sr-only">Refreshing suggestions</span>}
+      {steps.refresh_state === 'error' && (
+        <p role="alert" data-next-steps-refresh-error className="flex items-center gap-2 text-xs text-ink-2">
+          {steps.refresh_reason === 'limited' ? 'Refresh limit reached for now; these suggestions stay.' : 'Could not refresh; these suggestions stay.'}
+          {steps.refresh_reason !== 'limited' && <button type="button" onClick={() => steps.refresh()} className="font-medium text-ink underline-offset-2 hover:underline">Try again</button>}
+        </p>
+      )}
       {steps.options.map(hook => (
         <button key={hook.id} type="button" data-next-step={hook.id} data-next-section={hook.section?.id} aria-label={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : undefined} disabled={!!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
           className="flex min-h-14 w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2 text-left text-sm text-ink hover:border-[#b42318]/40 hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:border-line disabled:hover:bg-transparent">

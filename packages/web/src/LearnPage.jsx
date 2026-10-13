@@ -1,5 +1,5 @@
 import { cloneElement, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network } from 'lucide-react';
+import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, goBack, navigate, wsHeaders } from './api.js';
 import { canvasHref } from './project-canvases.js';
@@ -1427,9 +1427,13 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         { label: 'Undo', icon: Undo2, hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
         { label: 'Redo', icon: Redo2, hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },
         { divider: true },
+        { label: 'Cut', icon: Scissors, hint: 'Ctrl X', disabled: !canvasState.selected, onSelect: () => canvas()?.cut() },
         { label: 'Copy', icon: Copy, hint: 'Ctrl C', disabled: !canvasState.selected, onSelect: () => canvas()?.copy() },
         { label: 'Paste', icon: ClipboardPaste, hint: 'Ctrl V', disabled: !canvasState.canPaste, onSelect: () => canvas()?.paste() },
         { label: 'Duplicate', icon: CopyPlus, hint: 'Ctrl D', disabled: !canvasState.selected, onSelect: () => canvas()?.duplicate() },
+        { label: 'Copy style', icon: Pipette, hint: 'Ctrl Alt C', disabled: !canvasState.selected, onSelect: () => canvas()?.copyStyle() },
+        { label: 'Paste style', icon: PaintRoller, hint: 'Ctrl Alt V', disabled: !canvasState.selected || !canvasState.canPasteStyle, onSelect: () => canvas()?.pasteStyle() },
+        { label: canvasState.selectionLocked ? 'Unlock' : 'Lock', icon: canvasState.selectionLocked ? LockOpen : Lock, hint: 'Ctrl Shift L', disabled: !canvasState.selected, onSelect: () => canvas()?.lockSelection() },
         { divider: true },
         { label: 'Group', icon: Group, hint: 'Ctrl G', disabled: canvasState.selected < 2, onSelect: () => canvas()?.group() },
         { label: 'Ungroup', icon: Ungroup, hint: 'Ctrl Shift G', disabled: !canvasState.grouped, onSelect: () => canvas()?.ungroup() },
@@ -1452,6 +1456,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         { divider: true },
         { label: 'Distribute horizontally', icon: AlignHorizontalSpaceBetween, disabled: canvasState.units < 3, onSelect: () => canvas()?.arrange('spread-x') },
         { label: 'Distribute vertically', icon: AlignVerticalSpaceBetween, disabled: canvasState.units < 3, onSelect: () => canvas()?.arrange('spread-y') },
+        { divider: true },
+        { label: 'Bring to front', icon: BringToFront, hint: 'Ctrl Shift ]', disabled: !canvasState.selected, onSelect: () => canvas()?.order('front') },
+        { label: 'Bring forward', icon: ArrowUp, hint: 'Ctrl ]', disabled: !canvasState.selected, onSelect: () => canvas()?.order('forward') },
+        { label: 'Send backward', icon: ArrowDown, hint: 'Ctrl [', disabled: !canvasState.selected, onSelect: () => canvas()?.order('backward') },
+        { label: 'Send to back', icon: SendToBack, hint: 'Ctrl Shift [', disabled: !canvasState.selected, onSelect: () => canvas()?.order('back') },
       ],
     },
     {

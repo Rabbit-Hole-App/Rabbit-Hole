@@ -1338,6 +1338,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [dropHover, setDropHover] = useState(false);
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
+  const [composerHidden, setComposerHidden] = useState(false);
   const menuOpenRef = useRef(false);
   menuOpenRef.current = !!menuAt;
   // Where the menu actually goes (owner, 2026-10-07): measured after it renders, so it opens beside the cursor and stays
@@ -4488,7 +4489,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
         </div>
         {/* The shared composer shell's footprint: DOCK_WIDTH in a DOCK_PAD strip (ChatComposer.jsx). */}
-        {composer && <div data-canvas-composer className={`${DOCK_WIDTH} min-w-0 md:mx-0 md:shrink max-md:order-2`}>{composer}</div>}
+        {/* Hide the composer (owner brief 2 item 5): it stays mounted - draft, attachments, the selected card's context and
+            a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
+            small Show button instead). The hooks card's minimized state is its own. */}
+        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
+          <button type="button" data-composer-hide aria-label="Hide chat composer" title="Hide chat composer - your draft stays"
+            onClick={() => setComposerHidden(true)}
+            className="absolute -top-2.5 right-4 z-10 flex h-5 w-7 items-center justify-center rounded-full border border-line bg-white text-ink-3 shadow-sm hover:text-ink"><ChevronDown size={13} /></button>
+          {composer}
+        </div>}
+        {composer && composerHidden && <div data-composer-show-slot className="flex justify-center max-md:order-2">
+          <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
+            onClick={() => { setComposerHidden(false); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] textarea, [data-canvas-composer] input[type="text"], [data-canvas-composer] [contenteditable="true"]')?.focus({ preventScroll: true })); }}
+            className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-md hover:text-ink"><MessageCircle size={13} />Chat<ChevronUp size={13} /></button>
+        </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
         <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">

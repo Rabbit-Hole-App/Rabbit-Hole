@@ -244,7 +244,7 @@ const renderSteps = props => {
 
 test('useNextSteps: exactly the steps shape, unavailable/off without a Tutor; the module never reads the mode, evidence routes or a course', () => {
   const steps = renderSteps({ tutor: { active: false } });
-  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'select', 'set_id', 'status']);
+  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'refresh', 'select', 'set_id', 'status']);
   assert.deepEqual([steps.status, steps.reason, steps.set_id, steps.generated_at, steps.options], ['unavailable', 'off', null, null, []]);
   assert.deepEqual(steps.select('ns_00000000.1'), { ok: false, reason: 'unknown' });
   const source = read('LearnNextSteps.jsx');
@@ -501,7 +501,7 @@ test('useSharedNextSteps: off without a token; posts the origin; viewer_states o
   let steps = null;
   const Page = () => { steps = B.useSharedNextSteps({ token: null, card: null, version: 1, signedIn: false }); return null; };
   B.renderToStaticMarkup(B.createElement(Page));
-  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'select', 'set_id', 'status']);
+  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'refresh', 'select', 'set_id', 'status']);
   assert.deepEqual([steps.status, steps.reason], ['unavailable', 'off']);
   const source = read('LearnNextSteps.jsx');
   assert.match(source, /\/api\/learn\/boards\/shared\/\$\{encodeURIComponent\(\w+\)\}\/next-steps/);

@@ -141,5 +141,5 @@ test('MathLive loads with the first equation edited, never with the canvas', () 
 });
 
 test('the toolbar has the Equation tool right after Text', () => {
-  assert.match(read('./AdaptiveCanvas.jsx'), /\['text', Type, 'Text'\],\n {2}\['equation', Sigma, 'Equation'\],/);
+  assert.match(read('./AdaptiveCanvas.jsx'), /\['text', Type, 'Text \(T\)'\],\n {2}\['equation', Sigma, 'Equation'\],/);
 });
