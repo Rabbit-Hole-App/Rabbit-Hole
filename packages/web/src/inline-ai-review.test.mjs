@@ -360,10 +360,15 @@ test('re-review S3 gap: a group of more stickies than the object budget clips th
 test('re-review M8: a routing request refused by the worker or lost on the network says JEV was not called', async () => {
   const transport = fetchRaw => transportModule.httpTransport({ app: 'canvas-0a1b2c3d', fetchRaw, post: async () => ({}) });
   const signal = new AbortController().signal;
-  for (const status of [401, 413]) {
-    const read = await transport(async () => new Response(JSON.stringify({ error: 'refused' }), { status })).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal });
+  for (const status of [400, 401, 413]) {
+    const read = await transport(async () => new Response(JSON.stringify({ error: 'refused', code: status === 400 ? 'too_long' : undefined }), { status })).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal });
     assert.deepEqual([read.status, read.called], [status, false]);
   }
+  // A 400 is shown as its error, and its row says JEV was not asked.
+  const refusedRows = [];
+  const refused = make({ route: async () => ({ error: 'too_long', status: 400, message: 'Too long.', called: false }) }, { onMetrics: entry => refusedRows.push(entry) });
+  assert.equal(await refused.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'invalid');
+  assert.deepEqual([refusedRows.at(-1).routing, sessionModule.routeColumn(refusedRows.at(-1)), sessionModule.stageTimings(refusedRows.at(-1)).routing], ['skipped:too_long', 'bypassed', 'bypassed']);
   const lost = await transport(async () => { throw new TypeError('Failed to fetch'); }).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal });
   assert.deepEqual(lost, { error: 'unavailable', called: false });
   await assert.rejects(transport(async () => { throw Object.assign(new Error('stopped'), { name: 'AbortError' }); }).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal }), { name: 'AbortError' });

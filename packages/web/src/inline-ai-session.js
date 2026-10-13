@@ -210,7 +210,8 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
         mark(id, 'routeEnd');
         // The worker refused the request itself (400: too long, malformed): say why, never a quiet plain note.
         if (read.status === 400) {
-          metric(id).routing = 'jev'; count(id, 'errors');
+          // Refused before any JEV call: skipped, never jev.
+          metric(id).routing = `skipped:${read.error || 'invalid'}`; count(id, 'errors');
           set({ status: shown('error'), stage: null, error: read.message || 'This request was refused. Change it and send again.' });
           finish(id, 'invalid');
           return 'invalid';
