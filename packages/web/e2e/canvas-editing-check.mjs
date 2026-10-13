@@ -600,6 +600,26 @@ await run('gap rail guard', async () => {
   await context.close();
 });
 
+// Picking a drawing tool lets go of the selection, as in Excalidraw (owner, 2026-10-13), by button or key; the Hand
+// and Space-pan keep it.
+await run('tool pick clears selection', async () => {
+  const c = { id: 'c', kind: 'rect', x1: 100, y1: 300, x2: 200, y2: 360, ...style };
+  const { page, context, screen } = await open('tool-pick-selection', { shapes: [c] });
+  const gutter = page.locator('[data-tool-gutter]');
+  const pick = async () => { await page.keyboard.press('v'); const at = await screen(150, 330); await page.mouse.click(at.x, at.y); return (await selectedIds(page)).join(); };
+  const before = await pick();
+  await gutter.getByRole('button', { name: 'Pen', exact: true }).click();
+  check('picking the Pen button clears the selection', before === 'c' && (await selectedIds(page)).length === 0, `before ${before}, after ${(await selectedIds(page)).join()}`);
+  await pick();
+  await page.keyboard.press('r');
+  check('the R key clears the selection', (await selectedIds(page)).length === 0, (await selectedIds(page)).join());
+  await pick();
+  await page.keyboard.down(' '); await page.waitForTimeout(100); await page.keyboard.up(' ');
+  await gutter.getByRole('button', { name: 'Hand — pan the canvas', exact: true }).click();
+  check('Space-pan and the Hand keep the selection', (await selectedIds(page)).join() === 'c', (await selectedIds(page)).join());
+  await context.close();
+});
+
 await run('shortcuts', async () => {
   const { page, context } = await open('shortcuts', {});
   for (const [key, label] of [['r', 'Rectangle'], ['o', 'Ellipse'], ['a', 'Arrow'], ['l', 'Line'], ['p', 'Pen'], ['t', 'Text'], ['e', 'Eraser'], ['n', 'Sticky note'], ['h', 'Hand'], ['v', 'Select']]) {

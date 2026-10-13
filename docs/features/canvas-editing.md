@@ -162,6 +162,8 @@ diagram connector ends in the open arrow it always had.
   laser), and on view-only boards. C stays Comment, and Ctrl/Cmd+K belongs to the inline AI editor lane. Tooltips name
   the keys, and the shortcut sheet lists them all. A pointer press no longer leaves a tool button focused, so Space after
   a click pans.
+- Picking a drawing tool (pen, highlighter, eraser, text, equation, sticky note or any shape), by its button or its key,
+  clears the selection, as in Excalidraw (owner, 2026-10-13). Select, the Hand, Ask about selection and Space-pan keep it.
 
 ## 8. Composer hide (brief 2 §5)
 
