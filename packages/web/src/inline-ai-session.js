@@ -234,6 +234,14 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       await run(mine, id, { route, via: 'clarified', args: pendingRequest.prompt }, pendingRequest);
       return state.status;
     },
+    // A question asked while a preview was showing: back to that preview, which is still there and still bound to its
+    // own snapshot. The question's request is settled (clarify); answering it afterwards is not possible.
+    back() {
+      if (closed || state.status !== 'clarify' || !state.preview || state.accepted) return 'ignored';
+      pendingRequest = null;
+      set({ status: state.preview.kind === 'proposal' ? 'proposal' : 'preview', clarify: null, error: null });
+      return state.status;
+    },
     // Stop: abort locally and upstream where the transport can; late results and chunks are dropped. A paid job a card
     // already started is not stopped by this (the editor says so); nothing here has started one.
     cancel() {

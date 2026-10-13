@@ -304,3 +304,13 @@ test('M5: the dead code the review found is gone', async () => {
   assert.doesNotMatch(source('inline-ai-session.js'), /requestId: state\.preview \? state\.requestId : id/, 'the no-op requestId conditional');
   assert.doesNotMatch(source('inline-ai-route.js'), /inline-ai-route-bench\.mjs/, 'a reference to a file that does not exist');
 });
+
+test('M6: a question asked while a preview shows can go back to that preview, and Accept works again', async () => {
+  const session = make({ generate: async () => ({ result: { kind: 'note', text: 'P1' } }) });
+  await session.submit({ mode: 'explain', prompt: 'Explain this', prepare: snapshot() });
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/quiz', prepare: snapshot() }), 'clarify');
+  assert.equal(session.state.preview.text, 'P1');
+  assert.equal(session.back(), 'preview');
+  assert.equal(session.state.clarify, null);
+  assert.deepEqual(session.accept(() => ({ ok: true })), { ok: true });
+});

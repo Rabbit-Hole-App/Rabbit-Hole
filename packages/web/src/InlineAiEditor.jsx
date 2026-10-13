@@ -357,6 +357,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             {state.clarify.options?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{state.clarify.options.map(option => (
               <button key={option} type="button" data-inline-option={option} onClick={() => session.choose(option)} className="h-6 rounded-md border border-line bg-white px-2 text-ink hover:bg-hover">{ROUTES[option]?.label || option}</button>
             ))}</div>}
+            {preview && <button type="button" data-inline-back onClick={() => session.back()} className="mt-1.5 flex items-center gap-1 rounded px-0.5 text-ink-2 hover:text-ink"><RotateCcw size={11} />Back to the preview</button>}
           </div>
         )}
         {status === 'stale' && state.stale && (

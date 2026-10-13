@@ -899,6 +899,24 @@ await run('S2: Explain on a lone connector: Accept places the note at its midpoi
   check('S2: Accept adds one note beside the connector, with no arrow to a line', closed && inlineShapes(board).length === 1 && near && !board.links.some(link => link.kind === 'annotation'), JSON.stringify(note && { x1: note.x1, y1: note.y1 }));
   await context.close();
 });
+
+// ---- M6 (review of 2bdeb288..f862f826): a question while a preview shows. Failed on f862f826 ----
+await run('M6: a question asked while a preview shows goes back to the preview, and Accept lands it', async () => {
+  const { page, context, saved } = await open('m6-back');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await submitPrompt(page, 'Explain this node');
+  await waitStatus(page, ['preview']);
+  await submitPrompt(page, '/quiz');
+  await waitStatus(page, ['clarify']);
+  await page.locator('[data-inline-back]').click();
+  await waitStatus(page, ['preview']);
+  check('M6: back to the preview, with Accept usable', await page.locator('[data-inline-accept]').isEnabled());
+  await page.locator('[data-inline-accept]').click();
+  const closed = await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 5000 }).then(() => true, () => false);
+  check('M6: Accept lands the earlier note', closed && inlineShapes(await saved()).length === 1);
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);
