@@ -140,13 +140,14 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
   // Gateway passes provider list prices through without markup:
   // https://vercel.com/docs/ai-gateway/pricing (no optional add-ons are requested here).
   const reservedUsd = Math.ceil(65536 * 0.042) / 1e6;
-  if (enforced && !platformCaps(env).usd) throw new JevError('cap_unset', 'Daily model spend cap is not configured.');
-  if (enforced && request?.model !== JEV_TRANSPORTS[transport]?.model) throw new JevError('spend_bound_unavailable', 'Jev request has no verified spend bound.');
+  // called: false on a refusal before any request reached Jev (a caller's telemetry says whether Jev was asked).
+  if (enforced && !platformCaps(env).usd) throw Object.assign(new JevError('cap_unset', 'Daily model spend cap is not configured.'), { called: false });
+  if (enforced && request?.model !== JEV_TRANSPORTS[transport]?.model) throw Object.assign(new JevError('spend_bound_unavailable', 'Jev request has no verified spend bound.'), { called: false });
   for (let attempt = 0; ; attempt += 1) {
     const opId = enforced ? operationId('jev') : null;
     if (enforced) {
       const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'jev', reservedUsd });
-      if (gate.refused) throw new JevError(gate.reason, 'Jev refused by the daily spend guard.');
+      if (gate.refused) throw Object.assign(new JevError(gate.reason, 'Jev refused by the daily spend guard.'), { called: attempt > 0 });
     }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);

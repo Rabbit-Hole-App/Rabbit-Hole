@@ -246,3 +246,16 @@ test('S3: a target the context clipped (the total budget, not only its own lengt
   assert.equal(checked.ok, false);
   assert.match(checked.errors[0], /Select the words to change/);
 });
+
+test('S4: a routing call the worker refused before calling JEV is recorded as bypassed, never jev', async () => {
+  const rows = [];
+  const run = async read => {
+    const session = make({ route: async () => read, generate: async () => ({ result: { kind: 'note', text: 'x' } }) }, { onMetrics: entry => rows.push(entry) });
+    await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() });
+    const entry = rows.at(-1);
+    return [entry.routing, sessionModule.routeColumn(entry), sessionModule.stageTimings(entry).routing];
+  };
+  assert.deepEqual(await run({ error: 'unavailable', called: false }), ['skipped:unavailable', 'bypassed', 'bypassed']);
+  const [routing, column, stage] = await run({ error: 'timeout', called: true });
+  assert.deepEqual([routing, column, typeof stage], ['fallback:timeout', 'jev', 'number'], 'a call that reached JEV and failed is still jev');
+});

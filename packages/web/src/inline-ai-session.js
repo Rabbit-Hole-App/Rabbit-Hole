@@ -17,6 +17,7 @@ export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }
 // The A5 route column of one request's metrics. jev: this request asked JEV, or tried to and fell back
 // (fallback:<reason>). direct: an explicit / command. bypassed: no routing call for this request - a plain explain,
 // Edit, a reused result, an answered clarification (its routing call, if any, was the earlier request's row).
+// skipped:<reason>: the worker refused before JEV was called (no key, the spend guard): bypassed, never jev.
 export const routeColumn = entry => (entry.routing === 'jev' || String(entry.routing || '').startsWith('fallback:') ? 'jev' : entry.via === 'command' ? 'direct' : 'bypassed');
 // The candidate a refine revises (§10), as the handler reads it: a note's words, an edit's operations, a card's type,
 // title and text.
@@ -203,7 +204,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
           return 'invalid';
         }
         plan = decideRoute(read, { enabled });
-        metric(id).routing = plan.via === 'fallback' ? `fallback:${read.error}` : 'jev';
+        metric(id).routing = plan.via !== 'fallback' ? 'jev' : read.called === false ? `skipped:${read.error}` : `fallback:${read.error}`;
       } else metric(id).routing = previous ? 'refine' : 'bypassed';
       pendingRequest = request;
       if (plan.clarify) { set({ status: 'clarify', stage: null, clarify: plan.clarify }); finish(id, 'clarify'); return 'clarify'; }
@@ -277,7 +278,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
 export function stageTimings(entry) {
   const m = entry.marks, d = (a, b) => (m[a] != null && m[b] != null ? Math.round((m[b] - m[a]) * 10) / 10 : null);
   return {
-    refresh: d('submit', 'refreshed'), routing: entry.routing === 'bypassed' ? 'bypassed' : d('routeStart', 'routeEnd'),
+    refresh: d('submit', 'refreshed'), routing: entry.routing === 'bypassed' || String(entry.routing || '').startsWith('skipped:') ? 'bypassed' : d('routeStart', 'routeEnd'),
     providerFirst: d('providerStart', 'firstOutput'), firstPreview: d('submit', 'firstPreview'), complete: d('submit', 'complete'),
     accept: d('acceptClick', 'committed'), persist: d('committed', 'persisted'),
   };

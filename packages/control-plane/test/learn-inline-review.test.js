@@ -88,3 +88,21 @@ test('refine telemetry: a refined row is kept and is not a failure', () => {
   assert.equal(row.outcome, 'refined');
   assert.equal(summarize([{ ...row, metrics_json: row.metrics_json }]).note.failures, 0);
 });
+
+import { JevError, askJev } from '../src/learn-grade-jev.js';
+
+test('S4: the routing endpoint says whether it called JEV', async () => {
+  const authorize = async () => ({ name: 'canvas-0a1b2c3d' });
+  const route = async (env, ask) => (await inlineRouteFetch(post('/api/learn/inline/route', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', prompt: 'Show the shape of this' }), env, { authorize, ask })).json();
+  assert.deepEqual(await route({}, async () => assert.fail('no key, no call')), { error: 'unavailable', called: false, protocol: (await route({}, null)).protocol });
+  const refused = await route({ VERCEL_TYPESAFE_API_KEY: 'k' }, async () => { throw Object.assign(new JevError('daily_cap_reached', 'refused'), { called: false }); });
+  assert.deepEqual([refused.error, refused.called], ['unavailable', false]);
+  const timedOut = await route({ VERCEL_TYPESAFE_API_KEY: 'k' }, async () => { throw new JevError('timeout', 'slow'); });
+  assert.deepEqual([timedOut.error, timedOut.called], ['timeout', true]);
+});
+
+test('S4: askJev marks a refusal before any request as not called', async () => {
+  const error = await askJev({ SMALL_ENV: 'dev' }, { model: 'x' }, { fetchImpl: async () => assert.fail('no request') }).catch(failure => failure);
+  assert.equal(error.code, 'cap_unset');
+  assert.equal(error.called, false);
+});

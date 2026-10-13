@@ -53,7 +53,8 @@ export async function inlineRouteFetch(req, env, { authorize = authorizedBoardAp
   const transport = jevTransport(env);
   const started = Date.now();
   // No key: no call. The browser takes the stated note fallback.
-  if (!transport) { log({ stage: 'route', request_id: body.request_id, outcome: 'unavailable', ms: 0 }); return json({ error: 'unavailable', protocol: ROUTE_PROTOCOL_VERSION }); }
+  // called: whether this request reached JEV, so the browser's telemetry never labels a refusal as a JEV route.
+  if (!transport) { log({ stage: 'route', request_id: body.request_id, outcome: 'unavailable', ms: 0 }); return json({ error: 'unavailable', called: false, protocol: ROUTE_PROTOCOL_VERSION }); }
   try {
     const out = await ask(env, routeRequest({ prompt: body.prompt, selection: body.selection || '' }, JEV_TRANSPORTS[transport].model), { transport, timeoutMs: ROUTE_TIMEOUT_MS });
     const read = readRoute(out.body);
@@ -61,8 +62,9 @@ export async function inlineRouteFetch(req, env, { authorize = authorizedBoardAp
     return json({ ...read, ms: out.ms, transport, cost: out.cost, protocol: ROUTE_PROTOCOL_VERSION });
   } catch (error) {
     const code = error instanceof JevError ? (error.code === 'timeout' ? 'timeout' : error.code === 'bad_response' ? 'invalid' : 'unavailable') : 'invalid';
-    log({ stage: 'route', request_id: body.request_id, outcome: code, ms: Date.now() - started, transport });
-    return json({ error: code, protocol: ROUTE_PROTOCOL_VERSION });
+    const called = error?.called !== false;
+    log({ stage: 'route', request_id: body.request_id, outcome: code, ms: Date.now() - started, transport, called });
+    return json({ error: code, called, protocol: ROUTE_PROTOCOL_VERSION });
   }
 }
 
