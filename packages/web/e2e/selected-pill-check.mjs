@@ -183,6 +183,22 @@ await check('owner: selecting another card moves the one pill to it', async () =
   assert.equal(await page.locator('[data-canvas-target]').count(), 1);
   await blank(page);
 });
+// Each answer above is a chat card linked to its card (1f626264). Each lands in free space beside its card: no answer
+// covers a card, a note or another answer (they once all stacked on one spot over the foot of the column).
+await check('owner: the answer cards sit in free space, over no card and no other answer', async () => {
+  await fit(page);
+  const ids = new Set([...KINDS, EMPTY].map(kind => kind.id));
+  const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-block-id],[data-item-id]')].map(node => {
+    const r = node.getBoundingClientRect();
+    return { id: node.dataset.blockId || node.dataset.itemId, x: r.left, y: r.top, w: r.width, h: r.height };
+  }).filter(box => box.w && box.h));
+  const answers = boxes.filter(box => !ids.has(box.id));
+  assert.ok(answers.length >= KINDS.length - 1, `answer cards: ${answers.length}`);
+  const hit = (a, b) => a.x < b.x + b.w - 1 && a.x + a.w - 1 > b.x && a.y < b.y + b.h - 1 && a.y + a.h - 1 > b.y;
+  const over = answers.flatMap(a => boxes.filter(b => b.id !== a.id && hit(a, b)).map(b => `${a.id.slice(0, 8)} over ${b.id.slice(0, 8)}`));
+  if (over.length) await page.screenshot({ path: `${SHOTS}/answers-overlap.png` });
+  assert.deepEqual(over, [], `overlapping answer cards (${over.length})`);
+});
 
 // ---- Add to chat on a dropped image, a text box and a sticky note (r35 gave them Ask in chat; owner 2026-10-13: "rename Ask in chat
 // to Add to chat (ctrl + L) or Quick Edit (ctrl + k )"): the selection actions above the top right, the object as the composer's
@@ -441,6 +457,6 @@ await browser.close();
 const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json()).hits.length));
 console.log('provider tripwire hits', tripwire.join(' / '), 'refused', refused.length ? refused.join(', ') : 'none', 'page errors', errors.length ? errors.join(' | ') : 'none');
 assert.deepEqual(tripwire, [0, 0], 'no model call');
-const TOTAL = KINDS.length * 2 + 2 + 7 + ASKS.length + 1;
+const TOTAL = KINDS.length * 2 + 3 + 7 + ASKS.length + 1;
 console.log(`${results.length}/${TOTAL} checks passed`);
 process.exit(results.length === TOTAL ? 0 : 1);
