@@ -25,7 +25,8 @@ export async function modelFailure(response, label, suffix = '') {
 const SHOWN_CARD = { show_wikipedia: 'wiki', show_video: 'video' }; // learn-wiki.js, learn-youtube.js
 // graceful (Learn chat, askStream): what a learner sees when the model declines (stop_reason refusal) or stops at max_tokens
 // part-way through an answer. Off (the Tutor handoff), both stay errors, so the caller can name them refused and too_large.
-export const DECLINE = "I can't help with that request.";
+export { DECLINE } from './canvas-conversation.js';
+import { DECLINE } from './canvas-conversation.js';
 export const CUT_NOTE = '_This answer stopped at the length limit. Ask me to continue for the rest._';
 export async function researchAnswer(env, turns, system, model, {
   callModel, onProgress = async () => {}, findPapers = searchArxiv, readPaper = readArxivPaper, initialPapers = [], tools = [], runTool, arxiv = true, graceful = false,

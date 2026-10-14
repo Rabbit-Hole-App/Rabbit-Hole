@@ -10,6 +10,7 @@ import { chatFields, contextRefs, courseIntent, resolveMode, validateSyllabus, s
 import { pathOutput } from '../src/agents/learn-journey.js';
 import { REQUEST_FIRST } from '../src/agents/learn-tutor.js';
 import { CUT_NOTE, DECLINE } from '../src/learn-research.js';
+import { WITHHELD } from '../src/canvas-conversation.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { contextDocsFetch } from '../src/learn-context-docs.js';
 import { LEARN_SYSTEM } from '../src/agents/learn-chat.js';
@@ -281,9 +282,10 @@ test('canvas_context: every mode and any wording carries the same board block an
 });
 
 // Topic restriction (2026-10-14-topic-restriction-OWNER.md): the canvas is titled 'Attention'; requests on other subjects in
-// every mode get the same request-first system prompt, and a refused turn stays in history so a rephrase of it is still judged
-// against the refusal, while the rule judges a clearly safe new request on its own.
-test('any subject in Ask, Auto and Tutor gets the request-first rule; a refused turn stays in history', async t => {
+// every mode get the same request-first system prompt. A declined turn stays in history as a declined turn with its request's
+// text withheld (RECHECK.md 6c: the provider's safety check reads the whole history, so resending the text declined a later
+// safe question too); the rule judges a clearly safe new request on its own.
+test('any subject in Ask, Auto and Tutor gets the request-first rule; a declined turn stays in history with its text withheld', async t => {
   const f = fixture(t);
   const turns = [['ask', 'Explain how a heat pump moves heat'], ['ask', 'What is a Fourier series?'], ['auto', 'show me how vaccines train immunity'], ['tutor', 'Plan a course on medieval trade routes']];
   for (const [mode, message] of turns) { f.replies.push('Answer.'); await f.ask({ message, mode }); }
@@ -295,8 +297,15 @@ test('any subject in Ask, Auto and Tutor gets the request-first rule; a refused 
   f.replies.push('Answer.');
   await f.ask({ message: 'Explain photosynthesis', mode: 'auto', thread_id: refused.at(-1).data.threadId });
   const after = f.calls.at(-1);
-  assert.deepEqual(after.messages.slice(0, -1).map(m => m.content), ['a request the assistant refuses', 'I can\'t help with that request.'], 'history keeps the refusal for a rephrase to meet');
+  assert.deepEqual(after.messages.slice(0, -1).map(m => m.content), [WITHHELD, DECLINE], 'the decline stays; the declined text does not');
+  assert.equal(JSON.stringify(after).includes('a request the assistant refuses'), false, 'the declined request never rides again');
   assert.ok(after.system.includes(REQUEST_FIRST));
+  // A model refusal (stop_reason refusal) stores the same decline, so its request is withheld the same way.
+  f.replies.push({ stop_reason: 'refusal', content: [] });
+  const second = (await f.ask({ message: 'a second declined request', mode: 'tutor' })).events;
+  f.replies.push('Answer.');
+  await f.ask({ message: 'Explain how vaccines train the immune system', mode: 'tutor', thread_id: second.at(-1).data.threadId });
+  assert.deepEqual(f.calls.at(-1).messages.slice(0, -1).map(m => m.content), [WITHHELD, DECLINE]);
 });
 
 // lane-b-real/RESULTS.md: a refusal reached the pane as "No Learn answer returned (refusal; no content)" and a long whole-board
