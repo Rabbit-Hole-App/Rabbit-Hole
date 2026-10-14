@@ -63,6 +63,14 @@ async function stillUsable(label) {
 await page.goto(`${BASE}/apps/${root.name}?board=nanogpt-deep-dive`); await settle();
 await checkShell('root'); await stillUsable('root');
 await page.screenshot({ path: `${OUT}/shell-1-root.png` });
+// Owner, 2026-10-13: the icon to hide the composer "should be better placed and not hanging above": one more icon button in the
+// composer's own row, fully inside it and clear of the text field, never straddling its top border.
+{
+  const hide = await page.locator('[data-composer-hide]').boundingBox(), form = await page.locator('[data-canvas-composer] form[data-chat-composer]').boundingBox();
+  const field = await page.locator('[data-canvas-composer] form[data-chat-composer] :is(textarea, input:not([type="file"]))').first().boundingBox();
+  assert.ok(hide && form && hide.x >= form.x && hide.y >= form.y && hide.x + hide.width <= form.x + form.width && hide.y + hide.height <= form.y + form.height, `the hide button lies fully inside the composer: ${JSON.stringify({ hide, form })}`);
+  assert.ok(field && hide.x >= field.x + field.width - 1, `and clear of the text field: ${JSON.stringify({ hide, field })}`);
+}
 
 await slash('/dive explain softmax'); await page.waitForFunction(() => location.search.includes('hole=')); await settle();
 await checkShell('pending child');

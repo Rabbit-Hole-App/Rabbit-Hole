@@ -186,7 +186,9 @@ diagram connector ends in the open arrow it always had.
 
 ## 8. Composer hide (brief 2 §5)
 
-A small chevron on the composer's top edge ("Hide chat composer") takes the composer out of view without unmounting it,
+A chevron icon button inside the composer's own row ("Hide chat composer": the same size and style as the + and the other
+icon buttons, after the text field and before Send; owner 2026-10-13, "should be better placed and not hanging above" - it
+used to straddle the composer's top border) takes the composer out of view without unmounting it,
 so the draft, attachments, the selected card's context and any running answer all carry on. A compact "Chat" pill
 ("Show chat composer") brings it back and focuses it. While hidden, the strip reserves only the pill: fit, focus and a
 new card's reveal stop above what is actually there (`chromeTop` measures the visible controls). Viewport and selection

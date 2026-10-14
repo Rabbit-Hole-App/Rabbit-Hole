@@ -29,7 +29,7 @@ import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock, notebookFromCode } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
-import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
@@ -1404,6 +1404,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
   const [composerHidden, setComposerHidden] = useState(false);
+  const hideComposer = useCallback(() => setComposerHidden(true), []);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
   useEffect(() => {
     if (!composerHidden) return undefined;
@@ -4818,10 +4819,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
         {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
-          <button type="button" data-composer-hide aria-label="Hide chat composer" title="Hide chat composer - your draft stays"
-            onClick={() => setComposerHidden(true)}
-            className="absolute -top-2.5 right-4 z-10 flex h-5 w-7 items-center justify-center rounded-full border border-line bg-white text-ink-3 shadow-sm hover:text-ink"><ChevronDown size={13} /></button>
-          {composer}
+          <ComposerHide.Provider value={hideComposer}>{composer}</ComposerHide.Provider>
         </div>}
         {composer && composerHidden && <div data-composer-show-slot className="flex justify-center max-md:order-2">
           <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"

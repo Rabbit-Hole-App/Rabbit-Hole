@@ -885,6 +885,11 @@ await run('composer and suggestions', async () => {
   const selectedBefore = await page.locator('[data-item-id].ring-2').count();
   await page.locator('[data-chat-composer]').fill('my unsent draft');
   const tall = await strip();
+  // Owner, 2026-10-13: the hide icon "should be better placed and not hanging above": one more icon button in the composer's own
+  // row, fully inside its surface and clear of the text area (the stand-in's row stands for the composer's form).
+  const [hideBox, rowBox, fieldBox] = [await page.locator('[data-composer-hide]').boundingBox(), await page.locator('[data-composer-standin]').boundingBox(), await page.locator('[data-chat-composer]').boundingBox()];
+  check('the hide button lies fully inside the composer, never hanging over its border', !!hideBox && !!rowBox && hideBox.x >= rowBox.x && hideBox.y >= rowBox.y && hideBox.x + hideBox.width <= rowBox.x + rowBox.width && hideBox.y + hideBox.height <= rowBox.y + rowBox.height, JSON.stringify({ hideBox, rowBox }));
+  check('and clear of the text area', !!hideBox && !!fieldBox && hideBox.x >= fieldBox.x + fieldBox.width - 1, JSON.stringify({ hideBox, fieldBox }));
   await page.getByRole('button', { name: 'Hide chat composer' }).click();
   check('Hide chat composer removes it from view and frees its room', (await strip()) === 0 && tall > 0 && await page.getByRole('button', { name: 'Show chat composer' }).isVisible());
   check('hiding keeps the viewport and the selection', (await viewOf(page)) === view && (await page.locator('[data-item-id].ring-2').count()) === selectedBefore);

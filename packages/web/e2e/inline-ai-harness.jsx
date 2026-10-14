@@ -6,6 +6,7 @@
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import AdaptiveCanvas from '../src/AdaptiveCanvas.jsx';
+import { ComposerHideButton } from '../src/ChatComposer.jsx';
 import { NextStepsCard } from '../src/ask.jsx';
 import { readGeneration } from '../src/inline-ai-transport.js';
 import { ROUTES } from '../src/inline-ai-route.js';
@@ -125,7 +126,7 @@ function Harness() {
         onAdd={list => setExchanges(previous => [...previous, ...list])} onRestore={setExchanges} onDelete={id => setExchanges(list => list.filter(entry => entry.id !== id))}
         apiRef={api} storageKey={readOnly ? null : `harness:${board}`} boardState={state} readOnly={readOnly} inlineAi={config}
         hooks={<NextStepsCard steps={{ status: 'loading' }} onPick={() => {}} />}
-        composer={<textarea data-chat-composer aria-label="Composer stand-in" placeholder="Composer" className="h-10 w-full rounded border border-line px-2 text-sm" />} />
+        composer={<div data-composer-standin className="flex items-center gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-2"><textarea data-chat-composer aria-label="Composer stand-in" placeholder="Composer" className="h-10 min-w-0 flex-1 rounded border border-line px-2 text-sm" /><ComposerHideButton /></div>} />
     </div>
   );
 }
