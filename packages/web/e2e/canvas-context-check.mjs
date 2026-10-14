@@ -205,11 +205,12 @@ async function openBoard(board) {
   await context?.close();
   context = await browser.newContext({ viewport: { width: 1800, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-  await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, board.seeds);
+  // Top frame only: a sandboxed iframe (an embed or runner) has no localStorage, and reading it there throws.
+  await context.addInitScript(seeds => { if (window !== window.top) return; for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, board.seeds);
   if (board.repo) await routeRepository(context); // registered first, so this file's router (below) runs first and falls back to it
   await context.route('**/*', router);
   page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
+  page.on('pageerror', error => errors.push(`${board.name}: ${error.message.slice(0, 160)}`));
   await page.goto(`${BASE}/apps/${board.name}${board.repo ? '?tab=learn' : ''}`);
   await page.locator(`[data-block-id="${board.first}"]`).waitFor({ timeout: 60000 });
   await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
@@ -239,22 +240,27 @@ const reveal = async (locator, top = false) => {
     const w = top ? Math.min(b?.width ?? 0, 260) : b?.width ?? 0, h = top ? Math.min(b?.height ?? 0, 60) : b?.height ?? 0;
     if (b && b.x > 340 && b.x + w < right && b.y > 100 && b.y + h < view.height - 160) return b;
     const dx = b ? b.x + w / 2 - right / 2 : 0, dy = b ? b.y + h / 2 - view.height * 0.4 : 0;
-    await page.mouse.move(right / 2, view.height * 0.4);
+    // Wheel over bare canvas: over a card or note the wheel may scroll it instead of panning the board.
+    const at = await barePoint() || { x: right / 2, y: view.height * 0.4 };
+    await page.mouse.move(at.x, at.y);
     await page.mouse.wheel(Math.round(dx), Math.round(dy));
     await frames();
   }
   return locator.boundingBox();
 };
 // A point of bare canvas: on the canvas surface, on no card, note, panel or control.
-const blank = async () => {
+const barePoint = async () => {
   const right = (await pane().boundingBox()).x - 20;
-  const point = await page.evaluate(limit => {
+  return page.evaluate(limit => {
     for (let y = 120; y < 800; y += 40) for (let x = 360; x < limit; x += 40) {
       const element = document.elementFromPoint(x, y);
       if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-shape-id],[data-block],[data-view-selection],[data-group-box],[role="dialog"],[data-chat-pane],button,a,iframe')) return { x, y };
     }
     return null;
   }, right);
+};
+const blank = async () => {
+  const point = await barePoint();
   assert.ok(point, 'a bare point of canvas');
   await page.mouse.click(point.x, point.y);
   await page.waitForTimeout(250);
@@ -264,11 +270,21 @@ const clearSelection = async () => {
   if (await pane().locator('[data-canvas-target]').count()) await blank();
   assert.equal(await pane().locator('[data-canvas-target]').count(), 0, 'nothing selected');
 };
-// Select one card (a press on its top edge) or one note / text box (a press near its top-left corner).
+// Select one card (a press on its top edge, off the middle where the connection port sits) or one note / text box (a press near
+// its top-left corner).
 const select = async (id, item = false) => {
-  const b = await reveal(page.locator(item ? `[data-item-id="${id}"]` : `[data-block-id="${id}"]`).first(), true);
-  await page.mouse.click(item ? b.x + 24 : b.x + Math.min(b.width, 400) / 2, item ? b.y + 24 : b.y + 8);
-  await pane().locator(`[data-selected-card="${id}"]`).waitFor({ timeout: 5000 });
+  const target = page.locator(item ? `[data-item-id="${id}"]` : `[data-block-id="${id}"]`).first();
+  await reveal(target, true);
+  // The pan may still be settling: press where the object is now, and once more if the first press landed mid-move.
+  let hit = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.waitForTimeout(350);
+    const b = await target.boundingBox(), x = b.x + (item ? 24 : 40), y = item ? b.y + 24 : b.y + 8;
+    hit = await page.evaluate(([px, py]) => { const e = document.elementFromPoint(px, py); return e ? `${e.tagName} ${e.closest('[data-block-id]')?.dataset.blockId ?? e.closest('[data-item-id]')?.dataset.itemId ?? '-'}` : null; }, [x, y]);
+    await page.mouse.click(x, y);
+    if (await pane().locator(`[data-selected-card="${id}"]`).waitFor({ timeout: 2500 }).then(() => true, () => false)) return;
+  }
+  throw Error(`selecting ${id} showed no pill (the press hit ${hit}; box ${JSON.stringify(await target.boundingBox())})`);
 };
 const waitFor = async (test, ms = 8000) => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error('timed out'); await page.waitForTimeout(100); } };
 
