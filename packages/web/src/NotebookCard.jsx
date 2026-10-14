@@ -16,6 +16,8 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
   // this build points), say so after a while instead of "Starting Python..."
   // forever; Retry reloads the frame.
   const [stalled, setStalled] = useState(false);
+  // The kernel could not start (a package download failed): said on the card, with a retry (notebook-kernel-startup.md).
+  const [kernelError, setKernelError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (loaded) return;
@@ -65,6 +67,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
         // keeps its keys until the learner clicks into the notebook.
         if (document.activeElement === frame.current) frame.current.blur();
       }
+      if (type === 'kernel-error') setKernelError(true);
       if (type === 'workspace') {
         if (event.data.files) workspaceStore()?.save?.(block.notebook_id, event.data.files);
         else if (event.data.error === 'too-large') toast("This notebook's files are over 10 MB, so they stay in your browser and others see only the open notebook.");
@@ -118,6 +121,13 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
         <iframe key={attempt} ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
           onLoad={open} />
+        {kernelError && (
+          <div data-notebook-kernel-error role="alert" className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 border-b border-line bg-white px-4 py-2 text-xs text-ink-2">
+            <span className="flex-1">Python couldn't start: a package it needs could not be downloaded. Check your connection, then retry.</span>
+            <button type="button" onPointerDown={stop} onClick={() => { setKernelError(false); setLoaded(false); ready.current = false; setAttempt(value => value + 1); }}
+              className="rounded-lg border border-line px-3 py-1 text-ink hover:bg-hover">Retry</button>
+          </div>
+        )}
         {!loaded && !stalled && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python…</p>}
         {!loaded && stalled && (
           <div data-notebook-stalled className="absolute inset-0 grid place-items-center bg-white p-6 text-center">

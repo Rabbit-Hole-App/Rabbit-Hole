@@ -1,7 +1,7 @@
 // After `jupyter-lite build` of the canvas notebook site: add the canvas
 // bridge to its lab app, the only app the canvas opens.
 // usage: node packages/web/notebook-canvas/patch-site.mjs <built site dir>
-import { copyFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const site = process.argv[2];
@@ -26,3 +26,19 @@ console.log(`✓ canvas bridge: ${page}`);
 // config and the bridge keep the default revalidation.
 writeFileSync(join(site, '_headers'), ['/build/*', '  Cache-Control: public, max-age=604800', '/extensions/*', '  Cache-Control: public, max-age=604800', ''].join('\n'));
 console.log(`✓ cache headers: ${join(site, '_headers')}`);
+
+// A failed micropip download must say so (docs/features/notebook-kernel-startup.md): pyodide-kernel 0.8.6 awaits
+// loadPackage(['micropip']), which logs a failed load and resolves, so the kernel died later on `import micropip` with an
+// uncaught ModuleNotFoundError. The patched call checks the result and throws the load error itself, which the bridge
+// shows on the card with a retry. A kernel build without that call fails here, not in a learner's browser.
+const kernel = join(site, 'extensions', '@jupyterlite', 'pyodide-kernel-extension', 'static');
+const call = 'await this._pyodide.loadPackage(["micropip"])';
+const checked = 'await (async()=>{const e=[];await this._pyodide.loadPackage(["micropip"],{errorCallback:m=>{console.error(m);e.push(m)}});if(!this._pyodide.loadedPackages.micropip)throw Error("micropip could not load: "+(e.join(" ")||"unknown error"))})()';
+let checkedFiles = 0;
+for (const name of readdirSync(kernel).filter(file => file.endsWith('.js'))) {
+  const file = join(kernel, name), js = readFileSync(file, 'utf8');
+  if (js.includes(call)) writeFileSync(file, js.split(call).join(checked));
+  if (js.includes(call) || js.includes(checked)) checkedFiles += 1;
+}
+if (!checkedFiles) throw new Error(`no micropip load to check in ${kernel}`);
+console.log(`✓ micropip load checked: ${checkedFiles} kernel files`);

@@ -113,6 +113,11 @@ read the app's cookie or APIs. The iframe URL is
 | notebook | `change` | `path`, `ipynb` - 400 ms after an edit, run or output in an open notebook |
 | canvas | `files` | `open` |
 | canvas | `run-all`, `restart` | - |
+| notebook | `kernel-error` | `message` - once, when the kernel cannot start (a package download failed); the card shows it with Retry |
+
+Keyboard focus enters the frame only from the learner: until a press or a key inside it, the page's own focus calls do
+nothing (the card's frame and the hidden warm-up frame alike), so the canvas keeps its shortcuts while a notebook starts.
+Until then the document the bridge opened stands in for Jupyter's focus-tracked current widget.
 
 The page answers only its parent and, after `init`, only that parent's origin;
 paths from the parent must be relative and stay inside the workspace. The

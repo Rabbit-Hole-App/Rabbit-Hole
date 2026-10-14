@@ -1,5 +1,11 @@
 # Notebook kernel startup fails silently when a download fails
 
+**Fix prepared, not deployed (2026-10-14):** branch `fix/notebook-bridge-focus`. `patch-site.mjs` makes the kernel check
+its micropip load and throw the load error; the bridge turns that into one `kernel-error` message instead of uncaught page
+errors; the card shows "Python couldn't start..." with Retry. It takes effect only after the canvas notebook sites are
+rebuilt and deployed (owner approval). Verified locally against a served copy of the site: acceptance 1 (the message), 2 (Retry reaches an idle kernel) and 3
+(cells kept); 4 (`%pip install`) not run.
+
 **Status:** open product issue, found while gating #73 (2026-10-07). It is **not fixed**: this record, the probe and the
 cross-device-check synchronisation are test-side only. Production serves the same notebook site build (JupyterLite 0.8.3,
 pyodide-kernel 0.8.6, Pyodide v314.0.6), so a learner whose network drops while a kernel starts gets the same result. The

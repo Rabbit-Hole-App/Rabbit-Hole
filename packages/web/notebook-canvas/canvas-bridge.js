@@ -4,6 +4,15 @@
 // its own files, its own kernel - and reports the active notebook, the active
 // path and the file tree back to the one parent that opened it.
 (() => {
+  // Keyboard focus comes into a framed notebook only from the learner (gate 38616535709): JupyterLab focuses its own page
+  // while it starts, which took the canvas's keys - a Ctrl+D pressed then was lost - in a card's frame and in the hidden
+  // warm-up frame. Until a press or a key in this page, its focus calls do nothing.
+  if (window.parent !== window) {
+    let engaged = false;
+    for (const type of ['pointerdown', 'keydown']) window.addEventListener(type, () => { engaged = true; }, true);
+    const focus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function (options) { if (engaged) focus.call(this, options); };
+  }
   const workspace = new URLSearchParams(location.search).get('workspace');
   if (window.parent === window || !/^[A-Za-z0-9-]{8,64}$/.test(workspace || '')) return;
   const PROTOCOL = 'rh-notebook/1';
@@ -11,7 +20,20 @@
   const MAX_ENTRIES = 300;
   let parentOrigin = null;
   let app = null;
+  // The open document. The shell's current widget follows focus, which a starting page no longer takes (above), so until
+  // the learner clicks in, the document this page opened stands in for it.
+  let opened = null;
+  const current = () => app.shell.currentWidget ?? opened;
   const post = message => window.parent.postMessage({ protocol: PROTOCOL, ...message }, parentOrigin);
+  // A kernel that cannot start (a package download failed: notebook-kernel-startup.md, patch-site.mjs) rejects every request
+  // made to it. The card says so once, with a retry, instead of those rejections reaching the page as uncaught errors.
+  let kernelFailed = false;
+  window.addEventListener('unhandledrejection', event => {
+    const reason = String(event.reason?.message ?? event.reason ?? '');
+    if (!/could not load|No module named 'micropip'/.test(reason)) return;
+    event.preventDefault();
+    if (!kernelFailed && parentOrigin) { kernelFailed = true; post({ type: 'kernel-error', message: reason.split(/\r?\n/).filter(Boolean).pop().slice(0, 300) }); }
+  });
   const debounce = (fn, ms) => { let timer = null; return () => { clearTimeout(timer); timer = setTimeout(fn, ms); }; };
   // Paths come from the parent; keep them relative and inside the workspace.
   const safePath = path => (typeof path === 'string' && path && !path.startsWith('/') && !path.split('/').includes('..') ? path : null);
@@ -105,7 +127,7 @@
   };
 
   const report = debounce(async () => {
-    const widget = app.shell.currentWidget;
+    const widget = current();
     post({ type: 'state', active_path: widget?.context?.path ?? null, active_kind: isNotebook(widget) ? 'notebook' : widget?.context ? 'file' : null, files: await tree() });
   }, 300);
 
@@ -113,7 +135,7 @@
   // without Jupyter's two-minute autosave; notebooks also report their document.
   const watched = new WeakSet();
   const follow = () => {
-    const widget = app.shell.currentWidget;
+    const widget = current();
     report();
     if (!widget?.context || watched.has(widget)) return;
     watched.add(widget);
@@ -184,7 +206,7 @@
       await chrome();
       drawer(false);
       const opening = (await exists(active)) ? active : copyPath;
-      if (await exists(opening)) await app.commands.execute('docmanager:open', { path: opening });
+      if (await exists(opening)) opened = await app.commands.execute('docmanager:open', { path: opening });
       app.shell.currentChanged.connect(follow);
       contents.fileChanged.connect(report);
       follow();
@@ -194,7 +216,7 @@
       return;
     }
     if (!app) return;
-    const widget = app.shell.currentWidget;
+    const widget = current();
     if (type === 'files') drawer(!!event.data.open);
     if (type === 'export') {
       try { post({ type: 'workspace', files: await snapshot() }); }
