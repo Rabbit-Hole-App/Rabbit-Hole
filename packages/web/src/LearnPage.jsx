@@ -11,7 +11,7 @@ import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
-import { LessonNotebook, LessonPractice, LessonReading, LessonSource } from './LearnExtras.jsx';
+import { LessonNotebook, LessonPractice, LessonReading } from './LearnExtras.jsx';
 import LearnOutline from './LearnOutline.jsx';
 import ContentsRail, { canvasEmpty } from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
@@ -30,14 +30,15 @@ import FilesPanel from './FilesPanel.jsx';
 import FileImportDialog from './FileImportDialog.jsx';
 import { checkImport, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
 import { copiedCode, languageOf } from './map-files.js';
-import LearnWiki from './LearnWiki.jsx';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
-import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
+import ChatPane, { PaneSwitch } from './ChatPane.jsx';
+import SourcesPane from './SourcesPane.jsx';
+import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { MessageCircle } from 'lucide-react';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
@@ -45,7 +46,6 @@ import { memberBase } from './comments/comments-api.js';
 import CommentSettings from './comments/CommentSettings.jsx';
 import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
 import { readPanelPin, savePanelPin } from './canvas-find.js';
-import LearnPaper from './LearnPaper.jsx';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
@@ -80,9 +80,11 @@ const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], 
 const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…', video: 'Opening the video…' };
 
 // A pending Rabbit Hole (Dive.jsx) opens in its parent's place until its first canvas object keeps it.
+// The right-side Chat workspace (chat-workspace.jsx, owner brief 2026-10-13) wraps the canvas and its panels; the
+// canvas's name scopes its threads.
 export default function LearnPage(props) {
   const hole = usePendingHole(props.app);
-  return hole ? <LearnSurface key={hole.name} app={holeApp(props.app, hole)} hole={hole} /> : <LearnSurface {...props} />;
+  return <ChatWorkspaceProvider canvas={hole ? hole.name : props.app.name}>{hole ? <LearnSurface key={hole.name} app={holeApp(props.app, hole)} hole={hole} /> : <LearnSurface {...props} />}</ChatWorkspaceProvider>;
 }
 
 // `switcher`: a project's canvas switcher (RepositoryPage, docs/features/project-canvases.md), beside the title.
@@ -132,12 +134,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const [sampleOutline, setSampleOutline] = useState(app.kind !== 'repository' && !/^canvas-[a-f0-9]{8}$/.test(app.name));
   const [practiceMode, setPracticeMode] = useState('quiz');
   const [learningView, setLearningView] = useState('lesson');
-  // The right panel starts closed: the canvas gets the room; View or the
-  // panel button opens it.
-  const [panelOpen, setPanelOpen] = useState(false);
-  // The panel header (docs/features/panel-header.md): Table of contents is the default tab; pinned (the default)
-  // keeps the panel open while the learner works on the canvas.
-  const [panelTab, setPanelTab] = useState('toc');
+  // The right panel and the Sources pane (chat-panels.js): the canvas and Chat show from the start, Chat is the default
+  // tab (owner brief 2026-10-13 sections 2-3); pinned (the default) keeps the panel open while the learner works.
+  const chat = useChatWorkspace(), { panels } = chat;
+  const { open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab } = panels;
+  const switched = panels.layout === 'switch';
   // A code reference clicked in an answer (RepositoryPage small:open-files; repository-browser.md "Code references"): the
   // Files tab opens on it, the panel too when it was closed.
   useEffect(() => {
@@ -690,7 +691,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const [commentBoard, setCommentBoard] = useState(null);
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });
-  useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('toc'); }, [comments.active, panelTab]);
+  useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The course interview (Edit course) still lives under the Table of contents tab, so starting one brings that tab forward.
+  useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
   // ?share=1 (the Library's Share / Manage link) opens this canvas's Share panel once; the query is dropped at once.
   const [shareOpen, setShareOpen] = useState(() => new URLSearchParams(window.location.search).get('share') === '1');
   useEffect(() => {
@@ -725,15 +728,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   }, [canvasEpoch, learningView, courseView]);
   // Unpinned, a press on the canvas surface closes the panel. A native listener on the frame, so a card's own
   // pointer handlers cannot swallow the press first; a link that opens a reader stops it in capture and stays open.
+  // Never on the Chat tab: Chat stays usable while canvas objects are selected (owner brief 2026-10-13 13.8).
   useEffect(() => {
     const frame = canvasFrame.current;
-    if (panelPinned || !panelOpen || !frame) return undefined;
+    if (panelPinned || !panelOpen || panelTab === 'chat' || !frame) return undefined;
     const close = event => { if (event.target.closest?.('[data-canvas-surface]')) setPanelOpen(false); };
     frame.addEventListener('pointerdown', close);
     return () => frame.removeEventListener('pointerdown', close);
-  }, [panelPinned, panelOpen]);
-  // A reader shows under the Table of contents tab, as before the header, so opening one brings that tab forward.
-  useEffect(() => { if (wikiOpen || paperOpen || sourceOpen || lessonSource) setPanelTab('toc'); }, [wikiOpenAt, wikiOpen, paperOpen, paperContext?.id, sourceOpen, lessonSource]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [panelPinned, panelOpen, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const sharingRef = useRef(null);
   sharingRef.current = sharing;
   const boardVersion = useRef(null);
@@ -1635,9 +1637,18 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         }} />
       </div>
     </section>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
+    {/* Canvas, then Sources, then Chat (owner brief 2026-10-13 section 2). When both panes leave the canvas under
+        CANVAS_MIN px, or below lg, one shows at a time behind a Chat/Sources switch; the other is hidden, never unmounted. */}
+    <ResizableSidePanel aria-label="Sources" resizeLabel="Resize Sources pane" defaultWidth={400} storageKey="rh.sources.width" collapsed={!panels.sourcesOpen} hidden={switched && panels.view !== 'sources'} onWidth={panels.measure.sources}>
+      {switched && <div className="px-5 pt-3"><PaneSwitch view={panels.view} onView={view => (view === 'chat' ? panels.openChat() : panels.setView(view))} /></div>}
+      <SourcesPane />
+    </ResizableSidePanel>
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} hidden={switched && panels.view !== 'chat'} onWidth={panels.measure.chat} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
+      {switched && <PaneSwitch view={panels.view} onView={view => (view === 'chat' ? panels.openChat() : panels.setView(view))} />}
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} filesOn={!!files} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
+      <ChatPane key={app.name} hidden={panelTab !== 'chat'} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
+        onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder} autoFocus />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
@@ -1743,12 +1754,6 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
-      {app.hosting === 'aws' && !app.app_chat
-        ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p>
-        : !courseView && learningView === 'lesson'
-        // lesson view: chat is docked under the canvas - the panel only displays papers and source
-        ? (lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : wikiOpen && wikiContext ? <LearnWiki app={app.name} article={wikiContext} openAt={wikiOpenAt} onNavigate={next => setWikiContext(previous => ({ ...previous, ...next, selection: null }))} onSection={section => setWikiContext(previous => (previous?.section === section ? previous : { ...previous, section }))} onSelect={text => setWikiContext(previous => ({ ...previous, selection: text }))} onClose={() => setWikiOpen(false)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null)
-        : <AskPanel onGraph={onGraph} key={app.name} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" headerTitle="Learn Agent" boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : wikiOpen && wikiContext ? <LearnWiki app={app.name} article={wikiContext} openAt={wikiOpenAt} onNavigate={next => setWikiContext(previous => ({ ...previous, ...next, selection: null }))} onSection={section => setWikiContext(previous => (previous?.section === section ? previous : { ...previous, section }))} onSelect={text => setWikiContext(previous => ({ ...previous, selection: text }))} onClose={() => setWikiOpen(false)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setWikiOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={askPlaceholder} autoFocus />}
       </div>
       </div>
     </ResizableSidePanel>
