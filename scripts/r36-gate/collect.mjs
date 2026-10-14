@@ -28,8 +28,9 @@ mkdirSync(out, { recursive: true });
 const inTree = p => { try { execFileSync('git', ['cat-file', '-e', `${APP_SHA}:${p}`], { cwd: app, stdio: 'ignore' }); return true; } catch { return false; } };
 const json = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
 const failures = [];
-// Each part's newest attempt decides it: a part not rerun keeps the attempt it ran in (a rerun's jobs list carries it
-// with its own run_attempt), a rerun part uses the newer one, and a newer failure is never replaced by an older pass.
+// Each part's newest attempt decides it: a part not rerun is read from the attempt it ran in (a rerun lists it again
+// under the new run_attempt, as a copy of that run; attempts.mjs), a rerun part from the newer one, and a newer failure
+// is never replaced by an older pass.
 // A jobs query that fails leaves no attempts and fails the gate.
 let attempts = {};
 try { const picked = pickAttempts(runJobs(), PARTS); attempts = picked.attempts; failures.push(...picked.errors); }
@@ -39,7 +40,10 @@ catch (error) { failures.push(`attempts: gh jobs query failed: ${error.message.s
 // judged against its own attempt's grant, not collect's.
 const attemptOf = part => attempts[part === 'dive' ? 'checkpoints' : part] ?? process.env.GITHUB_RUN_ATTEMPT;
 const identityOf = part => ({ ...identity, grant: `r36-windows-${process.env.GITHUB_RUN_ID}-${attemptOf(part)}` });
-const dir = part => join(input, `r36-windows-${part}-${APP_SHA}-${attemptOf(part)}`, 'r36', 'artifacts');
+const artifactOf = part => `r36-windows-${part}-${APP_SHA}-${attemptOf(part)}`;
+const dir = part => join(input, artifactOf(part), 'r36', 'artifacts');
+// Every failure of a part's evidence names the part and the attempt it was read from.
+const of = part => `${part} (attempt ${attemptOf(part)})`;
 // The same-sha canonical verify.yml must have succeeded for the harness and the application (each run job used to wait for it).
 // A verify that is merely still running is polled for up to 10 min (awaitVerify; both shas at once); a missing, failed or
 // unreadable one fails at once, and one still running at the deadline fails closed. The accepted runs go in receipt.json.
@@ -51,16 +55,17 @@ verifyResults.forEach((r, i) => r.verdict ? failures.push(`verify: ${r.verdict}`
 // The Dive checkpoint (after its preflight) is the complete gate's prerequisite, as in run.mjs's gate phase.
 const diveFile = join(dir('dive'), 'dive-receipt.json');
 const diveError = prerequisite('gate', json(diveFile), identityOf('dive'));
-if (diveError) failures.push(`checkpoint: ${diveError}`);
+if (diveError) failures.push(`checkpoint (attempt ${attemptOf('dive')}): ${diveError}${json(diveFile) ? '' : ` from ${artifactOf('dive')}`}`);
 
 // A part's receipt must pass with its attempt's identity and its gate-shard.log must exist; the units part is read like a shard.
 const read = part => {
   const d = dir(part), receiptFile = join(d, `${part}-receipt.json`), receipt = json(receiptFile);
   // No receipt in the newest attempt's artifact is "receipt missing" - never an older attempt's receipt, never a bare identity mismatch.
   const wanted = identityOf(part), wrong = receipt ? Object.keys(wanted).filter(key => receipt[key] !== wanted[key]) : [];
-  if (!receipt?.pass || !receipt.ended || receipt.cleanupFailure || wrong.length) failures.push(`${part}: ${receipt?.failure || receipt?.cleanupFailure || (wrong.length ? `identity mismatch: ${wrong.join(', ')}` : 'receipt missing or not passed')}`);
+  if (!receipt) failures.push(`${of(part)}: receipt missing from ${artifactOf(part)}`);
+  else if (!receipt.pass || !receipt.ended || receipt.cleanupFailure || wrong.length) failures.push(`${of(part)}: ${receipt.failure || receipt.cleanupFailure || (wrong.length ? `identity mismatch: ${wrong.join(', ')}` : 'receipt not passed')}`);
   const logFile = join(d, 'gate-shard.log'), log = existsSync(logFile) ? readFileSync(logFile, 'utf8') : null;
-  if (log === null) failures.push(`${part}: gate-shard.log missing`);
+  if (log === null) failures.push(`${of(part)}: gate-shard.log missing`);
   // The shard's record and receipts travel with the merged record; its diagnostics stay in its own artifact.
   mkdirSync(join(out, 'shards', part), { recursive: true });
   for (const f of ['gate-shard.log', 'shard-verdict.json', `${part}-receipt.json`, 'identity.json', 'identity-units.json']) if (existsSync(join(d, f))) copyFileSync(join(d, f), join(out, 'shards', part, f));

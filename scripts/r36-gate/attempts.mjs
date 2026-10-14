@@ -1,7 +1,10 @@
 // For one workflow run and one candidate: each required part's newest attempt that actually ran. A part's newest
-// attempt decides it - an older pass never stands in for a newer failure or cancellation, and a failed-only rerun
-// (which leaves the passed parts at their own attempt) can pass. Any other run (<x>) job (matrix drift) must also have
-// a successful newest attempt, so a part collect does not read can still not hide a failure.
+// attempt decides it - an older pass never stands in for a newer failure or cancellation, and a failed-only rerun can
+// pass. Any other run (<x>) job (matrix drift) must also have a successful newest attempt, so a part collect does not
+// read can still not hide a failure.
+// A rerun lists every part again under the new run_attempt, including the parts it did not rerun (run 38616535709): such
+// a copy keeps the runner_id and started_at of the run it copies. So a part's evidence attempt is the first attempt that
+// lists its newest job's run, not that job's run_attempt.
 import { execFileSync } from 'node:child_process';
 export function pickAttempts(jobs, parts) {
   const attempts = {}, errors = [];
@@ -10,14 +13,16 @@ export function pickAttempts(jobs, parts) {
   for (const part of parts) {
     const job = newest(part);
     if (!job) { errors.push(`${part}: no job`); continue; }
-    attempts[part] = job.runAttempt;
+    attempts[part] = job.ran ? Math.min(...jobs.filter(j => j.part === part && j.ran === job.ran).map(j => j.runAttempt)) : job.runAttempt;
     judge(part, job);
   }
   for (const part of new Set(jobs.map(j => j.part))) if (!parts.includes(part)) judge(part, newest(part));
   return { attempts, errors };
 }
-// The matrix jobs of a run's job listing; a job carried over from an earlier attempt keeps its own run_attempt.
-export const jobsOf = jobs => jobs.map(j => ({ part: j.name.match(/^run \((.+)\)$/)?.[1], runAttempt: j.run_attempt, conclusion: j.conclusion })).filter(j => j.part);
+// The matrix jobs of a run's job listing. ran names the one execution (runner and start) a job and its copies share; a job
+// that never started has none.
+export const jobsOf = jobs => jobs.map(j => ({ part: j.name.match(/^run \((.+)\)$/)?.[1], runAttempt: j.run_attempt, conclusion: j.conclusion,
+  ran: j.runner_id && j.started_at ? `${j.runner_id}@${j.started_at}` : null })).filter(j => j.part);
 // Every attempt's jobs of the run (filter=all), page by page; fewer jobs than the listing's total_count is an error,
 // never a partial judgement. Each gh call is cut at 60 s so a hung gh cannot hold the collect job.
 export function runJobs(exec = execFileSync, env = process.env) {

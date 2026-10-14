@@ -46,9 +46,15 @@ const put = (input, part, attempt, extra = {}, log = 'junk\n') => {
   writeFileSync(join(d, dive ? 'dive-receipt.json' : `${part}-receipt.json`), JSON.stringify({ ...ident, phase: dive ? 'dive' : undefined, pass: true, ended: 't', ...extra }));
   if (!dive) writeFileSync(join(d, 'gate-shard.log'), log);
 };
-const job = (part, runAttempt, conclusion = 'success') => ({ name: `run (${part})`, run_attempt: runAttempt, conclusion });
-// Every part at attempt 1 except the overrides, as the jobs of a failed-only rerun list them.
-const jobsAt = (current, over = {}) => PARTS.map(p => job(p, over[p] ?? 1)).concat({ name: 'collect', run_attempt: current, conclusion: null });
+// A job as GitHub lists it: a rerun lists every part again under the new run_attempt, and a part it did not rerun keeps the
+// runner and start of the run it copies (ran: the attempt that run happened in; run 38616535709).
+const job = (part, runAttempt, conclusion = 'success', ran = runAttempt) => ({ name: `run (${part})`, run_attempt: runAttempt, conclusion,
+  runner_id: 1000 + 20 * ran + PARTS.indexOf(part), started_at: `2026-10-14T18:0${ran}:00Z` });
+// The listing of attempts 1..current where each part ran in the attempts ranIn lists (default [1]) and failed in the ones
+// failed lists (default: all but its last); every attempt lists every part and its own collect.
+const listing = (current, ranIn = {}, failed = {}) => Array.from({ length: current }, (_, i) => i + 1).flatMap(a => [
+  ...PARTS.map(p => { const runs = ranIn[p] ?? [1], ran = runs.filter(r => r <= a).at(-1); return job(p, a, (failed[p] ?? runs.slice(0, -1)).includes(ran) ? 'failure' : 'success', ran); }),
+  { name: 'collect', run_attempt: a, conclusion: a === current ? null : 'failure' }]);
 
 function collectRun(name, current, jobs, fake = {}) {
   const input = join(root, name, 'in'), out = join(root, name, 'out');
@@ -63,15 +69,15 @@ function collectRun(name, current, jobs, fake = {}) {
   } };
 }
 
-test('a failed-only rerun reads each part from its own attempt, with that attempt grant, and records the attempts', () => {
-  const rerun = { checkpoints: 2, 'shard-2': 3 }, c = collectRun('rerun', 3, [...jobsAt(3, rerun), job('checkpoints', 1, 'failure'), job('shard-2', 1, 'failure')], { FAKE_GH_PAGE: '4' }); // three pages
-  for (const p of PARTS) put(c.input, p, rerun[p] ?? 1);
-  put(c.input, 'checkpoints', 1, { pass: false, failure: 'stale dive' }); // the older failures stay in the run and must not be read
-  put(c.input, 'shard-2', 1, { pass: false, failure: 'stale shard' });
+test('failed-only reruns read each part from the attempt it ran in, with that attempt grant, and record the attempts', () => {
+  // checkpoints failed at 1 and passed at 2; shard-2 failed at 1 and 2 and passed at 3; attempt 3 lists all nine parts.
+  const ranIn = { checkpoints: [1, 2], 'shard-2': [1, 2, 3] }, c = collectRun('rerun', 3, listing(3, ranIn), { FAKE_GH_PAGE: '4' }); // eight pages
+  // The older failures stay in the run and must not be read.
+  for (const p of PARTS) for (const a of ranIn[p] ?? [1]) put(c.input, p, a, a === (ranIn[p] ?? [1]).at(-1) ? {} : { pass: false, failure: 'stale' });
   const r = c.go();
   assert.equal(r.failures.length, 1, r.failures.join('\n'));
   assert.match(r.failures[0], /^merge: /);
-  const attempts = Object.fromEntries(PARTS.map(p => [p, rerun[p] ?? 1]));
+  const attempts = Object.fromEntries(PARTS.map(p => [p, (ranIn[p] ?? [1]).at(-1)]));
   assert.deepEqual(r.verdict.attempts, attempts);
   assert.deepEqual(r.receipt.attempts, attempts);
   assert.ok(r.receipt.prerequisite?.sha256, 'the Dive receipt of its attempt 2 was read');
@@ -80,12 +86,12 @@ test('a failed-only rerun reads each part from its own attempt, with that attemp
 });
 
 test('a newer failed attempt is judged, never the older pass beside it', () => {
-  const c = collectRun('newer-failure', 2, [...jobsAt(2, { 'shard-2': 2 }).filter(j => j.name !== 'run (shard-2)'), job('shard-2', 1), job('shard-2', 2, 'failure')]);
+  const c = collectRun('newer-failure', 2, listing(2, { 'shard-2': [1, 2] }, { 'shard-2': [2] })); // a passed shard-2 rerun alone, failing
   for (const p of PARTS) put(c.input, p, 1);
   put(c.input, 'shard-2', 2, { pass: false, failure: 'boom' });
   const r = c.go();
   assert.ok(r.failures.includes('shard-2: newest attempt 2 failure'), r.failures.join('\n'));
-  assert.ok(r.failures.includes('shard-2: boom'), r.failures.join('\n'));
+  assert.ok(r.failures.includes('shard-2 (attempt 2): boom'), r.failures.join('\n'));
   assert.equal(r.receipt.shards[1].pass, false);
   assert.equal(r.receipt.pass, false);
 });
@@ -100,7 +106,7 @@ test('a jobs query that fails fails the gate and records no attempts', () => {
 });
 
 test('a matrix job missing from the required parts still fails the gate when its newest attempt did not succeed', () => {
-  const c = collectRun('matrix-drift', 1, [...jobsAt(1), job('shard-8', 1, 'failure')]);
+  const c = collectRun('matrix-drift', 1, [...listing(1), job('shard-8', 1, 'failure')]);
   for (const p of PARTS) put(c.input, p, 1);
   const r = c.go();
   assert.ok(r.failures.includes('shard-8: newest attempt 1 failure'), r.failures.join('\n'));
@@ -109,18 +115,31 @@ test('a matrix job missing from the required parts still fails the gate when its
 });
 
 test('a green newest attempt whose artifact is missing fails; the older attempt artifact is never used', () => {
-  const c = collectRun('missing-newest', 2, [...jobsAt(2, { 'shard-2': 2 }), job('shard-2', 1)]);
+  const c = collectRun('missing-newest', 2, listing(2, { 'shard-2': [1, 2] }, { 'shard-2': [] }));
   for (const p of PARTS) put(c.input, p, 1); // shard-2 passed at attempt 1 and its attempt 2 job is green, but attempt 2 uploaded nothing
   const r = c.go();
-  const mine = r.failures.filter(f => f.startsWith('shard-2:'));
-  assert.deepEqual(mine, ['shard-2: receipt missing or not passed', 'shard-2: gate-shard.log missing']);
+  const mine = r.failures.filter(f => f.startsWith('shard-2 '));
+  assert.deepEqual(mine, [`shard-2 (attempt 2): receipt missing from r36-windows-shard-2-${sha}-2`, 'shard-2 (attempt 2): gate-shard.log missing']);
   assert.equal(r.receipt.shards[1].pass, false);
   assert.equal(r.receipt.shards[1].receiptSha256, null);
   assert.equal(r.receipt.attempts['shard-2'], 2);
 });
 
+test('a part a rerun did not rerun, with no artifact from the attempt it ran in, fails naming the part and that attempt', () => {
+  const c = collectRun('missing-carried', 2, listing(2, { 'shard-5': [1, 2] }));
+  for (const p of PARTS) if (p !== 'units' && p !== 'checkpoints') put(c.input, p, 1);
+  put(c.input, 'shard-5', 2);
+  const r = c.go();
+  assert.ok(r.failures.includes(`units (attempt 1): receipt missing from r36-windows-units-${sha}-1`), r.failures.join('\n'));
+  assert.ok(r.failures.includes('units (attempt 1): gate-shard.log missing'), r.failures.join('\n'));
+  assert.ok(r.failures.includes(`checkpoint (attempt 1): Required dive receipt missing from r36-windows-dive-${sha}-1`), r.failures.join('\n'));
+  assert.deepEqual(r.verdict.attempts, Object.fromEntries(PARTS.map(p => [p, p === 'shard-5' ? 2 : 1])));
+  assert.equal(r.verdict.gateVerdict, 'not computed: shard records incomplete');
+  assert.equal(r.status, 1);
+});
+
 test('a jobs listing shorter than its total_count fails closed', () => {
-  const jobs = jobsAt(1), c = collectRun('short-listing', 1, jobs, { FAKE_GH_TOTAL: String(jobs.length + 1) });
+  const jobs = listing(1), c = collectRun('short-listing', 1, jobs, { FAKE_GH_TOTAL: String(jobs.length + 1) });
   for (const p of PARTS) put(c.input, p, 1);
   const r = c.go();
   assert.ok(r.failures.some(f => /^attempts: gh jobs query failed: .*saw \d+ of \d+/.test(f)), r.failures.join('\n'));
@@ -131,7 +150,7 @@ test('a jobs listing shorter than its total_count fails closed', () => {
 // the gate cap is what bounds a gate where several parts each retried.
 const retriedLine = (stage, id = 'proxy-keepalive') => `${stage}: retried (${id}) - first attempt diagnostics in attempt-1/${stage}\n`;
 test('more than 2 qualified retries across the gate fail it as instability, however the shards share them', () => {
-  const c = collectRun('instability', 1, jobsAt(1));
+  const c = collectRun('instability', 1, listing(1));
   for (const p of PARTS) put(c.input, p, 1);
   put(c.input, 'shard-1', 1, {}, `junk\n${retriedLine('journey J1-J8')}${retriedLine('tutor-slice')}`);
   put(c.input, 'shard-2', 1, {}, `junk\n${retriedLine('rh-app')}`);
@@ -144,7 +163,7 @@ test('more than 2 qualified retries across the gate fail it as instability, howe
   assert.equal(r.status, 1);
 });
 test('two qualified retries across two shards are within the gate cap, and both verdict files list them', () => {
-  const c = collectRun('within-cap', 1, jobsAt(1));
+  const c = collectRun('within-cap', 1, listing(1));
   for (const p of PARTS) put(c.input, p, 1);
   put(c.input, 'shard-1', 1, {}, `junk\n${retriedLine('journey J1-J8')}`);
   put(c.input, 'shard-2', 1, {}, `junk\n${retriedLine('rh-app')}`);
@@ -155,7 +174,7 @@ test('two qualified retries across two shards are within the gate cap, and both 
   assert.deepEqual(r.receipt.retried, retried);
 });
 test('a gate with no retry records an empty retried list', () => {
-  const c = collectRun('no-retry', 1, jobsAt(1));
+  const c = collectRun('no-retry', 1, listing(1));
   for (const p of PARTS) put(c.input, p, 1);
   const r = c.go();
   assert.deepEqual(r.verdict.retried, []);
