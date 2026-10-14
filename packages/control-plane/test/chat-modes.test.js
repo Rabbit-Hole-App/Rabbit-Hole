@@ -8,6 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 import * as chatModes from '../src/chat-modes.js';
 import { chatFields, contextRefs, courseIntent, resolveMode, validateSyllabus, syllabusPath, chatContext, TUTOR_SYSTEM } from '../src/chat-modes.js';
 import { pathOutput } from '../src/agents/learn-journey.js';
+import { REQUEST_FIRST } from '../src/agents/learn-tutor.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { contextDocsFetch } from '../src/learn-context-docs.js';
 import { LEARN_SYSTEM } from '../src/agents/learn-chat.js';
@@ -276,6 +277,25 @@ test('canvas_context: every mode and any wording carries the same board block an
   const refused = await f.ask({ message: 'q', mode: 'ask', canvas_context: canvasPackage({ excerpts: 'all of it' }) });
   assert.equal(refused.res.status, 400);
   assert.match((await refused.res.json()).error, /^canvas_context: excerpts/);
+});
+
+// Topic restriction (2026-10-14-topic-restriction-OWNER.md): the canvas is titled 'Attention'; requests on other subjects in
+// every mode get the same request-first system prompt, and a refused turn stays in history so a rephrase of it is still judged
+// against the refusal, while the rule judges a clearly safe new request on its own.
+test('any subject in Ask, Auto and Tutor gets the request-first rule; a refused turn stays in history', async t => {
+  const f = fixture(t);
+  const turns = [['ask', 'Explain how a heat pump moves heat'], ['ask', 'What is a Fourier series?'], ['auto', 'show me how vaccines train immunity'], ['tutor', 'Plan a course on medieval trade routes']];
+  for (const [mode, message] of turns) { f.replies.push('Answer.'); await f.ask({ message, mode }); }
+  for (const call of f.calls) assert.ok(call.system.includes(REQUEST_FIRST));
+  assert.equal(f.calls[0].system, f.calls[1].system, 'the subject never changes the Ask prompt');
+  assert.doesNotMatch(f.calls.map(c => c.system).join('\n'), /within what the canvas is about/);
+  f.replies.push('I can\'t help with that request.');
+  const refused = (await f.ask({ message: 'a request the assistant refuses', mode: 'auto' })).events;
+  f.replies.push('Answer.');
+  await f.ask({ message: 'Explain photosynthesis', mode: 'auto', thread_id: refused.at(-1).data.threadId });
+  const after = f.calls.at(-1);
+  assert.deepEqual(after.messages.slice(0, -1).map(m => m.content), ['a request the assistant refuses', 'I can\'t help with that request.'], 'history keeps the refusal for a rephrase to meet');
+  assert.ok(after.system.includes(REQUEST_FIRST));
 });
 
 test('Ask never becomes a syllabus, even with a live journey on the canvas and a syllabus in the trailer', async t => {

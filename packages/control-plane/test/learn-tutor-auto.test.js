@@ -63,7 +63,7 @@ test('NEXT_STEP_SYSTEM keeps only the hook-specific line; the material meaning l
 });
 
 test('CANVAS_SYSTEM describes typed and voice turns too: the learner\'s words, the selected card as target, nothing else of the canvas', () => {
-  assert.match(CANVAS_SYSTEM, /answer what they typed or said, or take up the hook they chose/);
+  assert.match(CANVAS_SYSTEM, /answer what they typed or said, on whatever subject they name, or take up the hook they chose/);
   assert.match(CANVAS_SYSTEM, /target \(the card the learner selected, when there is one: its title and text\)/);
   // Fix B2: the newest other cards and the context documents are supplied too (learn-tutor-auto test fix B2).
   assert.match(CANVAS_SYSTEM, /You see the card the learner selected \(context\.target\), the board in the CANVAS CONTEXT block when the turn carries one \(else the newest other cards in context\.canvas_context\.cards\) and the switched-on context documents\. Nothing else of the canvas is in context/);
