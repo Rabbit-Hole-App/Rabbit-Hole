@@ -525,7 +525,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
       // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
-      if (tutor && !codeTurn) {
+      // The Learn Chat (chat, owner brief section 5) never hands a turn to tutor.ask: every mode posts to /api/learn/ask with
+      // its mode, and the server picks Ask, the Tutor syllabus or a clarification (contract B6). Other surfaces keep the Tutor.
+      if (tutor && !codeTurn && !chat) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
         const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
