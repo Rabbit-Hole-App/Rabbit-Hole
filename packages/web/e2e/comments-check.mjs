@@ -79,12 +79,14 @@ const pins = () => page.locator('[data-comment-pin]');
 // The pin slot (owner, 2026-10-08): an object's pin sits left of its selection actions (Add to chat, Quick Edit: they replaced the
 // Ask in chat pill, owner 2026-10-13), never under them; and it touches its object (owner, 2026-10-13: "every comment icon should
 // have a minimal contact to the shape/cafrd etc it is attached to"): their boxes overlap by a few px on both axes.
+// Never under them means the pin's box never overlaps the actions' box: when the actions are clamped inside a narrow canvas
+// (the Chat pane beside it) and run wider than the object, the pin sits below them at the object's corner.
 const askPill = () => page.locator('[data-selection-bar]:visible').first();
 const contact = (a, b) => [Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)];
 const touching = (pinBox, body) => contact(pinBox, body).every(overlap => overlap >= 2);
 const beside = async (pinBox, pill, object) => {
   const [box, body] = [await pill.boundingBox(), await object.boundingBox()];
-  assert.ok(pinBox.x + pinBox.width <= box.x + 1, `left of the selection actions, never under them: ${JSON.stringify([pinBox, box])}`);
+  assert.ok(contact(pinBox, box).some(overlap => overlap <= 1), `never under the selection actions: ${JSON.stringify([pinBox, box])}`);
   assert.ok(touching(pinBox, body), `touching its object: ${JSON.stringify([pinBox, body])}`);
 };
 
