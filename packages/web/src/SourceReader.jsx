@@ -74,8 +74,9 @@ function DocReader({ app, sourceRef, position, save, startPage }) {
 function Reader({ sourceRef, position, onPosition, chat }) {
   const app = chat?.canvas, reader = readerFor(sourceRef), range = sourceRef.range || {};
   // Where the reader is now; every report also goes to the session position store (chat-sources.js).
-  const here = useRef({ page: range.page || 1, ...position }), report = useRef(onPosition);
-  report.current = onPosition;
+  // The memoized reader below outlives renders, so it reaches the latest workspace and onPosition through refs.
+  const here = useRef({ page: range.page || 1, ...position }), report = useRef(onPosition), live = useRef(chat);
+  report.current = onPosition; live.current = chat;
   const save = useCallback(next => { here.current = { ...here.current, ...next }; report.current?.(next); }, []);
   const [passage, setPassage] = useState(null);
   const box = useRef(null);
@@ -110,7 +111,7 @@ function Reader({ sourceRef, position, onPosition, chat }) {
         repo={/^[\w.-]+\/[\w.-]+$/.test(code.repo) ? code.repo : undefined} initialPosition={position} onPosition={save}
         actions={chat ? selected => <div data-range-actions role="toolbar" aria-label={`Selected lines ${selected.start}-${selected.end}`} onPointerDown={event => event.preventDefault()}
           className="absolute top-full left-12 z-10 mt-1 flex items-center rounded-md bg-white p-1 font-sans whitespace-nowrap shadow-pop select-none">
-          <AskButton onClick={() => chat.addToChat({ ...sourceRef, range: { path: code.path, start: selected.start, end: selected.end } })} />
+          <AskButton onClick={() => live.current.addToChat({ ...sourceRef, range: { path: code.path, start: selected.start, end: selected.end } })} />
         </div> : undefined} />;
     }
     return <Unavailable sourceRef={sourceRef} />;
