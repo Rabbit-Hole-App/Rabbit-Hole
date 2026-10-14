@@ -533,12 +533,15 @@ await check('22 a member presses Del on the owner\'s pin: refused, with a line b
   tab.on('pageerror', error => errors.push(error.message));
   await tab.goto(`${BASE}/c/${boardId}`);
   await tab.locator('[data-block-id="k-exp"]').waitFor({ timeout: 60000 });
-  // The member page opens with Comments showing; close it, so the click on the pin opens it again.
-  await tab.locator('[data-member-comments]').waitFor();
-  await tab.locator('[data-comments-button]').click();
-  await tab.locator('[data-member-comments]').waitFor({ state: 'detached' });
   const owners = (await memberApi(`/api/learn/c/${boardId}/threads`)).body.threads.find(thread => thread.preview?.startsWith('Add a diagram'));
   const pin = tab.locator(`[data-comment-pin="${owners.id}"]`);
+  // The member page opens with Comments showing, and the pins come from that panel's thread list: wait for the list to
+  // land (its pin drawn) before closing it, or a slow list never arrives (the panel is gone). Closed, the pin stays, and
+  // the click on it opens Comments again.
+  await tab.locator('[data-member-comments]').waitFor();
+  await pin.waitFor();
+  await tab.locator('[data-comments-button]').click();
+  await tab.locator('[data-member-comments]').waitFor({ state: 'detached' });
   await pin.waitFor();
   await pin.click();
   await tab.locator('[data-member-comments] [data-comment-thread-view]').waitFor();
@@ -554,7 +557,101 @@ await check('22 a member presses Del on the owner\'s pin: refused, with a line b
   await guest.close();
 });
 
-await check('23 no model call, no stray write, no page error', async () => {
+// Owner, 2026-10-13: Esc in the New comment panel is Cancel, and no comment pin without a text comment. On the first
+// canvas's second card, which has no thread: C after selecting it (with the Hand tool armed, so a canvas Esc would show).
+const ghost = () => page.locator('[data-comment-pin="draft"]');
+const draftView = () => panel().locator('[data-comment-draft]');
+const threadCount = async () => (await api(`/api/learn/c/${boardId}/threads?status=all`)).body.threads.length;
+const startDraft = async () => {
+  if (await card('k-two').getAttribute('aria-current') !== 'true') await card('k-two').click();
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.keyboard.press('h');
+  await page.keyboard.press('c');
+  await draftView().waitFor();
+};
+// What a draft leaves once it has closed (or failed to): the panel, the ghost, the server, the canvas, the focus, and
+// the words kept for this card's next draft.
+const leftBehind = async () => {
+  await draftView().waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  return {
+    draft: await draftView().count(), ghost: await ghost().count(), threads: await threadCount(),
+    selected: await card('k-two').getAttribute('aria-current'),
+    hand: await page.getByRole('button', { name: 'Hand — pan the canvas' }).first().getAttribute('aria-pressed'),
+    focus: await page.evaluate(() => document.activeElement === document.body || !!document.activeElement?.closest('[data-canvas-surface]')),
+    kept: await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.includes(':new:') && key.includes('"k-two"')).map(key => JSON.parse(sessionStorage.getItem(key)).body)),
+  };
+};
+
+await check('23 Esc in the New comment panel is Cancel: with an empty or a typed draft, the same state - no ghost, the list back, nothing posted, the canvas keeps its selection and tool, the focus on the canvas', async () => {
+  await page.goto(`${BASE}/apps/${canvas.name}`);
+  await card('k-two').waitFor({ timeout: 60000 });
+  await page.locator('[data-comments-header]').waitFor(); // comments are on: C now opens a draft
+  const before = await threadCount();
+  for (const text of ['', 'Half a thought about sugar']) {
+    const left = {};
+    for (const [how, leave] of [['Cancel', () => panel().getByRole('button', { name: 'Cancel' }).click()], ['Esc', () => composer().press('Escape')]]) {
+      await startDraft();
+      await composer().fill(text);
+      await leave();
+      left[how] = await leftBehind();
+      if (how === 'Esc') await shot(`23-esc-${text ? 'typed' : 'empty'}`);
+    }
+    assert.deepEqual(left.Esc, left.Cancel, `Esc with ${text ? 'a typed' : 'an empty'} draft leaves what Cancel leaves`);
+    assert.deepEqual(left.Cancel, { draft: 0, ghost: 0, threads: before, selected: 'true', hand: 'true', focus: true, kept: text ? [text] : [] });
+  }
+});
+
+await check('24 Esc with the @ menu open closes only the menu; the next Esc cancels the comment', async () => {
+  const before = await threadCount();
+  await startDraft();
+  await composer().fill('@');
+  await panel().locator('[data-mention-menu]').waitFor();
+  await composer().press('Escape');
+  await panel().locator('[data-mention-menu]').waitFor({ state: 'detached' });
+  assert.deepEqual([await draftView().count(), await ghost().count(), await composer().inputValue()], [1, 1, '@'], 'the first Esc closes only the menu');
+  await composer().press('Escape');
+  const left = await leftBehind();
+  assert.deepEqual([left.draft, left.ghost, left.threads, left.selected, left.hand, left.focus], [0, 0, before, 'true', 'true', true], 'the next Esc cancels the comment');
+});
+
+await check('25 a draft left without Cancel leaves no pin: the ghost goes while the panel is hidden or on another tab, and shows again with its draft', async () => {
+  await startDraft();
+  await page.getByRole('button', { name: 'Hide the right panel' }).click();
+  await ghost().waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  if (await ghost().count()) await shot('25-ghost-panel-hidden');
+  assert.equal(await ghost().count(), 0, 'the panel is hidden: no ghost');
+  await page.getByRole('button', { name: 'Show the right panel' }).click();
+  await ghost().waitFor();
+  await page.locator('[role="tab"][data-panel-tab="toc"]').click();
+  await ghost().waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  assert.equal(await ghost().count(), 0, 'another tab: no ghost');
+  await page.locator('[role="tab"][data-panel-tab="comments"]').click();
+  await ghost().waitFor();
+  await panel().getByRole('button', { name: 'Cancel' }).click();
+  await ghost().waitFor({ state: 'detached' });
+});
+
+await check('26 deleting a thread\'s only comment takes its pin away; the thread stays in the list as deleted', async () => {
+  await startDraft();
+  await composer().fill('Only comment here.');
+  await composer().press('Enter');
+  await panel().locator('[data-comment-thread-view]').waitFor();
+  const id = (await api(`/api/learn/c/${boardId}/threads`)).body.threads.find(thread => thread.preview === 'Only comment here.').id;
+  await pinFor(id).waitFor();
+  const message = panel().locator('[data-comment-message]').first();
+  await message.hover();
+  await message.getByRole('button', { name: 'Comment actions' }).click();
+  await panel().getByRole('menuitem', { name: 'Delete', exact: true }).click();
+  await panel().getByRole('menuitem', { name: 'Confirm delete' }).click();
+  await panel().getByText('This comment was deleted').waitFor();
+  await page.waitForFunction(id => !document.querySelector(`[data-comment-pin="${id}"]`) || document.querySelector(`[data-comment-pin="${id}"] [data-pin-count]`)?.textContent === '0', id, { timeout: 15000 });
+  if (await pinFor(id).count()) await shot('26-empty-pin');
+  assert.equal(await pinFor(id).count(), 0, 'no pin without a text comment');
+  await panel().getByRole('button', { name: 'All comments' }).click();
+  assert.match(await panel().locator(`[data-comment-thread="${id}"]`).innerText(), /This comment was deleted/);
+});
+
+await check('27 no model call, no stray write, no page error', async () => {
   assert.deepEqual([asks, stray, errors], [[], [], []]);
 });
 

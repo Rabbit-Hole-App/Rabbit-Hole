@@ -2831,8 +2831,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         pinKeyRef.current(event.key);
         return;
       }
-      // An open dialog or menu handles its own Esc first (the shortcuts sheet, the canvas menu, a composer menu).
-      if (event.key === 'Escape' && (held?.closest?.('[role="dialog"],[role="menu"]') || document.querySelector('[role="dialog"][aria-modal="true"]'))) return;
+      // An open dialog or menu handles its own Esc first (the shortcuts sheet, the canvas menu, a composer menu), and so
+      // does the New comment panel: its Esc is Cancel (canvas-comments.md, owner 2026-10-13).
+      if (event.key === 'Escape' && (held?.closest?.('[role="dialog"],[role="menu"],[data-comment-draft]') || document.querySelector('[role="dialog"][aria-modal="true"]'))) return;
       // A view-only board: Esc puts the hand back, and lets go of the selected card
       // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
       if (readOnlyRef.current) {

@@ -37,6 +37,33 @@ test('a pin (owner, 2026-10-08): its live count, capped to fit; orange and solid
   assert.match(hook, /comments: thread\.comments \?\? 1/);
 });
 
+test('no comment pin without a text comment (owner, 2026-10-13): a thread with no live comment has no pin; the ghost only while composing', async () => {
+  const { pinsOf } = await import('./useCanvasComments.js');
+  const anchor = { kind: 'object', object_id: 'b1', object_kind: 'block', dx: 0, dy: 0, label: '' };
+  const live = { id: 't1', anchor, created_at: '2026-10-13T01:00:00Z', comments: 2 };
+  const emptied = { id: 't2', anchor, created_at: '2026-10-13T00:00:00Z', comments: 0 };
+  assert.deepEqual(pinsOf([emptied, live], null, null, true).map(pin => [pin.id, pin.comments]), [['t1', 2]], 'its last comment deleted: no pin');
+  assert.deepEqual(pinsOf([emptied], 't2', null, true), [], 'not even while its thread is open in the panel');
+  assert.deepEqual(pinsOf([], null, anchor, true), [{ id: 'draft', anchor, ghost: true }], 'the ghost while its New comment panel shows');
+  assert.deepEqual(pinsOf([], null, anchor, false), [], 'the panel hidden or on another tab: no ghost');
+  assert.deepEqual(pinsOf([], null, null, true), [], 'no draft (Cancel, Esc, Send): no ghost');
+  const hook = read('./useCanvasComments.js'), page = read('../LearnPage.jsx'), shared = read('../SharedBoardPage.jsx'), member = read('./MemberBoardPage.jsx');
+  assert.match(hook, /pinsOf\(threads, selected, draft, shown\)/);
+  assert.match(page, /shown: panelOpen && panelTab === 'comments' \}\);/, 'open, on the Comments tab');
+  for (const source of [shared, member]) assert.match(source, /shown: commentsOpen \}\);/);
+});
+
+test('Esc in the New comment panel is Cancel (owner, 2026-10-13): one Cancel path, a menu in it first, the canvas stands down', () => {
+  const panel = read('./CommentsPanel.jsx'), canvas = read('../AdaptiveCanvas.jsx');
+  assert.match(panel, /if \(event\.key !== 'Escape' \|\| event\.defaultPrevented \|\| event\.nativeEvent\.isComposing\) return;\n\s+event\.preventDefault\(\); event\.stopPropagation\(\);\n\s+onCancel\(\);/);
+  assert.match(panel, /<div data-comment-draft onKeyDown=\{escape\} /);
+  assert.match(panel, /<Button size="sm" onClick=\{onCancel\}>Cancel<\/Button>/, 'the button and Esc share one handler');
+  assert.match(panel, /else if \(event\.key === 'Escape'\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); setQuery\(null\); \}/, 'the @ menu takes the first Esc');
+  // The canvas listens on window in the capture phase, before any panel handler: it must stand down for this Esc itself.
+  assert.match(canvas, /window\.addEventListener\('keydown', key, true\);/);
+  assert.match(canvas, /held\?\.closest\?\.\('\[role="dialog"\],\[role="menu"\],\[data-comment-draft\]'\)/);
+});
+
 test('a group anchor follows its members together; a shape anchor its box; each says what it is on', () => {
   const board = { bounds: { b1: { x: 100, y: 50, w: 300, h: 200 } }, items: [], shapes: [{ id: 's1', x1: 90, y1: 40, x2: 10, y2: 80 }], groups: { g1: ['b1', 's1'] } };
   assert.deepEqual(objectOrigin('g1', board), { x: 10, y: 40 }, "the group's top left is its members' top left");
