@@ -90,7 +90,7 @@ await run('one bar for each kind of selection, above it, never over it', async (
     ['a shape', async () => { await clickAt(page, shape('n23')(page)); return [shape('n23')(page)]; }],
     ['a text object', async () => { await clickAt(page, page.locator('[data-item-id="code1"]')); return [page.locator('[data-item-id="code1"]')]; }],
     ['a sticky note', async () => { await clickAt(page, page.locator('[data-item-id="aside"]')); return [page.locator('[data-item-id="aside"]')]; }],
-    ['a group', async () => { await clickAt(page, shape('g1')(page)); return [shape('g1')(page), shape('g2')(page)]; }],
+    ['a group', async () => { await clickAt(page, shape('g1')(page)); return [shape('g1')(page), shape('g2')(page), page.locator('[data-group-chip="grp"]')]; }], // its name chip too: the bar never covers it
     ['several objects', async () => { await clickAt(page, shape('n3')(page)); await clickAt(page, shape('n23')(page), ['Shift']); return [shape('n3')(page), shape('n23')(page)]; }],
   ];
   for (const [label, select] of cases) {
