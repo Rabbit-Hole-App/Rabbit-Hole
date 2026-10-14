@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { wsHeaders } from './api.js';
 import { repositoryUrl } from './card-sources.js';
-import { useContextDocs } from './context-docs.js';
+import { uploadContextDoc, useContextDocs } from './context-docs.js';
 import { toast } from './ui.jsx';
 
 // Sub-lane A4a (Sources pane and shared context) owns this file. Contract: chat-workspace-CONTRACT.md A2 (ContextRef), A5.
@@ -11,13 +10,16 @@ import { toast } from './ui.jsx';
 //        flight; doc is the context-docs row { id, name, kind: 'pdf' | 'text', size, created_at } behind a doc:<id> ref),
 //     attached: ContextRef[] (this conversation's; sent as context_refs), attach(ref), detach(ref), isAttached(ref), upload(file) }
 // One store: the canvas context documents behind /api/learn/context (context-docs.js). attached is per conversation:
-// thread.restore.contextRefs on open, [] on New chat. Detaching never deletes a doc or a canvas object, and the
-// canvas-level switch on a context doc (the Files panel's) is left alone.
+// a restored thread keeps its own thread.restore.contextRefs; a New chat (thread id null) starts from the docs switched on
+// in the Files panel, the current canvas context (lead, 2026-10-14), and nothing else of the previous thread. Detaching
+// never deletes a doc or a canvas object, and the canvas-level switch on a context doc is left alone.
 const rangeKey = range => JSON.stringify(range ?? null, range ? Object.keys(range).sort() : undefined);
 export const sameRef = (a, b) => a.sourceId === b.sourceId && rangeKey(a.range) === rangeKey(b.range);
 export const refKey = ref => `${ref.sourceId}|${rangeKey(ref.range)}`; // a React key that sameRef refs share
 export const MAX_REFS = 20; // the server's per-request limit (contract A2)
 
+// Where a context doc's bytes are read (GET /api/learn/context/<id>, owner only), for A4b's reader.
+export const docUrl = (canvas, id) => `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(canvas)}`;
 export const docRef = doc => ({ sourceId: `doc:${doc.id}`, kind: 'doc', name: String(doc.name || 'Document').slice(0, 120), version: String(doc.created_at ?? ''), range: null });
 const validRefs = refs => (Array.isArray(refs) ? refs.filter(ref => ref && typeof ref.sourceId === 'string' && typeof ref.kind === 'string') : []);
 
@@ -29,6 +31,10 @@ export function attachedReducer(refs, action) {
   if (action.type === 'detach') return refs.filter(ref => !sameRef(ref, action.ref));
   return refs;
 }
+
+// What a new conversation gains from the canvas: its switched-on docs, each offered once per conversation (offered: the
+// sourceIds already offered), so a doc the user detached stays detached and one switched on later still arrives.
+export const canvasDocRefs = (docs, offered) => docs.filter(doc => doc.attached && !offered.has(`doc:${doc.id}`)).map(docRef);
 
 // The one collection both panes show: uploads in flight first, then the canvas's docs, then any other attached ref
 // (cards, groups, code, web, a doc passage). A ref already listed is not listed twice.
@@ -78,35 +84,20 @@ export function externalUrl(ref) {
 // "Ask about this" on a selected passage or code range (A4b's readers): Add to Chat with that range (contract A5).
 export const askAboutThis = (chat, ref) => chat.addToChat(ref);
 
-// The upload context-docs.js does, but handing the server's error to the chip instead of a toast, so the chip can say
-// what failed and offer Retry. Same route, same store; every useContextDocs re-reads on its change event.
-// ponytail: repeats context-docs.js's request and 100-page check; fold back once its upload returns the document or throws.
-async function uploadDoc(app, file) {
-  if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
-    let pages;
-    try {
-      const { getDocument } = await import('./learn-paper-figures.js');
-      pages = (await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise).numPages;
-    } catch { throw new Error('That file could not be read as a PDF.'); }
-    if (pages > 100) throw new Error(`That PDF has ${pages} pages. The agent can read up to 100.`);
-  }
-  const body = new FormData();
-  body.append('app', app);
-  body.append('file', file, file.name);
-  const response = await fetch('/api/learn/context', { method: 'POST', credentials: 'same-origin', headers: wsHeaders(), body });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-  window.dispatchEvent(new CustomEvent('small:context-docs', { detail: { app } })); // context-docs.js EVENT: every list re-reads
-  return data.document;
-}
-
 export function useChatContext(canvas, thread) {
   const { docs } = useContextDocs(canvas);
   const restore = thread?.restore;
   const [attached, dispatch] = useReducer(attachedReducer, restore?.contextRefs, validRefs);
   const key = useRef(restore?.key);
   key.current = restore?.key;
-  useEffect(() => { dispatch({ type: 'restore', refs: restore?.contextRefs }); }, [restore?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const offered = useRef(new Set());
+  useEffect(() => { offered.current = new Set(); dispatch({ type: 'restore', refs: restore?.contextRefs }); }, [restore?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A new conversation follows the canvas's switched-on docs until it has an id (its first send); the list arrives async.
+  const fresh = thread != null && thread.id == null;
+  useEffect(() => {
+    if (!fresh) return;
+    for (const ref of canvasDocRefs(docs, offered.current)) { offered.current.add(ref.sourceId); dispatch({ type: 'attach', ref }); }
+  }, [fresh, docs, restore?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [uploads, setUploads] = useState([]);
   const attach = useCallback(ref => dispatch({ type: 'attach', ref }), []);
   const detach = useCallback(ref => dispatch({ type: 'detach', ref }), []);
@@ -115,10 +106,10 @@ export function useChatContext(canvas, thread) {
     const patch = change => setUploads(previous => previous.map(item => (item.id === id ? { ...item, ...change } : item)));
     patch({ state: 'uploading', error: undefined });
     try {
-      const doc = await uploadDoc(canvas, file);
+      const doc = await uploadContextDoc(canvas, file);
       setUploads(previous => previous.filter(item => item.id !== id));
       // Uploaded from this chat, so it rides this chat - unless the user has moved to another conversation meanwhile.
-      if (doc && key.current === startedIn) dispatch({ type: 'attach', ref: docRef(doc) });
+      if (doc && key.current === startedIn) { offered.current.add(`doc:${doc.id}`); dispatch({ type: 'attach', ref: docRef(doc) }); }
     } catch (error) { patch({ state: 'failed', error: error.message }); }
   }, [canvas]);
   const upload = useCallback(async file => {

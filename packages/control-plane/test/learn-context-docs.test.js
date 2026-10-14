@@ -15,7 +15,7 @@ function fixture(t) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close()); sqlite.exec(schema); sqlite.exec(migration);
   const db = { prepare: sql => { let args = []; const stmt = sqlite.prepare(sql); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => stmt.run(...args) }; } };
   const objects = new Map();
-  const media = { put: async (key, bytes) => { objects.set(key, new Uint8Array(bytes)); }, get: async key => (objects.has(key) ? { arrayBuffer: async () => objects.get(key).buffer } : null), delete: async key => { objects.delete(key); } };
+  const media = { put: async (key, bytes) => { objects.set(key, new Uint8Array(bytes)); }, get: async key => (objects.has(key) ? { body: objects.get(key), arrayBuffer: async () => objects.get(key).buffer } : null), delete: async key => { objects.delete(key); } };
   const live = { prepare() { throw Error('live D1 touched'); } };
   const env = { LEARN_DB: db, LEARN_MEDIA: media, DB: live, RUNS: { put() { throw Error('live R2 touched'); } } };
   const canvas = { org: 'team', name: 'canvas-0a1b2c3d', email: 'owner@test' };
@@ -28,7 +28,7 @@ function fixture(t) {
     return { status: res.status, body: await res.json() };
   };
   const upload = (name, bytes) => call('POST', '/api/learn/context', { form: { app: canvas.name, file: new File([bytes], name) } });
-  return { env, canvas, call, upload, objects };
+  return { env, canvas, deps, call, upload, objects };
 }
 
 test('context documents: upload PDF and text, list, toggle, delete; at most ten on', async t => {
@@ -134,4 +134,27 @@ test('contextDocumentBlocks sends at most ten', async t => {
   const blocks = await contextDocumentBlocks(env, canvas);
   assert.equal(blocks.filter(b => b.type === 'document').length, 10);
   assert.match(blocks.at(-1).text, /not sent .*: d1\.txt, d0\.txt\.$/);
+});
+
+test('context documents: GET one document streams its bytes to the owner only, privately cached', async t => {
+  const { env, canvas, deps, call, upload, objects } = fixture(t);
+  const pdf = (await upload('Attention.pdf', PDF)).body.document;
+  const notes = (await upload('notes.md', new TextEncoder().encode('<script>alert(1)</script>'))).body.document;
+  const get = (id, app = canvas.name, who = deps) => contextDocsFetch(new Request(`https://dev.test/api/learn/context/${encodeURIComponent(id)}?app=${app}`), env, who);
+  const res = await get(pdf.id);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'application/pdf');
+  assert.match(res.headers.get('cache-control'), /^private,/);
+  assert.deepEqual(new Uint8Array(await res.arrayBuffer()), PDF);
+  const text = await get(notes.id);
+  assert.equal(text.headers.get('content-type'), 'text/plain; charset=utf-8');
+  assert.equal(text.headers.get('x-content-type-options'), 'nosniff', 'uploaded text is never rendered as a page');
+  assert.equal(await text.text(), '<script>alert(1)</script>');
+  assert.equal((await get(pdf.id, 'canvas-ffffffff')).status, 404, 'not your canvas');
+  assert.equal((await get('ctx:ffffffffffff')).status, 404, 'not on this canvas');
+  const stranger = { authorize: async () => ({ ...canvas, email: 'someone@else.test' }) };
+  assert.equal((await get(pdf.id, canvas.name, stranger)).status, 404, 'the same canvas name under another owner');
+  objects.clear();
+  assert.equal((await get(pdf.id)).status, 404, 'missing bytes');
+  assert.equal((await call('GET', `/api/learn/context?app=${canvas.name}`)).body.documents.length, 2, 'the list is unchanged');
 });

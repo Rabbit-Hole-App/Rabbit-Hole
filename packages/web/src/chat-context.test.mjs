@@ -56,6 +56,30 @@ test('attached: restore replaces, New chat restores none, attach de-duplicates a
   assert.equal(C.attachedReducer(full, { type: 'attach', ref: card }), full);
 });
 
+test('New chat starts from the canvas docs switched on, each offered once; a restored thread keeps its own refs', () => {
+  const on = { ...doc, attached: true }, off = { ...doc, id: 'ctx:ffffffffffff', name: 'off.md', kind: 'text', attached: false };
+  const offered = new Set();
+  // New chat: the previous thread's card and passage are gone, the switched-on doc arrives, the switched-off one does not.
+  let refs = C.attachedReducer([card, page3], { type: 'restore', refs: [] });
+  const seed = docs => { for (const ref of C.canvasDocRefs(docs, offered)) { offered.add(ref.sourceId); refs = C.attachedReducer(refs, { type: 'attach', ref }); } };
+  seed([on, off]);
+  assert.deepEqual(refs, [C.docRef(on)]);
+  // Detached for this conversation, it stays detached when the list re-reads.
+  refs = C.attachedReducer(refs, { type: 'detach', ref: C.docRef(on) });
+  seed([on, off]);
+  assert.deepEqual(refs, []);
+  // A doc switched on in the Files panel during the new chat still arrives.
+  seed([on, { ...off, attached: true }]);
+  assert.deepEqual(refs.map(ref => ref.sourceId), ['doc:ctx:ffffffffffff']);
+  // A restored thread: exactly its own refs, whatever the canvas has switched on.
+  assert.deepEqual(C.attachedReducer(refs, { type: 'restore', refs: [card] }), [card]);
+  assert.deepEqual(C.canvasDocRefs([on], new Set(['doc:ctx:0123456789ab'])), []);
+});
+
+test('docUrl reads one context doc of this canvas', () => {
+  assert.equal(C.docUrl('canvas-0123abcd', 'ctx:0123456789ab'), '/api/learn/context/ctx%3A0123456789ab?app=canvas-0123abcd');
+});
+
 test('the collection: uploads first, then the canvas docs, then every other attached ref, each once', () => {
   const upload = { id: 'upload:1', ref: { sourceId: 'upload:1', kind: 'doc', name: 'notes.md', version: '', range: null }, state: 'uploading' };
   const items = C.contextItems([doc], [card, C.docRef(doc), page3, { ...card }], [upload]);
