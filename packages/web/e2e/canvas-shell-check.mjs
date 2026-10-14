@@ -1,7 +1,8 @@
 // The Learn canvas shell at every Rabbit Hole depth, against the LOCAL stack only (see dive-check.mjs):
-// Home top left, tools left, navigator top right, composer at the bottom, no app rail - none of them over the
-// canvas - and the minimap lower left, left of and clear of the composer (the floating bottom strip, owner
-// 2026-10-08, as canvas-toolbar-check asserts it) - at the
+// Home top left, tools left, navigator top right, no app rail - none of them over the canvas - the one main composer in the
+// Chat pane right of the canvas and the navigator (owner brief 2026-10-13 sections 2 and 4: no canvas dock), and the minimap
+// lower left of the canvas, clear of the Chat pane and its composer (the floating bottom strip, owner 2026-10-08, as
+// canvas-toolbar-check asserts it) - at the
 // root, a child and a grandchild, and still usable after zooming and panning.
 // Usage: node e2e/canvas-shell-check.mjs [outDir]
 import { chromium } from '@playwright/test';
@@ -35,18 +36,20 @@ async function checkShell(label) {
     return {
       surface: box('[data-canvas-surface]'), tools: box('[data-tool-gutter]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]'),
       home: box('[data-learn-home]'), nav: box('[data-dive-navigator]'), navGutter: box('[data-dive-gutter]'),
-      minimap: box('[aria-label="Canvas overview"]'), composer: box('[data-canvas-composer]'), rail: box('[data-shell-sidebar]'),
+      minimap: box('[aria-label="Canvas overview"]'), composer: box('[data-chat-pane] [data-chat-composer]'), pane: box('[data-chat-pane]'), rail: box('[data-shell-sidebar]'),
     };
   });
-  for (const key of ['surface', 'toolbar', 'home', 'nav', 'minimap', 'composer']) assert.ok(g[key], `${label}: ${key} is on screen`);
+  for (const key of ['surface', 'toolbar', 'home', 'nav', 'minimap', 'composer', 'pane']) assert.ok(g[key], `${label}: ${key} is on screen`);
+  assert.equal(await page.locator('[data-canvas-composer]').count(), 0, `${label}: one main composer, in the Chat pane - no canvas dock`);
   const apart = (a, b) => a.right <= b.x + 0.5 || b.right <= a.x + 0.5 || a.bottom <= b.y + 0.5 || b.bottom <= a.y + 0.5;
   assert.equal(g.rail, null, `${label}: no app rail`);
   assert.ok(g.toolbar.right <= g.surface.x + 0.5, `${label}: tools left of the canvas, never over cards`);
   assert.ok(g.home.x < 24 && g.home.y < 24 && g.home.right <= g.surface.x + 0.5, `${label}: Home in the top-left corner, off the canvas`);
   assert.equal(await page.getByRole('button', { name: 'Open sidebar' }).count(), 0, `${label}: no Open sidebar button in Learn`);
   assert.ok(g.nav.x >= g.surface.right - 0.5 && g.nav.y < g.surface.y + 120, `${label}: navigator top right, beside the canvas`);
-  assert.ok(g.minimap.right <= g.composer.x + 0.5 && g.minimap.y > (g.surface.y + g.surface.bottom) / 2, `${label}: minimap lower left, left of the composer: ${JSON.stringify({ minimap: g.minimap, composer: g.composer })}`);
-  for (const [a, b] of [['home', 'toolbar'], ['nav', 'minimap'], ['minimap', 'composer'], ['toolbar', 'composer']]) assert.ok(apart(g[a], g[b]), `${label}: ${a} and ${b} do not overlap`);
+  assert.ok(g.pane.x >= g.surface.right - 0.5 && g.pane.x >= g.nav.right - 0.5, `${label}: the Chat pane right of the canvas and the navigator: ${JSON.stringify({ pane: g.pane, surface: g.surface, nav: g.nav })}`);
+  assert.ok(g.minimap.right <= g.pane.x + 0.5 && g.minimap.x < (g.surface.x + g.surface.right) / 2 && g.minimap.y > (g.surface.y + g.surface.bottom) / 2, `${label}: minimap lower left of the canvas, left of the Chat pane: ${JSON.stringify({ minimap: g.minimap, surface: g.surface, pane: g.pane })}`);
+  for (const [a, b] of [['home', 'toolbar'], ['nav', 'minimap'], ['minimap', 'composer'], ['toolbar', 'composer'], ['nav', 'composer']]) assert.ok(apart(g[a], g[b]), `${label}: ${a} and ${b} do not overlap`);
   return g;
 }
 
@@ -63,14 +66,7 @@ async function stillUsable(label) {
 await page.goto(`${BASE}/apps/${root.name}?board=nanogpt-deep-dive`); await settle();
 await checkShell('root'); await stillUsable('root');
 await page.screenshot({ path: `${OUT}/shell-1-root.png` });
-// Owner, 2026-10-13: the icon to hide the composer "should be better placed and not hanging above": one more icon button in the
-// composer's own row, fully inside it and clear of the text field, never straddling its top border.
-{
-  const hide = await page.locator('[data-composer-hide]').boundingBox(), form = await page.locator('[data-canvas-composer] form[data-chat-composer]').boundingBox();
-  const field = await page.locator('[data-canvas-composer] form[data-chat-composer] :is(textarea, input:not([type="file"]))').first().boundingBox();
-  assert.ok(hide && form && hide.x >= form.x && hide.y >= form.y && hide.x + hide.width <= form.x + form.width && hide.y + hide.height <= form.y + form.height, `the hide button lies fully inside the composer: ${JSON.stringify({ hide, form })}`);
-  assert.ok(field && hide.x >= field.x + field.width - 1, `and clear of the text field: ${JSON.stringify({ hide, field })}`);
-}
+// The dock's hide-composer icon (owner, 2026-10-13) went with the dock: the Chat pane's composer is never hidden.
 
 await slash('/dive explain softmax'); await page.waitForFunction(() => location.search.includes('hole=')); await settle();
 await checkShell('pending child');
