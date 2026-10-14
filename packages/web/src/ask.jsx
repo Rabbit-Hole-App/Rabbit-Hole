@@ -3,6 +3,8 @@ import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
 import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
+import { useChatWorkspace } from './chat-workspace.jsx';
+import { codeRef } from './chat-sources.js';
 import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
@@ -513,7 +515,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [renaming, setRenaming] = useState(null); // { id, value }
   const [confirmDel, setConfirmDel] = useState(null); // thread pending delete
   const [runPeek, setRunPeek] = useState(null);
-  const [filePeek, setFilePeek] = useState(null); // { path, line } from a Sources click
+  // The Learn Chat workspace (chat-workspace.jsx); null on every other chat surface, which keeps its old behaviour.
+  const chat = useChatWorkspace();
+  const [filePeek, setFilePeekHere] = useState(null); // { path, line } from a Sources click
+  // On the Learn Chat a cited file opens in the Sources pane beside the transcript (brief 6, 13.1); elsewhere it peeks here.
+  const setFilePeek = peek => (chat && peek ? chat.openSource(codeRef({ commit: repositoryCommit || repositoryContext?.commit || '', path: peek.path, start: peek.line, end: peek.lineEnd })) : setFilePeekHere(peek));
   const fileApp = appName || scope.app || null; // /api/ask/file needs the app name
   const scopeKind = scope.run ? 'run' : scope.app ? 'app' : 'org';
   const scopeRef = scope.run || scope.app || null;
@@ -937,7 +943,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         onMouseDown={event => event.preventDefault()} onClick={() => { if (!input.startsWith('/')) return openPalette(); setComposerInput(''); inputRef.current?.focus(); }}
         className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>Auto</button>);
   const chatControl = learnChat ? slashControl : modelControl;
-  if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
+  // The Learn Chat never shows a reader in place of its transcript, and sending never closes one (brief 13.1, 13.2): readers
+  // live in the Sources pane beside it, so here there is no content panel to hide the transcript or for send() to close.
+  if (chat) contentPanel = null;
+  else if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
       {!compact && (msgs.length > 0 || threads.length > 0 || headerExtra || headerTitle) && (

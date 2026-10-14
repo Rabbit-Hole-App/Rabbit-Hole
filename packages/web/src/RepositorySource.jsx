@@ -9,9 +9,10 @@ export const SourceSelectionContext = createContext(null);
 
 // `repo` ("owner/name"), when the caller knows it, adds a link to the same file
 // at the same revision on its host. The Files view's reader (repository-browser.md) passes `title`, its breadcrumb in place
-// of the path, and `actions`, a compact bar drawn under the selected range's last line.
-export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, repo, onClose, title, actions, pick = null }) {
-  const [data,setData]=useState(null),[error,setError]=useState('');const selected=useRef(null);
+// of the path, and `actions`, a compact bar drawn under the selected range's last line. The Chat's Sources pane (SourceReader.jsx)
+// passes `initialPosition` ({ scrollTop }) to land where the learner left off, and `onPosition` to hear each scroll.
+export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, repo, onClose, title, actions, pick = null, initialPosition = null, onPosition = null }) {
+  const [data,setData]=useState(null),[error,setError]=useState('');const selected=useRef(null),scroller=useRef(null),restored=useRef(false);
   const selection=useContext(SourceSelectionContext), root=useRef(null), anchor=useRef(null);
   const current=selection?.value;
   const range=current?.path===path&&current?.commit===commit?current:null;
@@ -31,7 +32,10 @@ export default function RepositorySource({ appName, path, line = 1, lineEnd, com
     api(`/api/repositories/${appName}/file`,{method:'POST',body:JSON.stringify({path,commit})}).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(e.message);});
     return()=>{active=false;};
   },[appName,path,commit]);
-  useEffect(()=>{selected.current?.scrollIntoView({block:'center'});},[data,line]);
+  useEffect(()=>{
+    if(data&&!restored.current&&initialPosition?.scrollTop!=null){restored.current=true;scroller.current.scrollTop=initialPosition.scrollTop;return;}
+    selected.current?.scrollIntoView({block:'center'});
+  },[data,line]); // eslint-disable-line react-hooks/exhaustive-deps
   // A code reference opened here (CodeReader pick; repository-browser.md "Code references"): its range becomes the selection,
   // as a drag makes one, and scrolls into view. A range past the file's end keeps to the file; one past it selects nothing.
   useEffect(()=>{
@@ -46,6 +50,6 @@ export default function RepositorySource({ appName, path, line = 1, lineEnd, com
     <div className="flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs"><span data-source-title className="min-w-0 flex-1 truncate font-mono" title={title||path}>{title||<>{path}{line ? `:${line}${lineEnd > line ? `-${lineEnd}` : ''}` : ''}</>}</span>{data && <span data-source-commit={data.commit} className="text-ink-3">{data.commit.slice(0,7)}</span>}{repo && commit && <a data-source-open-repository href={repositoryUrl({repo,commit,path,line,lineEnd})} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-ink-2 hover:text-ink">Open in repository<ArrowUpRight size={12}/></a>}{onClose && <button aria-label="Close source" onClick={onClose}><X size={14}/></button>}</div>
     {/* Only the cited revision: the server reads exactly this commit, so a missing one is reported, never replaced by current code. */}
     {error && <p role="alert" className="py-3 text-sm text-danger">{commit ? `Not available at ${commit.slice(0,7)}: ` : ''}{error}</p>}{!data&&!error&&<p className="py-3 text-sm text-ink-2">Reading source…</p>}
-    {data&&<div className="min-h-0 flex-1 overflow-auto py-3"><pre className="min-w-max font-mono text-xs leading-6">{data.content.split('\n').map((text,i)=>{const highlighted=i+1>=(range?.start||line)&&i+1<=(range?.end||lineEnd||line);const last=actions&&range&&i+1===range.end;return <div key={i} ref={i+1===line?selected:null} data-source-line={i+1} data-highlighted={highlighted?'true':undefined} className={`flex gap-3 pr-3 ${highlighted?'bg-accent/10':''} ${last?'relative':''}`}><button type="button" aria-label={`Select line ${i+1}`} title="Select line · Shift-click to select a range" className="w-9 shrink-0 text-right text-ink-3 select-none hover:text-ink" onClick={e=>{window.getSelection()?.removeAllRanges();const from=e.shiftKey&&anchor.current?anchor.current:i+1;anchor.current=from;select(Math.min(from,i+1),Math.max(from,i+1));}}>{i+1}</button><span data-source-text>{colorLine(text)}</span>{last&&actions(range)}</div>;})}</pre></div>}
+    {data&&<div ref={scroller} onScroll={onPosition?e=>onPosition({scrollTop:e.currentTarget.scrollTop}):undefined} className="min-h-0 flex-1 overflow-auto py-3"><pre className="min-w-max font-mono text-xs leading-6">{data.content.split('\n').map((text,i)=>{const highlighted=i+1>=(range?.start||line)&&i+1<=(range?.end||lineEnd||line);const last=actions&&range&&i+1===range.end;return <div key={i} ref={i+1===line?selected:null} data-source-line={i+1} data-highlighted={highlighted?'true':undefined} className={`flex gap-3 pr-3 ${highlighted?'bg-accent/10':''} ${last?'relative':''}`}><button type="button" aria-label={`Select line ${i+1}`} title="Select line · Shift-click to select a range" className="w-9 shrink-0 text-right text-ink-3 select-none hover:text-ink" onClick={e=>{window.getSelection()?.removeAllRanges();const from=e.shiftKey&&anchor.current?anchor.current:i+1;anchor.current=from;select(Math.min(from,i+1),Math.max(from,i+1));}}>{i+1}</button><span data-source-text>{colorLine(text)}</span>{last&&actions(range)}</div>;})}</pre></div>}
   </section>;
 }
