@@ -64,6 +64,11 @@ export const GATE_STAGES = [
   // feature lands still passes. Add each with its check file as it lands.
   { stage: 'library-folders', tripwire: 'library-folders', check: 'packages/web/e2e/library-folders-check.mjs' },
   { stage: 'share-revocation', tripwire: 'share-revocation', check: 'packages/web/e2e/share-revocation-check.mjs' },
+  // Stages the gate already runs (45 on r38 3233d9e4) that the deploy did not attest (CI-fast audit, 2026-10-14).
+  { stage: 'answer-routing', tripwire: 'answer-routing', check: 'packages/web/e2e/answer-routing-check.mjs' },
+  { stage: 'project-menu', tripwire: 'project-menu', check: 'packages/web/e2e/project-menu-check.mjs' },
+  { stage: 'canvas-shell', tripwire: 'canvas-shell', check: 'packages/web/e2e/canvas-shell-check.mjs' },
+  { stage: 'canvas-toolbar', tripwire: 'canvas-toolbar', check: 'packages/web/e2e/canvas-toolbar-check.mjs' },
 ];
 
 // The checks a passing stage reports having run, from the rest of its exit line; 0 when it names none or any failed.
