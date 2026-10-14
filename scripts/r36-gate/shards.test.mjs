@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { prepare, FIXTURE_ADAPTERS } from './prepare.mjs';
-import { ORDER, SHARDS, UNIT_STAGES, CONDITIONAL, PARTS, shardScript, mergeShards, canary } from './shards.mjs';
+import { ORDER, SHARDS, UNIT_STAGES, CONDITIONAL, PARTS, shardScript, mergeShards, canary, retriedStages } from './shards.mjs';
 
 // The index of the shard that runs a stage (the packer decides, so the tests never name a shard number).
 const at = stage => SHARDS.findIndex(s => s.includes(stage));
@@ -140,4 +140,12 @@ test('the units record supplies the two unit stages; a shard record carrying one
 test('the workflow matrix runs exactly the parts collect judges, so a passing extra entry cannot go unjudged', () => {
   const yml = readFileSync(new URL('../../.github/workflows/gate-sharded.yml', import.meta.url), 'utf8');
   assert.deepEqual(yml.match(/^\s*part: \[([^\]]+)\]/m)[1].split(',').map(p => p.trim()), PARTS);
+});
+
+test('retriedStages lists the stages a record shows as rerun after a recognized transient, and nothing else', () => {
+  const record = ['rh-app: exit 1 (stack alive: no) - retry proxy-keepalive', 'rh-app: retried (proxy-keepalive) - first attempt diagnostics in attempt-1/rh-app', 'rh-app exit 0  9/9 checks passed',
+    'comments: exit 1 (stack alive: yes) - fail failed with the stack alive', 'journey J1-J8: retried (proxy-keepalive) - first attempt diagnostics in attempt-1/journey-J1-J8',
+    'cross-device attempt-1 provider-tripwire hits: 0', ''].join('\r\n');
+  assert.deepEqual(retriedStages(record), [{ stage: 'rh-app', reason: 'proxy-keepalive' }, { stage: 'journey J1-J8', reason: 'proxy-keepalive' }]);
+  assert.deepEqual(retriedStages('INT35-DONE\n'), []);
 });

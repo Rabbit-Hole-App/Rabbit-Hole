@@ -38,13 +38,13 @@ if (basename(process.execPath).toLowerCase().startsWith('gh')) {
 after(() => rmSync(root, { recursive: true, force: true }));
 
 // One part's artifact as the run job of that attempt uploaded it (the checkpoints job uploads the Dive receipt as 'dive').
-const put = (input, part, attempt, extra = {}) => {
+const put = (input, part, attempt, extra = {}, log = 'junk\n') => {
   const ident = { applicationSha: sha, applicationTree: tree, harnessSha: harness, grant: `r36-windows-${RUN}-${attempt}` };
   const dive = part === 'checkpoints';
   const d = join(input, `r36-windows-${dive ? 'dive' : part}-${sha}-${attempt}`, 'r36', 'artifacts');
   mkdirSync(d, { recursive: true });
   writeFileSync(join(d, dive ? 'dive-receipt.json' : `${part}-receipt.json`), JSON.stringify({ ...ident, phase: dive ? 'dive' : undefined, pass: true, ended: 't', ...extra }));
-  if (!dive) writeFileSync(join(d, 'gate-shard.log'), 'junk\n');
+  if (!dive) writeFileSync(join(d, 'gate-shard.log'), log);
 };
 const job = (part, runAttempt, conclusion = 'success') => ({ name: `run (${part})`, run_attempt: runAttempt, conclusion });
 // Every part at attempt 1 except the overrides, as the jobs of a failed-only rerun list them.
@@ -125,4 +125,39 @@ test('a jobs listing shorter than its total_count fails closed', () => {
   const r = c.go();
   assert.ok(r.failures.some(f => /^attempts: gh jobs query failed: .*saw \d+ of \d+/.test(f)), r.failures.join('\n'));
   assert.deepEqual(r.verdict.attempts, {});
+});
+
+// The gate keeps at most 2 qualified retries in all (transients.json maxRetriesPerGate); each part's own cap is 2 as well, so
+// the gate cap is what bounds a gate where several parts each retried.
+const retriedLine = (stage, id = 'proxy-keepalive') => `${stage}: retried (${id}) - first attempt diagnostics in attempt-1/${stage}\n`;
+test('more than 2 qualified retries across the gate fail it as instability, however the shards share them', () => {
+  const c = collectRun('instability', 1, jobsAt(1));
+  for (const p of PARTS) put(c.input, p, 1);
+  put(c.input, 'shard-1', 1, {}, `junk\n${retriedLine('journey J1-J8')}${retriedLine('tutor-slice')}`);
+  put(c.input, 'shard-2', 1, {}, `junk\n${retriedLine('rh-app')}`);
+  const r = c.go();
+  const mine = r.failures.filter(f => f.startsWith('instability'));
+  assert.equal(mine.length, 1, r.failures.join('\n'));
+  assert.match(mine[0], /^instability: 3 qualified retries across the gate \(more than 2\): journey J1-J8 \(proxy-keepalive\), tutor-slice \(proxy-keepalive\), rh-app \(proxy-keepalive\)$/);
+  assert.equal(r.verdict.pass, false);
+  assert.equal(r.receipt.pass, false);
+  assert.equal(r.status, 1);
+});
+test('two qualified retries across two shards are within the gate cap, and both verdict files list them', () => {
+  const c = collectRun('within-cap', 1, jobsAt(1));
+  for (const p of PARTS) put(c.input, p, 1);
+  put(c.input, 'shard-1', 1, {}, `junk\n${retriedLine('journey J1-J8')}`);
+  put(c.input, 'shard-2', 1, {}, `junk\n${retriedLine('rh-app')}`);
+  const r = c.go();
+  assert.deepEqual(r.failures.filter(f => f.startsWith('instability')), []);
+  const retried = [{ stage: 'journey J1-J8', reason: 'proxy-keepalive' }, { stage: 'rh-app', reason: 'proxy-keepalive' }];
+  assert.deepEqual(r.verdict.retried, retried);
+  assert.deepEqual(r.receipt.retried, retried);
+});
+test('a gate with no retry records an empty retried list', () => {
+  const c = collectRun('no-retry', 1, jobsAt(1));
+  for (const p of PARTS) put(c.input, p, 1);
+  const r = c.go();
+  assert.deepEqual(r.verdict.retried, []);
+  assert.deepEqual(r.receipt.retried, []);
 });

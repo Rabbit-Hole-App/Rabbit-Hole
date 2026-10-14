@@ -82,22 +82,31 @@ canvas-toolbar, rh-local and the journey-stack stages are not reachable with it,
 
 `int35.sh` used to rerun any failed check once, which could turn an intermittent product failure green. Now `retry_check`
 (`templates/classify-retry.mjs`, configured by `templates/transients.json`) allows a retry only when all of these hold:
-- the check failed and its stack no longer answers on both 8878 and 8879 (`alive`);
-- the check log has no assertion (`✗`, `AssertionError`, `not ok`, `FAIL`) and `app.log` and `cp.log` have no worker exception
-  (`workerErrors`);
-- a wrangler debug log written during this stage (newer than the stack dir's `stage-start` file, which each stage touches
-  once its stack is up) holds every string of one `transients` entry: today only `proxy-keepalive`, wrangler's ProxyWorker
-  "Network connection lost" error (the dropped keep-alive that exits wrangler 4.129 dev);
+- the check failed and its stack is dead: `alive` fails when either 8878 or 8879 stops answering;
+- the check log has no assertion (`✗`, `AssertionError`, `not ok`, `FAIL`) and the app is not the cause: `app.log` and `cp.log`
+  have none of the `workerErrors` markers (uncaught and error names, out of memory, Fatal, kj::Exception, SIGSEGV, segfault,
+  D1_ERROR; matched ignoring case) and no `[ERROR]` line other than the transient's own (an empty one, or the ProxyWorker /
+  ProxyController line), so an out of memory, a D1 error or a stack overflow is never retried;
+- one wrangler debug log entry written during this stage holds every string of one `transients` entry: today only
+  `proxy-keepalive`, wrangler's ProxyWorker "Network connection lost" error (the dropped keep-alive that exits wrangler 4.129
+  dev). A wrangler log is entries of `\n--- <ISO time> <level>\n<message>\n---\n` (log-file.ts); an entry counts only if its time
+  is at or after the stack dir's `stage-start` file, which each stage touches once its stack is up, and the strings must share
+  one entry. Text that is not in that format (a hand-written drill line included) carries no signature;
 - the stage is in `retrySafe`: proven to namespace every record it creates by a per-run value (or, on the journey stack,
   to start from the empty D1 that `jstack.sh` recreates) and to assert only on its own records;
+- the candidate's git blob of the stage's check file (`git rev-parse $INT35_EXPECTED_TREE:<file>`) is the one recorded in
+  `retrySafe` (the checks of 9e2b459e). A different or unreadable blob logs `<stage>: retry-safe audit stale (re-audit needed)`
+  and the stage is not retried until it is re-audited and its blob re-recorded. The four adapted `r36-` copies are audited as
+  their originals; answer-routing.mjs is the harness's own, pinned by the harness sha and by a test of its blob;
 - fewer than `maxRetriesPerPart` (2) retries are used in this part (`RETRIES` in the part's shell script).
 
 Everything else is a real failure on its first attempt. That includes the notebook-CDN flake the old comment named: with the
 stack alive it is not retried. A stack restart keeps the persisted state (explore reads comments' publication), so a stage
 whose records are shared across runs cannot be proven safe: project-canvases is out because it filters Explore by the fixed
 label `acme/project-canvases`. `transients.json` lists every gate stage once, in `retrySafe` with its file:line evidence or in
-`notRetrySafe` with its reason; `classify-retry.test.mjs` fails when a stage is added to `ORDER` without a decision. A candidate
-that edits a listed check needs its evidence re-read.
+`notRetrySafe` with its reason; `classify-retry.test.mjs` fails when a stage is added to `ORDER` without a decision. The blobs
+are those of 9e2b459e; a candidate that edits a listed check (canvas-shell-check with its BASE change, say) loses that stage's
+retry until its evidence line is re-read and the blob updated. The helper files a check imports are not part of the blob.
 
 Evidence of a retried stage, in the stack dir (`fork/` or `lp1h/`), which `run.mjs` exports with the other logs:
 - `attempt-1/<stage>/check.log`, `app.log`, `cp.log`, `wrangler-logs/` and `shots/`: the first attempt, copied before the restart;
@@ -109,6 +118,17 @@ the rerun, `<stage>: retried (proxy-keepalive) - first attempt diagnostics in at
 `<stage> exit N ...` line is the rerun's and is unchanged for `gateVerdict`. The restart zeroes the stack's provider tripwire,
 so `<stage> attempt-1 provider-tripwire hits: N` records what the first attempt's stack still reported; any N other than 0 fails
 the gate as every other tripwire count does.
+
+The cap is per gate as well as per part: `collect.mjs` counts the `retried (` lines of all the parts' records, and more than
+`maxRetriesPerGate` (2) fail the gate as `instability: N qualified retries across the gate`, however the shards share them. It
+lists the retried stages as `retried: [{ stage, reason }]` in `gate-verdict.json` and `receipt.json` (empty when there were
+none), so a pass after a retry is never only a log line.
+
+Which checks can be retried in practice: a check that prints a `FAIL` line for any thrown step (rabbit-hole-check, so rh-local;
+journey-check; practice-card-check; blank-canvas-hooks-check) leaves a `FAIL` line when the stack dies under it, and the
+classifier reads that as an assertion before the stack died. Those four stages are effectively never retried. The A9 crash
+drill (`kill_stage`) must use a retry-safe check that throws without printing `FAIL`, for example card-select, and its
+injected signature must be a real log entry (`--- <ISO time> error` header, message, `---`) written after the stage started.
 
 ## Known flakes
 

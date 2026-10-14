@@ -45,16 +45,19 @@ cnt() { local L=$1 s p f; s=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -aoE '[0-9]+
   f=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^FAIL|^not ok')
   if [ "$f" != 0 ]; then echo "fail $f"; else echo "$p/$p checks passed"; fi; }
 alive() { [ "$(curl -s -o /dev/null -m 10 -w %{http_code} http://127.0.0.1:8878/)" != 000 ] && [ "$(curl -s -o /dev/null -m 10 -w %{http_code} http://127.0.0.1:8879/)" != 000 ]; }
-# retry_check <stage> <exit> <check log> <stack dir> <stack alive 0|1> [shots dir]: the one retry rule (classify-retry.mjs, transients.json).
-# Returns 0, after saving the first attempt's logs and shots under <stack dir>/attempt-1/<stage>, when the failure is the recognized stack
-# crash on a check proven retry-safe with retries left in this part (RETRIES counts this script's run, which is one part); the caller then
-# restarts the stack and reruns the check. Returns 1 for anything else, and the failure stands.
+# retry_check <stage> <exit> <check log> <stack dir> <stack alive 0|1> <shots dir or ""> <check file in the candidate tree>: the one retry rule
+# (classify-retry.mjs, transients.json). Returns 0, after saving the first attempt's logs and shots under <stack dir>/attempt-1/<stage>, when the
+# failure is the recognized stack crash on a check proven retry-safe with retries left in this part (RETRIES counts this script's run, which is
+# one part) and the candidate's blob of the check is the one the audit read; the caller then restarts the stack and reruns the check. Returns 1 for
+# anything else, and the failure stands. The prepared gate runs adapted r36- copies of four checks; the audit is of the original file.
 RETRIES=0
 retry_check() {
-  local n=$1 code=$2 log=$3 dir=$4 up=$5 shots=$6 verdict t1
-  verdict=$(node "$J/classify-retry.mjs" "$n" "$code" "$up" "$log" "$dir" "$RETRIES")
+  local n=$1 code=$2 log=$3 dir=$4 up=$5 shots=$6 file=${7/\/r36-/\/} verdict t1 blob
+  blob=$(git -C "$W" rev-parse "$INT35_EXPECTED_TREE:$file" 2>/dev/null)
+  verdict=$(node "$J/classify-retry.mjs" "$n" "$code" "$up" "$log" "$dir" "$RETRIES" "$blob")
   [ -n "$verdict" ] || verdict='fail classifier printed nothing'
   echo "$n: exit $code (stack alive: $([ "$up" = 1 ] && echo yes || echo no)) - $verdict"
+  case "$verdict" in *'audit stale'*) echo "$n: retry-safe audit stale (re-audit needed)";; esac
   [ "${verdict%% *}" = retry ] || return 1
   RETRIES=$(( RETRIES + 1 )); RETRY_ID=${verdict#retry }; RETRY_DIR=attempt-1/${n// /-}
   mkdir -p "$dir/$RETRY_DIR"
@@ -76,7 +79,7 @@ run() {
   (cd $W/packages/web && env $E timeout 900 node e2e/$C $F/$N-shots-r35 > $L 2>&1); rc=$?
   if [ $rc != 0 ]; then
     A=$(alive && echo 1 || echo 0)
-    if retry_check "$N" $rc "$L" "$F" $A "$F/$N-shots-r35"; then
+    if retry_check "$N" $rc "$L" "$F" $A "$F/$N-shots-r35" "packages/web/e2e/${C#r36-}"; then
       bash $F/$S restart | tail -1
       (cd $W/packages/web && env $E timeout 900 node e2e/$C $F/$N-shots-r35 > $L 2>&1); rc=$?
       echo "$N: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"
@@ -140,7 +143,7 @@ if git cat-file -e "$INT35_EXPECTED_TREE:packages/web/e2e/canvas-toolbar-check.m
   (cd $W/packages/web && env $E timeout 900 node e2e/canvas-toolbar-check.mjs http://127.0.0.1:8878 nanogpt-deep-dive $F/canvas-toolbar-shots-r35 > $TL 2>&1); rc=$?
   if [ $rc != 0 ]; then
     A=$(alive && echo 1 || echo 0)
-    if retry_check canvas-toolbar $rc "$TL" "$F" $A "$F/canvas-toolbar-shots-r35"; then
+    if retry_check canvas-toolbar $rc "$TL" "$F" $A "$F/canvas-toolbar-shots-r35" packages/web/e2e/canvas-toolbar-check.mjs; then
       bash $F/stack.sh restart | tail -1
       (cd $W/packages/web && env $E timeout 900 node e2e/canvas-toolbar-check.mjs http://127.0.0.1:8878 nanogpt-deep-dive $F/canvas-toolbar-shots-r35 > $TL 2>&1); rc=$?
       echo "canvas-toolbar: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"
@@ -162,7 +165,7 @@ alive || { echo "rh-local: stack down before the check, restarting"; bash $F/sta
 (cd $W/packages/web && env $RHL timeout 1500 node e2e/rabbit-hole-check.mjs > $F/rh-local-r35.log 2>&1); rc=$?
 if [ $rc != 0 ]; then
   A=$(alive && echo 1 || echo 0)
-  if retry_check rh-local $rc $F/rh-local-r35.log $F $A; then
+  if retry_check rh-local $rc $F/rh-local-r35.log $F $A "" packages/web/e2e/rabbit-hole-check.mjs; then
     bash $F/stack.sh restart | tail -1
     (cd $W/packages/web && env $RHL timeout 1500 node e2e/rabbit-hole-check.mjs > $F/rh-local-r35.log 2>&1); rc=$?
     echo "rh-local: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"
@@ -195,7 +198,7 @@ bash $LP/jstack.sh | tail -1
 journey; rc=$?
 if [ $rc != 0 ]; then
   A=$(alive && echo 1 || echo 0)
-  if retry_check 'journey J1-J8' $rc $LP/journey.log $LP $A "$LP/ws/screens"; then
+  if retry_check 'journey J1-J8' $rc $LP/journey.log $LP $A "$LP/ws/screens" packages/web/e2e/journey-check.mjs; then
     bash $LP/jstack.sh | tail -1
     journey; rc=$?
     echo "journey J1-J8: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"
@@ -208,7 +211,7 @@ jalive || bash $LP/jstack.sh | tail -1
 slice; rc=$?
 if [ $rc != 0 ]; then
   A=$(alive && echo 1 || echo 0)
-  if retry_check tutor-slice $rc $LP/slice.log $LP $A "$LP/ws/screens/slice"; then
+  if retry_check tutor-slice $rc $LP/slice.log $LP $A "$LP/ws/screens/slice" packages/web/e2e/tutor-slice-check.mjs; then
     bash $LP/jstack.sh | tail -1
     slice; rc=$?
     echo "tutor-slice: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"
@@ -224,7 +227,7 @@ jalive || bash $LP/jstack.sh | tail -1
 blankhooks; rc=$?
 if [ $rc != 0 ]; then
   A=$(alive && echo 1 || echo 0)
-  if retry_check blank-hooks $rc $LP/blank.log $LP $A "$LP/ws/screens/blank"; then
+  if retry_check blank-hooks $rc $LP/blank.log $LP $A "$LP/ws/screens/blank" packages/web/e2e/blank-canvas-hooks-check.mjs; then
     bash $LP/jstack.sh | tail -1
     blankhooks; rc=$?
     echo "blank-hooks: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"
@@ -240,7 +243,7 @@ jalive || bash $LP/jstack.sh | tail -1
 practice; rc=$?
 if [ $rc != 0 ]; then
   A=$(alive && echo 1 || echo 0)
-  if retry_check practice-card $rc $LP/practice.log $LP $A "$LP/ws/screens/practice"; then
+  if retry_check practice-card $rc $LP/practice.log $LP $A "$LP/ws/screens/practice" packages/web/e2e/practice-card-check.mjs; then
     bash $LP/jstack.sh | tail -1
     practice; rc=$?
     echo "practice-card: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"
@@ -256,7 +259,7 @@ jalive || bash $LP/jstack.sh | tail -1
 chrome; rc=$?
 if [ $rc != 0 ]; then
   A=$(alive && echo 1 || echo 0)
-  if retry_check canvas-chrome $rc $LP/chrome.log $LP $A "$LP/ws/screens/chrome"; then
+  if retry_check canvas-chrome $rc $LP/chrome.log $LP $A "$LP/ws/screens/chrome" packages/web/e2e/canvas-chrome-check.mjs; then
     bash $LP/jstack.sh | tail -1
     chrome; rc=$?
     echo "canvas-chrome: retried ($RETRY_ID) - first attempt diagnostics in $RETRY_DIR"

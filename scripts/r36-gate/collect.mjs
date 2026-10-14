@@ -3,14 +3,16 @@
 // receipts, exactly as the unsharded gate phase judges its record; the passed Dive checkpoint stays its prerequisite.
 // A part is judged by its newest attempt (attempts.mjs), so a failed-only rerun reads each passed part from the attempt it
 // passed in. A part whose newest attempt did not succeed, a failed or missing shard or units record, a missing or
-// duplicated stage, or a rejected record fails it.
+// duplicated stage, or a rejected record fails it. More than maxRetriesPerGate (transients.json) qualified retries
+// (int35.sh's `<stage>: retried (<id>)` lines) in all the parts' records fail it as instability, and the retried stages are
+// listed in gate-verdict.json and receipt.json.
 //   node scripts/r36-gate/collect.mjs <downloaded artifacts dir>
 // Env: APP_ROOT TESTED_SHA TESTED_TREE HARNESS_SHA GATE_GRANT_ID ARTIFACT_ROOT GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_REPOSITORY GH_TOKEN
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { SHARDS, UNIT_STAGES, PARTS, mergeShards } from './shards.mjs';
+import { SHARDS, UNIT_STAGES, PARTS, mergeShards, retriedStages } from './shards.mjs';
 import { prerequisite } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
 import { awaitVerify } from './verify-check.mjs';
@@ -66,6 +68,12 @@ const read = part => {
 };
 const units = read('units'), shards = SHARDS.map((_, k) => read(`shard-${k + 1}`));
 
+// A pass after a retry is reported as one, and a gate that needed more than a couple of retries is unstable, not green.
+// Counted over the parts' own records (every line of them is in the merged record), so it holds when the merge itself fails.
+const retried = [units, ...shards].flatMap(s => (s.log === null ? [] : retriedStages(s.log)));
+const maxRetriesPerGate = JSON.parse(readFileSync(new URL('./templates/transients.json', import.meta.url), 'utf8')).maxRetriesPerGate;
+if (retried.length > maxRetriesPerGate) failures.push(`instability: ${retried.length} qualified retries across the gate (more than ${maxRetriesPerGate}): ${retried.map(r => `${r.stage} (${r.reason})`).join(', ')}`);
+
 let verdict = 'not computed: shard records incomplete', extraPassed = false;
 if ([units, ...shards].every(s => s.log !== null)) {
   try {
@@ -83,8 +91,8 @@ if ([units, ...shards].every(s => s.log !== null)) {
 const pass = failures.length === 0;
 const sharded = { units: { part: 'units', stages: UNIT_STAGES, pass: units.pass }, shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), failures };
 // attempts: the run attempt each part was judged from, so the gate note shows a rerun's mix of attempts.
-writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, attempts, sharded }, null, 2));
-writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version, attempts,
+writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, attempts, retried, sharded }, null, 2));
+writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version, attempts, retried,
   prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, units: (({ log, ...u }) => u)(units), shards: shards.map(({ log, ...s }) => s), verify: verified, failures, pass }, null, 2));
 console.log(JSON.stringify({ applicationSha: APP_SHA, harnessSha: identity.harnessSha, gateVerdict: verdict, extraPassed, pass, failures }));
 if (!pass) process.exitCode = 1;

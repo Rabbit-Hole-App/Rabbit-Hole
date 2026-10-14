@@ -95,6 +95,10 @@ export function shardScript(full, n) {
 const STAGE_EXIT = /^([^:]+?) exit (\d+)\b/;
 const meaningful = lines => lines.filter(l => !l.startsWith('warning: ')).join('\n');
 
+// -> the stages a record (one part's, or the merged one) shows as rerun after a recognized transient: the
+// `<stage>: retried (<id>) - first attempt diagnostics in ...` lines int35.sh prints after the rerun.
+export const retriedStages = text => [...text.matchAll(/^([^:\r\n]+): retried \(([^)\r\n]*)\)/gm)].map(m => ({ stage: m[1], reason: m[2] }));
+
 // -> the one gate record from the shard records (in SHARDS order) and the units record (unitsLog, which must hold the
 // UNIT_STAGES lines): the first record's head through its tree line, then
 // each stage's lines (everything after the previous stage's exit line up to its own) in ORDER, then every shard's
