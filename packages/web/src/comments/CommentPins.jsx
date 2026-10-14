@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui.jsx';
-import { pinCount, pinPoint } from './anchors.js';
+import { pinCount, pinPoint, pinSpot } from './anchors.js';
 
 // Comment pins (docs/features/canvas-comments.md section 5): a speech bubble whose tail is the anchor, at a constant
 // screen size over the canvas, showing how many live comments its thread has (owner, 2026-10-08). Unread: an accent ring. Open in the panel: an ink ring. The draft's
@@ -13,22 +13,23 @@ import { pinCount, pinPoint } from './anchors.js';
 // the line by the picked pin: a delete to confirm ({ replies }) or a note ({ note }).
 const SIZE = 30;
 export const PIN_DEFAULT = '#f59e0b'; // the canvas palette's orange
-// slotOf(object id): that object's pin slot in world units ({ right, top, height }), or null when it is gone. An object's
-// pins line up leftwards from `right`, centred on the row, at the pins' constant screen size, so they never cover its pills
-// at any zoom; the stored offset is not used. A pin on a bare canvas point stays where it was placed.
+// slotOf(object id): that object's box, its pill row's width and its chip's in world units ({ x, y, w, h, row, lead }), or null when it is gone.
+// Its pins touch it (pinSpot, anchors.js): on its top edge just left of the row, else down its left edge, at the pins'
+// constant screen size; the row keeps at least its 100% width on screen, as the floating actions bar does not shrink with
+// the zoom. The stored offset is not used. A pin on a bare canvas point stays where it was placed.
 const GAP = 4;
 export default function CommentPins({ pins, view, board, slotOf = null, onPin, picked = null, onPick = null, ask = null, onConfirm, onCancel }) {
   const taken = {};
   return (
     <div data-comment-pins aria-label="Comments on this canvas" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
       {pins.map(pin => {
-        let left, top;
+        let left, top, tail = 'bl';
         if (pin.anchor?.kind === 'object' && slotOf) {
           const slot = slotOf(pin.anchor.object_id);
           if (!slot) return null;
           const index = taken[pin.anchor.object_id] = (taken[pin.anchor.object_id] ?? -1) + 1;
-          left = slot.right * view.z + view.x - (index + 1) * (SIZE + GAP);
-          top = (slot.top + slot.height / 2) * view.z + view.y - SIZE / 2;
+          const box = { left: slot.x * view.z + view.x, top: slot.y * view.z + view.y, right: (slot.x + slot.w) * view.z + view.x, bottom: (slot.y + slot.h) * view.z + view.y };
+          ({ left, top, tail } = pinSpot(box, slot.row * Math.max(view.z, 1), index, SIZE, GAP, (slot.lead || 0) * view.z));
         } else {
           const at = pinPoint(pin.anchor, board);
           if (!at) return null;
@@ -47,7 +48,7 @@ export default function CommentPins({ pins, view, board, slotOf = null, onPin, p
                 onPick?.(pin.id);
                 onPin?.(pin.id);
               }}
-              className={`pointer-events-auto absolute flex items-center justify-center rounded-full rounded-bl-none border border-solid text-white shadow-md ${ring}`}>
+              className={`pointer-events-auto absolute flex items-center justify-center rounded-full ${tail === 'br' ? 'rounded-br-none' : 'rounded-bl-none'} border border-solid text-white shadow-md ${ring}`}>
               {pin.ghost ? <Plus size={15} aria-hidden /> : <span data-pin-count aria-hidden="true" className="text-[11px] leading-none font-semibold">{pinCount(pin.comments)}</span>}
             </button>
             {picked === pin.id && ask && (

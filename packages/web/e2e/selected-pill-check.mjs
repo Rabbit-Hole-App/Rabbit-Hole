@@ -208,7 +208,7 @@ for (const [id, kind, label] of [['k-file', 'block', 'diagram.png'], ['k-text', 
 await page.reload();
 await node(page, KINDS[0]).waitFor({ timeout: 60000 });
 await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 2, null, { timeout: 15000 });
-// At 100%, where a pin (a constant screen size) stays on the pill row instead of over the object's top edge.
+// At 100%: the pin (a constant screen size) left of the pill row, touching the object (owner, 2026-10-13, canvas-comments.md Contact).
 const actual = async page => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Shift+Digit0'); await page.waitForTimeout(700); };
 for (const { kind } of ASKS) {
   await check(`owner, ${kind.label}: Add to chat above its top right arms the strip and writes no question; nothing is sent; its comment pin sits left of the actions`, async () => {
@@ -224,7 +224,8 @@ for (const { kind } of ASKS) {
       assert.ok(pin, 'its pin');
       assert.ok(pin.x + pin.width <= pillBox.x + 1, `the pin is left of the pill: ${JSON.stringify([pin, pillBox])}`);
       assert.ok(pillBox.x - (pin.x + pin.width) < 24, `right next to it: ${JSON.stringify([pin, pillBox])}`);
-      assert.ok(Math.abs(pin.y + pin.height / 2 - (pillBox.y + pillBox.height / 2)) < 6, `on its row: ${JSON.stringify([pin, pillBox])}`);
+      const contact = [Math.min(pin.x + pin.width, box.x + box.width) - Math.max(pin.x, box.x), Math.min(pin.y + pin.height, box.y + box.height) - Math.max(pin.y, box.y)];
+      assert.ok(contact.every(overlap => overlap >= 2), `touching the object: ${JSON.stringify([pin, box])}`);
     }
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-pill.png` });
     const sent = asks.length + plans.length;

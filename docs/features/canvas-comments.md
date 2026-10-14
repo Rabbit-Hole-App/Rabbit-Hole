@@ -383,13 +383,21 @@ the panel says "Card deleted"); undo brings it back.
 
 ### Pins
 
-**Placement (owner, 2026-10-08):** an object's pins sit in a fixed slot just left of where its Ask in chat pill sits, above
-its top right and on the pill's row - with the extra pills a few cards add beside it reserved (a whiteboard's or paper's Ask
+**Placement (owner, 2026-10-08):** an object's pins sit in a fixed slot just left of where its Ask in chat pill sits, at
+its top right - with the extra pills a few cards add beside it reserved (a whiteboard's or paper's Ask
 selection; a chat card's Explain in canvas and Continue convo) - whether the object is selected or not, so a pin never
 covers a pill. Several threads line up leftwards, oldest nearest the pill. A dropped image, a text box and a sticky note
 have the same Ask in chat (r35, [canvas-card-selection.md](canvas-card-selection.md)); a shape keeps the slot it would
 take. The stored offset is not used for them (render only, no migration). A pin on a bare canvas point - from before this
 change - stays where it was placed; no new ones are made.
+
+**Contact (owner, 2026-10-13: "every comment icon should have a minimal contact to the shape/cafrd etc it is attached
+to"):** every object pin touches its object - card, chat card, image, text box, sticky note, shape, group (its outline) -
+at any size and zoom: its box overlaps the object's by at least 4 px on both axes. It sits on the object's top edge, its tail
+10 px into it (past the gap between two cards of a column, so it never reads as hanging from the card above), left of the reserved pill row (kept at least its 100% width on screen, as the floating actions bar does not
+shrink) and right of a group's name chip; pins that do not fit there (a narrow object, a low zoom) hang on its left edge
+from just below its top, the tail on the object, so a pin is never under the actions bar or the chip. One pure function,
+`pinSpot` in `comments/anchors.js`, places every kind; comments-check 26b checks every kind at 100% and 25%.
 
 A speech-bubble pin at a constant screen size showing its thread's live message count (owner, 2026-10-08): the starter
 plus replies, deleted ones excluded, `99+` above 99; accessible name "N comments". Only the new-comment draft shows a +.
