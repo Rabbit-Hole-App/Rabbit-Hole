@@ -742,3 +742,14 @@ example only; nothing here is written around trees.
   It never chooses context, and a canvas can hold several topics.
 - `considered` is how many objects were weighed. The context never claims to be the whole canvas.
 - Selection only: the target alone, as before.
+
+### Explain teaches the subject (control-plane/src/agents/learn-inline.js)
+
+- The note explains what the selected material means, its role and the relationships that matter. It may use general
+  knowledge of the subject. Any claim about the learner's own diagram, code or notes rests on the context.
+- It talks about the subject, never about canvas storage: no ids, and no "shape", "drawn shape", "stored connection",
+  "connector", "not connected", "label" or "nearby" for canvas objects, unless the learner asks about the canvas itself.
+- "Only stored connections are structure" is gone, and so is every tree-specific rule (parent, leaf). An arrow shows a
+  relation in its direction and does not by itself make a parent, a cause or an owner. An uncertain relation is
+  qualified in a few words, or asked about in one short question.
+- Edit: the selection's objects are the only ones that may change. The rest of the context is read-only background.
