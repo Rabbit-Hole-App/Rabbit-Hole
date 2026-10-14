@@ -882,7 +882,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             {t.created_at && <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>}
           </button>
         )) : <p className="py-2 text-sm text-ink-3">No past chats.</p>)}
-        {!sheetMode && msgs.length === 0 && !choices && (
+        {/* The Learn Chat opens empty: these starters are the apps agent's, not a canvas's, and Explore next (Lane B) follows answers. */}
+        {!sheetMode && !chat && msgs.length === 0 && !choices && (
           <div className="flex flex-col items-start gap-1.5 py-3">
             {(repository
               ? ['What are the main concepts in this repository?', 'How does the code fit together?', 'Where should I start reading?']

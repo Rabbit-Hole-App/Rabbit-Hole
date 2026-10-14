@@ -23,6 +23,27 @@ export function pinPoint(anchor, board) {
   return origin ? { x: origin.x + anchor.dx, y: origin.y + anchor.dy } : null;
 }
 
+// Where an object's pin sits on screen (owner, 2026-10-13: "every comment icon should have a minimal contact to the
+// shape/cafrd etc it is attached to"). box: the object's on-screen box { left, top, right, bottom }; row: the screen width
+// kept clear at its top right for its selection actions; index: this pin among the object's pins; size, gap: the pins';
+// lead: the screen width kept clear at its top left (a group's name chip).
+// On the object's top edge, just left of that row (and right of the lead), its tail INTO px into the object: past the gap
+// between two cards of a column at 100%, so it never reads as hanging from the card above, and short of a text box's first
+// line. The pins that do not fit there (a narrow object, a low zoom) hang on its left edge from just below its top down,
+// under the row's level, so never beneath a bar or a chip above it. Then clamped, so every pin overlaps its object by at least
+// CONTACT on both axes at any size and zoom. tail: the bubble's pointed corner, the one on the object.
+export const CONTACT = 4, INTO = 10;
+export function pinSpot(box, row, index, size, gap, lead = 0) {
+  const clamp = (value, low, high) => Math.min(Math.max(value, low), high);
+  const from = lead ? box.left + lead + gap : box.left + CONTACT - size; // where the top edge's room for pins starts
+  const fit = Math.max(0, Math.floor((box.right - row - from) / (size + gap)));
+  const onTop = index < fit;
+  const left = onTop ? box.right - row - (index + 1) * (size + gap) : box.left + CONTACT - size;
+  // ponytail: a stack taller than a short object piles up at its bottom edge; fine for the few threads one object gets.
+  const top = onTop ? box.top + INTO - size : box.top + 2 * CONTACT + (index - fit) * (size + gap);
+  return { left: clamp(left, box.left + CONTACT - size, box.right - CONTACT), top: clamp(top, box.top + CONTACT - size, box.bottom - CONTACT), tail: onTop ? 'bl' : 'br' };
+}
+
 // The anchor a right-click makes: on the object under it, relative to the object's origin, else on the canvas.
 export function anchorAt(world, hit, board) {
   const origin = hit ? objectOrigin(hit.id, board) : null;
