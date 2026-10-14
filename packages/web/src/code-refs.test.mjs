@@ -32,11 +32,11 @@ test('inside a repository context only a file of its snapshot is a link; outside
 });
 
 test('a reference is a real button with that name, guarded in prose, Sources lines and the Sources list; a click opens the reader, asking nothing', () => {
-  const ask = read('ask.jsx'), page = read('RepositoryPage.jsx'), source = read('RepositorySource.jsx'), learn = read('LearnPage.jsx');
-  assert.match(ask, /if\(linkable\(reference,has\)\)return <EvidencePill key=\{i\} type="button" data-code-ref=\{`[^`]+`\} aria-label=\{referenceLabel\(reference\)\}/);
-  assert.match(ask, /file = found && \(!has \|\| has\(found\[1\]\)\) \? found : null;/);
-  assert.match(ask, /const cited = onFile \? citedSources\(text\)\.filter\(c => linkable\(c, has\)\) : \[\];/);
-  assert.match(ask, /const onFile = given && refs \? refs\.open : given, has = given && refs \? refs\.has : null;/);
+  const md = read('Md.jsx'), page = read('RepositoryPage.jsx'), source = read('RepositorySource.jsx'), learn = read('LearnPage.jsx');
+  assert.match(md, /if\(linkable\(reference,has\)\)return <EvidencePill key=\{i\} type="button" data-code-ref=\{`[^`]+`\} aria-label=\{referenceLabel\(reference\)\}/);
+  assert.match(md, /file = found && \(!has \|\| has\(found\[1\]\)\) \? found : null;/);
+  assert.match(md, /const cited = onFile \? citedSources\(text\)\.filter\(c => linkable\(c, has\)\) : \[\];/);
+  assert.match(md, /const onFile = given && refs \? refs\.open : given, has = given && refs \? refs\.has : null;/);
   // The page: the snapshot's paths, and open = the file in its reader with the range picked (no ask, no fetch).
   assert.match(page, /return \{has:p=>paths\.has\(p\),open:\(\.\.\.a\)=>openRef\.current\(\.\.\.a\)\};\},\[snapshot\]\);/);
   const open = page.slice(page.indexOf('openRef.current=(path,start,end)=>{'), page.indexOf('const codeRefs='));

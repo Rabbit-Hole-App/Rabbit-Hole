@@ -136,7 +136,7 @@ test('MathLive loads with the first equation edited, never with the canvas', () 
   const canvas = read('./AdaptiveCanvas.jsx');
   assert.match(canvas, /const EquationEditor = lazy\(\(\) => import\('\.\/EquationEditor\.jsx'\)\);/);
   assert.doesNotMatch(canvas, /from 'mathlive'/);
-  for (const file of ['./LearnPage.jsx', './canvas-equation.js', './MathText.jsx', './ask.jsx']) assert.doesNotMatch(read(file), /from 'mathlive'|import\('mathlive'\)/, file);
+  for (const file of ['./LearnPage.jsx', './canvas-equation.js', './MathText.jsx', './ask.jsx', './Md.jsx', './ChatMessages.jsx']) assert.doesNotMatch(read(file), /from 'mathlive'|import\('mathlive'\)/, file);
   const editor = read('./EquationEditor.jsx');
   assert.match(editor, /import \{ MathfieldElement \} from 'mathlive';/);
   assert.match(editor, /MathfieldElement\.fontsDirectory = null;/, 'KaTeX\'s stylesheet already declares the fonts');
