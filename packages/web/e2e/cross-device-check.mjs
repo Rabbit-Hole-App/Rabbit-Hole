@@ -62,6 +62,9 @@ const PDF = '%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Typ
 
 const browser = await chromium.launch();
 const errors = [];
+// Console errors and the notebook kernel's micropip lines, timed, printed with any page error: a kernel's failed package
+// load then records its cause, not only the later ModuleNotFoundError (gate 38620162656).
+const consoleLog = [], stamped = text => `${new Date().toISOString()} ${text}`;
 const profile = async (device, who = owner) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
@@ -73,7 +76,8 @@ const profile = async (device, who = owner) => {
   // A hole's opening question is a Tutor turn (#46): answered here; the planner's real wiring is covered on the journey stack.
   await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }));
   const page = await context.newPage();
-  page.on('pageerror', error => errors.push(`${device}: ${error.message}`));
+  page.on('pageerror', error => errors.push(`${device}: ${stamped(error.message)}`));
+  page.on('console', message => { if (message.type() === 'error' || /micropip/.test(message.text())) consoleLog.push(`${device}: ${stamped(`${message.type()} ${message.text().slice(0, 300)}`)}`); });
   return { context, page };
 };
 const A = await profile(DEVICE_A), B = await profile(DEVICE_B);
@@ -378,7 +382,7 @@ await check('10 a board over 1.9 MB keeps Content in this browser where it was r
 });
 
 const unexpected = errors.filter(message => !/Failed to fetch|NetworkError|ERR_INTERNET_DISCONNECTED|ResizeObserver/.test(message));
-if (unexpected.length) console.log('page errors:', unexpected);
+if (unexpected.length) console.log('page errors:', unexpected, 'console:', consoleLog);
 await browser.close();
 const total = 13;
 console.log(`${results.length}/${total} checks passed`);
