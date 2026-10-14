@@ -21,6 +21,8 @@ import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { holdsLine, releaseLine } from './learn-slash.js';
 import { openOnce } from './learn-opening.js';
+import { useChatWorkspace } from './chat-workspace.jsx';
+import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -232,6 +234,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // A standalone canvas chat (canvases.js): no + attachments, and no app context to filter.
   const canvasChat = /^canvas-[a-f0-9]{8}$/.test(scope.app || '');
   const learnChat = conversation === 'learn';
+  // The Learn Chat pane (chat-workspace.jsx, A2): its thread, History, New chat and resume come from the workspace's thread.
+  // The per-card and dock composers (composerOnly) keep their own threads.
+  const chat = useChatWorkspace(), chatThread = chat && !composerOnly ? chat.thread : null;
+  const turnKey = useRef(null);
+  turnKey.current = chatThread?.turnKey ?? null;
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
   // tutor.extras move to the left caption.
   const voiceOn = !!(dock && voice && voice.state !== 'off');
@@ -303,6 +310,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [modelOpen, setModelOpen] = useState(false);
   const [appNames, setAppNames] = useState(null); // lazy, for @-mentions
   const threadId = useRef(null);
+  useEffect(() => { if (chatThread) threadId.current = chatThread.id; }, [chatThread?.id]);
   const historyRequest = useRef(0);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
@@ -340,6 +348,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
 
   // Resume the latest saved thread for this scope on mount.
   const loadThread = async (id, toChat = true, request = ++historyRequest.current) => {
+    if (chatThread) return chatThread.open(id).catch(() => {});
     try {
       const d = await chatApi(`/api/ask/threads/${id}`);
       if (repository) { setRepositoryCommit(d.commit); setCodeSelection(null); }
@@ -354,7 +363,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   };
   const threadsPath = `/api/ask/threads?scope=${historyScope}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}${privateChat ? `&app=${encodeURIComponent(fileApp)}` : ''}`;
   useEffect(() => {
-    if (composerOnly || canvasSeed) return; // Canvas conversations never resume an unrelated thread.
+    if (composerOnly || canvasSeed || chatThread) return; // Canvas conversations never resume an unrelated thread; the Chat pane's thread resumes itself (chat-threads.js).
     const request = ++historyRequest.current;
     chatApi(threadsPath)
       .then(async (d) => {
@@ -365,7 +374,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       .catch(() => {});
     return () => { if (guardedHistory) historyRequest.current++; };
   }, [historyScope, scopeRef, privateChat, appName]);
-  const newChat = () => { setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; sheetThread.current = null; setSheetHistory(false); boardContext?.removeImage(); setMsgs([]); setSelectedPassage(null); setChoices(null); setView('chat'); };
+  const newChat = () => { if (chatThread) { boardContext?.removeImage(); return chatThread.newChat(); } setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; sheetThread.current = null; setSheetHistory(false); boardContext?.removeImage(); setMsgs([]); setChoices(null); setView('chat'); };
   useEffect(() => {
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }, [msgs]);
@@ -375,11 +384,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const slashRef = useRef(null), held = useRef(null);
   // Stop (the docked shell): aborts the answer being streamed.
   const answerFlight = useRef(null);
-  const send = async (raw, scopeOverride, { opening = false, skipJourney = false } = {}) => {
+  // A thread opened from History, New chat or a canvas change (thread.restore.key) replaces the transcript with its saved
+  // messages. A turn still streaming for the old thread runs on to the server, which saves it there, but it no longer holds
+  // this composer, and its late events are dropped (contract A5).
+  useEffect(() => {
+    if (!chatThread) return;
+    setMsgs(chatThread.restore.messages || []); setChoices(null); setCodeSelection(null); setView('chat');
+    if (answerFlight.current) { answerFlight.current = null; setBusy(false); }
+  }, [chatThread?.restore.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The restore keeps the transcript this pane shows, so a remounted Chat pane comes back to it, not to the thread as opened.
+  useEffect(() => { if (chatThread) chatThread.restore.messages = msgs; }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, regenerate = null } = {}) => {
     // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the pill goes back to Auto.
     // A typed /command replaces the pill rather than nesting inside it.
-    if (slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
-    if (slash && raw.trim().startsWith('/')) { setCommand(null); if (slashRef.current?.intercept(raw)) return; }
+    if (!regenerate && slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
+    if (!regenerate && slash && raw.trim().startsWith('/')) { setCommand(null); if (slashRef.current?.intercept(raw)) return; }
     // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
     // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
     // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
@@ -430,12 +449,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setBusy(true);
     const flight = new AbortController();
     answerFlight.current = flight;
-    setInput('');
-    setMentions([]);
+    if (!regenerate) { setInput(''); setMentions([]); }
     const sourceRange = codeSelection;
     setCodeSelection(null);
-    const attached = file;
-    setFile(null);
+    const attached = regenerate ? null : file;
+    if (!regenerate) setFile(null);
     const canvasImage = !isDemo ? boardContext?.preview || (canvasTarget?.id?.startsWith?.('area:') ? canvasTarget.preview : null) : null;
     const questionPaper = boardContext?.paper;
     const questionWiki = boardContext?.wiki;
@@ -454,6 +472,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const tutorImage = !target?.paper && !questionPaper ? (target?.image ? { id: target.image } : questionImage?.blockId ? { block_id: questionImage.blockId } : questionImage?.id ? { id: questionImage.id } : null) : null;
     const replyId = crypto.randomUUID();
+    // The late-response guard (contract A5): the Chat's open thread when this turn was sent.
+    const sentKey = turnKey.current, late = () => !!chatThread && lateEvent(sentKey, turnKey.current);
     let card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
     // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
     // (begin), only for a turn it answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
@@ -467,7 +487,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (begun) return;
       begun = true;
       if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
-      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
+      // In the Chat pane each message carries { messageId, status } (contract A2): local ids until `done` names the server's.
+      // A regenerated answer streams in its old answer's place; the server keeps the old one as an alternative (B5).
+      const reply = { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card, ...(chatThread ? { messageId: `local-${replyId}`, status: 'streaming' } : {}) };
+      if (regenerate) { setMsgs(m => m.map(item => (item.messageId === regenerate.messageId ? reply : item))); return; }
+      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done' } : {}) }, reply]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
     if (!tutor || codeTurn || isDemo) begin();
@@ -530,6 +554,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         message,
         ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : {}),
         thread_id: threadId.current,
+        ...(regenerate ? { regenerate } : {}),
         // A Continue convo's first request also carries the card its answer was linked from.
         ...(canvasSeed && !threadId.current ? { canvas_seed: { question: canvasSeed.question, answer: canvasSeed.answer }, ...(!target && canvasSeed.target ? { canvas_target: canvasTargetField(canvasSeed.target) } : {}) } : {}),
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
@@ -559,6 +584,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       }
       if ((r.headers.get('Content-Type') || '').includes('json')) {
         const d = await r.json();
+        if (late()) return;
         if (d.choose) {
           setMsgs((m) => m.slice(0, -2)); // no turn happened yet - the pills replace it
           setChoices({ message, candidates: d.choose });
@@ -579,10 +605,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         for (const ev of events) {
           const type = (ev.match(/^event: (.+)$/m) || [])[1];
           const data = (ev.match(/^data: (.+)$/m) || [])[1];
-          if (!type || !data) continue;
+          if (!type || !data || late()) continue; // read on to the end, so the server finishes and saves the turn
           const d = JSON.parse(data);
           if (type === 'chunk') mirror(d.text);
-          else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
+          else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
           else if (type === 'paper') { if (!journeySetup) boardContext?.onShowPaper?.(d, slots.paper); }
@@ -590,30 +616,44 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           else if (type === 'video') { if (!journeySetup) boardContext?.onShowVideo?.(d, slots.video); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
+          else if (type === 'answer_meta') setMsgs(messages => withAnswerMeta(messages, replyId, d));
           else if (type === 'done' && d.threadId) {
+            if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
             threadId.current = d.threadId;
             if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }
             if (repository && d.commit) setRepositoryCommit(d.commit);
             if (responseGraph && onGraph) onGraph(responseGraph);
             if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
           }
-          else if (type === 'error') mirror(`✗ ${d.error}`);
+          else if (type === 'error') { mirror(`✗ ${d.error}`); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
         }
       }
     } catch (e) {
-      // A stopped answer keeps what arrived; it is not an error.
+      // A stopped answer keeps what arrived; it is not an error. In the Chat pane it is marked Stopped.
+      if (late()) return;
       if (e.name !== 'AbortError') {
         if (sheetMode && tutor && !codeTurn) { panelAsk = true; exchange = null; card = {}; }
         begin(); mirror(`✗ ${e.message}`);
       }
+      if (chatThread) setMsgs(messages => settle(messages, replyId, e.name === 'AbortError' ? 'stopped' : 'error'));
     } finally {
-      if (answerFlight.current === flight) answerFlight.current = null;
+      const mine = answerFlight.current === flight;
+      if (mine) answerFlight.current = null;
       for (const slot of Object.values(slots)) boardContext?.releaseCard?.(slot);
       if (!isDemo) exchange?.({ id: replyId, done: true });
       if (!isDemo) boardContext?.setAnswering(false);
-      setBusy(false);
+      if (chatThread && !late()) setMsgs(messages => settle(messages, replyId, 'done'));
+      // A turn the Chat let go of (another thread opened) leaves the composer to whatever runs there now.
+      if (!chatThread || mine) setBusy(false);
     }
   };
+  // Regenerate (contract B5, chat.regenerate): the footer re-sends a turn through this loop with regenerate: { messageId };
+  // the server reuses that turn's stored question, mode, command and refs, so nothing open now leaks in.
+  useEffect(() => (chatThread ? chat.registerSender(({ regenerate } = {}) => {
+    const index = msgs.findIndex(m => m.messageId === regenerate?.messageId);
+    const question = index > 0 ? msgs.slice(0, index).findLast(m => m.role === 'user')?.content : null;
+    return question ? send(question, undefined, { skipJourney: true, regenerate }) : undefined;
+  }) : undefined));
 
   // Professor Next Steps (docs/features/professor-next-steps.md §1.4): a hook the learner clicked (NextStepsCard), or one
   // carried into a new hole. The step travels as structured data, never as typed text: one tutor.askStep turn, drawn in the
