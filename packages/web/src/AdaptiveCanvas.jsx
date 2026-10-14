@@ -4629,7 +4629,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {addComment && commentOn && <MenuRow icon={MessageCircle} data-menu-add-comment aria-keyshortcuts="C" hint="C" onClick={act(addComment)}>Add comment</MenuRow>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
-              {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline())}>Edit or explain</MenuRow>}
+              {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline(performance.now(), false, 'edit'))}>Quick Edit</MenuRow>}
               {described && <MenuRow icon={CircleHelp} onClick={act(() => askBlock(block))}>Ask about this</MenuRow>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}

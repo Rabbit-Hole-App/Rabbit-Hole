@@ -1436,7 +1436,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     {
       title: 'Edit',
       items: [
-        { label: 'Edit or explain', icon: Wand, hint: 'Ctrl K', disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.() },
+        { label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.('edit') },
         { divider: true },
         { label: 'Undo', icon: Undo2, hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
         { label: 'Redo', icon: Redo2, hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },

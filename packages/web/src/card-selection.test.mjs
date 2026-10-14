@@ -150,6 +150,15 @@ test('Open in notebook is a compact icon button on every code card, named Open i
   assert.doesNotMatch(canvas, /Open in Notebook/);
 });
 
+// Owner, 2026-10-13: "Edit or explain" -> "Quick Edit". The Ctrl+K action is named Quick Edit in the canvas right-click menu
+// and the page's Edit menu, and asks the editor to open in Edit selection mode (the inline editor's open path takes the mode).
+test('the Ctrl+K menu rows read Quick Edit and open in Edit mode', () => {
+  const canvas = read('./AdaptiveCanvas.jsx'), page = read('./LearnPage.jsx');
+  assert.match(canvas, /data-menu-inline-ai hint="Ctrl K" disabled=\{!selection\.length\} onClick=\{act\(\(\) => openInline\(performance\.now\(\), false, 'edit'\)\)\}>Quick Edit<\/MenuRow>/);
+  assert.match(page, /\{ label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState\.selected \|\| !inlineAi, onSelect: \(\) => canvas\(\)\?\.inlineAi\?\.\('edit'\) \}/);
+  assert.doesNotMatch(canvas + page, /Edit or explain/);
+});
+
 // Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc... each options should have an icon next to it".
 test('the canvas right-click menu: every item is one MenuRow with its icon, on card, canvas, note and group menus alike', () => {
   const canvas = read('./AdaptiveCanvas.jsx');

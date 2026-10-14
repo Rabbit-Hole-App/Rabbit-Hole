@@ -500,7 +500,7 @@ await run('pointer and touch: the canvas menu opens it; touch taps drive it', as
   await page.mouse.click(at.x, at.y, { button: 'right' });
   await page.locator('[data-menu-inline-ai]').click();
   await popover(page).waitFor();
-  check('right-click > Edit or explain opens on the clicked node', (await popover(page).count()) === 1 && /“3”/.test(await page.locator('[data-inline-target-label]').innerText()));
+  check('right-click > Quick Edit opens on the clicked node', (await popover(page).count()) === 1 && /“3”/.test(await page.locator('[data-inline-target-label]').innerText()));
   await context.close();
   const touch = await open('touch', both(), { touch: true });
   const t = await shapeCenter(touch.page, 'n3');
