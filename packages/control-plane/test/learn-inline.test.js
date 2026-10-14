@@ -192,3 +192,13 @@ test('the Edit prompt: the selection is the only thing that may change; the rest
   assert.match(INLINE_EDIT_SYSTEM, /its objects are the only ones you may change/);
   assert.match(INLINE_EDIT_SYSTEM, /\(related, relations, connections, metadata\) is read-only background/);
 });
+
+// The check (owner brief 2026-10-13, validation): a failed check and a blocked request are outcomes a row may carry, and a
+// native diagram is an output word, so the editor's rows for them are kept rather than dropped.
+test('telemetry keeps the check outcomes and the diagram output', async () => {
+  const { telemetryRow } = await import('../src/learn-inline.js');
+  for (const outcome of ['check_failed', 'blocked', 'unsupported', 'clarify', 'invalid']) {
+    assert.ok(telemetryRow({ request_id: RID, route: 'jev', outcome, capability: 'shapes', metrics: { output: 'diagram' } }, { userId: 'u', board: 'b' }), outcome);
+  }
+  assert.equal(cleanMetrics({ output: 'diagram' }).output, 'diagram');
+});

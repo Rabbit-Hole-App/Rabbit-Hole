@@ -4,6 +4,8 @@ import { composerKey } from './composer-keys.js';
 import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
 import { cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
+import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
+import { placeResult, regionStyle } from './inline-placement.js';
 import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
 
 // The inline AI editor (docs/features/inline-ai-editor.md): a compact popover by the frozen selection, with Edit and
@@ -68,7 +70,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     validate: (result, plan, request) => validateResult(result, request.frozen),
     onChange: setState,
     onMetrics: entry => {
-      const split = { selection: selectionKind(target, board()), board: canvas.objectCount() > 200 ? 'large' : 'small', output: entry.capability === 'edit' ? 'edit' : entry.capability === 'note' ? 'text' : ['motion', 'animate', 'video', '3d'].includes(entry.capability) ? 'media' : 'card' };
+      const split = { selection: selectionKind(target, board()), board: canvas.objectCount() > 200 ? 'large' : 'small', output: entry.capability === 'edit' ? 'edit' : entry.capability === 'note' ? 'text' : entry.capability === 'shapes' ? 'diagram' : ['motion', 'animate', 'video', '3d'].includes(entry.capability) ? 'media' : 'card' };
       const first = !rows.current.length || rows.current[0].request_id === entry.requestId;
       rows.current = rows.current.filter(row => row.request_id !== entry.requestId);
       rows.current.push({
@@ -89,6 +91,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       const checked = validateEdit(result, frozen, board());
       return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), raw: result } } : checked;
     }
+    // A native diagram: checked again here (a schema is a request, not a guarantee); laid out and placed once, below.
+    if (result.kind === 'diagram') { const checked = validateDiagram(result.spec); return checked.ok ? { ok: true, preview: { spec: checked.spec } } : { ok: false, errors: checked.errors.slice(0, 1) }; }
     if (result.kind === 'card' || result.kind === 'proposal') return { ok: true, preview: { block: result.block, primitive: result.primitive, message: result.message, describe: canvas.describe(result.block) } };
     return { ok: false, errors: ['That result is not something the canvas can show.'] };
   }
@@ -145,7 +149,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         canvas.flushEdits?.();
         const made = prepare(selectionOnly, text);
         setPrepared(made);
-        return { context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context) }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        // The request the check decides and generation gets: the selection's ids or its exact words, and the context.
+        const request = target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
+          : { kind: 'selection', targetIds: target.ids, context: made.context };
+        return { request, context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context) }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
     });
   };
@@ -169,6 +176,16 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return { ...spot, size, target: targetBox };
   };
   const keep = (id, placement) => setPlacements(previous => ({ ...previous, [id]: placement }));
+  // Where a result goes: the selection's middle, or a creation's insertion anchor.
+  const anchorPoint = () => { const box = unionBox(target.ids.map(boxOfTarget)); return target.anchor || (box && { x: box.x + box.w / 2, y: box.y + box.h / 2 }); };
+  const placeDiagram = spec => {
+    const at = anchorPoint();
+    if (!at) return null;
+    const style = regionStyle(board(), at), layout = layoutDiagram(spec, style);
+    const spot = placeResult(layout.bounds, at, canvas.obstacles(target.ids), canvas.visibleWorld());
+    if (spot.offscreen) canvas.reveal?.({ x: spot.x, y: spot.y, w: layout.bounds.w, h: layout.bounds.h });
+    return { kind: 'diagram', style, layout, x: spot.x, y: spot.y, dx: spot.dx, dy: spot.dy, offscreen: spot.offscreen, size: { w: layout.bounds.w, h: layout.bounds.h }, final: true };
+  };
   useEffect(() => {
     // Streaming: the room is reserved once, before the first words show.
     if (state.status === 'streaming' && state.stream?.text && state.requestId && !placements[state.requestId]) { const room = placeFor(reserved()); if (room) keep(state.requestId, room); }
@@ -181,6 +198,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       // No target box (the selection is gone): no ghost; Accept then refuses it as stale.
       keep(preview.requestId, fresh ? { ...fresh, final: true } : { final: true });
     }
+    // A diagram: the region's style, a deterministic layout, then one free spot near the anchor for the whole result
+    // (inline-placement.js); nothing on the board moves. Off-screen, the camera goes to where it will land.
+    if (preview?.kind === 'diagram' && !placements[preview.requestId]) { const spot = placeDiagram(preview.spec); keep(preview.requestId, spot || { final: true }); }
   }, [state.status, state.preview, state.requestId, !!state.stream?.text]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A7 card ghost: drawn once invisibly at the end of the column to learn its real size (waiting until its size holds
@@ -215,9 +235,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const accept = () => {
     // A7: the spot the ghost shows must still be free. If something now takes it, the note is placed again and its new
     // ghost shown; Accept is pressed again. It never lands somewhere the learner did not see.
-    const shown = (state.preview?.kind === 'note' || isCard(state.preview)) && placements[state.preview.requestId];
+    const shown = (state.preview?.kind === 'note' || state.preview?.kind === 'diagram' || isCard(state.preview)) && placements[state.preview.requestId];
     if (shown?.size && !freeSpot({ x: shown.x, y: shown.y, ...shown.size }, canvas.obstacles(target.ids), unionBox(target.ids.map(boxOfTarget)))) {
-      const again = placeFor(shown.size);
+      const again = state.preview.kind === 'diagram' ? placeDiagram(state.preview.spec) : placeFor(shown.size);
       if (again) {
         // A card's offset is from its slot at the end of the column: the slot is where its ghost is drawn less its offset.
         const drawn = isCard(state.preview) && canvas.cardGhost.measure();
@@ -241,6 +261,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const spot = placements[preview.requestId];
         if (!spot?.size) return { error: 'There is no place on the canvas beside the selection for this note.' };
         tx = explainTx({ requestId: preview.requestId, text: preview.text, frozen, board: now, boxes: { target: spot.target }, size: spot.size, place: spot, route: preview.route });
+      } else if (preview.kind === 'diagram') {
+        const spot = placements[preview.requestId];
+        if (!spot?.layout) return { error: 'There is no place on the canvas for this diagram.' };
+        const taken = new Set(['shapes', 'items', 'links', 'blocks', 'groups'].flatMap(list => (now[list] || []).map(entry => entry.id)));
+        tx = toCanvasObjects(preview.spec, spot.layout, { requestId: preview.requestId, at: { x: spot.x, y: spot.y }, style: spot.style, taken });
       } else if (preview.kind === 'edit') {
         const again = validateEdit(preview.raw, frozen, now);
         if (!again.ok) return { stale: { content: true, text: again.errors[0] || 'The edit no longer fits the selection.' } };
@@ -376,6 +401,25 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             </>
           );
         })()}
+        {(() => {
+          // A diagram's ghost: its shapes and connectors, pale, exactly where Accept puts them, above everything.
+          const g = preview?.kind === 'diagram' && placements[preview.requestId];
+          if (!g?.layout || status !== 'preview') return null;
+          const at = id => { const node = g.layout.nodes.find(entry => entry.id === id); return node && { x: (g.x + node.x) * z + view.x, y: (g.y + node.y) * z + view.y, w: node.w * z, h: node.h * z }; };
+          const label = new Map(preview.spec.shapes.map(shape => [shape.id, shape.label]));
+          return (
+            <div data-inline-ghost data-ghost-kind="diagram" onPointerDown={event => event.stopPropagation()} className="pointer-events-auto absolute opacity-60"
+              style={{ left: g.x * z + view.x, top: g.y * z + view.y, width: g.size.w * z, height: g.size.h * z }}>
+              <svg className="absolute overflow-visible" style={{ left: -(g.x * z + view.x), top: -(g.y * z + view.y), width: 1, height: 1 }}>
+                {preview.spec.connectors.map((link, i) => { const a = at(link.from), b = at(link.to); return a && b && <line key={i} x1={a.x + a.w / 2} y1={a.y + a.h / 2} x2={b.x + b.w / 2} y2={b.y + b.h / 2} stroke="#6b7280" strokeWidth={1.5 * z} strokeDasharray="6 4" />; })}
+              </svg>
+              {g.layout.nodes.map(node => { const box = at(node.id); return box && (
+                <div key={node.id} className="absolute flex items-center justify-center rounded-md border-2 border-dashed border-[#6b7280] bg-white/90 px-1 text-center text-ink dark:bg-[#202020]/90"
+                  style={{ left: box.x - (g.x * z + view.x), top: box.y - (g.y * z + view.y), width: box.w, height: box.h, fontSize: 12 * z }}>{label.get(node.id)}</div>
+              ); })}
+            </div>
+          );
+        })()}
         {/* A7: an edit, pale, in place over each object it changes - removed words struck through, added words marked, a
             style change shown on the new text. While it streams, the new words so far. The object is untouched until Accept. */}
         {(() => {
@@ -451,6 +495,13 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             {target.range && <p className="text-[11px] text-ink-3">Only the selected words change; the rest stays as it is.</p>}
           </div>
         )}
+        {preview?.kind === 'diagram' && !busy(status) && (
+          <div data-inline-preview="diagram" data-scroll className="mt-2 max-h-40 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
+            <p className="font-medium text-ink">Diagram: {preview.spec.shapes.length} shapes, {preview.spec.connectors.length} connectors{preview.spec.groups.length ? `, ${preview.spec.groups.length} groups` : ''}</p>
+            <p className="mt-0.5 line-clamp-3 text-ink-2">{preview.spec.shapes.map(shape => shape.label).join(' · ')}</p>
+            <p className="mt-1 text-[11px] text-ink-3">{placements[preview.requestId]?.offscreen ? 'Shown where it lands; ' : ''}Adds editable shapes and arrows to the canvas when you accept.</p>
+          </div>
+        )}
         {(preview?.kind === 'card' || preview?.kind === 'proposal') && !busy(status) && (
           <div data-inline-preview={preview.kind} data-card-type={preview.block?.type} className="mt-2 rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             <p className="font-medium text-ink">{ROUTES[preview.route]?.label || 'Card'}: {short(preview.block?.title || preview.describe?.title || '', 60)}</p>
@@ -470,16 +521,16 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {status === 'clarify' && state.clarify && (
           <div data-inline-clarify className="mt-2 rounded-lg bg-hover px-2 py-1.5 text-xs">
             <p className="flex items-start gap-1 text-ink"><CircleHelp size={13} className="mt-px shrink-0 text-ai" />{state.clarify.question}</p>
-            {state.clarify.options?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{state.clarify.options.map(option => (
-              <button key={option} type="button" data-inline-option={option} onClick={() => session.choose(option)} className="h-6 rounded-md border border-line bg-white px-2 text-ink hover:bg-hover">{ROUTES[option]?.label || option}</button>
-            ))}</div>}
             {preview && <button type="button" data-inline-back onClick={() => session.back()} className="mt-1.5 flex items-center gap-1 rounded px-0.5 text-ink-2 hover:text-ink"><RotateCcw size={11} />Back to the preview</button>}
           </div>
         )}
         {status === 'stale' && state.stale && (
           <p data-inline-stale role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.stale.text} <button type="button" onClick={() => submit(prompt)} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Regenerate</button></p>
         )}
-        {state.error && <p data-inline-error role="alert" className="mt-2 text-xs text-[#b42318]">{state.error}</p>}
+        {/* A request the check did not let through: one short message, the prompt kept, nothing on the canvas. */}
+        {state.declined && <p data-inline-decision={state.declined.decision} role="status" className="mt-2 text-xs text-ink-2">{state.declined.message}</p>}
+        {state.error && <p data-inline-error role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.error}
+          {state.retry && <button type="button" data-inline-retry onClick={() => submit(prompt)} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Try again</button>}</p>}
         {(preview && status !== 'proposal') && (
           <div className="mt-2 flex items-center justify-end gap-1.5">
             <button type="button" data-inline-reject onClick={reject} className="h-6 rounded-md border border-line bg-white px-2 text-xs text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ai">Reject</button>

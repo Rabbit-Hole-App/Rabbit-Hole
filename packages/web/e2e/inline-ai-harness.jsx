@@ -8,7 +8,7 @@ import { createRoot } from 'react-dom/client';
 import AdaptiveCanvas from '../src/AdaptiveCanvas.jsx';
 import { NextStepsCard } from '../src/ask.jsx';
 import { readGeneration } from '../src/inline-ai-transport.js';
-import { ROUTES } from '../src/inline-ai-route.js';
+import { checkDecision, checkRequest, fixedRoute, generationPrompt, INLINE_SLASH, settle } from '../src/inline-ai-decide.js';
 import { ERRORS, HANDLERS, MOTION } from './inline-ai-handler-fixtures.js';
 import '../src/index.css';
 
@@ -22,7 +22,7 @@ const delay = (ms, signal) => new Promise((resolve, reject) => {
 
 // The scripted provider's knobs and its record of every call (content stays in the page; nothing is sent anywhere).
 const mock = window.__inlineMock = {
-  calls: [], telemetry: [], routeAnswers: {}, routeMs: 120, firstMs: 200, chunkMs: 35, chunkWords: 1, hold: null, failNext: null, artifactAnswer: null, routeError: null, cancelled: 0,
+  calls: [], telemetry: [], routeAnswers: {}, decideAnswers: {}, decideError: null, tokens: new Map(), routeMs: 120, firstMs: 200, chunkMs: 35, chunkWords: 1, hold: null, failNext: null, artifactAnswer: null, routeError: null, cancelled: 0,
 };
 // A note grounded in the context the request carried: its target, its stored connections and whether they are complete.
 const name = text => (/^\d+$/.test(String(text).trim()) ? `node ${String(text).trim()}` : `“${String(text).trim()}”`);
@@ -79,27 +79,61 @@ function sseStream(result, { streamText, editText, signal }) {
     },
   });
 }
+// The worker's check and generation, scripted: /decide runs the shared free checks and fixed routes (inline-ai-decide.js),
+// then a scripted verdict stands in for JEV; a proceed is a token bound to this request id, capability and exact request,
+// and /generate refuses anything else - as the worker does.
+const verdictFor = request => {
+  if (mock.decideAnswers[request.prompt]) return mock.decideAnswers[request.prompt];
+  const routed = mock.routeAnswers[request.prompt];
+  if (routed && routed.confidence < 0.6) return { decision: 'clarify', missing: ['format'] };
+  const choice = routed?.choice || (request.kind === 'creation' && /diagram|draw|map|flow/i.test(request.prompt) ? 'shapes' : 'note');
+  return { decision: 'proceed', capability: INLINE_SLASH[choice] || choice };
+};
+const checkToken = ({ requestId, request, token }) => {
+  const kept = mock.tokens.get(requestId);
+  if (!kept || kept.token !== token || kept.request !== JSON.stringify(request)) throw Object.assign(new Error('This request wasn\'t checked first. Send it again.'), { code: 'not_validated', status: 403 });
+  return kept.capability;
+};
+const scriptedDiagram = prompt => ({ layout: { arrange: 'layered', flow: 'down' }, shapes: [{ id: 'a', label: 'Start' }, { id: 'b', label: String(prompt).replace(/^\/\w+\s*/, '').slice(0, 30) || 'Step' }, { id: 'c', label: 'End' }],
+  connectors: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }], groups: [] });
 const transport = {
-  async route({ prompt, selection }, { signal }) {
-    mock.calls.push({ type: 'route', prompt, selection });
+  async decide({ requestId, request, enabled: can }, { signal }) {
+    mock.calls.push({ type: 'decide', requestId, request, prompt: request.prompt });
     await delay(mock.routeMs, signal);
-    if (mock.routeError) { const code = mock.routeError; mock.routeError = null; return { error: code }; }
-    const answer = mock.routeAnswers[prompt] || { choice: 'note', confidence: 0.9, probabilities: { note: 0.9, diagram: 0.1 } };
-    const ranked = Object.entries(answer.probabilities).filter(([id]) => ROUTES[id]).sort((a, b) => b[1] - a[1]).map(([id]) => id);
-    return { choice: answer.choice, confidence: answer.confidence, probability: answer.probabilities[answer.choice], ranked };
+    if (mock.decideError) { const code = mock.decideError; mock.decideError = null; return { error: 'Couldn\'t check this request. Try again.', code, retryable: true }; }
+    const local = checkRequest(request);
+    if (local?.error) return { error: local.error, code: 'invalid', retryable: false };
+    if (local) return local;
+    const fixed = fixedRoute(request, can);
+    if (fixed?.decision) return fixed;
+    const out = settle(fixed, verdictFor(request), can);
+    if (out.decision === 'proceed') {
+      out.token = `mock-${requestId}`;
+      mock.tokens.set(requestId, { token: out.token, capability: out.route.capability, request: JSON.stringify(request) });
+    }
+    return { ...checkDecision(out), meta: { validator: 'jev' } };
   },
-  async generate({ requestId, mode, route, prompt, context }, { signal, onEvent }) {
-    mock.calls.push({ type: 'generate', requestId, mode, route, prompt, context });
+  async generate(input, { signal, onEvent }) {
+    const route = checkToken(input), { request, requestId } = input;
+    mock.calls.push({ type: 'generate', requestId, mode: request.mode, route, prompt: generationPrompt(request), context: request.context, kind: request.kind, revise: input.revise || null });
     if (mock.failNext === 'http') { mock.failNext = null; await delay(50, signal); throw Object.assign(new Error('The model failed. Try again.'), { code: 'http' }); }
-    const result = mode === 'edit' ? { kind: 'edit', ...scriptedEdit(prompt, context) } : { kind: 'note', text: scriptedNote(context) };
-    const stream = sseStream(result, { streamText: mode === 'edit' ? null : result.text, editText: mode === 'edit' && result.ops[0]?.text != null ? result.ops[0] : null, signal });
+    const prompt = generationPrompt(request);
+    const result = route === 'edit' ? { kind: 'edit', ...scriptedEdit(prompt, request.context) }
+      : route === 'shapes' ? { kind: 'diagram', spec: scriptedDiagram(prompt) }
+      : { kind: 'note', text: request.kind === 'creation' ? `A short explanation of ${prompt.replace(/[.?!]+$/, '')}, written for this canvas.` : scriptedNote(request.context) };
+    const stream = sseStream(result, { streamText: result.kind === 'note' ? result.text : null, editText: route === 'edit' && result.ops[0]?.text != null ? result.ops[0] : null, signal });
     return readGeneration(new Response(stream, { headers: { 'content-type': 'text/event-stream' } }), onEvent);
   },
-  async artifact({ command, args, context }, { signal }) {
-    mock.calls.push({ type: 'artifact', command, args, context });
+  async card(input, { signal }) {
+    const command = checkToken(input), { request } = input, args = generationPrompt(request);
+    mock.calls.push({ type: 'artifact', command, args, context: request.context });
     await delay(mock.firstMs, signal);
     if (mock.hold) await mock.hold.promise;
     if (mock.artifactAnswer) { const answer = ERRORS[mock.artifactAnswer] || mock.artifactAnswer; mock.artifactAnswer = null; return answer; }
+    return HANDLERS[command](args);
+  },
+  async artifact({ command, args, context }) {
+    mock.calls.push({ type: 'artifact', command, args, context });
     return HANDLERS[command](args);
   },
 };

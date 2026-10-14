@@ -2668,8 +2668,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (tx.kind === 'card' && !tx.after && !tx.end) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
     setCardGhost(null);
     snapshot();
-    for (const [list, set] of [['shapes', setShapes], ['items', setItems], ['links', setLinks], ['blocks', setBlocks]]) {
-      set(previous => applyTx({ shapes: [], items: [], links: [], blocks: [], [list]: previous }, tx)[list]);
+    // A native diagram brings its groups too (inline-diagram.js): one transaction, one snapshot, one Undo.
+    for (const [list, set] of [['shapes', setShapes], ['items', setItems], ['links', setLinks], ['blocks', setBlocks], ['groups', setGroups]]) {
+      set(previous => applyTx({ shapes: [], items: [], links: [], blocks: [], groups: [], [list]: previous }, tx)[list]);
     }
     requestAnimationFrame(() => requestAnimationFrame(() => commandsRef.current?.persist().then(result => { if (result?.ok) onPersisted?.(requestId); })));
     return true;

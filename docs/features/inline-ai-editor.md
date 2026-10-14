@@ -830,3 +830,23 @@ stacks), so timings vary by seconds.
   reported). The real card case therefore selects the group, and the unit tests cover the single card.
 - Cost of the change: about 400-700 more input tokens per request, and 1-4 ms more context preparation. Time to the
   first words is unchanged within the noise.
+
+## A10. The check, and native diagrams, in the editor (owner briefs 2026-10-13: validation, creation §5-§7)
+
+The worker side is docs/features/inline-ai-validation.md (lane R). In the editor:
+
+- Every request is checked once by /api/learn/inline/decide before anything generates: Edit, a plain Explain, a /
+  command, natural language and each refine's new words. The request it decides is the exact one /generate then gets,
+  with the server's proceed. The editor's free local check answers an empty request (invalid) with no call.
+- Anything but proceed is one short message in the composer: invalid, unsupported or blocked as a line
+  (`[data-inline-decision]`), clarify as one question. The prompt is kept, and nothing is previewed, placed or started.
+  A check that failed (timeout, a malformed answer, the network) is a red line with Try again. It never falls through
+  to generation.
+- A refine whose words the check routes to the same output revises the candidate. Words routed to another output make
+  a new request.
+- /diagram and natural-language diagram requests make a native diagram: shapes, text and connectors. It is laid out
+  deterministically in the region's style, placed in free space near the selection (nothing moves), shown as a pale
+  ghost, and added in one Accept, groups included, which one Undo removes. A spot taken before Accept is placed again.
+  Off-screen, the camera goes to where it will land.
+- Cards come from /generate. /image stays a photo search staged in the editor, and /motion stays a paid proposal with
+  Generate, both after a proceed.

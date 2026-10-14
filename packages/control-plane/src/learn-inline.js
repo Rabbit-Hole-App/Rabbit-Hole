@@ -288,9 +288,9 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
 // Only these keys, only numbers, booleans or the listed words: whatever a browser sends, no content can be stored.
 const STAGES = ['open', 'prep', 'refresh', 'routing', 'providerFirst', 'firstPreview', 'complete', 'accept', 'persist'];
 const COUNTS = ['modelCalls', 'routeCalls', 'chunks', 'flushes', 'duplicates', 'cancels', 'stale', 'errors', 'timeouts', 'reused', 'objects', 'chars', 'omitted', 'inputTokens', 'outputTokens', 'longTasks', 'longTaskMs', 'frameP95', 'frameMax'];
-const WORDS = { prepCache: ['hit', 'miss'], selection: ['text', 'code', 'group', 'shape', 'card', 'image', 'connection', 'range', 'mixed'], board: ['small', 'large'], output: ['text', 'edit', 'card', 'media'], open: ['cold', 'repeat'] };
+const WORDS = { prepCache: ['hit', 'miss'], selection: ['text', 'code', 'group', 'shape', 'card', 'image', 'connection', 'range', 'mixed'], board: ['small', 'large'], output: ['text', 'edit', 'card', 'media', 'diagram'], open: ['cold', 'repeat'] };
 const ROUTE_WAYS = ['direct', 'jev', 'bypassed'];
-const OUTCOMES = ['accepted', 'rejected', 'cancelled', 'stale', 'error', 'timeout', 'invalid', 'clarify', 'unavailable', 'limitation', 'previewed', 'reused', 'closed', 'board-switch', 'proposal-declined', 'unsupported', 'refined'];
+const OUTCOMES = ['accepted', 'rejected', 'cancelled', 'stale', 'error', 'timeout', 'invalid', 'clarify', 'unavailable', 'limitation', 'previewed', 'reused', 'closed', 'board-switch', 'proposal-declined', 'unsupported', 'refined', 'check_failed', 'blocked'];
 const number = value => (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value < 1e9 ? Math.round(value * 10) / 10 : null);
 export function cleanMetrics(metrics) {
   const out = { stages: {}, counts: {} };
