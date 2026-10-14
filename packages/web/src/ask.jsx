@@ -439,7 +439,7 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onConversation = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -720,10 +720,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           const routed = typeof reply === 'string' ? { to: 'tray', text: reply } : destinationOf(reply, target, { setup: journeySetup });
           setSheetOpen(true); setSheetHistory(false);
           if (!routed.to) return; // the material card is the answer; extras carries its status
-          if (routed.to === 'conversation' && onConversation) {
-            onConversation(target, { id: replyId, question: message, answer: routed.text });
-            return;
-          }
           panelAsk = routed.to !== 'card';
           exchange = panelAsk ? null : onExchange;
           card = panelAsk ? {} : { card: true };

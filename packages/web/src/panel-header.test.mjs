@@ -20,6 +20,15 @@ test('the tabs are Find, Table of contents, Comments in that order, then Pin and
   assert.match(header, /data-panel-close aria-label="Close sidebar" title="Close sidebar"[\s\S]{0,300}?<X /);
 });
 
+// Owner, 2026-10-13: "we do not need Card Conversation in right side panel ... remove it". A question about a selected card is
+// answered where any chat answer goes (answer-destination.test.mjs); the panel keeps only its own tabs.
+test('there is no Card conversation tab or panel, and nothing routes an answer to one', () => {
+  assert.doesNotMatch(header, /conversation|MessagesSquare/i);
+  assert.doesNotMatch(page, /data-card-conversation|conversationCard|cardConversations|showConversation|'conversation'|Card conversation|onConversation/);
+  assert.doesNotMatch(read('./ask.jsx'), /onConversation|routed.to === 'conversation'/);
+  assert.doesNotMatch(read('./answer-destination.js'), /'conversation'/);
+});
+
 test('icons only: a tooltip and an accessible name, no visible text, one tablist of tabs', () => {
   assert.match(header, /role="tablist"/);
   assert.match(header, /role="tab" data-panel-tab=\{id\} aria-label=\{label\} title=\{title\}/);
