@@ -51,3 +51,10 @@ test('runJobs throws when fewer jobs come back than total_count', () => {
   assert.throws(() => runJobs(fakeGh(raw, 2, 4).exec, env), /saw 3 of 4/);
   assert.throws(() => runJobs(fakeGh(raw, 100, 4).exec, env), /saw 3 of 4/);
 });
+test('runJobs throws when the listing has no usable total_count, never reading a short listing as complete', () => {
+  // The first page carries the jobs and later pages are empty, as GitHub's would be.
+  const listing = body => (file, args) => JSON.stringify(args[1].endsWith('&page=1') ? body : { ...body, jobs: [] });
+  for (const body of [{ jobs: raw }, { total_count: null, jobs: raw }, { total_count: '3', jobs: raw }]) {
+    assert.throws(() => runJobs(listing(body), env), /jobs listing has no total_count/);
+  }
+});

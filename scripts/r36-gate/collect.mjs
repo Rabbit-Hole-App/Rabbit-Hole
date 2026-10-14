@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { SHARDS, UNIT_STAGES, mergeShards } from './shards.mjs';
+import { SHARDS, UNIT_STAGES, PARTS, mergeShards } from './shards.mjs';
 import { prerequisite } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
 import { awaitVerify } from './verify-check.mjs';
@@ -29,7 +29,6 @@ const failures = [];
 // Each part's newest attempt decides it: a part not rerun keeps the attempt it ran in (a rerun's jobs list carries it
 // with its own run_attempt), a rerun part uses the newer one, and a newer failure is never replaced by an older pass.
 // A jobs query that fails leaves no attempts and fails the gate.
-const PARTS = ['units', 'checkpoints', ...SHARDS.map((_, k) => `shard-${k + 1}`)];
 let attempts = {};
 try { const picked = pickAttempts(runJobs(), PARTS); attempts = picked.attempts; failures.push(...picked.errors); }
 catch (error) { failures.push(`attempts: gh jobs query failed: ${error.message.split('\n')[0]}`); }

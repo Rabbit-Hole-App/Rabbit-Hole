@@ -31,6 +31,10 @@ export const SHARDS = [
   ['sca', 'workspace', 'equation', 'thumbnails', 'rh-local', 'filedrop'],
 ];
 
+// The parts of a run, as the workflow matrix (gate-sharded.yml) lists them and collect.mjs judges them; shards.test.mjs
+// fails when the matrix lists any other, so a passing extra entry cannot go unjudged.
+export const PARTS = ['units', 'checkpoints', ...SHARDS.map((_, k) => `shard-${k + 1}`)];
+
 // Stages int35.sh runs only when the candidate tree carries their check (and gateVerdict then requires).
 export const CONDITIONAL = {
   'project-menu': 'packages/web/e2e/project-menu-check.mjs',

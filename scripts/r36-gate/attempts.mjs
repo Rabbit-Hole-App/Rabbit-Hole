@@ -25,6 +25,7 @@ export function runJobs(exec = execFileSync, env = process.env) {
   let total = 0;
   for (let page = 1; ; page++) {
     const body = JSON.parse(exec('gh', ['api', `repos/${repo}/actions/runs/${id}/jobs?filter=all&per_page=100&page=${page}`], { encoding: 'utf8', timeout: 60000 }));
+    if (!Number.isInteger(body.total_count)) throw Error('jobs listing has no total_count');
     total = body.total_count; seen.push(...body.jobs);
     if (!body.jobs.length || seen.length >= total) break;
   }

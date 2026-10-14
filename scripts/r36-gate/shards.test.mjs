@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { prepare, FIXTURE_ADAPTERS } from './prepare.mjs';
-import { ORDER, SHARDS, UNIT_STAGES, CONDITIONAL, shardScript, mergeShards, canary } from './shards.mjs';
+import { ORDER, SHARDS, UNIT_STAGES, CONDITIONAL, PARTS, shardScript, mergeShards, canary } from './shards.mjs';
 
 // The index of the shard that runs a stage (the packer decides, so the tests never name a shard number).
 const at = stage => SHARDS.findIndex(s => s.includes(stage));
@@ -135,4 +135,9 @@ test('the units record supplies the two unit stages; a shard record carrying one
   // No units record, or one holding a unit stage twice, is not a complete gate.
   assert.throws(() => mergeShards(shardLogs), /missing.*make test-unit, fixture regression/);
   assert.throws(() => mergeShards(shardLogs, () => true, unitsLog.replace('INT35-DONE', 'make test-unit exit 0  y\nINT35-DONE')), /make test-unit is duplicated/);
+});
+
+test('the workflow matrix runs exactly the parts collect judges, so a passing extra entry cannot go unjudged', () => {
+  const yml = readFileSync(new URL('../../.github/workflows/gate-sharded.yml', import.meta.url), 'utf8');
+  assert.deepEqual(yml.match(/^\s*part: \[([^\]]+)\]/m)[1].split(',').map(p => p.trim()), PARTS);
 });
