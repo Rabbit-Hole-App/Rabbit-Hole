@@ -250,6 +250,12 @@ await check('owner, an empty text box: selected, no selection actions', async ()
 await page.context().close();
 
 // ---- the shared canvas: the viewer's composer takes the pill; Send carries only the card's id ----
+// Since r38 (owner 2026-10-13, 1f626264: an answer about a selected card is an ordinary chat card) every question asked above
+// lands on the canvas as an answer card, linked to its card, and twelve of them pile up at the foot of the column over the last
+// cards. The viewer's checks are about the cards as shared, so the board goes back to them (the owner's page is closed, so
+// nothing saves over it).
+const restored = await api(owner, `/api/learn/boards/${canvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...ink, exchanges: chat } }) });
+assert.equal(restored.status, 200, `the shared cards restored: HTTP ${restored.status}`);
 ({ page } = await contextFor(viewer));
 await page.goto(`${BASE}/b/${token}`);
 const sharedComposer = page.locator('[data-shared-ask] textarea, [data-shared-ask] input:not([type="file"])').first();

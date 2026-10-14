@@ -73,7 +73,7 @@ Portals are navigation, not material, so they keep direct single-click open. The
 - Only a divider and a drawn shape have no strip: there is nothing to ask about.
 - On the Tutor path a card the Tutor would read no words from (a chat card, a note, a reader, file or slide card, a quiz) rides as its description (the canvas API's `objectCard`).
 
-**On a shared canvas** the one selected card's strip sits above the shared composer (`SharedBoardPage.jsx` `SharedAsk`), with the same ×. A click selects a lesson card, a chat card or a note. Esc and a blank-canvas click clear it, as on your own canvas. Send carries only the card's id (`selected`); the server finds the card on the shared board and words it from there (`learn-shared-ask.js` `selectedCard`), never from the request. Only a lesson card is a Rabbit Hole origin.
+**On a shared canvas** the one selected card's strip sits above the shared composer (`SharedBoardPage.jsx` `SharedAsk`), with the same ×. A click selects a lesson card, a chat card or a note, also where a connection crosses it: a view-only board's connections take no press (r38, when answers about a selected card became linked chat cards). Esc and a blank-canvas click clear it, as on your own canvas. Send carries only the card's id (`selected`); the server finds the card on the shared board and words it from there (`learn-shared-ask.js` `selectedCard`), never from the request. Only a lesson card is a Rabbit Hole origin.
 
 **Where the answer lands is unchanged:**
 - An explicit "Ask in chat" on a card, or a region, area or group, answers as a card linked to it.

@@ -4422,7 +4422,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                 <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />
                 {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end')}
                 {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start')}
-                <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                {/* A view-only board edits no connection, so its hit path takes no press: a press on a card a connection crosses
+                    selects the card (r38: answers about a selected card are linked chat cards, so connections cross cards). */}
+                <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: readOnly ? 'none' : 'stroke', cursor: 'pointer' }}
                   onPointerDown={event => { event.stopPropagation(); select(link.id, event); }}
                   onDoubleClick={() => startLabel(link.id)}><title>Select connection · choose a color, arrowheads, a route or press Delete · double-click or Enter to label</title></path>
                 <LineLabel at={path.mid} entry={link} editing={editingLabel === link.id} pickable={isSelected(link.id) && tool === 'select'} onPick={() => startLabel(link.id)} onDone={(runs, how) => changeLabel(link.id, runs, how)} onApi={onEditorApi} />
