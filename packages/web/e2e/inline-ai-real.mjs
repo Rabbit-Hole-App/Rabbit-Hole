@@ -371,7 +371,7 @@ for (const [name, args] of DIRECT) {
     fixture = `direct-${name}`;
     await page.keyboard.press('Escape');
     const before = await savedBoard();
-    const composer = page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input[type="text"], input:not([type])):visible').first();
+    const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input[type="text"], input:not([type])):visible').first();
     await composer.click();
     await composer.fill(`/${name} ${args}`);
     await page.waitForTimeout(150);
@@ -583,7 +583,7 @@ await step('shortcut-scope', async () => {
     await page.keyboard.press('Escape');
   }
   // The composer keeps its own Ctrl+K (Search), never the inline editor.
-  const composer = page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input[type="text"], input:not([type])):visible').first();
+  const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input[type="text"], input:not([type])):visible').first();
   await composer.click();
   await page.keyboard.press('Control+k');
   await page.waitForTimeout(500);

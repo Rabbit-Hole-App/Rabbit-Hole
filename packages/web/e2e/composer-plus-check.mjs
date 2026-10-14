@@ -41,7 +41,7 @@ page.on('response', response => {
   asks.push({ status: response.status(), type: response.request().headers()['content-type'] || '', host: new URL(response.url()).host });
 });
 await page.goto(`${BASE}/apps/${APP}?tab=learn&board=plus-${Date.now().toString(36)}`);
-const composer = page.locator('[data-learn-dock] [data-chat-composer]');
+const composer = page.locator('[data-chat-pane] [data-chat-composer]');
 await composer.waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500);
 const input = composer.locator('input:not([type="file"])');

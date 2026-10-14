@@ -59,7 +59,7 @@ const shot = async (page, name) => { await page.waitForTimeout(400); await page.
 const mic = page => page.getByRole('button', { name: 'Voice mode', exact: true });
 const cardTitles = page => page.locator('[data-block-id]:not([data-chat-block])').allInnerTexts();
 const settle = page => page.waitForSelector('[data-tool-gutter]', { timeout: 30000 }).then(() => page.waitForTimeout(1500));
-const composer = page => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 
 // 1. The project opens on its Map; its Learn composer is the Tutor: the owner and a learner get the same.
 for (const [index, [email, app]] of PEOPLE.entries()) {

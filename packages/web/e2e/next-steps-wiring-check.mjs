@@ -87,7 +87,7 @@ const shot = async name => { await page.mouse.move(1300, 420); await page.waitFo
 const hooks = () => page.locator('[data-next-steps] [data-next-step]').allInnerTexts();
 const ready = () => page.locator('[data-next-steps="ready"]').waitFor({ timeout: 60000 });
 const last = path => [...sets].reverse().find(entry => entry.path === path)?.body;
-const composer = () => page.locator('[data-learn-dock] [data-chat-composer] textarea, [data-learn-dock] [data-chat-composer] input:not([type="file"])').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 
 // ---- owned canvas ----
 ({ page } = await contextFor(owner));
@@ -226,7 +226,7 @@ await check('10 a shared hook starts the viewer\'s private hole, whose first Tut
 await shot('06-carried-hook-opening');
 await check('11 the carried hook is taken once: a reload of the hole sends no second opening', async () => {
   await page.reload();
-  await page.locator('[data-learn-dock]').waitFor({ timeout: 60000 });
+  await page.locator('[data-chat-pane]').waitFor({ timeout: 60000 });
   await page.waitForTimeout(5000);
   assert.equal(plans.slice(beforeHole).filter(p => p.context?.learner_intent?.kind === 'next_step').length, 1);
 });

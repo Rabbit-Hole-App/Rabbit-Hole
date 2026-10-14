@@ -51,7 +51,7 @@ export const holeApp = (parent, hole) => ({
 
 // ponytail: the composer keeps its draft in AskPanel state; the return point reads and restores it
 // through the DOM. Lift the draft into LearnPage if a second caller needs it.
-const composer = () => document.querySelector('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])');
+const composer = () => document.querySelector('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])');
 function setDraft(text) {
   const element = composer();
   if (!element || !text) return;

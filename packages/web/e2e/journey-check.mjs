@@ -104,7 +104,7 @@ async function learnerPage(label) {
 
 const shot = async (page, name) => { await page.waitForTimeout(500); await page.screenshot({ path: `${OUT}/${PREFIX}${name}.png` }); console.log('shot', `${OUT}/${PREFIX}${name}.png`); };
 // The dock composer is an <input> (ChatComposer without multiline); a textarea if that ever changes.
-const composer = page => page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
+const composer = page => page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 async function openCanvas(page, name) {
   await page.goto(`${BASE}/apps/${name}?tab=learn`);
   await page.locator('[data-tool-gutter]').waitFor({ timeout: 60000 });
@@ -211,7 +211,7 @@ await group('J1', async () => {
   check('J1 no blocks', stored.length === 0 && shown === 0, '0 canvas blocks (storage and DOM)', `${stored.length} stored, ${shown} shown`);
   check('J1 no ask or artifact', !calls('/api/learn/ask').length && !calls('/api/learn/artifact').length, 'no /api/learn/ask or /api/learn/artifact request',
     `${calls('/api/learn/ask').length} ask, ${calls('/api/learn/artifact').length} artifact requests`);
-  const hits = await covered(page, await page.locator('[data-tutor-prompt-tray]').boundingBox(), ['[data-learn-dock] [data-chat-composer]']);
+  const hits = await covered(page, await page.locator('[data-tutor-prompt-tray]').boundingBox(), ['[data-chat-pane] [data-chat-composer]']);
   check('J1 tray clear of composer', !hits.length, 'the tray sits above the composer, not over it', 'the tray overlaps the composer');
   await shot(page, 'J1-intake-tray');
 });
@@ -308,7 +308,7 @@ await group('J3', async () => {
     await page.waitForTimeout(900);
     const { box, inside } = await railBox(page);
     const nav = page.locator('nav[aria-label="Learning path"]'), list = await nav.isVisible() ? await nav.boundingBox() : null;
-    const hits = await covered(page, list, ['[data-learn-dock] [data-chat-composer]', '[data-tutor-prompt-tray]', '[data-chat-sheet]', '[data-dive-gutter] > *', '[data-gutter-top] > *', '[data-canvas-minimap]', '[data-tool-gutter]', '[data-block-id]']);
+    const hits = await covered(page, list, ['[data-chat-pane] [data-chat-composer]', '[data-tutor-prompt-tray]', '[data-chat-sheet]', '[data-dive-gutter] > *', '[data-gutter-top] > *', '[data-canvas-minimap]', '[data-tool-gutter]', '[data-block-id]']);
     const at = `${width}x${height} panel ${open ? 'open' : 'closed'}`, size = list ? `list ${Math.round(list.width)}x${Math.round(list.height)}` : 'list closed (no room)';
     check(`J3 geometry ${at}`, inside && !hits.length, `rail inside the viewport, ${size}, covering nothing`, `rail ${inside ? 'inside' : 'outside'} the viewport, ${size}, covers ${hits.join(', ') || 'nothing'}`);
     // Narrow side room (1440, panel open) on this empty canvas: the list takes the free canvas above the composer, full width.
@@ -356,7 +356,7 @@ await group('J4', async () => {
   check('J4 one section plan', journey.section_plan?.section_id === 's1', 'the one section plan is for s1', `section_plan ${journey.section_plan?.section_id}`);
   check('J4 heading recorded', !!headings[0]?.id && journey.section_plan?.heading_block_id === headings[0].id, 'section_materialized recorded the heading', `recorded ${journey.section_plan?.heading_block_id ? 'another id' : 'nothing'}`);
   check('J4 no artifact', !calls('/api/learn/artifact').length, 'text steps make no artifact request', `${calls('/api/learn/artifact').length} artifact requests`);
-  const hits = await covered(page, (await railBox(page)).box, ['[data-block-id]', '[data-tutor-prompt-tray]', '[data-learn-dock] [data-chat-composer]']);
+  const hits = await covered(page, (await railBox(page)).box, ['[data-block-id]', '[data-tutor-prompt-tray]', '[data-chat-pane] [data-chat-composer]']);
   check('J4 rail clear of cards', !hits.length, 'the rail covers no card, tray or composer', `the rail covers ${hits.join(', ')}`);
   check('J4 no ask on the journey canvas', !calls('/api/learn/ask').length, 'J1-J4 made no /api/learn/ask request', `${calls('/api/learn/ask').length} ask requests`);
   await shot(page, 'J4-section-1');
@@ -409,7 +409,7 @@ await group('J7', async () => {
   check('J7 no setup trays', !s.trays.some(k => /^(intent_intake|diagnostic_probe|path_preview)\|/.test(k)), 'no intake, diagnostic or path tray', `trays: ${s.trays.map(k => k.split('|')[0]).join(',')}`);
   check('J7 rail before blocks', s.rail != null && s.block != null && s.rail <= s.block, `the rail showed the path ${Math.round(s.block - s.rail)} ms before the first block`, `rail at ${s.rail}, first block at ${s.block}`);
   check('J7 section 1 drawn', headings.length === 1 && headings[0].journey_section_id === 's1' && own.length === 3, 'section 1: one heading and 3 steps', `${headings.length} headings, ${own.length} s1 blocks`);
-  const hits = await covered(page, (await railBox(page)).box, ['[data-block-id]', '[data-learn-dock] [data-chat-composer]']);
+  const hits = await covered(page, (await railBox(page)).box, ['[data-block-id]', '[data-chat-pane] [data-chat-composer]']);
   check('J7 rail clear of cards', !hits.length, 'the rail covers no card or composer', `the rail covers ${hits.join(', ')}`);
   check('J7 no ask', !current.calls('/api/learn/ask').length, 'no /api/learn/ask request', `${current.calls('/api/learn/ask').length} ask requests`);
   await shot(page, 'J7-fast-start');
