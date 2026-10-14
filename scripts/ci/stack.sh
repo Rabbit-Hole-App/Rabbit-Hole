@@ -33,7 +33,7 @@ ok=0; trap '[ "$ok" = 1 ] || bash "$0" stop "$P"' EXIT
 # Same local-only vars prepare.mjs writes. No model key: JOURNEY_MODEL_STUB=fixtures and OAUTH_MOCK=true keep it offline.
 # The secret goes from node straight to the file. wrangler reads .dev.vars next to each config ($P); the checks read packages/control-plane/.dev.vars.
 touch "$P/wrote-dev-vars"
-node -e'const c=require("crypto");process.stdout.write(`SMALL_ENV=test\nTEST_BYPASS_SECRET=${c.randomBytes(24).toString("hex")}\nMASTER_KEY=${c.randomBytes(32).toString("hex")}\nOAUTH_MOCK=true\nJOURNEY_MODEL_STUB=fixtures\n`)' > "$W/packages/control-plane/.dev.vars"
+node -e 'const c=require("crypto");process.stdout.write(`SMALL_ENV=test\nTEST_BYPASS_SECRET=${c.randomBytes(24).toString("hex")}\nMASTER_KEY=${c.randomBytes(32).toString("hex")}\nOAUTH_MOCK=true\nJOURNEY_MODEL_STUB=fixtures\n`)' > "$W/packages/control-plane/.dev.vars"
 cp "$W/packages/control-plane/.dev.vars" "$B/.dev.vars"; cp "$W/packages/control-plane/.dev.vars" "$P/.dev.vars"
 # wrangler sees PATH and HOME plus its log path, nothing else from the runner env.
 WE=(env -i "PATH=$PATH" "HOME=$HOME" "WRANGLER_LOG_PATH=$P/wrangler-logs")
