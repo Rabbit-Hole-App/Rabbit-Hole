@@ -269,12 +269,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return () => document.removeEventListener('pointerdown', away, true);
   }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
-  const [blockCopy, setBlockCopy] = useState(null);
-  useEffect(() => {
-    if (!blockCopy) return;
-    const timer = setTimeout(() => setBlockCopy(null), 1800);
-    return () => clearTimeout(timer);
-  }, [blockCopy]);
   const [choices, setChoices] = useState(null); // { message, candidates }
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
@@ -846,7 +840,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} blockCopy={blockCopy} setBlockCopy={setBlockCopy} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>

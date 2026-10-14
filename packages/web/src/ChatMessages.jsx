@@ -1,9 +1,10 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, CornerDownRight, Loader2, Network, Plus } from 'lucide-react';
+import { Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
 import { waitingText } from './waiting-text.js';
+import AnswerFooter, { getAnswerAlternative } from './AnswerFooter.jsx';
 import { cn } from './ui.jsx';
 import AnswerSuggestions from './AnswerSuggestions.jsx';
 
@@ -117,8 +118,18 @@ function OutputRow({ runId, name, size }) {
   );
 }
 
+// The contract's message status (CONTRACT A2). Today's client keeps a progress stage in m.status while streaming, so
+// anything else is done unless it is the reply still arriving.
+const answerStatus = (m, arriving) => (['streaming', 'done', 'stopped', 'error'].includes(m.status) ? m.status : arriving ? 'streaming' : 'done');
+
 // One message. Everything it reads from AskPanel comes in as a prop.
-export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, blockCopy, setBlockCopy, threadId, prepare, insertNotebook }) {
+export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook }) {
+  // Add as card: insertChat is idempotent on the card id, so a click on Added locates the card (and puts it back if the
+  // learner deleted it) instead of adding a second one.
+  const addAsCard = card => {
+    onAddToCanvas({ ...card, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '' });
+    setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
+  };
   return (
     <div key={i} className={cn('py-1.5', (m.role === 'user' || m.role === 'step') && 'flex justify-end')}>
       {m.role === 'step' ? (
@@ -146,24 +157,19 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           <button type="button" aria-label="Copy error" title="Copy error" onClick={() => navigator.clipboard.writeText(m.content)} className="shrink-0 rounded p-1 hover:bg-danger/10"><Copy size={14} /></button>
         </div>
       ) : m.content ? (
-        <>{learnChat ? <div className="relative min-w-0 rounded-lg border border-accent/30 p-3 pr-10">
-          <Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} />
-          <button type="button" title="Copy" aria-label="Copy answer" className="absolute top-2 right-2 rounded p-1 text-accent hover:bg-accent/10" onClick={async () => {
-            try { await navigator.clipboard.writeText(m.content); setBlockCopy({ reply: m.id || i, text: 'Copied' }); }
-            catch { setBlockCopy({ reply: m.id || i, text: 'Copy failed' }); }
-          }}><Copy size={14} /></button>
-          {blockCopy?.reply === (m.id || i) && <span role="status" className="absolute right-2 top-9 z-10 rounded border border-accent/30 bg-accent/10 px-2 py-1 text-xs text-black shadow-sm">{blockCopy.text}</span>}
-        </div> : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
-        {learnChat && prepare && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
+        <>{learnChat ? (
+          // A Learn answer reads as a document at the pane's width, no colored box (owner brief section 9); the footer is
+          // its one utility row (section 10). data-answer-body is what Copy puts on the clipboard as HTML.
+          <div data-answer className="group/answer min-w-0">
+            <div data-answer-body><Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
+            <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
+              onAddAsCard={onAddToCanvas && addAsCard} onLocateCard={onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added}
+              onRegenerate={onRegenerate} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
+            {prepare && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
+          </div>
+        ) : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
         {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
-        {sheetMode && onAddToCanvas && !m.demo && !m.content.startsWith('\u2717') && !(busy && i === msgs.length - 1) && (
-          <button type="button" data-add-to-canvas disabled={m.added} onClick={() => {
-            onAddToCanvas({ question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '', answer: m.content });
-            setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
-          }} className="mt-2 flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:text-green-700 disabled:hover:bg-transparent">
-            {m.added ? <><Check size={13} />On the canvas</> : <><Plus size={13} />Add to canvas</>}
-          </button>
-        )}</>
+</>
       ) : (
         <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.status)}</span></span>
       )}
