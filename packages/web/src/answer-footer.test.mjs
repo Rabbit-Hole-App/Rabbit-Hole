@@ -104,7 +104,7 @@ test('canvas insertChat takes the card id, markdown and sources, and locates an 
 // The assistant answer wrapper in ChatMessages.jsx (brief section 9: no prominent colored box; section 10: the footer).
 test('a Learn answer is a plain document with the footer under it: no accent box, one Copy, Add as card, Regenerate on the latest only', () => {
   const msgs = [{ role: 'user', content: 'Why?' }, answer({ messageId: '807', status: undefined, meta: { alternatives: ['807'] } }), { role: 'user', content: 'And?' }, answer({ status: 'thinking' })];
-  const chat = (props = {}) => B.renderToStaticMarkup(B.createElement('div', null, B.ChatMessages({ msgs, learnChat: true, busy: false, onAddToCanvas: () => {}, onRegenerate: () => {}, setMsgs: () => {}, setFilePeek: () => {}, setRunPeek: () => {}, ...props })));
+  const chat = (props = {}) => B.renderToStaticMarkup(B.createElement('div', null, B.createElement(B.ChatMessages, { msgs, learnChat: true, busy: false, onAddToCanvas: () => {}, onRegenerate: () => {}, setMsgs: () => {}, setFilePeek: () => {}, setRunPeek: () => {}, ...props })));
   const html = chat();
   assert.doesNotMatch(html, /border-accent\/30/, 'no colored box around the answer');
   assert.equal((html.match(/data-answer-footer/g) || []).length, 2);
@@ -116,4 +116,15 @@ test('a Learn answer is a plain document with the footer under it: no accent box
   assert.equal((chat({ busy: true }).match(/data-answer-footer/g) || []).length, 1, 'the reply still arriving has no footer');
   assert.doesNotMatch(chat({ onAddToCanvas: null }), /Add as card/);
   assert.doesNotMatch(chat({ onRegenerate: null }), /Regenerate answer/, 'Regenerate waits for the send loop to pass it');
+});
+
+// ChatMessages reads the Chat workspace (contract A6); without one (the old sheet) its words go to the composer through setInput.
+test('without a Chat workspace, Explore next and actions still render under the latest answer, typing into the composer, and Regenerate stays hidden', () => {
+  const meta = { alternatives: ['812'], feedback: null, contextRefs: [], actions: [{ id: 'a1', capabilityId: 'diagram', label: 'Draw the flow', sourceMessageId: '812', contextRefs: [], args: { subject: 'the flow' }, generationRequired: true, paid: false }], followUps: [{ id: 'f1', text: 'Why does it rise?', kind: 'clarify' }] };
+  const html = props => B.renderToStaticMarkup(B.createElement(B.ChatMessages, { msgs: [{ role: 'user', content: 'Why?' }, answer({ meta })], learnChat: true, busy: false, setMsgs: () => {}, setFilePeek: () => {}, setRunPeek: () => {}, ...props }));
+  const typed = html({ setInput: () => {}, inputRef: { current: null } });
+  assert.match(typed, /Why does it rise\?/);
+  assert.match(typed, /Draw the flow/);
+  assert.doesNotMatch(typed, /Regenerate answer/);
+  assert.doesNotMatch(html({}), /Why does it rise\?/, 'no composer at all: nothing to prepare, so no suggestions');
 });

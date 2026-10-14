@@ -16,5 +16,5 @@ test('the canvas chat card and the chat sheet use it', async () => {
   const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8');
   assert.match(read('AdaptiveCanvas.jsx'), /: waitingText\(exchange\.status\)\}/);
   assert.doesNotMatch(read('AdaptiveCanvas.jsx'), /`\$\{exchange\.status\}…`/);
-  assert.match(read('ChatMessages.jsx'), /<span className="shimmer">\{waitingText\(m\.status\)\}<\/span>/);
+  assert.match(read('ChatMessages.jsx'), /<span className="shimmer">\{waitingText\(m\.stage \?\? m\.status\)\}<\/span>/); // the Chat pane keeps the progress stage in m.stage (contract A2 status in m.status)
 });
