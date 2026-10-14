@@ -100,7 +100,7 @@ test('the chat chip names the path, the lines and a preview, removable; a questi
   // Send: the Tutor turn does not carry Learn's repository context, so a file or lines question takes the Learn chat path,
   // whose request carries the range (repositoryAsk reads it); a symbol context stays with the Tutor.
   assert.match(ask, /const codeTurn = repository && !!\(repositoryContext\?\.range \|\| repositoryContext\?\.path\);/);
-  assert.match(ask, /if \(tutor && !codeTurn && !chat\) \{/);
+  assert.match(ask, /if \(viaTutor\) \{/);
   assert.match(ask, /\.\.\.\(repository && repositoryContext \? \{ repository_context: \{ \.\.\.repositoryContext, commit: /);
 });
 
