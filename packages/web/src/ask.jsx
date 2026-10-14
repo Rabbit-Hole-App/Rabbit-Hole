@@ -9,6 +9,7 @@ import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx
 import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
+import { useFollowLatest } from './chat-scroll.js';
 import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
@@ -366,9 +367,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return () => { if (guardedHistory) historyRequest.current++; };
   }, [historyScope, scopeRef, privateChat, appName]);
   const newChat = () => { setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; sheetThread.current = null; setSheetHistory(false); boardContext?.removeImage(); setMsgs([]); setSelectedPassage(null); setChoices(null); setView('chat'); };
-  useEffect(() => {
-    if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
-  }, [msgs]);
+  const follow = useFollowLatest(boxRef, [msgs]);
 
   // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
   // command, never as a chat message. held: a /command Enter while busy (learn-slash.js holdsLine), sent when busy clears.
@@ -846,7 +845,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} blockCopy={blockCopy} setBlockCopy={setBlockCopy} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} blockCopy={blockCopy} setBlockCopy={setBlockCopy} follow={follow} />}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
