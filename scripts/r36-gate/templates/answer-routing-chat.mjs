@@ -62,6 +62,8 @@ data: ${JSON.stringify(data)}
       + event('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: plan.kind || 'answer' })
       + event('done', { threadId: THREAD, userMessageId: String(turn * 2 - 1), messageId }) });
   }
+  // Chat persistence saves the exchange the learner saw (no model call): it reaches the real stack.
+  if (/^\/api\/learn\/chat\/(threads\/[^/]+\/messages|active)$/.test(path)) return route.continue();
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (path === '/api/learn/artifact') return route.fulfill(artifactError
     ? { status: 503, json: { error: 'Material unavailable' } }
