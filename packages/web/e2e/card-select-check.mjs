@@ -66,7 +66,7 @@ const shot = async name => { await page.waitForTimeout(400); await page.screensh
 const card = id => page.locator(`[data-block-id="${id}"]`);
 const strip = () => page.locator('[data-selected-card]');
 const isSelected = async id => (await card(id).getAttribute('aria-current')) === 'true';
-const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const slash = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(150); await composer().press('Enter'); await page.waitForTimeout(900); };
 // A press on a card: on its drag strip by default, or on `on` (a locator inside it: its text, its body).
 const press = async (id, { double = false, on = null } = {}) => {

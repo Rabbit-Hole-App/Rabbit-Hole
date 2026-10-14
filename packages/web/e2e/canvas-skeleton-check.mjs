@@ -75,7 +75,7 @@ await page.route('**/api/canvases/dives', route => { if (route.request().method(
 await page.route(/\/api\/learn\/boards\/[^/]+\/[^/]+$/, route => { if (route.request().method() === 'PUT') pushes.push(route.request().postData()); return route.continue(); });
 
 const shot = async name => { await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
-const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const send = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(120); await composer().press('Enter'); };
 const open = async path => { await page.goto(`${BASE}${path}`); await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 }); await page.waitForTimeout(2000); };
 const slots = () => page.locator('[data-slot-id]');
@@ -484,7 +484,7 @@ await darkPage.route(/\/api\/learn\/(ask|tutor|assess|voice|selection|board|home
 const overlapCanvas = await call(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Skeleton overlap check' }) });
 await darkPage.goto(`${BASE}/apps/${overlapCanvas.name}`);
 await darkPage.waitForSelector('[data-tool-gutter]', { timeout: 60000 }); await darkPage.waitForTimeout(2000);
-const darkComposer = () => darkPage.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const darkComposer = () => darkPage.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const darkSend = async text => { await darkComposer().click(); await darkComposer().fill(text); await darkPage.waitForTimeout(120); await darkComposer().press('Enter'); };
 const CAPPED = title => ({ type: 'explanation', title, body: Array.from({ length: 12 }, (_, i) => `**Step ${i + 1}.** A model's final layer spits out raw scores, any real numbers, positive or negative; softmax turns them into probabilities.`).join('\n\n') });
 // Three height-capped explanation cards (520, scrolling inside), placed by the canvas as usual.

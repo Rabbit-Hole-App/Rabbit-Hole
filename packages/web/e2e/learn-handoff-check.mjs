@@ -65,7 +65,7 @@ const resultsFor = id => page.evaluate(id => window.__results.filter(result => r
 const saved = id => page.evaluate(id => JSON.parse(sessionStorage.getItem(`small.learn.result:${id}`) || 'null'), id);
 const send = detail => page.evaluate(detail => window.dispatchEvent(new CustomEvent('small:learn-request', { detail })), detail);
 const blocks = async type => { await page.waitForTimeout(900); return page.evaluate(([key, type]) => (JSON.parse(localStorage.getItem(key) || '{}').blocks || []).filter(block => block.type === type), [KEY, type]); };
-const composer = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"])');
+const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))');
 const research = (id, kind, ref, extra = {}) => ({ id, kind: 'research', app: 'nanogpt', board: BOARD, source: { kind, ref }, ...extra });
 
 await page.goto(`http://localhost:5189/apps/nanogpt?tab=learn&board=${BOARD}`);

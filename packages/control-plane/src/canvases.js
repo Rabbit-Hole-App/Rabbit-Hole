@@ -1,4 +1,4 @@
-import { PROJECT_FIELDS, projectAccess, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
+import { CHAT_MODES, PROJECT_FIELDS, projectAccess, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
@@ -125,7 +125,55 @@ const isCanvas = name => typeof name === 'string' && /^canvas-[a-f0-9]{8}$/.test
 export function canvasRoute(url) {
   const path = url.pathname;
   return path === '/api/canvases' || /^\/api\/canvases\/dives(?:\/canvas-[a-f0-9]{8})?$/.test(path) || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
-    || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref')));
+    || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref'))) || CHAT_STATE.test(path);
+}
+// A Chat thread's saved state (chat-workspace-CONTRACT.md A3): its mode, attached ContextRefs (A2) and draft, upserted into
+// chat_thread_state by PUT /api/learn/chat/threads/<id>/state. last_activity_at is the turn's (apiAsk), never touched here.
+const CHAT_STATE = /^\/api\/learn\/chat\/threads\/(canvaschat-[a-f0-9-]+)\/(state)$/;
+const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'] };
+const short = (value, limit) => typeof value === 'string' && value.length <= limit;
+// null, or exactly one of the A2 range shapes.
+function validRange(range) {
+  if (range == null) return true;
+  if (typeof range !== 'object' || Array.isArray(range)) return false;
+  const page = Number.isInteger(range.page) && range.page > 0, quote = range.quote === undefined || short(range.quote, 500);
+  switch (Object.keys(range).sort().join()) {
+    case 'page': case 'page,quote': return page && quote;
+    case 'quote': return short(range.quote, 500) && range.quote.length > 0;
+    case 'cardIds': return Array.isArray(range.cardIds) && range.cardIds.length > 0 && range.cardIds.length <= 50 && range.cardIds.every(id => short(id, 200));
+    case 'end,path,start': return short(range.path, 500) && Number.isInteger(range.start) && range.start > 0 && Number.isInteger(range.end) && range.end >= range.start;
+    case 'startSec': case 'endSec,startSec': return Number.isFinite(range.startSec) && range.startSec >= 0 && (range.endSec === undefined || (Number.isFinite(range.endSec) && range.endSec >= range.startSec));
+    default: return false;
+  }
+}
+// A2 limits: at most 20 refs, each at most 2 KB as JSON without its text, text only on card/group/image/media (<= 8000),
+// and all texts together at most 32000 chars.
+export function validContextRefs(refs) {
+  if (!Array.isArray(refs) || refs.length > 20) return false;
+  let texts = 0;
+  const valid = refs.every(ref => {
+    if (!ref || typeof ref !== 'object' || Array.isArray(ref)) return false;
+    const { text, ...rest } = ref;
+    if (text !== undefined && !(['card', 'group', 'image', 'media'].includes(ref.kind) && short(text, 8000))) return false;
+    texts += text?.length || 0;
+    return Object.hasOwn(REF_PREFIXES, ref.kind) && short(ref.sourceId, 1000) && REF_PREFIXES[ref.kind].includes(ref.sourceId.split(':')[0]) && ref.sourceId.indexOf(':') < ref.sourceId.length - 1
+      && short(ref.name, 120) && ref.name.length > 0 && short(ref.version, 200) && validRange(ref.range) && JSON.stringify(rest).length <= 2048;
+  });
+  return valid && texts <= 32000;
+}
+// The columns a state PUT writes: only what it sends. draft: null clears the saved draft.
+export function chatThreadState(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw Error('Send a mode, contextRefs or a draft');
+  const fields = {};
+  if (body.mode !== undefined) { if (!CHAT_MODES.includes(body.mode)) throw Error('Mode must be auto, ask or tutor'); fields.mode = body.mode; }
+  if (body.contextRefs !== undefined) { if (!validContextRefs(body.contextRefs)) throw Error('Invalid context: at most 20 sources, each a valid reference'); fields.context_json = JSON.stringify(body.contextRefs); }
+  if (body.draft !== undefined) {
+    const draft = body.draft;
+    if (draft !== null && !(typeof draft === 'object' && short(draft.text, 8000) && (draft.command == null || (typeof draft.command === 'string' && /^[\w-]{1,40}$/.test(draft.command))))) throw Error('A draft is at most 8000 characters');
+    fields.draft_json = draft === null ? null : JSON.stringify({ text: draft.text, command: draft.command ?? null });
+  }
+  if (!Object.keys(fields).length) throw Error('Send a mode, contextRefs or a draft');
+  return fields;
 }
 // Canvas asks the dev Learn router does not answer. A multipart Learn ask carries a + attachment,
 // which canvases do not take yet (the dev worker calls this before its Learn router); a JSON /api/ask
@@ -185,16 +233,27 @@ export async function canvasesFetch(req, env) {
       return json(await ownedCanvas(env, user, name), 201);
     }
     // Learn's chat keeps its /api/ask/threads calls (ask.jsx:388,401,601,622); canvas history lives in LEARN_DB.
-    const thread = path.match(/^\/api\/ask\/threads(?:\/(canvaschat-[a-f0-9-]+)(?:\/(delete|rename))?)?$/);
+    const thread = path.match(/^\/api\/ask\/threads(?:\/(canvaschat-[a-f0-9-]+)(?:\/(delete|rename))?)?$/) || path.match(CHAT_STATE);
     if (thread) {
       const [, id, action] = thread;
-      if (action && req.method !== 'POST') return json({ error: 'POST required' }, 405);
+      if (action === 'state' ? req.method !== 'PUT' : action && req.method !== 'POST') return json({ error: `${action === 'state' ? 'PUT' : 'POST'} required` }, 405);
       const ref = id ? (await db.prepare('SELECT scope_ref FROM threads WHERE id=? AND org=? AND user=?').bind(id, user.org, user.email).first())?.scope_ref : url.searchParams.get('ref');
       if (!ref) return json({ error: 'Chat not found' }, 404);
       let app = await ownedCanvas(env, user, ref);
       // A pending hole has no row yet; its history is still only this user's own threads for that name.
       if (app instanceof Response && app.status === 404 && isCanvas(ref)) app = canvasApp({ id: null, org: user.org, name: ref, owner_email: user.email, title: '' }, user);
       if (app instanceof Response) return app;
+      if (action === 'state') {
+        const fields = chatThreadState(await req.json()), columns = Object.keys(fields);
+        try {
+          await db.prepare(`INSERT INTO chat_thread_state (thread_id, ${columns.join(', ')}, updated_at) VALUES (?, ${columns.map(() => '?').join(', ')}, datetime('now')) ON CONFLICT(thread_id) DO UPDATE SET ${columns.map(column => `${column} = excluded.${column}`).join(', ')}, updated_at = excluded.updated_at`).bind(id, ...Object.values(fields)).run();
+        } catch (error) {
+          // learn-migrations 0019 not applied on this database yet: nothing is saved, and no table is made here.
+          if (/no such table/i.test(error.message)) return json({ error: 'Saving chat state is not available here yet' }, 503);
+          throw error;
+        }
+        return json({ ok: true });
+      }
       return repositoryThreads(new Request(req, { method: action === 'delete' ? 'DELETE' : action === 'rename' ? 'PATCH' : req.method }), db, user, app, id);
     }
     const match = path.match(/^\/api\/apps\/(canvas-[a-f0-9]{8})(?:\/(archive|restore|learn-course|publish|unpublish|trash|untrash))?$/);

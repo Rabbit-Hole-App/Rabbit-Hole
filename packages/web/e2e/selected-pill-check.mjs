@@ -118,7 +118,7 @@ const blank = async page => {
   const point = await page.evaluate(() => {
     for (let y = 120; y < 700; y += 40) for (let x = 360; x < 1400; x += 40) {
       const element = document.elementFromPoint(x, y);
-      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],[data-learn-dock],button,a,iframe')) return { x, y };
+      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],[data-chat-pane],button,a,iframe')) return { x, y };
     }
     return null;
   });
@@ -136,7 +136,7 @@ await node(page, KINDS[0]).waitFor({ timeout: 60000 });
 await page.waitForTimeout(1000);
 await fit(page);
 await page.screenshot({ path: `${SHOTS}/owner-canvas.png` });
-const composer = page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 for (const kind of KINDS) {
   await check(`owner, ${kind.label}: selecting it shows one pill naming it; Esc, a blank click and x each clear it; Send carries it`, async () => {
     await fit(page);

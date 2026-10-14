@@ -38,7 +38,7 @@ const menu = label => async page => {
   await page.getByRole('menuitem', { name: label, exact: true }).click();
 };
 const type = text => async page => {
-  const composer = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"])').first();
+  const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
   await composer.click();
   await composer.fill(text);
   await page.waitForTimeout(300);
@@ -90,7 +90,7 @@ for (const [action, run] of Object.entries(ACTIONS)) {
     await page.locator('[data-block-id="seed-2"]').waitFor({ timeout: 60000 });
     await page.waitForTimeout(700);
     const surface = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
-    const dock = await page.locator('[data-learn-dock] [data-chat-composer]').first().boundingBox();
+    const dock = await page.locator('[data-chat-pane] [data-chat-composer]').first().boundingBox();
     const seen = { top: surface.y, bottom: dock.y - 8, left: surface.x + 90, right: surface.x + surface.width - 10 };
     const empty = { x: surface.x + 240, y: surface.y + 180 };
     await move(page, empty);

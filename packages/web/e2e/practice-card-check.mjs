@@ -71,7 +71,7 @@ await context.route('**/api/learn/tutor/plan', route => {
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(String(error)));
-const composer = () => page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 const send = async text => { await composer().fill(text); await composer().press('Enter'); };
 const until = async (ok, timeout = 15000) => { for (const end = Date.now() + timeout; !(await ok()) && Date.now() < end;) await page.waitForTimeout(250); };
 const shot = name => page.screenshot({ path: `${SHOTS}/${name}.png` });

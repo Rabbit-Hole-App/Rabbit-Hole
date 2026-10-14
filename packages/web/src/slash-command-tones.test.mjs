@@ -59,8 +59,8 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   assert.match(ask, /data-command-pill data-command-tone=\{commandTone\(command\) \|\| undefined\}/);
   assert.match(ask, /font-medium">\/\{command\}<\/button>/, 'the pill is the literal /command, no icon');
   for (const code of [ask, read('./agent/AgentBar.jsx')]) assert.doesNotMatch(code, /CommandIcon/);
-  // Auto stays the quiet neutral pill; the selected-card strip stays neutral too.
-  assert.match(ask, /className=\{cn\(dock \? COMPOSER_PILL : [^}]+\}>Auto<\/button>/);
+  // The empty "/" slot stays the quiet neutral control; the selected-card strip stays neutral too.
+  assert.match(ask, /className=\{cn\(chat \? cn\(COMPOSER_TOOL, 'font-mono text-\[15px\]'\) : dock \? COMPOSER_PILL : [^}]+\}>\/<\/button>/);
   assert.match(ask, /data-canvas-target \{\.\.\.\(canvasTarget\.card[^\n]+className="mb-1\.5 inline-flex max-w-full items-center gap-1\.5 rounded-full border border-line bg-hover/);
   assert.match(css, /\[data-command-tone\] \{ background-color: var\(--cmd-bg\); color: var\(--cmd-fg\); border-color: var\(--cmd-line\); \}/);
 });

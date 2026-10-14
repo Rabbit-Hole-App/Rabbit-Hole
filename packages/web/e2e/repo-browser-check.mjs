@@ -305,7 +305,7 @@ await check('6 Learn attaches the exact range and carries it into Learn, sending
 });
 
 // Learn's composer is an input (LearnPage, Dive.jsx), a textarea in other docks: match either.
-const COMPOSER = '[data-learn-dock] textarea, [data-learn-dock] [data-chat-composer] input:not([type="file"])';
+const COMPOSER = '[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])';
 await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, Ask in chat puts the lines on the canvas as a selected Code card and writes the question, with the range as context; nothing is sent', async () => {
   const n = asks.length, sent = learnRequests.length;
   await tab('Learn').click();
@@ -324,7 +324,7 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
   await page.getByText(/^Asking about: train\.py:5–7/).first().waitFor({ timeout: 10000 });
   assert.equal(await page.locator(COMPOSER).first().inputValue(), 'What do lines 5–7 of train.py do?');
   // The chip names the file, the lines and a preview of them, and can be removed.
-  const chip = page.locator('[data-learn-dock] [data-repository-context]');
+  const chip = page.locator('[data-chat-pane] [data-repository-context]');
   assert.equal((await chip.locator('[data-context-path]').innerText()).trim(), 'train.py · lines 5–7');
   assert.ok((await chip.locator('[data-context-excerpt]').innerText()).includes(content['train.py'].split('\n')[4].trim()), 'the preview shows line 5');
   assert.equal(await chip.getByRole('button', { name: 'Clear repository selection' }).count(), 1);
@@ -336,13 +336,13 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
   assert.equal(await codeCards.count(), 1, 'one Code card');
   for (const text of lines.filter((l) => l.trim())) assert.ok((await codeCards.first().innerText()).includes(text.trim()), `the card holds ${text.trim()}`);
   const cardId = await codeCards.first().getAttribute('data-block-id');
-  await page.locator(`[data-learn-dock] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
+  await page.locator(`[data-chat-pane] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
   // Ask in chat on the same lines again reselects that card: no second card.
   await drag(5, 7);
   await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
   await page.waitForTimeout(600);
   assert.equal(await codeCards.count(), 1, 'the same lines make no second card');
-  await page.locator(`[data-learn-dock] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
+  await page.locator(`[data-chat-pane] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
   assert.equal(asks.length, n, 'Ask wrote the question and sent nothing'); assert.equal(learnRequests.length, sent);
   await shot('L-learn-files-ask');
@@ -394,7 +394,7 @@ await check('10c Send carries the Code card and the line range on the Learn chat
   // Ask in chat once more: its Code card is selected again and the question waits, unsent.
   await drag(5, 7);
   await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
-  const pill = page.locator('[data-learn-dock] [data-selected-card]');
+  const pill = page.locator('[data-chat-pane] [data-selected-card]');
   await pill.waitFor({ timeout: 5000 });
   const cardId = await pill.getAttribute('data-selected-card');
   assert.equal(asks.length, n, 'nothing sent before Send');

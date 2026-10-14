@@ -25,7 +25,7 @@ const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 const settle = async () => { try { await page.waitForSelector('[data-tool-gutter]', { timeout: 20000 }); } catch (error) { await page.screenshot({ path: `${OUT}/fail.png` }); console.log('at', page.url()); throw error; } await page.waitForTimeout(1500); };
-const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const slash = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(150); await composer().press('Enter'); await page.waitForTimeout(800); };
 const persisted = () => page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 15000 });
 

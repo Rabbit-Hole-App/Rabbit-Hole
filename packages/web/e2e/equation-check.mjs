@@ -68,7 +68,7 @@ const equations = () => page.evaluate(key => (JSON.parse(localStorage.getItem(ke
 const field = () => page.locator('math-field');
 const fieldLatex = () => field().evaluate(element => element.getValue('latex-expanded'));
 const shown = () => page.locator('[data-equation]');
-const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const pill = () => page.locator('[data-selected-card]');
 const settle = (ms = 500) => page.waitForTimeout(ms); // the board's debounced local save is 400 ms
 const has = (text, part) => text.replace(/\s+/g, '').includes(part.replace(/\s+/g, ''));
@@ -78,7 +78,7 @@ const blank = async (from = 0) => {
     const found = [];
     for (let y = 160; y < 660; y += 40) for (let x = 420; x < 1300; x += 40) {
       const element = document.elementFromPoint(x, y);
-      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-equation-palette],[role="dialog"],[data-learn-dock],[data-chat-sheet],button,a,iframe,input,textarea')) found.push({ x, y });
+      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-equation-palette],[role="dialog"],[data-chat-pane],[data-chat-sheet],button,a,iframe,input,textarea')) found.push({ x, y });
     }
     return found[start] || found[0] || null;
   }, from);

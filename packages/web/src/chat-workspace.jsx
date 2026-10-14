@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { useChatPanels } from './chat-panels.js';
 import { useChatThread } from './chat-threads.js';
 import { useChatDraft } from './chat-draft.js';
@@ -19,7 +19,9 @@ export const useChatWorkspace = () => useContext(ChatWorkspace);
 
 // canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), hasBlock(id), locate(id) },
 // for Lane B's footer and actions (contract B3, B5). null until the canvas mounts; callers check before use.
-export function ChatWorkspaceProvider({ canvas, canvasOps = null, children }) {
+export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, children }) {
+  // The canvas API lives below the provider, so the page sets canvasOps once its canvas mounts (setCanvasOps).
+  const [canvasOps, setCanvasOps] = useState(initialOps);
   const panels = useChatPanels(canvas);
   const thread = useChatThread(canvas);
   // thread.restore = { key, mode, contextRefs, draft }: a new key (open, New chat, canvas change) resets both hooks below.
@@ -39,6 +41,6 @@ export function ChatWorkspaceProvider({ canvas, canvasOps = null, children }) {
   const sender = useRef(null);
   const registerSender = useCallback(send => { sender.current = send; return () => { if (sender.current === send) sender.current = null; }; }, []);
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
-  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate]);
+  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
