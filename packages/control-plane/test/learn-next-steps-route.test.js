@@ -108,7 +108,7 @@ test('planNextSteps: Sonnet first; a missing tool call, a validator failure or a
   assert.equal(ok.calls[0].body.output_config.effort, 'low');
   assert.match(plain.telemetry.prompt_version, /^[0-9a-f]{12}$/);
   assert.equal(plain.telemetry.cost_usd, costUsd({ model: 'claude-sonnet-5-5', input_tokens: 2000, output_tokens: 400 }));
-  assert.deepEqual([plain.telemetry.model_role, plain.telemetry.model_id, plain.telemetry.planner_version], ['tutor_next_steps', 'claude-sonnet-5-5', 'next-steps-planner-1']);
+  assert.deepEqual([plain.telemetry.model_role, plain.telemetry.model_id, plain.telemetry.planner_version], ['tutor_next_steps', 'claude-sonnet-5-5', 'next-steps-planner-2']);
   // Before Task 6 fix round 2: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }. A count
   // no reply reported is unknown (null), not 0: this reply reports no cache counts.
   assert.deepEqual(plain.telemetry.usage, { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: null, cache_read_input_tokens: null });
@@ -376,4 +376,45 @@ test('blank canvas, no goal: the planner request carries the AI, ML and LLM star
   assert.match(sent[0].messages[0].content, /"goal":""/, 'the untitled canvas sends no goal');
   await planNextSteps({}, blank('Tide pools'), { callModel });
   assert.match(sent[1].messages[0].content, /"goal":"Tide pools"/, 'a titled blank canvas keeps its title as the goal');
+});
+
+// Owner task 2 (2026-10-13, Curious): the cache identity is the planning context - user, canvas, planner version, the whole
+// input (its semantic fingerprint and content included) and a Refresh operation's id - so the same basis with other canvas
+// content plans again, a Refresh never gets the reply it replaces, and a retried Refresh never pays twice.
+test('owned route: the cache identity is the planning context; Refresh has its own bounded identity, deduped on retry', async t => {
+  const w = world(t);
+  const app = 'canvas-0a1b2c3d', withCanvas = fingerprint => ({ ...INPUT(), canvas: { ...INPUT().canvas, objects: [{ id: 's1', kind: 'ellipse', text: fingerprint }], relations: [], groups: [], omitted: { objects: 0, chars: 0 }, fingerprint } });
+  const set = async body => (await w.post({ app, ...body })).json();
+  const a = await set({ input: withCanvas('fp_a') });
+  assert.equal((await set({ input: withCanvas('fp_a') })).set_id, a.set_id, 'the same planning context is one reply');
+  assert.notEqual((await set({ input: withCanvas('fp_b') })).set_id, a.set_id, 'the same basis with another fingerprint plans again');
+  const r1 = await set({ input: withCanvas('fp_a'), refresh: 'r1' });
+  assert.notEqual(r1.set_id, a.set_id, 'a Refresh never gets the reply it replaces');
+  assert.equal((await set({ input: withCanvas('fp_a'), refresh: 'r1' })).set_id, r1.set_id, 'a retried Refresh is the same operation: no second paid call');
+  assert.notEqual((await set({ input: withCanvas('fp_a'), refresh: 'r2' })).set_id, r1.set_id, 'the next Refresh asks again');
+  const rows = w.sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n;
+  assert.equal(rows, 4, 'four planner calls: two contexts and two refreshes; repeats are free');
+  for (const refresh of ['', 'r', 'x1', 'r12345', 7, { id: 'r1' }]) {
+    const refused = await w.post({ app, input: withCanvas('fp_a'), refresh });
+    assert.equal(refused.status, 400, JSON.stringify(refresh));
+  }
+});
+
+test('owned route: the planner version is in the cache identity', async () => {
+  const { ownedCacheKey } = await import('../src/learn-next-steps-routes.js');
+  const access = { user_id: 'u1', email: 'e@x' }, body = { app: 'canvas-0a1b2c3d', input: INPUT() };
+  assert.notEqual(await ownedCacheKey(access, body, 'next-steps-planner-2'), await ownedCacheKey(access, body, 'next-steps-planner-3'));
+  assert.equal(await ownedCacheKey(access, body, 'next-steps-planner-2'), await ownedCacheKey(access, structuredClone(body), 'next-steps-planner-2'));
+});
+
+// Owner task 2: the keyless fixture planner reads the canvas the way the real one is told to - its native words before a
+// background title - so a deterministic run shows hooks about what is drawn, never about the title alone.
+test('the fixture hooks a native-only canvas on its words, and a blank one on its background title', () => {
+  const plain = { ...INPUT(), mode: 'canvas', goal: '', path: undefined, scope: { concepts: {}, claims: {} } };
+  const drawn = { ...plain, canvas: { title: 'Linked List', blocks: [], objects: [{ id: 's1', kind: 'ellipse', text: '' }, { id: 't1', kind: 'text', text: 'Binary search tree' }], relations: [], groups: [], omitted: { objects: 0, chars: 0 }, fingerprint: 'f' } };
+  const hooks = fixtureFor('suggest_next_steps', drawn).options.map(o => o.hook);
+  assert.equal(nextStepsOutput(fixtureFor('suggest_next_steps', drawn), drawn).ok, true);
+  assert.ok(hooks.every(h => /Binary search tree/.test(h) && !/Linked List/.test(h)), hooks.join(' | '));
+  const blank = { ...plain, canvas: { title: 'Tide pools', blocks: [] } };
+  assert.ok(fixtureFor('suggest_next_steps', blank).options.every(o => /Tide pools/.test(o.hook)));
 });

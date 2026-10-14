@@ -48,6 +48,7 @@ import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeNote } from './inline-ai-apply.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
+import { semanticReader } from './curious-context.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
@@ -1474,7 +1475,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [textArm, setTextArm] = useState({});
   // The open text editor's handle (RichText onApi): the style panel formats its characters while it is open.
   const editorRef = useRef(null);
-  const [, setEditorTick] = useState(0);
+  const [editorTick, setEditorTick] = useState(0);
+  // Curious (semanticReader, below): what the page hears of the canvas's meaning, declared before onState reads it.
+  const [semanticFingerprint, setSemanticFingerprint] = useState(null);
+  const [semanticSettling, setSemanticSettling] = useState(false);
   const editorUnsub = useRef(null);
   const onEditorApi = useCallback(api => {
     editorUnsub.current?.();
@@ -1769,6 +1773,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Tutor v1 (docs/features/tutor-v1-implementation-map.md §4): read the cards, and change one
       // card through a pure reducer (pager, practice), undoable like any other edit.
       blocks: () => blocksRef.current,
+      // Curious (owner task 2): the last semantic snapshot and its fingerprint (semanticBoard below); blocks() is unchanged.
+      semantic: () => semanticRef.current.value(),
       updateBlock: (id, change) => {
         const current = blocksRef.current.find(block => block.id === id);
         const next = current && change(current);
@@ -2393,7 +2399,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const attempts = blocks.reduce((sum, block) => sum + (block.attemptLog?.length || 0), 0);
   // Whether every selected lockable object is locked (the menus say Unlock then).
   const selectionLocked = selection.length > 0 && selection.every(id => !blocks.concat(items, shapes).some(entry => entry.id === id) || blocks.concat(items, shapes).some(entry => entry.id === id && entry.locked)) && selection.some(id => blocks.concat(items, shapes).some(entry => entry.id === id && entry.locked));
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, card: JSON.parse(cardKey), content, attempts }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, cardKey, content, attempts, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = () => {
@@ -2605,6 +2611,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // ---------- Inline AI editor hooks (docs/features/inline-ai-editor.md) ----------
   // The live lists, never the last saved copy (§4). Layout comes separately (layout()), so content stays cheap to read.
   const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: blocksRef.current, groups: groupsRef.current, exchanges: exchangesRef.current });
+  // The live lists with the open text editor's words on its object, read without committing or closing it (the shared
+  // snapshot's board; agent-coordination 2026-10-13-shared-canvas-semantics.md, decision 3).
+  const editorWords = () => {
+    const id = editStep.current?.id || editingShape || editingLabel, runs = editorRef.current?.state?.().runs;
+    return id && runs ? { id, text: plainOf(runs) } : null;
+  };
+  const semanticBoard = () => {
+    const board = inlineBoard(), typed = editorWords();
+    if (!typed) return board;
+    const { id, text } = typed, put = list => list.map(entry => (entry.id === id ? { ...entry, text } : entry));
+    return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
+  };
+  // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
+  // editor's words and the selection have been still for 150 ms, focused on recent edits; typing settles at once. The
+  // fingerprint and settling reach the page (onState), so a change of meaning re-plans and a move does not.
+  const semanticLive = useRef(null);
+  semanticLive.current = { semanticBoard, editorWords };
+  const semanticRef = useRef(null);
+  if (!semanticRef.current) semanticRef.current = semanticReader({ board: () => semanticLive.current.semanticBoard(), editor: () => semanticLive.current.editorWords(), selection: () => selectedRef.current,
+    report: ({ fingerprint, settling }) => { setSemanticFingerprint(fingerprint); setSemanticSettling(settling); } });
+  useEffect(() => { semanticRef.current.changed(); }, [shapes, items, links, blocks, groups, editorTick, selection]);
+  useEffect(() => () => semanticRef.current.dispose(), []);
   // One context cache per board (A1): a board switch remounts the canvas with a new one; a permission change clears it.
   const inlineCache = useRef(null);
   if (!inlineCache.current) inlineCache.current = createContextCache();

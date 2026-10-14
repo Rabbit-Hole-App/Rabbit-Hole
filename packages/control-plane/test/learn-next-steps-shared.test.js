@@ -484,3 +484,16 @@ test('A-I1 N1: a SUBSCRIPTION_ONLY worker with no owner email refuses an anonymo
   assert.equal((await hooks(f, token, null)).status, 403);
   assert.deepEqual([hits, usage(f)], [[], []]);
 });
+
+// Owner task 2 (2026-10-13): a shared canvas's Refresh also has its own bounded identity in the content cache, so it never
+// gets the reply it replaces, and a retried Refresh is served the same reply (never a second paid call).
+test('shared route: Refresh has its own bounded cache identity, deduped on retry', async t => {
+  const f = world(t);
+  const { token } = await f.shareProject({ state: STATE });
+  const a = await hooks(f, token, null), again = await hooks(f, token, null);
+  assert.equal(again.body.set_id, a.body.set_id);
+  const r1 = await hooks(f, token, null, { origin: null, refresh: 'r1' });
+  assert.notEqual(r1.body.set_id, a.body.set_id, 'a Refresh never gets the reply it replaces');
+  assert.equal((await hooks(f, token, null, { origin: null, refresh: 'r1' })).body.set_id, r1.body.set_id, 'a retry is the same operation');
+  assert.equal((await hooks(f, token, null, { origin: null, refresh: 'nope' })).status, 400);
+});

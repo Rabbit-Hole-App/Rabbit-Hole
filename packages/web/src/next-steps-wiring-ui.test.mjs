@@ -84,7 +84,10 @@ test('ask.jsx sendStep: Voice on is say with the step, else one askStep turn dra
 });
 
 test('ask.jsx: a hook carried into a new hole opens it once, keyed by opening.key, through sendStep (never typed)', () => {
-  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| openedHole\.current === tutor\.opening\.key \|\| busy\) return;\n\s+openedHole\.current = tutor\.opening\.key;\n[^\n]*\n\s+if \(tutor\.opening\.next_step\) \{ sendStep\(tutor\.opening\.next_step, tutor\.opening\.next_step\.hook\); return; \}/);
+  // Once per tab, not per mount: the dock remounts when the hole's board lands from the server (LearnPage canvasEpoch), and a
+  // per-mount ref sent the carried opening twice (curious-context lane, 2026-10-13, next-steps-wiring-check step 13).
+  assert.ok(ask.indexOf('const openedHoles = new Set();') >= 0 && ask.indexOf('const openedHoles = new Set();') < ask.indexOf('export function AskPanel('), 'the guard outlives a remount');
+  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;\n[^\n]*\n\s+if \(tutor\.opening\.next_step\) \{ sendStep\(tutor\.opening\.next_step, tutor\.opening\.next_step\.hook\); return; \}/);
 });
 
 test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a dock composer, never on a review board, outside the canvas', () => {
@@ -109,8 +112,16 @@ test('LearnPage: canvasVersion, graded, /ask and /teach, the repository detach a
   assert.match(page, /if \(parsed && \['deeper', 'simplify', 'ask', 'teach'\]\.includes\(parsed\.name\)\) tutor\.slash\(parsed\.name, text\.trim\(\)\);/);
   assert.match(page, /onExchange=\{onExchange\} tutor=\{tutor\.active \? tutor : null\} scope=\{askScope\}/);
   assert.match(page, /previous\.attempts === next\.attempts/, 'an attempt reaches the page state, so the basis sees it');
+  assert.match(page, /previous\.semanticFingerprint === next\.semanticFingerprint/, 'a change of meaning reaches the page state, so the basis sees it');
   assert.match(canvas, /const attempts = blocks\.reduce\(\(sum, block\) => sum \+ \(block\.attemptLog\?\.length \|\| 0\), 0\);/);
-  assert.match(canvas, /card: JSON\.parse\(cardKey\), content, attempts \}\); \}, \[[^\]]*content, attempts, onState\]\);/);
+  // Owner task 2: the semantic fingerprint rides on the same report (professor-next-steps.md 2.8).
+  assert.match(canvas, /card: JSON\.parse\(cardKey\), content, attempts, semanticFingerprint, semanticSettling \}\); \}, \[[^\]]*content, attempts, semanticFingerprint, semanticSettling, onState\]\);/);
+  assert.match(page, /previous\.semanticSettling === next\.semanticSettling/, 'typing reaches the page state at once');
+  // The onState effect's dependency list is read during render: the state it names must be declared above it (a
+  // declaration below it threw 'Cannot access semanticFingerprint before initialization' and blanked the canvas).
+  const stateAt = canvas.indexOf('const [semanticFingerprint, setSemanticFingerprint] = useState(null);'), reportAt = canvas.indexOf('semanticFingerprint, semanticSettling, onState]);');
+  assert.ok(stateAt > 0 && stateAt < reportAt, 'semanticFingerprint is declared before onState reads it');
+  assert.ok(canvas.indexOf('const [semanticSettling, setSemanticSettling] = useState(false);') < reportAt);
 });
 
 test('SharedBoardPage: the shared hooks start the private hole with the step; stale restarts without it; signed out it waits for this link and hook', () => {

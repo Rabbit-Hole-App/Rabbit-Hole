@@ -22,6 +22,7 @@ import { waitingText } from './waiting-text.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { holdsLine, releaseLine } from './learn-slash.js';
+import { openOnce } from './learn-opening.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -439,6 +440,9 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
+// The hole openings this tab has sent, by opening key (openOnce): module-level, not a ref, so a dock remounted while the
+// hole's board lands from the server (LearnPage canvasEpoch) never sends the same opening twice.
+const openedHoles = new Set();
 export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onConversation = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
@@ -886,10 +890,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
 
   // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question - from the dock only
   // (final review C-I1: a journey hole's block composers get the same Tutor and would each send it again).
-  const openedHole = useRef(null);
   useEffect(() => {
-    if (!dock || !tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
-    openedHole.current = tutor.opening.key;
+    if (!dock || !tutor?.opening || busy || !openOnce(openedHoles, tutor.opening.key)) return;
     // A hook carried from a shared canvas (contract §1.4): the hole opens on it once, as the step, keyed by opening.key.
     if (tutor.opening.next_step) { sendStep(tutor.opening.next_step, tutor.opening.next_step.hook); return; }
     // Voice Mode: the opening is a voice turn - spoken, in the Tutor caption only, never a chat bubble.

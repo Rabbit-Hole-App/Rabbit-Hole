@@ -193,7 +193,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && previous.selected === next.selected && previous.units === next.units && previous.grouped === next.grouped && previous.canPaste === next.canPaste && previous.content === next.content && previous.attempts === next.attempts && JSON.stringify(previous.card) === JSON.stringify(next.card) && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && previous.selected === next.selected && previous.units === next.units && previous.grouped === next.grouped && previous.canPaste === next.canPaste && previous.content === next.content && previous.attempts === next.attempts && previous.semanticFingerprint === next.semanticFingerprint && previous.semanticSettling === next.semanticSettling && JSON.stringify(previous.card) === JSON.stringify(next.card) && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);

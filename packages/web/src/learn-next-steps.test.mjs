@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { openOnce } from './learn-opening.js';
 import { carryStep, goalOf, holeOpening, informativeTitle, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
 import { emptyStore, appendEvents } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
@@ -496,7 +497,7 @@ const setFor = (n = 1) => ({ set_id: `ns_0000000${n}`, generated_at: 'g', option
 const TRIM = { before: { block_count: 9, claim_count: 14 }, after: { block_count: 6, claim_count: 12 }, trimmed: { block_count: 3, claim_count: 2 }, current_section_claims_kept: true, repair_claims_kept: null };
 // The input builder has the nextStepsInput shape: { input, trim } or { problem }.
 const input = previous => ({ input: { previous }, trim: TRIM });
-function rig(replies, over = {}) { const c = clock(), bodies = [], sets = [], landed = []; const ctl = nextStepsController({ post: async body => { bodies.push(body); const r = replies.shift(); if (r instanceof Error) throw r; return r; }, onSet: (s, body, trim, how) => { sets.push(s.set_id); landed.push({ body, trim, ...how }); }, setTimer: c.setTimer, clearTimer: c.clearTimer, ...over }); return { c, ctl, bodies, sets, landed }; }
+function rig(replies, over = {}) { const c = clock(), bodies = [], sets = [], landed = [], extras = []; const ctl = nextStepsController({ post: async (body, extra) => { bodies.push(body); extras.push(extra ?? null); const r = replies.shift(); if (r instanceof Error) throw r; return r; }, onSet: (s, body, trim, how) => { sets.push(s.set_id); landed.push({ body, trim, ...how }); }, setTimer: c.setTimer, clearTimer: c.clearTimer, ...over }); return { c, ctl, bodies, sets, landed, extras }; }
 
 // Owner test 13: a stale set is replaced after a meaningful interaction.
 test('debounce 1200 ms, loading, ready; a basis change marks it stale at once, then replaces it', async () => {
@@ -884,11 +885,13 @@ test('stoppingPoint: a blank plain canvas gets hooks whatever its title; elsewhe
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: '' }), 'not_now');
 });
 
-test('informativeTitle and goalOf: a blank, Untitled or auto-named plain canvas has no goal; a real title is the goal', () => {
+// Owner task 2 (2026-10-13): a plain canvas's title is background (canvas.title), never its goal.
+test('informativeTitle and goalOf: a blank, Untitled or auto-named plain canvas has no background title; a real title is background', () => {
   for (const t of ['', '  ', 'Untitled canvas', 'untitled', 'Untitled', 'canvas-0a1b2c3d', 'CANVAS-0A1B2C3D']) assert.equal(informativeTitle(t), '', JSON.stringify(t));
   for (const t of ['Sourdough', 'Untitled poems', 'canvas-0a1b2c3d notes', 'My canvas']) assert.equal(informativeTitle(t), t);
-  const plain = title => goalOf({ context: { source: 'canvas', domain: { subject: title } }, title }).goal;
-  assert.deepEqual(['Untitled canvas', 'canvas-0000abcd', 'Tide pools'].map(plain), ['', '', 'Tide pools']);
+  const plain = title => goalOf({ context: { source: 'canvas', domain: { subject: title } }, title });
+  assert.deepEqual(['Untitled canvas', 'canvas-0000abcd', 'Tide pools'].map(t => plain(t).background), ['', '', 'Tide pools']);
+  assert.deepEqual(['Untitled canvas', 'Tide pools'].map(t => plain(t).goal), ['', '']);
   assert.equal(goalOf({ context: { source: 'journey', domain: { context: { goal: 'Untitled canvas' } } }, title: 'x' }).goal, 'Untitled canvas', 'only a plain canvas title is screened');
 });
 
@@ -946,13 +949,13 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   const step = { suggestion_id: 'ns_01010101.2', learning_goal: 'g' };
   let saved = emptyStore(), loads = 0;
   const load = () => { loads += 1; return saved; };
-  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, settled: true, active: true, domain: () => NANOGPT, ...over });
+  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, settled: true, active: true, domain: () => NANOGPT, mint: () => 'o1', ...over });
   carryStep(s, record.dive_id, step);
   // Hook turns do not run here yet (the hole's Tutor context is not resolved): the step is kept and nothing is read.
   assert.deepEqual(open({ hookTurns: false }), { store: null, opening: null });
   assert.deepEqual([loads, [...s.m.values()].map(v => JSON.parse(v))], [0, [step]], 'still stored, untouched');
   const first = open({ active: false });
-  assert.deepEqual(first.opening, { key: record.dive_id, next_step: step });
+  assert.deepEqual(first.opening, { key: `${record.dive_id}:o1`, next_step: step });
   assert.equal('question' in first.opening, false);
   saved = first.store;
   assert.equal(openingQuestion(saved, record), null, 'marked opened: no opening question later');
@@ -961,10 +964,10 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   saved = emptyStore();
   assert.deepEqual(open({ active: false }), { store: null, opening: null });
   const asked = open();
-  assert.deepEqual([asked.opening, openingQuestion(asked.store, record)], [{ key: record.dive_id, question: 'Take me into Masks.' }, null]);
+  assert.deepEqual([asked.opening, openingQuestion(asked.store, record)], [{ key: `${record.dive_id}:o1`, question: 'Take me into Masks.' }, null]);
   // Merge of Tasks 10 and 11 (Task 10 fix round 4): the opening question uses the live title, the record title only as a fallback.
   saved = emptyStore();
-  assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: record.dive_id, question: 'Take me into Mask notes.' });
+  assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: `${record.dive_id}:o1`, question: 'Take me into Mask notes.' });
   assert.deepEqual(open({ record: null }), { store: null, opening: null });
 });
 
@@ -976,15 +979,15 @@ test('holeOpening: nothing is taken or asked until the hook context settles; the
   const step = { suggestion_id: 'ns_02020202.1', learning_goal: 'g' };
   let loads = 0;
   const load = () => { loads += 1; return emptyStore(); };
-  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, active: false, domain: () => NANOGPT, ...over });
+  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, active: false, domain: () => NANOGPT, mint: () => 'o1', ...over });
   carryStep(s, record.dive_id, step);
   // The parent read pending: the canvas domain (hook turns, no typed Tutor), or a typed Tutor that is not the hole's yet.
   for (const active of [false, true]) assert.deepEqual(open({ settled: false, active }), { store: null, opening: null });
   assert.deepEqual([loads, [...s.m.values()]], [0, [JSON.stringify(step)]], 'nothing read; the step kept as it was');
   // Settled with a refusal: the canvas-domain hole takes it once (the dock sends it with askStep).
-  assert.deepEqual(open({ settled: true }).opening, { key: record.dive_id, next_step: step });
+  assert.deepEqual(open({ settled: true }).opening, { key: `${record.dive_id}:o1`, next_step: step });
   // Taken once; a settled typed Tutor asks its opening question as before (this load never saves, so the hole is not marked).
-  assert.deepEqual([s.m.size, open({ settled: true, active: true }).opening], [0, { key: record.dive_id, question: 'Take me into Falls.' }]);
+  assert.deepEqual([s.m.size, open({ settled: true, active: true }).opening], [0, { key: `${record.dive_id}:o1`, question: 'Take me into Falls.' }]);
 });
 
 // Owner 2026-10-08 (r29): a journey hook input names the next section only once the current section's checks were tried, with
@@ -1052,4 +1055,136 @@ test('refresh honours the tab ceiling and never runs without a set on screen', a
   assert.equal(r.ctl.refresh(), false);
   assert.deepEqual([r.ctl.view().set_id, r.ctl.view().refresh_state, r.ctl.view().refresh_reason], ['ns_00000001', 'error', 'limited']);
   assert.equal(r.bodies.length, 1, 'no request past the ceiling');
+});
+
+// ---- Curious context (owner task 2, 2026-10-13): the board title is background, the canvas's native content counts. ----
+// A snapshot in the shared contract's shape (canvas-semantics.js semanticSnapshot): a "Linked List" board about trees.
+const treeSnapshot = (over = {}) => ({
+  cards: [],
+  objects: [{ id: 's1', kind: 'ellipse', text: '8', groupId: null, sectionId: null, box: { x: 0, y: 0, w: 40, h: 40 } },
+    { id: 's2', kind: 'ellipse', text: '3', groupId: null, sectionId: null, box: { x: -60, y: 80, w: 40, h: 40 } },
+    { id: 't1', kind: 'text', text: 'binary search tree: left < root < right', groupId: null, sectionId: null, box: { x: 80, y: 0, w: 200, h: 24 } }],
+  relations: [{ from: 's1', to: 's2', label: 'left', directed: true, source: 'connector' }],
+  groups: [], omitted: { objects: 0, chars: 0 }, fingerprint: 'fp_tree', ...over,
+});
+
+test('Curious: a plain canvas title is background metadata, never the goal; journey, course and hole goals stay', () => {
+  const plain = goalOf({ context: tutorContext({ title: 'Linked List' }), title: 'Linked List' });
+  assert.deepEqual([plain.goal, plain.background], ['', 'Linked List']);
+  assert.equal(goalOf({ context: tutorContext({ title: 'Untitled canvas' }), title: 'Untitled canvas' }).background, '', 'an uninformative title is no background either');
+  assert.equal(goalOf({ context: ctx(), title: 'Linked List' }).goal, 'Design a working aqueduct section', 'a journey keeps its goal');
+  assert.equal(goalOf({ context: ctx(), title: 'Linked List' }).background, '', 'and sends no title');
+  assert.equal(goalOf({ context: tutorContext({ board: TUTOR_BOARD }), title: 'Linked List' }).goal, 'nanoGPT attention', 'a course keeps its subject');
+  const hole = { dive_id: 'canvas-0000hole', title: 'Hole', origin: {} };
+  assert.equal(goalOf({ context: tutorContext({ record: hole, title: 'Hole notes' }), record: hole, title: 'Hole notes', liveTitle: 'Hole notes' }).goal, 'Hole notes', 'a hole keeps its own goal');
+});
+
+test('Curious: a plain canvas input carries the title as canvas.title and the native content beside the cards', () => {
+  const { input } = nextStepsInput({ context: tutorContext({ title: 'Linked List' }), store: emptyStore(), blocks: [], title: 'Linked List', basis: 'b', snapshot: treeSnapshot() });
+  assert.equal(input.goal, '');
+  assert.equal(input.canvas.title, 'Linked List');
+  assert.deepEqual(input.canvas.objects.map(o => [o.id, o.kind, o.text]), [['s1', 'ellipse', '8'], ['s2', 'ellipse', '3'], ['t1', 'text', 'binary search tree: left < root < right']]);
+  assert.equal(JSON.stringify(input.canvas).includes('"box"'), false, 'positions never travel');
+  assert.deepEqual(input.canvas.relations, [{ from: 's1', to: 's2', label: 'left', directed: true, source: 'connector' }]);
+  assert.deepEqual(input.canvas.omitted, { objects: 0, chars: 0 });
+  assert.equal(nextStepsInputProblem(input), null);
+  assert.match(topicOf(input), /linked list/, 'the title still opens a format word it names');
+  assert.match(topicOf(input), /binary search tree/);
+});
+
+test('Curious: native objects make a canvas not blank; the planner prompt says so and keeps the title as background', async () => {
+  const here = { app: 'a', board: 'main' };
+  assert.equal(stoppingPoint({ store: emptyStore(), here, blocks: [], goal: '' }), 'not_now');
+  assert.equal(stoppingPoint({ store: emptyStore(), here, blocks: [], objects: 3, goal: '' }), null, 'a native-only canvas is not blank');
+  const { NEXT_STEPS_SYSTEM } = await import('../../control-plane/src/agents/learn-next-steps.js');
+  assert.match(NEXT_STEPS_SYSTEM, /A blank canvas \(mode canvas, no cards, no canvas\.objects, empty scope\)/);
+  assert.match(NEXT_STEPS_SYSTEM, /canvas\.title[^\n]*background/);
+});
+
+test('Curious: the basis carries the semantic fingerprint; the same cards with other words are another basis', () => {
+  const b = fingerprint => nextStepsBasis({ store: emptyStore(), canvasState: { cards: [['k1']] }, context: tutorContext({ title: 'Linked List' }), title: 'Linked List', fingerprint });
+  assert.notEqual(b('fp_a'), b('fp_b'));
+  assert.equal(b('fp_a'), b('fp_a'));
+});
+
+test('Curious: recent edits are the ids whose words, kind or links changed or which arrived; a move is not an edit', async () => {
+  const { recentEdits } = await import('./curious-context.js');
+  const board = { shapes: [{ id: 's1', kind: 'ellipse', x1: 0, y1: 0, x2: 9, y2: 9, text: '8' }], items: [{ id: 't1', kind: 'text', x: 0, y: 0, text: 'tree' }], links: [], blocks: [{ id: 'k1', type: 'explanation', title: 'Nodes', body: 'a' }] };
+  const start = recentEdits(null, board);
+  assert.deepEqual(start.ids, [], 'the first read is the baseline, not an edit');
+  const moved = recentEdits(start, { ...board, shapes: [{ ...board.shapes[0], x1: 50, x2: 59 }] });
+  assert.deepEqual(moved.ids, []);
+  const edited = recentEdits(moved, { ...board, items: [{ ...board.items[0], text: 'AVL tree' }], blocks: [{ ...board.blocks[0], body: 'b' }] });
+  assert.deepEqual(edited.ids, ['t1', 'k1']);
+  const linked = recentEdits(edited, { ...board, items: [{ ...board.items[0], text: 'AVL tree' }], blocks: [{ ...board.blocks[0], body: 'b' }], links: [{ id: 'l1', from: 's1', to: 't1' }] });
+  assert.deepEqual(linked.ids, ['s1', 't1', 'k1'], 'newest first, no repeats');
+});
+
+// Owner task 2 (2026-10-13): each Refresh is one operation with a bounded id per basis (r1, r2, ...), sent beside the input;
+// a retry after a failure reuses it (the server dedupes it), the next id only after a Refresh landed; a repeated click while
+// one runs sends nothing.
+test('Curious: Refresh sends a bounded refresh id per basis, reused on retry, never twice at once', async () => {
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const r = rig([setFor(1), setFor(2), new Error('boom'), setFor(3), setFor(4), setFor(5)]);
+  r.ctl.update({ basis: 'a', stop: null, input });
+  await r.c.fire();
+  assert.equal(r.extras[0], null, 'a recompute is no refresh');
+  assert.equal(r.ctl.refresh(), true);
+  assert.equal(r.ctl.refresh(), false, 'a second click while it runs sends nothing');
+  await flush();
+  assert.equal(r.ctl.refresh(), true); await flush();
+  assert.equal(r.ctl.view().refresh_state, 'error');
+  assert.equal(r.ctl.refresh(), true); await flush();
+  assert.deepEqual(r.extras.slice(1), [{ refresh: 'r1' }, { refresh: 'r2' }, { refresh: 'r2' }], 'the retry is the same operation');
+  assert.equal(r.ctl.view().set_id, 'ns_00000003');
+  r.ctl.update({ basis: 'b', stop: null, input });
+  await r.c.fire();
+  r.ctl.refresh(); await flush();
+  assert.deepEqual(r.extras.slice(4), [null, { refresh: 'r1' }], 'counted per basis');
+});
+
+// Owner task 2: while the canvas's words are settling (typed, not yet read), the set on screen is stale at once - never
+// clickable - and nothing is asked until they settle; a reply landing meanwhile never replaces it.
+test('Curious: settling makes the shown set stale at once and asks nothing until it settles; a reply landing meanwhile stays hidden', async () => {
+  let release;
+  const slow = new Promise(resolve => { release = resolve; });
+  const r = rig([setFor(1), slow, setFor(3)]);
+  r.ctl.update({ basis: 'a', stop: null, input });
+  await r.c.fire();
+  assert.equal(r.ctl.view().status, 'ready');
+  r.ctl.update({ basis: 'a', stop: null, input, settling: true });
+  assert.deepEqual([r.ctl.view().status, r.ctl.view().set_id], ['stale', 'ns_00000001'], 'stale at once, before any read');
+  assert.deepEqual(r.ctl.select('ns_00000001.1'), { ok: false, reason: 'stale' }, 'never clickable');
+  assert.equal(r.c.pending(), 0, 'nothing asked while settling');
+  r.ctl.update({ basis: 'b', stop: null, input });
+  assert.equal(r.ctl.view().status, 'stale');
+  const flying = r.c.fire(); // the reply is held back below
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(r.bodies.length, 2, 'the settled words are asked for');
+  r.ctl.update({ basis: 'b', stop: null, input, settling: true });
+  release(setFor(2)); await flying;
+  assert.equal(r.ctl.view().status, 'stale', 'a reply landing while the words settle never shows as current');
+  r.ctl.update({ basis: 'c', stop: null, input });
+  await r.c.fire();
+  assert.deepEqual([r.ctl.view().status, r.ctl.view().set_id], ['ready', 'ns_00000003']);
+});
+
+// A carried opening is sent once even when the dock remounts (the hole's board landing from the server remounts the canvas);
+// a later, distinct carry into the same hole is a new opening, sent exactly once (curious-context lane, 2026-10-13).
+test('openOnce: each carried opening sends once across a remount; a second, distinct carry into the same hole sends exactly once', () => {
+  const s = memory(), record = { dive_id: 'canvas-0000cafe', title: 'Heaps', origin: { parent: { app: 'share:k', board: 'main' } } };
+  const open = () => holeOpening({ storage: s, load: () => emptyStore(), record, hookTurns: true, settled: true, active: false, domain: () => NANOGPT }).opening;
+  const sent = new Set();
+  carryStep(s, record.dive_id, { suggestion_id: 'ns_03030303.1', learning_goal: 'g1' });
+  const first = open();
+  assert.equal(openOnce(sent, first.key), true, 'the first carry sends');
+  assert.equal(openOnce(sent, first.key), false, 'a remounted dock never sends it again');
+  carryStep(s, record.dive_id, { suggestion_id: 'ns_03030303.1', learning_goal: 'g1' });
+  const second = open();
+  assert.notEqual(second.key, first.key, 'a later carry into the same hole is a new opening, even of the same hook');
+  assert.deepEqual([openOnce(sent, second.key), openOnce(sent, second.key)], [true, false], 'sent exactly once');
+  for (let i = 0; i < 60; i++) openOnce(sent, `k${i}`);
+  assert.equal(sent.size, 50, 'at most 50 keys');
+  assert.equal(sent.has(first.key), false, 'the oldest go first');
+  assert.equal(openOnce(sent, ''), false);
 });

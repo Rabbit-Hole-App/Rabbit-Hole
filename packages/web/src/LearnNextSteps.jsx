@@ -35,7 +35,8 @@ function held(make, onView = () => {}) {
 // an input builder that reads the props when the request is sent. Telemetry (contract §3) only while a sink is registered:
 // next_steps_computed as each set lands and next_steps_shown the first time a set is on screen, each with the identity of
 // the input that set was planned from.
-export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ ...read().access, input }), signal: AbortSignal.timeout(HOOK_TIMEOUT_MS) }), ...timers } = {}) {
+// A Refresh posts its operation id beside the input (extra: { refresh }, owner task 2).
+export function ownedSteps(read, { post = (input, extra = {}) => api('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ ...read().access, input, ...extra }), signal: AbortSignal.timeout(HOOK_TIMEOUT_MS) }), ...timers } = {}) {
   const sent = new WeakMap(), planned = new Map();
   const life = held(() => nextStepsController({
     post,
@@ -54,20 +55,27 @@ export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-st
     const p = read();
     return { p, s: p.tutor?.askStep ? p.tutor.snapshot() : null, blocks: p.canvasApi?.current?.blocks?.() || [] };
   };
+  // Owner task 2: the canvas's semantic snapshot (canvasApi.semantic(), the last one the canvas computed) - read with the
+  // trigger state, and handed to update() with the basis its fingerprint is in, so the request carries that snapshot.
+  const semanticOf = p => p.canvasApi?.current?.semantic?.() ?? null;
   return {
     // Contract §2.3 triggers only; off where no Tutor context resolves (Ruling F10).
     state() {
       const { p, s, blocks } = now();
       if (!s?.context) return { basis: null, stop: 'off' };
+      const semantic = semanticOf(p), snapshot = semantic?.snapshot;
       return {
-        basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle }),
+        basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle, fingerprint: semantic?.fingerprint ?? null }),
         // Task 14 C-M2: the goal the input is built from (goalOf over the snapshot), never the title fallback prop alone.
-        stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, goal: goalOf({ context: s.context, record: s.record, title: p.title, liveTitle: s.liveTitle }).goal, plain: s.context.source === 'canvas' && !s.record }),
+        stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, objects: snapshot ? snapshot.objects.length + snapshot.omitted.objects : 0, goal: goalOf({ context: s.context, record: s.record, title: p.title, liveTitle: s.liveTitle }).goal, plain: s.context.source === 'canvas' && !s.record }),
+        ...(semantic ? { semantic } : {}),
+        // Owner task 2: the canvas's words are changing and not yet read; the shown set is stale until they settle.
+        ...(p.canvasState?.semanticSettling ? { settling: true } : {}),
       };
     },
-    update: ({ basis, stop }) => life.controller().update({ basis, stop, input: previous => {
+    update: ({ basis, stop, semantic = null, settling = false }) => life.controller().update({ basis, stop, settling, input: previous => {
       const { p, s, blocks } = now();
-      const built = nextStepsInput({ ...s, journey: p.journey, blocks, title: p.title, lastTurn: p.tutor?.lastTurn, previous, basis, describe: p.describe });
+      const built = nextStepsInput({ ...s, journey: p.journey, blocks, title: p.title, lastTurn: p.tutor?.lastTurn, previous, basis, describe: p.describe, snapshot: semantic?.snapshot ?? null });
       // The trace identity as this input is sent, so a set that lands after the canvas moved on keeps its own ids.
       if (built.input) sent.set(built.input, {
         mode: built.input.mode === 'canvas' && s?.context?.source === 'registry' ? 'course' : built.input.mode,
@@ -93,8 +101,8 @@ export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, re
   const live = useRef(null);
   live.current = { tutor, journey, canvasApi, canvasState, record, access, title, graded, canvasVersion, board, describe };
   const [steps] = useState(() => ownedSteps(() => live.current));
-  const { basis, stop } = steps.state();
-  useEffect(() => { steps.update({ basis, stop }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { basis, stop, semantic, settling = false } = steps.state();
+  useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
   return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh };
 }
@@ -106,13 +114,13 @@ const whoIsSignedIn = signal => fetch('/api/me', { credentials: 'same-origin', s
 // anonymous viewer to sign in. viewer_states only for a signed-in viewer, from their own tab store, never anyone else's; the
 // server filters them again. A refusal throws with its status (429 is limited). Task 14 C-R1: one 60 s signal, made before
 // the identity read, covers it and the hook request, so a hang in either records the basis failed.
-const sharedPost = read => async body => {
+const sharedPost = read => async (body, extra = {}) => {
   const { token, signedIn } = read();
   const signal = AbortSignal.timeout(HOOK_TIMEOUT_MS);
   const who = signedIn ? await whoIsSignedIn(signal) : null;
   const states = who?.email ? viewerStates(loadStore(globalThis.sessionStorage, storeKey(who))) : {};
   const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/next-steps`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...extra, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
     signal,
   });
   const data = await response.json().catch(() => ({}));

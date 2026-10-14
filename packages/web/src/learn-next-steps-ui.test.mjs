@@ -254,11 +254,15 @@ test('useNextSteps: exactly the steps shape, unavailable/off without a Tutor; th
   assert.doesNotMatch(source, /from '\.\/LearningBlocks/, 'LearningBlocks.jsx cannot load under node; describe is a parameter');
   assert.match(source, /nextStepsController\(/);
   assert.match(source, /'\/api\/learn\/tutor\/next-steps'/);
+  // Owner task 2: a Refresh's operation id rides beside the input, on the owned and the shared post.
+  assert.match(source, /JSON\.stringify\(\{ \.\.\.read\(\)\.access, input, \.\.\.extra \}\)/);
+  assert.match(source, /JSON\.stringify\(\{ \.\.\.body, \.\.\.extra, /);
   assert.match(source, /internal[^\n]*not part of contract §1\.3/, 'ownedSteps is documented as internal');
   assert.match(source, /emitDecision\(hooksEvent\(/);
   assert.match(source, /emitDecision\(shownEvent\(/);
-  // The update effect depends on the trigger state alone: never on a click, pan, zoom, hover or pointer movement.
-  assert.match(source, /useEffect\(\(\) => \{ steps\.update\(\{ basis, stop \}\); \}, \[basis, stop\]\);/);
+  // The update effect depends on the trigger state alone: never on a click, pan, zoom, hover or pointer movement. The
+  // semantic snapshot (owner task 2) rides along with the basis its fingerprint is in, never as a trigger of its own.
+  assert.match(source, /useEffect\(\(\) => \{ steps\.update\(\{ basis, stop, semantic, settling \}\); \}, \[basis, stop, settling\]\);/);
   assert.match(source, /useSyncExternalStore\(steps\.subscribe, steps\.view, steps\.view\)/);
 });
 
@@ -312,24 +316,25 @@ const plainTutor = (title, blocks) => {
 };
 // Owner 2026-10-08 (reversing the eleventh message 8): a blank plain canvas gets hooks at rest, grounded in its title; a card
 // or a rename re-asks. An uninformative title (Untitled, an auto name) is no goal: three distinct starter hooks (the planner).
-test('ownedSteps on a plain canvas: a blank canvas asks at rest with its title as the goal; a card and a rename re-ask', () => withSession(async () => {
+// Owner task 2 (2026-10-13): the title travels as background (canvas.title), never as the goal.
+test('ownedSteps on a plain canvas: a blank canvas asks at rest with its title as background; a card and a rename re-ask', () => withSession(async () => {
   const card = [{ id: 'k1', type: 'explanation', title: 'Starter culture' }];
   const r = stepsRig({ tutor: plainTutor('Sourdough', []), replies: [setFor(1), setFor(2), setFor(3)], props: { title: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
   assert.equal(r.steps.state().stop, null, 'nothing waits on a first question');
   r.step(); await r.c.fire();
-  assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal, r.bodies[0].canvas.blocks, Object.keys(r.bodies[0].scope.claims)], [1, 'canvas', 'Sourdough', [], []]);
+  assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal, r.bodies[0].canvas.title, r.bodies[0].canvas.blocks, Object.keys(r.bodies[0].scope.claims)], [1, 'canvas', '', 'Sourdough', [], []]);
   r.live.canvasApi = { current: { blocks: () => card } };
   r.live.canvasState = { cards: [['k1']] };
   r.live.tutor = plainTutor('Sourdough', card);
   const { basis, stop } = r.steps.state();
   assert.equal(stop, null);
   r.step(); await r.c.fire();
-  assert.deepEqual([r.bodies.length, r.bodies[1].mode, r.bodies[1].goal, r.bodies[1].canvas.blocks.length], [2, 'canvas', 'Sourdough', 1], 'a card re-asks');
+  assert.deepEqual([r.bodies.length, r.bodies[1].mode, r.bodies[1].canvas.title, r.bodies[1].canvas.blocks.length], [2, 'canvas', 'Sourdough', 1], 'a card re-asks');
   // The rename: the dives path reloads with the server title; app.title stays 'Created as' and the page title prop stays stale.
   r.live.tutor = plainTutor('Sourdough, renamed', card);
-  assert.notEqual(r.steps.state().basis, basis, 'the renamed title grounds the goal');
+  assert.notEqual(r.steps.state().basis, basis, 'the renamed title is in the input');
   r.step(); await r.c.fire();
-  assert.deepEqual([r.bodies.length, r.bodies[2].goal], [3, 'Sourdough, renamed']);
+  assert.deepEqual([r.bodies.length, r.bodies[2].canvas.title], [3, 'Sourdough, renamed']);
 }));
 
 test('ownedSteps on a blank canvas with an uninformative title: asked at rest with no goal, so the planner suggests distinct starters', () => withSession(async () => {
@@ -773,3 +778,67 @@ test('C-M1: a typed turn on a live journey traces the hooks on screen at send, e
     assert.deepEqual(decision?.next_step_options.map(o => o.suggestion_id), options.map(o => o.id));
   } finally { off(); }
 });
+
+// ---- Curious context (owner task 2, 2026-10-13): the semantic fingerprint is in the basis; the request carries its snapshot. ----
+const { curiousSnapshot } = await import('./curious-context.js');
+// The reported case: a board titled Linked List, with no lesson cards, about a binary search tree.
+const treeBoard = () => ({
+  shapes: [{ id: 's1', kind: 'ellipse', x1: 0, y1: 0, x2: 40, y2: 40, text: '8' }, { id: 's2', kind: 'ellipse', x1: -80, y1: 100, x2: -40, y2: 140, text: '3' }],
+  items: [{ id: 't1', kind: 'text', x: 200, y: 0, w: 220, text: 'binary search tree: left < root < right' }],
+  links: [], blocks: [], groups: [], exchanges: [{ id: 'c1', question: 'what is a linked list?', answer: 'A chain of nodes.' }],
+});
+const semanticRig = (replies = [setFor(1), setFor(2), setFor(3), setFor(4)]) => {
+  const canvas = { board: treeBoard(), focus: [] };
+  const semantic = () => { const snapshot = curiousSnapshot(canvas.board, canvas.focus); return { snapshot, fingerprint: snapshot.fingerprint }; };
+  const r = stepsRig({ tutor: plainTutor('Linked List', []), replies, props: { title: 'Linked List', canvasApi: { current: { blocks: () => canvas.board.blocks, semantic } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
+  return { ...r, canvas };
+};
+
+test('Curious: native content reaches the planner beside the background title; the request carries the fingerprint in its basis', () => withSession(async () => {
+  const r = semanticRig();
+  r.step(); await r.c.fire();
+  const [body] = r.bodies;
+  assert.deepEqual([body.goal, body.canvas.title, body.canvas.blocks], ['', 'Linked List', []]);
+  assert.deepEqual(body.canvas.objects.map(o => o.text), ['8', '3', 'binary search tree: left < root < right']);
+  assert.equal(body.canvas.fingerprint, curiousSnapshot(r.canvas.board).fingerprint, 'the request names the snapshot it carries');
+  assert.equal(/linked list\?|chain of nodes/i.test(JSON.stringify(body)), false, 'chat cards stay out, as before');
+}));
+
+test('Curious: a same-id text edit and a relation change re-ask with the new content; a move, a selection or a chat answer do not', () => withSession(async () => {
+  const r = semanticRig();
+  r.step(); await r.c.fire();
+  const first = r.steps.state().basis;
+  // Moved where they touch nothing new (a move onto the text box would make it a label: a real change).
+  r.canvas.board = { ...r.canvas.board, shapes: r.canvas.board.shapes.map(s => ({ ...s, y1: s.y1 + 300, y2: s.y2 + 300 })) };
+  r.canvas.focus = ['s2'];
+  r.canvas.board.exchanges = [{ id: 'c1', question: 'what is a linked list?', answer: 'Streaming a longer answer now.' }];
+  assert.equal(r.steps.state().basis, first, 'movement, selection and a chat answer leave the basis');
+  r.step(); await r.c.fire();
+  assert.equal(r.bodies.length, 1, 'no planning call');
+  r.canvas.board = { ...r.canvas.board, items: [{ ...r.canvas.board.items[0], text: 'AVL tree: rotations keep it balanced' }] };
+  const edited = r.steps.state().basis;
+  assert.notEqual(edited, first, 'same ids and counts, new words: a new basis');
+  r.step(); await r.c.fire();
+  assert.equal(r.bodies.length, 2);
+  assert.ok(r.bodies[1].canvas.objects.some(o => o.text === 'AVL tree: rotations keep it balanced'));
+  r.canvas.board = { ...r.canvas.board, links: [{ id: 'l1', from: 's1', to: 's2', label: 'left child' }] };
+  assert.notEqual(r.steps.state().basis, edited, 'a new connector relation: a new basis');
+  r.step(); await r.c.fire();
+  assert.deepEqual(r.bodies[2].canvas.relations.map(x => [x.from, x.to, x.label, x.source]), [['s1', 's2', 'left child', 'connector']]);
+}));
+
+test('Curious: while the canvas reports its words settling, the shown set is stale and unclickable; nothing is asked until they settle', () => withSession(async () => {
+  const r = semanticRig();
+  r.step(); await r.c.fire();
+  assert.equal(r.steps.view().status, 'ready');
+  r.live.canvasState = { cards: [], semanticSettling: true };
+  r.step();
+  assert.equal(r.steps.view().status, 'stale');
+  assert.equal(r.steps.select(r.steps.view().options[0].id).ok, false);
+  assert.equal(r.c.pending(), 0);
+  r.canvas.board = { ...r.canvas.board, items: [{ ...r.canvas.board.items[0], text: 'heap: parent above children' }] };
+  r.live.canvasState = { cards: [] };
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.bodies.length, r.steps.view().status], [2, 'ready']);
+  assert.ok(r.bodies[1].canvas.objects.some(o => o.text === 'heap: parent above children'));
+}));
