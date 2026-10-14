@@ -533,12 +533,15 @@ await check('22 a member presses Del on the owner\'s pin: refused, with a line b
   tab.on('pageerror', error => errors.push(error.message));
   await tab.goto(`${BASE}/c/${boardId}`);
   await tab.locator('[data-block-id="k-exp"]').waitFor({ timeout: 60000 });
-  // The member page opens with Comments showing; close it, so the click on the pin opens it again.
-  await tab.locator('[data-member-comments]').waitFor();
-  await tab.locator('[data-comments-button]').click();
-  await tab.locator('[data-member-comments]').waitFor({ state: 'detached' });
   const owners = (await memberApi(`/api/learn/c/${boardId}/threads`)).body.threads.find(thread => thread.preview?.startsWith('Add a diagram'));
   const pin = tab.locator(`[data-comment-pin="${owners.id}"]`);
+  // The member page opens with Comments showing, and the pins come from that panel's thread list: wait for the list to
+  // land (its pin drawn) before closing it, or a slow list never arrives (the panel is gone). Closed, the pin stays, and
+  // the click on it opens Comments again.
+  await tab.locator('[data-member-comments]').waitFor();
+  await pin.waitFor();
+  await tab.locator('[data-comments-button]').click();
+  await tab.locator('[data-member-comments]').waitFor({ state: 'detached' });
   await pin.waitFor();
   await pin.click();
   await tab.locator('[data-member-comments] [data-comment-thread-view]').waitFor();
