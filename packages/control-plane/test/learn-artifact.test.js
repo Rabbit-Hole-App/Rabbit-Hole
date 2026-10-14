@@ -85,6 +85,14 @@ test('a primitive outside the family is rejected on the server, whatever the bro
   assert.ok(!offered(seen[0]).includes('make_video_generate'));
 });
 
+test('a long text field states its limit in words in the tool description (an explanation body overran 2,000 characters twice)', async () => {
+  const { callModel, seen } = scripted(['make_explanation', explanation]);
+  await generateArtifact({}, { command: 'explain', args: 'how the human reproductive system works' }, { callModel });
+  const tool = seen[0].tools.find(entry => entry.name === 'make_explanation');
+  assert.match(tool.description, /Keep body under 2,000 characters \(about 280 words\): longer is refused\./);
+  assert.doesNotMatch(tool.description, /Keep title/);
+});
+
 test('a malformed spec gets exactly one repair', async () => {
   const bad = { ...quiz, options: quiz.options.map(option => ({ ...option, correct: true })) };
   const fixed = scripted(['make_quiz', bad], ['make_quiz', quiz]);

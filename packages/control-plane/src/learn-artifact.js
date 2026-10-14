@@ -19,6 +19,10 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
+// A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
+// included (inline lane R, 2026-10-13: an explanation body over 2,000 characters, nothing added, $0.12).
+const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
+  .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
 import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
 export { ARTIFACT_SYSTEM };
@@ -43,7 +47,7 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
   const { request, ready } = plan;
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}`,
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}`,
     input_schema: PRIMITIVES[id].schema,
   })), CLARIFY];
   const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null });
