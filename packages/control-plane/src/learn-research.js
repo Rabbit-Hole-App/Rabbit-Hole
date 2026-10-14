@@ -33,10 +33,11 @@ export async function researchAnswer(env, turns, system, model, {
   // lost). Text beside a search or read call is a preamble ("let me look that up") and stays out.
   const said = [];
   for (let step = 0; step <= RESEARCH_STEPS; step++) {
+    // No tools offered (a Tutor chat turn): neither tools nor tool_choice is sent, so the call is one plain answer.
+    const offered = arxiv ? [...tools, SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(papers.size ? [SHOW_PAPER_TOOL] : [])] : tools;
     const response = await callModel(env, {
       max_tokens: LEARN_TASKS.chat.maxTokens, system: arxiv ? `${system}\n${LEARN_RESEARCH_SYSTEM}` : system,
-      tools: arxiv ? [...tools, SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(papers.size ? [SHOW_PAPER_TOOL] : [])] : tools,
-      tool_choice: step < RESEARCH_STEPS ? { type: 'auto', disable_parallel_tool_use: true } : { type: 'none' },
+      ...(offered.length ? { tools: offered, tool_choice: step < RESEARCH_STEPS ? { type: 'auto', disable_parallel_tool_use: true } : { type: 'none' } } : {}),
       messages,
     }, model, null);
     if (!response.ok) throw await modelFailure(response, 'Learn answer unavailable');

@@ -60,8 +60,10 @@ test('blockquotes: > lines are one quote, with inline formatting inside', () => 
   assert.match(md('> First line\n> with **bold**\n\nAfter.'), /<blockquote class="[^"]*border-l-2[^"]*"><p class="my-1">First line<\/p><p class="my-1">with <strong>bold<\/strong><\/p><\/blockquote><p class="my-1">After\.<\/p>/);
 });
 
-test('tables sit in a contained horizontal scroller', () => {
+test('tables and display math each sit in their own contained horizontal scroller', () => {
   assert.match(md('| a | b |\n|---|---|\n| 1 | 2 |'), /<div class="my-2 overflow-x-auto"><table class="min-w-full border-collapse text-xs"><thead><tr><th[^>]*>a<\/th>/);
+  // A wide equation scrolls inside its block, never past the pane (in Chromium at 380px: scrollWidth 432, scrollLeft reaches 52).
+  assert.match(md('$$\\frac{a}{b}$$'), /<div data-chat-math="display" class="my-3 max-w-full overflow-x-auto overflow-y-hidden [^"]*">/);
 });
 
 test('fenced code: the language tag, highlighting, and a visible Copy; an unclosed fence is a growing code block', () => {

@@ -123,7 +123,7 @@ export function resolveMode({ mode, command }, message) {
 // teaching content", ordered so later ones build on earlier ones), but in this one chat call, with no diagnostic.
 export const TUTOR_SYSTEM = `Tutor mode: syllabus creation and refinement. You plan a learning path: an ordered plan of 1-${JOURNEY_LIMITS.sections} topics for one goal. You plan topics; you never write their teaching content, lessons, quizzes or cards, and nothing is generated for them now.
 Build the plan from the learner's goal, their level when they state it, the attached materials, and the recent conversation. Order topics forward along the dependency chain, so later topics build on earlier ones; introduce a necessary prerequisite before it is used. A missing level is unknown: never invent a learner profile.
-If the goal is missing, or one missing detail would change the syllabus materially, ask exactly one short question and give no syllabus. Otherwise write a short overview of the plan in prose, and put the syllabus in the trailer JSON as "syllabus": { "goal": "<1-300 characters>", "topics": [{ "title": "<1-80 characters>", "objectives": ["<1-3 learning objectives, together at most 240 characters>"], "refs": ["<sourceId of an attached material this topic draws on>"] }] }. Cite only sourceIds listed as attached; never invent one. When the conversation already holds a syllabus and the learner asks for a change, revise that syllabus rather than starting over.`;
+If the goal is missing, or one missing detail would change the syllabus materially, ask exactly one short question and give no syllabus. Otherwise write a short overview of the plan in prose, and put the syllabus in the trailer JSON as "syllabus": { "goal": "<1-300 characters>", "topics": [{ "title": "<1-80 characters>", "objectives": ["<1-3 learning objectives, together at most 240 characters>"], "refs": ["<sourceId of an attached material this topic draws on>"] }] }. Cite only sourceIds listed as attached; never invent one. Unless you asked that one question, the trailer always carries the syllabus: a plan written only in prose is lost. When the conversation already holds a syllabus and the learner asks for a change, revise that syllabus rather than starting over.`;
 const MAYBE_SYSTEM = 'The learner may want a structured course rather than a single answer. Answer normally; you may end with one short question asking whether they want a syllabus.';
 const SUMMARY_SYSTEM = 'This conversation is longer than the turns you see. Add "summary": { "text": "<at most 1200 characters: the whole conversation so far, folding in any earlier summary in the context and this turn>", "constraints": ["<each explicit instruction or constraint the learner stated, copied verbatim>"] } to the trailer JSON.';
 // The fields above ride in the one <answer_meta> trailer (chat-answer-meta.js), whatever else it carries.
@@ -183,9 +183,11 @@ export function validateSyllabus(s, refs = [], journeyId = null) {
 function modelSyllabus(s, refs) {
   if (!isObj(s) || !Array.isArray(s.topics)) return null;
   const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
-  const topics = s.topics.slice(0, JOURNEY_LIMITS.sections).map((t, i) => {
-    const objectives = [];
-    for (const o of Array.isArray(t?.objectives) ? t.objectives : []) if (str(o, 240) && [...objectives, o.trim()].join('; ').length <= 240) objectives.push(o.trim());
+  // One untitled topic or one overlong objective is trimmed away, never a reason to lose the whole syllabus.
+  const topics = s.topics.filter(t => clip(t?.title, 80)).slice(0, JOURNEY_LIMITS.sections).map((t, i) => {
+    const given = (Array.isArray(t?.objectives) ? t.objectives : []).filter(o => str(o, 10000)), objectives = [];
+    for (const o of given) if ([...objectives, o.trim()].join('; ').length <= 240) objectives.push(o.trim());
+    if (!objectives.length && given.length) objectives.push(clip(given[0], 240));
     return { id: `t${i + 1}`, title: clip(t?.title, 80), objectives, refs: t?.refs };
   });
   const checked = validateSyllabus({ goal: clip(s.goal, 300), topics }, refs);
