@@ -287,17 +287,17 @@ await group('J3', async () => {
   check('J3 path tray and rail', entries.length === 8 && entries.every(s => s === 'upcoming'), 'path_preview tray, 8 rail entries, all upcoming', `${entries.length} entries: ${entries.join(',')}`);
   const stored = await blocksOf(page, lr);
   check('J3 no blocks', stored.length === 0 && await domBlocks(page) === 0, '0 canvas blocks', `${stored.length} blocks`);
-  // A question during path review is the Tutor's (resolver: unrelated_question), answered in the chat sheet with no card
-  // before acceptance, so the sheet is open for the geometry below: the case where the pinned list once covered it.
+  // A question during path review is the Tutor's (resolver: unrelated_question), answered in the Chat pane transcript with no
+  // card before acceptance.
   const asks = calls('/api/learn/ask').length, plans = calls('/api/learn/tutor/plan').length;
   await send(page, 'What is a sigmoid?');
   await page.getByText(CANNED).first().waitFor({ timeout: 15000 });
   await page.waitForTimeout(800);
   const plan = calls('/api/learn/tutor/plan').at(-1)?.body;
-  check('J3 setup question to the Tutor, in the sheet', calls('/api/learn/ask').length === asks && calls('/api/learn/tutor/plan').length === plans + 1 && plan?.context?.journey_context != null
-    && await page.locator('[data-chat-sheet]').isVisible() && (await trayState(page))?.mode === 'path_preview' && (await blocksOf(page, lr)).length === 0,
-    'a question during path review is one Tutor plan request with journey_context, answered in the chat sheet; the path tray stays and no card is drawn',
-    `${calls('/api/learn/ask').length - asks} ask, ${calls('/api/learn/tutor/plan').length - plans} plan request(s) (journey_context ${plan?.context?.journey_context != null}); sheet, tray or canvas not as expected`);
+  check('J3 setup question to the Tutor, in the Chat pane', calls('/api/learn/ask').length === asks && calls('/api/learn/tutor/plan').length === plans + 1 && plan?.context?.journey_context != null
+    && await page.locator('[data-chat-pane]').getByText(CANNED).first().isVisible() && (await trayState(page))?.mode === 'path_preview' && (await blocksOf(page, lr)).length === 0,
+    'a question during path review is one Tutor plan request with journey_context, answered in the Chat pane transcript; the path tray stays and no card is drawn',
+    `${calls('/api/learn/ask').length - asks} ask, ${calls('/api/learn/tutor/plan').length - plans} plan request(s) (journey_context ${plan?.context?.journey_context != null}); transcript, tray or canvas not as expected`);
   // The pinned list never meets the composer, the tray, the sheet, the Rabbit Hole navigator or the minimap: two
   // viewports, right panel open and closed. A list with no room stays closed (ContentsRail flyoutRect), which passes.
   // The navigator is what [data-dive-gutter] (or [data-gutter-top]) draws, its children: the gutter itself is an 84 px
@@ -317,7 +317,8 @@ await group('J3', async () => {
     await shot(page, width === 1440 && open ? 'J3-path-rail-panel-open' : `J3-geometry-${width}-${open ? 'open' : 'closed'}`);
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole('button', { name: 'Collapse chat' }).click(); // the learner closes the sheet before starting
+  // The tray is in the Chat pane now (no sheet to close): the learner opens the right panel again before starting.
+  if (!await panelOpen(page)) await page.getByRole('button', { name: 'Show the right panel' }).click();
 });
 
 await group('J4', async () => {
