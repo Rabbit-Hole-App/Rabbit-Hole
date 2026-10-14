@@ -15,6 +15,10 @@ import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscript
 import { videoMomentTools } from './learn-youtube.js';
 import { devIdentity } from './dev-forwarding.js';
 import { emptyBoard } from './canvases.js';
+import { CANVAS_CONTEXT_RULES, CANVAS_PACKAGE_CHARS, canvasContextText, validateCanvasContext } from './canvas-context.js';
+// A Learn ask's JSON (repositoriesFetch): 64 KB of its own fields, plus the canvas_context package at its cap, plus context_refs at
+// their A2 worst case (20 refs x 2 KB without text + 32,000 characters of text, under 80,000 as JSON).
+const ASK_JSON=64000+CANVAS_PACKAGE_CHARS+80000;
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function parseRepository(value) {
@@ -164,9 +168,10 @@ export async function repositoriesFetch(req,env,ctx){
   const db=env.LEARN_DB;
   try{
     if(!['GET','POST','PATCH','DELETE'].includes(req.method))return json({error:'Method not allowed'},405);
-    // A Learn ask may carry the composer's + file (attachmentBlocks bounds it at 4 MB); its JSON part keeps 64 KB.
-    const upload=req.method==='POST'&&/^\/api\/repositories\/[^/]+\/ask$/.test(path)&&req.headers.get('content-type')?.includes('multipart/form-data');
-    if(upload?Number(req.headers.get('content-length'))>ATTACHMENT_LIMIT+64000||(await req.clone().arrayBuffer()).byteLength>ATTACHMENT_LIMIT+64000:req.method!=='GET'&&(Number(req.headers.get('content-length'))>64000||(await req.clone().text()).length>64000))return json({error:upload?'Request exceeds 4 MB':'Request exceeds 64 KB'},413);
+    // A Learn ask may carry the composer's + file (attachmentBlocks bounds it at 4 MB), and its JSON the canvas_context package
+    // and context_refs beside its own 64 KB (ASK_JSON; repositoryAsk holds the rest to 64 KB). Every other request keeps 64 KB.
+    const ask=req.method==='POST'&&/^\/api\/repositories\/[^/]+\/ask$/.test(path),upload=ask&&req.headers.get('content-type')?.includes('multipart/form-data'),cap=ask?ASK_JSON:64000;
+    if(upload?Number(req.headers.get('content-length'))>ATTACHMENT_LIMIT+cap||(await req.clone().arrayBuffer()).byteLength>ATTACHMENT_LIMIT+cap:req.method!=='GET'&&(Number(req.headers.get('content-length'))>cap||(await req.clone().text()).length>cap))return json({error:upload?'Request exceeds 4 MB':`Request exceeds ${Math.round(cap/1000)} KB`},413);
     if(path==='/api/repositories/branches'){
       const repo=parseRepository(url.searchParams.get('url'));
       return json(await repositoryMetadata(env,repo,{page:Math.max(1,Math.min(100,Number(url.searchParams.get('page'))||1))}));
@@ -306,7 +311,10 @@ function selectedRange(snapshot,{path,start,end}){
 }
 async function repositoryAsk(req,env,user,app){
   const {body,file}=await readAskRequest(req);
-  if(file&&JSON.stringify(body).length>64000)return json({error:'Request exceeds 64 KB'},413);
+  // The ask's own fields keep 64 KB; the canvas package is bounded by its validator and context_refs by ASK_JSON.
+  const {canvas_context:_canvas,context_refs:_refs,...own}=body;
+  if(JSON.stringify(own).length>64000)return json({error:'Request exceeds 64 KB'},413);
+  const canvas=body.canvas_context==null?null:validateCanvasContext(body.canvas_context);
   const seed=canvasSeed(body);
   if(typeof body.message!=='string'||!body.message.trim()||body.message.length>MESSAGE_LIMIT)throw Error('Question must be 1–4000 characters');
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
@@ -361,9 +369,11 @@ async function repositoryAsk(req,env,user,app){
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,scopeRef,commit,body.message.slice(0,120)).run();
   const history=await threadTurns(db,id,seed,question);
-  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget),history,question,
+  // Whole-canvas context (canvas-context.js): the same block and rules as /api/learn/ask, on every ask that sends it.
+  const board=canvas?`\n\n${canvasContextText(canvas)}`:'',rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
+  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget)+board,history,question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
-    body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
+    (body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
 }
 
 export async function repositoryEvidence(env,app,input){

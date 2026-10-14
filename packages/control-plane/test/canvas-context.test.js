@@ -41,9 +41,10 @@ test('truncated content is never counted as full: excerpts, statuses and counts 
       { id: 't2', type: 'text', status: 'partial' },
     ] },
   }));
-  assert.equal(pkg.excerpts[0].inclusion, 'partial', 'omitted_chars > 0 makes an excerpt partial');
-  assert.deepEqual(pkg.coverage.items.map(s => [s.id, s.status, s.omitted_chars ?? 0]), [['n1', 'partial', 900], ['c1', 'partial', 40], ['e1', 'listed', 0], ['t2', 'listed', 0]]);
-  assert.deepEqual([pkg.coverage.included_full, pkg.coverage.included_partial, pkg.coverage.listed], [0, 2, 8], 'the client\'s 9 in full is recounted from the content actually sent');
+  assert.deepEqual(pkg.excerpts.map(e => [e.id, e.inclusion]), [['n1', 'partial'], ['c1', 'partial']], 'characters left out, on the excerpt or its coverage item, make it partial');
+  // e1 has no excerpt: a label-only object stays full (its whole text is in the inventory). t2 stays as the client sent it.
+  assert.deepEqual(pkg.coverage.items.map(s => [s.id, s.status, s.omitted_chars ?? 0]), [['n1', 'partial', 900], ['c1', 'partial', 40], ['e1', 'full', 0], ['t2', 'partial', 0]]);
+  assert.deepEqual([pkg.coverage.included_full, pkg.coverage.included_partial, pkg.coverage.listed], [7, 2, 8], 'the two visibly cut objects move from the client\'s 9 in full to partial');
   // Counts the server cannot check (coverage.items may not name every object on a big board) stand as sent.
   assert.deepEqual([pkg.coverage.media_inspected, pkg.coverage.unavailable_or_omitted], [0, 1]);
 });

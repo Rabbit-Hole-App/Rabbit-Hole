@@ -5,7 +5,8 @@
 // rules); relevance ranking is the client builder's. The model reads the request and decides what the question needs.
 
 export const CANVAS_BUDGET = 16000; // labels plus excerpt content, in characters (contract default and server ceiling)
-const PACKAGE_CHARS = 64000, ITEMS = 300, EXCERPTS = 200, PASSAGES = 20, RELATIONS = 600, STATUS_ITEMS = 600, COUNT_KEYS = 40;
+export const CANVAS_PACKAGE_CHARS = 64000;
+const PACKAGE_CHARS = CANVAS_PACKAGE_CHARS, ITEMS = 300, EXCERPTS = 200, PASSAGES = 20, RELATIONS = 600, STATUS_ITEMS = 600, COUNT_KEYS = 40;
 const TYPE = /^[a-z][a-z0-9_-]{0,39}$/;
 const EXCERPT_REASONS = ['relevant', 'structural', 'recent'];
 const INFERRED_KINDS = ['contains', 'grouped', 'near', 'aligned', 'labels'];
@@ -45,6 +46,7 @@ export function validateCanvasContext(value) {
   });
   const omittedItems = whole(inv.omitted_items, 'inventory.omitted_items');
 
+  const truncated = []; // ids sent as full whose text was visibly cut: they count as partial, never full
   const excerpts = list(value.excerpts, EXCERPTS, 'excerpts').map((e, i) => {
     const at = `excerpts[${i}]`;
     if (!isObj(e)) fail(at, 'must be an object');
@@ -61,6 +63,7 @@ export function validateCanvasContext(value) {
     });
     // Truncated content is never full (contract v1.1): characters left out, or passages cut from it, make it partial.
     const inclusion = left > 0 || passages.length ? 'partial' : e.inclusion;
+    if (e.inclusion === 'full' && inclusion === 'partial') truncated.push(e.id);
     return { id: id(e.id, `${at}.id`), type: type(e.type, `${at}.type`), text: e.text, reason: e.reason, inclusion, omitted_chars: left, ...(passages.length ? { passages } : {}) };
   });
   const used = items.reduce((n, it) => n + it.label.length, 0) + excerpts.reduce((n, e) => n + e.text.length, 0);
@@ -86,29 +89,26 @@ export function validateCanvasContext(value) {
   if (cov.budget_chars > CANVAS_BUDGET) fail('coverage.budget_chars', `at most ${CANVAS_BUDGET}`);
   if (cov.reserved_chars > cov.budget_chars) fail('coverage.reserved_chars', 'at most budget_chars');
   if (!text(cov.summary, 1, 200)) fail('coverage.summary', 'must be 1-200 characters');
-  const sent = new Map(excerpts.map(e => [e.id, e]));
+  const sent = new Map(excerpts.map(e => [e.id, e])), cut = new Set(truncated);
   const statusItems = list(cov.items, STATUS_ITEMS, 'coverage.items').map((s, i) => {
     const at = `coverage.items[${i}]`;
     if (!isObj(s)) fail(at, 'must be an object');
     if (!STATUSES.includes(s.status)) fail(`${at}.status`, `must be one of ${STATUSES.join(', ')}`);
     const reason = opt(s.reason, 40, `${at}.reason`), left = s.omitted_chars == null ? 0 : whole(s.omitted_chars, `${at}.omitted_chars`);
     const excerpt = sent.get(s.id);
-    // A status claims only what was sent: full needs a full excerpt with nothing left out, partial needs some excerpt.
-    let status = s.status;
-    if (status === 'full' && (!excerpt || excerpt.inclusion !== 'full' || left > 0)) status = excerpt ? 'partial' : 'listed';
-    if (status === 'partial' && !excerpt) status = 'listed';
     const omitted = Math.max(left, excerpt?.omitted_chars ?? 0);
+    // A full status with visible truncation (characters left out, or a partial excerpt) is partial. A full status with no
+    // excerpt stays full: an object whose whole text fits its label is fully in the inventory (Home's ruling).
+    let status = s.status;
+    if (status === 'full' && (omitted > 0 || excerpt?.inclusion === 'partial')) { status = 'partial'; cut.add(s.id); }
+    if (omitted && excerpt?.inclusion === 'full') { Object.assign(excerpt, { inclusion: 'partial', omitted_chars: omitted }); cut.add(s.id); }
     return { id: id(s.id, `${at}.id`), type: type(s.type, `${at}.type`), status, ...(reason ? { reason } : {}), ...(omitted ? { omitted_chars: omitted } : {}) };
   });
-  // coverage.items may not name every object on a big board (filled by priority), so the client's counts stand, except the two
-  // the server can check: content in full or in part is counted from the excerpts actually sent, never from a claim.
-  // A coverage item that records characters left out makes its excerpt partial too.
-  for (const s of statusItems) for (const e of excerpts) if (e.id === s.id && s.omitted_chars && e.inclusion === 'full') Object.assign(e, { inclusion: 'partial', omitted_chars: s.omitted_chars });
-  const full = new Set(excerpts.filter(e => e.inclusion === 'full').map(e => e.id));
-  const partial = new Set(excerpts.filter(e => e.inclusion === 'partial' && !full.has(e.id)).map(e => e.id));
+  // coverage.items may not name every object on a big board (filled by priority), so the client's counts stand; only an object
+  // claimed full that visibly lost text moves from included_full to included_partial.
   const coverage = {
     objects_total: Math.max(cov.objects_total, items.length + omittedItems), listed: items.length,
-    included_full: full.size, included_partial: partial.size, media_inspected: cov.media_inspected, unavailable_or_omitted: cov.unavailable_or_omitted,
+    included_full: Math.max(0, cov.included_full - cut.size), included_partial: cov.included_partial + cut.size, media_inspected: cov.media_inspected, unavailable_or_omitted: cov.unavailable_or_omitted,
     items: statusItems, reserved_chars: cov.reserved_chars, budget_chars: cov.budget_chars, used_chars: used, summary: cov.summary,
   };
 
