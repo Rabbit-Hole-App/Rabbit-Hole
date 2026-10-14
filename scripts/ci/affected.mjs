@@ -1,6 +1,7 @@
 // scripts/ci/affected.mjs - fast-tier selection. Compares HEAD with the newest green fast-tier run that is an ancestor
 // (so pushes whose runs were cancelled are included), or the merge-base with main. Renames count both paths, deletes
-// count the old path. An executable path with no class fails selection; it is never silently skipped.
+// count the old path. An executable path with no class runs the conservative default set (check-map.json defaultChecks)
+// and is reported as missing its mapping; it is never silently skipped, never runs everything and never fails on its own.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -24,7 +25,7 @@ export function select(changes, map, force = false) {
   for (const c of changes) for (const p of [c.path, c.oldPath].filter(Boolean)) {
     const k = classify(p, map);
     if (k === 'broad') { broad = true; reasons.push(`${p}: broad`); }
-    else if (k === 'unmapped') unmapped.push(p);
+    else if (k === 'unmapped') { unmapped.push(p); for (const h of map.defaultChecks) { checks.add(h); reasons.push(`${h}: ${p} (unmapped, default set)`); } }
     else if (k === 'mapped') {
       const own = /^packages\/web\/e2e\/([^/]+-check\.mjs)$/.exec(p)?.[1];
       const hits = own ? [own] : Object.entries(map.mapped).filter(([g]) => rx(g).test(p)).flatMap(([, v]) => v);
@@ -64,11 +65,11 @@ export function partArgs(argv) {
   const part = get('--part'), of = get('--of');
   return part >= 1 && of >= 1 && part <= of ? { part, of } : null;
 }
-// The CLI contract: JSON on stdout, exit 2 when a changed executable path has no class.
+// The CLI contract: JSON on stdout; exit 2 only for bad arguments. An unmapped path is a warning, not a failure.
 export function plan({ part, of, changes, map, baseline: base, force }) {
   const s = select(changes, map, force);
   const out = { part, checks: parts(s.checks, map, of)[part - 1], reasons: s.reasons, notCovered: s.notCovered, baseline: base, unmapped: s.unmapped };
-  return s.unmapped.length ? { code: 2, out, err: `add ${s.unmapped.join(', ')} to scripts/ci/check-map.json (or mark it broad)` } : { code: 0, out };
+  return s.unmapped.length ? { code: 0, out, warning: `no mapping for ${s.unmapped.join(', ')}: ran the default set (${map.defaultChecks.length} checks); add it to scripts/ci/check-map.json` } : { code: 0, out };
 }
 if (process.argv[1] && basename(process.argv[1]) === 'affected.mjs') {
   const args = partArgs(process.argv);
@@ -81,5 +82,6 @@ if (process.argv[1] && basename(process.argv[1]) === 'affected.mjs') {
   const base = baseline({ head, greenShas: runs.map(r => r.headSha), isAncestor, mergeBaseMain: git('merge-base', head, 'origin/main') });
   const r = plan({ ...args, changes: changedPaths(base, head), map, baseline: base, force: process.env.READINESS === '1' });
   console.log(JSON.stringify(r.out));
+  if (r.warning) console.error(r.warning);
   if (r.code) { console.error(r.err); process.exit(r.code); }
 }

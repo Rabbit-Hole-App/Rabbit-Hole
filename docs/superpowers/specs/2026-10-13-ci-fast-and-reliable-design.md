@@ -118,7 +118,7 @@ after:  build job: setup 1.5 + both bundles 2.0 = 3.5 --+
   - **docs** (`docs/**`, `*.md`): no browser checks;
   - **mapped**: the mapped checks, plus any edited check file;
   - **broad**: the full Linux-ready set. This covers dependencies and lockfiles, wrangler configs, the worker entries (`dev-worker.js`, `app-worker.js`, `control-plane/src/index.js`), auth, spending, persistence, canvas infrastructure (`AdaptiveCanvas.jsx`, `LearnPage.jsx`, `RichText.jsx`), and CI and release scripts;
-  - **unmapped executable**: **selection fails** with `add <path> to scripts/ci/check-map.json`.
+  - **unmapped executable**: runs the conservative default set (`defaultChecks` in check-map.json) and the run reports the missing mapping (a warning annotation and the job summary: `add <path> to scripts/ci/check-map.json`). It neither runs the full broad set nor fails on its own (owner, 2026-10-14); bad arguments or a failed check still fail normally.
 - A unit test fails if a tracked executable file has no class, so a new file gets classified in the push that adds it.
 - A check that does not yet run on Linux is marked `windows-only`. The fast-tier summary lists it as "not covered here; release gate only", and the release manifest keeps it. No assertion is weakened to run on Linux.
 

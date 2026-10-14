@@ -9,24 +9,29 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const map = { docs: ['docs/**', '**/*.md'], broad: ['package.json', 'packages/web/src/AdaptiveCanvas.jsx'], none: ['packages/**/*.test.mjs'],
   executable: ['packages/**', 'scripts/**'], mapped: { 'packages/web/src/InlineAiEditor.jsx': ['inline-ai-check.mjs'], 'packages/web/src/Dive.jsx': ['dive-check.mjs'] },
-  checks: { 'inline-ai-check.mjs': { runner: 'harness', seconds: 240 }, 'dive-check.mjs': { runner: 'fork', seconds: 130 }, 'journey-check.mjs': { runner: 'windows-only', seconds: 300 } } };
+  checks: { 'inline-ai-check.mjs': { runner: 'harness', seconds: 240 }, 'dive-check.mjs': { runner: 'fork', seconds: 130 }, 'sidebar-check.mjs': { runner: 'fork', seconds: 25 }, 'journey-check.mjs': { runner: 'windows-only', seconds: 300 } },
+  defaultChecks: ['sidebar-check.mjs'] };
 test('docs run nothing; mapped runs its checks', () => {
   assert.deepEqual(select([{ status: 'M', path: 'docs/a.md' }], map).checks, []);
   assert.deepEqual(select([{ status: 'M', path: 'packages/web/src/Dive.jsx' }], map).checks, ['dive-check.mjs']);
 });
 test('a broad path runs every Linux-ready check, and lists windows-only ones as not covered', () => {
   const s = select([{ status: 'M', path: 'package.json' }], map);
-  assert.deepEqual(s.checks.sort(), ['dive-check.mjs', 'inline-ai-check.mjs']);
+  assert.deepEqual(s.checks.sort(), ['dive-check.mjs', 'inline-ai-check.mjs', 'sidebar-check.mjs']);
   assert.equal(s.broad, true);
 });
 test('readiness (force) selects every Linux check with no change at all, and lists windows-only ones as not covered', () => {
   const s = select([], map, true);
-  assert.deepEqual(s.checks, ['dive-check.mjs', 'inline-ai-check.mjs']);
+  assert.deepEqual(s.checks, ['dive-check.mjs', 'inline-ai-check.mjs', 'sidebar-check.mjs']);
   assert.deepEqual(s.notCovered, ['journey-check.mjs']);
   assert.equal(s.broad, true);
 });
-test('an unmapped executable path fails selection', () => {
-  assert.deepEqual(select([{ status: 'A', path: 'packages/web/src/New.jsx' }], map).unmapped, ['packages/web/src/New.jsx']);
+test('an unmapped executable path runs the default set, is reported, and never selects everything', () => {
+  const s = select([{ status: 'A', path: 'packages/web/src/New.jsx' }], map);
+  assert.deepEqual(s.unmapped, ['packages/web/src/New.jsx']);
+  assert.deepEqual(s.checks, ['sidebar-check.mjs']);
+  assert.equal(s.broad, false);
+  assert.deepEqual(s.reasons, ['sidebar-check.mjs: packages/web/src/New.jsx (unmapped, default set)']);
 });
 test('a rename selects the checks of both the old and the new path', () => {
   const s = select([{ status: 'R', oldPath: 'packages/web/src/Dive.jsx', path: 'packages/web/src/InlineAiEditor.jsx' }], map);
@@ -82,13 +87,15 @@ test('git diff -z output: renames carry both paths, other statuses one', () => {
   assert.deepEqual(aff.parseNameStatus('R100\0a/old.js\0a/new.js\0M\0b.js\0D\0c.js\0'),
     [{ status: 'R', oldPath: 'a/old.js', path: 'a/new.js' }, { status: 'M', path: 'b.js' }, { status: 'D', path: 'c.js' }]);
 });
-test('plan: an unmapped path exits 2 and still prints the contract; a clean selection exits 0', () => {
-  const bad = aff.plan({ part: 1, of: 2, changes: [{ status: 'A', path: 'packages/web/src/New.jsx' }], map, baseline: 'b' });
-  assert.equal(bad.code, 2);
-  assert.deepEqual(bad.out.unmapped, ['packages/web/src/New.jsx']);
-  assert.match(bad.err, /packages\/web\/src\/New\.jsx/);
+test('plan: an unmapped path exits 0, runs the default set and warns with the missing mapping; a clean selection has no warning', () => {
+  const un = aff.plan({ part: 1, of: 1, changes: [{ status: 'A', path: 'packages/web/src/New.jsx' }], map, baseline: 'b' });
+  assert.equal(un.code, 0);
+  assert.deepEqual(un.out.unmapped, ['packages/web/src/New.jsx']);
+  assert.deepEqual(un.out.checks, ['sidebar-check.mjs']);
+  assert.match(un.warning, /no mapping for packages\/web\/src\/New\.jsx: ran the default set \(1 checks\); add it to scripts\/ci\/check-map\.json/);
   const ok = aff.plan({ part: 1, of: 2, changes: [{ status: 'M', path: 'packages/web/src/Dive.jsx' }], map, baseline: 'b' });
   assert.equal(ok.code, 0);
+  assert.equal(ok.warning, undefined);
   assert.deepEqual(ok.out, { part: 1, checks: ['dive-check.mjs'], reasons: ['dive-check.mjs: packages/web/src/Dive.jsx'], notCovered: [], baseline: 'b', unmapped: [] });
 });
 test('the CLI refuses a missing, non-numeric or out-of-range --part/--of with exit 2 and a usage line, before any git or gh call', () => {

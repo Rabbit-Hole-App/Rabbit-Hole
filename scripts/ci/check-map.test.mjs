@@ -83,3 +83,11 @@ test('Dive, PanelHeader and FileImportDialog select every check that drives them
   assert.ok(all('packages/web/src/PanelHeader.jsx').includes('repo-browser-check.mjs'));
   assert.ok(all('packages/web/src/FileImportDialog.jsx').includes('repo-browser-check.mjs'));
 });
+
+test('the default set for unmapped paths is a small list of existing Linux-ready checks, never the broad set', () => {
+  assert.ok(Array.isArray(map.defaultChecks) && map.defaultChecks.length > 0 && map.defaultChecks.length < 12, 'a small, non-empty default set');
+  for (const c of map.defaultChecks) {
+    assert.ok(map.checks[c], `${c} is not a known check`);
+    assert.notEqual(map.checks[c].runner, 'windows-only', `${c} does not run on Linux`);
+  }
+});

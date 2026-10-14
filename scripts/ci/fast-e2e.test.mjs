@@ -68,12 +68,13 @@ test('the stack is stopped, always, before the persist dir is uploaded', () => {
   assert.match(steps[stop], /if: always\(\)/);
   assert.match(sh, /stack\.sh" start "\$OUT\/stack"/, 'run-part.sh must start the stack in the directory the stop step cleans');
 });
-test('the selection fails the job on exit 2 and reports what the tier does not cover', () => {
+test('the selection fails the job on exit 2 (bad arguments), warns on an unmapped path, and reports what the tier does not cover', () => {
   const sel = steps[step(/affected\.mjs/)];
   assert.match(sel, /set -euo pipefail/);
   assert.doesNotMatch(sel, /affected\.mjs[^\n]*\|\| true/);
   assert.match(sel, /exit \$rc/);
   assert.match(sel, /notCovered[\s\S]*GITHUB_STEP_SUMMARY/);
+  assert.match(sel, /::warning title=Unmapped path::/, 'an unmapped path is reported as a warning annotation');
 });
 test('the GitHub token reaches only the selection step (the checks and the stack never see it)', () => {
   assert.doesNotMatch(e2e.slice(0, e2e.indexOf('steps:')), /GH_TOKEN/);
