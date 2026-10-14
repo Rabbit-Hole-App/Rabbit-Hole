@@ -163,7 +163,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           // A Learn answer reads as a document at the pane's width, no colored box (owner brief section 9); the footer is
           // its one utility row (section 10). data-answer-body is what Copy puts on the clipboard as HTML.
           <div data-answer className="group/answer min-w-0">
-            <div data-answer-body><Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
+            <div data-answer-body><Md doc text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
             {/* A Tutor syllabus (contract B6): an editable list under its answer; edits save to this message (chat-syllabus-route.js)
                 once it has its server id. */}
             {m.kind === 'syllabus' && m.meta?.syllabus && <SyllabusMessage syllabus={m.meta.syllabus} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}

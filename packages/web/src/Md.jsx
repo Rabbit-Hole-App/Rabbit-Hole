@@ -138,12 +138,13 @@ function listOf(items, key, md) {
 }
 
 const LIST_ITEM = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
-// The CSS reset draws every heading as body text, so the hierarchy needs sizes.
+// The CSS reset draws every heading as body text, so a chat answer (Md doc) needs sizes for its hierarchy. Md is shared with
+// canvas cards, lesson readers and sheets, which keep their body-sized headings: a 20px title in a small card overwhelms it.
 const HEADING_SIZE = { 1: 'text-xl', 2: 'text-lg', 3: 'text-base' };
 
 // One block's lines (a blockquote's lines recurse). first: nothing is drawn above, so a heading gets no section rule.
 function lines(ls, ctx, first) {
-  const { math, onFile, onRun, has, sourcePath } = ctx;
+  const { math, onFile, onRun, has, sourcePath, doc } = ctx;
   const md = s => inline(s, math, onFile, sourcePath, has);
   const out = [];
   let fence = null; // collecting a ``` block
@@ -186,7 +187,7 @@ function lines(ls, ctx, first) {
       const level = heading ? heading[1].length : 3, Heading = `h${level}`;
       // A long answer reads as one wall without a break before each section.
       const rule = first && !out.length ? 'mt-1' : 'mt-4 border-t border-line pt-3';
-      out.push(<Heading key={i} className={cn(rule, 'mb-1 font-semibold text-ink', HEADING_SIZE[level] || 'text-sm')}>{md(heading ? heading[2] : boldTitle[1])}</Heading>);
+      out.push(<Heading key={i} className={cn(rule, 'mb-1 font-semibold text-ink', doc && (HEADING_SIZE[level] || 'text-sm'))}>{md(heading ? heading[2] : boldTitle[1])}</Heading>);
     } else if (l.startsWith('Sources: ')) {
       out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} has={has} />);
     } else if (l.trim()) {
@@ -205,7 +206,8 @@ const Block = memo(function Block({ src, first, ...ctx }) {
   return lines(source.split('\n'), { ...ctx, math }, first);
 });
 
-export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text) }) {
+// doc: the text is a document in its own pane (a Chat answer), so headings get sizes; everywhere else they stay body-sized.
+export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false }) {
   const refs = useContext(CodeRefs);
   // Where the caller links files at all (an onFile), a repository context's own reader takes the click and its snapshot decides.
   const onFile = given && refs ? refs.open : given, has = given && refs ? refs.has : null;
@@ -218,7 +220,7 @@ export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(t
   const cited = onFile ? citedSources(text).filter(c => linkable(c, has)) : [];
   return (
     <div className="min-w-0 text-sm leading-normal">
-      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} />)}
+      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} doc={doc} />)}
       {cited.length > 0 && <details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
         <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source aria-label={referenceLabel(c)} title={referenceLabel(c)} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>}
     </div>
