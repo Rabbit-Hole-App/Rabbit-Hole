@@ -16,7 +16,9 @@ object, sticky note, equation, a group, or several objects, and for nothing else
   note, an equation's size ladder, a text shape's ladder - the two actions join that row as its **trailing segment** (a thin rule
   before it where other controls come first): `SelectionActionsHost`. Everything else (a shape without text, a group, several objects, a
   card with no such row) gets the **floating bar** anchored just above the selection, right-aligned to it, with a small gap
-  (`placeBar` in `selection-bar-place.js`): below when there is no room above, kept inside the view, never over the selection. A host
+  (`placeBar` in `selection-bar-place.js`): below when there is no room above, kept inside the view, never over the selection. A whole group's selection is its outline with its name chip, so the bar
+  sits above the chip, never over it (the chip keeps its rename and its right-click Add comment), and the group's comment pins share
+  the bar's row (r38 comments-check 16). A host
   registers itself, and the floating bar stands down while any host shows, so two bars are never drawn. The style island at the left
   is a side panel, not a bar over the selection; nothing is added to it.
 - **Hidden** while the inline editor is open, while presenting, on a view-only board, with nothing selected (and for a lone empty text

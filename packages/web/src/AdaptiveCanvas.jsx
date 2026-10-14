@@ -1332,6 +1332,9 @@ function ToolButton({ value, Icon, label, hint, active, onPick }) {
   );
 }
 
+// A group's outline sits GROUP_PAD outside its members; its name chip's row starts GROUP_CHIP above the outline.
+const GROUP_PAD = 12, GROUP_CHIP = 28;
+
 // The name tag of a group, floating just above its top-left corner. Click
 // selects the whole group; double-click renames it in place.
 function GroupChip({ group, onSelect, onLabel, editOn = false }) {
@@ -3295,8 +3298,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const members = groupMembers[id];
     const boxes = boxesOf(members || [id]);
     if (!boxes.length) return null;
-    const pad = members ? 12 : 0; // a group's outline sits 12 outside its members, and its pill row above that
+    const pad = members ? GROUP_PAD : 0; // a group's outline sits outside its members, and its pill row above that
     const top = Math.min(...boxes.map(box => box.y)) - pad, right = Math.max(...boxes.map(box => box.x + box.w)) + pad;
+    // A group's actions float above its name chip at screen size (barAnchor below: placeBar's 8 px gap, a 34 px bar), so its
+    // pins share that row at any zoom.
+    if (members) return { right: right - PILL.ask / view.z, top: top - GROUP_CHIP - 42 / view.z, height: 34 / view.z };
     return { right: right - pillRow(id), top: top - 40, height: 30 };
   };
   const pickedPin = pinPick ? commentPins?.find(pin => pin.id === pinPick && !pin.ghost) || null : null;
@@ -4301,8 +4307,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }
   // The selection action bar's anchor (SelectionActions.jsx): the selection's box in the surface's pixels. A lone empty text box has
   // nothing to add, so it gets none.
+  // A whole group's box is its outline with the name chip's row, so the bar sits above the chip, never over it: the chip keeps
+  // its press, its rename and its right-click menu (Add comment).
   const emptyText = id => { const entry = items.find(item => item.id === id); return !!entry && entry.kind !== 'equation' && !String(entry.text || '').trim(); };
-  const barAnchor = tool === 'select' && selection.some(id => !emptyText(id)) ? anchorOf(boxesOf(selection), view) : null;
+  const barBoxes = boxesOf(selection);
+  if (selectedGroup && barBoxes.length) {
+    const { left, top, right, bottom } = anchorOf(barBoxes, { x: 0, y: 0, z: 1 });
+    barBoxes.push({ x: left - GROUP_PAD, y: top - GROUP_PAD - GROUP_CHIP, w: right - left + GROUP_PAD * 2, h: bottom - top + GROUP_PAD * 2 + GROUP_CHIP });
+  }
+  const barAnchor = tool === 'select' && selection.some(id => !emptyText(id)) ? anchorOf(barBoxes, view) : null;
   // The room it may use ends where the bottom chrome (zoom, composer) begins, under the bar's width.
   const barBox = { w: surface.current?.clientWidth || 1200, h: surface.current && barAnchor ? chromeTop(barAnchor.right - 300, barAnchor.right) : 800 };
   return (
@@ -4521,7 +4534,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             if (member.x !== undefined) grow(member.x, member.y, member.w || (member.kind === 'sticky' ? 160 : 220), member.h || (member.kind === 'sticky' ? 160 : 40));
           }
           if (!Number.isFinite(left)) return null;
-          const pad = 12;
+          const pad = GROUP_PAD;
           const active = members.some(member => selection.includes(member.id));
           const portal = divePortals?.portals?.[group.id];
           return (
@@ -4543,7 +4556,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   let last = local(event);
                   startDrag(event, last, (x, y) => { shift(x - last.x, y - last.y, targets); last = { x, y }; }, view.z);
                 }} />
-              <div style={{ left: left - pad, top: top - pad - 28 }} className="absolute z-20 flex items-center gap-1">
+              <div style={{ left: left - pad, top: top - pad - GROUP_CHIP }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
