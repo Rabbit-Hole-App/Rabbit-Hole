@@ -42,7 +42,7 @@ const check = (label, ok) => { assert.ok(ok, label); results.push(label); consol
 const shot = name => page.screenshot({ path: `${OUT}/${name}.png` });
 const cards = () => page.locator('[data-chat-block]').count();
 const sheet = page.locator('[data-chat-sheet]');
-const input = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"]), [data-learn-dock] [data-chat-composer] textarea').first();
+const input = page.locator('[data-chat-pane] [data-chat-composer] input:not([type="file"]), [data-chat-pane] [data-chat-composer] textarea').first();
 const send = async (text, response) => { plan = response; await input.fill(text); await input.press('Enter'); await page.waitForTimeout(900); };
 const say = text => ({ actions: [{ type: 'respond_text', text }] });
 const pick = async id => {

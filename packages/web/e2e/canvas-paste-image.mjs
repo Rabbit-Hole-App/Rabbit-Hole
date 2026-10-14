@@ -76,7 +76,7 @@ await page.keyboard.press('Control+v');
 check('a newer image copy pastes the image', await settle('file', 2) === 2 && await count('explanation') === 2);
 
 // 4. typing in the composer keeps its own paste
-const composer = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"])').first();
+const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 await composer.click();
 await page.keyboard.press('Control+v');
 await page.waitForTimeout(1200);

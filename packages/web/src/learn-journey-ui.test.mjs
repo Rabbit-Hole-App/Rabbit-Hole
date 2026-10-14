@@ -201,15 +201,15 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   assert.match(ask, /tray\?\.tray\?\.free_text \? 'Type your answer, or ask anything'/);
 });
 
-test('LearnPage.jsx: useJourney off the nanoGPT course, its props on the dock composer, and useTutor takes the journey', () => {
+test('LearnPage.jsx: useJourney off the nanoGPT course, its props on the Chat composer, and useTutor takes the journey', () => {
   const page = read('LearnPage.jsx');
   // Canvases only (the route refuses repository apps, the nanoGPT course among them), and never a pending hole, which has
   // no canvas row yet.
   assert.match(page, /const journey = useJourney\(\{ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole \}\)/);
-  assert.match(page, /journey=\{journey\} journeyStarter=\{journey\.journey \? null : journey\.start\} journeySetup=\{inJourneySetup\(journey\.journey\)\} tray=\{journey\.trayProps\}/);
-  // LP1 Task 12: the journey reaches useTutor, so the dock's tutor prop is the Tutor on a journey canvas (D1).
+  assert.match(page, /journey, journeyStarter: journey\.journey \? null : journey\.start, journeySetup: inJourneySetup\(journey\.journey\), tray: journey\.trayProps/);
+  // LP1 Task 12: the journey reaches useTutor, so the Chat's tutor prop is the Tutor on a journey canvas (D1).
   assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock \}\);/);
-  assert.match(page, /tutor=\{tutor\.active \? tutor : null\} journey=\{journey\}/);
+  assert.match(page, /tutor: tutor\.active \? tutor : null, journey,/);
 });
 
 // ---- journeyController: the hook's behaviour, driven with a fake fetchJson (no network) ----

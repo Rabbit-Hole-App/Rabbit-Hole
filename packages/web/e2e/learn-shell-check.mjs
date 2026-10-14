@@ -28,13 +28,13 @@ for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['ph
   for (const [route, path] of Object.entries(ROUTES)) {
     const page = await context.newPage();
     await page.goto(`${BASE}${path}`);
-    const composer = page.locator('[data-learn-dock] [data-chat-composer]').first();
+    const composer = page.locator('[data-chat-pane] [data-chat-composer]').first();
     await composer.waitFor({ timeout: 60000 });
     await page.waitForTimeout(2000);
     const at = `${label} ${route}`;
     const m = await page.evaluate(() => {
       const box = node => { const r = node?.getBoundingClientRect(); return r && { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; };
-      const form = document.querySelector('[data-learn-dock] [data-chat-composer]');
+      const form = document.querySelector('[data-chat-pane] [data-chat-composer]');
       const style = getComputedStyle(form);
       return {
         form: box(form), zoom: box(document.querySelector('[data-zoom]')),
