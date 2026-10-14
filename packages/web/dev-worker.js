@@ -6,6 +6,7 @@ import { contextDocsFetch, contextDocsRoute } from '../control-plane/src/learn-c
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 import { libraryTrashFetch, libraryTrashRoute } from '../control-plane/src/library-trash.js';
 import { chatMessageFetch, chatMessageRoute } from '../control-plane/src/chat-message-routes.js';
+import { chatSyllabusFetch } from '../control-plane/src/chat-syllabus-route.js';
 import { libraryFoldersFetch, libraryFoldersRoute } from '../control-plane/src/library-folders.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
@@ -92,6 +93,7 @@ export default {
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
     if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);
     if (chatMessageRoute(path)) return chatMessageFetch(req, env); // the answer footer's thumbs and alternatives (chat-message-routes.js)
+    { const syllabus = await chatSyllabusFetch(req, env); if (syllabus) return syllabus; } // a Tutor syllabus edit (chat-syllabus-route.js); null for any other path
     // Settings > Profile: the person's own name and picture (LEARN_DB user_profiles).
     if (profileRoute(new URL(req.url))) return profileFetch(req, env);
     // Canvas context documents (docs/features/canvas-context-docs.md): upload, list, toggle, delete.

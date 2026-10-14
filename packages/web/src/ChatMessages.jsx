@@ -7,6 +7,7 @@ import { waitingText } from './waiting-text.js';
 import AnswerFooter, { getAnswerAlternative } from './AnswerFooter.jsx';
 import { cn } from './ui.jsx';
 import AnswerSuggestions from './AnswerSuggestions.jsx';
+import SyllabusMessage from './SyllabusMessage.jsx';
 
 // Phase 2 proposal card: what will happen with the exact inputs; nothing runs
 // until Run posts the approval. Change hands the args back to the input box.
@@ -162,6 +163,9 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           // its one utility row (section 10). data-answer-body is what Copy puts on the clipboard as HTML.
           <div data-answer className="group/answer min-w-0">
             <div data-answer-body><Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
+            {/* A Tutor syllabus (contract B6): an editable list under its answer; edits save to this message (chat-syllabus-route.js)
+                once it has its server id. */}
+            {m.kind === 'syllabus' && m.meta?.syllabus && <SyllabusMessage syllabus={m.meta.syllabus} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
               onAddAsCard={onAddToCanvas && addAsCard} onLocateCard={onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added}
               onRegenerate={onRegenerate} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
@@ -171,7 +175,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
         {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
 </>
       ) : (
-        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.status)}</span></span>
+        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.stage ?? m.status)}</span></span>
       )}
     </div>
   );

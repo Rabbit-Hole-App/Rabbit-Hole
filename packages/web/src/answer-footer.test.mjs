@@ -104,7 +104,7 @@ test('canvas insertChat takes the card id, markdown and sources, and locates an 
 // The assistant answer wrapper in ChatMessages.jsx (brief section 9: no prominent colored box; section 10: the footer).
 test('a Learn answer is a plain document with the footer under it: no accent box, one Copy, Add as card, Regenerate on the latest only', () => {
   const msgs = [{ role: 'user', content: 'Why?' }, answer({ messageId: '807', status: undefined, meta: { alternatives: ['807'] } }), { role: 'user', content: 'And?' }, answer({ status: 'thinking' })];
-  const chat = (props = {}) => B.renderToStaticMarkup(B.createElement('div', null, B.ChatMessages({ msgs, learnChat: true, busy: false, onAddToCanvas: () => {}, onRegenerate: () => {}, setMsgs: () => {}, setFilePeek: () => {}, setRunPeek: () => {}, ...props })));
+  const chat = (props = {}) => B.renderToStaticMarkup(B.createElement('div', null, B.createElement(B.ChatMessages, { msgs, learnChat: true, busy: false, onAddToCanvas: () => {}, onRegenerate: () => {}, setMsgs: () => {}, setFilePeek: () => {}, setRunPeek: () => {}, ...props })));
   const html = chat();
   assert.doesNotMatch(html, /border-accent\/30/, 'no colored box around the answer');
   assert.equal((html.match(/data-answer-footer/g) || []).length, 2);
