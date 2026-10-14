@@ -125,16 +125,53 @@ test('a green newest attempt whose artifact is missing fails; the older attempt 
   assert.equal(r.receipt.attempts['shard-2'], 2);
 });
 
-test('a part a rerun did not rerun, with no artifact from the attempt it ran in, fails naming the part and that attempt', () => {
-  const c = collectRun('missing-carried', 2, listing(2, { 'shard-5': [1, 2] }));
-  for (const p of PARTS) if (p !== 'units' && p !== 'checkpoints') put(c.input, p, 1);
-  put(c.input, 'shard-5', 2);
+// The real job listings (rerun-listings.json). In 38616535709 shards 5-7 failed at 1 and were rerun at 2; its collect read
+// all nine parts at attempt 2 before this fix.
+const listings = JSON.parse(readFileSync(new URL('./rerun-listings.json', import.meta.url), 'utf8'));
+const ran38616535709 = p => (['shard-5', 'shard-6', 'shard-7'].includes(p) ? 2 : 1);
+test('run 38616535709 attempt 2: every part is read from the attempt it ran in, with that attempt grant', () => {
+  const c = collectRun('real-38616535709', 2, listings['38616535709']);
+  for (const p of PARTS) put(c.input, p, ran38616535709(p));
+  for (const p of ['shard-5', 'shard-6', 'shard-7']) put(c.input, p, 1, { pass: false, failure: 'stale' });
+  const r = c.go();
+  assert.equal(r.failures.length, 1, r.failures.join('\n'));
+  assert.match(r.failures[0], /^merge: /);
+  assert.deepEqual(r.verdict.attempts, Object.fromEntries(PARTS.map(p => [p, ran38616535709(p)])));
+});
+
+test('drill 2: a part a rerun did not rerun, with no artifact from the attempt it ran in, fails naming the part and that attempt', () => {
+  const c = collectRun('missing-carried', 2, listings['38616535709']);
+  for (const p of PARTS) if (p !== 'units' && p !== 'checkpoints') put(c.input, p, ran38616535709(p));
   const r = c.go();
   assert.ok(r.failures.includes(`units (attempt 1): receipt missing from r36-windows-units-${sha}-1`), r.failures.join('\n'));
   assert.ok(r.failures.includes('units (attempt 1): gate-shard.log missing'), r.failures.join('\n'));
   assert.ok(r.failures.includes(`checkpoint (attempt 1): Required dive receipt missing from r36-windows-dive-${sha}-1`), r.failures.join('\n'));
-  assert.deepEqual(r.verdict.attempts, Object.fromEntries(PARTS.map(p => [p, p === 'shard-5' ? 2 : 1])));
+  assert.deepEqual(r.verdict.attempts, Object.fromEntries(PARTS.map(p => [p, ran38616535709(p)])));
   assert.equal(r.verdict.gateVerdict, 'not computed: shard records incomplete');
+  assert.equal(r.status, 1);
+});
+
+test('a record from another run, another commit or tree, or another attempt of this run fails, naming the part and its attempt', () => {
+  const c = collectRun('unrelated', 2, listings['38616535709']);
+  for (const p of PARTS) put(c.input, p, ran38616535709(p));
+  put(c.input, 'shard-1', 1, { grant: 'r36-windows-8-1' }); // another run
+  put(c.input, 'shard-2', 1, { applicationSha: 'd'.repeat(40) }); // another commit
+  put(c.input, 'shard-3', 1, { applicationTree: 'e'.repeat(40) }); // another tree
+  put(c.input, 'shard-5', 2, { grant: `r36-windows-${RUN}-1` }); // shard-5 ran in attempt 2; a receipt granted to attempt 1 is stale
+  put(c.input, 'checkpoints', 1, { grant: `r36-windows-${RUN}-2` });
+  const r = c.go();
+  for (const f of ['shard-1 (attempt 1): identity mismatch: grant', 'shard-2 (attempt 1): identity mismatch: applicationSha',
+    'shard-3 (attempt 1): identity mismatch: applicationTree', 'shard-5 (attempt 2): identity mismatch: grant',
+    'checkpoint (attempt 1): Prerequisite identity mismatch: grant']) assert.ok(r.failures.includes(f), `${f}\n${r.failures.join('\n')}`);
+  assert.equal(r.status, 1);
+});
+
+test('run 38619263836 (drill 5): a cancelled run fails closed, naming each cancelled part and its attempt', () => {
+  const c = collectRun('cancelled', 1, listings['38619263836']);
+  for (const p of PARTS) put(c.input, p, 1); // even passing receipts never stand in for a cancelled job
+  const r = c.go();
+  for (const p of PARTS.filter(p => p !== 'units')) assert.ok(r.failures.includes(`${p}: newest attempt 1 cancelled`), r.failures.join('\n'));
+  assert.equal(r.verdict.pass, false);
   assert.equal(r.status, 1);
 });
 

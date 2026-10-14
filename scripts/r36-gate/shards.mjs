@@ -104,16 +104,27 @@ export const retriedStages = text => [...text.matchAll(/^([^:\r\n]+): retried \(
 // each stage's lines (everything after the previous stage's exit line up to its own) in ORDER, then every shard's
 // closing lines and one -DONE line. Throws on an unfinished record, a different tree line, a stage outside its shard,
 // a duplicate or a missing stage (a conditional one is missing only when the tree carries its check).
-export function mergeShards(logs, inTree = () => true, unitsLog = null) {
+// A failed-only rerun mixes attempts of one run, and each part's preflight line names the grant of the attempt it ran in
+// (r36-windows-<run id>-<attempt>). So the parts' heads (units included) are compared with only that attempt number set
+// aside, never the run id, and grants ({ units, 'shard-1', ... }; collect.mjs passes each part's) is the exact grant
+// each record must carry.
+const GRANT = /; grant ([^;\r\n]+);/, ATTEMPT = /(; grant r36-windows-\d+-)\d+;/;
+const headOf = (name, lines, want) => {
+  const text = meaningful(lines), grant = text.match(GRANT)?.[1];
+  if (want !== undefined && grant !== want) throw Error(`${name} record has grant ${grant}, expected ${want}`);
+  return text.replace(ATTEMPT, '$1<attempt>;');
+};
+export function mergeShards(logs, inTree = () => true, unitsLog = null, grants = {}) {
   if (logs.length !== SHARDS.length) throw Error(`Expected ${SHARDS.length} shard records, got ${logs.length}`);
   const chunks = new Map(), closing = [];
-  let head;
+  let head, first;
   logs.forEach((log, k) => {
     const lines = log.replace(/\n$/, '').split('\n');
     const tree = lines.findIndex(l => l.startsWith('tree HEAD ')), done = lines.findLastIndex(l => l.trim());
     if (tree < 0 || !/-DONE\r?$/.test(lines[done])) throw Error(`Shard ${k + 1} record is unfinished (no tree line or -DONE line)`);
-    if (!head) head = lines.slice(0, tree + 1);
-    else if (meaningful(lines.slice(0, tree + 1)) !== meaningful(head)) throw Error(`Shard ${k + 1} record has a different preflight or tree line`);
+    const mine = headOf(`Shard ${k + 1}`, lines.slice(0, tree + 1), grants[`shard-${k + 1}`]);
+    if (!head) { head = lines.slice(0, tree + 1); first = mine; }
+    else if (mine !== first) throw Error(`Shard ${k + 1} record has a different preflight or tree line`);
     let chunk = [];
     for (const line of lines.slice(tree + 1, done)) {
       chunk.push(line);
@@ -127,7 +138,9 @@ export function mergeShards(logs, inTree = () => true, unitsLog = null) {
   });
   // The units part's record supplies UNIT_STAGES (it runs them; no shard does).
   if (unitsLog !== null) {
-    for (const line of unitsLog.split('\n')) { const s = line.match(STAGE_EXIT)?.[1]; if (UNIT_STAGES.includes(s)) { if (chunks.has(s)) throw Error(`Stage ${s} is duplicated`); chunks.set(s, [line]); } }
+    const lines = unitsLog.replace(/\n$/, '').split('\n'), tree = lines.findIndex(l => l.startsWith('tree HEAD '));
+    if (headOf('Units', lines.slice(0, tree + 1), grants.units) !== first) throw Error('Units record has a different preflight or tree line');
+    for (const line of lines) { const s = line.match(STAGE_EXIT)?.[1]; if (UNIT_STAGES.includes(s)) { if (chunks.has(s)) throw Error(`Stage ${s} is duplicated`); chunks.set(s, [line]); } }
   }
   const missing = ORDER.filter(s => !chunks.has(s) && !(CONDITIONAL[s] && !inTree(CONDITIONAL[s])));
   if (missing.length) throw Error(`Stages missing from the shard records: ${missing.join(', ')}`);

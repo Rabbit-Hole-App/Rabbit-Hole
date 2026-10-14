@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { pickAttempts, jobsOf, runJobs } from './attempts.mjs';
 const parts = ['units', 'shard-1', 'shard-2'];
 test('a part not rerun keeps its attempt; a rerun part uses its newest attempt', () => {
@@ -25,25 +26,36 @@ test('a matrix job outside the required parts must still have a successful newes
   assert.deepEqual(pickAttempts([...ok, { part: 'shard-8', runAttempt: 1, conclusion: 'failure' }, { part: 'shard-8', runAttempt: 2, conclusion: 'success' }], parts), { attempts: { units: 1, 'shard-1': 1, 'shard-2': 1 }, errors: [] });
 });
 
-// Run 38616535709 as GitHub lists it (filter=all) after `gh run rerun --failed`: attempt 2 lists every part again, the six
-// it did not rerun with run_attempt 2 but the runner and start of their attempt 1 run. Before this fix collect read all nine
-// parts at attempt 2 and found no units, checkpoint or shard-1..4 artifact there.
-const rerun38616535709 = [
-  ['run (shard-2)', 1, 'success', 1000000626, '18:36:12'], ['run (shard-4)', 1, 'success', 1000000625, '18:36:12'],
-  ['run (shard-3)', 1, 'success', 1000000631, '18:36:13'], ['run (units)', 1, 'success', 1000000624, '18:36:12'],
-  ['run (shard-7)', 1, 'failure', 1000000628, '18:36:12'], ['run (shard-5)', 1, 'failure', 1000000627, '18:36:15'],
-  ['run (shard-6)', 1, 'failure', 1000000630, '18:36:13'], ['run (shard-1)', 1, 'success', 1000000632, '18:36:13'],
-  ['run (checkpoints)', 1, 'success', 1000000629, '18:36:13'], ['collect', 1, 'failure', 1000000635, '18:48:23'],
-  ['run (shard-5)', 2, 'success', 1000000636, '18:49:38'], ['run (shard-7)', 2, 'success', 1000000638, '18:49:38'],
-  ['run (shard-6)', 2, 'success', 1000000637, '18:49:38'], ['run (shard-2)', 2, 'success', 1000000626, '18:36:12'],
-  ['run (checkpoints)', 2, 'success', 1000000629, '18:36:13'], ['run (shard-1)', 2, 'success', 1000000632, '18:36:13'],
-  ['run (shard-3)', 2, 'success', 1000000631, '18:36:13'], ['run (shard-4)', 2, 'success', 1000000625, '18:36:12'],
-  ['run (units)', 2, 'success', 1000000624, '18:36:12'], ['collect', 2, 'failure', 1000000651, '19:00:22'],
-].map(([name, run_attempt, conclusion, runner_id, t]) => ({ name, run_attempt, conclusion, runner_id, started_at: `2026-10-14T${t}Z` }));
-test('a failed-only rerun reads a part it did not rerun from the attempt that part ran in (run 38616535709)', () => {
-  const all = ['units', 'checkpoints', ...[1, 2, 3, 4, 5, 6, 7].map(k => `shard-${k}`)];
-  assert.deepEqual(pickAttempts(jobsOf(rerun38616535709), all), {
-    attempts: { units: 1, checkpoints: 1, 'shard-1': 1, 'shard-2': 1, 'shard-3': 1, 'shard-4': 1, 'shard-5': 2, 'shard-6': 2, 'shard-7': 2 }, errors: [] });
+// Real job listings (gh api .../runs/<id>/jobs?filter=all, rerun-listings.json), as GitHub lists every part again under
+// a rerun's new run_attempt: a part the rerun did not rerun keeps the runner and start of the run it copies.
+const listings = JSON.parse(readFileSync(new URL('./rerun-listings.json', import.meta.url), 'utf8'));
+const ALL = ['units', 'checkpoints', ...[1, 2, 3, 4, 5, 6, 7].map(k => `shard-${k}`)];
+const at = twos => Object.fromEntries(ALL.map(p => [p, twos.includes(p) ? 2 : 1]));
+// 38616535709: shards 5-7 failed at 1 and passed rerun at 2. Before this fix collect read all nine parts at attempt 2 and
+// found no units, checkpoint or shard-1..4 artifact there (drill 2's real case).
+test('run 38616535709: a failed-only rerun reads a part it did not rerun from the attempt that part ran in', () => {
+  assert.deepEqual(pickAttempts(jobsOf(listings['38616535709']), ALL), { attempts: at(['shard-5', 'shard-6', 'shard-7']), errors: [] });
+});
+// 38624979369, the proof run: attempt 1 failed checkpoints, shard-2 (canary), shard-6 and shard-7; attempt 2 reran only those.
+const proof = listings['38624979369'], rerun = ['checkpoints', 'shard-2', 'shard-6', 'shard-7'];
+test('run 38624979369 attempt 1 (drill 1): each failed part fails, naming the part and its attempt', () => {
+  const r = pickAttempts(jobsOf(proof.filter(j => j.run_attempt === 1)), ALL);
+  assert.deepEqual(r, { attempts: at([]), errors: rerun.map(p => `${p}: newest attempt 1 failure`) });
+});
+test('run 38624979369 attempt 2 (drill 3): the rerun parts come from attempt 2, the passed parts from attempt 1', () => {
+  assert.deepEqual(pickAttempts(jobsOf(proof), ALL), { attempts: at(rerun), errors: [] });
+});
+test('drill 4: a rerun part that fails again fails, and an older pass never stands in for a newer failure', () => {
+  const again = proof.map(j => j.name === 'run (shard-7)' && j.run_attempt === 2 ? { ...j, conclusion: 'failure' } : j);
+  assert.deepEqual(pickAttempts(jobsOf(again), ALL), { attempts: at(rerun), errors: ['shard-7: newest attempt 2 failure'] });
+  // Attempt 3 reruns shard-1, which passed at 1 (Re-run this job), and it fails: the attempt-1 pass is stale.
+  const stale = [...proof, ...proof.filter(j => j.run_attempt === 2).map(j => j.name === 'run (shard-1)'
+    ? { ...j, run_attempt: 3, conclusion: 'failure', runner_id: 1000000900, started_at: '2026-10-14T20:10:00Z' } : { ...j, run_attempt: 3 })];
+  assert.deepEqual(pickAttempts(jobsOf(stale), ALL), { attempts: { ...at(rerun), 'shard-1': 3 }, errors: ['shard-1: newest attempt 3 failure'] });
+});
+test('run 38619263836 (drill 5): a cancelled run fails closed, naming every cancelled part and its attempt', () => {
+  const r = pickAttempts(jobsOf(listings['38619263836']), ALL);
+  assert.deepEqual(r.errors, ALL.filter(p => p !== 'units').map(p => `${p}: newest attempt 1 cancelled`));
 });
 test('a part rerun twice is read from its newest run, and jobs that never started are never taken for one run', () => {
   const ran = (part, run_attempt, conclusion, runner_id, started_at) => ({ name: `run (${part})`, run_attempt, conclusion, runner_id, started_at });

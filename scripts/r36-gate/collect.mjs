@@ -82,7 +82,8 @@ if (retried.length > maxRetriesPerGate) failures.push(`instability: ${retried.le
 let verdict = 'not computed: shard records incomplete', extraPassed = false;
 if ([units, ...shards].every(s => s.log !== null)) {
   try {
-    const record = mergeShards(shards.map(s => s.log), inTree, units.log);
+    // Each part's record must carry the grant of the attempt it ran in (a failed-only rerun mixes attempts of this run).
+    const record = mergeShards(shards.map(s => s.log), inTree, units.log, Object.fromEntries(PARTS.map(p => [p, identityOf(p).grant])));
     writeFileSync(join(out, 'gate.log'), record);
     // Identical to run.mjs's gate phase verdict.
     const { gateVerdict, stageCount } = await import(pathToFileURL(join(app, 'scripts/dev-deploy.mjs')));

@@ -123,6 +123,29 @@ test('the merged record keeps every stage line in the unsharded order and refuse
   assert.match(mergeShards(logs.with(naming, logs[naming].replace('naming exit 0  7/7', 'naming exit 1  0/0')), () => true, unitsLog), /^naming exit 1 {2}0\/0 checks passed$/m);
 });
 
+// A failed-only rerun of run 77: units and shards 1, 3, 4, 5 ran in attempt 1, the rest in attempt 2 (run 38624979369
+// attempt 2 failed collect with "Shard 2 record has a different preflight or tree line" before this).
+test('a failed-only rerun merges parts from different attempts of one run, each carrying the grant of the attempt it ran in', () => {
+  const ranIn = { units: 1, 'shard-1': 1, 'shard-2': 2, 'shard-3': 1, 'shard-4': 1, 'shard-5': 1, 'shard-6': 2, 'shard-7': 2 };
+  const grants = Object.fromEntries(Object.entries(ranIn).map(([p, a]) => [p, `r36-windows-77-${a}`]));
+  const granted = (log, grant) => log.replace('; grant g;', `; grant ${grant};`);
+  const shards = SHARDS.map((_, k) => granted(shardLog(k), grants[`shard-${k + 1}`])), units = granted(unitsLog, grants.units);
+  assert.match(mergeShards(shards, () => true, units, grants), /^INT35 preflight: candidate x; grant r36-windows-77-1; ok\.$/m);
+  // Each record's grant is the one of the attempt its part ran in, never another attempt's.
+  assert.throws(() => mergeShards(shards.with(1, granted(shardLog(1), 'r36-windows-77-1')), () => true, units, grants), /Shard 2 record has grant r36-windows-77-1, expected r36-windows-77-2/);
+  assert.throws(() => mergeShards(shards, () => true, granted(unitsLog, 'r36-windows-77-2'), grants), /Units record has grant r36-windows-77-2, expected r36-windows-77-1/);
+  // Another run is never merged, with or without the expected grants.
+  const otherRun = shards.with(1, granted(shardLog(1), 'r36-windows-78-2'));
+  assert.throws(() => mergeShards(otherRun, () => true, units, grants), /Shard 2 record has grant r36-windows-78-2, expected r36-windows-77-2/);
+  assert.throws(() => mergeShards(otherRun, () => true, units), /Shard 2 record has a different preflight or tree line/);
+  // Another tree or candidate, or any other preflight difference, still fails, naming the part.
+  const otherTree = TREE.replace('b'.repeat(40), 'c'.repeat(40));
+  assert.throws(() => mergeShards(shards.with(1, shards[1].replace(TREE, otherTree)), () => true, units, grants), /Shard 2 record has a different preflight or tree line/);
+  assert.throws(() => mergeShards(shards.with(1, shards[1].replace('candidate x', 'candidate y')), () => true, units, grants), /Shard 2 record has a different preflight or tree line/);
+  assert.throws(() => mergeShards(shards, () => true, units.replace(TREE, otherTree), grants), /Units record has a different preflight or tree line/);
+  assert.throws(() => mergeShards(shards, () => true, units.replace('; ok.', '; skipped.'), grants), /Units record has a different preflight or tree line/);
+});
+
 test('the units record supplies the two unit stages; a shard record carrying one fails', () => {
   const head = 'INT35 preflight: x\ntree HEAD abc MERGE_HEAD  index t\n';
   const unitsLog = head + 'make test-unit exit 0  ℹ tests 1 ℹ fail 0\nfixture regression exit 0  # pass 5 # fail 0\nINT35-DONE\n';
