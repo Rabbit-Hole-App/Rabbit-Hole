@@ -403,3 +403,40 @@ export const clippedOf = context => context.target.ids.filter(id => !context.tar
 // The compact, content-free shape of a context for telemetry (A3/A5): counts only.
 export const contextShape = context => ({ objects: context.size.objects, chars: context.size.chars, counts: context.counts,
   omitted: Object.values(context.omitted).reduce((sum, n) => sum + n, 0), selectionOnly: context.selectionOnly });
+
+// ---------- Whole-canvas context for every canvas-chat turn (agent-coordination/tasks/2026-10-14-whole-canvas-context-OWNER.md) ----------
+// STUB (Lane A lead): the signature and the package shape are fixed; A-core replaces both bodies with the budget policy of
+// contract v1.1. A-wire codes against these exports.
+
+// The live board ({ shapes, items, links, blocks, groups, exchanges, boxes }, unsaved editor words already overlaid) as the
+// builder's inputs: objects { id, type, kind?, text?, label?, x, y, w, h, group_id? }, connectors { id, from, to, label?,
+// explicit }, groups { id, label, member_ids }.
+export function boardObjects(board) {
+  const boxes = board.boxes || {};
+  const at = id => boxes[id] || { x: 0, y: 0, w: 0, h: 0 };
+  const objects = [
+    ...(board.blocks || []).map(block => ({ id: block.id, type: 'card', kind: block.type, text: String(block.title ?? block.question ?? ''), ...at(block.id), ...(block.groupId ? { group_id: block.groupId } : {}) })),
+    ...(board.items || []).map(item => ({ id: item.id, type: item.kind === 'equation' ? 'equation' : 'text', kind: item.kind, text: String(item.latex ?? item.text ?? ''), ...at(item.id), ...(item.groupId ? { group_id: item.groupId } : {}) })),
+    ...(board.shapes || []).map(shape => ({ id: shape.id, type: 'shape', kind: shape.kind, text: String(shape.text ?? ''), ...at(shape.id), ...(shape.groupId ? { group_id: shape.groupId } : {}) })),
+  ];
+  const connectors = (board.links || []).map(link => ({ id: link.id, from: link.from, to: link.to, ...(link.label ? { label: String(link.label) } : {}), explicit: true }));
+  const groups = (board.groups || []).map(group => ({ id: group.id, label: String(group.label ?? group.title ?? ''), member_ids: objects.filter(o => o.group_id === group.id).map(o => o.id) }));
+  return { objects, connectors, groups };
+}
+
+export function buildCanvasContext({ objects = [], connectors = [], groups = [], title = null, request = '', history = [], selection = [], attachments = [], budgetChars = 16000, maxItems = 300, includesUnsaved = true } = {}) {
+  void request; void history; void selection; void attachments;
+  const items = objects.slice(0, maxItems).map(o => ({ id: o.id, type: o.type, ...(o.kind ? { kind: o.kind } : {}), label: String(o.label ?? o.text ?? '').slice(0, 80), ...(o.group_id ? { group_id: o.group_id } : {}) }));
+  const counts = {};
+  for (const o of objects) counts[o.type] = (counts[o.type] || 0) + 1;
+  const used = items.reduce((sum, item) => sum + item.label.length, 0);
+  return {
+    version: 1, built_at: new Date().toISOString(), includes_unsaved: !!includesUnsaved, title: title == null ? null : String(title).slice(0, 200),
+    inventory: { counts, items, omitted_items: Math.max(0, objects.length - items.length) },
+    excerpts: [],
+    relations: { explicit: connectors.filter(c => c.explicit).map(c => ({ from: c.from, to: c.to, ...(c.label ? { label: c.label.slice(0, 80) } : {}) })), inferred: [] },
+    coverage: { objects_total: objects.length, listed: items.length, included_full: 0, included_partial: 0, media_inspected: 0, unavailable_or_omitted: objects.length - items.length,
+      items: items.map(item => ({ id: item.id, type: item.type, status: 'listed' })), reserved_chars: used, budget_chars: budgetChars, used_chars: used,
+      summary: `${items.length} objects listed (stub)` },
+  };
+}
