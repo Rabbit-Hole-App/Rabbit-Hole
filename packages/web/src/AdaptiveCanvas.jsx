@@ -3287,11 +3287,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     commentAt({ x: x + Math.min(24, w / 2), y: y + Math.min(24, h / 2) }, whole ? gid : ids[0]);
     return true;
   } : null;
-  // The pin slot (owner, 2026-10-08): an object's thread pins sit in a row ending just left of its pill row - the selection actions,
-  // and the pills a few cards add beside it - above its top right, whether it is selected or not, so a pin never covers a
-  // pill. In world units: where the reserved row starts (`right`), its top and height. A dropped image, a text box and a
-  // sticky note have the same Ask in chat (r35); a shape keeps the slot it would take. PILL: the pills' rendered widths,
-  // with a little room.
+  // The pin slot (owner, 2026-10-08): an object's thread pins sit just left of its pill row - the selection actions, and the
+  // pills a few cards add beside it - whether it is selected or not, so a pin never covers a pill; and each touches its object
+  // (owner, 2026-10-13; pinSpot in comments/anchors.js). In world units: the object's visible box (a group's outline) and the
+  // row's width. A dropped image, a text box and a sticky note have the same Ask in chat (r35); a shape keeps the slot it
+  // would take. PILL: the pills' rendered widths, with a little room.
   const PILL = { ask: 297, select: 124, explain: 144, more: 138, notebook: 30, gap: 6 };
   const pillRow = id => {
     const block = blocks.find(entry => entry.id === id);
@@ -3303,12 +3303,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const members = groupMembers[id];
     const boxes = boxesOf(members || [id]);
     if (!boxes.length) return null;
-    const pad = members ? GROUP_PAD : 0; // a group's outline sits outside its members, and its pill row above that
-    const top = Math.min(...boxes.map(box => box.y)) - pad, right = Math.max(...boxes.map(box => box.x + box.w)) + pad;
-    // A group's actions float above its name chip at screen size (barAnchor below: placeBar's 8 px gap, a 34 px bar), so its
-    // pins share that row at any zoom.
-    if (members) return { right: right - PILL.ask / view.z, top: top - GROUP_CHIP - 42 / view.z, height: 34 / view.z };
-    return { right: right - pillRow(id), top: top - 40, height: 30 };
+    const pad = members ? GROUP_PAD : 0; // a group's outline sits outside its members
+    const x = Math.min(...boxes.map(box => box.x)) - pad, y = Math.min(...boxes.map(box => box.y)) - pad;
+    const w = Math.max(...boxes.map(box => box.x + box.w)) + pad - x;
+    // lead: what its pins keep clear at its top left - a group's name chip (it keeps its menu); a text box's, an equation's or
+    // a text shape's whole top edge, where its ladder, Text | Code and a shape's actions sit from the left (so they hang on
+    // its left edge, never over H1 or another control).
+    const item = items.find(entry => entry.id === id), shape = shapes.find(entry => entry.id === id);
+    const lead = members ? worldRef.current?.querySelector(`[data-group-chip="${id}"]`)?.offsetWidth || 0 : (item && item.kind !== 'sticky') || (shape && TEXT_BOX[shape.kind]) ? w : 0;
+    return { x, y, w, h: Math.max(...boxes.map(box => box.y + box.h)) + pad - y, row: pillRow(id), lead };
   };
   const pickedPin = pinPick ? commentPins?.find(pin => pin.id === pinPick && !pin.ghost) || null : null;
   const dropPin = () => { setPinPick(null); setPinAsk(null); };

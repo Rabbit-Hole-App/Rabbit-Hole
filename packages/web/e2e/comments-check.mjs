@@ -76,14 +76,16 @@ const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').eva
 const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
 const pins = () => page.locator('[data-comment-pin]');
-// The pin slot (owner, 2026-10-08): an object's pin sits just left of its selection actions (Add to chat, Quick Edit: they replaced the
-// Ask in chat pill, owner 2026-10-13), on their row, never over them.
+// The pin slot (owner, 2026-10-08): an object's pin sits left of its selection actions (Add to chat, Quick Edit: they replaced the
+// Ask in chat pill, owner 2026-10-13), never under them; and it touches its object (owner, 2026-10-13: "every comment icon should
+// have a minimal contact to the shape/cafrd etc it is attached to"): their boxes overlap by a few px on both axes.
 const askPill = () => page.locator('[data-selection-bar]:visible').first();
-const beside = async (pinBox, pill) => {
-  const box = await pill.boundingBox();
-  assert.ok(pinBox.x + pinBox.width <= box.x + 1, `left of the selection actions: ${JSON.stringify([pinBox, box])}`);
-  assert.ok(box.x - (pinBox.x + pinBox.width) < 24, `right next to it: ${JSON.stringify([pinBox, box])}`);
-  assert.ok(Math.abs(pinBox.y + pinBox.height / 2 - (box.y + box.height / 2)) < 6, `on its row: ${JSON.stringify([pinBox, box])}`);
+const contact = (a, b) => [Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)];
+const touching = (pinBox, body) => contact(pinBox, body).every(overlap => overlap >= 2);
+const beside = async (pinBox, pill, object) => {
+  const [box, body] = [await pill.boundingBox(), await object.boundingBox()];
+  assert.ok(pinBox.x + pinBox.width <= box.x + 1, `left of the selection actions, never under them: ${JSON.stringify([pinBox, box])}`);
+  assert.ok(touching(pinBox, body), `touching its object: ${JSON.stringify([pinBox, body])}`);
 };
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -122,7 +124,7 @@ await check('3 Send posts the thread: the author\'s name and avatar, and a pin o
   assert.equal(await page.locator('[data-comment-pin="draft"]').count(), 0, 'the ghost is gone');
   assert.equal(await pins().count(), 1, 'one pin');
   const pin = await pins().first().boundingBox();
-  await beside(pin, askPill());
+  await beside(pin, askPill(), card('k-exp'));
   await shot('03-thread-posted');
   // The slot does not move when the card is let go, and the pill's place stays clear.
   const body = await card('k-exp').boundingBox();
@@ -366,7 +368,7 @@ await check('15 right-click a drawn shape: Add comment (hint C) puts the pin on 
   await send('Is this the ice or the brine?');
   assert.equal(await pins().count(), 1);
   const before = await lastPin(), body = await shape('s-box').boundingBox();
-  assert.ok(before.y + before.height <= body.y && before.x + before.width <= body.x + body.width, `the shape's slot: above it, left of its top right: ${JSON.stringify([before, body])}`);
+  assert.ok(touching(before, body), `the pin touches the shape: ${JSON.stringify([before, body])}`);
   await dragBy(await centre(shape('s-box')), 150, 40);
   const after = await lastPin();
   assert.ok(Math.abs(after.x - before.x - 150) < 4 && Math.abs(after.y - before.y - 40) < 4, `the pin followed the shape: ${JSON.stringify([before, after])}`);
@@ -392,7 +394,7 @@ await check('16 right-click a group (its outline, or its name chip): Add comment
   const groupPin = async () => { await page.waitForTimeout(400); return page.locator(`[data-comment-pin="${id}"]`).boundingBox(); };
   await shot('16a-group-comment');
   const before = await groupPin();
-  await beside(before, askPill());
+  await beside(before, askPill(), page.locator('[data-group-box="g-ice"]'));
   const [a, b] = [await shape('g-a').boundingBox(), await shape('g-b').boundingBox()];
   await dragBy({ x: (a.x + a.width + b.x) / 2, y: a.y + a.height / 2 }, 120, 60);
   const after = await groupPin();
@@ -650,6 +652,71 @@ await check('26 deleting a thread\'s only comment takes its pin away; the thread
   assert.equal(await pinFor(id).count(), 0, 'no pin without a text comment');
   await panel().getByRole('button', { name: 'All comments' }).click();
   assert.match(await panel().locator(`[data-comment-thread="${id}"]`).innerText(), /This comment was deleted/);
+});
+
+// Owner, 2026-10-13: every pin touches its object - a card, a dropped image, an image, a text box, a sticky note (two threads),
+// a chat card, a shape, a small shape and a group - at 100% and at 25%, whatever offset its thread stored. Threads made by the
+// API on a canvas of their own; a wide view so every object is on screen at 100%.
+await check('26b every pin touches its object, of every kind, at 100% and at 25%', async () => {
+  const made = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Comments contact ${run}` }) })).body;
+  const catalog = (await api('/api/apps')).body;
+  const key = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${made.name}`;
+  const SVG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><path d="M0 18 C 15 18, 25 2, 40 2" stroke="#2383e2" fill="none"/></svg>')}`;
+  const ink = {
+    strokes: [], links: [], areas: [], exchanges: [],
+    blocks: [
+      { id: 't-card', type: 'explanation', dx: 0, dy: 0, title: 'Why salt melts ice', body: 'Salt lowers the freezing point of the water film.' },
+      { id: 't-file', type: 'file', kind: 'image', dx: 0, dy: 0, assetKey: `img:${run}`, label: 'diagram.png', mediaId: `media-${run}` },
+      { id: 't-img', type: 'image', mode: 'url', dx: 0, dy: 0, title: 'The sigmoid curve', src: SVG, alt: 'An S-curve' },
+    ],
+    items: [
+      { id: 't-text', kind: 'text', x: -700, y: 40, w: 320, text: 'the mask hides the future', level: 'h3' },
+      { id: 't-note', kind: 'sticky', x: -700, y: 200, w: 160, h: 160, text: 'remember the mask', color: '#fde68a', opacity: 1 },
+    ],
+    shapes: [
+      { id: 't-box', kind: 'rect', x1: 760, y1: 40, x2: 960, y2: 160, ...style, text: 'Ice' },
+      { id: 't-dot', kind: 'ellipse', x1: 760, y1: 240, x2: 790, y2: 270, ...style },
+      { id: 't-ga', kind: 'rect', x1: 760, y1: 380, x2: 860, y2: 460, ...style, groupId: 't-g' },
+      { id: 't-gb', kind: 'ellipse', x1: 900, y1: 380, x2: 1000, y2: 460, ...style, groupId: 't-g' },
+    ],
+    groups: [{ id: 't-g', label: 'Beakers' }],
+  };
+  const chat = [{ id: 't-chat', question: 'Why exponentiate the scores?', answer: 'Scores become positive weights that add to 1.', status: 'done', dx: 0, dy: 0 }];
+  const board = (await api(`/api/learn/boards/${made.name}/main`)).body?.board_id;
+  assert.ok(board, 'the board id for its comments');
+  const ON = [['t-card', 'block'], ['t-file', 'block'], ['t-img', 'block'], ['t-text', 'item'], ['t-note', 'item'], ['t-note', 'item'], ['t-chat', 'exchange'], ['t-box', 'shape'], ['t-dot', 'shape'], ['t-g', 'group']];
+  const threads = [];
+  for (const [id, kind] of ON) {
+    const posted = await post(api, `/api/learn/c/${board}/threads`, { id: crypto.randomUUID(), anchor: { kind: 'object', object_id: id, object_kind: kind, dx: 400, dy: -200, label: id }, body: `About ${id}?`, mentions: [] });
+    assert.equal(posted.status, 201, `thread on ${id}: HTTP ${posted.status} ${JSON.stringify(posted.body)}`);
+    threads.push([posted.body.thread.id, id]);
+  }
+  await context.addInitScript(seeds => { for (const [name, value] of Object.entries(seeds)) if (!localStorage.getItem(name)) localStorage.setItem(name, JSON.stringify(value)); }, { [`${key}:ink`]: ink, [`${key}:chat`]: chat });
+  const tab = await context.newPage();
+  tab.on('pageerror', error => errors.push(error.message));
+  await tab.setViewportSize({ width: 2400, height: 1600 });
+  await tab.goto(`${BASE}/apps/${made.name}`);
+  await tab.locator('[data-block-id="t-card"]').waitFor({ timeout: 60000 });
+  await tab.waitForFunction(count => document.querySelectorAll('[data-comment-pin]').length === count, threads.length, { timeout: 15000 });
+  const objectOf = id => tab.locator(`[data-block-id="${id}"], [data-item-id="${id}"], [data-shape-id="${id}"], [data-group-box="${id}"]`).first();
+  const off = [];
+  for (const [zoom, keys] of [['100', ['Shift+Digit1', 'Shift+Digit0']], ['25', ['Shift+Digit1', ...Array(8).fill('Control+Minus')]]]) {
+    await tab.evaluate(() => document.activeElement?.blur?.());
+    for (const name of keys) await tab.keyboard.press(name);
+    await tab.waitForTimeout(900);
+    assert.equal(await tab.locator('button[title="Reset zoom"]').textContent(), `${zoom}%`, 'the zoom');
+    await tab.screenshot({ path: `${SHOTS}/26b-contact-${zoom}.png` });
+    for (const [thread, id] of threads) {
+      const [pin, body] = [await tab.locator(`[data-comment-pin="${thread}"]`).boundingBox(), await objectOf(id).boundingBox()];
+      assert.ok(pin && body, `${id} and its pin are drawn`);
+      if (!touching(pin, body)) off.push(`${id} at ${zoom}%: ${contact(pin, body).map(n => n.toFixed(1)).join(' x ')} px of overlap`);
+      const x = Math.max(0, Math.min(pin.x, body.x) - 24), y = Math.max(0, Math.min(pin.y, body.y) - 24);
+      const clip = { x, y, width: Math.min(2400, Math.max(pin.x + pin.width, body.x + body.width) + 24) - x, height: Math.min(1600, Math.max(pin.y + pin.height, body.y + body.height) + 24) - y };
+      if (clip.width > 0 && clip.height > 0) await tab.screenshot({ path: `${SHOTS}/26b-${id}-${thread.slice(0, 4)}-${zoom}.png`, clip });
+    }
+  }
+  assert.deepEqual(off, [], 'every pin overlaps its object');
+  await tab.close();
 });
 
 await check('27 no model call, no stray write, no page error', async () => {
