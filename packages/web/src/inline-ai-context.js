@@ -404,39 +404,255 @@ export const clippedOf = context => context.target.ids.filter(id => !context.tar
 export const contextShape = context => ({ objects: context.size.objects, chars: context.size.chars, counts: context.counts,
   omitted: Object.values(context.omitted).reduce((sum, n) => sum + n, 0), selectionOnly: context.selectionOnly });
 
-// ---------- Whole-canvas context for every canvas-chat turn (agent-coordination/tasks/2026-10-14-whole-canvas-context-OWNER.md) ----------
-// STUB (Lane A lead): the signature and the package shape are fixed; A-core replaces both bodies with the budget policy of
-// contract v1.1. A-wire codes against these exports.
+// ---------- Whole-canvas context for every canvas-chat turn (agent-coordination/tasks/2026-10-14-whole-canvas-context-OWNER.md,
+// contract v1.1 and the rulings in canvas-context-SUBLANES.md) ----------
+// Every turn gets the whole board's inventory; how much more each object gets follows one deterministic budget policy -
+// relevance by shared terms, never a phrase, keyword or regex rule on the request.
+
+const MEDIA = new Set(['image', 'video', 'file']);
+const CARD_TYPES = { heading: 'heading', image: 'image', video: 'video', pdf: 'file', slide: 'file', paper: 'file' };
+const cardType = block => (block.type === 'file' ? (block.kind === 'image' ? 'image' : block.kind === 'clip' ? 'video' : 'file') : CARD_TYPES[block.type] || 'card');
+const itemType = item => (item.mode === 'code' ? 'code' : item.kind === 'equation' || item.kind === 'sticky' ? item.kind : HEADING.has(item.level) ? 'heading' : 'text');
 
 // The live board ({ shapes, items, links, blocks, groups, exchanges, boxes }, unsaved editor words already overlaid) as the
-// builder's inputs: objects { id, type, kind?, text?, label?, x, y, w, h, group_id? }, connectors { id, from, to, label?,
-// explicit }, groups { id, label, member_ids }.
+// builder's inputs: objects { id, type, kind?, text, label?, x, y, w, h, group_id?, section_id?, media?, unreadable? },
+// connectors { id, from, to, label?, explicit, kind?: 'near'|'labels', basis? }, groups { id, label, member_ids }.
+// Stored links (annotations aside) are explicit; drawn arrows and labels are what the picture suggests, never stated as fact.
+// ponytail: ink strokes are not on the live board (they carry no ids), so they are not listed; send them as type 'ink'
+// (unavailable) when the canvas API gives them ids.
 export function boardObjects(board) {
-  const boxes = board.boxes || {};
-  const at = id => boxes[id] || { x: 0, y: 0, w: 0, h: 0 };
+  const snap = semanticSnapshot(board, { budget: { objects: Infinity, chars: Infinity } });
+  const boxes = board.boxes || {}, blocks = new Map((board.blocks || []).map(block => [block.id, block]));
+  const shapes = new Map((board.shapes || []).map(shape => [shape.id, shape])), items = new Map((board.items || []).map(item => [item.id, item]));
+  const place = (id, box = boxes[id]) => (box ? { x: box.x, y: box.y, w: box.w, h: box.h } : {});
+  const ties = entry => ({ ...(entry.groupId ? { group_id: entry.groupId } : {}), ...(entry.sectionId ? { section_id: entry.sectionId } : {}) });
   const objects = [
-    ...(board.blocks || []).map(block => ({ id: block.id, type: 'card', kind: block.type, text: String(block.title ?? block.question ?? ''), ...at(block.id), ...(block.groupId ? { group_id: block.groupId } : {}) })),
-    ...(board.items || []).map(item => ({ id: item.id, type: item.kind === 'equation' ? 'equation' : 'text', kind: item.kind, text: String(item.latex ?? item.text ?? ''), ...at(item.id), ...(item.groupId ? { group_id: item.groupId } : {}) })),
-    ...(board.shapes || []).map(shape => ({ id: shape.id, type: 'shape', kind: shape.kind, text: String(shape.text ?? ''), ...at(shape.id), ...(shape.groupId ? { group_id: shape.groupId } : {}) })),
+    ...snap.cards.map(card => {
+      const block = blocks.get(card.id), type = block ? cardType(block) : 'chat', kind = block && (block.type === 'file' ? block.kind : block.type);
+      // A card with no words to show holds its content some other way (a scene, a drawing): listed, its content unavailable.
+      const unreadable = block && !MEDIA.has(type) && !card.text.trim() && !['heading', 'divider'].includes(block.type);
+      return { id: card.id, type, ...(kind && kind !== type ? { kind } : {}), text: card.text, ...(card.title.trim() ? { label: card.title } : {}), ...place(card.id), ...ties(card),
+        ...(MEDIA.has(type) ? { media: true } : unreadable ? { unreadable: true } : {}) };
+    }),
+    ...snap.objects.map(entry => {
+      const type = shapes.has(entry.id) ? (LINEAR.has(entry.kind) ? 'connector' : 'shape') : itemType(items.get(entry.id));
+      return { id: entry.id, type, ...(entry.kind && entry.kind !== type ? { kind: entry.kind } : {}), text: entry.text, ...place(entry.id, entry.box), ...ties(entry) };
+    }),
   ];
-  const connectors = (board.links || []).map(link => ({ id: link.id, from: link.from, to: link.to, ...(link.label ? { label: String(link.label) } : {}), explicit: true }));
-  const groups = (board.groups || []).map(group => ({ id: group.id, label: String(group.label ?? group.title ?? ''), member_ids: objects.filter(o => o.group_id === group.id).map(o => o.id) }));
-  return { objects, connectors, groups };
+  const connectors = [];
+  for (const relation of snap.relations) {
+    const base = { id: relation.id, from: relation.from, to: relation.to, ...(relation.label ? { label: relation.label } : {}) };
+    if (relation.source === 'connector') connectors.push({ ...base, explicit: true });
+    else if (relation.source === 'inferred') connectors.push({ ...base, explicit: false, kind: 'near',
+      basis: `drawn ${shapes.get(relation.id)?.kind || 'line'}${relation.label ? ` "${relation.label.slice(0, 40)}"` : ''} (ends matched by position, confidence ${relation.confidence})` });
+  }
+  for (const entry of snap.objects) if (entry.labelOf) connectors.push({ id: `${entry.id}>${entry.labelOf}`, from: entry.id, to: entry.labelOf, explicit: false, kind: 'labels', basis: 'short text touching one shape (by position)' });
+  return { objects, connectors, groups: snap.groups.map(group => ({ id: group.id, label: group.title, member_ids: group.memberIds })) };
 }
 
-export function buildCanvasContext({ objects = [], connectors = [], groups = [], title = null, request = '', history = [], selection = [], attachments = [], budgetChars = 16000, maxItems = 300, includesUnsaved = true } = {}) {
-  void request; void history; void selection; void attachments;
-  const items = objects.slice(0, maxItems).map(o => ({ id: o.id, type: o.type, ...(o.kind ? { kind: o.kind } : {}), label: String(o.label ?? o.text ?? '').slice(0, 80), ...(o.group_id ? { group_id: o.group_id } : {}) }));
-  const counts = {};
-  for (const o of objects) counts[o.type] = (counts[o.type] || 0) + 1;
-  const used = items.reduce((sum, item) => sum + item.label.length, 0);
-  return {
-    version: 1, built_at: new Date().toISOString(), includes_unsaved: !!includesUnsaved, title: title == null ? null : String(title).slice(0, 200),
-    inventory: { counts, items, omitted_items: Math.max(0, objects.length - items.length) },
-    excerpts: [],
-    relations: { explicit: connectors.filter(c => c.explicit).map(c => ({ from: c.from, to: c.to, ...(c.label ? { label: c.label.slice(0, 80) } : {}) })), inferred: [] },
-    coverage: { objects_total: objects.length, listed: items.length, included_full: 0, included_partial: 0, media_inspected: 0, unavailable_or_omitted: objects.length - items.length,
-      items: items.map(item => ({ id: item.id, type: item.type, status: 'listed' })), reserved_chars: used, budget_chars: budgetChars, used_chars: used,
-      summary: `${items.length} objects listed (stub)` },
+// Per-object excerpt caps (selected or attached, any other, a region's or group's representative), the label steps, and the
+// server's caps (Toolbar answers a 400 past them); json keeps 1,000 under the server's 64,000, inventoryJson leaves the rest room.
+export const CANVAS = Object.freeze({ focus: 3000, other: 1200, spread: 300, minPassage: 40, labels: [80, 60, 40, 24], id: 120, excerpts: 200,
+  explicit: 600, inferred: 600, coverage: 300, json: 63000, inventoryJson: 40000 });
+const TYPE = /^[a-z][a-z0-9_-]{0,39}$/;
+const REGION = [['top-left', 'top', 'top-right'], ['left', 'center', 'right'], ['bottom-left', 'bottom', 'bottom-right']];
+const SEP = '\n…\n';
+const PASSAGE = /[^\n]*?(?:[.!?](?=\s)|\n|$)/g; // a sentence or a line
+const flat = text => String(text ?? '').replace(/\s+/g, ' ').trim();
+const shorten = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+const jsonSize = value => JSON.stringify(value).length + 1; // + the comma between list entries
+const sum = (list, of) => list.reduce((total, entry) => total + of(entry), 0);
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+// A text cut to `cap` chars: whole when it fits; else its opening passage, then the passages that share the most weighted
+// terms, then the rest in order - as ascending [start, end) offsets into the text, joined by SEP.
+function excerptOf(text, cap, weigh) {
+  if (text.length <= cap) return { text, omitted: 0 };
+  const spans = [];
+  for (const match of text.matchAll(PASSAGE)) {
+    const body = match[0].trim();
+    if (body) { const start = match.index + match[0].length - match[0].trimStart().length; spans.push({ start, end: start + body.length, i: spans.length }); }
+  }
+  const scored = spans.slice(1).map(span => ({ span, score: weigh(text.slice(span.start, span.end)) })).filter(entry => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.span.i - b.span.i).map(entry => entry.span);
+  const picked = new Map();
+  let room = cap;
+  for (const span of [spans[0], ...scored, ...spans.slice(1)]) {
+    if (picked.has(span.i)) continue;
+    const length = Math.min(span.end - span.start, room - (picked.size ? SEP.length : 0));
+    if (length < Math.min(CANVAS.minPassage, span.end - span.start)) { if (room < CANVAS.minPassage) break; continue; }
+    picked.set(span.i, { start: span.start, end: span.start + length });
+    room -= length + (picked.size > 1 ? SEP.length : 0);
+  }
+  // Passages a few blank characters apart read as one: no separator between them (never longer than the separator was).
+  const passages = [];
+  for (const span of [...picked.values()].sort((a, b) => a.start - b.start)) {
+    const last = passages.at(-1);
+    if (last && span.start - last.end <= SEP.length && !text.slice(last.end, span.start).trim()) last.end = span.end;
+    else passages.push({ ...span });
+  }
+  return { text: passages.map(p => text.slice(p.start, p.end)).join(SEP), passages, omitted: text.length - sum(passages, p => p.end - p.start) };
+}
+
+// The canvas_context package (contract v1.1). Budget order: (1) the reserved whole-board share - every listed object's
+// label, the group labels (groups are listed objects) and the stored links' labels; (2) the rest as bounded excerpts by
+// relevance to the request and the recent turns; (3) the spread, one representative per region and group. Coverage says
+// exactly what was listed, sent in full, sent in part, inspected, or left out - never more.
+export function buildCanvasContext({ objects = [], connectors = [], groups = [], title = null, request = '', history = [], selection = [], attachments = [], budgetChars = 16000, maxItems = 300, reserveChars = 6000, includesUnsaved = true } = {}) {
+  const budget = Math.max(0, Math.min(budgetChars, 16000)), reserve = Math.min(reserveChars, budget), cap = Math.max(0, Math.min(maxItems, CANVAS.coverage));
+  // Every object once, in board order: the objects, the stored links, the groups.
+  const entries = [], byId = new Map();
+  const add = entry => { const id = String(entry.id ?? ''); if (id && !byId.has(id)) { byId.set(id, { ...entry, id, index: entries.length }); entries.push(byId.get(id)); } };
+  for (const o of objects) add({ id: o.id, type: TYPE.test(o.type) ? o.type : 'card', kind: o.kind, text: String(o.text ?? ''), name: o.label,
+    group: o.group_id == null ? null : String(o.group_id), section: o.section_id == null ? null : String(o.section_id),
+    box: [o.x, o.y, o.w, o.h].every(Number.isFinite) ? { x: o.x, y: o.y, w: o.w, h: o.h } : null,
+    media: !!o.media, inspected: !!(o.media && o.inspected), dark: o.type === 'ink' || !!o.unreadable });
+  const links = connectors.filter(c => byId.has(String(c.from)) && byId.has(String(c.to)));
+  for (const c of links) if (c.explicit) add({ id: c.id, type: 'connector', text: String(c.label ?? '') });
+  for (const g of groups) add({ id: g.id, type: 'group', text: String(g.label ?? ''), members: true });
+  for (const e of entries) if (e.members) e.box = unionBox(entries.filter(m => m.group === e.id).map(m => m.box));
+  const board = unionBox(entries.map(e => e.box));
+  const third = (at, start, length) => (length > 0 ? Math.min(2, Math.max(0, Math.floor(((at - start) / length) * 3))) : 1);
+  for (const e of entries) if (e.box && board) e.region = REGION[third(e.box.y + e.box.h / 2, board.y, board.h)][third(e.box.x + e.box.w / 2, board.x, board.w)];
+
+  // Relevance: the request's terms (weight 1) and the recent turns' (0.5), ids cited in earlier turns, then a share of the
+  // best related object's score - along any connection, and among group and section mates. Board order breaks ties.
+  // ponytail: plain term overlap (terms() above); add a small embedding if the canvas fixtures show a miss.
+  const weights = new Map();
+  for (const turn of history.slice(-6)) for (const word of terms(turn?.text)) weights.set(word, 0.5);
+  for (const word of terms(request)) weights.set(word, 1);
+  const weigh = text => { let score = 0; for (const word of terms(text)) score += weights.get(word) || 0; return score; };
+  const cited = new Set(history.flatMap(turn => turn?.refs || []).map(String));
+  const selected = new Set(selection.map(String)), attached = new Set(attachments.map(String)), focus = new Set([...selected, ...attached]);
+  for (const e of entries) if (e.group && focus.has(e.group)) focus.add(e.id); // a selected or attached group brings its members
+  const keysOf = e => [e.members ? `g ${e.id}` : e.group && `g ${e.group}`, e.section && `s ${e.section}`].filter(Boolean);
+  const around = new Map(), mates = new Map();
+  const join = (map, key, value) => { if (!map.has(key)) map.set(key, []); map.get(key).push(value); };
+  for (const c of links) { join(around, String(c.from), byId.get(String(c.to))); join(around, String(c.to), byId.get(String(c.from))); }
+  for (const e of entries) for (const key of keysOf(e)) join(mates, key, e);
+  for (const e of entries) e.base = weigh(`${e.name || ''} ${e.text}`) + (cited.has(e.id) ? 2 : 0);
+  // ponytail: mates are scanned per member, O(group size^2) - 400 objects in one group is 160k steps; keep a per-group top-2 if that grows.
+  for (const e of entries) {
+    const linked = around.get(e.id) || [], together = keysOf(e).flatMap(key => mates.get(key)).filter(m => m !== e);
+    const best = list => Math.max(0, ...list.map(m => m.base));
+    e.score = e.base + 0.5 * best(linked) + 0.3 * best(together) + (focus.has(e.id) ? 3 : [...linked, ...together].some(m => focus.has(m.id)) ? 2 : 0);
+  }
+  const byScore = (a, b) => b.score - a.score || a.index - b.index;
+  const tier = e => (selected.has(e.id) ? 0 : attached.has(e.id) ? 1 : e.type === 'heading' ? 2 : e.members ? 3 : 4);
+
+  // (1) The reserved share: labels shorten (80, 60, 40, 24) before any object goes; past that, or past the item cap, the
+  // lowest-ranked objects go and are recorded as omitted (cap). Stored-link labels take at most a quarter of the reserve.
+  const nameOf = e => flat(String(String(e.name ?? '').trim() ? e.name : e.text).slice(0, 400));
+  const itemOf = (e, max) => ({ id: e.id, type: e.type, ...(e.kind && e.kind !== e.type ? { kind: String(e.kind).slice(0, 40) } : {}), label: shorten(nameOf(e), max),
+    ...(e.group && e.group.length <= CANVAS.id ? { group_id: e.group } : {}), ...(e.region ? { region: e.region } : {}) });
+  const fits = id => id.length <= CANVAS.id;
+  const stored = links.filter(c => c.explicit && fits(String(c.from)) && fits(String(c.to)));
+  const linkRoomAt = max => Math.min(Math.floor(reserve / 4), sum(stored, c => shorten(flat(c.label), max).length));
+  let listed = entries.filter(e => fits(e.id)).sort((a, b) => tier(a) - tier(b) || byScore(a, b)).slice(0, cap), max = CANVAS.labels[0], items = [];
+  for (max of CANVAS.labels) {
+    items = listed.map(e => itemOf(e, max));
+    if (sum(items, item => item.label.length) + linkRoomAt(max) <= reserve && sum(items, jsonSize) <= CANVAS.inventoryJson) break;
+  }
+  const linkRoom = linkRoomAt(max);
+  let labelChars = sum(items, item => item.label.length), inventoryJson = sum(items, jsonSize);
+  while (items.length && (labelChars + linkRoom > reserve || inventoryJson > CANVAS.inventoryJson)) { const gone = items.pop(); labelChars -= gone.label.length; inventoryJson -= jsonSize(gone); }
+  listed = listed.slice(0, items.length);
+  const listedIds = new Set(listed.map(e => e.id));
+  const held = e => !!e.text.trim() && e.text.trim() === shorten(nameOf(e), max); // the label is the whole text, line breaks and all
+
+  // (2)+(3) The rest of the budget as excerpts, each bounded (CANVAS.focus for the selection and attachments, CANVAS.other
+  // else) and cut to its most relevant passages. Three rounds: the selection and attachments (at most half), one
+  // representative for each region and group none of whose objects has an excerpt yet (at most a quarter more), then every
+  // object by relevance - a later round may extend an earlier excerpt up to its cap.
+  const room = budget - labelChars - linkRoom, jsonRoom = CANVAS.json - inventoryJson - 4000; // 4000: the package's other fields
+  const candidates = listed.filter(e => !e.media && !e.dark && e.text.trim() && !held(e)).sort(byScore);
+  const cuts = new Map();
+  let spent = 0, excerptJson = 0;
+  const give = (e, most, ceiling) => {
+    const had = cuts.get(e.id), size = had ? had.text.length : 0, allowed = Math.min(most, size + ceiling - spent);
+    if ((had && !had.omitted) || allowed <= size || allowed < Math.min(CANVAS.minPassage, e.text.length) || (!had && cuts.size >= CANVAS.excerpts)) return;
+    const cut = excerptOf(e.text, allowed, weigh), json = JSON.stringify(cut.text).length + JSON.stringify(cut.passages || []).length + 300;
+    if (excerptJson - (had?.json || 0) + json > jsonRoom) return;
+    spent += cut.text.length - size; excerptJson += json - (had?.json || 0); cuts.set(e.id, { ...cut, json });
   };
+  for (const e of candidates) if (focus.has(e.id)) give(e, CANVAS.focus, room / 2);
+  const spread = new Map();
+  for (const e of candidates) for (const key of [e.region && `r ${e.region}`, e.group && `g ${e.group}`]) if (key) join(spread, key, e);
+  const spreadCeiling = spent + room / 4;
+  for (const list of spread.values()) if (!list.some(e => cuts.has(e.id))) give(list[0], CANVAS.spread, spreadCeiling);
+  for (const e of candidates) give(e, focus.has(e.id) ? CANVAS.focus : CANVAS.other, room);
+
+  const statusOf = e => {
+    if (!fits(e.id)) return { status: 'unavailable', reason: 'unreadable', hidden: true }; // an id the server cannot take
+    if (!listedIds.has(e.id)) return { status: 'omitted', reason: 'cap' };
+    if (e.media) return e.inspected ? { status: 'media' } : { status: 'unavailable', reason: 'media' };
+    if (e.dark) return { status: 'unavailable', reason: 'unreadable' };
+    const cut = cuts.get(e.id);
+    if (cut) return cut.omitted ? { status: 'partial', reason: 'budget', omitted_chars: cut.omitted } : { status: 'full' };
+    if (!e.text.trim()) return { status: 'listed' };
+    return held(e) ? { status: 'full' } : { status: 'listed', reason: 'budget', omitted_chars: e.text.length };
+  };
+  const statuses = entries.map(e => ({ e, ...statusOf(e) }));
+  const count = test => statuses.filter(test).length;
+  const total = entries.length, full = count(s => s.status === 'full'), partial = count(s => s.status === 'partial');
+  const byType = list => Object.entries(list.reduce((tally, s) => ({ ...tally, [s.e.type]: (tally[s.e.type] || 0) + 1 }), {})).map(([type, n]) => plural(n, type)).join(', ');
+  const inspected = statuses.filter(s => s.status === 'media'), unseen = statuses.filter(s => s.reason === 'media');
+  const capped = count(s => s.status === 'omitted'), unavailable = count(s => s.status === 'unavailable' && s.reason !== 'media');
+  const summary = [listed.length === total ? `${plural(total, 'object')} listed` : `${listed.length} of ${total} objects listed`, `${full} included in full, ${partial} partially`,
+    ...(inspected.length ? [`${byType(inspected)} inspected`] : []), ...(unseen.length ? [`${byType(unseen)} not inspected`] : []),
+    ...(capped ? [`${capped} omitted for space`] : []), ...(unavailable ? [`${unavailable} unavailable`] : [])].join('; ').slice(0, 200);
+
+  const counts = {};
+  for (const e of entries) counts[e.type] = (counts[e.type] || 0) + 1;
+  const reasonOf = e => (focus.has(e.id) ? 'relevant' : cited.has(e.id) ? 'recent' : e.score > 0 ? 'relevant' : 'structural');
+  const excerpts = entries.filter(e => cuts.has(e.id)).map(e => {
+    const cut = cuts.get(e.id);
+    return { id: e.id, type: e.type, text: cut.text, reason: reasonOf(e), inclusion: cut.omitted ? 'partial' : 'full', omitted_chars: cut.omitted, ...(cut.omitted ? { passages: cut.passages } : {}) };
+  });
+  // Relations with at least one listed end, the most relevant first: stored links, then what the picture suggests (drawn
+  // arrows, labels, and the smallest closed shape whose box holds another object's box).
+  const shown = c => fits(String(c.from)) && fits(String(c.to)) && (listedIds.has(String(c.from)) || listedIds.has(String(c.to)));
+  const ranked = list => list.filter(shown).sort((a, b) => Math.max(byId.get(String(b.from)).score, byId.get(String(b.to)).score) - Math.max(byId.get(String(a.from)).score, byId.get(String(a.to)).score));
+  const drawn = links.filter(c => !c.explicit).map(c => ({ from: String(c.from), to: String(c.to), kind: c.kind === 'labels' ? 'labels' : 'near', basis: shorten(String(c.basis || 'drawn on the canvas (by position)'), 120) }));
+  const paired = new Set(drawn.flatMap(r => [`${r.from}>${r.to}`, `${r.to}>${r.from}`]));
+  const areaOf = box => box.w * box.h;
+  // ponytail: every object against every closed shape, O(objects x shapes); bucket the boxes if boards grow past a few thousand.
+  const closed = entries.filter(e => e.type === 'shape' && e.box);
+  for (const e of entries) {
+    if (!e.box || e.members || e.type === 'connector') continue;
+    const holder = closed.filter(s => s !== e && s.box.x <= e.box.x && s.box.y <= e.box.y && s.box.x + s.box.w >= e.box.x + e.box.w && s.box.y + s.box.h >= e.box.y + e.box.h && areaOf(s.box) > areaOf(e.box))
+      .sort((a, b) => areaOf(a.box) - areaOf(b.box))[0];
+    if (holder && !paired.has(`${holder.id}>${e.id}`)) drawn.push({ from: holder.id, to: e.id, kind: 'contains', basis: "inside the shape's box (by position)" });
+  }
+
+  const pack = {
+    version: 1, built_at: new Date().toISOString(), includes_unsaved: !!includesUnsaved, title: title == null ? null : String(title).slice(0, 200),
+    inventory: { counts, items: entries.filter(e => listedIds.has(e.id)).map(e => itemOf(e, max)), omitted_items: total - listed.length },
+    excerpts,
+    relations: { explicit: [], inferred: [] },
+    coverage: { objects_total: total, listed: listed.length, included_full: full, included_partial: partial, media_inspected: inspected.length,
+      unavailable_or_omitted: count(s => s.status === 'unavailable' || s.status === 'omitted'), items: [], reserved_chars: 0, budget_chars: budget, used_chars: 0, summary },
+  };
+  // What is left of the JSON cap, in this order: stored links (at most half of it), coverage.items (what was left out
+  // first), drawn relations. The counts above stay exact whatever these lists had to drop.
+  let left = CANVAS.json - JSON.stringify(pack).length - 40; // 40: the char counts filled in below
+  const fill = (list, from, most, share = left) => {
+    const floor = left - share;
+    for (const entry of from) { if (list.length >= most || left - jsonSize(entry) < floor) break; list.push(entry); left -= jsonSize(entry); }
+  };
+  let linkChars = 0;
+  fill(pack.relations.explicit, ranked(stored).map(c => {
+    const label = shorten(flat(c.label), max), keep = label && linkChars + label.length <= linkRoom;
+    if (keep) linkChars += label.length;
+    return { from: String(c.from), to: String(c.to), ...(keep ? { label } : {}) };
+  }), CANVAS.explicit, left / 2);
+  const ORDER = { omitted: 0, unavailable: 1, partial: 2, unsent: 3, media: 4, full: 5, listed: 6 };
+  const slot = s => ORDER[s.status === 'listed' && s.reason ? 'unsent' : s.status];
+  fill(pack.coverage.items, statuses.filter(s => !s.hidden).sort((a, b) => slot(a) - slot(b) || a.e.index - b.e.index)
+    .map(({ e, status, reason, omitted_chars }) => ({ id: e.id, type: e.type, status, ...(reason ? { reason } : {}), ...(omitted_chars ? { omitted_chars } : {}) })), CANVAS.coverage);
+  fill(pack.relations.inferred, ranked(drawn), CANVAS.inferred);
+  const keptLinks = sum(pack.relations.explicit, r => (r.label || '').length);
+  pack.coverage.reserved_chars = labelChars + keptLinks;
+  pack.coverage.used_chars = labelChars + keptLinks + spent;
+  return pack;
 }
