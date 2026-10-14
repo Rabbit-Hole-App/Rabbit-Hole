@@ -114,9 +114,14 @@ await check('the toolbar has an Equation tool beside Text', async () => {
 
 await check('a click places an editable equation, with the palette open and the field focused', async () => {
   await place();
-  assert.equal(await page.locator('[data-equation-palette]').count(), 1);
+  const palettes = await page.locator('[data-equation-palette]').count();
+  assert.equal(palettes, 1, `palettes open: ${palettes}, expected 1`);
   for (const name of ['Fraction', 'Root', 'Greek', 'Sum', 'Matrix', 'LaTeX']) assert.equal(await tab(name).count(), 1, name);
-  assert.equal((await equations()).length, 1);
+  // The board's local save is debounced 400 ms after the placement, and the field can take the focus before that (React's
+  // Suspense reveal, then MathLive's focus: about 370 to 490 ms locally), so wait for the saved state, not a fixed time.
+  await page.waitForFunction(key => (JSON.parse(localStorage.getItem(key) || '{}').items || []).some(item => item.kind === 'equation'), INK, { timeout: 5000 }).catch(() => {});
+  const saved = (await equations()).length;
+  assert.equal(saved, 1, `equations in the local save: ${saved}, expected 1`);
   await region('2-palette-editing');
 });
 
