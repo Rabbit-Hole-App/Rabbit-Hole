@@ -86,7 +86,7 @@ test('the Rabbit Hole navigator coexists: its own right gutter with the tools le
 });
 
 test('every Learn level renders the same shell: a pending or nested hole is the same LearnSurface', () => {
-  assert.match(page, /return hole \? <LearnSurface key=\{hole\.name\} app=\{holeApp\(props\.app, hole\)\} hole=\{hole\} \/> : <LearnSurface \{\.\.\.props\} \/>;/);
+  assert.match(page, /\{hole \? <LearnSurface key=\{hole\.name\} app=\{holeApp\(props\.app, hole\)\} hole=\{hole\} \/> : <LearnSurface \{\.\.\.props\} \/>\}<\/ChatWorkspaceProvider>;/);
 });
 
 test('Learn keeps no persistent app rail: the immersive shell hides the sidebar', () => {

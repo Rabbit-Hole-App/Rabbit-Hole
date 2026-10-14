@@ -1,5 +1,5 @@
-// The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): Find, Table of contents and
-// Comments (live on a saved top-level canvas) as icon tabs, then Pin and Close; the find matching and the pin preference as pure code.
+// The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): Chat (permanent, owner brief
+// 2026-10-13), Find, Table of contents and Comments (live on a saved top-level canvas) as icon tabs, then Pin and Close; the find matching and the pin preference as pure code.
 // The rendered header, a real find and the unpinned close are e2e/panel-header-check.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,10 +9,11 @@ import { cardWords, findMatches, readPanelPin, savePanelPin } from './canvas-fin
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const header = read('./PanelHeader.jsx'), page = read('./LearnPage.jsx');
 
-test('the tabs are Find, Table of contents, Comments in that order, then Pin and Close on the right', () => {
-  const order = ["label: 'Find text on canvas'", "label: 'Table of contents'", "label: 'Comments'", 'aria-label="Keep sidebar open"', 'aria-label="Close sidebar"'].map(text => header.indexOf(text));
+test('the tabs are Chat, Find, Table of contents, Comments in that order, then Pin and Close on the right', () => {
+  const order = ["label: 'Chat'", "label: 'Find text on canvas'", "label: 'Table of contents'", "label: 'Comments'", 'aria-label="Keep sidebar open"', 'aria-label="Close sidebar"'].map(text => header.indexOf(text));
   assert.ok(order.every(at => at > 0), 'every label is there');
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'in the owner\'s order');
+  assert.match(header, /export const PANEL_TABS = \[\n\s+\{ id: 'chat', label: 'Chat', Icon: MessageSquareText \},/, 'Chat first, a non-brand icon');
   assert.match(header, /\{ id: 'find', label: 'Find text on canvas', Icon: Search \}/);
   assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: BookOpen \}/);
   assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \}/);
@@ -40,7 +41,8 @@ test('exactly one tab is active: aria-selected, the violet with a white icon, an
   assert.match(header, /tabIndex=\{tab === id \? 0 : -1\}/);
   assert.match(header, /tab === id \? 'bg-\[#5b21b6\] text-white/, 'the /teach violet (--cmd-teach-fg)');
   assert.match(read('./index.css'), /--cmd-teach-fg: #5b21b6;/, 'the same value as the /teach pill');
-  assert.match(page, /const \[panelTab, setPanelTab\] = useState\('toc'\);/, 'Table of contents by default');
+  assert.match(read('./chat-panels.js'), /const \[open, setOpen\] = useState\(true\), \[tab, setTab\] = useState\('chat'\);/, 'open on Chat by default');
+  assert.match(page, /const \{ open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab \} = panels;/);
   assert.match(page, /<div role="tabpanel" aria-label="Table of contents" className=\{`\$\{panelTab === 'toc' \? 'flex' : 'hidden'\}/);
   assert.match(page, /<CanvasFind hidden=\{panelTab !== 'find'\}/);
 });
@@ -52,7 +54,7 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
   assert.match(header, /const ENABLED = TABS\.filter\(entry => !off\(entry\.id\)\)/);
   assert.match(header, /ENABLED\[\(ENABLED\.indexOf\(tab\) \+ \(event\.key === 'ArrowRight' \? 1 : ENABLED\.length - 1\)\) % ENABLED\.length\]/);
   assert.match(page, /<PanelHeader tab=\{panelTab\} commentsOn=\{comments\.active\}/, 'the page decides where Comments is live');
-  assert.match(page, /if \(!comments\.active && panelTab === 'comments'\) setPanelTab\('toc'\);/, 'and never leaves it selected where it is not');
+  assert.match(page, /if \(!comments\.active && panelTab === 'comments'\) setPanelTab\('chat'\);/, 'and never leaves it selected where it is not');
 });
 
 // Owner, 2026-10-08: the Main canvas's Map icon opens the repository's Files in the panel; elsewhere there is no Files tab.
@@ -77,8 +79,8 @@ test('pinned by default, and the choice lasts in this browser; storage that thro
   assert.match(page, /const \[panelPinned, setPanelPinned\] = useState\(\(\) => readPanelPin\(\(\) => localStorage\)\);/);
 });
 
-test('unpinned, a press on the canvas surface closes the panel; pinned, nothing listens', () => {
-  assert.match(page, /if \(panelPinned \|\| !panelOpen \|\| !frame\) return undefined;\n\s+const close = event => \{ if \(event\.target\.closest\?\.\('\[data-canvas-surface\]'\)\) setPanelOpen\(false\); \};\n\s+frame\.addEventListener\('pointerdown', close\);/);
+test('unpinned, a press on the canvas surface closes the panel; pinned or on Chat, nothing listens', () => {
+  assert.match(page, /if \(panelPinned \|\| !panelOpen \|\| panelTab === 'chat' \|\| !frame\) return undefined;\n\s+const close = event => \{ if \(event\.target\.closest\?\.\('\[data-canvas-surface\]'\)\) setPanelOpen\(false\); \};\n\s+frame\.addEventListener\('pointerdown', close\);/);
 });
 
 test('Close shuts the panel and touches nothing else', () => {
@@ -86,8 +88,24 @@ test('Close shuts the panel and touches nothing else', () => {
   assert.match(header, /data-panel-close [^\n]*onClick=\{onClose\}/);
 });
 
-test('an opened reader brings the Table of contents tab forward, where it shows', () => {
-  assert.match(page, /if \(wikiOpen \|\| paperOpen \|\| sourceOpen \|\| lessonSource\) setPanelTab\('toc'\);/);
+// Owner brief 2026-10-13 13.8: readers open in the Sources pane beside Chat, so nothing forces another tab over Chat.
+test('an opened reader leaves the tab alone; only the course interview brings the Table of contents forward', () => {
+  assert.doesNotMatch(page, /if \(wikiOpen \|\| paperOpen[^\n]*setPanelTab/);
+  assert.deepEqual(page.match(/setPanelTab\('toc'\)/g), ["setPanelTab('toc')"]);
+  assert.match(page, /useEffect\(\(\) => \{ if \(setupChat\) setPanelTab\('toc'\); \}, \[setupChat\]\);/);
+});
+
+test('the Chat header: the thread title, History, New chat (icon only under 360 px), an overflow menu when the thread can act', () => {
+  const pane = read('./ChatPane.jsx');
+  assert.match(pane, /const title = thread\.title \|\| 'New chat';/);
+  assert.match(pane, /data-chat-history aria-label="History" title="History" aria-pressed=\{thread\.historyOpen\} onClick=\{\(\) => thread\.setHistoryOpen\(!thread\.historyOpen\)\}/);
+  assert.match(pane, /data-chat-new aria-label="New chat" title="New chat" onClick=\{\(\) => \{ thread\.newChat\(\); thread\.setHistoryOpen\(false\); \}\}/);
+  assert.match(pane, /<Plus size=\{16\}[^>]*\/><span className="@max-\[360px\]:hidden">New chat<\/span>/);
+  assert.match(pane, /thread\.rename && \['Rename'[^\]]*\], thread\.remove && \['Delete'/);
+  assert.match(pane, /\{actions\.length > 0 && <span className="relative">/);
+  assert.match(pane, /\{thread\.historyOpen && <ChatHistory \/>\}\n\s+<div className=\{`\$\{thread\.historyOpen \? 'hidden' : 'flex'\}/, 'History in place of the conversation, which stays mounted');
+  assert.doesNotMatch(pane, /Sparkles|AppIcon|contentPanel/);
+  assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat'\}/);
 });
 
 test('find: case-insensitive over titles and bodies, one match per card, in canvas order', () => {

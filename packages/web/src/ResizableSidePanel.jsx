@@ -13,7 +13,8 @@ import { useEffect, useRef, useState } from 'react';
 // storageKey remembers the learner's width in this browser; overlay (the Map inspector, workspace-dock.md §16) makes it,
 // below lg, a right drawer over the page that ends at the Agent Bar, full width on a phone, instead of stacking under it.
 // edgeVar publishes the panel's on-screen width as a root CSS variable (0 when hidden), so the bar's window can sit beside it.
-export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320, maxWidth = 800, resizeEdge = 'left', resizeLabel = 'Resize panel', collapsed = false, storageKey = null, overlay = false, edgeVar = null, className = '', children, ...props }) {
+// onWidth(width, available) reports the on-screen width and the parent's room (0 below lg) for the Chat/Sources layout.
+export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320, maxWidth = 800, resizeEdge = 'left', resizeLabel = 'Resize panel', collapsed = false, storageKey = null, overlay = false, edgeVar = null, onWidth = null, className = '', children, ...props }) {
   const panel = useRef(null), drag = useRef(null);
   const [width, setWidth] = useState(() => { try { return Number(storageKey && localStorage.getItem(storageKey)) || defaultWidth; } catch { return defaultWidth; } });
   useEffect(() => { try { if (storageKey) localStorage.setItem(storageKey, String(width)); } catch { /* private mode: the width lasts this visit */ } }, [storageKey, width]);
@@ -29,6 +30,7 @@ export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320,
     root.setProperty(edgeVar, wide && !collapsed ? `${visible}px` : '0px');
     return () => root.setProperty(edgeVar, '0px');
   }, [edgeVar, wide, collapsed, visible]);
+  useEffect(() => { onWidth?.(visible, wide ? available : 0); }, [onWidth, visible, available, wide]);
   const direction = resizeEdge === 'right' ? 1 : -1;
   useEffect(() => {
     const media = window.matchMedia('(min-width: 64rem)');

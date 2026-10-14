@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, FolderTree, MessageCircle, Pin, Search, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, FolderTree, MessageCircle, MessageSquareText, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
-// The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): three icon tabs grouped
-// left in one rounded control - Find, Table of contents, Comments - then Pin and Close on the right. Icons only:
+// The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
+// rounded control - Chat (permanent and first, owner brief 2026-10-13 section 3), Find, Table of contents, Comments - then
+// Pin and Close on the right. Icons only:
 // the label is the tooltip and the accessible name. Comments (docs/features/canvas-comments.md) selects on a saved
 // top-level canvas (commentsOn); anywhere else its slot never selects (aria-disabled, skipped by the arrow keys).
 // The active tab is the /teach violet (--cmd-teach-fg, #5b21b6) with a white icon.
 export const PANEL_TABS = [
+  { id: 'chat', label: 'Chat', Icon: MessageSquareText },
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   { id: 'toc', label: 'Table of contents', Icon: BookOpen },
   { id: 'comments', label: 'Comments', Icon: MessageCircle },

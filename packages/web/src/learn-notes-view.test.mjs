@@ -10,8 +10,10 @@ const source = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8')
 // that never enabled, and typing its prompt silently sent nothing.
 test('no AskPanel in LearnPage gets the parked sigmoid demo', () => {
   const panels = source.match(/<AskPanel\b[^\n]*/g);
-  assert.ok(panels.some(panel => panel.includes('headerTitle="Learn Agent"')));
-  assert.deepEqual(panels.filter(panel => /\bdemo=/.test(panel)), []);
+  // The right-panel Learn chat is the Chat pane now (ChatPane.jsx renders its AskPanel from these props).
+  const chat = source.slice(source.indexOf('<ChatPane key={app.name}'), source.indexOf('<CanvasFind hidden='));
+  assert.match(chat, /conversation="learn"/);
+  assert.deepEqual([...panels, chat].filter(panel => /\bdemo=/.test(panel)), []);
 });
 
 // Runs the real returnToNoteLesson with recording stand-ins for its closure.
