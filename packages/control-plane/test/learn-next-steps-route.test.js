@@ -406,3 +406,15 @@ test('owned route: the planner version is in the cache identity', async () => {
   assert.notEqual(await ownedCacheKey(access, body, 'next-steps-planner-2'), await ownedCacheKey(access, body, 'next-steps-planner-3'));
   assert.equal(await ownedCacheKey(access, body, 'next-steps-planner-2'), await ownedCacheKey(access, structuredClone(body), 'next-steps-planner-2'));
 });
+
+// Owner task 2: the keyless fixture planner reads the canvas the way the real one is told to - its native words before a
+// background title - so a deterministic run shows hooks about what is drawn, never about the title alone.
+test('the fixture hooks a native-only canvas on its words, and a blank one on its background title', () => {
+  const plain = { ...INPUT(), mode: 'canvas', goal: '', path: undefined, scope: { concepts: {}, claims: {} } };
+  const drawn = { ...plain, canvas: { title: 'Linked List', blocks: [], objects: [{ id: 's1', kind: 'ellipse', text: '' }, { id: 't1', kind: 'text', text: 'Binary search tree' }], relations: [], groups: [], omitted: { objects: 0, chars: 0 }, fingerprint: 'f' } };
+  const hooks = fixtureFor('suggest_next_steps', drawn).options.map(o => o.hook);
+  assert.equal(nextStepsOutput(fixtureFor('suggest_next_steps', drawn), drawn).ok, true);
+  assert.ok(hooks.every(h => /Binary search tree/.test(h) && !/Linked List/.test(h)), hooks.join(' | '));
+  const blank = { ...plain, canvas: { title: 'Tide pools', blocks: [] } };
+  assert.ok(fixtureFor('suggest_next_steps', blank).options.every(o => /Tide pools/.test(o.hook)));
+});

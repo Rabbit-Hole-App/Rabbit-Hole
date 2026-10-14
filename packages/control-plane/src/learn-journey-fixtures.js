@@ -101,7 +101,7 @@ const QUESTION = /^\s*(what|why|how|when|where|who|which|can|could|should|is|are
 // Hooks from the input alone (ruling F6): claims ranked by repair need (misconception, gap, uncertain, unseen,
 // understood), never a completed-section claim unless it needs repair (the validator's rule: needsRepair, or the concept a
 // prerequisite_gap claim in scope names), and the repair frame only where needsRepair holds; no eligible claim falls back to the concepts, an
-// empty scope to the block titles, then the goal. Frames are generic, labels come from the input; a frame whose hook
+// empty scope to the block titles, then the canvas's own words, then the goal or background title. Frames are generic, labels come from the input; a frame whose hook
 // fails hookProblem for this input, or repeats a previous or chosen hook, is skipped, so a repeat set never comes back.
 const RANK = { misconception: 0, prerequisite_gap: 1, uncertain: 2, not_yet_observed: 3, understood: 4 };
 const FRAMES = [
@@ -117,12 +117,14 @@ function nextStepsFor(input) {
   const completed = new Set((input?.path?.completed || []).flatMap(s => s?.claim_ids || [])), current = new Set(input?.path?.current?.claim_ids || []);
   const label = text => String(text || 'this idea').split(/\s+/).slice(0, 4).join(' ');
   const missing = new Set(Object.values(input?.scope?.claims || {}).filter(c => c?.state === 'prerequisite_gap' && c.prerequisite).map(c => c.prerequisite));
+  // Owner task 2: with no cards, the canvas's own words (its native objects), before the goal or the background title.
+  const drawn = (input?.canvas?.objects || []).map(o => o?.text).filter(t => String(t || '').trim()).slice(0, 3);
   const claims = Object.entries(input?.scope?.claims || {}).filter(([id, c]) => needsRepair(c) || missing.has(c?.concept) || !completed.has(id) || current.has(id))
     .sort(([, a], [, b]) => (RANK[a.state] ?? 3) - (RANK[b.state] ?? 3));
   const topics = claims.length
     ? claims.map(([id, c]) => ({ label: label(concepts[c.concept]), concept_ids: Object.hasOwn(concepts, c.concept) ? [c.concept] : [], claim_ids: [id], repair: needsRepair(c), texts: [c.statement, ...(c.ideas || []), c.drawn] }))
     : Object.keys(concepts).length ? Object.entries(concepts).map(([id, name]) => ({ label: label(name), concept_ids: [id], claim_ids: [] }))
-      : (input?.canvas?.blocks?.length ? input.canvas.blocks.map(b => b?.title) : [input?.goal]).map(t => ({ label: label(t), concept_ids: [], claim_ids: [] }));
+      : (input?.canvas?.blocks?.length ? input.canvas.blocks.map(b => b?.title) : drawn.length ? drawn : [input?.goal || input?.canvas?.title]).map(t => ({ label: label(t), concept_ids: [], claim_ids: [] }));
   const seen = new Set((input?.previous?.hooks || []).map(h => String(h).toLowerCase()));
   const options = [];
   for (let f = 0; options.length < 3 && f < FRAMES.length * 3; f++) {
