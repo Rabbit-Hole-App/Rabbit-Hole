@@ -8,7 +8,7 @@ import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
-import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
+import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
 import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
@@ -1226,7 +1226,7 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
   // Unfilled shapes paint a transparent fill so the pointer can grab the
   // interior, not just the hairline outline. Transparent paint still hit-tests
   // under visiblePainted; opacity 0 keeps it invisible.
-  const stroke = { stroke: inkAware(color), strokeWidth: width, fill: fill ? inkAware(fill) : 'transparent', fillOpacity: fill ? (shape.fillOpacity ?? 0.25) : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const stroke = { stroke: shape.noStroke ? 'none' : inkAware(color), strokeWidth: width, fill: fill ? inkAware(fill) : 'transparent', fillOpacity: fill ? (shape.fillOpacity ?? 0.25) : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const control = kind === 'curve' ? curveControl(shape) : null;
   const linear = kind === 'line' || kind === 'arrow' || kind === 'curve' || kind === 'elbow';
@@ -1465,6 +1465,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState('solid');
   const [fill, setFill] = useState(null);
+  const [noStroke, setNoStroke] = useState(false);
   const [opacity, setOpacity] = useState(1);
   const [round, setRound] = useState(false);
   // Armed for the next thing drawn, like colour: fill opacity, arrowheads (null: the kind's own), and the text formatting
@@ -3524,7 +3525,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const start = store.local(event);
       const linear = tool === 'line' || tool === 'arrow' || tool === 'curve' || tool === 'elbow';
       const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round,
-        ...(TEXT_BOX[tool] && fill ? { fillOpacity } : {}), ...(linear && heads.start ? { startHead: heads.start } : {}), ...(linear && heads.end ? { endHead: heads.end } : {}) };
+        ...(TEXT_BOX[tool] && fill ? { fillOpacity } : {}), ...(TEXT_BOX[tool] && noStroke ? { noStroke: true } : {}), ...(linear && heads.start ? { startHead: heads.start } : {}), ...(linear && heads.end ? { endHead: heads.end } : {}) };
       // Shift squares the box or snaps the line to 45 degrees; Alt draws from the centre. Pressing or letting go of
       // either mid-drag redraws the preview at once, and the shape saved is the preview's (learn-draw-modifiers.js).
       let point = start, keys = { shift: event.shiftKey, alt: event.altKey };
@@ -4109,6 +4110,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const linear = entry => isLink(entry) || ['line', 'arrow', 'curve', 'elbow'].includes(entry.kind);
   const panelValues = {
     color: pick(entry => entry.color || COLORS[0], color),
+    stroke: pick(entry => strokeOf(entry, COLORS[0]), panel.noStroke && noStroke ? null : color),
     fill: pick(entry => entry.fill || null, fill, closed),
     fillOpacity: pick(entry => entry.fillOpacity ?? 0.25, fillOpacity, closed),
     width: pick(entry => entry.width ?? WIDTHS[0], width, entry => !isLink(entry)),
@@ -4159,7 +4161,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // next shortcut reaches the canvas rather than the field.
     refocus: () => { if (editorRef.current) editorRef.current.refocus(); else if (document.activeElement?.closest?.('[data-style-panel]')) document.activeElement.blur(); },
     start: () => snapshot(),
-    color: value => { setColor(value); applyStyle({ color: value }, panel.targets); },
+    // null is No stroke: only a closed shape can have none (the swatch shows for nothing else).
+    color: value => { if (value !== null) setColor(value); if (panel.noStroke) setNoStroke(value === null); applyStyle(strokePatch(value), value === null ? panel.targets.filter(id => closed(entryOf(id) || {})) : panel.targets); },
     fill: value => { setFill(value); applyStyle({ fill: value, ...(value ? { fillOpacity: panelValues.fillOpacity === 'mixed' ? 0.25 : panelValues.fillOpacity ?? 0.25 } : {}) }, panel.targets.filter(id => closed(entryOf(id) || {}))); },
     fillOpacity: value => { setFillOpacity(value); applyStyle({ fillOpacity: value }, panel.targets.filter(id => closed(entryOf(id) || {})), true); },
     width: value => { setWidth(value); applyStyle({ width: value }, panel.targets); },
