@@ -41,7 +41,7 @@ export function parseArgs(argv) {
 const walk = d => readdirSync(d).flatMap(n => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
 if (process.argv[1] && basename(process.argv[1]) === 'timing.mjs') {
   const { id, attempt, artifacts } = parseArgs(process.argv.slice(2));
-  const gh = path => JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8' }));
+  const gh = path => JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8', timeout: 60000 }));
   const repo = 'repos/Rabbit-Hole-App/Rabbit-Hole/actions/runs/' + id;
   const run = gh(`${repo}/attempts/${attempt}`), jobs = gh(`${repo}/attempts/${attempt}/jobs?per_page=100`).jobs;
   const out = summarizeRun(run, jobs);

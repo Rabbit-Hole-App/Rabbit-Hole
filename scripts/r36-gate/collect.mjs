@@ -52,10 +52,11 @@ const diveFile = join(dir('dive'), 'dive-receipt.json');
 const diveError = prerequisite('gate', json(diveFile), identityOf('dive'));
 if (diveError) failures.push(`checkpoint: ${diveError}`);
 
-// A part's receipt must pass with this run's identity and its gate-shard.log must exist; the units part is read like a shard.
+// A part's receipt must pass with its attempt's identity and its gate-shard.log must exist; the units part is read like a shard.
 const read = part => {
   const d = dir(part), receiptFile = join(d, `${part}-receipt.json`), receipt = json(receiptFile);
-  const wanted = identityOf(part), wrong = Object.keys(wanted).filter(key => receipt?.[key] !== wanted[key]);
+  // No receipt in the newest attempt's artifact is "receipt missing" - never an older attempt's receipt, never a bare identity mismatch.
+  const wanted = identityOf(part), wrong = receipt ? Object.keys(wanted).filter(key => receipt[key] !== wanted[key]) : [];
   if (!receipt?.pass || !receipt.ended || receipt.cleanupFailure || wrong.length) failures.push(`${part}: ${receipt?.failure || receipt?.cleanupFailure || (wrong.length ? `identity mismatch: ${wrong.join(', ')}` : 'receipt missing or not passed')}`);
   const logFile = join(d, 'gate-shard.log'), log = existsSync(logFile) ? readFileSync(logFile, 'utf8') : null;
   if (log === null) failures.push(`${part}: gate-shard.log missing`);
