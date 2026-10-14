@@ -123,7 +123,8 @@ await page.getByTitle('Reset zoom').click(); // back to 100% for the screenshots
 const clicked = (await hooks())[0];
 const plansBefore = plans.length;
 await page.locator('[data-next-step]').first().click();
-await page.locator('[data-step-chip]').waitFor({ timeout: 30000 });
+// Since 1eea0344 (learn-chat-sheet.md, Where an answer goes): a substantive Tutor answer with no selected card becomes a
+// canvas card, so a hook click's reply lands on the canvas, titled by the hook, and the dock draws no step chip.
 await page.getByText(CLICK_REPLY).waitFor({ timeout: 30000 });
 await check('3 a click is one next_step Tutor turn: the step as data, no learner words, no evidence, no Learn chat, the composer untouched', async () => {
   const turn = plans.slice(plansBefore);
@@ -132,10 +133,11 @@ await check('3 a click is one next_step Tutor turn: the step as data, no learner
   assert.deepEqual([intent.kind, intent.raw_user_message, intent.selected_next_step.hook], ['next_step', '', clicked]);
   assert.deepEqual(refused, [], 'no evaluate, Learn chat or material request');
   assert.equal(await composer().inputValue(), '');
-  assert.equal(await page.locator('[data-step-chip]').innerText(), clicked);
+  assert.equal(await page.locator('[data-step-chip]').count(), 0, 'the reply is a canvas card, not a sheet chip (1eea0344)');
+  assert.equal(await page.locator('[data-block-id]').filter({ hasText: CLICK_REPLY }).filter({ hasText: clicked }).count(), 1, 'one canvas card: the hook as its question, the reply as its answer');
 });
 await page.locator('[data-next-steps="ready"] [data-next-step]').first().waitFor({ timeout: 60000 });
-await check('4 the finished turn brings a new set; the clicked hook stays only as the chip', async () => {
+await check('4 the finished turn brings a new set without the clicked hook', async () => {
   await page.waitForFunction(() => document.querySelectorAll('[data-next-steps="ready"] [data-next-step]').length === 3);
   const now = await hooks();
   assert.equal(now.length, 3);
@@ -180,14 +182,17 @@ await composer().waitFor({ timeout: 60000 });
 await page.waitForTimeout(2000);
 await composer().fill('Where is the causal mask built?');
 await composer().press('Enter');
-// The Sources line is drawn as evidence pills (ask.jsx SourcesLine), so its text is the file reference.
-await page.locator('[data-chat-sheet] [aria-label="Answer evidence"]', { hasText: 'model.py:39-41' }).waitFor({ timeout: 30000 });
-await check('8 a handoff answer is the Tutor reply in the dock: markdown, code and its Sources line as evidence', async () => {
+// The Sources line is drawn as evidence pills (ask.jsx SourcesLine), so its text is the file reference. Since 1eea0344
+// (learn-chat-sheet.md, Where an answer goes): with no card selected, a retrieved source answer becomes a canvas card, so the
+// answer, its code and its Sources pill are on that card (Md, as in the sheet), not in the dock's sheet.
+const answerCard = page.locator('[data-block-id]', { has: page.locator('[aria-label="Answer evidence"]', { hasText: 'model.py:39-41' }) });
+await answerCard.first().waitFor({ timeout: 30000 });
+await check('8 a handoff answer is the Tutor reply on a canvas card: markdown, code and its Sources line as evidence', async () => {
   assert.equal(handoffs.length, 1);
   assert.equal(handoffs[0].capability, 'repository_context');
-  const sheet = page.locator('[data-chat-sheet]');
-  assert.ok(await sheet.locator('pre, code').count() > 0);
-  assert.match(await sheet.innerText(), /Let me read the source for that\.[\s\S]*CausalSelfAttention[\s\S]*model\.py:39-41/);
+  assert.equal(await answerCard.count(), 1);
+  assert.ok(await answerCard.locator('pre, code').count() > 0);
+  assert.match(await answerCard.innerText(), /Let me read the source for that\.[\s\S]*CausalSelfAttention[\s\S]*model\.py:39-41/);
 });
 await shot('04-dock-handoff-answer');
 await page.context().close();
@@ -207,13 +212,14 @@ const sharedClicked = (await hooks())[0];
 const beforeHole = plans.length;
 await page.locator('[data-next-step]').first().click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 30000 });
-await page.locator('[data-step-chip]').waitFor({ timeout: 60000 });
-await page.getByText(OPENING_REPLY).waitFor({ timeout: 30000 });
+// Since 1eea0344 the opening's reply is a canvas card in the hole (the hook as its question), not a chip in the dock.
+await page.locator('[data-block-id]').filter({ hasText: OPENING_REPLY }).first().waitFor({ timeout: 60000 });
 await check('10 a shared hook starts the viewer\'s private hole, whose first Tutor turn opens on that hook once, as the step', async () => {
   const opening = plans.slice(beforeHole).filter(p => p.context?.learner_intent?.kind === 'next_step');
   assert.equal(opening.length, 1);
   assert.deepEqual([opening[0].context.learner_intent.raw_user_message, opening[0].context.learner_intent.selected_next_step.hook], ['', sharedClicked]);
-  assert.equal(await page.locator('[data-step-chip]').innerText(), sharedClicked);
+  assert.equal(await page.locator('[data-block-id]').filter({ hasText: OPENING_REPLY }).filter({ hasText: sharedClicked }).count(), 1, 'one canvas card: the carried hook and its reply (1eea0344)');
+  assert.equal(await page.locator('[data-step-chip]').count(), 0);
   assert.equal(await composer().inputValue(), '');
   assert.equal(await ownerBoard(), sharedBefore, 'the shared board is unchanged');
 });
@@ -245,7 +251,7 @@ await page.context().addCookies([{ name: 'small_session', value: late.session, u
 const beforeLate = plans.length;
 await page.goto(`${BASE}${next}`);
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 30000 });
-await page.locator('[data-step-chip]').waitFor({ timeout: 60000 });
+await page.locator('[data-block-id]').filter({ hasText: lateClicked }).first().waitFor({ timeout: 60000 }); // its reply card (1eea0344)
 await check('13 back from sign-in, the kept step starts the hole and opens it, once', async () => {
   const opening = plans.slice(beforeLate).filter(p => p.context?.learner_intent?.kind === 'next_step');
   assert.equal(opening.length, 1);
