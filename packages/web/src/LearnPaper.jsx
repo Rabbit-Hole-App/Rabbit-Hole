@@ -9,8 +9,9 @@ import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHig
 // Card-only, optional: `highlights` + `onHighlights` are the learner's yellow
 // marks, quotes of the page's text stored with their page number, and
 // `highlighting` is highlighter mode - the same model as the Wikipedia card.
+// `src`: the PDF's own URL, for a file that is not a paper (a canvas context document in the Chat's Sources pane).
 export default function LearnPaper({ app, paper, onClose, onPage, onSelect, selectRequest = 0, selectButton = true,
-  highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null }) {
+  highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null, src = null }) {
   const report = usePerf();
   const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
@@ -22,7 +23,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
   const canvas = useRef(null);
   const text = useRef(null);
   // An upload has no public identity: no arXiv number and no public URL.
-  const uploaded = String(paper.id).startsWith('upload:');
+  const uploaded = String(paper.id).startsWith('upload:') || !!src;
   useEffect(() => { setSelecting(false); setRectangle(null); drag.current = null; }, [paper.id, paper.page]);
   // An outside control (the canvas Select-region pill) can arm the picker.
   useEffect(() => { if (selectRequest) { setSelecting(true); setRectangle(null); } }, [selectRequest]);
@@ -46,7 +47,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
     let task;
     setDocument(null); setError(''); setZoom(1);
     (async () => {
-      const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`, { headers: wsHeaders(), signal: controller.signal });
+      const response = await fetch(src || `/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`, { headers: wsHeaders(), signal: controller.signal });
       if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || 'Could not load this paper.');
       const data = new Uint8Array(await response.arrayBuffer());
       const { getDocument } = await import('./learn-paper-figures.js');
@@ -56,7 +57,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
       if (!controller.signal.aborted) setDocument(pdf);
     })().catch(error => { if (!controller.signal.aborted) setError(error.message); });
     return () => { controller.abort(); task?.destroy(); };
-  }, [app, paper.id]);
+  }, [app, paper.id, src]);
   useEffect(() => {
     if (!document) return;
     let active = true, render, words, resize;
@@ -148,7 +149,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
         <Highlighter size={14} />
         {mine.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-3.5 rounded-full bg-yellow-400 px-1 text-[9px] leading-3.5 font-semibold text-ink">{mine.length}</span>}
       </button>}
-      <a href={paper.pdfUrl ? `${paper.pdfUrl}#page=${paper.page}` : `/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
+      <a href={src ? `${src}#page=${paper.page}` : paper.pdfUrl ? `${paper.pdfUrl}#page=${paper.page}` : `/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
       {onClose && <button type="button" onClick={onClose} title="Close paper" aria-label="Close paper" className="rounded border border-line p-1 hover:bg-hover"><X size={14} /></button>}
     </header>
     {error && <p role="alert" className="p-3 text-sm">{error}</p>}

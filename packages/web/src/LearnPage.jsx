@@ -69,6 +69,7 @@ import { hasLocalContent, unsavedKey } from './home/canvas-local.js';
 import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
 import { boardText, serial, sharingOf } from './canvas-persist.js';
 import { typingIn } from './canvas-equation.js';
+import { codeRef, paperRef, wikiRef } from './chat-sources.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 // A review board named main gets a slug of its own (owner decision 3, 2026-10-07): review boards stay apart from the learner's
@@ -322,6 +323,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const pickResult = (source, item) => (source === 'arxiv' ? addPaper(item) : source === 'wikipedia' ? addWiki({ title: item.title }) : addVideo(item));
   // A paper card turning its page is where the learner is now - unless the
   // reader is open, which wins, as it does for a wiki card's section.
+  // The Learn Chat workspace's handle (chat-workspace.jsx). This page renders the provider, so A1 mounts
+  // <ChatWorkspaceRef into={chatWorkspace} /> (SourceReader.jsx) inside it. While it is set, every reader opener below opens the
+  // source in the Sources pane beside Chat instead of in place of the transcript (brief 6, 13.1), and changes no request context:
+  // viewing never attaches (contract A5). While it is null, the old right-panel readers open as before.
+  const chatWorkspace = useRef(null);
   const trackPaper = next => {
     if (paperOpen) return;
     setPaperContext(previous => (previous?.id === next.paperId && previous.page === next.page ? previous
@@ -333,12 +339,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const openWiki = ({ title, section = 0 }) => {
     pauseLesson();
     const blockId = canvas()?.insertWiki({ title, section });
+    const chat = chatWorkspace.current;
+    if (chat) { if (section) chat.sources.savePosition(`wiki:${title}`, { section }); chat.openSource(wikiRef({ title })); } else {
     setWikiContext({ blockId: blockId || null, title, section, selection: null });
     setWikiOpenAt(previous => previous + 1);
     // One reader holds one thing. Leaving paperContext set would keep sending
     // the paper instead - ask.jsx prefers it - for the rest of the session.
     setPaperContext(null);
     setWikiOpen(true); setPaperOpen(false); setSourceOpen(false); setLessonSource(null); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    }
     if (blockId) registerSource({ id: `wiki:${blockId}`, kind: 'wiki', label: String(title).replace(/_/g, ' ') });
   };
   // The id names the card, never the article, so clicking through twenty links
@@ -368,9 +377,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     pauseLesson();
     // The search panel supplies no page; the tutor supplies the one it is
     // pointing at, and that must win.
+    if (chatWorkspace.current) chatWorkspace.current.openSource(paperRef(paper)); else {
     setPaperContext({ ...paper, page: paper.page || 1 });
     setWikiContext(null); setWikiOpen(false);
     setPaperOpen(true); setSourceOpen(false); setLessonSource(null); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    }
     registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
   };
   // A PDF needs no account and no server: the bytes go to this browser's asset
@@ -432,9 +443,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     // page the learner is actually on. The card cannot do that job - an iframe
     // never says which page is on screen.
     pauseLesson();
+    if (chatWorkspace.current) chatWorkspace.current.openSource(paperRef({ id: stored.id, title: stored.title, page: 1 })); else {
     setPaperContext({ ...stored, pdfUrl: null, page: 1 });
     setWikiContext(null); setWikiOpen(false);
     setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
+    }
     registerSource({ id: stored.id, kind: 'pdf', label: stored.title });
   };
   // Files dropped straight onto the canvas. Each kind takes its own road: a
@@ -986,8 +999,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // A cited source names its own revision (and repository, for the link out);
   // a bare path reference reads the lesson's.
   const openCanvasFile = (path, line, lineEnd, cited = {}) => {
+    const commit = cited.commit || (nanoActive ? nanoSourceVersion : repositoryContext?.commit);
+    if (chatWorkspace.current) return chatWorkspace.current.openSource(codeRef({ repo: cited.repo || '', commit: commit || '', path, start: line, end: lineEnd }));
     setPaperOpen(false); setSourceOpen(false); setWikiOpen(false); setPanelOpen(true);
-    setLessonSource({ path, line, lineEnd, commit: cited.commit || (nanoActive ? nanoSourceVersion : repositoryContext?.commit), repo: cited.repo });
+    setLessonSource({ path, line, lineEnd, commit, repo: cited.repo });
   };
   const clearAskTarget = () => { setAskTarget(null); canvasApi.current?.deselect(); };
   // The selected-card context belongs to the canvas it was chosen on: another canvas or board (a Rabbit Hole) starts clear.
