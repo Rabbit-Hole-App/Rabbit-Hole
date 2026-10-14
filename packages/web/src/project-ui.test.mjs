@@ -10,7 +10,7 @@ import { SLASH } from './agent/slash.js';
 import { OVERVIEW_TAB } from './inspector.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const page = read('RepositoryPage.jsx'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx');
+const page = read('RepositoryPage.jsx'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx'), renderer = read('Md.jsx');
 
 // repository-browser.md (owner, 2026-10-07): one navigation, Files · Graph · Learn, as restrained underline tabs, replacing
 // both the Map | Learn pill and the Files | Graph buttons. Files and Graph are views of the page; Learn is the canvas.
@@ -92,8 +92,8 @@ test('an answer lists every cited file once, in order, including line lists writ
   assert.deepEqual(citedSources('No files here, just 3 numbers: 1, 2.'), []);
   // Md shows them in a Sources dropdown wherever opening a file is wired.
   // Inside a repository context only a file of its snapshot is listed (repository-browser.md "Code references").
-  assert.match(md, /const cited = onFile \? citedSources\(text\)\.filter\(c => linkable\(c, has\)\) : \[\];/);
-  assert.match(md, /<details key="cited" data-cited-sources[^>]*><summary[^>]*>Sources \(\{cited\.length\}\)<\/summary>/);
+  assert.match(renderer, /const cited = onFile \? citedSources\(text\)\.filter\(c => linkable\(c, has\)\) : \[\];/);
+  assert.match(renderer, /<details key="cited" data-cited-sources[^>]*><summary[^>]*>Sources \(\{cited\.length\}\)<\/summary>/);
 });
 
 test('the main composer: the Auto picker opens a / commands sheet with an example for every command it offers', () => {
