@@ -125,7 +125,106 @@ const isCanvas = name => typeof name === 'string' && /^canvas-[a-f0-9]{8}$/.test
 export function canvasRoute(url) {
   const path = url.pathname;
   return path === '/api/canvases' || /^\/api\/canvases\/dives(?:\/canvas-[a-f0-9]{8})?$/.test(path) || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
-    || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref'))) || CHAT_STATE.test(path);
+    || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref'))) || CHAT_STATE.test(path)
+    || CHAT_MESSAGES.test(path) || path === CHAT_ACTIVE;
+}
+// Saving a chat exchange the client already shows (a Tutor reply in Auto, owner brief 2026-10-14 chat persistence): no model
+// call and no new schema. Any id reaches the handler, which answers a malformed one with 400 rather than letting it fall
+// through to another route.
+const CHAT_MESSAGES = /^\/api\/learn\/chat\/threads\/([^/]+)\/messages$/;
+const CHAT_ACTIVE = '/api/learn/chat/active';
+const CHAT_ID = /^canvaschat-[0-9a-f-]{36}$/, CLIENT_ID = /^[A-Za-z0-9_-]{1,80}$/, CONTENT = 100000;
+const noChatTables = error => /no such table/i.test(error?.message || '');
+const unavailable = () => json({ error: 'Saving chat is not available here yet' }, 503);
+async function jsonObject(req) {
+  const body = await req.json();
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw Error('Send a JSON object');
+  return body;
+}
+// The canvas a chat write names must be the caller's own, or a pending hole of theirs (the state route's fallback): null, or
+// the refusal (another person's canvas).
+async function canvasRefusal(env, user, app) {
+  if (!isCanvas(app)) throw Error('Send app as a canvas name');
+  const owned = await ownedCanvas(env, user, app);
+  return owned instanceof Response && owned.status !== 404 ? owned : null;
+}
+// null when no thread has this id yet; 404 for another person's (never revealed), 409 for the caller's own on another canvas,
+// so a late reply never lands in a different canvas's thread; else the row.
+async function canvasThread(db, user, id, app) {
+  const row = await db.prepare('SELECT org, user, scope_ref FROM threads WHERE id=?').bind(id).first();
+  if (!row) return null;
+  if (row.org !== user.org || row.user !== user.email) return json({ error: 'Chat not found' }, 404);
+  return row.scope_ref === app ? row : json({ error: 'This chat belongs to another canvas', code: 'thread_canvas_mismatch' }, 409);
+}
+// POST /api/learn/chat/threads/<id>/messages: one message, idempotent per (thread, client_id). The client mints the thread id,
+// so the first POST creates the thread and a retried create never makes a second one.
+async function saveChatMessage(req, env, user, id) {
+  const db = env.LEARN_DB, body = await jsonObject(req);
+  const { app, client_id: clientId, role, content, title } = body, status = body.status ?? 'done', mode = body.mode ?? 'auto';
+  if (!CHAT_ID.test(id)) throw Error('Chat id must be canvaschat- and a UUID');
+  if (typeof clientId !== 'string' || !CLIENT_ID.test(clientId)) throw Error('client_id must be 1-80 letters, digits, _ or -');
+  if (!['user', 'assistant'].includes(role)) throw Error('role must be user or assistant');
+  if (role === 'user' && body.status !== undefined) throw Error('Only an assistant message has a status');
+  if (!['done', 'interrupted'].includes(status)) throw Error('status must be done or interrupted');
+  if (!CHAT_MODES.includes(mode)) throw Error('Mode must be auto, ask or tutor');
+  if (typeof content !== 'string' || content.length > CONTENT) throw Error(`content must be text of at most ${CONTENT} characters`);
+  if (!content.trim() && status !== 'interrupted') throw Error('content is required');
+  if (title != null && typeof title !== 'string') throw Error('title must be text');
+  const refused = await canvasRefusal(env, user, app); if (refused) return refused;
+  const thread = await canvasThread(db, user, id, app); if (thread instanceof Response) return thread;
+  // ponytail: select-then-insert, so two truly concurrent POSTs of one client_id can both insert. A unique index on
+  // (thread_id, json_extract(meta_json, '$.clientId')) closes that race; it is a migration, so it waits for its own GO.
+  const saved = () => db.prepare("SELECT message_id FROM chat_message_meta WHERE thread_id=? AND json_extract(meta_json, '$.clientId')=?").bind(id, clientId).first();
+  let row;
+  try { row = await saved(); } catch (error) { if (noChatTables(error)) return unavailable(); throw error; } // before any write: 0019 missing creates nothing
+  if (row) return json({ threadId: id, messageId: String(row.message_id), clientId, duplicate: true });
+  // The meta shapes chat-modes.js stores (recordUserTurn, recordAnswer), plus the clientId a retry is found by.
+  const meta = role === 'user' ? { mode, command: null, contextRefs: [], clientId }
+    : status === 'interrupted' ? { status, mode, clientId }
+    : { version: 1, mode, kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, source: 'tutor', clientId };
+  const at = new Date().toISOString();
+  // One batch, so a message never lands without the meta row its retry is found by; that row takes the thread's newest
+  // message, the one this batch just inserted.
+  await db.batch([
+    ...(thread ? [] : [db.prepare("INSERT OR IGNORE INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)").bind(id, user.org, user.email, app, (title || content).slice(0, TITLE))]),
+    db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id, role, content),
+    db.prepare('INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?').bind(id, role, JSON.stringify(meta), id),
+    db.prepare('INSERT INTO chat_thread_state(thread_id,last_activity_at,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET last_activity_at=excluded.last_activity_at, updated_at=excluded.updated_at').bind(id, at, at),
+  ]);
+  return json({ threadId: id, messageId: String((await saved()).message_id), clientId, duplicate: false }, 201);
+}
+// The open thread per canvas is one chat_thread_state row (no new column or table): its thread_id is a synthetic key per
+// canvas, workspace and person - no real thread id starts with 'active:', so History's join and a thread's delete never meet
+// it - and context_json holds { threadId }. Only PUT /api/learn/chat/active writes it, never a message save, so a late answer
+// finishing in thread A cannot make A the open thread after the person opened B.
+const activeKey = (user, app) => `active:${app}:${user.org}:${user.email}`;
+async function activeChat(req, env, user, url) {
+  const db = env.LEARN_DB;
+  if (req.method === 'GET') {
+    const app = url.searchParams.get('app');
+    const refused = await canvasRefusal(env, user, app); if (refused) return refused;
+    let saved = null;
+    try { saved = JSON.parse((await db.prepare('SELECT context_json FROM chat_thread_state WHERE thread_id=?').bind(activeKey(user, app)).first())?.context_json ?? 'null')?.threadId; }
+    catch (error) { if (!noChatTables(error) && !(error instanceof SyntaxError)) throw error; }
+    // A thread since deleted, or no longer this person's on this canvas, is none.
+    const thread = typeof saved === 'string' ? await canvasThread(db, user, saved, app) : null;
+    return json({ threadId: thread && !(thread instanceof Response) ? saved : null });
+  }
+  if (req.method !== 'PUT') return json({ error: 'GET or PUT required' }, 405);
+  const { app, thread_id: threadId } = await jsonObject(req);
+  if (threadId !== null && !(typeof threadId === 'string' && CHAT_ID.test(threadId))) throw Error('thread_id must be a chat id or null');
+  const refused = await canvasRefusal(env, user, app); if (refused) return refused;
+  if (threadId) {
+    const thread = await canvasThread(db, user, threadId, app);
+    if (!thread) return json({ error: 'Chat not found' }, 404);
+    if (thread instanceof Response) return thread;
+  }
+  const at = new Date().toISOString();
+  try {
+    await db.prepare('INSERT INTO chat_thread_state(thread_id,context_json,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET context_json=excluded.context_json, updated_at=excluded.updated_at')
+      .bind(activeKey(user, app), JSON.stringify({ threadId }), at).run();
+  } catch (error) { if (noChatTables(error)) return unavailable(); throw error; }
+  return json({ threadId });
 }
 // A Chat thread's saved state (chat-workspace-CONTRACT.md A3): its mode, attached ContextRefs (A2) and draft, upserted into
 // chat_thread_state by PUT /api/learn/chat/threads/<id>/state. last_activity_at is the turn's (apiAsk), never touched here.
@@ -232,6 +331,9 @@ export async function canvasesFetch(req, env) {
       }
       return json(await ownedCanvas(env, user, name), 201);
     }
+    const saving = path.match(CHAT_MESSAGES);
+    if (saving) return req.method === 'POST' ? await saveChatMessage(req, env, user, saving[1]) : json({ error: 'POST required' }, 405);
+    if (path === CHAT_ACTIVE) return await activeChat(req, env, user, url);
     // Learn's chat keeps its /api/ask/threads calls (ask.jsx:388,401,601,622); canvas history lives in LEARN_DB.
     const thread = path.match(/^\/api\/ask\/threads(?:\/(canvaschat-[a-f0-9-]+)(?:\/(delete|rename))?)?$/) || path.match(CHAT_STATE);
     if (thread) {
