@@ -1360,7 +1360,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : project ? 'Main canvas' : app.repo || app.name)
     : courseTitle || app.repo || app.name;
   // Never the canvas id: its title, or plain words when there is none.
-  const askPlaceholder = isCanvas ? ((canvasTitle || app.title) ? `Ask about ${canvasTitle || app.title}…` : 'Ask about this canvas…') : `Ask about ${app.repo || app.name}…`;
+  // A canvas title is a weak hint (chat brief section 8), so the canvas composer never names it.
+  const askPlaceholder = isCanvas ? 'Ask about this canvas…' : `Ask about ${app.repo || app.name}…`;
   // The right-side Chat is the one main Learn composer (owner brief 2026-10-13 section 4): the canvas dock is gone, and what it
   // carried rides on the Chat's AskPanel (ChatPane, A1 spreads these): the / commands, the Tutor, the journey's starter and tray,
   // Voice Mode, the Next Steps hook sends and the selected card's chip. Its answers never land on the canvas by themselves (no

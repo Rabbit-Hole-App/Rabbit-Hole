@@ -775,7 +775,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   else if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
-      {!compact && (msgs.length > 0 || threads.length > 0 || headerExtra || headerTitle) && (
+      {/* The Chat pane's own header (ChatPane: title, History, New chat) replaces this row there. */}
+      {!compact && !chat && (msgs.length > 0 || threads.length > 0 || headerExtra || headerTitle) && (
         <div className="flex shrink-0 items-center justify-end gap-1 pb-1">
           {headerTitle && <h2 className="mr-auto text-sm font-semibold">{headerTitle}</h2>}
           {/* No History or New chat (owner, 2026-10-04): one icon clears the conversation. */}
