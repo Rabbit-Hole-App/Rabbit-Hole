@@ -9,6 +9,7 @@ on:
   pull_request:
 permissions:
   contents: read
+  actions: read # verify-reuse.mjs confirms the original verify run through the API
 concurrency:
   group: verify-${{ github.ref }}
   cancel-in-progress: true
@@ -23,26 +24,43 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+      # Before any install or build: a passing verify run of exactly this commit, tree and lockfiles (its note, checked
+      # by verify-evidence.mjs) whose run the API confirms as this repository's verify.yml, at this sha, a completed
+      # success, is reused, and the job summary links it. Anything missing, invalid or unconfirmed: the steps below run.
+      - name: Reuse a passing verify run of this exact commit
+        id: reuse
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/verify-reuse.mjs
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        if: steps.reuse.outputs.reuse != 'true'
       - run: node scripts/lock-natives.mjs --check
+        if: steps.reuse.outputs.reuse != 'true'
       - run: npm ci --no-audit --no-fund
+        if: steps.reuse.outputs.reuse != 'true'
       - run: node scripts/ensure-natives.mjs
+        if: steps.reuse.outputs.reuse != 'true'
       - run: uv sync --locked
+        if: steps.reuse.outputs.reuse != 'true'
       # Keyless: every suite runs with no provider or deployment credential in the environment.
       - name: Unit suites
         id: unit
+        if: steps.reuse.outputs.reuse != 'true'
         run: |
           set +e
           env -i PATH="$PATH" HOME="$HOME" CI=true bash run.sh test:unit
           echo "code=$?" >> "$GITHUB_OUTPUT"
       - name: Page builds
         id: build
+        if: steps.reuse.outputs.reuse != 'true'
         run: |
           set +e
           (cd packages/web && VITE_RABBIT_HOLE=true VITE_TLDRAW_LICENSE_KEY=verify-only npm run build && npm run build -- --outDir dist-dev)
           echo "code=$?" >> "$GITHUB_OUTPUT"
+      # A reuse writes no evidence, so the record job below adds no note: the original run's note stays the record.
       - name: Evidence
         id: evidence
+        if: steps.reuse.outputs.reuse != 'true'
         run: |
           node scripts/verify-evidence.mjs write --unit "${{ steps.unit.outputs.code }}" --build "${{ steps.build.outputs.code }}" --out "$RUNNER_TEMP/verify.json"
           echo "evidence=$(cat "$RUNNER_TEMP/verify.json" | tr -d '\n')" >> "$GITHUB_OUTPUT"
