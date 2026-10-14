@@ -192,7 +192,8 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // The Tutor draws the turn's bubbles and exchange itself (begin), only for a turn it answers: a turn the journey takes
   // has neither, and a failed one gives the words back. Ask the Tutor (skipJourney) goes straight to the planner.
   // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
-  assert.match(ask, /if \(!tutor \|\| codeTurn \|\| isDemo\) begin\(\);/);
+  // The Learn Chat pane (chat) never hands a turn to tutor.ask, so its turn begins here too (chat-workspace contract B6).
+  assert.match(ask, /if \(!tutor \|\| codeTurn \|\| isDemo \|\| chat\) begin\(\);/);
   assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin \}\)/);
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
