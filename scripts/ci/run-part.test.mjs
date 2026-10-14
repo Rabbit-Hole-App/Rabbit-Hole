@@ -77,6 +77,18 @@ test('fork checks get the gate env and a shots dir; harness checks get their por
   assert.equal(readFileSync(`${s.t}/out/fast.log`, 'utf8').trim().split('\n').length, 7);
 });
 
+test('readiness runs every check three times in a row, each run in its own log and its own line', { skip }, () => {
+  const s = scratch({ 'a-check.mjs': { runner: 'fork' }, 'canvas-editing-check.mjs': { runner: 'harness', port: 5391 } });
+  const r = s.run({ READINESS: '1' });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(s.calls().map(c => c.check), ['a-check.mjs', 'a-check.mjs', 'a-check.mjs', 'canvas-editing-check.mjs', 'canvas-editing-check.mjs', 'canvas-editing-check.mjs']);
+  assert.deepEqual(s.vite().length, 1, 'one server for the three runs');
+  for (const n of ['a', 'canvas-editing']) for (const i of [1, 2, 3]) {
+    assert.match(r.stdout, new RegExp(`^${n} run ${i}/3 exit 0 `, 'm'));
+    assert.ok(existsSync(`${s.t}/out/${n}-check-${i}.log`), `${n} run ${i} has its own log`);
+  }
+});
+
 test('a harness-only part never starts the stack', { skip }, () => {
   const s = scratch({ 'inline-ai-check.mjs': { runner: 'harness', port: 5397 } });
   const r = s.run();

@@ -17,9 +17,10 @@ export function classify(p, map) {
   if (any(map.none, p)) return 'none';
   return any(map.executable, p) ? 'unmapped' : 'none';
 }
-export function select(changes, map) {
+// force: readiness (fast-e2e workflow_dispatch readiness=1) selects every Linux check, as a broad path would.
+export function select(changes, map, force = false) {
   const linux = Object.keys(map.checks).filter(c => map.checks[c].runner !== 'windows-only');
-  const checks = new Set(), reasons = [], unmapped = []; let broad = false;
+  const checks = new Set(), reasons = force ? ['readiness: broad'] : [], unmapped = []; let broad = force;
   for (const c of changes) for (const p of [c.path, c.oldPath].filter(Boolean)) {
     const k = classify(p, map);
     if (k === 'broad') { broad = true; reasons.push(`${p}: broad`); }
@@ -64,8 +65,8 @@ export function partArgs(argv) {
   return part >= 1 && of >= 1 && part <= of ? { part, of } : null;
 }
 // The CLI contract: JSON on stdout, exit 2 when a changed executable path has no class.
-export function plan({ part, of, changes, map, baseline: base }) {
-  const s = select(changes, map);
+export function plan({ part, of, changes, map, baseline: base, force }) {
+  const s = select(changes, map, force);
   const out = { part, checks: parts(s.checks, map, of)[part - 1], reasons: s.reasons, notCovered: s.notCovered, baseline: base, unmapped: s.unmapped };
   return s.unmapped.length ? { code: 2, out, err: `add ${s.unmapped.join(', ')} to scripts/ci/check-map.json (or mark it broad)` } : { code: 0, out };
 }
@@ -78,7 +79,7 @@ if (process.argv[1] && basename(process.argv[1]) === 'affected.mjs') {
   const runs = JSON.parse(execFileSync('gh', ['run', 'list', '--workflow', 'fast-e2e.yml', '--branch', process.env.GITHUB_REF_NAME, '--status', 'success', '--limit', '30', '--json', 'headSha'], { encoding: 'utf8' }));
   const isAncestor = (a, b) => { try { execFileSync('git', ['merge-base', '--is-ancestor', a, b]); return true; } catch { return false; } };
   const base = baseline({ head, greenShas: runs.map(r => r.headSha), isAncestor, mergeBaseMain: git('merge-base', head, 'origin/main') });
-  const r = plan({ ...args, changes: changedPaths(base, head), map, baseline: base });
+  const r = plan({ ...args, changes: changedPaths(base, head), map, baseline: base, force: process.env.READINESS === '1' });
   console.log(JSON.stringify(r.out));
   if (r.code) { console.error(r.err); process.exit(r.code); }
 }

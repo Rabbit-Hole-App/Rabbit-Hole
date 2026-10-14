@@ -19,6 +19,12 @@ test('a broad path runs every Linux-ready check, and lists windows-only ones as 
   assert.deepEqual(s.checks.sort(), ['dive-check.mjs', 'inline-ai-check.mjs']);
   assert.equal(s.broad, true);
 });
+test('readiness (force) selects every Linux check with no change at all, and lists windows-only ones as not covered', () => {
+  const s = select([], map, true);
+  assert.deepEqual(s.checks, ['dive-check.mjs', 'inline-ai-check.mjs']);
+  assert.deepEqual(s.notCovered, ['journey-check.mjs']);
+  assert.equal(s.broad, true);
+});
 test('an unmapped executable path fails selection', () => {
   assert.deepEqual(select([{ status: 'A', path: 'packages/web/src/New.jsx' }], map).unmapped, ['packages/web/src/New.jsx']);
 });

@@ -70,14 +70,16 @@ test('the pinned nanoGPT fixture selects the checks that read it', () => {
   const p = 'packages/learn-render/motion/fixtures/sources/nanogpt-3adf61e/MANIFEST.json';
   assert.equal(classify(p, map), 'mapped');
   const s = sel(p);
-  assert.deepEqual(s.checks, ['repo-browser-check.mjs', 'workspace-check.mjs']);
-  assert.deepEqual(s.notCovered, ['rabbit-hole-check.mjs']);
+  assert.deepEqual(s.checks, ['workspace-check.mjs']);
+  assert.deepEqual(s.notCovered.sort(), ['rabbit-hole-check.mjs', 'repo-browser-check.mjs']);
   const other = tracked.find(f => f.startsWith('packages/learn-render/motion/') && !f.includes('/nanogpt-3adf61e/') && /\.m?js$/.test(f) && !f.endsWith('.test.mjs'));
   assert.equal(classify(other, map), 'none', other);
 });
 test('Dive, PanelHeader and FileImportDialog select every check that drives them', () => {
-  const dive = sel('packages/web/src/Dive.jsx').checks;
+  // Selected: run here, or listed as not covered when windows-only (Task B4 parked repo-browser, next-steps-wiring and voice).
+  const all = p => { const s = sel(p); return [...s.checks, ...s.notCovered]; };
+  const dive = all('packages/web/src/Dive.jsx');
   for (const c of ['dive-check.mjs', 'next-steps-wiring-check.mjs', 'voice-check.mjs', 'cross-device-check.mjs']) assert.ok(dive.includes(c), `Dive.jsx -> ${c}`);
-  assert.ok(sel('packages/web/src/PanelHeader.jsx').checks.includes('repo-browser-check.mjs'));
-  assert.ok(sel('packages/web/src/FileImportDialog.jsx').checks.includes('repo-browser-check.mjs'));
+  assert.ok(all('packages/web/src/PanelHeader.jsx').includes('repo-browser-check.mjs'));
+  assert.ok(all('packages/web/src/FileImportDialog.jsx').includes('repo-browser-check.mjs'));
 });

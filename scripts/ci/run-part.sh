@@ -7,6 +7,8 @@ set -uo pipefail
 [ $# -eq 2 ] || { echo 'usage: run-part.sh <sel.json> <out-dir>'; exit 2; }
 SEL=$1; OUT=$2; W=$(git rev-parse --show-toplevel); mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
 VITE=$W/node_modules/vite/bin/vite.js
+# Readiness (fast-e2e.yml workflow_dispatch readiness=1, Task B4): each check three times in a row, every run in its own log.
+REPEAT=1; [ "${READINESS:-}" = 1 ] && REPEAT=3
 # Harness check -> the port its source names (0: the check starts its own server). Read from each check's head;
 # fast-e2e.test.mjs compares this table with check-map.json and with every source, so a new harness check fails loudly.
 declare -A PORT=(
@@ -51,12 +53,15 @@ cnt() { local L=$1 s p f; s=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -aoE '[0-9]+
   f=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^FAIL|^not ok')
   if [ "$f" != 0 ]; then echo "fail $f"; else echo "$p/$p checks passed"; fi; }
 
-# run_check <check> [args...]: one check from packages/web with the env in ENVV; a failure prints the log tail.
+# run_check <check> [args...]: one check from packages/web with the env in ENVV, REPEAT times; a failure prints the log tail.
 run_check() {
-  local c=$1 n=${1%.mjs} L T0 rc; shift; L=$OUT/$n.log; T0=$(date +%s)
-  (cd "$W/packages/web" && env "${ENVV[@]}" timeout 900 node "e2e/$c" "$@" > "$L" 2>&1); rc=$?
-  echo "${n%-check} exit $rc  $(cnt "$L")  ($(( $(date +%s) - T0 ))s)" | tee -a "$OUT/fast.log"
-  [ $rc = 0 ] || { FAIL=1; echo "--- ${n%-check} log tail ---"; sed 's/\x1b\[[0-9;]*m//g' "$L" | tail -n 20; }
+  local c=$1 n=${1%.mjs} L T0 rc i t=; shift
+  for i in $(seq 1 "$REPEAT"); do
+    L=$OUT/$n.log; [ "$REPEAT" = 1 ] || { L=$OUT/$n-$i.log; t=" run $i/$REPEAT"; }; T0=$(date +%s)
+    (cd "$W/packages/web" && env "${ENVV[@]}" timeout 900 node "e2e/$c" "$@" > "$L" 2>&1); rc=$?
+    echo "${n%-check}$t exit $rc  $(cnt "$L")  ($(( $(date +%s) - T0 ))s)" | tee -a "$OUT/fast.log"
+    [ $rc = 0 ] || { FAIL=1; echo "--- ${n%-check}$t log tail ---"; sed 's/\x1b\[[0-9;]*m//g' "$L" | tail -n 20; }
+  done
 }
 
 # Which runner each selected check needs (check-map.json); anything but fork or harness is a stop, never a silent skip.

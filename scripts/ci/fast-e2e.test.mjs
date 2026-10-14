@@ -85,6 +85,13 @@ test('empty parts stop after selection; every later step is gated on the selecti
   assert.ok(steps.slice(sel + 1).filter(s => !/uses: actions\/upload-artifact/.test(s)).every(s => /if: (always\(\) && )?steps\.sel\.outputs\.n/.test(s)));
 });
 
+test('readiness: the dispatch input reaches the selection and run-part.sh as env only, never inlined in a script', () => {
+  assert.match(y, /workflow_dispatch:\n\s+inputs:\n\s+readiness:/);
+  assert.match(e2e.slice(0, e2e.indexOf('steps:')), /^ {6}READINESS: \$\{\{ inputs\.readiness \}\}$/m);
+  assert.deepEqual(steps.filter(s => /run: [\s\S]*inputs\./.test(s)), []);
+  assert.match(sh, /\[ "\$\{READINESS:-\}" = 1 \] && REPEAT=3/);
+});
+
 test('run-part.sh parses', () => {
   const r = spawnSync('bash', ['-n', fileURLToPath(new URL('./run-part.sh', import.meta.url)).replaceAll('\\', '/')], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
@@ -92,7 +99,9 @@ test('run-part.sh parses', () => {
 test('every harness check has a server rule that matches the port its source hard-codes', () => {
   const rules = Object.fromEntries([...sh.matchAll(/\[([\w-]+-check\.mjs)\]=(\d+)/g)].map(m => [m[1], Number(m[2])]));
   const harness = Object.keys(map.checks).filter(c => map.checks[c].runner === 'harness').sort();
-  assert.deepEqual(Object.keys(rules).sort(), harness, 'run-part.sh PORT table must list exactly the harness checks of check-map.json');
+  assert.deepEqual(harness.filter(c => !(c in rules)), [], 'every harness check of check-map.json needs a PORT row in run-part.sh');
+  // A row may stay for a check parked windows-only until its app-side fix (Task B4), so re-enabling it is a map change only.
+  assert.deepEqual(Object.keys(rules).filter(c => !['harness', 'windows-only'].includes(map.checks[c]?.runner)), [], 'a PORT row names a harness or parked check');
   for (const [c, port] of Object.entries(rules)) {
     const src = read(`../../packages/web/e2e/${c}`);
     if (port === 0) assert.match(src, /createServer\(/, `${c} is marked as starting its own server`);

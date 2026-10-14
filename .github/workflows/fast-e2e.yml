@@ -6,6 +6,12 @@ name: fast-e2e
 on:
   push:
     branches-ignore: [main, dev]
+  # Linux readiness (Task B4): every Linux check, three times in a row. gh workflow run fast-e2e.yml --ref <branch> -f readiness=1
+  workflow_dispatch:
+    inputs:
+      readiness:
+        description: '1 runs every Linux check of check-map.json three times in a row'
+        default: '0'
 permissions:
   contents: read
   actions: read
@@ -16,7 +22,7 @@ jobs:
   e2e:
     if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github.event.deleted != true
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: ${{ inputs.readiness == '1' && 45 || 20 }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,6 +30,7 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ''
       OPENAI_API_KEY: ''
+      READINESS: ${{ inputs.readiness }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
