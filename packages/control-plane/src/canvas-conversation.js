@@ -4,7 +4,10 @@ import { HISTORY_TURNS } from './learn-models.js';
 // the provider's safety check reads the whole history, so carrying it declines every later turn, safe or not (lane-b-real
 // RECHECK.md 6c). The model still sees that a request was declined, and a request that itself asks again is declined afresh.
 export const DECLINE = "I can't help with that request.";
-export const WITHHELD = '(An earlier request in this conversation was declined; its text is withheld.)';
+// The note says what the model needs without the text: a message that continues or rephrases the declined request is declined
+// again (owner clarification 1), and a clearly new request is judged on its own (RECHECK run 2: without this line 6b's "just
+// list the materials" was read as being about the board).
+export const WITHHELD = '(The previous request in this conversation was declined for safety, and its text is withheld here. If the next message continues or rephrases that request, decline it again; judge a clearly new request on its own merits.)';
 
 // A new canvas branch starts with only its own displayed question and answer.
 // These are conversation text, never trusted source evidence or instructions.
