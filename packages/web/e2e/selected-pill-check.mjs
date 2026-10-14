@@ -238,8 +238,10 @@ for (const { kind } of ASKS) {
     if (THREADS[kind.id]) {
       const pin = await page.locator(`[data-comment-pin="${THREADS[kind.id]}"]`).boundingBox();
       assert.ok(pin, 'its pin');
-      assert.ok(pin.x + pin.width <= pillBox.x + 1, `the pin is left of the pill: ${JSON.stringify([pin, pillBox])}`);
-      assert.ok(pillBox.x - (pin.x + pin.width) < 24, `right next to it: ${JSON.stringify([pin, pillBox])}`);
+      // Never under the actions (comments-check `beside`): the pin's box never overlaps the bar's box. A bar clamped inside the
+      // narrower canvas (the Chat pane beside it) can run wider than the object, and the pin then sits below it.
+      const barOverlap = [Math.min(pin.x + pin.width, pillBox.x + pillBox.width) - Math.max(pin.x, pillBox.x), Math.min(pin.y + pin.height, pillBox.y + pillBox.height) - Math.max(pin.y, pillBox.y)];
+      assert.ok(barOverlap.some(overlap => overlap <= 1), `the pin is never under the actions: ${JSON.stringify([pin, pillBox])}`);
       const contact = [Math.min(pin.x + pin.width, box.x + box.width) - Math.max(pin.x, box.x), Math.min(pin.y + pin.height, box.y + box.height) - Math.max(pin.y, box.y)];
       assert.ok(contact.every(overlap => overlap >= 2), `touching the object: ${JSON.stringify([pin, box])}`);
       // Over no control: a text box's H1 to Text ladder, Text | Code, the actions, or anything else a press would reach.
