@@ -223,6 +223,9 @@
   ],
   "defaultReason": "An unmapped executable path runs this conservative set (the app shell, navigation, selection, naming and the home ask, about 4 min of checks) and the run reports the missing mapping. It is neither the full broad set nor a failure.",
   "mapped": {
+    "packages/web/src/inline-diagram.js": ["inline-ai-check.mjs","dive-check.mjs"],
+    "packages/web/src/inline-placement.js": ["inline-ai-check.mjs","dive-check.mjs"],
+    "packages/web/src/inline-ai-test-transport.mjs": ["inline-ai-check.mjs"],
     "packages/web/src/InlineAiEditor.jsx": ["inline-ai-check.mjs","canvas-skeleton-check.mjs","chat-block-check.mjs","cross-device-check.mjs","dive-check.mjs","explain-back-sketch-check.mjs","journey-check.mjs","manim-render-check.mjs","practice-card-check.mjs","wiki-check.mjs"],
     "packages/web/src/inline-ai-*.js": ["inline-ai-check.mjs"],
     "packages/web/e2e/inline-ai-*.*": ["inline-ai-check.mjs"],
@@ -400,6 +403,8 @@
     "packages/web/e2e/chat-answers-real.mjs",
     "packages/web/e2e/curious-context-real.mjs",
     "packages/web/e2e/inline-context-real.mjs",
+    "packages/web/e2e/inline-create-real.mjs",
+    "packages/web/e2e/inline-decide-eval.mjs",
     "packages/web/e2e/inline-composer-shots.mjs"
   ],
   "noneReasons": {
@@ -477,6 +482,8 @@
     "packages/web/e2e/chat-answers-real.mjs": "manual real-provider run on a local stack (paid, ledger-reserved); no check imports or spawns it",
     "packages/web/e2e/curious-context-real.mjs": "manual real-provider run on a local stack (paid, ledger-reserved); no check imports or spawns it",
     "packages/web/e2e/inline-context-real.mjs": "manual real-provider run on a local stack (paid); no check imports or spawns it",
+    "packages/web/e2e/inline-create-real.mjs": "real-model creation run by hand against the spend ledger; never in CI",
+    "packages/web/e2e/inline-decide-eval.mjs": "real-model (JEV) labelled decision eval run by hand against the spend ledger; never in CI",
     "packages/web/e2e/inline-composer-shots.mjs": "manual capture or benchmark script; no check imports or spawns it"
   },
   "executable": [
