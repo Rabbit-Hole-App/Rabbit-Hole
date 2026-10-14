@@ -1204,7 +1204,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   // A canvas turn hands askStream its LEARN_DB thread store as DB. The moment log does not depend on that:
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
-    // ponytail: motionDev false, so a motion action is never suggested until the server knows the motion_dev flag.
+    // motionDev false: /motion exists only in a dev web build (VITE_MOTION_DEV); the control plane has no motion flag, so it never suggests motion.
     if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: false }) });
     if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();

@@ -316,3 +316,28 @@ test('a long thread asks for a summary in the trailer, stores it versioned, then
   assert.equal(later.version, 2);
   assert.deepEqual(later.constraints, ['Use metric units.'], 'a constraint the model dropped is kept');
 });
+
+test('PUT syllabus: the owner saves an edited syllabus over the answer meta, validated as the trailer is; anyone else gets 404', async t => {
+  const { chatSyllabusFetch } = await import('../src/chat-syllabus-route.js');
+  const f = fixture(t);
+  const refs = [ref()];
+  f.replies.push(`Plan.\n<answer_meta>${JSON.stringify({ syllabus: { goal: 'Learn linked lists', topics: [{ title: 'Nodes', objectives: ['Draw a node'] }] } })}</answer_meta>`);
+  const { events } = await f.ask({ message: 'build a learning path for linked lists', mode: 'auto', context_refs: refs });
+  const id = events.at(-1).data.messageId;
+  const put = (body, user = owner, path = `/api/learn/chat/messages/${id}/syllabus`, method = 'PUT') => chatSyllabusFetch(new Request(`https://dev.test${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), f.env, { identity: async () => user });
+  const topics = [{ id: 't2', title: 'Pointers', objectives: ['Follow next'], refs: [refs[0].sourceId, 'doc:other'] }, { id: 't1', title: 'Nodes, renamed', objectives: ['Draw a node', 'Name its fields'], refs: [] }];
+  const saved = await put({ topics });
+  assert.equal(saved.status, 200);
+  const expected = { journeyId: null, goal: 'Learn linked lists', topics: [{ ...topics[0], refs }, topics[1]] };
+  assert.deepEqual((await saved.json()).syllabus, expected);
+  const stored = JSON.parse(f.rows(`SELECT meta_json FROM chat_message_meta WHERE message_id = ${id}`)[0].meta_json);
+  assert.deepEqual(stored.syllabus, expected);
+  assert.equal(stored.kind, 'syllabus', 'the rest of the meta is kept');
+  assert.equal((await put({ topics: [{ id: 'a', title: 'x'.repeat(81), objectives: ['o'] }] })).status, 400);
+  assert.equal((await put({ topics: [] })).status, 400);
+  assert.equal((await put({ topics }, { ...owner, email: 'other@example.test' })).status, 404);
+  assert.equal((await put({ topics }, owner, '/api/learn/chat/messages/99999/syllabus')).status, 404);
+  assert.equal((await put({ topics }, owner, `/api/learn/chat/messages/${events.at(-1).data.userMessageId}/syllabus`)).status, 404, 'a user message has no syllabus');
+  assert.equal((await put({ topics }, owner, `/api/learn/chat/messages/${id}/syllabus`, 'POST')).status, 405);
+  assert.equal(await chatSyllabusFetch(new Request('https://dev.test/api/learn/ask'), f.env), null);
+});
