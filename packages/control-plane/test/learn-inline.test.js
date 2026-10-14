@@ -174,7 +174,9 @@ test('aggregation: median, p95 (from 20 samples) and n per group, read from the 
 test('the Explain prompt keeps selection and intent apart and teaches the subject, not the canvas', () => {
   assert.doesNotMatch(INLINE_NOTE_SYSTEM, /Only stored connections are structure/);
   assert.doesNotMatch(INLINE_NOTE_SYSTEM, /leaf|tree|node 23/i, 'no subject or diagram kind is built in');
-  assert.match(INLINE_NOTE_SYSTEM, /It says what the request is about; the request says what to do/);
+  // Topic-restriction brief 2026-10-14: the selection is what "this" refers to; a subject the request names outranks it.
+  assert.match(INLINE_NOTE_SYSTEM, /It is what the request refers to \(this, it, these\) unless the request names another subject; the request says what to do/);
+  assert.match(INLINE_NOTE_SYSTEM, /never refuse or redirect because it differs from the canvas's topic/);
   assert.match(INLINE_NOTE_SYSTEM, /never assumed to be a particular kind of thing/);
   assert.match(INLINE_NOTE_SYSTEM, /teaches the learner/);
   assert.match(INLINE_NOTE_SYSTEM, /what the selected material means, the role it plays/);
