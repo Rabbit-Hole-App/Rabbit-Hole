@@ -5,6 +5,7 @@ import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendO
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { chatContext, chatFields, chatSystem, docIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory } from './chat-modes.js';
 import { ANSWER_META_SYSTEM, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
+import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
@@ -999,9 +1000,11 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   const { scope = {}, thread_id, sources, model } = body;
   let { message } = body;
   // chat: the Chat composer's mode, command, context_refs and regenerate (chat-modes.js); null for an old client.
-  let seed, chat;
-  try { seed = canvasSeed(body, conversation); chat = chatFields(body); }
+  // canvas: the live board's canvas_context package (canvas-context.js), on any Learn turn that sends it; null otherwise.
+  let seed, chat, canvas;
+  try { seed = canvasSeed(body, conversation); chat = chatFields(body); canvas = body.canvas_context == null ? null : validateCanvasContext(body.canvas_context); }
   catch (error) { return json({ error: error.message }, 400); }
+  if (canvas && conversation !== 'learn') return json({ error: 'canvas_context is a Learn chat field' }, 400);
   if (chat && conversation !== 'learn') return json({ error: 'mode, command, context_refs and regenerate are Learn chat fields' }, 400);
   if (chat?.regenerate && !thread_id) return json({ error: 'regenerate needs its thread_id' }, 400);
   let lessonSnapshot = null;
@@ -1176,6 +1179,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   }
   const history = await threadTurns(db, threadId, seed, attachedName ? `${message} [attached: ${attachedName}]` : message, turn?.userMessageId);
   let system = conversation === 'learn' ? (lessonSnapshot ? LEARN_SNAPSHOT_SYSTEM : LEARN_SYSTEM) : undefined;
+  // Whole-canvas context rides with every turn that sends it, in every mode: the mode changes the workflow, never the context.
+  if (canvas) { context = `${context}\n\n${canvasContextText(canvas)}`; system = `${system}\n${CANVAS_CONTEXT_RULES}`; }
   // A Chat turn (A4, B6): its writes, the mode it runs in, the summary and refs as context, and the trailer prompts.
   let resolved = null, memory = null, trailer = null;
   if (chat) {

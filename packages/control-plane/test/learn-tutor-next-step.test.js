@@ -105,10 +105,11 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   // Fix round 1 (owner eleventh message 5): it describes only what a turn supplies. Task 11b: typed and voice turns too, so the
   // card the learner selected is context.target (title and text); no other card is in context.
   // Fix B2 (task-11b-repin-review.md part D): the newest other cards and the switched-on context documents are supplied too.
-  assert.match(CANVAS_SYSTEM, /You see the card the learner selected \(context\.target\), the newest other cards in context\.canvas_context\.cards and the switched-on context documents\. Nothing else of the canvas is in context: never describe, invent or point at other cards, parts or sources/);
+  assert.match(CANVAS_SYSTEM, /You see the card the learner selected \(context\.target\), the board in the CANVAS CONTEXT block when the turn carries one \(else the newest other cards in context\.canvas_context\.cards\) and the switched-on context documents\. Nothing else of the canvas is in context: never describe, invent or point at cards, parts or sources it does not show/);
   assert.match(CANVAS_SYSTEM, /learner_intent\.selected_next_step \(on a hook click: the hook they chose and its learning_goal\)/);
   assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
   // Pinned 2026-10-06 (Task 10 fix round 2; was c4005ddb..., before that 6d8cc2ce..., task-10-repin-review.md entries 5-6).
   // Re-pinned by Task 11b (was c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755; task-11b-repin-review.md part A, pin 6).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '585641c133c60bf5570bda021dff06ba26fa29dff4bd8e0782f22dd8074e3443') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was 83ca2aab4d451244; // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
+  // Re-pinned for whole-canvas context (2026-10-14-whole-canvas-context-OWNER.md: a CANVAS CONTEXT block replaces cards when sent; was 585641c133c60bf5).
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), 'e4308d8171de10056df2687507ee290f1511c66e59806fc090a9ae857ebc7664') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was 83ca2aab4d451244; // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
 });

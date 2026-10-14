@@ -316,13 +316,13 @@ export const CANVAS_SYSTEM = tagged({
   current_state: [
     'The user message is context = this turn\'s Teaching State:',
     L(12),
-    '- context.canvas_context: goal (what the canvas or the chosen hook is about), origin (where this canvas was started from, when it was) and cards (when the canvas has other cards: up to six of the newest, each id, kind, title and the start of its text).',
+    '- context.canvas_context: goal (what the canvas or the chosen hook is about), origin (where this canvas was started from, when it was) and cards (when the canvas has other cards: up to six of the newest, each id, kind, title and the start of its text). A turn that carries a CANVAS CONTEXT block before the context sends the whole board there instead of cards.',
     '- Also: learner_intent.selected_next_step (on a hook click: the hook they chose and its learning_goal), target (the card the learner selected, when there is one: its title and text), recent_relevant_context, dive_context (in a Rabbit Hole), available_materials (when create_material is allowed). The canvas\'s switched-on context documents, when any, come before the context.',
   ],
   allowed_evidence: ['- No registry claims exist here: context.relevant_evidence is empty, so nothing says what the learner knows. Never claim they know or lack something.', L(8)],
   non_negotiable_rules: [
     L(1), L(2),
-    '- You see the card the learner selected (context.target), the newest other cards in context.canvas_context.cards and the switched-on context documents. Nothing else of the canvas is in context: never describe, invent or point at other cards, parts or sources, and never generate new artifacts unless context.allowed_actions lists create_material.',
+    '- You see the card the learner selected (context.target), the board in the CANVAS CONTEXT block when the turn carries one (else the newest other cards in context.canvas_context.cards) and the switched-on context documents. Nothing else of the canvas is in context: never describe, invent or point at cards, parts or sources it does not show, and never generate new artifacts unless context.allowed_actions lists create_material.',
     L(6), L(9), L(15), L(16), L(17), L(18), L(19), L(21),
     ...STATE_RULES,
     L(14),
@@ -484,12 +484,15 @@ export const NEXT_SECTION_SYSTEM = [
 // EXPLICIT_MODE the same way. Task 11c-B: the extra blocks are an ordered list - NEXT_STEP_SYSTEM, EXPLICIT_MODE, then
 // HANDOFF_SYSTEM with the handoff tool when context.allowed_actions lists the handoff - so they coexist, and a request with one
 // block is byte-identical to the single-block request before.
-export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false } = {}) => {
+// canvas (whole-canvas context, canvas-context.js): { text, system } from the route - the board's package as a user text block
+// after the documents, and its reading rules as one more uncached system block, so the cached prefix is unchanged.
+export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false, canvas = null } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
   const handoff = !!context?.allowed_actions?.includes(HANDOFF_ACTION), nextSection = !!context?.allowed_actions?.includes(NEXT_SECTION_ACTION);
   const system = plannerSystem(avatar, context?.journey_context ? 'journey' : context?.canvas_context ? 'canvas' : 'nanogpt'), tool = tutorTool(avatar, handoff, nextSection);
   const intent = context?.learner_intent;
-  const extras = [intent?.kind === 'next_step' && NEXT_STEP_SYSTEM, MODE_SLASHES.includes(intent?.slash) && EXPLICIT_MODE, handoff && HANDOFF_SYSTEM, nextSection && NEXT_SECTION_SYSTEM].filter(Boolean);
+  const extras = [intent?.kind === 'next_step' && NEXT_STEP_SYSTEM, MODE_SLASHES.includes(intent?.slash) && EXPLICIT_MODE, handoff && HANDOFF_SYSTEM, nextSection && NEXT_SECTION_SYSTEM, canvas?.system].filter(Boolean);
+  const blocks = [...documents, ...(canvas ? [{ type: 'text', text: canvas.text }] : [])];
   return {
     max_tokens: maxTokens,
     ...(speed ? { speed, betas: [FAST_MODE_BETA] } : {}),
@@ -501,7 +504,7 @@ export const plannerRequest = (context, maxTokens, documents = [], { effort = nu
     // auto, not forced: claude-opus-5-5 refuses tool_choice tool/any (HTTP 400). A reply without the
     // tutor_response call stays invalid (planTurn), so free text is never a plan.
     tool_choice: { type: 'auto' },
-    messages: [{ role: 'user', content: documents.length ? [...documents, { type: 'text', text }] : text }],
+    messages: [{ role: 'user', content: blocks.length ? [...blocks, { type: 'text', text }] : text }],
   };
 };
 
