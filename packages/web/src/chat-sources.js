@@ -47,13 +47,18 @@ export const paperRef = paper => ({ sourceId: `paper:${paper.id}`, kind: 'web', 
 export const wikiRef = ({ title }) => ({ sourceId: `wiki:${title}`, kind: 'web', name: named(title), version: '', range: null });
 export const codeRef = ({ repo = '', commit = '', path, start = 0, end = 0 }) => ({ sourceId: `code:${repo}@${commit}:${path}`, kind: 'code', name: named(path.split('/').pop()), version: commit, range: start ? { path, start, end: Math.max(start, end || start) } : null });
 
-export function useChatSources() {
-  const [stack, setStack] = useState([]), positions = useRef(null);
-  positions.current ??= positionStore();
-  return useMemo(() => ({
-    active: stack.at(-1) ?? null, canBack: stack.length > 1,
-    open: ref => { positions.current.opened(ref); setStack(previous => pushSource(previous, ref)); },
-    back: () => setStack(previous => previous.slice(0, -1)), close: () => setStack([]),
-    position: sourceId => positions.current.get(sourceId), savePosition: (sourceId, position) => positions.current.set(sourceId, position),
-  }), [stack]);
+// Per canvas: another canvas starts with nothing open, and coming back finds its reading positions where they were.
+export function useChatSources(canvas) {
+  const [held, setHeld] = useState({ canvas, stack: [] }), stores = useRef(new Map());
+  if (!stores.current.has(canvas)) stores.current.set(canvas, positionStore());
+  const store = stores.current.get(canvas), stack = held.canvas === canvas ? held.stack : [];
+  return useMemo(() => {
+    const change = next => setHeld(previous => ({ canvas, stack: next(previous.canvas === canvas ? previous.stack : []) }));
+    return {
+      active: stack.at(-1) ?? null, canBack: stack.length > 1,
+      open: ref => { store.opened(ref); change(previous => pushSource(previous, ref)); },
+      back: () => change(previous => previous.slice(0, -1)), close: () => change(() => []),
+      position: sourceId => store.get(sourceId), savePosition: (sourceId, position) => store.set(sourceId, position),
+    };
+  }, [canvas, stack, store]);
 }

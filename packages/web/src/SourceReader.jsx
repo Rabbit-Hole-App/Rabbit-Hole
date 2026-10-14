@@ -9,7 +9,7 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { codeSource, readerFor } from './chat-sources.js';
 
 // Sub-lane A4b: one reader for one ContextRef (brief section 6), reusing the existing viewers: LearnPaper (arXiv and uploaded
-// papers), LearnWiki, RepositorySource (code, read at the cited commit, never run). Props: { sourceRef, position, onPosition }.
+// papers, and PDF context docs), LearnWiki, RepositorySource (code, read at the cited commit, never run). Props: { sourceRef, position, onPosition }.
 // SourcesPane (A4a) mounts it for the expanded source only. Viewing never attaches; "Ask about this" on a selected passage or
 // code range is the only thing here that touches the conversation, through chat.addToChat (contract A5).
 
@@ -47,23 +47,28 @@ function TextView({ text, quote, position, save }) {
   </div>;
 }
 
-// A canvas context document (doc:<id>). ponytail: the server has no GET for a document's bytes yet (learn-context-docs.js
-// answers 405), so every doc shows the fallback until that route exists; a PDF doc also needs LearnPaper to take its URL.
-function DocReader({ app, sourceRef, position, save }) {
+// A canvas context document (doc:<id>), read once through GET /api/learn/context/<id> (A4a's route): a PDF opens in the paper
+// view at its page from those same bytes, a .txt or .md as text. Anything else, or a failed read, says it can't preview here.
+function DocReader({ app, sourceRef, position, save, startPage }) {
   const [doc, setDoc] = useState(null);
   const id = sourceRef.sourceId.slice('doc:'.length);
   useEffect(() => {
     const controller = new AbortController();
+    let url = null;
+    // ponytail: built inline; the lead swaps it for chat-context.js docUrl(canvas, id) at merge
     fetch(`/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`, { headers: wsHeaders(), signal: controller.signal })
       .then(async response => {
-        const text = response.ok && /^text\//.test(response.headers.get('content-type') || '') ? await response.text() : null;
-        if (!controller.signal.aborted) setDoc({ text });
+        const type = response.ok ? response.headers.get('content-type') || '' : '';
+        const next = /pdf/.test(type) ? { pdf: (url = URL.createObjectURL(await response.blob())) } : /^text\//.test(type) ? { text: await response.text() } : {};
+        if (!controller.signal.aborted) setDoc(next);
       })
-      .catch(() => { if (!controller.signal.aborted) setDoc({ text: null }); });
-    return () => controller.abort();
+      .catch(() => { if (!controller.signal.aborted) setDoc({}); });
+    return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
   }, [app, id]);
+  const range = sourceRef.range || {};
   if (!doc) return <p role="status" className="p-3 text-sm text-ink-2">Opening {sourceRef.name}…</p>;
-  return doc.text == null ? <Unavailable sourceRef={sourceRef} /> : <TextView text={doc.text} quote={sourceRef.range?.quote} position={position} save={save} />;
+  if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} startPage={startPage} quote={range.quote} quotePage={range.page || 1} save={save} />;
+  return doc.text == null ? <Unavailable sourceRef={sourceRef} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;
 }
 
 function Reader({ sourceRef, position, onPosition, chat }) {
@@ -82,7 +87,9 @@ function Reader({ sourceRef, position, onPosition, chat }) {
     setPassage(text || null);
   };
   const ask = () => {
-    chat.addToChat({ ...sourceRef, range: reader === 'paper' ? { page: here.current.page, quote: passage } : { quote: passage } });
+    // A passage in a PDF (a paper or a PDF doc) carries its page.
+    const paged = box.current?.querySelector('[aria-label="Paper reader"]');
+    chat.addToChat({ ...sourceRef, range: paged ? { page: here.current.page, quote: passage } : { quote: passage } });
     window.getSelection?.()?.removeAllRanges();
     setPassage(null);
   };
@@ -94,7 +101,7 @@ function Reader({ sourceRef, position, onPosition, chat }) {
       return <PaperReader app={app} id={id} title={sourceRef.name} startPage={here.current.page} quote={range.quote} quotePage={range.page || 1} save={save} />;
     }
     if (reader === 'wiki') return <LearnWiki app={app} article={{ title: sourceRef.sourceId.slice('wiki:'.length), section: position?.section || 0 }} onSection={section => save({ section })} />;
-    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} />;
+    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} />;
     if (reader === 'text') return <TextView text={sourceRef.text} quote={range.quote} position={position} save={save} />;
     if (reader === 'code') {
       const code = codeSource(sourceRef);
@@ -115,11 +122,11 @@ function Reader({ sourceRef, position, onPosition, chat }) {
 }
 
 // A paper turns its own pages; the page is the reading position. The cited quote is painted on its page.
-function PaperReader({ app, id, title, startPage, quote, quotePage, save }) {
+function PaperReader({ app, id, src = null, title, startPage, quote, quotePage, save }) {
   const [page, setPage] = useState(startPage);
-  const paper = useMemo(() => ({ id, title, pdfUrl: id.startsWith('upload:') ? null : `https://arxiv.org/pdf/${id}`, page }), [id, title, page]);
+  const paper = useMemo(() => ({ id, title, pdfUrl: src || id.startsWith('upload:') ? null : `https://arxiv.org/pdf/${id}`, page }), [id, src, title, page]);
   const highlights = useMemo(() => (quote ? [{ page: quotePage, exact: quote, prefix: '', suffix: '' }] : null), [quote, quotePage]);
-  return <LearnPaper app={app} paper={paper} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null}
+  return <LearnPaper app={app} paper={paper} src={src} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null}
     onPage={next => { setPage(next); save({ page: next }); }} />;
 }
 
