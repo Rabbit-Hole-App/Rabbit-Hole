@@ -1,6 +1,6 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
 import { useEffect, useRef, useState } from 'react';
-import { Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
+import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
 import { waitingText } from './waiting-text.js';
@@ -177,7 +177,21 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
   );
 }
 
-export function ChatMessages(props) {
-  const { msgs, sheetMode } = props;
-  return msgs.map((m, i) => (sheetMode && m.card) ? null : <ChatMessage key={i} {...props} m={m} i={i} />);
+// follow: useFollowLatest's { atBottom, jump } for the scroll box this list sits in (chat-scroll.js).
+export function ChatMessages({ follow = null, ...props }) {
+  const { msgs, sheetMode, busy } = props;
+  const atBottom = !follow || follow.atBottom;
+  // A message that lands while the reader is scrolled up stays new until they are back at the bottom.
+  const [seen, setSeen] = useState(msgs.length);
+  useEffect(() => { if (atBottom) setSeen(msgs.length); }, [atBottom, msgs.length]);
+  return (
+    <>
+      {msgs.map((m, i) => (sheetMode && m.card) ? null : <ChatMessage key={i} {...props} m={m} i={i} />)}
+      {!atBottom && (busy || msgs.length > seen) && (
+        <div className="pointer-events-none sticky bottom-2 z-10 flex h-0 justify-center">
+          <button type="button" data-jump-latest onClick={follow.jump} className="pointer-events-auto flex h-7 -translate-y-full cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-pop hover:text-ink"><ArrowDown size={13} />Jump to latest</button>
+        </div>
+      )}
+    </>
+  );
 }
