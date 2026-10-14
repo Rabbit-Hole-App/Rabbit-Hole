@@ -44,7 +44,8 @@ test('Hide chat composer is a button in the composer row, before Send, not a pil
   const composer = read('ChatComposer.jsx');
   assert.match(composer, /export const ComposerHide = createContext\(null\);/);
   assert.match(composer, /data-composer-hide aria-label="Hide chat composer" title="Hide chat composer - your draft stays" onClick=\{hide\} className=\{COMPOSER_ADD\}><ChevronDown size=\{14\} strokeWidth=\{1\.5\} \/>/);
-  assert.match(composer, /\{trailing\}\n\s+\{dock && <ComposerHideButton \/>\}\n\s+\{voice \? null/, 'in the row, after the field and before Send');
+  assert.match(composer, /\{trailing\}\n\s+\{dock && <ComposerHideButton \/>\}\n\s+\{send\}/, 'in the row, after the field and before Send');
+  assert.match(composer, /const send = voice \? null : busy && onStop \?/);
   assert.match(canvas, /<ComposerHide\.Provider value=\{hideComposer\}>\{composer\}<\/ComposerHide\.Provider>/);
   assert.doesNotMatch(canvas, /data-composer-hide|absolute -top-2\.5 right-4/, 'the canvas no longer positions the button over the composer');
 });

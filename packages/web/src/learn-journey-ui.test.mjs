@@ -1311,7 +1311,7 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   // The sheet opens inside begin(): a turn the journey takes never reopens it.
   assert.equal(ask.split('if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }').length, 2, 'once');
   assert.match(ask, /const begin = \(\) => \{\n\s+if \(begun\) return;\n\s+begun = true;\n\s+if \(panelAsk\) \{ setSheetOpen\(true\); setSheetHistory\(false\); \}/);
-  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true \}\)\}/);
+  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current \}\)\}/);
   assert.match(ask, /if \(journey\.busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
   assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
   assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = SLASHES\.includes\(name\) \? \{ name, raw \} : null; \}/);
@@ -1322,7 +1322,7 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
   // Final review C-I1: a hole's opening turn is sent once, from the dock - never again from each block's composer
   // (Continue convo), which gets the same Tutor in a journey hole.
-  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
+  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
 });
 
 // ---- LP1 Task 14 (architecture §13): the minimal journey context a Rabbit Hole opened from a journey section carries.
