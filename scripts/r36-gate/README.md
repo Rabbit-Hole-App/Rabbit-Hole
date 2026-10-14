@@ -41,7 +41,7 @@ the header, its stage lines in the original order, the stacks those stages run o
 `collect` job (Linux) merges the units record and the four `gate-shard.log` records into one `gate.log` (the two unit stage lines
 first, where int35.sh printed them): same stage lines, same order, same counts. It then applies run.mjs's gate-phase verdict (the candidate's `gateVerdict` plus the routing and project-menu
 receipts) with the passed Dive receipt as the prerequisite. A failed matrix job, a failed or missing shard, or a missing,
-duplicated or stray stage, or a missing or failed units record, fails it. It also fails unless the newest same-SHA `verify.yml` run succeeded for both the harness SHA and the application SHA (`verify-check.mjs`; checked once here, no longer by every runner before its phase). A verify that is still running, missing, failed or unreadable (`gh` error) fails the gate; it never passes by default.
+duplicated or stray stage, or a missing or failed units record, fails it. It also fails unless the newest same-SHA `verify.yml` run succeeded for both the harness SHA and the application SHA (`verify-check.mjs`; checked once here, no longer by every runner before its phase). A verify that is only still running is polled (status only, every 30 s) for up to 10 min and fails closed if it has not completed by then. A missing, failed or unreadable (`gh` error) verify fails at once. It never passes by default, and `receipt.json` records the accepted run as `verify: [{ sha, databaseId }]`.
 
 Shared state, kept inside one shard. The stage times are from run 38352166115 attempt 2:
 - rh-app, comments and comments-invite run on the stack-app.sh build, so they stay with their stack start (shard 1).

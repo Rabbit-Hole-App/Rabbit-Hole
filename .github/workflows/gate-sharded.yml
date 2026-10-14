@@ -7,8 +7,9 @@ name: sharded release gate
 # in the shards, and no shard repeats the unit stages (README "Removed duplicate runs"). The collect job merges the
 # units and shard records into the one gate.log the candidate's gateVerdict reads and judges it as the unsharded gate
 # phase does. All six runners start at once and run their part immediately; the collect job checks the same-SHA
-# canonical verify.yml once, for both the harness and the application commit, and fails closed when either has not
-# succeeded. Any failed job, shard, checkpoint, stage or verify fails the gate.
+# canonical verify.yml once, for both the harness and the application commit (a verify still running is polled for up
+# to 10 min), and fails closed when either has not succeeded. Any failed job, shard, checkpoint, stage or verify fails
+# the gate.
 on:
   push:
     branches: [parallel/gate-sharded]

@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
 import { SHARDS, UNIT_STAGES, mergeShards } from './shards.mjs';
 import { prerequisite } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
-import { verifyVerdict, verifyRuns } from './verify-check.mjs';
+import { awaitVerify } from './verify-check.mjs';
 
 const APP_SHA = process.env.TESTED_SHA, APP_TREE = process.env.TESTED_TREE;
 if (!/^[a-f0-9]{40}$/.test(APP_SHA || '') || !/^[a-f0-9]{40}$/.test(APP_TREE || '')) throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
@@ -27,10 +27,12 @@ const json = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { 
 const failures = [];
 if (process.env.MATRIX_RESULT !== 'success') failures.push(`matrix jobs: ${process.env.MATRIX_RESULT || 'unknown'}`);
 // The same-sha canonical verify.yml must have succeeded for the harness and the application (each run job used to wait for it).
-// It usually finishes within 3 min and collect starts after the slowest part; a verify still running, missing or unreadable fails closed.
-for (const sha of new Set([APP_SHA, process.env.HARNESS_SHA])) {
-  try { const v = verifyVerdict(verifyRuns(sha), sha); if (v) failures.push(`verify: ${v}`); } catch (error) { failures.push(`verify: gh run list failed for ${sha}: ${error.message.split('\n')[0]}`); }
-}
+// A verify that is merely still running is polled for up to 10 min (awaitVerify; both shas at once); a missing, failed or
+// unreadable one fails at once, and one still running at the deadline fails closed. The accepted runs go in receipt.json.
+const verified = [];
+const verifyShas = [...new Set([APP_SHA, process.env.HARNESS_SHA])];
+const verifyResults = await Promise.all(verifyShas.map(sha => awaitVerify(sha).catch(error => ({ verdict: `gh run list failed for ${sha}: ${error.message.split('\n')[0]}` }))));
+verifyResults.forEach((r, i) => r.verdict ? failures.push(`verify: ${r.verdict}`) : verified.push({ sha: verifyShas[i], databaseId: r.databaseId }));
 
 // The Dive checkpoint (after its preflight) is the complete gate's prerequisite, as in run.mjs's gate phase.
 const diveFile = join(dir('dive'), 'dive-receipt.json');
@@ -69,6 +71,6 @@ const pass = failures.length === 0;
 const sharded = { units: { part: 'units', stages: UNIT_STAGES, pass: units.pass }, shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), matrix: process.env.MATRIX_RESULT, failures };
 writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, sharded }, null, 2));
 writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version,
-  prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, units: (({ log, ...u }) => u)(units), shards: shards.map(({ log, ...s }) => s), failures, pass }, null, 2));
+  prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, units: (({ log, ...u }) => u)(units), shards: shards.map(({ log, ...s }) => s), verify: verified, failures, pass }, null, 2));
 console.log(JSON.stringify({ applicationSha: APP_SHA, harnessSha: identity.harnessSha, gateVerdict: verdict, extraPassed, pass, failures }));
 if (!pass) process.exitCode = 1;
