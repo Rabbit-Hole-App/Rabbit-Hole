@@ -96,8 +96,9 @@ canvas-toolbar, rh-local and the journey-stack stages are not reachable with it,
   to start from the empty D1 that `jstack.sh` recreates) and to assert only on its own records;
 - the candidate's git blob of the stage's check file (`git rev-parse $INT35_EXPECTED_TREE:<file>`) is the one recorded in
   `retrySafe` (the checks of 9e2b459e). A different or unreadable blob logs `<stage>: retry-safe audit stale (re-audit needed)`
-  and the stage is not retried until it is re-audited and its blob re-recorded. The four adapted `r36-` copies are audited as
-  their originals; answer-routing.mjs is the harness's own, pinned by the harness sha and by a test of its blob;
+  and the stage is not retried until it is re-audited and its blob re-recorded. The adapted `r36-` copies are audited as their
+  originals. answer-routing is keyed on the candidate's `answer-routing-check.mjs` like the others; while the harness template
+  runs in its place ("Which source runs" below) the file handed over is not in the candidate tree, so that stage is not retried;
 - fewer than `maxRetriesPerPart` (2) retries are used in this part (`RETRIES` in the part's shell script).
 
 Everything else is a real failure on its first attempt. That includes the notebook-CDN flake the old comment named: with the
@@ -129,6 +130,33 @@ journey-check; practice-card-check; blank-canvas-hooks-check) leaves a `FAIL` li
 classifier reads that as an assertion before the stack died. Those four stages are effectively never retried. The A9 crash
 drill (`kill_stage`) must use a retry-safe check that throws without printing `FAIL`, for example card-select, and its
 injected signature must be a real log entry (`--- <ISO time> error` header, message, `---`) written after the stage started.
+
+Refreshing the audited blobs after a re-audit (the evidence lines of the changed checks re-read, and the `audited` note edited):
+`node scripts/r36-gate/refresh-blobs.mjs <application commit> [--repo <application checkout>] [--write]`, from the repository root.
+It prints the stages whose blob would change, and with `--write` rewrites only the blobs in `templates/transients.json` (in its
+committed layout; `refresh-blobs.test.mjs` pins that). Evidence lines and the `audited` note stay hand-edited.
+
+## Which source runs (Task A8b)
+
+The gate judges the candidate's own checks and rewrites one only where it has to. `prepare.mjs` writes `adapters.log` into the gate
+directory (exported with the other logs) with one line per decision.
+- The adapters (`fixture-adapters.mjs`) skip a check that already has their fix, as the app's `fix/move-gate-adapters` checks do:
+  `shared-canvas-ask-check`, `selected-pill-check` and `repo-browser-check` each carry a marker line (`FIXED`), and then the
+  stage runs the candidate's file as it is, with no `r36-` copy: `sca: adapter not needed`. An older check is adapted as before
+  (`adapter applied`); a changed one that has neither the marker nor the old code is still refused as drift. `adaptTutorSlice`
+  is unchanged and always applies.
+- answer-routing runs the candidate's `answer-routing-check.mjs` as it is when that file reads `process.env.LOCAL_CP_VARS` (the
+  private control plane's vars, exported after sketch), and otherwise the harness template `answer-routing.mjs`, copied in as
+  `r36-routing-operator.mjs`. The app's check at 9e2b459e, `release/r38-trial` (8b093330) and `feature/ui-polish-r38` (401903a9)
+  does not take the gate's environment: it is bound to the dev review clone (a hostname guard that refuses any other `BASE`, the
+  dev control plane's test secret read from a local `.env`, the dev clone's nanoGPT project app instead of a canvas of its own), and it prints
+  `PASS N checks;` rather than `N/N checks passed`), and it has no tripwire check. Running it would fail at its first lines, so the
+  template runs for every candidate until the app moves the gate environment into the check, as it did for the three above.
+  What the app's check would have to do is what the template does: read `BASE`, `SMALL_CP` and `LOCAL_CP_VARS`, mint its session
+  on the local control plane, create its own canvas, read the provider tripwire at the end, and print `N/N checks passed` with
+  N at least 15 (collect and run.mjs require it). The template's assertions are those of 9e2b459e (they still assert the Card
+  conversation panel that the release branch removes), so a candidate that removes it fails the template; moving the check is
+  the fix, not editing the template.
 
 ## Known flakes
 
@@ -214,7 +242,7 @@ replace both with `timing.mjs` medians and repack.
   Every `timeout N node e2e/...` is wrapped by `prepare.mjs`, so the journey-stack checks (journey J1-J8, tutor-slice,
   blank-hooks, practice-card, canvas-chrome) and rh-local have receipts too. Receipt names follow the prepared script,
   not `int35.sh`: `r36-shared-canvas-ask-check.mjs` (sca), `r36-selected-pill-check.mjs`, `r36-tutor-slice-check.mjs`,
-  `r36-repo-browser-check.mjs`, `r36-routing-operator.mjs` (answer-routing, inserted after sketch) and
+  `r36-repo-browser-check.mjs`, `r36-routing-operator.mjs` (answer-routing, inserted after sketch; `answer-routing-check.mjs` when the candidate's takes the gate environment, and any adapted check the candidate already carries the fix of keeps its own name) and
   `rabbit-hole-check.mjs` (rh-local). `shared-rabbit-hole-check.mjs` runs twice in shard-1, so the first receipt is
   rh-app and the second rh-dev.
 - A stage the old gate reran on failure has two receipts; the LAST is used. That happened once: rh-local in

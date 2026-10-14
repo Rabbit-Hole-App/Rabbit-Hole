@@ -53,6 +53,16 @@ test('an out of memory, a fatal kj exception, a D1 error or a stack overflow in 
     assert.deepEqual(classifyRetry({ ...real, appLog }), { retry: true, reason: 'proxy-keepalive' }, appLog);
   }
 });
+// Process-level deaths of the app's workers (the review's second list): each one, with the stack dead and the signature present, is a crash.
+for (const [marker, line] of [['std::bad_alloc', 'terminate called after throwing an instance of std::bad_alloc'], ['Aborted (core dumped)', 'workerd: Aborted (core dumped)'], ['workerd exited with code', 'workerd exited with code 1'],
+  ['Unhandled Rejection', 'Unhandled Rejection at: Promise { <rejected> }'], ['ENOMEM', 'Error: spawn ENOMEM']]) {
+  test(`${marker} in the app log is a crash, not the transient`, () => {
+    assert.deepEqual(classifyRetry({ ...real }), { retry: true, reason: 'proxy-keepalive' });
+    const r = classifyRetry({ ...real, appLog: `[wrangler:info] GET /a 200\n${line}\n` });
+    assert.equal(r.retry, false, line);
+    assert.match(r.reason, /worker exception/, line);
+  });
+}
 test('matching a worker exception ignores case', () => {
   assert.equal(classifyRetry({ ...base, appLog: 'UNCAUGHT in promise' }).retry, false);
   assert.equal(classifyRetry({ ...real, appLog: 'out Of Memory' }).retry, false);
@@ -121,7 +131,8 @@ test('the CLI checks the candidate blob against the audited one', () => {
     assert.equal(cli(dir), 'retry proxy-keepalive');
     assert.equal(cli(dir, { blob: '0'.repeat(40) }), 'fail retry-safe audit stale (re-audit needed)');
     assert.equal(cli(dir, { blob: '' }), 'fail retry-safe audit stale (re-audit needed)');
-    assert.equal(cli(dir, { name: 'answer-routing', blob: '' }), 'retry proxy-keepalive');
+    assert.equal(cli(dir, { name: 'answer-routing' }), 'retry proxy-keepalive');
+    assert.equal(cli(dir, { name: 'answer-routing', blob: '' }), 'fail retry-safe audit stale (re-audit needed)');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 test('the CLI prints fail and exits 0 when the stack dir, the logs or the check are unknown', () => {
@@ -155,7 +166,7 @@ test('transients.json decides every gate stage exactly once: retry-safe with its
   }
   for (const [stage, why] of Object.entries(cfg.notRetrySafe)) assert.ok(why.length > 20, `${stage}: a reason`);
 });
-test('the audited blobs are the files of 9e2b459e, and the harness-owned one is the template as committed', { skip: git('cat-file', '-e', '9e2b459e').status !== 0 }, () => {
+test('the audited blobs are the files of 9e2b459e (an entry a harness owns would be its template as committed)', { skip: git('cat-file', '-e', '9e2b459e').status !== 0 }, () => {
   for (const [stage, e] of Object.entries(cfg.retrySafe)) {
     if (e.owner === 'harness') assert.equal(git('hash-object', e.file).stdout.trim(), e.blob, `${stage}: the harness template changed, so its audit needs a re-read`);
     else assert.equal(git('rev-parse', `9e2b459e:${e.file}`).stdout.trim(), e.blob, stage);
@@ -169,7 +180,7 @@ test('the retry rule: one transient, two retries a part, two a gate', () => {
   assert.deepEqual(cfg.transients, [{ id: 'proxy-keepalive', all: ['Error inside ProxyWorker', 'Network connection lost'] }]);
   assert.equal(cfg.maxRetriesPerPart, 2);
   assert.equal(cfg.maxRetriesPerGate, 2);
-  for (const e of ['Uncaught', '✘ [ERROR] Uncaught', 'TypeError:', 'ReferenceError:', 'SyntaxError:', 'RangeError:', 'out of memory', 'Fatal', 'kj::Exception', 'SIGSEGV', 'segfault']) assert.ok(cfg.workerErrors.includes(e), e);
+  for (const e of ['Uncaught', '✘ [ERROR] Uncaught', 'TypeError:', 'ReferenceError:', 'SyntaxError:', 'RangeError:', 'out of memory', 'Fatal', 'kj::Exception', 'SIGSEGV', 'segfault', 'std::bad_alloc', 'Aborted (core dumped)', 'workerd exited with code', 'Unhandled Rejection', 'ENOMEM']) assert.ok(cfg.workerErrors.includes(e), e);
 });
 
 // ---- the prepared gate ----
@@ -204,6 +215,7 @@ test('the prepared gate carries the classifier, the stack scripts log wrangler, 
     assert.match(sites[0][2], /"packages\/web\/e2e\/\$\{C#r36-\}"$/, 'run() hands over the check file it runs');
     for (const [stage, e] of Object.entries(cfg.retrySafe)) {
       if (e.owner === 'harness') continue;
+      if (stage === 'answer-routing') continue; // the template or the candidate's own check runs: prepare-sources.test.mjs
       const file = runFile[stage] ?? siteFile[stage];
       assert.ok(file, `${stage}: int35.sh hands its check file to retry_check`);
       assert.equal(`packages/web/e2e/${file}`, e.file, stage);

@@ -1,4 +1,14 @@
 
+// A check that already carries what an adapter adds is skipped by it (the adapter returns the source unchanged), so a fix the app has
+// moved into its check is neither refused as drift nor applied twice. The markers are lines the app's fixed checks contain and the
+// older ones lack (fix/move-gate-adapters, 2026-10-13); they are matched after \r\n becomes \n.
+export const FIXED = {
+  sharedCanvas: "if (!PERSIST || !D1_CONFIG || !WRANGLER) throw Error('shared-canvas-ask-check requires gate-local PERSIST, D1_CONFIG and locked WRANGLER_BIN');",
+  selectedPill: 'const safePanPoint = async (page, requested) => page.evaluate(',
+  repoBrowser: "await reader.locator('[data-highlighted][data-source-line=",
+};
+const fixed = (source, marker) => source.replaceAll('\r\n', '\n').includes(marker);
+
 const D1_OLD = "const d1 = sql => execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to .small/fork-local -c packages/web/wrangler.dev.jsonc --command \"${sql}\"`, { cwd: ROOT, shell: true, stdio: 'ignore' });";
 const D1_NEW = `const PERSIST = process.env.PERSIST;
 const D1_CONFIG = process.env.D1_CONFIG;
@@ -10,6 +20,7 @@ const d1 = sql => {
 };`;
 
 export function adaptSharedCanvas(source) {
+  if (fixed(source, FIXED.sharedCanvas)) return source;
   if (!source.includes(D1_OLD)) throw Error('shared-canvas D1 command changed; refusing an unreviewed transformation');
   return source.replace(D1_OLD, D1_NEW);
 }
@@ -65,6 +76,7 @@ const intendedSelectionPoint = async (page, kind, box, side) => page.evaluate(({
 `;
 
 export function adaptSelectedPill(source) {
+  if (fixed(source, FIXED.selectedPill)) return source;
   source = source.replaceAll('\r\n', '\n');
   if (!source.includes(PAN_MARKER) || !source.includes('await page.mouse.move(1250, 400);')) throw Error('selected-pill pan point changed; refusing an unreviewed transformation');
   const withHelper = source.replace(PAN_MARKER, `${PAN_HELPER}${PAN_MARKER}`);
@@ -96,6 +108,7 @@ ${bare.replace('if (element', 'if (!onObject && element')}`);
 
 // Gate 38348435978: Graph -> Files read the highlight before the reader loaded (the screenshot shows line 29 lit).
 export function adaptRepoBrowser(source) {
+  if (fixed(source, FIXED.repoBrowser)) return source;
   source = source.replaceAll('\r\n', '\n');
   const pattern = /^(\s*)(assert\.deepEqual\(await lit\(\), \[(\d+)[^\n]*)$/gm;
   const found = [...source.matchAll(pattern)].length;

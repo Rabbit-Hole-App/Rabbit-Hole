@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { adaptAll, adaptSelectedPill, adaptSharedCanvas, adaptTutorSlice, adaptRepoBrowser } from './fixture-adapters.mjs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { adaptAll, adaptSelectedPill, adaptSharedCanvas, adaptTutorSlice, adaptRepoBrowser, FIXED } from './fixture-adapters.mjs';
 
 assert.ok(process.env.R36_FIXTURE_SOURCE_ROOT, 'set R36_FIXTURE_SOURCE_ROOT to the exact frozen app checkout');
 const fixture = name => readFileSync(resolve(process.env.R36_FIXTURE_SOURCE_ROOT, 'packages/web/e2e', name), 'utf8');
@@ -67,4 +69,29 @@ test('repo-browser adapter waits for each expected highlighted line and keeps ev
   assert.deepEqual(asserts(out), asserts(repo), 'the same lit() assertions, unchanged');
   assert.ok(out.includes(`  await reader.locator('[data-highlighted][data-source-line="29"]').first().waitFor({ timeout: 10000 }).catch(() => {});\n  assert.deepEqual(await lit(), [29]);`), 'line 29 is waited for, then asserted');
   assert.throws(() => adaptRepoBrowser(repo.replace("const lit = () =>", "const lit2 = () =>")), /refusing an unreviewed transformation/);
+});
+
+// The app moves each fix into its own check (fix/move-gate-adapters, committed as the adapter's output): such a file is skipped, not
+// refused as drift and not adapted twice. The old file is adapted as before.
+const MOVED = [['shared canvas', adaptSharedCanvas, shared, FIXED.sharedCanvas], ['selected pill', adaptSelectedPill, selected, FIXED.selectedPill], ['repo browser', adaptRepoBrowser, repo, FIXED.repoBrowser]];
+test('an adapter skips a check that already has its fix, and still adapts the old one', () => {
+  for (const [what, adapt, old, marker] of MOVED) {
+    const moved = adapt(old);
+    assert.notEqual(moved, old, `${what}: the old file is adapted`);
+    assert.ok(moved.replaceAll('\r\n', '\n').includes(marker), `${what}: the adapted file carries the marker`);
+    assert.ok(!old.replaceAll('\r\n', '\n').includes(marker), `${what}: the old file does not`);
+    assert.equal(adapt(moved), moved, `${what}: the fixed file is returned as it is`);
+    const crlf = moved.replaceAll('\n', '\r\n');
+    assert.equal(adapt(crlf), crlf, `${what}: with CRLF line ends too`);
+  }
+  // The other adapter still applies exactly once.
+  assert.equal(adaptTutorSlice(tutor).split('navigation does not duplicate narration').length, 2);
+});
+test('the markers are the lines of the checks the app committed', { skip: spawnSync('git', ['rev-parse', '--verify', '-q', 'fix/move-gate-adapters'], { cwd: dirname(fileURLToPath(import.meta.url)) }).status !== 0 }, () => {
+  const cwd = dirname(fileURLToPath(import.meta.url));
+  for (const [file, adapt, marker] of [['shared-canvas-ask-check.mjs', adaptSharedCanvas, FIXED.sharedCanvas], ['selected-pill-check.mjs', adaptSelectedPill, FIXED.selectedPill], ['repo-browser-check.mjs', adaptRepoBrowser, FIXED.repoBrowser]]) {
+    const theirs = spawnSync('git', ['show', `fix/move-gate-adapters:packages/web/e2e/${file}`], { cwd, encoding: 'utf8', maxBuffer: 1 << 26 }).stdout;
+    assert.ok(theirs.includes(marker), `${file}: the app's fixed check has the marker`);
+    assert.equal(adapt(theirs), theirs, `${file}: skipped`);
+  }
 });
