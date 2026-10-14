@@ -617,8 +617,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       });
     },
   };
+  // An answer about a selected card floats: out of the column flow, so it never pushes the cards down (AdaptiveCanvas
+  // places it beside its card). Saved with it, so a board saved before keeps its answers where they were.
   const placeExchange = event => setExchanges(previous => {
-    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, linkFrom: event.linkFrom || null, answer: '', status: 'thinking', dx: 0, dy: 0 }];
+    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, linkFrom: event.linkFrom || null, ...(event.linkFrom ? { float: true } : {}), answer: '', status: 'thinking', dx: 0, dy: 0 }];
     return previous.map(exchange => exchange.id !== event.id ? exchange
       : event.delta ? { ...exchange, answer: exchange.answer + event.delta, status: 'streaming' }
       : event.stage ? { ...exchange, status: event.stage }

@@ -174,6 +174,18 @@ export function obstaclesOf({ boxes = [], paths = [], frames = [], areas = [], p
   return [...boxes.filter(keep), ...paths.filter(keep).flatMap(along), ...frames.filter(keep), ...areas.filter(keep), ...pins];
 }
 export const FACING = { right: ['left', 'right'], left: ['right', 'left'], bottom: ['top', 'bottom'], top: ['bottom', 'top'] };
+// Answers about a selected card (a question asked with the card selected): each beside its card in free space, by the
+// same placer, clear of every obstacle and of the answers placed before it in the same pass. obstacles keep their ids
+// (obstaclesOf); the answers' own boxes and each one's ignore ids (its card, its own connector) are not obstacles.
+// sides: the connector's [card side, answer side].
+export function placeAnswers(answers, obstacles, visible = null) {
+  const moving = new Set(answers.map(answer => answer.id)), placed = [];
+  return answers.map(({ target, size, ignore = [] }) => {
+    const spot = placeNote(target, size, [...obstacles.filter(box => !moving.has(box.id) && !ignore.includes(box.id)), ...placed], visible);
+    placed.push({ x: spot.x, y: spot.y, ...size });
+    return { ...spot, sides: [FACING[spot.side][1], FACING[spot.side][0]] };
+  });
+}
 // Whether an explanation draws its annotation connector: one target, a boxed shape or a card.
 export const explainConnects = (ids, board) => ids.length === 1 && ((board.shapes || []).some(shape => shape.id === ids[0] && BOXED.has(shape.kind)) || (board.blocks || []).some(block => block.id === ids[0]));
 
