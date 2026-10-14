@@ -52,7 +52,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [selectionOnly, setSelectionOnly] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
-  const [prepared, setPrepared] = useState(null);
+  const [built, setPrepared] = useState(null);
+  // The popover shows only a context built for the scope on screen. A Selection only change re-renders at once, and the
+  // context for the new scope comes a task later, so until then it reads Preparing context, never the old scope's Supporting
+  // entries beside the selection-only note (fast-e2e 38625249408 on Linux).
+  const prepared = built?.only === selectionOnly ? built : null;
   const [state, setState] = useState({ status: 'idle' });
   // A7: each candidate's placement, by request id - computed once, before its ghost shows, and the one Accept applies.
   const [placements, setPlacements] = useState({});
@@ -98,7 +102,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const prepare = (only = selectionOnly, request = '') => {
     const started = performance.now(), misses = canvas.cache.stats.misses;
     const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
-    return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses };
+    return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses, only };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
   useEffect(() => {

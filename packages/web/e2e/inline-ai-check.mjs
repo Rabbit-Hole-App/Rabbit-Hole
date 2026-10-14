@@ -1243,9 +1243,21 @@ await run('Composer: the Context popover is the indicator (point 8) and never gr
   await pickMode(page, 'edit');
   await page.locator('[data-inline-context]').click();
   check('in Edit, Selected says it is the only thing an edit changes', /the only thing an edit changes/.test(await page.locator('[data-inline-context-target]').innerText()));
+  // Every DOM state the popover passes through, not only the last one read: an observer counts any commit that shows the
+  // selection-only note beside Supporting entries (fast-e2e 38625249408 read one such state on Linux; a fast machine is past it first).
+  await page.evaluate(() => {
+    const pop = document.querySelector('[data-inline-context-popover]');
+    window.__mixedFrames = 0;
+    window.__mixedObserver = new MutationObserver(() => {
+      if (/Surroundings left out \(selection only\)/.test(pop.innerText) && pop.querySelector('[data-inline-context-entry="supporting"]')) window.__mixedFrames += 1;
+    });
+    window.__mixedObserver.observe(pop, { childList: true, subtree: true, characterData: true });
+  });
   await page.locator('[data-inline-selection-only]').check();
   await page.waitForFunction(() => /Surroundings left out \(selection only\)/.test(document.querySelector('[data-inline-context-popover]')?.innerText || ''));
   check('Selection only lives in the popover: no supporting material then', (await page.locator('[data-inline-context-entry="supporting"]').count()) === 0);
+  const mixedFrames = await page.evaluate(() => { window.__mixedObserver.disconnect(); return window.__mixedFrames; });
+  check('no state shows the selection-only note beside Supporting entries', mixedFrames === 0, `${mixedFrames} mixed states`);
   await page.locator('[data-inline-selection-only]').uncheck();
   await page.keyboard.press('Escape');
   await pickMode(page, 'explain');

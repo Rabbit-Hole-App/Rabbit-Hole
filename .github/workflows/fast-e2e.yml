@@ -1,0 +1,127 @@
+# Routine-push browser checks (CI speed spec 2026-10-13). A development signal, never release evidence: deploy-dev still
+# requires the complete gate's note. Static matrix of six parts, nothing between them: each part selects for itself and
+# builds for itself, so no job waits on another job's setup. A part whose share of the selection is empty ends after selection.
+# Servers and ports per check: scripts/ci/run-part.sh. Static rules for this file: scripts/ci/fast-e2e.test.mjs.
+name: fast-e2e
+on:
+  push:
+    branches-ignore: [main, dev]
+  # Linux readiness (Task B4): every Linux check, three times in a row. gh workflow run fast-e2e.yml --ref <branch> -f readiness=1
+  workflow_dispatch:
+    inputs:
+      readiness:
+        description: '1 runs every Linux check of check-map.json three times in a row'
+        default: '0'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fast-e2e-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  e2e:
+    if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github.event.deleted != true
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.readiness == '1' && 45 || 20 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4, 5, 6]
+    env:
+      ANTHROPIC_API_KEY: ''
+      OPENAI_API_KEY: ''
+      READINESS: ${{ inputs.readiness }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Select this part's checks
+        id: sel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fast"
+          sel="$RUNNER_TEMP/fast/sel.json"
+          # Exit 2 (an executable path no class covers, or bad arguments) fails the job and prints affected.mjs's one-line fix.
+          node scripts/ci/affected.mjs --part ${{ matrix.part }} --of 6 > "$sel" || { rc=$?; cat "$sel"; exit $rc; }
+          cat "$sel"
+          node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(`Part ${s.part}: ${s.checks.length} checks (baseline ${s.baseline.slice(0,8)})\n\nNot covered in this tier (release gate only): ${s.notCovered.join(", ")||"none"}`)' "$sel" >> "$GITHUB_STEP_SUMMARY"
+          echo "n=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).checks.length' "$sel")" >> "$GITHUB_OUTPUT"
+      # Caches are restored and saved by hand, only for a part that has checks: the combined action saves at the end of a
+      # successful job only (a red run would never warm the next one), and an empty part would save an empty cache under the real key.
+      - name: Restore npm cache (a miss only makes the install slower)
+        id: npm-cache
+        if: steps.sel.outputs.n != '0'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Restore Playwright browsers (a miss only makes the download slower)
+        id: pw-cache
+        if: steps.sel.outputs.n != '0'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install (lockfile; the cache only makes this faster)
+        if: steps.sel.outputs.n != '0'
+        run: |
+          npm ci --no-audit --no-fund
+          node scripts/ensure-natives.mjs
+      - name: Save npm cache (right after install, only on a miss)
+        if: steps.sel.outputs.n != '0' && steps.npm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Browsers (a no-op when cached)
+        if: steps.sel.outputs.n != '0'
+        run: npx playwright install chromium
+      - name: Save Playwright browsers (right after install, only on a miss)
+        if: steps.sel.outputs.n != '0' && steps.pw-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Build both bundles (dist is served by the stack's control plane, dist-dev by the app and the page checks)
+        if: steps.sel.outputs.n != '0'
+        working-directory: packages/web
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/fast"
+          npx --no-install vite build > "$out/build-dist.log" 2>&1 &
+          p1=$!
+          VITE_COACHING_DEV=true VITE_BYOC_DEV=true npx --no-install vite build --outDir dist-dev > "$out/build-dist-dev.log" 2>&1 &
+          p2=$!
+          rc=0
+          wait $p1 || { rc=1; echo 'dist build failed:'; tail -n 30 "$out/build-dist.log"; }
+          wait $p2 || { rc=1; echo 'dist-dev build failed:'; tail -n 30 "$out/build-dist-dev.log"; }
+          exit $rc
+      - name: Run checks
+        if: steps.sel.outputs.n != '0'
+        run: bash scripts/ci/run-part.sh "$RUNNER_TEMP/fast/sel.json" "$RUNNER_TEMP/fast"
+      - name: Stop the stack (removes the per-run .dev.vars before anything is uploaded)
+        if: always() && steps.sel.outputs.n != '' && steps.sel.outputs.n != '0'
+        run: bash scripts/ci/stack.sh stop "$RUNNER_TEMP/fast/stack"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.sel.outputs.n != '' && steps.sel.outputs.n != '0'
+        with:
+          name: fast-e2e-${{ github.sha }}-${{ matrix.part }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/fast/**
+            !${{ runner.temp }}/fast/stack/local/**
+          retention-days: 7
+  verdict:
+    needs: e2e
+    if: ${{ !cancelled() && github.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github.event.deleted != true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          echo "e2e: ${{ needs.e2e.result }}" >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ needs.e2e.result }}" = success ]
