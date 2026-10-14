@@ -58,6 +58,15 @@ test('a beta stage is required from the release whose tree carries its check, an
   assert.match(gateVerdict(PASSED, TREE), /library-folders: not in the record/, 'without the tree to ask, every stage is required');
 });
 
+test('answer-routing, project-menu, canvas-shell and canvas-toolbar are attested where the tree carries their checks', () => {
+  const four = ['answer-routing', 'project-menu', 'canvas-shell', 'canvas-toolbar'];
+  const has = p => four.some(s => p === `packages/web/e2e/${s}-check.mjs`);
+  for (const s of four) assert.match(gateVerdict(PASSED, TREE, has), new RegExp(`${s}: not in the record`), s);
+  const all = PASSED.replace(/INT33-DONE$/m, `${four.map(s => `${s} provider-tripwire hits: 0\n${s} exit 0  3/3 checks passed\n`).join('')}INT33-DONE`);
+  assert.equal(gateVerdict(all, TREE, has), null);
+  assert.match(gateVerdict(all.replace('canvas-toolbar provider-tripwire hits: 0\n', ''), TREE, has), /no "canvas-toolbar provider-tripwire hits: 0" line/);
+});
+
 test('check counts: passed totals only; any failure, a partial ratio or no number is 0', () => {
   assert.equal(stageCount('  ℹ tests 2220 ℹ fail 0 ℹ tests 1322 ℹ fail 0'), 3542);
   assert.equal(stageCount('  # pass 5 # fail 0'), 5);
