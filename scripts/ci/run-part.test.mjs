@@ -21,17 +21,23 @@ function scratch(checks) {
   const t = slash(mkdtempSync(`${slash(tmpdir())}/rp-`)), put = (p, s) => { mkdirSync(`${t}/${p.replace(/\/[^/]*$/, '')}`, { recursive: true }); writeFileSync(`${t}/${p}`, s); };
   spawnSync('git', ['init', '-q'], { cwd: t });
   put('scripts/ci/check-map.json', JSON.stringify({ checks: Object.fromEntries(Object.entries(checks).filter(([, v]) => v.runner).map(([c, v]) => [c, { runner: v.runner }])) }));
-  put('scripts/ci/stack.sh', 'echo "$1" >> "$(dirname "$0")/../../stack-calls.txt"; mkdir -p "$2"\n');
+  // FAKE_STACK_DIES: start leaves a PID that is already gone (wrangler crashed); restart leaves a live one (run-part.sh's own).
+  put('scripts/ci/stack.sh', `echo "$1" >> "$(dirname "$0")/../../stack-calls.txt"; mkdir -p "$2"
+if [ "$1" = start ] && [ -n "$FAKE_STACK_DIES" ]; then sh -c 'exit 0' & p=$!; wait $p; echo $p > "$2/pids"; fi
+if [ "$1" = restart ]; then echo $PPID > "$2/pids"; fi
+`);
   put('node_modules/vite/bin/vite.js', `const a = process.argv.slice(2), e = process.env;
 require('fs').appendFileSync(__dirname + '/../../../vite-calls.jsonl', JSON.stringify({ args: a, coaching: e.VITE_COACHING_DEV ?? null, byoc: e.VITE_BYOC_DEV ?? null, cp: e.RABBIT_HOLE_DEV_CP ?? null }) + '\\n');
 if (e.FAKE_VITE_FAIL) process.exit(1);
 require('http').createServer((q, s) => s.end('ok')).listen(Number(a[a.indexOf('--port') + 1]));
 `);
-  for (const [c, v] of Object.entries(checks)) put(`packages/web/e2e/${c}`, `import { appendFileSync } from 'node:fs';
+  for (const [c, v] of Object.entries(checks)) put(`packages/web/e2e/${c}`, `import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
 const port = ${v.port ?? 'null'}; let up = null;
 if (port) up = await fetch('http://localhost:' + port + '/').then(r => r.status, () => 'down');
 const keys = ['BASE', 'PRACTICE_BASE', 'VOICE_BASE', 'SMALL_CP', 'PERSIST', 'D1_CONFIG'];
 appendFileSync(new URL('../../../calls.jsonl', import.meta.url), JSON.stringify({ check: '${c}', args: process.argv.slice(2), up, env: Object.fromEntries(keys.map(k => [k, process.env[k] ?? null])) }) + '\\n');
+const once = new URL('../../../failed-once-${c}', import.meta.url);
+if (${Boolean(v.failOnce)} && !existsSync(once)) { writeFileSync(once, ''); process.exit(1); }
 console.log('1/1 checks passed'); process.exit(${v.fail ? 1 : 0});
 `);
   writeFileSync(`${t}/sel.json`, JSON.stringify({ checks: Object.keys(checks) }));
@@ -87,6 +93,17 @@ test('readiness runs every check three times in a row, each run in its own log a
     assert.match(r.stdout, new RegExp(`^${n} run ${i}/3 exit 0 `, 'm'));
     assert.ok(existsSync(`${s.t}/out/${n}-check-${i}.log`), `${n} run ${i} has its own log`);
   }
+});
+
+test('a fork check whose stack died under it restarts the stack and reruns once; the first log is kept and the line says so', { skip }, () => {
+  const s = scratch({ 'a-check.mjs': { runner: 'fork', failOnce: true }, 'b-check.mjs': { runner: 'fork' } });
+  const r = s.run({ FAKE_STACK_DIES: '1' });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(s.stack(), ['start', 'restart', 'stop']);
+  assert.deepEqual(s.calls().map(c => c.check), ['a-check.mjs', 'a-check.mjs', 'b-check.mjs']);
+  assert.match(r.stdout, /^a exit 0 .*after a stack restart \(first attempt exit 1\)$/m);
+  assert.ok(existsSync(`${s.t}/out/a-check-first.log`), 'the first attempt keeps its log');
+  assert.match(r.stdout, /^b exit 0 {2}1\/1 checks passed {2}\(\d+s\)$/m, 'a check after the restart is a clean pass');
 });
 
 test('a harness-only part never starts the stack', { skip }, () => {

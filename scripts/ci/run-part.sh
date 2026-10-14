@@ -53,13 +53,27 @@ cnt() { local L=$1 s p f; s=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -aoE '[0-9]+
   f=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^FAIL|^not ok')
   if [ "$f" != 0 ]; then echo "fail $f"; else echo "$p/$p checks passed"; fi; }
 
+# The gate's one recognized transient (templates/int35.sh): wrangler dev died under a fork check ("Network connection lost";
+# runs 38513341132 parts 3 and 5). A stack PID that is gone after a failure restarts the stack on the same data and reruns
+# that check once; the first attempt's log is kept and the result line and the job summary say "after a stack restart".
+dead() { [ -f "$OUT/stack/pids" ] && ! xargs kill -0 < "$OUT/stack/pids" 2>/dev/null; }
+
 # run_check <check> [args...]: one check from packages/web with the env in ENVV, REPEAT times; a failure prints the log tail.
 run_check() {
-  local c=$1 n=${1%.mjs} L T0 rc i t=; shift
+  local c=$1 n=${1%.mjs} L T0 rc i t= r first; shift
   for i in $(seq 1 "$REPEAT"); do
-    L=$OUT/$n.log; [ "$REPEAT" = 1 ] || { L=$OUT/$n-$i.log; t=" run $i/$REPEAT"; }; T0=$(date +%s)
+    L=$OUT/$n.log; [ "$REPEAT" = 1 ] || { L=$OUT/$n-$i.log; t=" run $i/$REPEAT"; }; T0=$(date +%s); r=
     (cd "$W/packages/web" && env "${ENVV[@]}" timeout 900 node "e2e/$c" "$@" > "$L" 2>&1); rc=$?
-    echo "${n%-check}$t exit $rc  $(cnt "$L")  ($(( $(date +%s) - T0 ))s)" | tee -a "$OUT/fast.log"
+    # Fork checks only (ENVV holds the stack env then).
+    if [ $rc != 0 ] && [ ${#ENVV[@]} != 0 ] && dead; then
+      first=$rc; mv "$L" "${L%.log}-first.log"
+      echo "${n%-check}$t: exit $rc and the stack died under it (first log: $(basename "${L%.log}")-first.log); restarting the stack, one rerun"
+      bash "$W/scripts/ci/stack.sh" restart "$OUT/stack" || echo 'stack restart failed'
+      (cd "$W/packages/web" && env "${ENVV[@]}" timeout 900 node "e2e/$c" "$@" > "$L" 2>&1); rc=$?
+      r="  after a stack restart (first attempt exit $first)"
+      [ -z "${GITHUB_STEP_SUMMARY:-}" ] || echo "- ${n%-check}$t: exit $rc after a stack restart (first attempt exit $first)" >> "$GITHUB_STEP_SUMMARY"
+    fi
+    echo "${n%-check}$t exit $rc  $(cnt "$L")  ($(( $(date +%s) - T0 ))s)$r" | tee -a "$OUT/fast.log"
     [ $rc = 0 ] || { FAIL=1; echo "--- ${n%-check}$t log tail ---"; sed 's/\x1b\[[0-9;]*m//g' "$L" | tail -n 20; }
   done
 }
