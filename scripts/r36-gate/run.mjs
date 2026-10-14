@@ -1,10 +1,11 @@
-import { spawn, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, appendFileSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SOURCE, prepare, files, sha256 } from './prepare.mjs';
 import { prerequisite, keepsProbeStack } from './phases.mjs';
 import { SHARDS, CONDITIONAL, canary } from './shards.mjs';
+import { runBounded } from './bounded.mjs';
 
 const APP_SHA=process.env.TESTED_SHA, APP_TREE=process.env.TESTED_TREE;
 if(!/^[a-f0-9]{40}$/.test(APP_SHA||'')||!/^[a-f0-9]{40}$/.test(APP_TREE||''))throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
@@ -45,14 +46,14 @@ function command(file,args,{cwd=app,log,timeout=1800000,allowFailure=false,extra
   return new Promise((resolve,reject)=>{
     const began=new Date().toISOString();
     console.log(`${began} start ${file} ${args.join(' ')}`);
-    const child=spawn(file,args,{cwd,env:{...env,...extra},windowsHide:true,stdio:['ignore','pipe','pipe']});
-    let timer=setTimeout(()=>{child.kill();},timeout);let tail='';
-    for(const output of [child.stdout,child.stderr])output.on('data',b=>{if(log)appendFileSync(log,b);if(stream)process.stdout.write(b);tail=(tail+b.toString()).slice(-5000);});
-    child.once('error',e=>{clearTimeout(timer);reject(e);});
-    child.once('close',(code,signal)=>{
-      clearTimeout(timer);receipt.stages.push({command:[file,...args],started:began,ended:new Date().toISOString(),code,signal,log});
-      if(code!==0&&!allowFailure)reject(Error(`Command failed (${code}/${signal}): ${file} ${args.join(' ')}; see ${log}`));else resolve({code,signal,tail});
-    });
+    let tail='';
+    // bounded.mjs: at the limit the whole process tree is killed and the command settles as timed out, even if a
+    // surviving process still holds its output pipes.
+    runBounded(file,args,{cwd,env:{...env,...extra},timeout,onData:b=>{if(log)appendFileSync(log,b);if(stream)process.stdout.write(b);tail=(tail+b.toString()).slice(-5000);}}).then(({code,signal,timedOut})=>{
+      receipt.stages.push({command:[file,...args],started:began,ended:new Date().toISOString(),code,signal,timedOut,log});
+      if(timedOut)reject(Error(`Command timed out after ${timeout/60000} min and its process tree was killed: ${file} ${args.join(' ')}; see ${log}`));
+      else if(code!==0&&!allowFailure)reject(Error(`Command failed (${code}/${signal}): ${file} ${args.join(' ')}; see ${log}`));else resolve({code,signal,tail});
+    },reject);
   });
 }
 const bash=process.env.GATE_BASH||process.env.GIT_BASH_PATH||'bash.exe';
@@ -66,9 +67,10 @@ async function stop() {
   const browserReceipts=files(gate).filter(p=>dirname(p)===resolve(gate)&&p.endsWith('.start.json'));
   for(const p of browserReceipts)writeFileSync(p.replace(/\.start\.json$/,'.stop'),'stop');
   const results=[];
-  for(const script of ['fork/stop.ps1','lp1h/stop.ps1'])results.push(await command('powershell.exe',['-NoProfile','-File',join(gate,script),'-DeferPortCheck'],{allowFailure:true,log:join(out,'cleanup.log')}));
+  // Each scoped cleanup is bounded at 2 min; a timed-out cleanup counts as a failed one.
+  for(const script of ['fork/stop.ps1','lp1h/stop.ps1'])results.push(await command('powershell.exe',['-NoProfile','-File',join(gate,script),'-DeferPortCheck'],{allowFailure:true,log:join(out,'cleanup.log'),timeout:120000}).catch(e=>({code:1,error:e.message})));
   if(results.some(r=>r.code!==0))throw Error('Scoped cleanup failed; see cleanup.log');
-  await command('powershell.exe',['-NoProfile','-Command','if (@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in @(8878,8879,9318,9319) }).Count) { throw "Gate ports remain occupied after cleanup" }; "Gate ports clear"'],{log:join(out,'cleanup.log')});
+  await command('powershell.exe',['-NoProfile','-Command','if (@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in @(8878,8879,9318,9319) }).Count) { throw "Gate ports remain occupied after cleanup" }; "Gate ports clear"'],{timeout:120000,log:join(out,'cleanup.log')});
   for(const p of browserReceipts) {
     const exit=p.replace(/\.start\.json$/,'.monitor-exit.json');
     if(!existsSync(exit)||JSON.parse(readFileSync(exit,'utf8')).code!==0)throw Error(`Browser cleanup receipt missing or failed: ${exit}`);
@@ -170,7 +172,7 @@ try {
     const n=Number(phase.slice(6)),script=join(gate,`${phase}.sh`);
     if(!SHARDS[n-1])throw Error(`Unknown gate shard: ${phase}`);
     writeFileSync(script,canary(readFileSync(script,'utf8'),process.env.GATE_CANARY_FAIL_STAGE));
-    await command(bash,[script],{log:join(out,'gate-shard.log'),timeout:7200000,stream:true});
+    await command(bash,[script],{log:join(out,'gate-shard.log'),timeout:1800000,stream:true}); // the whole shard: startup, restarts, stages and its own cleanup
     unchanged();
     const {stageCount}=await import(pathToFileURL(join(app,'scripts/dev-deploy.mjs')));
     const record=readFileSync(join(out,'gate-shard.log'),'utf8');

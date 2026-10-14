@@ -52,7 +52,8 @@ jobs:
   run:
     if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole'
     runs-on: windows-2022
-    timeout-minutes: 150
+    # Backstop: setup, the bounded run step and the evidence upload (a shard normally takes about 10 min).
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
@@ -139,6 +140,9 @@ jobs:
           make --version | head -n 1
       - name: Run ${{ matrix.part }}
         if: matrix.part != 'checkpoints'
+        # run.mjs bounds the shard script at 30 min and each cleanup at 2 min; this step limit is the backstop, and a
+        # timed-out step still uploads its evidence (the next step runs on always()). A force-cancel skips that upload.
+        timeout-minutes: 40
         shell: pwsh
         working-directory: harness
         run: |
@@ -157,6 +161,7 @@ jobs:
       - name: Run gate preflight checkpoint
         id: preflight
         if: matrix.part == 'checkpoints'
+        timeout-minutes: 20
         shell: pwsh
         working-directory: harness
         continue-on-error: true
@@ -176,6 +181,7 @@ jobs:
       - name: Run instrumented Dive checkpoint
         id: dive
         if: matrix.part == 'checkpoints' && steps.preflight.outcome == 'success'
+        timeout-minutes: 20
         shell: pwsh
         working-directory: harness
         continue-on-error: true
