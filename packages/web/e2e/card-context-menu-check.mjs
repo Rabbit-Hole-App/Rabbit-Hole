@@ -165,6 +165,10 @@ await check('4 Start Rabbit Hole opens the right-clicked card\'s Rabbit Hole - f
 
 await check('5 a kept hole: the card is its portal, and right-click Start Rabbit Hole enters it - never a second hole', async () => {
   await page.waitForSelector('[data-block-id="m-b"]', { timeout: 30000 }); await page.waitForTimeout(800);
+  // Back up from step 4, the Rabbit Holes tree of this level reloads; until it has, Start Rabbit Hole only says where
+  // holes open from (Dive.jsx dive(): no tree). Wait for that state - the navigator showing this level alone - not a
+  // fixed time: under load the reload outlasted the 800 ms above and the Start click went nowhere (2026-10-13).
+  await page.waitForFunction(root => { const levels = [...document.querySelectorAll('[data-dive-navigator] [data-dive-level]')]; return levels.length === 1 && levels[0].dataset.diveLevel === root; }, ROOT.split('/').pop(), { timeout: 30000 });
   // #46 review finding: entering a hole opens with a Tutor turn, and a command typed while that turn is in flight is held
   // (never dropped) and runs once it ends. The opening's plan request is held here until the command is typed.
   let release;

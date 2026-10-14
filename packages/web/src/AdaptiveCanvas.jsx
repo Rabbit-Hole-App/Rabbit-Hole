@@ -1779,7 +1779,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
-      inlineAi: () => openInline(), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
+      inlineAi: (mode = null) => openInline(performance.now(), false, mode), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
       paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
       duplicate: () => !!pasteIds(selectedRef.current),
@@ -2632,12 +2632,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const target = freezeTarget(board, selectedRef.current);
     return target && { target };
   };
-  const openInline = (opened = performance.now(), fromKey = false) => {
+  // mode: the editor's first mode, 'edit' | 'explain' (the selection action bar's Quick Edit passes 'edit'); null keeps
+  // the editor's own default.
+  const openInline = (opened = performance.now(), fromKey = false, mode = null) => {
     if (inlineRef.current) { shell.current?.querySelector('[data-inline-ai] textarea')?.focus(); return true; }
     const found = inlineTarget(fromKey);
     if (!found) return false;
     setMenuAt(null);
-    setInline({ ...found, opened, cold: inlineOpens.current === 0, opener: document.activeElement, n: (inlineOpens.current += 1) });
+    setInline({ ...found, opened, mode, cold: inlineOpens.current === 0, opener: document.activeElement, n: (inlineOpens.current += 1) });
     return true;
   };
   const closeInline = () => {
@@ -4309,7 +4311,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />
-        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold}
+        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         <div ref={worldRef} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>

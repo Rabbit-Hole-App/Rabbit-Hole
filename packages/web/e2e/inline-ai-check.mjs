@@ -72,6 +72,9 @@ const reveal = async (page, locator) => {
 const shapeCenter = async (page, id) => { const box = await reveal(page, page.locator(`[data-shape-id="${id}"]`).first()); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
 const clickShape = async (page, id, modifiers = []) => { const at = await shapeCenter(page, id); for (const key of modifiers) await page.keyboard.down(key); await page.mouse.click(at.x, at.y); for (const key of modifiers) await page.keyboard.up(key); };
 const ctrlK = page => page.keyboard.press('Control+k');
+// The composer's mode dropdown (owner brief 2026-10-13): open it, pick a mode; and the mode it shows.
+const pickMode = async (page, value, how = 'click') => { await page.locator('[data-inline-mode-toggle]')[how](); await page.locator(`[data-inline-mode="${value}"]`)[how](); };
+const modeOf = page => page.locator('[data-inline-mode-toggle]').getAttribute('data-inline-mode-current');
 const popover = page => page.locator('[data-inline-ai]');
 const status = page => popover(page).getAttribute('data-status');
 const waitStatus = async (page, wanted, timeout = 5000) => { await page.waitForFunction(w => w.includes(document.querySelector('[data-inline-ai]')?.dataset.status), wanted, { timeout }); };
@@ -85,9 +88,11 @@ await run('node 23: Ctrl+K, Explain streams a grounded note, Accept adds a note 
   await popover(page).waitFor();
   check('Ctrl+K opens the editor on the selected node, focused in its prompt', await page.evaluate(() => document.activeElement?.matches('[data-inline-prompt]')));
   check('the target indicator names the node and outlines it', (await page.locator('[data-inline-target-label]').innerText()).includes('23') && (await page.locator('[data-inline-target]').count()) === 1);
-  check('Explain is the default pill; Edit is offered', (await page.locator('[data-inline-mode="explain"]').getAttribute('aria-checked')) === 'true' && await page.locator('[data-inline-mode="edit"]').isVisible());
+  await page.locator('[data-inline-mode-toggle]').click();
+  check('Explain is the default mode; Edit is offered', (await modeOf(page)) === 'explain' && (await page.locator('[data-inline-mode="explain"]').getAttribute('aria-checked')) === 'true' && await page.locator('[data-inline-mode="edit"]').isVisible());
+  await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
-  check('A4: opening prepared the context locally with no model, routing or handler call', (await page.evaluate(() => window.__inlineMock.calls.length)) === 0 && /1 connected/.test(await page.locator('[data-inline-context]').innerText()));
+  check('A4: opening prepared the context locally with no model, routing or handler call', (await page.evaluate(() => window.__inlineMock.calls.length)) === 0);
   await page.locator('[data-inline-context]').click();
   const contextText = await page.locator('[data-inline-context-list]').innerText();
   check('the context indicator lists the parent, the sibling and the label beside it - and not the unrelated note', /connected · Shape · 4/.test(contextText) && /sibling · Shape · 3/.test(contextText) && /label · Text · bottom row/.test(contextText) && !/Buy milk/.test(contextText), contextText.replace(/\n/g, ' | '));
@@ -500,7 +505,7 @@ await run('pointer and touch: the canvas menu opens it; touch taps drive it', as
   await page.mouse.click(at.x, at.y, { button: 'right' });
   await page.locator('[data-menu-inline-ai]').click();
   await popover(page).waitFor();
-  check('right-click > Edit or explain with AI opens on the clicked node', (await popover(page).count()) === 1 && /“3”/.test(await page.locator('[data-inline-target-label]').innerText()));
+  check('right-click menu opens Quick Edit on the clicked node', (await popover(page).count()) === 1 && /“3”/.test(await page.locator('[data-inline-target-label]').innerText()));
   await context.close();
   const touch = await open('touch', both(), { touch: true });
   const t = await shapeCenter(touch.page, 'n3');
@@ -508,12 +513,12 @@ await run('pointer and touch: the canvas menu opens it; touch taps drive it', as
   await touch.page.evaluate(([x, y]) => document.elementFromPoint(x, y).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: x, clientY: y })), [t.x, t.y]);
   const row = touch.page.locator('[data-menu-inline-ai]');
   await row.tap();
-  await touch.page.locator('[data-inline-mode="edit"]').tap();
+  await pickMode(touch.page, 'edit', 'tap');
   await touch.page.locator('[data-inline-prompt]').fill('Make this bigger');
   await touch.page.locator('[data-inline-submit]').tap();
   await waitStatus(touch.page, ['preview']);
   await touch.page.locator('[data-inline-accept]').tap();
-  check('touch: long-press menu, pill, submit and Accept all work by tap', (await touch.saved()).shapes.find(shape => shape.id === 'n3').fontSize === 24 && (await popover(touch.page).count()) === 0);
+  check('touch: long-press menu, mode, send and Accept all work by tap', (await touch.saved()).shapes.find(shape => shape.id === 'n3').fontSize === 24 && (await popover(touch.page).count()) === 0);
   await touch.context.close();
 });
 
@@ -661,7 +666,7 @@ const editMember = async (page, id) => {
   const at = await reveal(page, page.locator(`[data-item-id="${id}"]`));
   await page.keyboard.down('Control'); await page.mouse.click(at.x + 8, at.y + at.height / 2); await page.keyboard.up('Control');
   await ctrlK(page);
-  await page.locator('[data-inline-mode="edit"]').click();
+  await pickMode(page, 'edit');
 };
 const openWords = async (page, id) => {
   await page.evaluate(() => document.activeElement?.blur());
@@ -704,7 +709,9 @@ await run('accept snapshot (b): the target edited after the preview, then a fail
   await editMember(page, 'para2');
   await submitPrompt(page, 'Rewrite this');
   await waitStatus(page, ['preview']);
+  await page.locator('[data-inline-context]').click();
   check('(b) Selection only is locked while a preview made with it shows', await page.locator('[data-inline-selection-only]').isDisabled());
+  await page.keyboard.press('Escape');
   await typeWords(page, 'para2', ' typed meanwhile');
   await page.evaluate(() => { window.__inlineMock.failNext = 'http'; });
   await refine(page, 'Make it shorter');
@@ -796,7 +803,9 @@ await run('prompt limit: the count shows the supported limit; over it nothing is
   await clickShape(page, 'n23');
   await ctrlK(page);
   await page.locator('[data-inline-prompt]').fill('Explain this node');
-  check('the supported limit is shown while writing', (await page.locator('[data-inline-count]').innerText()) === '17 / 1000');
+  check('the count stays hidden in normal writing (owner brief: only near the limit)', (await page.locator('[data-inline-count]').count()) === 0);
+  await page.locator('[data-inline-prompt]').fill('a'.repeat(950));
+  check('near the limit the count shows the supported limit', (await page.locator('[data-inline-count]').innerText()) === '950 / 1000');
   await page.locator('[data-inline-prompt]').fill('');
   await page.locator('[data-inline-prompt]').focus();
   await page.keyboard.insertText('a'.repeat(1200));
@@ -867,7 +876,7 @@ await run('B1: typed words, then a range Edit on them previews and applies', asy
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowLeft');
   await ctrlK(page);
   await page.locator('[data-inline-ai]').waitFor();
-  check('B1: Ctrl+K on the selected typed words opens Edit on them', (await page.locator('[data-inline-mode="edit"]').getAttribute('aria-checked')) === 'true' && (await page.locator('[data-inline-target-label]').innerText()).includes('words'));
+  check('B1: Ctrl+K on the selected typed words opens Edit on them', (await modeOf(page)) === 'edit' && (await page.locator('[data-inline-target-label]').innerText()).includes('words'));
   await submitPrompt(page, 'Rewrite this');
   await waitStatus(page, ['preview', 'error']);
   const error = await page.locator('[data-inline-error]').innerText().catch(() => '');
@@ -933,22 +942,22 @@ await run('M7: words typed and selected, then Ctrl+K: the context list shows tho
   await ctrlK(page);
   await page.locator('[data-inline-ai]').waitFor();
   await page.locator('[data-inline-context]').click();
-  const row = await page.locator('[data-inline-context-list] li').first().innerText();
-  check('M7: the Selected row reads the selected words', /Selected · Text · words$/.test(row.trim()), row);
+  const row = await page.locator('[data-inline-context-entry="selected"]').first().innerText();
+  check('M7: the Selected row reads the selected words', /^Text · words$/.test(row.trim()) && /^Selected/.test(await page.locator('[data-inline-context-target]').innerText()), row);
   await context.close();
 });
 
 // ---- Owner 2026-10-13: no sparkles icon on Submit. Failed on 14b346b1 ----
-await run('Submit: no sparkles icon when idle; the spinner while busy', async () => {
+await run('Submit: no sparkles icon when idle; Stop while busy', async () => {
   const { page, context } = await open('submit-icon');
   await clickShape(page, 'n23');
   await ctrlK(page);
   await page.locator('[data-inline-ai]').waitFor();
-  check('the idle Submit has no sparkles icon', (await page.locator('[data-inline-submit] svg.lucide-sparkles').count()) === 0 && (await page.locator('[data-inline-submit]').innerText()).includes('Submit'));
+  check('the idle Send has no sparkles icon', (await page.locator('[data-inline-submit] svg.lucide-sparkles').count()) === 0 && (await page.locator('[data-inline-submit]').getAttribute('aria-label')) === 'Send');
   await hold(page);
   await submitPrompt(page, 'Explain this node');
   await waitStatus(page, ['generating']);
-  check('a busy Submit shows the spinner', (await page.locator('[data-inline-submit] svg.animate-spin').count()) === 1);
+  check('while busy, Stop takes the place of Send', (await page.locator('[data-inline-stop]').count()) === 1 && (await page.locator('[data-inline-submit]').count()) === 0);
   await release(page);
   await context.close();
 });
@@ -1143,8 +1152,9 @@ await run('Purple target: with the editor open the target ring, its selection ma
     const c = await colours();
     const [r, g, b] = (c.ai.match(/\d+/g) || []).map(Number);
     check(`purple (${theme}): the --color-ai token is a purple (red and blue over green), not the selection blue`, c.ai !== blue && r > g && b > g, c.ai);
-    check(`purple (${theme}): the target ring, the target's own selection mark, the focused field and the Selected marker are --color-ai`,
-      c.ring === c.ai && c.mark === c.ai && c.port === c.ai && c.field === c.ai && c.marker === c.ai, JSON.stringify(c));
+    // The composer's prompt has no border of its own (owner brief 2026-10-13), so there is no field border to colour.
+    check(`purple (${theme}): the target ring, the target's own selection mark and ports, and the Selected marker are --color-ai`,
+      c.ring === c.ai && c.mark === c.ai && c.port === c.ai && c.marker === c.ai, JSON.stringify(c));
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
     await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
@@ -1153,6 +1163,108 @@ await run('Purple target: with the editor open the target ring, its selection ma
     check(`purple (${theme}): with the editor closed the same selection is blue again`, after.mark === blue && after.port === blue, `${after.mark} ${after.port}`);
     await page.mouse.click(60, 120);
   }
+  await context.close();
+});
+
+// ---- Owner brief 2026-10-13: the Ctrl/Cmd+K editor is a small composer. Its Context popover is point 8's indicator. ----
+const visibleControls = page => page.locator('[data-inline-ai]').evaluate(root => [...root.querySelectorAll('button, textarea, input, select, [role="menuitemradio"]')]
+  .filter(node => { const r = node.getBoundingClientRect(), css = getComputedStyle(node); return r.width > 0 && r.height > 0 && css.visibility !== 'hidden' && !node.closest('.sr-only'); })
+  .map(node => (node.dataset.inlinePrompt !== undefined ? 'prompt' : node.dataset.inlineClose !== undefined ? 'close' : node.dataset.inlineContext !== undefined ? 'context'
+    : node.dataset.inlineModeToggle !== undefined ? 'mode' : node.dataset.inlineSubmit !== undefined ? 'send' : node.outerHTML.slice(0, 60))));
+await run('Composer: before typing only the prompt, close, Context, the mode and Send; the mode keeps the words; Enter, Shift+Enter, IME; Escape order', async () => {
+  const { page, context } = await open('composer');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  check('the editor is the Quick Edit dialog', (await page.getByRole('dialog', { name: 'Quick Edit' }).count()) === 1);
+  check('Ctrl/Cmd+K focuses the prompt at once', await page.evaluate(() => document.activeElement?.matches('[data-inline-prompt]')));
+  check('before typing: exactly the prompt, a close icon, Context, the mode dropdown and Send', JSON.stringify(await visibleControls(page)) === JSON.stringify(['close', 'prompt', 'context', 'mode', 'send']), JSON.stringify(await visibleControls(page)));
+  const shell = await page.locator('[data-inline-ai]').boundingBox();
+  check('one surface about 420 px wide and 90-110 px tall', Math.abs(shell.width - 420) <= 2 && shell.height >= 90 && shell.height <= 110, JSON.stringify(shell));
+  check('Explain: its placeholder; Send is subdued while the prompt is empty', (await page.locator('[data-inline-prompt]').getAttribute('placeholder')) === 'What would you like to understand?' && await page.locator('[data-inline-submit]').isDisabled());
+  check('every icon button has a label and a tooltip', await page.locator('[data-inline-close], [data-inline-submit]').evaluateAll(nodes => nodes.every(node => node.getAttribute('aria-label') && node.getAttribute('title'))));
+  await page.keyboard.type('what does it hold');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('and why');
+  check('Shift+Enter adds a line, nothing is sent', (await page.locator('[data-inline-prompt]').inputValue()) === 'what does it hold\nand why' && (await calls(page, 'generate')).length === 0);
+  await page.locator('[data-inline-mode-toggle]').click();
+  check('the mode menu: both modes, a check on the active one', (await page.locator('[data-inline-mode]').count()) === 2 && (await page.locator('[data-inline-mode="explain"]').getAttribute('aria-checked')) === 'true' && (await page.locator('[data-inline-mode="explain"] svg').count()) === 1);
+  await page.locator('[data-inline-mode="edit"]').click();
+  check('switching to Edit keeps the words, sends nothing, and changes the placeholder', (await page.locator('[data-inline-prompt]').inputValue()) === 'what does it hold\nand why' && (await calls(page, 'generate')).length === 0 && (await status(page)) === 'idle'
+    && (await modeOf(page)) === 'edit' && (await page.locator('[data-inline-prompt]').getAttribute('placeholder')) === 'What would you like to change?');
+  await pickMode(page, 'explain');
+  // IME: an Enter while composing never sends.
+  await page.locator('[data-inline-prompt]').evaluate(field => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true })));
+  await page.waitForTimeout(150);
+  check('Enter during IME composition sends nothing', (await calls(page, 'generate')).length === 0 && (await status(page)) === 'idle');
+  // Escape: the open menu first, then the open popover, then the editor.
+  await page.locator('[data-inline-mode-toggle]').click();
+  await page.keyboard.press('Escape');
+  check('Escape closes the open mode menu first; the editor stays', (await page.locator('[data-inline-mode-menu]').count()) === 0 && (await popover(page).count()) === 1);
+  await page.locator('[data-inline-context]').click();
+  await page.keyboard.press('Escape');
+  check('then the open Context popover; the editor stays', (await page.locator('[data-inline-context-popover]').count()) === 0 && (await popover(page).count()) === 1);
+  await page.locator('[data-inline-prompt]').focus();
+  await page.keyboard.press('Escape');
+  check('then the editor itself', (await popover(page).count()) === 0);
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await page.locator('[data-inline-prompt]').fill('Explain this node');
+  await page.keyboard.press('Enter');
+  await waitStatus(page, ['preview']);
+  check('Enter sends; the preview appears beneath the prompt, which stays for a refine', (await calls(page, 'generate')).length === 1 && (await page.locator('[data-inline-prompt]').inputValue()) === 'Explain this node'
+    && (await page.locator('[data-inline-preview]').boundingBox()).y > (await page.locator('[data-inline-prompt]').boundingBox()).y);
+  await context.close();
+});
+
+await run('Composer: the Context popover is the indicator (point 8) and never grows the composer; the composer holds still while words stream', async () => {
+  const { page, context } = await open('composer-context');
+  await clickShape(page, 'n23');
+  await ctrlK(page);
+  await page.locator('[data-inline-ai]').waitFor();
+  check('the Context popover is closed at first', (await page.locator('[data-inline-context-popover]').count()) === 0);
+  await page.waitForTimeout(300);
+  const before = await page.locator('[data-inline-ai]').boundingBox();
+  await page.locator('[data-inline-context]').click();
+  const pop = page.locator('[data-inline-context-popover]');
+  await pop.waitFor();
+  const after = await page.locator('[data-inline-ai]').boundingBox();
+  check('opening it does not enlarge the composer', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }));
+  check('it is bounded and scrolls inside', await pop.evaluate(node => getComputedStyle(node).overflowY === 'auto' && parseFloat(getComputedStyle(node).maxHeight) <= 260));
+  const selected = await page.locator('[data-inline-context-entry="selected"]').allInnerTexts();
+  const support = await page.locator('[data-inline-context-entry="supporting"]').allInnerTexts();
+  check('the selection under Selected, the rest under Supporting, read-only', selected.length === 1 && /23/.test(selected[0]) && support.length > 0
+    && (await page.locator('[data-inline-context-group="supporting"]').innerText()).startsWith('Supporting · read-only') && !support.some(text => /Buy milk/.test(text)), JSON.stringify({ selected, support }));
+  const scope = await page.locator('[data-inline-context-scope]').innerText();
+  const considered = Number((scope.match(/from (\d+) other objects/) || [])[1]);
+  check('its limits say what it chose from, never the whole canvas, even with nothing left out by the limits', considered > support.length && /The rest were not sent\./.test(scope) && !/whole|entire|all of/i.test(await pop.innerText()), scope);
+  await pickMode(page, 'edit');
+  await page.locator('[data-inline-context]').click();
+  check('in Edit, Selected says it is the only thing an edit changes', /the only thing an edit changes/.test(await page.locator('[data-inline-context-target]').innerText()));
+  await page.locator('[data-inline-selection-only]').check();
+  await page.waitForFunction(() => /Surroundings left out \(selection only\)/.test(document.querySelector('[data-inline-context-popover]')?.innerText || ''));
+  check('Selection only lives in the popover: no supporting material then', (await page.locator('[data-inline-context-entry="supporting"]').count()) === 0);
+  await page.locator('[data-inline-selection-only]').uncheck();
+  await page.keyboard.press('Escape');
+  await pickMode(page, 'explain');
+  // Streaming: sample the composer's box every frame while words arrive; after the first words it never moves or resizes.
+  await page.evaluate(() => { window.__inlineMock.chunkMs = 60; });
+  await page.locator('[data-inline-prompt]').fill('Explain this node');
+  await page.keyboard.press('Enter');
+  await waitStatus(page, ['streaming']);
+  await page.waitForFunction(() => (document.querySelector('[data-inline-preview="note"]')?.innerText || '').length > 0);
+  const boxes = await page.evaluate(() => new Promise(resolve => {
+    const seen = [];
+    const tick = () => {
+      const root = document.querySelector('[data-inline-ai]');
+      if (root?.dataset.status !== 'streaming') { resolve(seen); return; }
+      const r = root.getBoundingClientRect();
+      seen.push(`${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`);
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }));
+  check('while words stream, the composer neither moves nor resizes', boxes.length > 5 && new Set(boxes).size === 1, `${boxes.length} frames, ${new Set(boxes).size} boxes`);
   await context.close();
 });
 await browser.close();

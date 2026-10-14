@@ -763,3 +763,37 @@ example only; nothing here is written around trees.
 - The result cache key holds the supporting context's fingerprint (prints.context). That is the supporting objects'
   words and reasons, their relations, the target's connections and the metadata, never positions. New words around the
   selection make a new request; a move reuses the answer. Nothing calls the model on a canvas edit.
+
+### What the context included (point 8): the composer's Context popover
+
+The indicator is the Context popover of A9. It lists the selected targets under Selected ("the only thing an edit
+changes" in Edit), and the supporting material under Supporting · read-only, each with its reason, the group and the
+canvas title (background only). Under Limits it says what the context was chosen from ("Chosen by relevance from N
+other objects on the canvas. The rest were not sent."), and how many relevant objects the limits left out. It never
+reads as the whole canvas. Selection only lives there.
+
+## A9. The composer (owner brief, 2026-10-13)
+
+Owner brief, verbatim in agent-coordination/tasks/2026-10-13-inline-composer-OWNER.md. The Ctrl/Cmd+K editor is
+"Quick Edit": one rounded surface about 420 px wide and 90-110 px tall, with a subtle border and a light shadow.
+
+- Before typing it shows only the prompt (no border of its own, growing to 180 px, then scrolling), a close icon at the
+  top right, Context at the bottom left, and the mode dropdown and a round Send button at the bottom right.
+- The mode dropdown reads "Edit selection" or "Explain selection". Its menu checks the active mode. Switching keeps the
+  words and sends nothing. The first mode is the opener's (openInline's mode, canvasApi.inlineAi(mode); Quick Edit
+  passes 'edit'), else Edit for selected words and Explain for objects.
+- Placeholders: "What would you like to change?" (Edit) and "What would you like to understand?" (Explain).
+- Enter sends, Shift+Enter adds a line, and an Enter during IME composition never sends.
+- Context opens an anchored popover, bounded and scrolling. It never grows the composer.
+- While a request runs, Stop takes Send's place. A double press's second click never stops what it just sent. A short
+  status shows only until output arrives.
+- Output appears beneath the prompt only when there is some, bounded and scrolling. A streaming note keeps one height,
+  so the composer neither moves nor resizes per chunk. The composer is placed for the room it may grow into: above the
+  target it holds its bottom edge, elsewhere its top edge.
+- Then a compact Accept / Reject. The prompt stays for a refine. A paid proposal keeps its own Generate and cost words,
+  never a plain Accept.
+- The character count shows only from 900 of 1000 characters, and past the limit.
+- Escape closes the open menu, then the open popover, then the editor. Closing cancels a running request, and no late
+  output appears.
+- The selected object's words are not repeated in a header; screen readers get them in a visually hidden label.
+- Every icon button has a label, a tooltip and a visible focus ring.
