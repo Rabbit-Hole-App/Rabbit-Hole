@@ -17,17 +17,18 @@ export const ORDER = ['make test-unit', 'fixture regression', 'rh-app', 'comment
 // and tree that shard 1 used to repeat. mergeShards takes their lines from the units record.
 export const UNIT_STAGES = ['make test-unit', 'fixture regression'];
 
-// Balanced on the measured stage times of that run (seconds, stack starts and stops included): ~485, ~470, ~520, ~515;
-// shard 1's ~485 included the unit stages, which the units part now runs (UNIT_STAGES).
-// explore follows comments in shard 1: its phone creator-card row needs a second creator with a live publication, and
+// The output of pack.mjs for the measured durations.json (README "Shard packing"): seven shards of 4.4-4.7 predicted
+// minutes each. Kept as a literal so a reviewer sees the shards; pack.test.mjs fails if it drifts from the packer.
+// explore follows comments in one shard: its phone creator-card row needs a second creator with a live publication, and
 // comments-check's published canvas (comments-check.mjs:233, never unpublished) is the one the unsharded gate gives it.
 export const SHARDS = [
-  ['rh-app', 'comments', 'comments-invite', 'sketch', 'answer-routing', 'rh-dev',
-    'sca', 'project-canvases', 'explore', 'bundle(dist)', 'bundle(dist-dev)'],
-  ['fork', 'dive', 'handle', 'explore-holes', 'card-select', 'selected-pill', 'naming', 'visibility'],
-  ['sidebar', 'card-redesign', 'project-menu', 'creator-profile', 'analytics-ui', 'workspace', 'card-context-menu',
-    'repo-browser', 'panel-header', 'slash-sheet', 'equation', 'thumbnails', 'library-folders', 'share-revocation'],
-  ['rh-local', 'cross-device', 'filedrop', 'journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'],
+  ['journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'],
+  ['rh-app', 'comments', 'comments-invite', 'sketch', 'fork', 'handle', 'explore'],
+  ['sca', 'dive', 'naming', 'equation', 'filedrop'],
+  ['rh-dev', 'selected-pill', 'visibility', 'panel-header', 'slash-sheet'],
+  ['project-canvases', 'explore-holes', 'repo-browser', 'cross-device', 'library-folders', 'share-revocation'],
+  ['card-select', 'card-redesign', 'creator-profile', 'thumbnails', 'bundle(dist)', 'bundle(dist-dev)'],
+  ['answer-routing', 'sidebar', 'project-menu', 'analytics-ui', 'workspace', 'card-context-menu', 'rh-local'],
 ];
 
 // Stages int35.sh runs only when the candidate tree carries their check (and gateVerdict then requires).

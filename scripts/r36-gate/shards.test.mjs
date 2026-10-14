@@ -7,6 +7,9 @@ import { spawnSync } from 'node:child_process';
 import { prepare, FIXTURE_ADAPTERS } from './prepare.mjs';
 import { ORDER, SHARDS, UNIT_STAGES, CONDITIONAL, shardScript, mergeShards, canary } from './shards.mjs';
 
+// The index of the shard that runs a stage (the packer decides, so the tests never name a shard number).
+const at = stage => SHARDS.findIndex(s => s.includes(stage));
+
 // The stages a script runs, read independently of shards.mjs's own parser.
 const stagesOf = script => script.split('\n').flatMap(line => {
   if (line === 'memcheck unit') return ['make test-unit', 'fixture regression'];
@@ -46,11 +49,14 @@ test('the shard scripts partition the prepared gate: every stage once, in order,
       const bash = process.env.GATE_BASH || process.env.GIT_BASH_PATH;
       if (bash) assert.equal(spawnSync(bash, ['-n', join(gate, `shard-${k + 1}.sh`)], { windowsHide: true }).status, 0);
     });
-    assert.ok(stagesOf(readFileSync(join(gate, 'shard-1.sh'), 'utf8')).indexOf('comments') < stagesOf(readFileSync(join(gate, 'shard-1.sh'), 'utf8')).indexOf('explore'), 'explore needs comments-check\'s publication before it');
-    assert.throws(() => shardScript(full, 5), /Unknown gate shard/);
-    const naming = canary(readFileSync(join(gate, 'shard-2.sh'), 'utf8'), 'naming');
+    assert.equal(at('explore'), at('comments'));
+    const withComments = stagesOf(readFileSync(join(gate, `shard-${at('comments') + 1}.sh`), 'utf8'));
+    assert.ok(withComments.indexOf('comments') < withComments.indexOf('explore'), 'explore needs comments-check\'s publication before it');
+    assert.throws(() => shardScript(full, SHARDS.length + 1), /Unknown gate shard/);
+    const namingFile = readFileSync(join(gate, `shard-${at('naming') + 1}.sh`), 'utf8');
+    const naming = canary(namingFile, 'naming');
     assert.match(naming, /^run stack\.sh naming r36-canary-missing-check\.mjs$/m);
-    assert.equal(naming.split('\n').filter((l, i) => l !== readFileSync(join(gate, 'shard-2.sh'), 'utf8').split('\n')[i]).length, 1);
+    assert.equal(naming.split('\n').filter((l, i) => l !== namingFile.split('\n')[i]).length, 1);
     assert.equal(canary(full, ''), full);
     assert.throws(() => canary(full, 'no-such-stage'), /names no gate stage/);
   } finally { rmSync(root, { recursive: true, force: true }); }
@@ -77,17 +83,20 @@ test('the merged record keeps every stage line in the unsharded order and refuse
   assert.match(merged, /mem before rh-app: 12000\r MB free/);
 
   const logs = SHARDS.map((_, k) => shardLog(k));
-  assert.throws(() => mergeShards(logs.slice(1), () => true, unitsLog), /Expected 4/);
+  assert.throws(() => mergeShards(logs.slice(1), () => true, unitsLog), new RegExp(`Expected ${SHARDS.length} shard records`));
   assert.throws(() => mergeShards(logs.with(1, logs[1].replace('INT35-DONE', '')), () => true, unitsLog), /Shard 2 record is unfinished/);
   assert.throws(() => mergeShards(logs.with(2, logs[2].replace(TREE, TREE.replace('d443ecf4', 'deadbeef'))), () => true, unitsLog), /Shard 3 .*different/);
   assert.throws(() => mergeShards(logs.with(1, shardLog(1, [...SHARDS[1], 'sidebar'])), () => true, unitsLog), /Shard 2 ran sidebar/);
-  assert.throws(() => mergeShards(logs.with(0, logs[0].replace('INT35-DONE', 'rh-app exit 0  1/1 checks passed\nINT35-DONE')), () => true, unitsLog), /rh-app is duplicated/);
-  assert.throws(() => mergeShards(logs.with(3, shardLog(3, SHARDS[3].filter(s => s !== 'tutor-slice'))), () => true, unitsLog), /missing.*tutor-slice/);
-  const noMenu = logs.with(2, shardLog(2, SHARDS[2].filter(s => s !== 'project-menu')));
+  const rhApp = at('rh-app');
+  assert.throws(() => mergeShards(logs.with(rhApp, logs[rhApp].replace('INT35-DONE', 'rh-app exit 0  1/1 checks passed\nINT35-DONE')), () => true, unitsLog), /rh-app is duplicated/);
+  const tutor = at('tutor-slice');
+  assert.throws(() => mergeShards(logs.with(tutor, shardLog(tutor, SHARDS[tutor].filter(s => s !== 'tutor-slice'))), () => true, unitsLog), /missing.*tutor-slice/);
+  const menu = at('project-menu'), noMenu = logs.with(menu, shardLog(menu, SHARDS[menu].filter(s => s !== 'project-menu')));
   assert.throws(() => mergeShards(noMenu, () => true, unitsLog), /missing.*project-menu/);
   assert.ok(mergeShards(noMenu, p => p !== CONDITIONAL['project-menu'], unitsLog).includes('sidebar exit 0'));
   // A failed stage stays in the record as failed: the merge never judges, gateVerdict does.
-  assert.match(mergeShards(logs.with(1, logs[1].replace('naming exit 0  7/7', 'naming exit 1  0/0')), () => true, unitsLog), /^naming exit 1 {2}0\/0 checks passed$/m);
+  const naming = at('naming');
+  assert.match(mergeShards(logs.with(naming, logs[naming].replace('naming exit 0  7/7', 'naming exit 1  0/0')), () => true, unitsLog), /^naming exit 1 {2}0\/0 checks passed$/m);
 });
 
 test('the units record supplies the two unit stages; a shard record carrying one fails', () => {

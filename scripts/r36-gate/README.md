@@ -32,24 +32,26 @@ phase except `all` stops the sign-in probe stack and proves 8878/8879/9318/9319 
 
 ## Sharded gate (workflow gate-sharded.yml, owner GO 2026-10-13)
 
-The same checks on six clean Windows runners at once: `units`, `checkpoints` (preflight then Dive,
-uploaded as today) and `shard-1`..`shard-4`. `units` runs `make test-unit` and the fixture regression, the two stages
+The same checks on nine clean Windows runners at once: `units`, `checkpoints` (preflight then Dive,
+uploaded as today) and `shard-1`..`shard-7` (packed by measured duration, "Shard packing" below). `units` runs `make test-unit` and the fixture regression, the two stages
 no shard runs (`UNIT_STAGES` in `shards.mjs`); it writes them to its `gate-shard.log` in int35.sh's line format. Each
 shard is `run.mjs shard-N`: the same fresh preflight as the `focused` phase, then
 `shard-N.sh`, which is the prepared `int35.sh` with only the other shards' stages removed (`shards.mjs`). A shard keeps
 the header, its stage lines in the original order, the stacks those stages run on, their stops and every `export`. The
-`collect` job (Linux) merges the units record and the four `gate-shard.log` records into one `gate.log` (the two unit stage lines
+`collect` job (Linux) merges the units record and the seven `gate-shard.log` records into one `gate.log` (the two unit stage lines
 first, where int35.sh printed them): same stage lines, same order, same counts. It then applies run.mjs's gate-phase verdict (the candidate's `gateVerdict` plus the routing and project-menu
 receipts) with the passed Dive receipt as the prerequisite. A failed matrix job, a failed or missing shard, or a missing,
 duplicated or stray stage, or a missing or failed units record, fails it. It also fails unless the newest same-SHA `verify.yml` run succeeded for both the harness SHA and the application SHA (`verify-check.mjs`; checked once here, no longer by every runner before its phase). A verify that is only still running is polled (status only, every 30 s) for up to 10 min and fails closed if it has not completed by then. A missing, failed or unreadable (`gh` error) verify fails at once. It never passes by default, and `receipt.json` records the accepted run as `verify: [{ sha, databaseId }]`.
 
-Shared state, kept inside one shard. The stage times are from run 38352166115 attempt 2:
-- rh-app, comments and comments-invite run on the stack-app.sh build, so they stay with their stack start (shard 1).
+Shared state, kept inside one shard (`UNITS` in `pack.mjs`; the packer never splits one). The stage times are from run 38352166115 attempt 2:
+- rh-app, comments and comments-invite run on the stack-app.sh build, so they stay with their stack start, and
+  `shardScript` needs a stack.sh stage after them in the same shard.
 - explore's phone creator-card row needs a second creator with a live publication. In the unsharded order,
   comments-check publishes one (comments-check.mjs:233) and never unpublishes it. project-canvases deletes its own
-  canvases. So explore follows comments on the same persisted D1 (shard 1).
-- bundle(dist) and bundle(dist-dev) check the `stack.sh prod` rebuild directly before them (shard 1).
-- journey, tutor-slice, blank-hooks, practice-card and canvas-chrome share the journey stack and its `.dev.vars` (shard 4).
+  canvases. So explore follows comments on the same persisted D1 (the same shard, which also gives the trio its stack.sh stage).
+- bundle(dist) and bundle(dist-dev) check the `stack.sh prod` rebuild directly before them.
+- journey, tutor-slice, blank-hooks, practice-card and canvas-chrome share the journey stack and its `.dev.vars`.
+- library-folders and share-revocation are one `for beta` block in int35.sh, which `shardScript` refuses to split.
 - answer-routing reads `LOCAL_CP_VARS`, exported after sketch; the export stays in every shard script.
 - Every other browser check signs in as a per-run user (`Date.now().toString(36)`) and finds its own rows. dive and
   answer-routing use the preflight identity, but each creates its own canvases. sca's D1 seed uses the gate-local
@@ -155,6 +157,62 @@ three runs. All 43 stages are measured; none is null.
   readiness wait and two `clear-local.ps1` calls.
 - Largest stages: dive 2.75, selected-pill 2.17, cross-device 1.89, make test-unit 1.58, tutor-slice 1.57, thumbnails
   1.29, rh-local 1.13. Per shard (check minutes only): shard-1 5.76, shard-2 6.81, shard-3 7.00, shard-4 6.36.
+
+### Shard packing (`pack.mjs`)
+
+`SHARDS` in `shards.mjs` is the committed output of `pack(durations, K)`; `pack.test.mjs` fails if the literal drifts
+from `durations.json` or from the packer, and if K stops being the choice below. The packer takes the indivisible units
+(`UNITS`) and then every other stage, longest first, and puts each on the shard it leaves cheapest. In the tables below
+"shard-1..4" are the four shards of the Speed baseline, not the seven now committed.
+
+A shard's cost is the minutes of its own work: each stage's `durations.json` minutes plus the per-stage overhead, each
+stack section it starts (stop plus start), the journey stack's extra setup, and the prod build. The preflight builds the
+dev flavor and `build-once.sh` reuses it, so only a `stack.sh prod` section builds, and a journey stack after it
+rebuilds dev. Constants (`C` in `pack.mjs`, minutes), all medians of the Speed baseline's three runs:
+
+| Constant | Value | Source |
+|---|---|---|
+| per stage | 0.08 | "Not in a check duration": the 4.6 s gap between checks (99 gaps) |
+| stack start | 0.19 | Stack starts column: shard-2 0.19, shard-3 0.20, shard-4 0.38 / 2 stacks, shard-1 0.50 / 3 stacks |
+| stack stop | 0.19 | Builds + stops of a one-stack part (shard-2 and shard-3 0.39) less its two vite builds (0.20) |
+| build | 0.20 | two vite builds of one flavor, about 6 s each (Builds + stops note) |
+| journey stack extra | 0.49 | shard-4 Builds + stops 1.27 less its dev stack 0.39 less the journey stack's own stop and build (0.19 + 0.20) |
+| per part, before its first stage | 3.15 | Setup 1.77 (median of the four shards 1.84, 1.62, 1.78, 1.75) + Preflight 1.38 (1.38, 1.35, 1.39, 1.38) |
+
+Check against the old four shards (pre-A4, so every stack builds both flavors; Run step less the 1.65 of unit tests in
+shard-1): the model gives 8.11, 9.41, 10.08, 10.03 against the measured 8.38, 9.85, 10.57, 10.43. It runs 0.3-0.5 low on
+every shard, the same offset each time (the closing stop and harness exit), so it ranks shards and values of K correctly.
+
+Predicted wall is the per-part overhead plus the slowest shard; runner minutes are the K shards' overhead plus work
+(`units`, `checkpoints` and `collect` add about 13.4 whatever K is). `chooseK` takes the smallest K whose wall is within
+0.5 min of the best, because fewer shards means fewer runner minutes:
+
+| K | Predicted wall | Shard runner minutes |
+|---|---|---|
+| 4 | 11.02 | 43.51 |
+| 5 | 9.46 | 47.04 |
+| 6 | 8.55 | 50.57 |
+| 7 | 7.83 | 53.72 |
+
+K = 7: K = 6 is 0.72 min slower than K = 7, so 6 is outside the 0.5 band. The committed shards, each with its predicted
+cost (own work) and wall (plus the 3.15):
+
+| Shard | Stages | Check minutes | Cost | Wall |
+|---|---|---|---|---|
+| shard-1 | journey J1-J8, tutor-slice, blank-hooks, practice-card, canvas-chrome | 3.12 | 4.39 | 7.54 |
+| shard-2 | rh-app, comments, comments-invite, sketch, fork, handle, explore | 3.14 | 4.46 | 7.61 |
+| shard-3 | sca, dive, naming, equation, filedrop | 3.85 | 4.63 | 7.78 |
+| shard-4 | rh-dev, selected-pill, visibility, panel-header, slash-sheet | 3.70 | 4.48 | 7.63 |
+| shard-5 | project-canvases, explore-holes, repo-browser, cross-device, library-folders, share-revocation | 3.64 | 4.50 | 7.65 |
+| shard-6 | card-select, card-redesign, creator-profile, thumbnails, bundle(dist), bundle(dist-dev) | 3.09 | 4.53 | 7.68 |
+| shard-7 | answer-routing, sidebar, project-menu, analytics-ui, workspace, card-context-menu, rh-local | 3.74 | 4.68 | 7.83 |
+
+The `checkpoints` part (8.48 in the Speed baseline, which includes its 0.63 verify wait, since removed) now runs about as
+long as the slowest shard, so a further shard cannot shorten the gate.
+
+To repack after a re-measure: update `durations.json` and `C`, then print the literal with
+`node -e "import('./scripts/r36-gate/pack.mjs').then(m=>console.log(JSON.stringify(m.pack(JSON.parse(require('fs').readFileSync('scripts/r36-gate/durations.json')),7))))"`
+(and `m.kTable(...)` for the table). The workflow matrix lists `shard-1`..`shard-K` for that K.
 
 ## Sequence
 
