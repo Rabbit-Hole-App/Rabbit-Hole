@@ -97,7 +97,7 @@ test('an opened reader leaves the tab alone; only the course interview brings th
 
 test('the Chat header: the thread title, History, New chat (icon only under 360 px), an overflow menu when the thread can act', () => {
   const pane = read('./ChatPane.jsx');
-  assert.match(pane, /const title = thread\.title \|\| 'New chat';/);
+  assert.match(pane, /const title = chatTitle\(thread\);/, 'the thread title, New chat when empty - never while loading or failed (chat-threads.js chatTitle)');
   assert.match(pane, /data-chat-history aria-label="History" title="History" aria-pressed=\{thread\.historyOpen\} onClick=\{\(\) => thread\.setHistoryOpen\(!thread\.historyOpen\)\}/);
   assert.match(pane, /data-chat-new aria-label="New chat" title="New chat" onClick=\{\(\) => \{ thread\.newChat\(\); thread\.setHistoryOpen\(false\); \}\}/);
   assert.match(pane, /<Plus size=\{16\}[^>]*\/><span className="@max-\[360px\]:hidden">New chat<\/span>/);
