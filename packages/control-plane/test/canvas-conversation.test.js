@@ -23,7 +23,7 @@ test('threadTurns stores the seed, returns the last ten messages oldest first, t
   const { DatabaseSync } = await import('node:sqlite');
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec('CREATE TABLE messages (id INTEGER PRIMARY KEY, thread_id TEXT, role TEXT, content TEXT)');
-  const db = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...values) => ({ all: async () => ({ results: sqlite.prepare(sql).all(...values) }), run: async () => sqlite.prepare(sql).run(...values) }) }) };
+  const db = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...values) => ({ first: async () => sqlite.prepare(sql).get(...values) ?? null, all: async () => ({ results: sqlite.prepare(sql).all(...values) }), run: async () => sqlite.prepare(sql).run(...values) }) }) };
   for (let n = 1; n <= 10; n++) sqlite.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').run('t', 'user', `m${n}`);
   const history = await threadTurns(db, 't', [{ role: 'user', content: 'seed q' }, { role: 'assistant', content: 'seed a' }], 'now');
   assert.deepEqual(history.map(m => m.content), ['m3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'seed q', 'seed a']);
