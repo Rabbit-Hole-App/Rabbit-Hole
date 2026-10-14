@@ -54,6 +54,8 @@ function choice(answer, options) {
   if (answer.confidence == null || !(confidence >= 0 && confidence <= 1) || answer.probabilities?.[answer.choice] == null || !(probability >= 0 && probability <= 1)) throw malformed();
   return { choice: answer.choice, probability };
 }
+// ponytail: JEV writes no text, so its clarify and unsupported messages are templates (inline-ai-decide.js); a
+// message-only call for non-proceed outcomes, if the owner wants specific wording.
 export function readJevVerdict(body, fixed) {
   const decision = choice(body?.answers?.decision, DECISIONS);
   const route = fixed?.capability ? null : choice(body?.answers?.route, ROUTE_IDS);
@@ -62,6 +64,7 @@ export function readJevVerdict(body, fixed) {
 }
 
 // ---- A model: one forced tool call (the comparison candidate; INLINE_VALIDATOR=model) ----
+// ponytail: kept only to rerun the evaluation (docs/features/inline-ai-validation.md: JEV won); delete it if JEV stays.
 export function modelDecideRequest(request, fixed) {
   return {
     max_tokens: 400, system: INLINE_DECIDE_SYSTEM, tools: [INLINE_DECIDE_TOOL], tool_choice: { type: 'tool', name: INLINE_DECIDE_TOOL.name, disable_parallel_tool_use: true },
