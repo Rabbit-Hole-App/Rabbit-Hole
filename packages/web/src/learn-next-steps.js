@@ -227,6 +227,9 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
   let basis = null, stop = 'off', build = null, shown = null, timer = null, flying = null, requests = 0, changedAt = 0, disposed = false;
   // A learner's Refresh (owner brief 2 item 6): { basis, status: 'loading' | 'error', reason } while it runs or after it failed.
   let again = null;
+  // Owner task 2: Refreshes landed per basis, so each Refresh is one operation, r<n>: a retry reuses its id (the server's
+  // cache answers a retry it already paid for), the next id only after one landed.
+  const refreshed = new Map();
   const outcomes = new Map(), listeners = new Set(), previous = { hooks: [], goals: [] };
   // Ruling F3: the builder and callers get copies, never the live record.
   const copy = () => ({ hooks: [...previous.hooks], goals: [...previous.goals] });
@@ -317,16 +320,18 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
       if (requests >= cap) { again = { basis: sent, status: 'error', reason: 'limited' }; sync(); return false; }
       again = { basis: sent, status: 'loading' };
       flying = sent; requests += 1;
+      const operation = (refreshed.get(sent) || 0) + 1;
       sync();
       (async () => {
         let got = null, built = {}, reason = null;
         try {
           built = build(copy());
           if (built.problem) reason = 'failed';
-          else got = await post(built.input);
+          else got = await post(built.input, { refresh: `r${operation}` });
         } catch (error) { reason = error?.status === 429 ? 'limited' : 'failed'; }
         flying = null;
         if (disposed) return;
+        if (!reason && usableSet(got)) refreshed.set(sent, operation);
         if (sent !== basis) { again = null; sync(); schedule(Math.max(0, changedAt + debounce - now())); return; }
         if (!reason && usableSet(got)) {
           again = null;

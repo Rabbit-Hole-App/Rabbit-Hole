@@ -496,7 +496,7 @@ const setFor = (n = 1) => ({ set_id: `ns_0000000${n}`, generated_at: 'g', option
 const TRIM = { before: { block_count: 9, claim_count: 14 }, after: { block_count: 6, claim_count: 12 }, trimmed: { block_count: 3, claim_count: 2 }, current_section_claims_kept: true, repair_claims_kept: null };
 // The input builder has the nextStepsInput shape: { input, trim } or { problem }.
 const input = previous => ({ input: { previous }, trim: TRIM });
-function rig(replies, over = {}) { const c = clock(), bodies = [], sets = [], landed = []; const ctl = nextStepsController({ post: async body => { bodies.push(body); const r = replies.shift(); if (r instanceof Error) throw r; return r; }, onSet: (s, body, trim, how) => { sets.push(s.set_id); landed.push({ body, trim, ...how }); }, setTimer: c.setTimer, clearTimer: c.clearTimer, ...over }); return { c, ctl, bodies, sets, landed }; }
+function rig(replies, over = {}) { const c = clock(), bodies = [], sets = [], landed = [], extras = []; const ctl = nextStepsController({ post: async (body, extra) => { bodies.push(body); extras.push(extra ?? null); const r = replies.shift(); if (r instanceof Error) throw r; return r; }, onSet: (s, body, trim, how) => { sets.push(s.set_id); landed.push({ body, trim, ...how }); }, setTimer: c.setTimer, clearTimer: c.clearTimer, ...over }); return { c, ctl, bodies, sets, landed, extras }; }
 
 // Owner test 13: a stale set is replaced after a meaningful interaction.
 test('debounce 1200 ms, loading, ready; a basis change marks it stale at once, then replaces it', async () => {
@@ -1117,4 +1117,27 @@ test('Curious: recent edits are the ids whose words, kind or links changed or wh
   assert.deepEqual(edited.ids, ['t1', 'k1']);
   const linked = recentEdits(edited, { ...board, items: [{ ...board.items[0], text: 'AVL tree' }], blocks: [{ ...board.blocks[0], body: 'b' }], links: [{ id: 'l1', from: 's1', to: 't1' }] });
   assert.deepEqual(linked.ids, ['s1', 't1', 'k1'], 'newest first, no repeats');
+});
+
+// Owner task 2 (2026-10-13): each Refresh is one operation with a bounded id per basis (r1, r2, ...), sent beside the input;
+// a retry after a failure reuses it (the server dedupes it), the next id only after a Refresh landed; a repeated click while
+// one runs sends nothing.
+test('Curious: Refresh sends a bounded refresh id per basis, reused on retry, never twice at once', async () => {
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const r = rig([setFor(1), setFor(2), new Error('boom'), setFor(3), setFor(4), setFor(5)]);
+  r.ctl.update({ basis: 'a', stop: null, input });
+  await r.c.fire();
+  assert.equal(r.extras[0], null, 'a recompute is no refresh');
+  assert.equal(r.ctl.refresh(), true);
+  assert.equal(r.ctl.refresh(), false, 'a second click while it runs sends nothing');
+  await flush();
+  assert.equal(r.ctl.refresh(), true); await flush();
+  assert.equal(r.ctl.view().refresh_state, 'error');
+  assert.equal(r.ctl.refresh(), true); await flush();
+  assert.deepEqual(r.extras.slice(1), [{ refresh: 'r1' }, { refresh: 'r2' }, { refresh: 'r2' }], 'the retry is the same operation');
+  assert.equal(r.ctl.view().set_id, 'ns_00000003');
+  r.ctl.update({ basis: 'b', stop: null, input });
+  await r.c.fire();
+  r.ctl.refresh(); await flush();
+  assert.deepEqual(r.extras.slice(4), [null, { refresh: 'r1' }], 'counted per basis');
 });

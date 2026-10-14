@@ -377,3 +377,32 @@ test('blank canvas, no goal: the planner request carries the AI, ML and LLM star
   await planNextSteps({}, blank('Tide pools'), { callModel });
   assert.match(sent[1].messages[0].content, /"goal":"Tide pools"/, 'a titled blank canvas keeps its title as the goal');
 });
+
+// Owner task 2 (2026-10-13, Curious): the cache identity is the planning context - user, canvas, planner version, the whole
+// input (its semantic fingerprint and content included) and a Refresh operation's id - so the same basis with other canvas
+// content plans again, a Refresh never gets the reply it replaces, and a retried Refresh never pays twice.
+test('owned route: the cache identity is the planning context; Refresh has its own bounded identity, deduped on retry', async t => {
+  const w = world(t);
+  const app = 'canvas-0a1b2c3d', withCanvas = fingerprint => ({ ...INPUT(), canvas: { ...INPUT().canvas, objects: [{ id: 's1', kind: 'ellipse', text: fingerprint }], relations: [], groups: [], omitted: { objects: 0, chars: 0 }, fingerprint } });
+  const set = async body => (await w.post({ app, ...body })).json();
+  const a = await set({ input: withCanvas('fp_a') });
+  assert.equal((await set({ input: withCanvas('fp_a') })).set_id, a.set_id, 'the same planning context is one reply');
+  assert.notEqual((await set({ input: withCanvas('fp_b') })).set_id, a.set_id, 'the same basis with another fingerprint plans again');
+  const r1 = await set({ input: withCanvas('fp_a'), refresh: 'r1' });
+  assert.notEqual(r1.set_id, a.set_id, 'a Refresh never gets the reply it replaces');
+  assert.equal((await set({ input: withCanvas('fp_a'), refresh: 'r1' })).set_id, r1.set_id, 'a retried Refresh is the same operation: no second paid call');
+  assert.notEqual((await set({ input: withCanvas('fp_a'), refresh: 'r2' })).set_id, r1.set_id, 'the next Refresh asks again');
+  const rows = w.sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n;
+  assert.equal(rows, 4, 'four planner calls: two contexts and two refreshes; repeats are free');
+  for (const refresh of ['', 'r', 'x1', 'r12345', 7, { id: 'r1' }]) {
+    const refused = await w.post({ app, input: withCanvas('fp_a'), refresh });
+    assert.equal(refused.status, 400, JSON.stringify(refresh));
+  }
+});
+
+test('owned route: the planner version is in the cache identity', async () => {
+  const { ownedCacheKey } = await import('../src/learn-next-steps-routes.js');
+  const access = { user_id: 'u1', email: 'e@x' }, body = { app: 'canvas-0a1b2c3d', input: INPUT() };
+  assert.notEqual(await ownedCacheKey(access, body, 'next-steps-planner-2'), await ownedCacheKey(access, body, 'next-steps-planner-3'));
+  assert.equal(await ownedCacheKey(access, body, 'next-steps-planner-2'), await ownedCacheKey(access, structuredClone(body), 'next-steps-planner-2'));
+});

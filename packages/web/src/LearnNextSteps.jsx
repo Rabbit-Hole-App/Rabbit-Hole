@@ -35,7 +35,8 @@ function held(make, onView = () => {}) {
 // an input builder that reads the props when the request is sent. Telemetry (contract §3) only while a sink is registered:
 // next_steps_computed as each set lands and next_steps_shown the first time a set is on screen, each with the identity of
 // the input that set was planned from.
-export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ ...read().access, input }), signal: AbortSignal.timeout(HOOK_TIMEOUT_MS) }), ...timers } = {}) {
+// A Refresh posts its operation id beside the input (extra: { refresh }, owner task 2).
+export function ownedSteps(read, { post = (input, extra = {}) => api('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ ...read().access, input, ...extra }), signal: AbortSignal.timeout(HOOK_TIMEOUT_MS) }), ...timers } = {}) {
   const sent = new WeakMap(), planned = new Map();
   const life = held(() => nextStepsController({
     post,
@@ -111,13 +112,13 @@ const whoIsSignedIn = signal => fetch('/api/me', { credentials: 'same-origin', s
 // anonymous viewer to sign in. viewer_states only for a signed-in viewer, from their own tab store, never anyone else's; the
 // server filters them again. A refusal throws with its status (429 is limited). Task 14 C-R1: one 60 s signal, made before
 // the identity read, covers it and the hook request, so a hang in either records the basis failed.
-const sharedPost = read => async body => {
+const sharedPost = read => async (body, extra = {}) => {
   const { token, signedIn } = read();
   const signal = AbortSignal.timeout(HOOK_TIMEOUT_MS);
   const who = signedIn ? await whoIsSignedIn(signal) : null;
   const states = who?.email ? viewerStates(loadStore(globalThis.sessionStorage, storeKey(who))) : {};
   const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/next-steps`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...extra, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
     signal,
   });
   const data = await response.json().catch(() => ({}));

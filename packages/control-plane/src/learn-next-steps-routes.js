@@ -1,12 +1,12 @@
 // Professor Next Steps routes (docs/features/professor-next-steps.md §1.5, §2.3). Owned: POST /api/learn/tutor/next-steps,
-// a reply reused per one-way hash of (user, canvas, basis), capped per user (category tutor_next_steps, never the
+// a reply reused per one-way hash of its planning context (ownedCacheKey), capped per user (category tutor_next_steps, never the
 // shared-ask budget). The browser builds the input from the learner's own state; it is checked, never trusted for limits.
 // Shared: POST /api/learn/boards/shared/<token>/next-steps (learn-boards.js), the input built here from the shared board.
 import { sha256Hex } from './learn-grade-jev.js';
 import { NO_CAP, admitUsage, limitsFrom, sharedAskLimits } from './learn-shared-ask.js';
 import { planNextSteps } from './learn-journey-planners.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
-import { NEXT_STEPS_LIMITS as L, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit } from './agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS as L, NEXT_STEPS_PLANNER_VERSION, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit } from './agents/learn-next-steps.js';
 import { TUTOR_DOMAINS } from '../../web/src/learn-tutor-domains.js';
 import { resolveTarget } from '../../web/src/learn-target.js';
 import { STATES } from '../../web/src/learn-tutor-evidence.js';
@@ -31,13 +31,23 @@ export async function keepTelemetry(db, { scope, userId, board, telemetry }) {
 // A planner failure answers 502 with its message; a failed escalation's telemetry (failed: true) is kept like a planned set's.
 const failed = async (env, error, row) => { if (error.telemetry) await keepTelemetry(env.LEARN_DB, { ...row, telemetry: { ...error.telemetry, cached: false } }); return json({ error: error.message }, 502); };
 
+// Owner task 2 (professor-next-steps.md 2.8): the cache identity is the planning context - the user and canvas (isolation),
+// the planner version, the whole input (its basis, canvas content and semantic fingerprint, scope and previous hooks) and a
+// Refresh operation's id (r1, r2, ... per basis: the browser reuses one on a retry, so a retry never pays twice, and moves to
+// the next only after a Refresh landed, so a Refresh never gets the reply it replaces). A one-way hash, never the values.
+const REFRESH = /^r[0-9]{1,4}$/;
+const refreshProblem = body => (body?.refresh !== undefined && !(typeof body.refresh === 'string' && REFRESH.test(body.refresh)) ? json({ error: 'refresh must be r and 1-4 digits' }, 400) : null);
+export const ownedCacheKey = async (access, body, version = NEXT_STEPS_PLANNER_VERSION) =>
+  `${ORIGIN}/owned/${await sha256Hex(JSON.stringify([access.user_id || access.email, body.app, version, body.refresh ?? null, body.input]))}`;
+
 // A HookSet plus the planner telemetry (TutorDecisionEvent input, never shown); reason_internal never leaves (mintSet
 // keeps only the hook and its step). A cache hit was paid for once, so it reports no usage (ruling F13).
 export async function ownedNextSteps(env, access, body, { callModel, cache = globalThis.caches?.default } = {}) {
   if (!env.LEARN_DB) return json({ error: 'Next steps need the Learn database on this worker.' }, 503);
   const problem = nextStepsInputProblem(body?.input); // shape, limits (12000 characters) and forbidden keys
   if (problem) return json({ error: problem }, 400);
-  const key = `${ORIGIN}/owned/${await sha256Hex(`${access.user_id || access.email}|${body.app}|${body.input.basis}`)}`;
+  if (refreshProblem(body)) return refreshProblem(body);
+  const key = await ownedCacheKey(access, body);
   const hit = await nextStepsReply(cache, key);
   if (hit) return json({ ...hit, telemetry: { ...hit.telemetry, cached: true, calls: 0, usage: NO_USAGE, cost_usd: 0 } });
   const limit = limitsFrom(NEXT_STEPS_CAPS, env);
@@ -122,6 +132,7 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   // The cap's own refusal, then the hard 12000 check as a backstop; neither reaches the cache, the limiter or the planner.
   const problem = tooLarge || nextStepsInputProblem({ ...content, mode: 'canvas' });
   if (problem) return json({ error: problem }, 400);
+  if (refreshProblem(body)) return refreshProblem(body);
   // Task 14 A-I1: the personal subscription serves its owner alone, as on the shared ask (askShared): its 403 after the request
   // checks and before the cache, the limiter and the planner. An anonymous viewer is never the owner, even with no owner email
   // set (email null never equals an unset SUBSCRIPTION_OWNER_EMAIL).
@@ -131,7 +142,8 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   const own = Object.entries(asked).filter(([id, s]) => Object.hasOwn(content.scope.claims, id) && STATES.includes(s) && s !== 'not_yet_observed').slice(0, L.scope_claims);
   const personal = own.length ? Object.fromEntries(own) : null;
   const input = personal ? sharedInput(state, { ...options, viewerStates: personal }).input : content;
-  const fingerprint = await titleFingerprint(title), cacheKey = `${ORIGIN}/shared/${encodeURIComponent(content.basis)}/${fingerprint}`;
+  // A Refresh (owner task 2) is its own entry: the same id on a retry, the next id only after one landed.
+  const fingerprint = await titleFingerprint(title), cacheKey = `${ORIGIN}/shared/${encodeURIComponent(content.basis)}/${fingerprint}${body?.refresh ? `/${body.refresh}` : ''}`;
   if (!personal) {
     const hit = await nextStepsReply(cache, cacheKey);
     if (hit) return json({ ...hit, telemetry: { ...hit.telemetry, cached: true, calls: 0, usage: NO_USAGE, cost_usd: 0 } });

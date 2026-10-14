@@ -254,6 +254,9 @@ test('useNextSteps: exactly the steps shape, unavailable/off without a Tutor; th
   assert.doesNotMatch(source, /from '\.\/LearningBlocks/, 'LearningBlocks.jsx cannot load under node; describe is a parameter');
   assert.match(source, /nextStepsController\(/);
   assert.match(source, /'\/api\/learn\/tutor\/next-steps'/);
+  // Owner task 2: a Refresh's operation id rides beside the input, on the owned and the shared post.
+  assert.match(source, /JSON\.stringify\(\{ \.\.\.read\(\)\.access, input, \.\.\.extra \}\)/);
+  assert.match(source, /JSON\.stringify\(\{ \.\.\.body, \.\.\.extra, /);
   assert.match(source, /internal[^\n]*not part of contract §1\.3/, 'ownedSteps is documented as internal');
   assert.match(source, /emitDecision\(hooksEvent\(/);
   assert.match(source, /emitDecision\(shownEvent\(/);
