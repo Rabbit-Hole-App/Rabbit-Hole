@@ -169,4 +169,5 @@ const crashed = () => {
   });
 };
 
-createRoot(rootEl, { onUncaughtError: crashed }).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);
+// The error is logged before the root is replaced, so a crash leaves its stack in the console.
+createRoot(rootEl, { onUncaughtError: (error, info) => { console.error(error, info?.componentStack); crashed(); } }).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);
