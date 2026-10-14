@@ -365,6 +365,44 @@ await run('open in notebook: code sample icon', async () => {
   await context.close();
 });
 
+// Ctrl/Cmd+click on a lesson card picks that one card, in a group or not, as it does for a shape or a text box (the inline
+// agent's find, 2026-10-13). A group's box is painted over its cards, so the press used to land on the box and start a
+// Ctrl-marquee that selected nothing. A Ctrl-drag from empty canvas still box-selects.
+await run('ctrl-click a card in a group', async () => {
+  const card = (id, title, extra = {}) => ({ id, type: 'explanation', dx: 0, dy: 0, title, body: 'Words of the card.', ...extra });
+  const { page, context } = await open('ctrl-card-group', {
+    blocks: [card('b1', 'One', { groupId: 'g1' }), card('b2', 'Two', { groupId: 'g1' }), card('b3', 'Three')],
+    groups: [{ id: 'g1', label: 'pair' }],
+  });
+  const picked = () => page.evaluate(() => [...document.querySelectorAll('[data-block-id][aria-current="true"]')].map(node => node.dataset.blockId).sort());
+  const onCard = async id => { const box = await page.locator(`[data-block-id="${id}"]`).boundingBox(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
+  const press = async (id, modifier) => { const at = await onCard(id); await page.keyboard.down(modifier); await page.mouse.click(at.x, at.y); await page.keyboard.up(modifier); };
+  const at1 = await onCard('b1');
+  await page.mouse.click(at1.x, at1.y);
+  check('a plain click on a grouped card picks the whole group', JSON.stringify(await picked()) === JSON.stringify(['b1', 'b2']), JSON.stringify(await picked()));
+  await press('b1', 'Control');
+  check('Ctrl+click on a grouped card picks only that card', JSON.stringify(await picked()) === JSON.stringify(['b1']), JSON.stringify(await picked()));
+  await press('b2', 'Control');
+  check('Ctrl+click on the other grouped card picks only that one', JSON.stringify(await picked()) === JSON.stringify(['b2']), JSON.stringify(await picked()));
+  await press('b1', 'Meta');
+  check('Cmd+click picks one grouped card too', JSON.stringify(await picked()) === JSON.stringify(['b1']), JSON.stringify(await picked()));
+  await press('b3', 'Control');
+  check('Ctrl+click on a card outside a group picks it, as before', JSON.stringify(await picked()) === JSON.stringify(['b3']), JSON.stringify(await picked()));
+  // A Ctrl-drag that starts on empty canvas (left of the column) still draws the box and selects what it touches.
+  await page.keyboard.press('Escape');
+  await page.keyboard.down('Control');
+  await page.mouse.move(150, 500);
+  await page.mouse.down();
+  await page.mouse.move(800, 100, { steps: 8 });
+  const drawn = await page.locator('rect[fill="rgba(35, 131, 226, 0.08)"]').count();
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  const swept = await picked();
+  check('a Ctrl-drag from empty canvas still draws the selection box', drawn === 1, `rects ${drawn}`);
+  check('and selects the cards it touches', ['b1', 'b2', 'b3'].every(id => swept.includes(id)), JSON.stringify(swept));
+  await context.close();
+});
+
 
 const shapeOf = async (saved, id) => (await saved()).shapes.find(shape => shape.id === id);
 const near = (a, b, tolerance = 0.6) => Math.abs(a - b) <= tolerance;

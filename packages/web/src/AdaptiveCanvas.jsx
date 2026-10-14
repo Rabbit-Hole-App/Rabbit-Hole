@@ -3711,6 +3711,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setInsertOpen(false); setMenuAt(null);
     if ((event.ctrlKey || event.metaKey) && tool === 'select' && (event.button === 0 || event.button === 2)
       && !event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) {
+      // A group's box is painted over its cards, so a Ctrl/Cmd press on a grouped card lands on the box, not the card.
+      // It picks that one card, as select does for any card (Shift toggles); only a press on empty canvas starts a marquee.
+      // ponytail: the press only selects; a Ctrl-drag from a grouped card does not move it (a card outside a group does).
+      const card = event.button === 0 && document.elementsFromPoint(event.clientX, event.clientY).find(node => node.matches('[data-block-id]'));
+      if (card) { select(card.dataset.blockId, event); return; }
       startMarquee(event, event.shiftKey);
       return;
     }
