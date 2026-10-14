@@ -13,7 +13,7 @@
 // STATUS (2026-09-30): signed-in execution is pending P0-B Phase 2B. /test/session is gone from live
 // small-cp (P0-A containment) and the isolated Rabbit Hole dev environment is not ready yet; never
 // work around that through production. Read-only mocked checks: e2e/mvp-surface-shots.mjs.
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { DEV_CP } from './dev-cp.mjs';
@@ -1963,6 +1963,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await sheet.getByText('Which file defines the model?').waitFor({ timeout: 10000 });
     must(await panel.getByText('Which file defines the model?').count() === 0, 'a Map ask landed in the inspector');
     must(await panel.locator('input, textarea, [contenteditable="true"]').count() === 0 && await composers(page) === 1, 'a second input');
+    // The draft comes back only when the abort lands (AgentBar.jsx keepDraft); cleared before that, it would return after the clear.
+    await expect(barInput(page)).toHaveValue('Which file defines the model?', { timeout: 10000 });
     await barInput(page).fill(''); // the aborted ask kept its draft, and a waiting draft would offer Use selection instead of retargeting
     await pickNode(page);
     await panel.locator('[data-inspector-header]').getByText(/^model\.py:\d+$/).waitFor({ timeout: 10000 });
