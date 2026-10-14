@@ -48,7 +48,7 @@ import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeNote } from './inline-ai-apply.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
-import { curiousSnapshot, recentEdits } from './curious-context.js';
+import { semanticReader } from './curious-context.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
@@ -1771,7 +1771,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // card through a pure reducer (pager, practice), undoable like any other edit.
       blocks: () => blocksRef.current,
       // Curious (owner task 2): the last semantic snapshot and its fingerprint (semanticBoard below); blocks() is unchanged.
-      semantic: () => semanticRef.current.value,
+      semantic: () => semanticRef.current.value(),
       updateBlock: (id, change) => {
         const current = blocksRef.current.find(block => block.id === id);
         const next = current && change(current);
@@ -2620,26 +2620,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const { id, text } = typed, put = list => list.map(entry => (entry.id === id ? { ...entry, text } : entry));
     return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
   };
-  // Curious (docs/features/professor-next-steps.md 2.8): the snapshot is read once the board or the editor's words have been
-  // still for 150 ms (a burst of edits or a drag is one read, never one per keystroke or frame), focused on the recent
-  // edits, then the selection. Its fingerprint reaches the page (onState), so a change of meaning re-plans; a move does not.
-  // Typing in the open editor is settling at once (semanticSettling: the shown suggestions go stale before the read), but
-  // only when its words differ from the last read: a caret move or opening an editor is not a change.
-  const semanticRef = useRef({ value: null, recent: null, typed: null });
+  // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
+  // editor's words and the selection have been still for 150 ms, focused on recent edits; typing settles at once. The
+  // fingerprint and settling reach the page (onState), so a change of meaning re-plans and a move does not.
   const [semanticFingerprint, setSemanticFingerprint] = useState(null);
   const [semanticSettling, setSemanticSettling] = useState(false);
-  useEffect(() => {
-    const typed = editorWords(), last = semanticRef.current.typed;
-    if (typed && last?.id === typed.id && last.text !== typed.text) setSemanticSettling(true);
-    const timer = setTimeout(() => {
-      const board = semanticBoard(), recent = recentEdits(semanticRef.current.recent, board);
-      const snapshot = curiousSnapshot(board, [...recent.ids, ...selectedRef.current]);
-      semanticRef.current = { value: { snapshot, fingerprint: snapshot.fingerprint }, recent, typed: editorWords() };
-      setSemanticFingerprint(snapshot.fingerprint);
-      setSemanticSettling(false);
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [shapes, items, links, blocks, groups, editorTick, selection]); // eslint-disable-line react-hooks/exhaustive-deps
+  const semanticLive = useRef(null);
+  semanticLive.current = { semanticBoard, editorWords };
+  const semanticRef = useRef(null);
+  if (!semanticRef.current) semanticRef.current = semanticReader({ board: () => semanticLive.current.semanticBoard(), editor: () => semanticLive.current.editorWords(), selection: () => selectedRef.current,
+    report: ({ fingerprint, settling }) => { setSemanticFingerprint(fingerprint); setSemanticSettling(settling); } });
+  useEffect(() => { semanticRef.current.changed(); }, [shapes, items, links, blocks, groups, editorTick, selection]);
+  useEffect(() => () => semanticRef.current.dispose(), []);
   // One context cache per board (A1): a board switch remounts the canvas with a new one; a permission change clears it.
   const inlineCache = useRef(null);
   if (!inlineCache.current) inlineCache.current = createContextCache();
