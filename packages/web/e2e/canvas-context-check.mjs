@@ -703,12 +703,12 @@ for (const mode of ['ask', 'tutor']) {
   });
 }
 
-// The smallest body gate on any ask route is the repository one: control-plane/src/repositories.js repositoriesFetch refuses a
-// non-GET body over 64000 characters (content-length or text length) with 413 "Request exceeds 64 KB". It is a literal there;
-// learn-tutor-handoff.js mirrors it as HANDOFF_BODY_CHARS = 64000. (A shared canvas's ask has its own MAX_ASK_BODY = 128 * 1024.)
-const REPO_BODY_GATE = 64000;
+// The repository ask's body gate: control-plane/src/repositories.js ASK_JSON = 64000 + CANVAS_PACKAGE_CHARS (64000) + 80000
+// (context_refs at their worst case) = 208,000 characters (fdd84e3e); every other repository body keeps the 64 KB literal.
+// (A shared canvas's ask has its own MAX_ASK_BODY = 128 * 1024.)
+const REPO_BODY_GATE = 208000;
 await openBoard(boards.L);
-await check('large package on a repo-* canvas: the whole body stays under the repository ask gate (64,000 characters) and the real route does not answer 413', async () => {
+await check('large package on a repo-* canvas: the whole body stays under the repository ask gate (208,000 characters) and the real route does not answer 413', async () => {
   const cap = await turn(WHOLE, { mode: 'ask' });
   const pkg = cap.pkg, cov = pkg.coverage;
   validate(pkg);
@@ -716,7 +716,7 @@ await check('large package on a repo-* canvas: the whole body stays under the re
   assert.ok(pkg.excerpts.length >= 5, 'the excerpts fill their share too');
   assert.ok(cap.size <= REPO_BODY_GATE && cap.bytes <= REPO_BODY_GATE, `the request body is ${cap.size} characters (${cap.bytes} bytes), over the repository ask gate of ${REPO_BODY_GATE} (repositories.js repositoriesFetch)`);
   // The real route's size gate, probed without a model: the captured body with an empty message (refused as a question before any
-  // model or storage is reached) must pass the gate, and the same body padded past 64,000 characters must be refused 413 by it.
+  // model or storage is reached) must pass the gate, and the same body padded past the gate must be refused 413 by it.
   const probe = async text => (await fetch(`${BASE}/api/repositories/${REPO}/ask`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: text })).status;
   const sent = JSON.stringify({ ...cap.body, message: '' });
   const under = await probe(sent), over = await probe(JSON.stringify({ ...cap.body, message: '', pad: 'x'.repeat(Math.max(0, REPO_BODY_GATE + 1000 - sent.length)) }));
