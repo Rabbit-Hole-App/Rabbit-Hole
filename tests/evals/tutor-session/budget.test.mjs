@@ -228,8 +228,13 @@ test('the reviewer\'s worst case is held from the session\'s start: a session st
   // beside the reviewer's holdback. Beta item 5a (owner 2026-10-09): the stub evaluator answers every check 0.95, so every idea
   // is both stated and contradicted - contested, never a pass - and the session no longer reaches path.next; its requests
   // shrink back and all 15 decisions fit again, the review still inside the limit.
+  // Owner decision, 2026-10-13 (Curious brief, professor-next-steps.md 2.8): the hook planner's prompt carries the canvas
+  // content, title-as-background and blank-canvas rules, NEXT_STEPS_SYSTEM 7652 -> 8230 characters. That raises each hook
+  // request's worst-case bound (learn-spend.js requestSpendBound, prompt bytes alone: Sonnet $0.032426 -> $0.033582, an Opus
+  // escalation $0.114852 -> $0.117164), so decision 15 no longer fits under $1.30 beside the reviewer's holdback: 14 decisions,
+  // stopped by the ceiling, and the review still ok inside the limit.
   const low = await reviewed('stub');
-  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [15, 'max_decisions', 'ok']);
+  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [14, 'cost_ceiling', 'ok']);
   assert.ok(low.ledger.spent() <= 1.3 && low.ledger.reserved() === 0);
   assert.equal(aggregate([low.bundle], loadTaxonomy()).review_scores.mean.pacing, 3);
   // A limit below the holdback: the session never starts, so nothing is sent and there is nothing to review.
