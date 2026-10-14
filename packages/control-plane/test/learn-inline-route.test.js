@@ -36,6 +36,14 @@ test('local checks first: empty, over-long and malformed requests cost no call',
   assert.equal(calls.length, 0);
 });
 
+// Lane R (2026-10-13): "make it" with a node selected went to a diagram. The clarify criterion now covers words that name no
+// action or result even when material is selected (labelled eval 2026-10-14: only that prompt changed, a6, to clarify).
+test('the clarify criterion JEV reads covers words that name no action, even with a selection', () => {
+  const sent = jevDecideRequest(pick('make it'), null, 'jev-1.13.0');
+  assert.match(sent.questions.decision.criteria.clarify, /words that name no action or result \(for example "make it" or "do it"\), even with material selected/);
+  assert.match(modelDecideRequest(pick('make it'), null).system, /words that name no action or result/);
+});
+
 test('ONE call: decision, route and what is missing in a single JEV request, over the compact material only', async () => {
   const { calls, ask } = counting(jevSays('proceed', 'shapes'));
   const out = await run(create('show the stages of mitosis as a diagram'), ask);
@@ -157,6 +165,15 @@ test('creation: an explanation with nothing selected, and a native diagram, both
   const drawn = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: APP, request_id: RID, request: diagram, token: shapes.body.token }), env, { authorize: async () => ({ name: APP, email: 'maker@test' }), callModel: tool(spec) }), () => {});
   assert.deepEqual([sent.system, sent.tools[0].name, drawn.result.kind, drawn.result.spec.layout.flow], [INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL.name, 'diagram', 'right']);
   await assert.rejects(readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: APP, request_id: RID, request: diagram, token: shapes.body.token }), env, { authorize: async () => ({ name: APP, email: 'maker@test' }), callModel: tool({ shapes: [{ id: 'a', label: 'A', x: 4 }] }) }), () => {}), /didn't check out/);
+  // Lane R (2026-10-13): a real diagram was refused three times because the tool input carried call-template keys. Those
+  // keys are dropped and a spec wrapped one level down is lifted out; the spec's own keys are still checked.
+  for (const input of [{ ...spec, $FUNCTION_NAME: 'inline_diagram', dialog: 'diagram' }, { $FUNCTION_NAME: 'inline_diagram', $0: spec }]) {
+    const wrapped = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: APP, request_id: RID, request: diagram, token: shapes.body.token }), env, { authorize: async () => ({ name: APP, email: 'maker@test' }), callModel: tool(input) }), () => {});
+    assert.deepEqual([wrapped.result.kind, wrapped.result.spec.shapes.map(shape => shape.id)], ['diagram', ['d', 'b', 'a']]);
+  }
+  // A diagram stands apart: the prompt says canvas ids are never its shapes or connector ends, and to redraw what it shows.
+  assert.match(INLINE_DIAGRAM_SYSTEM, /ids in `canvas` are never shape ids or connector ends/);
+  assert.match(INLINE_DIAGRAM_SYSTEM, /draw all of it again as shapes of your own/);
 });
 
 test('a card capability runs its /command handler, only with a proceed, and paid media is only marked', async () => {

@@ -35,6 +35,8 @@ export const CASES = [
   ['a3', 'ambiguous', make('add a chart'), { decision: 'clarify' }],
   ['a4', 'ambiguous', make('do the same as before'), { decision: 'clarify' }],
   ['a5', 'ambiguous', make('compare them'), { decision: 'clarify' }],
+  // lane R (2026-10-13): something selected, but the words ask for no action or output
+  ['a6', 'ambiguous', sel('make it', shape('23', 'ellipse')), { decision: 'clarify' }],
   // multilingual
   ['m1', 'multilingual', make('¿Por qué el cielo es azul?'), ok('note')],
   ['m2', 'multilingual', make('Explique la photosynthèse avec un schéma'), ok('shapes')],
@@ -159,7 +161,7 @@ else {
     const entry = { id: item.id, category: item.category, request: item.request.prompt, expect: item.expect, status,
       decision: VALIDATOR === 'route' ? null : body?.decision ?? null, capability: VALIDATOR === 'route' ? body?.choice ?? null : body?.route?.capability ?? null,
       message: body?.message ?? null, error: body?.error && !body?.decision ? `${body.code || ''} ${body.error}`.trim() : null,
-      ms: VALIDATOR === 'route' ? body?.ms ?? null : meta.ms ?? null, wall, usd, called, p: meta.p ?? null };
+      ms: VALIDATOR === 'route' ? body?.ms ?? null : meta.ms ?? null, wall, usd, called, p: meta.p ?? null, missing: meta.missing ?? null };
     results.push(entry);
     console.log(JSON.stringify({ id: entry.id, decision: entry.decision, capability: entry.capability, ms: entry.ms, wall, usd, error: entry.error }));
     save();

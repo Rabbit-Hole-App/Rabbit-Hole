@@ -79,10 +79,10 @@ export const INLINE_DIAGRAM_SYSTEM = `You design one editable diagram for the le
 ${DATA}
 Give structure only: shapes with short labels, connectors between them, optional groups, and how to arrange them. The app positions, sizes and styles everything and matches the canvas around it, so never give coordinates, sizes or colours.
 - shapes: a short unique id each, and a label of a few words (the text inside the shape). Leave kind out to match the canvas; set it when the kind carries meaning (for example a diamond for a decision). Set tone (accent, success, warning, danger, highlight, muted) only when a shape's role needs emphasis or the request asks for it.
-- connectors: from and to are shape ids. direction forward points from -> to, both is two-way, none is a plain line. Add a label only when the relationship needs naming.
+- connectors: from and to are ids of shapes you list here. direction forward points from -> to, both is two-way, none is a plain line. Add a label only when the relationship needs naming.
 - groups: only when several shapes form a named part.
 - layout: arrange layered for connected structure (flows, hierarchies, trees, pipelines), cycle for a loop, row, column or grid for unconnected items; flow down, right, up or left; spacing from 0.5 (tight) to 3 (airy), 1 by default. Shapes are placed in the order you list them within each layer.
-Draw what the request asks for, about the subject it names: a new topic is fine even when the canvas is about something else. Use \`canvas\` (the selection, or the material around where the diagram goes) only to understand what the learner means.
+Draw what the request asks for, about the subject it names: a new topic is fine even when the canvas is about something else. Use \`canvas\` (the selection, or the material around where the diagram goes) only to understand what the learner means. The diagram is new and stands apart: it never connects to or changes what is on the canvas, so ids in \`canvas\` are never shape ids or connector ends here. To show existing material (for example how a drawn structure would change), draw all of it again as shapes of your own.
 Be correct: use your general knowledge of the subject, and never present invented data as real. Keep it readable: at most 40 shapes, and fewer is better.
 ${EARLIER}`;
 

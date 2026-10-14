@@ -39,6 +39,15 @@ const plain = value => !!value && typeof value === 'object' && !Array.isArray(va
 const extra = (entry, allowed) => Object.keys(entry).filter(key => !allowed.includes(key));
 const words = (value, max, min = 1) => typeof value === 'string' && value.trim().length >= min && value.length <= max;
 
+// The spec inside a model's tool input. A model sometimes wraps it in call-template keys ($FUNCTION_NAME, $0, dialog: lane R,
+// 2026-10-13, three refusals of a real diagram): those keys are dropped and a spec nested one level down is lifted out.
+// Nothing is drawn from a dropped key; every key of the spec itself is still checked by validateDiagram.
+export function diagramOf(input) {
+  if (!plain(input)) return input;
+  const spec = Array.isArray(input.shapes) ? input : Object.values(input).find(value => plain(value) && Array.isArray(value.shapes));
+  return spec ? Object.fromEntries(['layout', 'shapes', 'connectors', 'groups'].filter(key => key in spec).map(key => [key, spec[key]])) : input;
+}
+
 // Every reference resolves, only listed properties and values, finite numbers, and limits on counts and text. Returns
 // { ok, errors, spec } with defaults filled in; nothing is laid out or drawn from a spec that is not ok.
 export function validateDiagram(spec) {

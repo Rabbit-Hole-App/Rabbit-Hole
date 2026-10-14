@@ -128,7 +128,7 @@ export async function decide(env, { app, requestId, request, enabled }, { valida
     } else {
       const out = await ask(env, jevDecideRequest(request, fixed, JEV_TRANSPORTS[transport].model), { transport, timeoutMs });
       verdict = readJevVerdict(out.body, fixed);
-      meta = { input_tokens: out.inputTokens ?? null, cost: out.cost ?? null, p: verdict.p };
+      meta = { input_tokens: out.inputTokens ?? null, cost: out.cost ?? null, p: verdict.p, missing: verdict.missing };
     }
   } catch (error) {
     const code = error.code === 'timeout' ? 'timeout' : error.code === 'malformed' ? 'malformed' : 'unavailable';

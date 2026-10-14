@@ -21,7 +21,7 @@ import { isUploadedMediaId } from './learn-media.js';
 import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, INLINE_EDIT_TOOL, INLINE_NOTE_SYSTEM } from './agents/learn-inline.js';
 import { decide, proceedGate } from './learn-inline-route.js';
 import { commandOf, generationPrompt } from '../../web/src/inline-ai-decide.js';
-import { validateDiagram } from '../../web/src/inline-diagram.js';
+import { diagramOf, validateDiagram } from '../../web/src/inline-diagram.js';
 import { commandInput } from '../../web/src/inline-ai-route.js';
 import { artifactContext } from '../../web/src/inline-ai-transport.js';
 import { generateArtifact } from './learn-artifact.js';
@@ -119,7 +119,7 @@ export function checkEdit(input, targetIds) {
 
 // A diagram is structure only, checked in full before it may be laid out (web/src/inline-diagram.js).
 export function checkDiagram(input) {
-  const checked = validateDiagram(input);
+  const checked = validateDiagram(diagramOf(input));
   return checked.ok ? { result: { kind: 'diagram', spec: checked.spec } } : { error: `The diagram didn't check out: ${checked.errors.slice(0, 3).join(' ')}` };
 }
 
