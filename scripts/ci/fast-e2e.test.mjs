@@ -109,3 +109,10 @@ test('every harness check has a server rule that matches the port its source har
     else assert.match(src, new RegExp(`(localhost|127\\.0\\.0\\.1):${port}/`), `${c} must name port ${port}`);
   }
 });
+
+// Structural YAML guard (2026-10-14: a multiline JS string put **${m}** at column 1 outside `run: |`, the workflow failed to
+// parse and run 38646584957 started no jobs). Only top-level keys and comments may start at column 1.
+test('no workflow line escapes its block: only top-level keys and comments start at column 1', () => {
+  const stray = y.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => l && !/^\s/.test(l) && !/^(#|[A-Za-z_-]+:)/.test(l));
+  assert.deepEqual(stray, [], 'lines at column 1 that are not a top-level key');
+});
