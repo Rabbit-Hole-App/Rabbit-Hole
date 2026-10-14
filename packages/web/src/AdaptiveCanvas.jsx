@@ -943,12 +943,14 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
       </div>
     );
   }
-  // The cards' Ask in chat (r35), on a text box or note with words in it; never while it is edited. A text box's pill
-  // shares the ladder's row and is pushed to the right edge, so a short text never has the two over each other.
+  // The selection actions (Add to chat, Quick Edit; r35's Ask in chat), on a text box or note with words in it; never while it
+  // is edited. A text box's actions keep its top right, the place its comment pins leave free (pillRow), so while they show
+  // the ladder and Text | Code take the line above: beside the ladder the 293 px actions ran past a narrow box's right edge
+  // and its pin landed on H1 (r38 selected-pill gate).
   const chrome = !locked && (editing || (selected && tool === 'select'));
   const ladder = !sticky && item.kind === 'text' && onLevel && chrome;
   const ask = selected && !editing && tool === 'select' && !!String(item.text || '').trim();
-  const modeAbove = ladder && !!onMode && ask && !code;
+  const above = ladder && ask;
   const askPill = <SelectionActionsHost id={item.id} className={sticky ? 'absolute z-30 -translate-x-full' : 'ml-auto'} style={sticky ? { left: item.x + (item.w || 160), top: item.y - 40 } : null} />;
   const base = itemBase(item);
   const ink = sticky ? (value => value) : inkAware;
@@ -969,14 +971,17 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
       {/* A selected or editing text box offers its ladder right there - H1 to
           text - and Text / Code, instead of asking the learner to find the style
           panel. pointerdown is swallowed so choosing never blurs or deselects. */}
-      {/* Beside the ladder and Ask in chat, Text | Code would push the pill past the box's right edge, so it takes
-          its own line above them; the ladder and pill keep their row. */}
+      {/* Beside the ladder and Text | Code, the selection actions would run past the box's right edge, so those two take
+          their own line above; the actions keep the row against the box. */}
       {(ladder || (ask && !sticky)) && (
         <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full flex-col items-start gap-1.5">
-          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
+          {above && <div className="flex items-center gap-2">
+            {!code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+            {onMode && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
+          </div>}
           <div className="flex items-center gap-2 self-stretch">
-            {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
-            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
+            {ladder && !code && !above && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+            {ladder && onMode && !above && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
             {ask && !sticky && askPill}
           </div>
         </div>

@@ -45,8 +45,8 @@ test('the ladder sits where the text ladder does, as the same pill, on a selecte
   // The selection actions (Add to chat, Quick Edit) join this row as its trailing segment (owner brief 2026-10-13, SelectionActions.jsx).
   assert.match(equation, /\{selected && !editing && !locked && tool === 'select' && \(\n\s+<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex items-center gap-1\.5">\n\s+<LevelPill level=\{equationLevel\(size\)\} levels=\{EQUATION_LEVELS\} label="Equation size" fallback=\{null\}\n\s+onLevel=\{value => \{ onGesture\(\); onPatch\(item\.id, \{ size: levelSize\(value\) \}\); \}\} \/>\n\s+<SelectionActionsHost id=\{item\.id\} divider \/>/);
   // The text ladder's row also carries the selection actions, on the cards' pill row (card-selection.test.mjs).
-  // Text | Code takes a line of its own above that row when they are on it (selected-pill-check's right edge).
-  assert.match(canvas, /<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex min-w-full flex-col items-start gap-1\.5">\n\s+\{modeAbove && <ModePill[^\n]*\n\s+<div className="flex items-center gap-2 self-stretch">\n\s+\{ladder && !code && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}/, 'the text ladder: same pill, same place');
+  // The ladder and Text | Code take a line of their own above that row while the actions show (selected-pill-check's right edge).
+  assert.match(canvas, /<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex min-w-full flex-col items-start gap-1\.5">\n\s+\{above && <div className="flex items-center gap-2">\n\s+\{!code && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}\n\s+\{onMode && <ModePill[^\n]*\n\s+<\/div>\}\n\s+<div className="flex items-center gap-2 self-stretch">\n\s+\{ladder && !code && !above && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}/, 'the text ladder: same pill, same place');
   assert.equal((canvas.match(/function LevelPill\(/g) || []).length, 1, 'one ladder component');
 });
 
