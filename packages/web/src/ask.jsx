@@ -504,7 +504,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done' } : {}) }, reply]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
-    if (!tutor || codeTurn || isDemo) begin();
+    // The Learn Chat answers through /api/learn/ask in every mode (never tutor.ask), so its turn begins here like any chat's.
+    if (!tutor || codeTurn || isDemo || chat) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
