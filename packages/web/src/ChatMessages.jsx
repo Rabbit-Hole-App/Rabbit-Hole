@@ -4,7 +4,8 @@ import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react
 import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
 import { waitingText } from './waiting-text.js';
-import AnswerFooter, { getAnswerAlternative } from './AnswerFooter.jsx';
+import AnswerFooter, { cardIdFor, getAnswerAlternative } from './AnswerFooter.jsx';
+import { useChatWorkspace } from './chat-workspace.jsx';
 import { cn } from './ui.jsx';
 import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
@@ -124,7 +125,7 @@ function OutputRow({ runId, name, size }) {
 const answerStatus = (m, arriving) => (['streaming', 'done', 'stopped', 'error'].includes(m.status) ? m.status : arriving ? 'streaming' : 'done');
 
 // One message. Everything it reads from AskPanel comes in as a prop.
-export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook }) {
+export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null }) {
   // Add as card: insertChat is idempotent on the card id, so a click on Added locates the card (and puts it back if the
   // learner deleted it) instead of adding a second one.
   const addAsCard = card => {
@@ -167,7 +168,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
                 once it has its server id. */}
             {m.kind === 'syllabus' && m.meta?.syllabus && <SyllabusMessage syllabus={m.meta.syllabus} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
-              onAddAsCard={onAddToCanvas && addAsCard} onLocateCard={onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added}
+              onAddAsCard={onAddToCanvas && addAsCard} onLocateCard={onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
               onRegenerate={onRegenerate} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
             {prepare && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
           </div>
@@ -182,7 +183,24 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
 }
 
 // follow: useFollowLatest's { atBottom, jump } for the scroll box this list sits in (chat-scroll.js).
-export function ChatMessages({ follow = null, ...props }) {
+// The Chat workspace (chat-workspace.jsx, contract A6) supplies the composer's prepare, regenerate, the open thread and the
+// canvas operations; it is null outside a Learn canvas. Without it (the old sheet) Explore next and generation actions put
+// their words in the composer through setInput - a command as its typed /line, which Send runs through the slash path -
+// and Regenerate stays hidden.
+export function ChatMessages({ follow = null, ...given }) {
+  const chat = useChatWorkspace();
+  const ops = chat?.canvasOps;
+  const typeIn = given.setInput && (({ text = '', command = null }) => {
+    const line = command ? `/${command} ${text}`.trim() : text;
+    given.setInput(current => (current.trim() ? `${current}
+
+${line}` : line));
+    given.inputRef?.current?.focus();
+  });
+  const props = { ...given,
+    prepare: chat?.composer?.prepare ?? given.prepare ?? typeIn, onRegenerate: chat?.regenerate ?? given.onRegenerate ?? null,
+    threadId: chat?.thread?.id ?? given.threadId ?? null, insertNotebook: ops?.insertNotebook ?? given.insertNotebook,
+    onAddToCanvas: ops ? (card => ops.insertChat(card)) : given.onAddToCanvas, hasCard: ops?.hasBlock ?? null };
   const { msgs, sheetMode, busy } = props;
   const atBottom = !follow || follow.atBottom;
   // A message that lands while the reader is scrolled up stays new until they are back at the bottom.
