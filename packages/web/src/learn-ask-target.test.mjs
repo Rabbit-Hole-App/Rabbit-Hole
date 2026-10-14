@@ -36,11 +36,13 @@ test('Ask in chat sends the typed words as message and the card as canvas_target
 });
 
 test('a group Ask has a title, bounded text through groupTargetText, and its own snapshot (context-2, -3, -22)', () => {
-  assert.ok(canvas.includes("onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });"));
+  // Owner 2026-10-13: Add to chat on the selection bar replaced the group's own Ask in chat. A group or several objects are ONE chip,
+  // titled Group: <name> or by their count, with the ids kept and the text read when the question is sent (a getter).
+  assert.ok(canvas.includes("onAskTargetRef.current?.({ id, kind: group ? 'Group' : 'Selection', title: label, get text() { return groupTargetText(ids.map(askEntryOf).filter(Boolean)); } });"));
   // Its chip goes when the group does.
   assert.ok(canvas.includes('armedGroup.current = null;\n    onAskTargetRef.current?.(null);'));
   assert.doesNotMatch(canvas, /parts\.join\('\\n\\n'\)\.slice\(0, 4000\)/);
-  assert.match(canvas, /onGroupShotRef\.current\?\.\(blob, group\.label \|\| 'group', group\.id\)/);
+  assert.match(canvas, /onGroupShotRef\.current\?\.\(blob, group\?\.label \|\| label, id\)/);
   // The snapshot joins that group's armed target, never the global image context.
   const shot = page.slice(page.indexOf('const takeGroupShot'), page.indexOf('const repoSourceId'));
   assert.match(shot, /setAskTarget\(previous => previous\?\.id === groupId \? \{ \.\.\.previous, image: stored\.id \} : previous\)/);

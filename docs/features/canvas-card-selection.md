@@ -58,7 +58,7 @@ Portals are navigation, not material, so they keep direct single-click open. The
 
 ## The context strip
 
-**What sets it:** selecting one card arms the composer's context strip, `[material icon or slide thumbnail] Title ×`. It uses the same target "Ask in chat" arms (`armTarget`): one context system, one strip, never a second chip.
+**What sets it:** selecting one card arms the composer's context strip, `[material icon or slide thumbnail] Title ×`. It uses the same target Add to chat arms (`armTarget`; Ask in chat became Add to chat on 2026-10-13, selection-action-bar.md): one context system, one strip, never a second chip.
 
 **When it changes:**
 - The strip clears when the selection moves off the card: Esc, a blank-canvas click, another object, or ×. × also deselects the card, so a ring never shows without its strip.
@@ -79,7 +79,9 @@ Portals are navigation, not material, so they keep direct single-click open. The
 - An explicit "Ask in chat" on a card, or a region, area or group, answers as a card linked to it.
 - A question asked while a card is merely selected answers where any question does: the sheet on a canvas with one, so the Tutor's own chips stay under its reply. The card rides as its context either way.
 
-## Ask in chat on an image, a text box and a sticky note (r35)
+## Ask in chat on an image, a text box and a sticky note (r35) - superseded
+
+**Owner, 2026-10-13: "rename Ask in chat to Add to chat (ctrl + L) or Quick Edit (ctrl + k )".** The per-object Ask in chat pills described below are replaced by the selection action bar (`docs/features/selection-action-bar.md`): the same place above the object's top right, a trailing segment of the object's row, with Add to chat and Quick Edit. Add to chat arms the same target but writes no ready question, so the `What does this image show?` and `Explain this` prefills below are gone. The rest of this section (what the target is for an image, a text box or a note) still holds.
 
 Owner: "For Image or Text box, should we have a "Ask in Chat"?" - yes, both, consistent with cards, groups and equations.
 

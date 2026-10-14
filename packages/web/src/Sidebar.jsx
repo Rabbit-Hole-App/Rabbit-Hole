@@ -558,7 +558,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     } catch (e) { toast(`✗ ${e.message}`); }
   };
   const [newMenu, setNewMenu] = useState(false); // bottom + button popup
-  const [searchOpen, setSearchOpen] = useState(false); // mirrors the ⌘K modal for the icon's active state
+  const [searchOpen, setSearchOpen] = useState(false); // mirrors the Search modal for the icon's active state
   useEffect(() => {
     const on = (e) => setSearchOpen(!!e.detail?.open);
     window.addEventListener('small:search-state', on);
@@ -1196,7 +1196,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       {/* icons only - search + notifications share one line, tooltips carry the labels */}
       <div className="flex items-center gap-1 px-0.5">
         <button
-          title="Search (Ctrl + K)"
+          title="Search (Ctrl + Shift + F)"
           aria-label="Search"
           onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }}
           className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}

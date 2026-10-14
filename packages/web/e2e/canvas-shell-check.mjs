@@ -85,17 +85,35 @@ await checkShell('grandchild'); await stillUsable('grandchild');
 assert.equal(await page.locator('[data-dive-navigator] [data-dive-level]').count(), 3, 'root, child, grandchild in the navigator');
 await page.screenshot({ path: `${OUT}/shell-3-grandchild.png` });
 
-// Ctrl+K here, where the canvas has the inline AI editor: a selected card opens that editor (owner 2026-10-13) and no
-// selection opens Search; neither dives. Dive.jsx still dives on Ctrl+K on a canvas without the inline editor.
+// Ctrl+K here, where the canvas has the inline AI editor, is Quick Edit wherever the canvas has the focus (owner brief 2026-10-13): a
+// selected card opens that editor, and with nothing selected the key still stays on the canvas - it never opens Search (which moved
+// to Ctrl/Cmd+Shift+F, shortcut-owner.js) and never dives. Dive.jsx still dives on Ctrl+K on a canvas without the inline editor.
+const search = page.getByPlaceholder('Describe what you are looking for');
 await page.keyboard.press('Escape'); await page.mouse.click(700, 500); await page.keyboard.press('Control+k'); await page.waitForTimeout(500);
 assert.equal(new URL(page.url()).searchParams.get('hole'), null, 'Ctrl+K with no card does not dive');
+assert.equal(await search.count(), 0, 'Ctrl+K with nothing selected does not open Search');
 await page.keyboard.press('Escape');
+await page.keyboard.press('Control+Shift+F');
+await search.waitFor({ timeout: 5000 });
+assert.equal(await page.locator('[data-inline-ai]').count(), 0, 'Ctrl+Shift+F opens Search only, never the editor');
+await page.keyboard.press('Escape');
+assert.equal(await search.count(), 0, 'Escape closes Search');
 
 // The corner is Back (2b0d32ed, owner 2026-10-04): from the grandchild to the child hole, then to the root.
 await page.locator('[data-learn-home]').click();
 await page.waitForFunction(path => location.pathname === path, child, { timeout: 15000 });
 await page.locator('[data-learn-home]').click();
 await page.waitForFunction(path => location.pathname === path, `/apps/${root.name}`, { timeout: 15000 });
+
+// The clickable Search keeps working where the app has it (Home's sidebar), and Ctrl+K opens nothing there any more.
+await page.goto(`${BASE}/apps`); await page.getByRole('button', { name: 'Search', exact: true }).first().waitFor({ timeout: 30000 });
+await page.keyboard.press('Control+k'); await page.waitForTimeout(400);
+assert.equal(await search.count(), 0, 'Ctrl+K is no longer Search on Home');
+await page.getByRole('button', { name: 'Search', exact: true }).first().click();
+await search.waitFor({ timeout: 5000 });
+await page.keyboard.press('Escape');
+await page.keyboard.press('Control+Shift+F');
+await search.waitFor({ timeout: 5000 });
 
 await browser.close();
 if (errors.length) { console.log('page errors:', errors); process.exit(1); }

@@ -14,7 +14,9 @@ const GROUPS = [
     ['Pick one object inside a group', ['Ctrl', 'click']],
     ['Card actions', ['Right-click']],
     ['Comment on the selection (a card, a shape or a group)', ['C']],
-    ['Explain or edit the selection with AI (Cmd on a Mac)', ['Ctrl', 'K']],
+    ['Quick Edit the selection (Cmd on a Mac)', ['Ctrl', 'K']],
+    ['Add the selection to chat (Cmd on a Mac)', ['Ctrl', 'L']],
+    ['Search the app (Cmd on a Mac)', ['Ctrl', 'Shift', 'F']],
   ]],
   ['Tools', [
     ['Select', ['V']],

@@ -1,6 +1,6 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -19,7 +19,10 @@ import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
-import { cardQuestion, describeCanvasObject, EQUATION_QUESTION, GROUP_QUESTION, groupTargetText, IMAGE_QUESTION, TEXT_QUESTION } from './learn-ask-target.js';
+import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
+import { SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
+import { anchorOf } from './selection-bar-place.js';
+import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
@@ -266,6 +269,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight }, apply, zoom);
   };
   return (
+    // A selected card rises above a group's box (painted after the column, over the cards): the selection actions in its row above
+    // may lie over the box of the group just above it, and must stay pressable (z-[5]: still under text, notes and the chrome).
     // A card is reachable with Tab (Space selects it, Enter opens it: the canvas's key handler); its selection is
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
@@ -281,7 +286,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         opener.open(id, 'learner_dblclick');
       } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
       {selected && opens && opener.single === id && (
         <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
@@ -376,6 +381,7 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
               <span className="max-w-48 truncate">{drawing || 'Explain in canvas'}</span>
             </button>
           )}
+          <SelectionActionsHost id={exchange.id} />
           {renderComposer && !replyOpen && (
             <button type="button" title="Continue this conversation"
               onPointerDown={e => e.stopPropagation()} onClick={continueReply}
@@ -443,7 +449,7 @@ const SLIDE_W = PAGE_W - 48;
 // a numbered divider above every page after the first. Each page is its own block,
 // so it moves, groups and deletes like anything else; the image sits in this
 // browser's asset store and the block keeps only the key.
-function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap, onAsk }) {
+function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
   const [url, setUrl] = useState(null);
   useEffect(() => {
     let revoke = null;
@@ -454,14 +460,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
       connected={connected} width={SLIDE_W} autoMax={null}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      {selected && (
-        <div data-thumbnail-hide className="absolute -top-10 right-0 z-30">
-          <button type="button" title="Ask the tutor about this slide" onPointerDown={e => e.stopPropagation()} onClick={() => onAsk(block)}
-            className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-            <MessageCircle size={13} />Ask in chat
-          </button>
-        </div>
-      )}
+      {selected && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div data-slide={block.number} className="px-1 pb-1">
         {url ? <img src={url} alt={`${block.label || 'Slide'} ${block.number}`} className="w-full rounded border border-line" draggable={false} />
           : <p className="p-4 text-sm text-ink-2">This slide is not in this browser.</p>}
@@ -522,21 +521,9 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
 // Same storage bargain as the PDF card - the bytes live in this browser's
 // asset store, the block keeps only the key, so the 120 kB src strip never
 // applies and a reload keeps the card.
-// The cards' Ask in chat pill, for a dropped image and a text box or sticky note (r35, owner: "For Image or Text box,
-// should we have a "Ask in Chat"?"): the same button, in the same place above the object's top right.
-function AskPill({ title, onAsk, className = 'absolute -top-10 right-0 z-30', style = null }) {
-  return (
-    <div data-thumbnail-hide data-ask-pill className={className} style={style}>
-      <button type="button" title={title} onPointerDown={e => e.stopPropagation()} onClick={onAsk}
-        className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-        <MessageCircle size={13} />Ask in chat
-      </button>
-    </div>
-  );
-}
 
-// onAsk: only while this image is the one selected object (a multi-selection asks through its group or area).
-function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onAsk = null }) {
+// A dropped image shows the selection actions (Add to chat, Quick Edit) above its top right while it is the one selected object.
+function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
   const [url, setUrl] = useState(null);
   const [missing, setMissing] = useState(false);
   useEffect(() => {
@@ -571,7 +558,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       connected={connected} width={COLUMN} autoMax={620} saved={{ w: block.w }}
       onSize={(id, w) => onChange({ ...block, w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      {selected && onAsk && block.kind === 'image' && <AskPill title="Ask the tutor about this image" onAsk={() => onAsk(block)} />}
+      {selected && block.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />{clip ? 'Video' : 'Image'}<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
       </div>
@@ -751,7 +738,7 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onAskImage = null, onNotebook = null }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null }) {
   // Tool Performance v1: visible on first paint; simple cards are complete then (learn-perf.js).
   usePaintedMarks(block.id, block.type);
   // A block that declares its evidence carries it collapsed at its foot; the
@@ -765,9 +752,9 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
-  if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onAsk={onAskImage} />;
+  if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
-  if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onAsk={onAsk} />;
+  if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -798,12 +785,8 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
               {block.paper?.selection ? <><X size={13} />Clear selection</> : <><Scan size={13} />Ask selection</>}
             </button>
           )}
-          <button type="button" title="Ask the tutor about this block"
-            onPointerDown={e => e.stopPropagation()} onClick={() => onAsk(block)}
-            className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-            <MessageCircle size={13} />Ask in chat
-          </button>
           <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
+          <SelectionActionsHost id={block.id} divider={['whiteboard', 'paper', 'code', 'snippet'].includes(block.type)} />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
@@ -879,10 +862,9 @@ const itemBase = item => {
   return item.mode === 'code' ? { ...base, b: false, i: false, u: false, f: 'mono' } : base;
 };
 
-// onAsk: only while this text box or note is the one selected object (a multi-selection asks through its group or area).
 // editOn: { id, n } - the canvas asking this item to open for typing (Enter on a selected text box). onEditStart: the
 // edit began (its undo step opens). onCommit(id, runs, how): the edit ended. onEditorApi: the open editor's handle.
-function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, onAsk = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null, onNotebook = null }) {
+function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null, onNotebook = null }) {
   const [editing, setEditing] = useState(!!item.fresh);
   // A Code box not being edited is drawn in its language's colors, once they are ready for exactly these words.
   const [colors, setColors] = useState(null);
@@ -964,9 +946,9 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
   // shares the ladder's row and is pushed to the right edge, so a short text never has the two over each other.
   const chrome = !locked && (editing || (selected && tool === 'select'));
   const ladder = !sticky && item.kind === 'text' && onLevel && chrome;
-  const ask = !!onAsk && selected && !editing && tool === 'select' && !!String(item.text || '').trim();
+  const ask = selected && !editing && tool === 'select' && !!String(item.text || '').trim();
   const modeAbove = ladder && !!onMode && ask && !code;
-  const askPill = <AskPill title={sticky ? 'Ask the tutor about this note' : 'Ask the tutor about this text'} onAsk={() => onAsk(item)} className={sticky ? 'absolute z-30 -translate-x-full' : 'ml-auto'} style={sticky ? { left: item.x + (item.w || 160), top: item.y - 40 } : null} />;
+  const askPill = <SelectionActionsHost id={item.id} className={sticky ? 'absolute z-30 -translate-x-full' : 'ml-auto'} style={sticky ? { left: item.x + (item.w || 160), top: item.y - 40 } : null} />;
   const base = itemBase(item);
   const ink = sticky ? (value => value) : inkAware;
   return (<>
@@ -1054,8 +1036,11 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
         : still}
       {/* The size ladder, where a text box shows its H1-to-text one; never while the LaTeX is edited (the palette is there). */}
       {selected && !editing && !locked && tool === 'select' && (
-        <LevelPill level={equationLevel(size)} levels={EQUATION_LEVELS} label="Equation size" fallback={null} className="absolute bottom-full left-0 z-20 mb-2.5"
-          onLevel={value => { onGesture(); onPatch(item.id, { size: levelSize(value) }); }} />
+        <div className="absolute bottom-full left-0 z-20 mb-2.5 flex items-center gap-1.5">
+          <LevelPill level={equationLevel(size)} levels={EQUATION_LEVELS} label="Equation size" fallback={null}
+            onLevel={value => { onGesture(); onPatch(item.id, { size: levelSize(value) }); }} />
+          <SelectionActionsHost id={item.id} divider />
+        </div>
       )}
       {/* The corner scales the type, as a text box's corner reflows its text. */}
       {selected && !editing && !locked && tool === 'select' && (
@@ -2647,16 +2632,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Focus goes back where it was when that was a card or a control; from a closed text editor, to the canvas (body).
     requestAnimationFrame(() => { if (opener?.isConnected && opener.matches?.('[data-block-id],button,a,[tabindex]:not([tabindex="-1"])')) opener.focus({ preventScroll: true }); });
   };
-  const inlineKeyRef = useRef(null);
-  inlineKeyRef.current = event => {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k' || event.isComposing || event.keyCode === 229) return false;
+  // Ctrl/Cmd+K is Quick Edit wherever the canvas has the focus, with a selection or none, and Ctrl/Cmd+L adds the selection to the
+  // chat: shortcut-owner.js offers each chord here first, so neither can also open Search (now Ctrl/Cmd+Shift+F) or Dive.
+  const quickEditKey = useRef(null), addToChatKey = useRef(null);
+  quickEditKey.current = (event, field) => {
     if (!inlineAiRef.current) return false;
-    if (openInline(performance.now(), true)) { event.preventDefault(); event.stopImmediatePropagation(); return true; }
-    // Nothing eligible: the page's own Ctrl+K (Search) keeps the key. Only when nobody took it does this say what it does.
-    const held = document.activeElement;
-    if (!held || held === document.body || shell.current?.contains(held)) setTimeout(() => { if (!event.defaultPrevented) setInlineHint(n => n + 1); }, 0);
-    return false;
+    if (!quickEditAllowed({ field, ownField: !!document.activeElement?.closest?.('[data-rich-editor],[data-inline-ai]') })) return false;
+    // Nothing eligible: the key stays on the canvas and says what it does, never Search.
+    if (!openInline(performance.now(), true)) setInlineHint(n => n + 1);
+    return true;
   };
+  addToChatKey.current = (event, field) => addToChatAllowed({ hasSelection: selectedRef.current.length > 0, field, inlineOpen: !!inlineRef.current, presenting: presentingRef.current !== null, readOnly: readOnlyRef.current }) && addToChat();
+  useEffect(() => {
+    const stops = [claimChord('quick-edit', 'canvas', 10, (event, field) => quickEditKey.current(event, field)), claimChord('add-to-chat', 'canvas', 10, (event, field) => addToChatKey.current(event, field))];
+    return () => stops.forEach(stop => stop());
+  }, []);
+  // Quick Edit opens the existing inline editor with Edit selection active (the bar's action, the menus' row and the chord).
+  const quickEdit = () => openInline(performance.now(), false, 'edit');
   useEffect(() => { if (!inlineHint) return undefined; const timer = setTimeout(() => setInlineHint(0), 2200); return () => clearTimeout(timer); }, [inlineHint]);
   // The accepted result as one transaction and one undo step, applied to the lists as they are now: an unrelated edit made
   // meanwhile stays (§11). Then the existing save path at once, so persistence is measured apart from acceptance (A3).
@@ -2749,9 +2741,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
-      // Ctrl/Cmd+K (docs/features/inline-ai-editor.md §2): the inline editor on an eligible selection - or on the words
-      // selected in the open text editor, captured here before focus moves. Anything else leaves the key to the page.
-      if (inlineKeyRef.current(event)) return;
       // The inline editor owns its keys while it has the focus: Esc closes it first, never the selection.
       if (document.activeElement?.closest?.('[data-inline-ai]')) return;
       // An open text editor (RichText) owns every key while it is open: Enter, Esc, undo, clipboard and the arrows.
@@ -2986,24 +2975,56 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     onAskTargetRef.current?.({ id: block.id, ...described, ...card, get text() { return live(); } });
     return true;
   };
-  // Ask in chat and the menu's Ask about this: the card becomes the target and a ready question waits in the composer.
-  const askBlock = block => {
-    askedId.current = block.id;
-    if (armTarget(block)) askDraft(cardQuestion(describeObject(block)?.title));
+  // Add to chat (owner brief 2026-10-13: Ctrl/Cmd+L and the selection bar; it replaces Ask in chat and its prefilled question).
+  // The selection becomes the composer's context chip: one object as its card chip, a group or several objects as ONE chip with
+  // their count. The chip holds ids and its text is read when the question is sent. The learner's draft is never touched,
+  // nothing is sent, the selection stays, and a hidden composer comes back and takes the focus.
+  const askEntryOf = id => {
+    const block = blocksRef.current.find(entry => entry.id === id);
+    if (block) { const described = describeBlock(block); return described?.text ? { text: described.text } : { skipped: block.type }; }
+    const exchange = exchangesRef.current.find(entry => entry.id === id);
+    if (exchange) return { question: exchange.question, answer: exchange.answer };
+    const item = itemsRef.current.find(entry => entry.id === id);
+    if (item?.text) return { text: item.text };
+    if (item?.latex) return { text: describeCanvasObject(item).text };
+    const shape = shapesRef.current.find(entry => entry.id === id);
+    return shape?.text ? { text: shape.text } : null;
   };
-  // Ask in chat on a dropped image (r35, owner: "For Image or Text box, should we have a "Ask in Chat"?"): the image is
-  // the target - its label as the text, its server copy as image_context (describeCanvasObject image) - and it is shown
-  // to the tutor the way Show the tutor this image and the drop show it (LearnPage image-attach), so the Tutor path
-  // carries the picture too. The ready question waits in the composer; nothing is sent.
-  const askImage = block => {
-    askedId.current = block.id;
-    if (!armTarget(block)) return;
-    if (block.mediaId) onCardActionRef.current?.('image-attach', { blockId: block.id, mediaId: block.mediaId, label: block.label });
-    askDraft(IMAGE_QUESTION);
+  const armCollection = ids => {
+    const gids = new Set(ids.map(groupOf));
+    const gid = gids.size === 1 && !gids.has(null) ? [...gids][0] : null;
+    const group = gid && membersOf(gid).length === ids.length ? groups.find(entry => entry.id === gid) : null;
+    const label = group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`;
+    const id = group ? group.id : `selection:${[...ids].sort().join('+')}`;
+    armedId.current = null;
+    armedGroup.current = group ? group.id : null;
+    onAskTargetRef.current?.({ id, kind: group ? 'Group' : 'Selection', title: label, get text() { return groupTargetText(ids.map(askEntryOf).filter(Boolean)); } });
+    // The visuals ride too: a rendered snapshot of the selection's area becomes this question's image context.
+    const boxes = boxesOf(ids);
+    if (!boxes.length) return;
+    const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
+    const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
+    groupShot({
+      box: { left, top, right, bottom }, members: new Set(ids),
+      strokes: strokes.filter(stroke => stroke.points?.some(point => point.x >= left && point.x <= right && point.y >= top && point.y <= bottom)),
+      shapes, items, blocks, bounds, cachedAsset: loadAsset,
+      dark: document.documentElement.classList.contains('dark'),
+    }).then(blob => { if (blob) onGroupShotRef.current?.(blob, group?.label || label, id); }).catch(() => { /* text still asks */ });
   };
-  // Ask in chat on a text box or sticky note: its words ride as the context, as an equation's LaTeX does, and the answer
-  // lands where any question's does.
-  const askItem = item => { if (armTarget(item)) askDraft(TEXT_QUESTION); };
+  const addToChat = () => {
+    const ids = selectedRef.current.filter(id => objectById(id) || shapesRef.current.some(shape => shape.id === id));
+    if (!ids.length) return false;
+    const object = ids.length === 1 ? objectById(ids[0]) : null;
+    if (object && describeObject(object)) {
+      askedId.current = object.id;
+      if (!armTarget(object)) return false;
+      // A dropped image is shown to the tutor the way Show the tutor this image and the drop show it (LearnPage image-attach).
+      if (object.type === 'file' && object.kind === 'image' && object.mediaId) onCardActionRef.current?.('image-attach', { blockId: object.id, mediaId: object.mediaId, label: object.label });
+    } else armCollection(ids);
+    askDraft();
+    requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] textarea, [data-canvas-composer] input:not([type="file"]), [data-canvas-composer] [contenteditable="true"]')?.focus({ preventScroll: true }));
+    return true;
+  };
   // Selecting a card is choosing what the next question is about (docs/features/canvas-card-selection.md): the one
   // selected card sets the composer's context strip - the same target Ask in chat arms, never a second chip - and a
   // selection that moves off it (blank canvas, Esc, another object) takes the strip with it. A region, area or group
@@ -3226,16 +3247,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     commentAt({ x: x + Math.min(24, w / 2), y: y + Math.min(24, h / 2) }, whole ? gid : ids[0]);
     return true;
   } : null;
-  // The pin slot (owner, 2026-10-08): an object's thread pins sit in a row ending just left of its pill row - Ask in chat,
+  // The pin slot (owner, 2026-10-08): an object's thread pins sit in a row ending just left of its pill row - the selection actions,
   // and the pills a few cards add beside it - above its top right, whether it is selected or not, so a pin never covers a
   // pill. In world units: where the reserved row starts (`right`), its top and height. A dropped image, a text box and a
   // sticky note have the same Ask in chat (r35); a shape keeps the slot it would take. PILL: the pills' rendered widths,
   // with a little room.
-  const PILL = { ask: 112, select: 124, explain: 144, more: 138, notebook: 30, gap: 6 };
+  const PILL = { ask: 297, select: 124, explain: 144, more: 138, notebook: 30, gap: 6 };
   const pillRow = id => {
     const block = blocks.find(entry => entry.id === id);
     if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0) + (block.type === 'code' || block.type === 'snippet' ? PILL.gap + PILL.notebook : 0);
-    if (exchanges.some(entry => entry.id === id)) return PILL.explain + PILL.gap + PILL.more;
+    if (exchanges.some(entry => entry.id === id)) return PILL.explain + PILL.gap + PILL.ask + PILL.gap + PILL.more;
     return PILL.ask;
   };
   const commentSlot = id => {
@@ -4244,6 +4265,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     (portsInUse[link.from] = portsInUse[link.from] || {})[link.fromSide] = true;
     (portsInUse[link.to] = portsInUse[link.to] || {})[link.toSide] = true;
   }
+  // The selection action bar's anchor (SelectionActions.jsx): the selection's box in the surface's pixels. A lone empty text box has
+  // nothing to add, so it gets none.
+  const emptyText = id => { const entry = items.find(item => item.id === id); return !!entry && entry.kind !== 'equation' && !String(entry.text || '').trim(); };
+  const barAnchor = tool === 'select' && selection.some(id => !emptyText(id)) ? anchorOf(boxesOf(selection), view) : null;
+  // The room it may use ends where the bottom chrome (zoom, composer) begins, under the bar's width.
+  const barBox = { w: surface.current?.clientWidth || 1200, h: surface.current && barAnchor ? chromeTop(barAnchor.right - 300, barAnchor.right) : 800 };
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
     // and the dock composer takes focus on mount - so without this, selecting a
@@ -4251,6 +4278,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // outside the focused field hands focus back to the canvas. Pressing inside
     // the field it belongs to is left alone, so typing still works.
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag }}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} onAddToChat={readOnly ? null : addToChat} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
@@ -4315,6 +4343,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />
+        <SelectionActionBar anchor={barAnchor} box={barBox} />
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
@@ -4378,7 +4407,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onAskImage={selected === block.id ? askImage : null} onNotebook={readOnly ? null : openInNotebook} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} />)}
           </CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -4387,7 +4416,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {cardGhost && (
           <div data-inline-card-ghost data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute left-0 flex flex-col"
             style={{ top: (column.current?.offsetHeight || 0) + (column.current?.children.length ? 20 : 0), width: COLUMN, opacity: cardGhost.hidden ? 0 : 0.5 }}>
-            <LessonBlockCard block={cardGhost.block} zoom={view.z} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={noop} onChangeQuiet={noop} onLayout={noop} onConnect={noop} onSnap={noop} onAsk={noop} onFile={noop} appName={appName} onAskRegion={noop} onGrade={noop} onWiki={noop} onWatch={noop} />
+            <LessonBlockCard block={cardGhost.block} zoom={view.z} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={noop} onChangeQuiet={noop} onLayout={noop} onConnect={noop} onSnap={noop} onFile={noop} appName={appName} onAskRegion={noop} onGrade={noop} onWiki={noop} onWatch={noop} />
           </div>
         )}
         {readOnly && selected && bounds[selected] && (
@@ -4488,43 +4517,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   className={`pointer-events-auto flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] text-hole shadow-sm hover:bg-hole/10 ${portal.pending ? 'border-dashed border-hole-pending' : 'border-hole/40'}`}>
                   <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
               </div>
-              {/* The same pill every card shows when selected, in the same
-                  place: right above the outline, right-aligned. It arms the
-                  composer with what the group holds. */}
-              {active && (
-                <div style={{ left: right + pad, top: top - pad - 40 }} className="absolute z-30 -translate-x-full">
-                  <button type="button" data-group-ask title="Ask the tutor about this group"
-                    onPointerDown={event => event.stopPropagation()}
-                    onClick={() => {
-                      armedId.current = null;
-                      const entries = [];
-                      for (const member of members) {
-                        const block = blocksRef.current.find(entry => entry.id === member.id);
-                        if (block) { const described = describeBlock(block); entries.push(described?.text ? { text: described.text } : { skipped: block.type }); continue; }
-                        const exchange = exchangesRef.current.find(entry => entry.id === member.id);
-                        if (exchange) { entries.push({ question: exchange.question, answer: exchange.answer }); continue; }
-                        const item = itemsRef.current.find(entry => entry.id === member.id);
-                        if (item?.text) entries.push({ text: item.text });
-                        else if (item?.latex) entries.push({ text: describeCanvasObject(item).text });
-                      }
-                      armedGroup.current = group.id;
-                      onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
-                      askDraft(GROUP_QUESTION);
-                      // The visuals ride too: a rendered snapshot of the
-                      // outline area becomes this question's image context.
-                      const memberIds = new Set(members.map(member => member.id));
-                      groupShot({
-                        box: { left, top, right, bottom }, members: memberIds,
-                        strokes: strokes.filter(stroke => stroke.points?.some(point => point.x >= left && point.x <= right && point.y >= top && point.y <= bottom)),
-                        shapes, items, blocks, bounds, cachedAsset: loadAsset,
-                        dark: document.documentElement.classList.contains('dark'),
-                      }).then(blob => { if (blob) onGroupShotRef.current?.(blob, group.label || 'group', group.id); }).catch(() => { /* text still asks */ });
-                    }}
-                    className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-                    <MessageCircle size={13} />Ask in chat
-                  </button>
-                </div>
-              )}
             </div>
           );
         })}
@@ -4532,14 +4524,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
-            onAsk={selected === item.id ? askItem : null} />)}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}
           {shapes.filter(shape => TEXT_BOX[shape.kind] && !lockedIds.has(shape.id) && (editingShape === shape.id || (tool === 'select' && selection.length === 1 && selection[0] === shape.id))).map(shape => (
-            <LevelPill key={`level-${shape.id}`} level={shape.level} className="absolute z-20"
-              style={{ left: Math.min(shape.x1, shape.x2), top: Math.min(shape.y1, shape.y2) - 42 }}
-              onLevel={value => applyLevel([shape.id], value)} />
+            <div key={`level-${shape.id}`} className="absolute z-20 flex items-center gap-1.5" style={{ left: Math.min(shape.x1, shape.x2), top: Math.min(shape.y1, shape.y2) - 42 }}>
+              <LevelPill level={shape.level} onLevel={value => applyLevel([shape.id], value)} />
+              {editingShape !== shape.id && <SelectionActionsHost id={shape.id} divider />}
+            </div>
           ))}
           {/* A lock on each locked object, so a press that does nothing says why; select it and Unlock (panel, menu,
               Ctrl+Shift+L). Never in the thumbnail. */}
@@ -4605,7 +4597,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           // question waits in the composer, nothing is sent, and the answer lands where any question's does.
           const equation = items.find(entry => entry.id === menuAt.id && entry.kind === 'equation' && entry.latex) || null;
           if (equation) {
-            typed.push(<MenuRow key="ea" icon={MessageCircle} data-menu-ask-equation onClick={act(() => { if (armTarget(equation)) askDraft(EQUATION_QUESTION); })}>Ask in chat</MenuRow>);
+            typed.push(<MenuRow key="ea" icon={MessageSquarePlus} data-menu-ask-equation hint="Ctrl L" onClick={act(() => addToChat())}>Add to chat</MenuRow>);
             typed.push(<MenuRow key="el" icon={Copy} onClick={act(() => navigator.clipboard?.writeText(equation.latex))}>Copy LaTeX</MenuRow>);
           }
           const described = block ? describeBlock(block) : null;
@@ -4631,7 +4623,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
               {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline(performance.now(), false, 'edit'))}>Quick Edit</MenuRow>}
-              {described && <MenuRow icon={CircleHelp} onClick={act(() => askBlock(block))}>Ask about this</MenuRow>}
+              {described && <MenuRow icon={MessageSquarePlus} data-menu-add-to-chat hint="Ctrl L" onClick={act(() => addToChat())}>Add to chat</MenuRow>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
               <MenuRow icon={Scissors} disabled={!selection.length} hint="Ctrl X" onClick={act(cutSelection)}>Cut</MenuRow>
@@ -4833,6 +4825,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
       </div>}
     </div>
+    </SelectionActionsProvider>
     </CanvasEdit.Provider>
   );
 }

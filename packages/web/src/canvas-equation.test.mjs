@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import katex from 'katex';
 import { EQUATION_LEVELS, EQUATION_PALETTE, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { TEXT_LEVELS } from './learn-style-panel.js';
-import { canvasTargetField, describeCanvasObject, EQUATION_QUESTION } from './learn-ask-target.js';
+import { canvasTargetField, describeCanvasObject } from './learn-ask-target.js';
 import { boardText, persistBoard } from './canvas-persist.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -42,9 +42,10 @@ test('the size ladder: S, M, L match the text ladder\'s H3, H2, H1; M is today\'
 test('the ladder sits where the text ladder does, as the same pill, on a selected equation and never while it is edited', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
   const equation = canvas.slice(canvas.indexOf('function EquationItem('), canvas.indexOf('// The lesson-block picker.'));
-  assert.match(equation, /\{selected && !editing && !locked && tool === 'select' && \(\n\s+<LevelPill level=\{equationLevel\(size\)\} levels=\{EQUATION_LEVELS\} label="Equation size" fallback=\{null\} className="absolute bottom-full left-0 z-20 mb-2\.5"\n\s+onLevel=\{value => \{ onGesture\(\); onPatch\(item\.id, \{ size: levelSize\(value\) \}\); \}\} \/>/);
-  // The text ladder's row also carries its Ask in chat (r35), on the cards' pill row (card-selection.test.mjs).
-  // Text | Code takes a line of its own above that row when Ask in chat is on it (selected-pill-check's right edge).
+  // The selection actions (Add to chat, Quick Edit) join this row as its trailing segment (owner brief 2026-10-13, SelectionActions.jsx).
+  assert.match(equation, /\{selected && !editing && !locked && tool === 'select' && \(\n\s+<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex items-center gap-1\.5">\n\s+<LevelPill level=\{equationLevel\(size\)\} levels=\{EQUATION_LEVELS\} label="Equation size" fallback=\{null\}\n\s+onLevel=\{value => \{ onGesture\(\); onPatch\(item\.id, \{ size: levelSize\(value\) \}\); \}\} \/>\n\s+<SelectionActionsHost id=\{item\.id\} divider \/>/);
+  // The text ladder's row also carries the selection actions, on the cards' pill row (card-selection.test.mjs).
+  // Text | Code takes a line of its own above that row when they are on it (selected-pill-check's right edge).
   assert.match(canvas, /<div className="absolute bottom-full left-0 z-20 mb-2\.5 flex min-w-full flex-col items-start gap-1\.5">\n\s+\{modeAbove && <ModePill[^\n]*\n\s+<div className="flex items-center gap-2 self-stretch">\n\s+\{ladder && !code && <LevelPill level=\{item\.level\} onLevel=\{value => onLevel\(item\.id, value\)\} \/>\}/, 'the text ladder: same pill, same place');
   assert.equal((canvas.match(/function LevelPill\(/g) || []).length, 1, 'one ladder component');
 });
@@ -94,15 +95,16 @@ test('undo covers an equation: placing snapshots, a changed source snapshots, an
   assert.match(canvas, /if \(!before\.fresh && before\.latex !== latex\) snapshot\(\);/);
 });
 
-test('Ask in chat: the pill shows the LaTeX, the request carries it, the prefilled question is plain words', () => {
+test('Add to chat: the chip shows the LaTeX and the request carries it', () => {
   const described = describeCanvasObject({ id: 'e1', kind: 'equation', latex: ` ${MATRIX} ` });
   assert.deepEqual(described, { kind: 'Equation', title: MATRIX, text: `Equation on the canvas, in LaTeX: ${MATRIX}`, material: 'equation' });
   const field = canvasTargetField({ id: 'e1', ...described, card: true, context: { block_id: 'e1' } });
   assert.deepEqual(field, { id: 'e1', kind: 'Equation', title: MATRIX, text: `Equation on the canvas, in LaTeX: ${MATRIX}` });
   assert.equal(describeCanvasObject({ id: 'e2', kind: 'equation', latex: '' }).title, 'Empty equation');
-  assert.equal(EQUATION_QUESTION, 'Can you explain this equation?');
+  // Owner 2026-10-13: Add to chat replaces Ask in chat and its prefilled question; the menu row and the bar do the same, and send nothing.
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.match(canvas, /if \(armTarget\(equation\)\) askDraft\(EQUATION_QUESTION\);/, 'the menu arms and prefills, it never sends');
+  assert.match(canvas, /data-menu-ask-equation hint="Ctrl L" onClick=\{act\(\(\) => addToChat\(\)\)\}>Add to chat<\/MenuRow>/);
+  assert.doesNotMatch(canvas, /EQUATION_QUESTION/);
 });
 
 test('typing in an equation is typing: the canvas keys stand down for its field', () => {

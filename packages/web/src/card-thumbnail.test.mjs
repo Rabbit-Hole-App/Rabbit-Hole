@@ -117,11 +117,13 @@ test('the card: the picture on the right from md, on top on a phone; one per row
 // Parallel, 2026-10-08: "the picture must never show canvas chrome", and always in the light theme.
 test('the picture leaves out every piece of chrome by the canvas\'s own attributes, undoes selection, and draws light', () => {
   const canvas = read('./AdaptiveCanvas.jsx') + read('./comments/CommentPins.jsx');
-  const wanted = ['[data-thumbnail-hide]', '[data-card-open]', '[data-port]', '[data-node-tool]', '[data-group-ask]', '[data-sketch-chrome]', '[data-label-handle]', '[data-comment-pins]', '[role="toolbar"]', 'iframe', 'video'];
+  const wanted = ['[data-thumbnail-hide]', '[data-card-open]', '[data-port]', '[data-node-tool]', '[data-sketch-chrome]', '[data-label-handle]', '[data-comment-pins]', '[role="toolbar"]', 'iframe', 'video'];
   for (const selector of wanted) assert.ok(CHROME.split(',').includes(selector), selector);
   for (const attr of CHROME.match(/data-[a-z-]+/g)) assert.ok(canvas.includes(attr), `${attr} is a real attribute of the canvas`);
-  // The selected card's pill rows (Ask in chat, Explain, Continue), the text ladder and the resize handles had none.
-  assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 3);
+  // The selected card's pill rows (Explain, Continue, and the selection actions - SelectionActions.jsx hides its own bar), the text ladder
+  // and the resize handles had none.
+  assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 4);
+  assert.match(read('./SelectionActions.jsx'), /data-selection-bar=\{mode\} data-thumbnail-hide/);
   assert.match(canvas, /aria-label=\{label\} data-keep-focus data-thumbnail-hide/); // the text ladder and the equation's size ladder
   assert.equal(canvas.match(/<button type="button" data-thumbnail-hide aria-label=/g).length, 2);
   assert.equal(canvas.match(/<(rect|circle) (key=\{index\} )?data-thumbnail-hide/g).length, 2, 'a shape\'s outline and handles');

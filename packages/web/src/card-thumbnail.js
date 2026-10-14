@@ -40,7 +40,7 @@ export function thumbnailRegion(boxes, { aspect = 2, margin = 24, minWidth = 400
 // a shape's outline, handles and label handle, the text-level ladder, the group Ask, the sketch hint, toolbars, comment
 // pins - by the canvas's own data attributes, with data-thumbnail-hide where an element had none; and iframes, videos
 // and audio (cross-origin pixels, and a copy of one would start loading).
-export const CHROME = ['[data-thumbnail-hide]', '[data-card-open]', '[data-port]', '[data-node-tool]', '[data-group-ask]', '[data-sketch-chrome]',
+export const CHROME = ['[data-thumbnail-hide]', '[data-card-open]', '[data-port]', '[data-node-tool]', '[data-sketch-chrome]',
   '[data-label-handle]', '[data-comment-pins]', '[data-view-selection]', '[role="toolbar"]', 'iframe', 'video', 'audio'].join(',');
 // Selection drawn on the content itself: a selected card's, note's or text's ring, an active sketch's, a group's accent
 // outline. Undone for the picture by the same attributes (Tailwind's ring is these two variables).

@@ -198,7 +198,7 @@ await shot('02-selected-card');
 await page.keyboard.press('Control+k');
 await page.locator('[data-inline-ai]').waitFor();
 assert.equal(url().searchParams.get('hole'), null, 'Ctrl+K on a selected card opens the inline editor, not a hole');
-assert.equal(await page.locator('[role="dialog"][aria-label*="earch"]').count(), 0, 'Ctrl+K on a selected card is not Search');
+assert.equal(await page.getByPlaceholder('Describe what you are looking for').count(), 0, 'Ctrl+K on a selected card is not Search');
 await page.keyboard.press('Escape');
 await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
 await diveFromSelected();
@@ -330,7 +330,7 @@ await page.waitForFunction(() => location.search.includes('hole=')); await page.
 await nav().locator('[aria-current="location"]').hover();
 await nav().getByRole('button', { name: 'Delete Logits' }).click(); // "Leave this empty hole"
 await page.waitForFunction(() => !location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
-const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace('Ask in chat', '').replace(/^Open\s*/, '').trim() === 'Logits')?.dataset.blockId || null); // the selected card's own Ask in chat and Open pills aside
+const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace(/(Add to chat|Quick Edit)\s*(Ctrl|Cmd)\+[KL]/g, '').replace(/^Open\s*/, '').trim() === 'Logits')?.dataset.blockId || null); // the selected card's own Open pill and selection actions aside
 assert.ok(logits, 'the anchor reads just "Logits": no duplicate body, no kicker');
 assert.equal(await page.locator(`[data-block-id="${logits}"] [data-dive-portal]`).count(), 0, 'an abandoned pending child leaves no portal');
 await page.locator(`[data-block-id="${logits}"]`).scrollIntoViewIfNeeded();
@@ -410,12 +410,16 @@ await shot('13-agent-suggestion');
 await page.getByRole('button', { name: 'Keep it on this canvas' }).click();
 assert.equal(await page.locator('[data-dive-suggestion]').count(), 0);
 
-// ---- Ctrl+K with no card selected is the global Search, unchanged ----
+// ---- Owner brief 2026-10-13: Ctrl+K is Quick Edit and stays on the canvas, with no card selected too - it never opens Search, which is
+// Ctrl/Cmd+Shift+F now (shortcut-owner.js) ----
 await deselect();
 await page.keyboard.press('Control+k');
 await page.waitForTimeout(600);
 assert.equal(url().searchParams.get('hole'), null);
-await shot('14-ctrl-k-no-card-search');
+assert.equal(await page.getByPlaceholder('Describe what you are looking for').count(), 0, 'Ctrl+K with no card is not Search');
+await page.keyboard.press('Control+Shift+F');
+await page.getByPlaceholder('Describe what you are looking for').waitFor({ timeout: 5000 });
+await shot('14-ctrl-shift-f-search');
 await page.keyboard.press('Escape');
 
 // ---- J: one rule for the empty hint and for keeping the hole (owner r29). A shape, text, or a chat card added to the

@@ -1,7 +1,7 @@
 // Canvas equations (docs/features/canvas-equations.md), end to end on the owner's canvas: the Equation tool, the palette
 // (a fraction, a subscript, a 2x2 matrix), pasted LaTeX, click-out rendering, double-click to reopen, move, resize,
 // delete, undo/redo, duplicate, save and reload (this browser and a fresh profile from the server copy), typing that never
-// reaches the canvas's keys, the S M L XL size ladder (r35), the selection pill with the LaTeX, Ask in chat's prefill, and
+// reaches the canvas's keys, the S M L XL size ladder (r35), the selection pill with the LaTeX, Add to chat (no prefill), and
 // Send carrying the LaTeX.
 // Against the LOCAL stack only: local D1 and fresh browser profiles. No model is called: the Learn ask and the Tutor
 // planner are answered here, every other write except the board's own save is refused, and the stack's provider tripwire
@@ -338,15 +338,16 @@ await check('selecting the equation shows the composer pill with its LaTeX', asy
   assert.equal(await page.locator('[data-canvas-target]').count(), 1);
 });
 
-await check('Ask in chat prefills a question and sends nothing; Send carries the LaTeX as the context', async () => {
+await check('Add to chat arms the equation, writes no question and sends nothing; Send carries the LaTeX as the context', async () => {
   const a0 = asks.length, p0 = plans.length;
   await shown().first().click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Ask in chat' }).click();
+  await page.getByRole('menuitem', { name: 'Add to chat', exact: true }).click(); // owner 2026-10-13: it replaced Ask in chat and its prefilled question
   await settle();
-  assert.equal(await composer().inputValue(), 'Can you explain this equation?');
+  assert.equal(await composer().inputValue(), '', 'no question is written');
   assert.equal(asks.length + plans.length, a0 + p0, 'nothing sent');
   assert.equal(await pill().getAttribute('title'), `Equation: ${latex}`);
-  await page.screenshot({ path: `${SHOTS}/7-pill-and-prefilled-question.png` });
+  await page.screenshot({ path: `${SHOTS}/7-pill-and-no-prefilled-question.png` });
+  await composer().fill('Can you explain this equation?');
   await composer().press('Enter');
   await until('the question', async () => asks.length + plans.length > a0 + p0, 8000);
   const body = JSON.stringify(asks.length > a0 ? asks.at(-1) : plans.at(-1));

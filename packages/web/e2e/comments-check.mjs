@@ -76,11 +76,12 @@ const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').eva
 const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
 const pins = () => page.locator('[data-comment-pin]');
-// The pin slot (owner, 2026-10-08): an object's pin sits just left of its Ask in chat pill, on the pill's row, never over it.
-const askPill = () => page.locator('button:visible', { hasText: 'Ask in chat' });
+// The pin slot (owner, 2026-10-08): an object's pin sits just left of its selection actions (Add to chat, Quick Edit: they replaced the
+// Ask in chat pill, owner 2026-10-13), on their row, never over them.
+const askPill = () => page.locator('[data-selection-bar]:visible').first();
 const beside = async (pinBox, pill) => {
   const box = await pill.boundingBox();
-  assert.ok(pinBox.x + pinBox.width <= box.x + 1, `left of Ask in chat: ${JSON.stringify([pinBox, box])}`);
+  assert.ok(pinBox.x + pinBox.width <= box.x + 1, `left of the selection actions: ${JSON.stringify([pinBox, box])}`);
   assert.ok(box.x - (pinBox.x + pinBox.width) < 24, `right next to it: ${JSON.stringify([pinBox, box])}`);
   assert.ok(Math.abs(pinBox.y + pinBox.height / 2 - (box.y + box.height / 2)) < 6, `on its row: ${JSON.stringify([pinBox, box])}`);
 };

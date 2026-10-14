@@ -200,10 +200,11 @@ test('the composers write an Ask action\'s question and focus; the learner\'s ow
   assert.match(bar, /const chips = crumbsShown\(target, live\) \? chipsFor\(target\) : \[\];/);
   // The canvas composer (ask.jsx AskPanel).
   assert.match(md, /if \(text && \(!typed\.current\.trim\(\) \|\| typed\.current === prefilled\.current\)\) \{ prefilled\.current = text; setInput\(text\); \}/);
-  // Canvas Ask in chat (card, slide, the menu's Ask about this) and a group's Ask in chat.
+  // Canvas Add to chat (owner 2026-10-13: it replaces Ask in chat; the bar, the menu's row and Ctrl/Cmd+L) writes no question: with no
+  // text askDraft only reveals and focuses the composer, so the learner's own words stay (card-selection.test.mjs).
   const canvas = read('AdaptiveCanvas.jsx');
-  assert.match(canvas, /if \(armTarget\(block\)\) askDraft\(cardQuestion\(describeObject\(block\)\?\.title\)\);/);
-  assert.match(canvas, /text: groupTargetText\(entries\) \}\);\n\s+askDraft\(GROUP_QUESTION\);/);
+  assert.match(canvas, /\} else armCollection\(ids\);\n\s+askDraft\(\);/);
+  assert.doesNotMatch(canvas, /askDraft\(cardQuestion|askDraft\(GROUP_QUESTION|askDraft\(TEXT_QUESTION|askDraft\(IMAGE_QUESTION|askDraft\(EQUATION_QUESTION/);
   assert.doesNotMatch(canvas, /new Event\('small:ask-focus'\)/);
 });
 

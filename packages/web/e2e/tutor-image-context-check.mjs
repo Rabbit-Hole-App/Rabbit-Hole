@@ -171,19 +171,20 @@ check('D a detached image sends no image_context', !!detached && imageOf(detache
   await shot(page, 'R-area');
 }
 
-// G: a group's Ask in chat - its snapshot is uploaded, the drafted question sent.
+// G: a group's Add to chat (it replaced the group's Ask in chat, owner 2026-10-13) - its snapshot is uploaded, the typed question sent.
 {
   const uploads = seen.uploads.length;
   await page.keyboard.press('Escape');
-  // The group's chip selects its members; the selected group shows its Ask in chat. Both are pressed as DOM events: the
+  // The group's chip selects its members; the selected group shows its Add to chat. Both are pressed as DOM events: the
   // chip sits at the board's left edge, under the tool gutter, which would take a pointer click.
   await page.locator('[data-group-chip="g1"]').dispatchEvent('pointerdown', { button: 0 });
-  const asked = await page.locator('[data-group-ask]').first().waitFor({ timeout: 5000 })
-    .then(() => page.locator('[data-group-ask]').first().dispatchEvent('click')).then(() => true, () => false);
+  const asked = await page.locator('[data-selection-bar] [data-add-to-chat]').first().waitFor({ timeout: 5000 })
+    .then(() => page.locator('[data-selection-bar] [data-add-to-chat]').first().dispatchEvent('click')).then(() => true, () => false);
   if (!asked) await shot(page, 'G-no-ask-pill');
   const captured = asked && await until(async () => seen.uploads.length > uploads, 20000);
   await page.waitForTimeout(800);
   const shotId = seen.uploads.at(-1), before = seen.plans.length;
+  await composer(page).fill('How do these two ideas fit together?'); // Add to chat writes no question
   await composer(page).press('Enter');
   await until(async () => seen.plans.length > before);
   await page.waitForTimeout(600);

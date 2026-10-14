@@ -145,10 +145,10 @@ for (const module of CARDS) {
   const changed = afterTexts.filter(t => !before.includes(t));
   if (!changed.length) throw new Error(`${scene.id}: the control change produced no different text - not a counterfactual`);
 
-  // chat context: the Ask-in-chat pill + composer sends this card's live state
+  // chat context: the Add to chat action (it replaced the Ask in chat pill, owner 2026-10-13) + composer sends this card's live state
   const sent = asks.length;
   await card.click({ position: { x: 24, y: 10 } });
-  await page.getByRole('button', { name: 'Ask in chat' }).click();
+  await page.getByRole('button', { name: 'Add to chat', exact: true }).click();
   const composer = page.locator('[data-chat-composer] input:visible').first();
   await composer.fill(`what changed on "${scene.title}"?`);
   await composer.press('Enter');
