@@ -8,10 +8,11 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 // The Learn canvas's permanent Chat tab (owner brief 2026-10-13 sections 2-3; sub-lane A1): a compact header (the thread
 // title, History, New chat, an overflow menu), then the conversation and its composer. History shows in place of the
 // conversation, which stays mounted underneath so its draft and scroll survive. Mounted only under ChatWorkspaceProvider.
-// unavailable: what shows instead of the AskPanel (an AWS job without app chat); every other prop goes to the AskPanel.
+// unavailable: what shows instead of the AskPanel (an AWS job without app chat); every other prop goes to the AskPanel,
+// then chatAskProps (A3b: slash, tutor, journey, voice and the other props the removed dock had).
 const ICON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink';
 
-export default function ChatPane({ hidden = false, unavailable = null, ...askProps }) {
+export default function ChatPane({ hidden = false, unavailable = null, chatAskProps = {}, ...askProps }) {
   const { thread } = useChatWorkspace();
   const title = thread.title || 'New chat';
   const [menu, setMenu] = useState(false), [renaming, setRenaming] = useState(false), [deleting, setDeleting] = useState(false);
@@ -45,7 +46,7 @@ export default function ChatPane({ hidden = false, unavailable = null, ...askPro
       {deleting && <ConfirmDialog title="Delete this chat?" body={`"${title.slice(0, 80)}" and its messages are removed for good. Uploaded materials stay on the canvas.`}
         onConfirm={() => { setDeleting(false); thread.remove(); }} onCancel={() => setDeleting(false)} />}
       {thread.historyOpen && <ChatHistory />}
-      <div className={`${thread.historyOpen ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{unavailable || <AskPanel {...askProps} />}</div>
+      <div className={`${thread.historyOpen ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{unavailable || <AskPanel {...askProps} {...chatAskProps} />}</div>
     </div>
   );
 }

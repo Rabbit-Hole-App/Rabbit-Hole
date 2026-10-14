@@ -104,6 +104,8 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
   assert.match(pane, /thread\.rename && \['Rename'[^\]]*\], thread\.remove && \['Delete'/);
   assert.match(pane, /\{actions\.length > 0 && <span className="relative">/);
   assert.match(pane, /\{thread\.historyOpen && <ChatHistory \/>\}\n\s+<div className=\{`\$\{thread\.historyOpen \? 'hidden' : 'flex'\}/, 'History in place of the conversation, which stays mounted');
+  assert.match(pane, /data-chat-pane/, 'e2e selects [data-chat-pane] [data-chat-composer]');
+  assert.match(pane, /\{unavailable \|\| <AskPanel \{\.\.\.askProps\} \{\.\.\.chatAskProps\} \/>\}/, 'the dock\'s props (A3b) reach the Chat AskPanel');
   assert.doesNotMatch(pane, /Sparkles|AppIcon|contentPanel/);
   assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat'\}/);
 });
