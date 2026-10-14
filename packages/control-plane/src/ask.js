@@ -378,7 +378,12 @@ export async function askOnce(env, context, question, maxTokens = 300, org = nul
 
 // Streaming answer as an SSE Response. `history` is prior thread turns
 // [{role, content}]; the context rides on the latest user turn. onDone(fullText)
-// runs after the stream closes (store the message, etc.).
+// runs after the stream closes (store the message, etc.). It may return
+// { answerMeta, done }: answerMeta is sent as `answer_meta` before `done`, and done's
+// fields join done's meta (chat-workspace-CONTRACT.md B1). On the research path,
+// research.onAnswer(text) may rewrite the answer before any chunk (the chat trailer is
+// split off there), and a stream that breaks after the answer exists (the client
+// stopped) calls onDone(full, true) once, best effort.
 export function askStream(env, context, history, message, onDone, meta = {}, extraBlocks = [], toolOpts = null, model = null, org = null, system = ASK_SYSTEM, research = null) {
   const turns = [
     ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -395,7 +400,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
   const send = (event, data) => writer.write(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
 
   (async () => {
-    let full = '';
+    let full = '', finished = false;
     try {
       if (research) {
         // The outline instructions ride with the tool, so the capability is only
@@ -403,7 +408,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
         const researchSystem = research.system ? `${system}
 ${research.system}` : system;
         const result = await researchAnswer(env, turns, researchSystem, model, { callModel: loggedModel('chat', anthropic), initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: (stage, card) => send('progress', card ? { stage, card } : { stage }) });
-        full = result.answer;
+        full = research.onAnswer ? research.onAnswer(result.answer) : result.answer;
         if (result.papers.length) {
           // An uploaded PDF has no arXiv id or public link: its title alone.
           const references = result.papers.map(p => (p.pdfUrl ? `[${p.title} (arXiv:${p.id})](${p.pdfUrl})` : p.title)).join(' | ');
@@ -485,10 +490,14 @@ ${research.system}` : system;
           }
         }
       }
-      await onDone?.(full);
-      await send('done', { ok: true, ...meta });
+      finished = true;
+      const extra = await onDone?.(full);
+      if (extra?.answerMeta) await send('answer_meta', extra.answerMeta);
+      await send('done', { ok: true, ...meta, ...extra?.done });
     } catch (e) {
-      await send('error', { error: e.message }).catch(() => {});
+      // ponytail: a stopped partial is kept only while the worker still runs after the disconnect (no waitUntil).
+      if (research && full && !finished) await Promise.resolve(onDone?.(full, true)).catch(() => {});
+      await send('error', { error: e?.message || 'stream stopped' }).catch(() => {});
     } finally {
       await writer.close().catch(() => {});
     }

@@ -1857,16 +1857,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return revealAfter(block.id);
       },
       // A validated block from a / command (learn-slash.js).
-      // A chat answer the learner puts on the canvas from the dock's sheet: a
-      // finished chat card, centred like a fresh question's.
-      insertChat: ({ question, answer }) => {
+      // A chat answer the learner puts on the canvas (the answer footer's Add as card): a finished chat card, centred like
+      // a fresh question's. `answer` is the stored markdown, so inline citations stay; `sources` (the answer's refs) ride
+      // along as data. `id` (chat-<messageId>): a card already holding it is located, never added twice.
+      insertChat: ({ id = crypto.randomUUID(), question, answer, sources = null }) => {
+        if (exchangesRef.current.some(exchange => exchange.id === id)) { commandsRef.current.focusObject(id); return id; }
         snapshot(true);
-        const id = crypto.randomUUID();
         seenChats.current.add(id);
         centerRef.current = id;
-        onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0 }]);
+        onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0, ...(sources?.length ? { sources } : {}) }]);
         return id;
       },
+      // Whether the canvas holds this card (the footer's Added state).
+      hasCard: id => exchangesRef.current.some(exchange => exchange.id === id),
       // `after` (a block id): right after that block in the flow, ignoring the view - a journey section's steps
       // under their heading (learn-journey-materialize.js). The updater reads `previous`, so inserts chained in one
       // tick land in order.

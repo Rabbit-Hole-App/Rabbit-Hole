@@ -288,7 +288,8 @@ export function canvasAskSeam(env, app) {
   const db = env.LEARN_DB;
   return {
     app, db,
-    context: `SCOPE: canvas ${JSON.stringify(app.title)} - a standalone learning canvas whose content lives in the learner's browser. Teach as a general tutor.`,
+    // The title is a weak hint (chat workspace brief section 8): a stale title must never outrank the discussion or material.
+    context: `SCOPE: canvas ${JSON.stringify(app.title)} - a standalone learning canvas whose content lives in the learner's browser. The title is a weak hint and may be outdated: it is never the topic when the request, recent turns, attached material or the selection say otherwise. Teach as a general tutor.`,
     repository: () => projectRepository(env, app),
     findThread: id => db.prepare("SELECT id, 'learn' AS scope, scope_ref FROM threads WHERE id=? AND org=? AND user=?").bind(id, app.org, app.email).first(),
     newThread: async title => {
