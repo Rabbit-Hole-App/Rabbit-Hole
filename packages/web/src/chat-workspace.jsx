@@ -17,7 +17,9 @@ import { useChatSources } from './chat-sources.js';
 const ChatWorkspace = createContext(null);
 export const useChatWorkspace = () => useContext(ChatWorkspace);
 
-export function ChatWorkspaceProvider({ canvas, children }) {
+// canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), hasBlock(id), locate(id) },
+// for Lane B's footer and actions (contract B3, B5). null until the canvas mounts; callers check before use.
+export function ChatWorkspaceProvider({ canvas, canvasOps = null, children }) {
   const panels = useChatPanels(canvas);
   const thread = useChatThread(canvas);
   // thread.restore = { key, mode, contextRefs, draft }: a new key (open, New chat, canvas change) resets both hooks below.
@@ -37,6 +39,6 @@ export function ChatWorkspaceProvider({ canvas, children }) {
   const sender = useRef(null);
   const registerSender = useCallback(send => { sender.current = send; return () => { if (sender.current === send) sender.current = null; }; }, []);
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
-  const value = useMemo(() => ({ canvas, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate }), [canvas, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate]);
+  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
