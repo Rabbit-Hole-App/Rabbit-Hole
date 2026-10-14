@@ -1141,3 +1141,29 @@ test('Curious: Refresh sends a bounded refresh id per basis, reused on retry, ne
   r.ctl.refresh(); await flush();
   assert.deepEqual(r.extras.slice(4), [null, { refresh: 'r1' }], 'counted per basis');
 });
+
+// Owner task 2: while the canvas's words are settling (typed, not yet read), the set on screen is stale at once - never
+// clickable - and nothing is asked until they settle; a reply landing meanwhile never replaces it.
+test('Curious: settling makes the shown set stale at once and asks nothing until it settles; a reply landing meanwhile stays hidden', async () => {
+  let release;
+  const slow = new Promise(resolve => { release = resolve; });
+  const r = rig([setFor(1), slow, setFor(3)]);
+  r.ctl.update({ basis: 'a', stop: null, input });
+  await r.c.fire();
+  assert.equal(r.ctl.view().status, 'ready');
+  r.ctl.update({ basis: 'a', stop: null, input, settling: true });
+  assert.deepEqual([r.ctl.view().status, r.ctl.view().set_id], ['stale', 'ns_00000001'], 'stale at once, before any read');
+  assert.deepEqual(r.ctl.select('ns_00000001.1'), { ok: false, reason: 'stale' }, 'never clickable');
+  assert.equal(r.c.pending(), 0, 'nothing asked while settling');
+  r.ctl.update({ basis: 'b', stop: null, input });
+  assert.equal(r.ctl.view().status, 'stale');
+  const flying = r.c.fire(); // the reply is held back below
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(r.bodies.length, 2, 'the settled words are asked for');
+  r.ctl.update({ basis: 'b', stop: null, input, settling: true });
+  release(setFor(2)); await flying;
+  assert.equal(r.ctl.view().status, 'stale', 'a reply landing while the words settle never shows as current');
+  r.ctl.update({ basis: 'c', stop: null, input });
+  await r.c.fire();
+  assert.deepEqual([r.ctl.view().status, r.ctl.view().set_id], ['ready', 'ns_00000003']);
+});

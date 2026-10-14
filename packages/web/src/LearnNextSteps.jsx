@@ -69,9 +69,11 @@ export function ownedSteps(read, { post = (input, extra = {}) => api('/api/learn
         // Task 14 C-M2: the goal the input is built from (goalOf over the snapshot), never the title fallback prop alone.
         stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, objects: snapshot ? snapshot.objects.length + snapshot.omitted.objects : 0, goal: goalOf({ context: s.context, record: s.record, title: p.title, liveTitle: s.liveTitle }).goal, plain: s.context.source === 'canvas' && !s.record }),
         ...(semantic ? { semantic } : {}),
+        // Owner task 2: the canvas's words are changing and not yet read; the shown set is stale until they settle.
+        ...(p.canvasState?.semanticSettling ? { settling: true } : {}),
       };
     },
-    update: ({ basis, stop, semantic = null }) => life.controller().update({ basis, stop, input: previous => {
+    update: ({ basis, stop, semantic = null, settling = false }) => life.controller().update({ basis, stop, settling, input: previous => {
       const { p, s, blocks } = now();
       const built = nextStepsInput({ ...s, journey: p.journey, blocks, title: p.title, lastTurn: p.tutor?.lastTurn, previous, basis, describe: p.describe, snapshot: semantic?.snapshot ?? null });
       // The trace identity as this input is sent, so a set that lands after the canvas moved on keeps its own ids.
@@ -99,8 +101,8 @@ export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, re
   const live = useRef(null);
   live.current = { tutor, journey, canvasApi, canvasState, record, access, title, graded, canvasVersion, board, describe };
   const [steps] = useState(() => ownedSteps(() => live.current));
-  const { basis, stop, semantic } = steps.state();
-  useEffect(() => { steps.update({ basis, stop, semantic }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { basis, stop, semantic, settling = false } = steps.state();
+  useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
   return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh };
 }

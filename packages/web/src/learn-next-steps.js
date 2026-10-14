@@ -225,6 +225,9 @@ export function stoppingPoint({ busy = false, journey = null, store = null, here
 // cap here is the tab ceiling: it shadows the capText import (also cap), which this function must not call.
 export function nextStepsController({ post, onSet = () => {}, onShown = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, now = Date.now, debounce = L.debounce_ms, cap = L.tab_cap }) {
   let basis = null, stop = 'off', build = null, shown = null, timer = null, flying = null, requests = 0, changedAt = 0, disposed = false;
+  // Owner task 2: the canvas's words are changing and not yet read (settling): the set on screen is stale at once, and
+  // nothing is asked until they settle into a basis.
+  let settling = false;
   // A learner's Refresh (owner brief 2 item 6): { basis, status: 'loading' | 'error', reason } while it runs or after it failed.
   let again = null;
   // Owner task 2: Refreshes landed per basis, so each Refresh is one operation, r<n>: a retry reuses its id (the server's
@@ -240,7 +243,7 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
   // The current basis first; else limited once the ceiling leaves it unasked; else the last shown set, stale; else loading.
   const view = () => {
     const entry = outcomes.get(basis);
-    const out = stop ? unavailable(stop) : entry?.set ? showing('ready', entry.set) : entry ? unavailable(entry.failed)
+    const out = stop ? unavailable(stop) : settling ? (shown ? showing('stale', shown) : { status: 'loading', reason: null, ...empty }) : entry?.set ? showing('ready', entry.set) : entry ? unavailable(entry.failed)
       : requests >= cap && flying !== basis ? unavailable('limited') : shown ? showing('stale', shown) : { status: 'loading', reason: null, ...empty };
     // The set on screen stays while a refresh runs and after one fails; the card shows the refresh's own state beside it.
     return again && again.basis === basis && out.status === 'ready' ? { ...out, refresh_state: again.status, ...(again.reason ? { refresh_reason: again.reason } : {}) } : out;
@@ -265,12 +268,12 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
   };
   const schedule = delay => {
     clearTimer(timer); timer = null;
-    if (disposed || stop || !basis || flying !== null || outcomes.has(basis) || requests >= cap) return;
+    if (disposed || stop || settling || !basis || flying !== null || outcomes.has(basis) || requests >= cap) return;
     timer = setTimer(fire, delay);
   };
   async function fire() {
     timer = null;
-    if (disposed || stop || !basis || flying !== null || outcomes.has(basis)) return;
+    if (disposed || stop || settling || !basis || flying !== null || outcomes.has(basis)) return;
     const sent = basis;
     let outcome, built = {};
     try {
@@ -295,8 +298,8 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
     update(next) {
       if (disposed) return;
       build = next.input;
-      if (next.basis === basis && (next.stop ?? null) === stop) return;
-      basis = next.basis; stop = next.stop ?? null; changedAt = now();
+      if (next.basis === basis && (next.stop ?? null) === stop && !!next.settling === settling) return;
+      basis = next.basis; stop = next.stop ?? null; settling = !!next.settling; changedAt = now();
       if (again && again.basis !== basis) again = null;
       schedule(debounce); sync();
     },
@@ -315,7 +318,7 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
     // usable; a failure keeps it and says so (retryable); a reply for a basis the canvas has left is dropped. Returns
     // whether a request went out. Sends no chat message and changes nothing on the canvas.
     refresh() {
-      if (disposed || stop || !basis || flying !== null || !outcomes.get(basis)?.set) return false;
+      if (disposed || stop || settling || !basis || flying !== null || !outcomes.get(basis)?.set) return false;
       const sent = basis;
       if (requests >= cap) { again = { basis: sent, status: 'error', reason: 'limited' }; sync(); return false; }
       again = { basis: sent, status: 'loading' };

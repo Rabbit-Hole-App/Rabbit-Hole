@@ -2396,7 +2396,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const attempts = blocks.reduce((sum, block) => sum + (block.attemptLog?.length || 0), 0);
   // Whether every selected lockable object is locked (the menus say Unlock then).
   const selectionLocked = selection.length > 0 && selection.every(id => !blocks.concat(items, shapes).some(entry => entry.id === id) || blocks.concat(items, shapes).some(entry => entry.id === id && entry.locked)) && selection.some(id => blocks.concat(items, shapes).some(entry => entry.id === id && entry.locked));
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, card: JSON.parse(cardKey), content, attempts, semanticFingerprint }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, cardKey, content, attempts, semanticFingerprint, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = () => {
@@ -2610,23 +2610,33 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: blocksRef.current, groups: groupsRef.current, exchanges: exchangesRef.current });
   // The live lists with the open text editor's words on its object, read without committing or closing it (the shared
   // snapshot's board; agent-coordination 2026-10-13-shared-canvas-semantics.md, decision 3).
+  const editorWords = () => {
+    const id = editStep.current?.id || editingShape || editingLabel, runs = editorRef.current?.state?.().runs;
+    return id && runs ? { id, text: plainOf(runs) } : null;
+  };
   const semanticBoard = () => {
-    const board = inlineBoard(), id = editStep.current?.id || editingShape || editingLabel, runs = editorRef.current?.state?.().runs;
-    if (!id || !runs) return board;
-    const text = plainOf(runs), put = list => list.map(entry => (entry.id === id ? { ...entry, text } : entry));
+    const board = inlineBoard(), typed = editorWords();
+    if (!typed) return board;
+    const { id, text } = typed, put = list => list.map(entry => (entry.id === id ? { ...entry, text } : entry));
     return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
   };
   // Curious (docs/features/professor-next-steps.md 2.8): the snapshot is read once the board or the editor's words have been
   // still for 150 ms (a burst of edits or a drag is one read, never one per keystroke or frame), focused on the recent
   // edits, then the selection. Its fingerprint reaches the page (onState), so a change of meaning re-plans; a move does not.
-  const semanticRef = useRef({ value: null, recent: null });
+  // Typing in the open editor is settling at once (semanticSettling: the shown suggestions go stale before the read), but
+  // only when its words differ from the last read: a caret move or opening an editor is not a change.
+  const semanticRef = useRef({ value: null, recent: null, typed: null });
   const [semanticFingerprint, setSemanticFingerprint] = useState(null);
+  const [semanticSettling, setSemanticSettling] = useState(false);
   useEffect(() => {
+    const typed = editorWords(), last = semanticRef.current.typed;
+    if (typed && last?.id === typed.id && last.text !== typed.text) setSemanticSettling(true);
     const timer = setTimeout(() => {
       const board = semanticBoard(), recent = recentEdits(semanticRef.current.recent, board);
       const snapshot = curiousSnapshot(board, [...recent.ids, ...selectedRef.current]);
-      semanticRef.current = { value: { snapshot, fingerprint: snapshot.fingerprint }, recent };
+      semanticRef.current = { value: { snapshot, fingerprint: snapshot.fingerprint }, recent, typed: editorWords() };
       setSemanticFingerprint(snapshot.fingerprint);
+      setSemanticSettling(false);
     }, 150);
     return () => clearTimeout(timer);
   }, [shapes, items, links, blocks, groups, editorTick, selection]); // eslint-disable-line react-hooks/exhaustive-deps

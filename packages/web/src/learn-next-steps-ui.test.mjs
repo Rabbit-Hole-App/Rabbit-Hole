@@ -262,7 +262,7 @@ test('useNextSteps: exactly the steps shape, unavailable/off without a Tutor; th
   assert.match(source, /emitDecision\(shownEvent\(/);
   // The update effect depends on the trigger state alone: never on a click, pan, zoom, hover or pointer movement. The
   // semantic snapshot (owner task 2) rides along with the basis its fingerprint is in, never as a trigger of its own.
-  assert.match(source, /useEffect\(\(\) => \{ steps\.update\(\{ basis, stop, semantic \}\); \}, \[basis, stop\]\);/);
+  assert.match(source, /useEffect\(\(\) => \{ steps\.update\(\{ basis, stop, semantic, settling \}\); \}, \[basis, stop, settling\]\);/);
   assert.match(source, /useSyncExternalStore\(steps\.subscribe, steps\.view, steps\.view\)/);
 });
 
@@ -825,4 +825,20 @@ test('Curious: a same-id text edit and a relation change re-ask with the new con
   assert.notEqual(r.steps.state().basis, edited, 'a new connector relation: a new basis');
   r.step(); await r.c.fire();
   assert.deepEqual(r.bodies[2].canvas.relations.map(x => [x.from, x.to, x.label, x.source]), [['s1', 's2', 'left child', 'connector']]);
+}));
+
+test('Curious: while the canvas reports its words settling, the shown set is stale and unclickable; nothing is asked until they settle', () => withSession(async () => {
+  const r = semanticRig();
+  r.step(); await r.c.fire();
+  assert.equal(r.steps.view().status, 'ready');
+  r.live.canvasState = { cards: [], semanticSettling: true };
+  r.step();
+  assert.equal(r.steps.view().status, 'stale');
+  assert.equal(r.steps.select(r.steps.view().options[0].id).ok, false);
+  assert.equal(r.c.pending(), 0);
+  r.canvas.board = { ...r.canvas.board, items: [{ ...r.canvas.board.items[0], text: 'heap: parent above children' }] };
+  r.live.canvasState = { cards: [] };
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.bodies.length, r.steps.view().status], [2, 'ready']);
+  assert.ok(r.bodies[1].canvas.objects.some(o => o.text === 'heap: parent above children'));
 }));
