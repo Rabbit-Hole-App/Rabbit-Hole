@@ -1322,7 +1322,7 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
   // Final review C-I1: a hole's opening turn is sent once, from the dock - never again from each block's composer
   // (Continue convo), which gets the same Tutor in a journey hole.
-  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| openedHole\.current === tutor\.opening\.key \|\| busy\) return;/);
+  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
 });
 
 // ---- LP1 Task 14 (architecture §13): the minimal journey context a Rabbit Hole opened from a journey section carries.

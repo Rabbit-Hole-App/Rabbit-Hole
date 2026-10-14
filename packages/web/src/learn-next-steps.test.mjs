@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { openOnce } from './learn-opening.js';
 import { carryStep, goalOf, holeOpening, informativeTitle, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
 import { emptyStore, appendEvents } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
@@ -948,13 +949,13 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   const step = { suggestion_id: 'ns_01010101.2', learning_goal: 'g' };
   let saved = emptyStore(), loads = 0;
   const load = () => { loads += 1; return saved; };
-  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, settled: true, active: true, domain: () => NANOGPT, ...over });
+  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, settled: true, active: true, domain: () => NANOGPT, mint: () => 'o1', ...over });
   carryStep(s, record.dive_id, step);
   // Hook turns do not run here yet (the hole's Tutor context is not resolved): the step is kept and nothing is read.
   assert.deepEqual(open({ hookTurns: false }), { store: null, opening: null });
   assert.deepEqual([loads, [...s.m.values()].map(v => JSON.parse(v))], [0, [step]], 'still stored, untouched');
   const first = open({ active: false });
-  assert.deepEqual(first.opening, { key: record.dive_id, next_step: step });
+  assert.deepEqual(first.opening, { key: `${record.dive_id}:o1`, next_step: step });
   assert.equal('question' in first.opening, false);
   saved = first.store;
   assert.equal(openingQuestion(saved, record), null, 'marked opened: no opening question later');
@@ -963,10 +964,10 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   saved = emptyStore();
   assert.deepEqual(open({ active: false }), { store: null, opening: null });
   const asked = open();
-  assert.deepEqual([asked.opening, openingQuestion(asked.store, record)], [{ key: record.dive_id, question: 'Take me into Masks.' }, null]);
+  assert.deepEqual([asked.opening, openingQuestion(asked.store, record)], [{ key: `${record.dive_id}:o1`, question: 'Take me into Masks.' }, null]);
   // Merge of Tasks 10 and 11 (Task 10 fix round 4): the opening question uses the live title, the record title only as a fallback.
   saved = emptyStore();
-  assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: record.dive_id, question: 'Take me into Mask notes.' });
+  assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: `${record.dive_id}:o1`, question: 'Take me into Mask notes.' });
   assert.deepEqual(open({ record: null }), { store: null, opening: null });
 });
 
@@ -978,15 +979,15 @@ test('holeOpening: nothing is taken or asked until the hook context settles; the
   const step = { suggestion_id: 'ns_02020202.1', learning_goal: 'g' };
   let loads = 0;
   const load = () => { loads += 1; return emptyStore(); };
-  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, active: false, domain: () => NANOGPT, ...over });
+  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, active: false, domain: () => NANOGPT, mint: () => 'o1', ...over });
   carryStep(s, record.dive_id, step);
   // The parent read pending: the canvas domain (hook turns, no typed Tutor), or a typed Tutor that is not the hole's yet.
   for (const active of [false, true]) assert.deepEqual(open({ settled: false, active }), { store: null, opening: null });
   assert.deepEqual([loads, [...s.m.values()]], [0, [JSON.stringify(step)]], 'nothing read; the step kept as it was');
   // Settled with a refusal: the canvas-domain hole takes it once (the dock sends it with askStep).
-  assert.deepEqual(open({ settled: true }).opening, { key: record.dive_id, next_step: step });
+  assert.deepEqual(open({ settled: true }).opening, { key: `${record.dive_id}:o1`, next_step: step });
   // Taken once; a settled typed Tutor asks its opening question as before (this load never saves, so the hole is not marked).
-  assert.deepEqual([s.m.size, open({ settled: true, active: true }).opening], [0, { key: record.dive_id, question: 'Take me into Falls.' }]);
+  assert.deepEqual([s.m.size, open({ settled: true, active: true }).opening], [0, { key: `${record.dive_id}:o1`, question: 'Take me into Falls.' }]);
 });
 
 // Owner 2026-10-08 (r29): a journey hook input names the next section only once the current section's checks were tried, with
@@ -1166,4 +1167,24 @@ test('Curious: settling makes the shown set stale at once and asks nothing until
   r.ctl.update({ basis: 'c', stop: null, input });
   await r.c.fire();
   assert.deepEqual([r.ctl.view().status, r.ctl.view().set_id], ['ready', 'ns_00000003']);
+});
+
+// A carried opening is sent once even when the dock remounts (the hole's board landing from the server remounts the canvas);
+// a later, distinct carry into the same hole is a new opening, sent exactly once (curious-context lane, 2026-10-13).
+test('openOnce: each carried opening sends once across a remount; a second, distinct carry into the same hole sends exactly once', () => {
+  const s = memory(), record = { dive_id: 'canvas-0000cafe', title: 'Heaps', origin: { parent: { app: 'share:k', board: 'main' } } };
+  const open = () => holeOpening({ storage: s, load: () => emptyStore(), record, hookTurns: true, settled: true, active: false, domain: () => NANOGPT }).opening;
+  const sent = new Set();
+  carryStep(s, record.dive_id, { suggestion_id: 'ns_03030303.1', learning_goal: 'g1' });
+  const first = open();
+  assert.equal(openOnce(sent, first.key), true, 'the first carry sends');
+  assert.equal(openOnce(sent, first.key), false, 'a remounted dock never sends it again');
+  carryStep(s, record.dive_id, { suggestion_id: 'ns_03030303.1', learning_goal: 'g1' });
+  const second = open();
+  assert.notEqual(second.key, first.key, 'a later carry into the same hole is a new opening, even of the same hook');
+  assert.deepEqual([openOnce(sent, second.key), openOnce(sent, second.key)], [true, false], 'sent exactly once');
+  for (let i = 0; i < 60; i++) openOnce(sent, `k${i}`);
+  assert.equal(sent.size, 50, 'at most 50 keys');
+  assert.equal(sent.has(first.key), false, 'the oldest go first');
+  assert.equal(openOnce(sent, ''), false);
 });

@@ -84,7 +84,10 @@ test('ask.jsx sendStep: Voice on is say with the step, else one askStep turn dra
 });
 
 test('ask.jsx: a hook carried into a new hole opens it once, keyed by opening.key, through sendStep (never typed)', () => {
-  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| openedHole\.current === tutor\.opening\.key \|\| busy\) return;\n\s+openedHole\.current = tutor\.opening\.key;\n[^\n]*\n\s+if \(tutor\.opening\.next_step\) \{ sendStep\(tutor\.opening\.next_step, tutor\.opening\.next_step\.hook\); return; \}/);
+  // Once per tab, not per mount: the dock remounts when the hole's board lands from the server (LearnPage canvasEpoch), and a
+  // per-mount ref sent the carried opening twice (curious-context lane, 2026-10-13, next-steps-wiring-check step 13).
+  assert.ok(ask.indexOf('const openedHoles = new Set();') >= 0 && ask.indexOf('const openedHoles = new Set();') < ask.indexOf('export function AskPanel('), 'the guard outlives a remount');
+  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;\n[^\n]*\n\s+if \(tutor\.opening\.next_step\) \{ sendStep\(tutor\.opening\.next_step, tutor\.opening\.next_step\.hook\); return; \}/);
 });
 
 test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a dock composer, never on a review board, outside the canvas', () => {

@@ -387,13 +387,15 @@ export function viewerStates(store, registry = TUTOR_DOMAINS) {
 // dives record and a journey hole's parent read), so a carried step never runs on the canvas domain a parent journey
 // replaces. load and domain are thunks (load mints a session id). Returns { store: to save or null, opening: for setOpening
 // or null }.
-export function holeOpening({ storage, load, record, title = null, hookTurns, settled, active, domain }) {
+// Each opening's key is minted here, the hole id plus a fresh id (mint), so it names that one opening: a later, distinct carry
+// into the same hole is a new opening (learn-opening.js openOnce).
+export function holeOpening({ storage, load, record, title = null, hookTurns, settled, active, domain, mint = () => crypto.randomUUID().slice(0, 8) }) {
   const none = { store: null, opening: null };
   if (!hookTurns || !settled || !record?.dive_id) return none;
   const carried = takeCarriedStep(storage, record.dive_id);
-  if (carried) return { store: markOpened(load(), record), opening: { key: record.dive_id, next_step: carried } };
+  if (carried) return { store: markOpened(load(), record), opening: { key: `${record.dive_id}:${mint()}`, next_step: carried } };
   if (!active) return none;
   const store = enterHole(load(), record, domain());
   const question = openingQuestion(store, record, title);
-  return { store: question ? markOpened(store, record) : store, opening: question ? { key: record.dive_id, question } : null };
+  return { store: question ? markOpened(store, record) : store, opening: question ? { key: `${record.dive_id}:${mint()}`, question } : null };
 }
