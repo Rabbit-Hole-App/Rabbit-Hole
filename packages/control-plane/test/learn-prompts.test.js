@@ -21,10 +21,10 @@ import { assessAnswer } from '../src/learn-grade-routes.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: 'af83a270b721abfc',
-  chat: '2f4e2157f2039985', // canvas seam and app asks; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint
-  chatSnapshot: 'a6671799be19fccb', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '57f85f0c88b1b7cc',
-  repository: '2b7d3ba9c8606d47',
+  chat: '8ba78d2bd5da9bf0', // canvas seam and app asks; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint; any subject, request first (topic-restriction brief)
+  chatSnapshot: '75fd4965a31b942c', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '0f544d73e7d38b80',
+  repository: 'dd59f312d45aad50',
   artifact: '870e84a3aa127657',
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',

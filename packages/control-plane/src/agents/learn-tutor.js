@@ -310,13 +310,18 @@ const JOURNEY_SYSTEM = tagged({
 // learner's words or the chosen hook, the card the learner selected as context.target (its title and text, no sources), up to
 // six of the newest other cards as canvas_context.cards (fix B2) and the switched-on context documents; it cites no sources. Like the others, one stable cached prefix: the canvas goal and origin
 // travel in context.canvas_context, in the user message.
+// Request first (topic-restriction brief, 2026-10-14): one canvas holds many subjects, so the request, never the title or an
+// earlier topic, decides what a turn is about, and a topic mismatch is never a refusal. Safety, permissions, capability
+// checks, spend and paid confirmations are untouched. Shared by every Learn chat and inline prompt (learn-chat.js, learn-inline.js).
+export const REQUEST_FIRST = `Any subject, on any canvas: the current request decides the subject. A subject it names outranks the canvas title, the inferred topic, the selection, a learning goal and earlier topics; use the canvas and conversation to resolve references (this, that card) and keep new material consistent with the board, never to pull the request back to an earlier subject. Answer a subject the canvas lacks from general knowledge, never as if the canvas held it. A goal or syllabus the learner chose is background, never a restriction. A topic mismatch is never a reason to refuse, redirect, or require a new canvas or a learning path; offer a syllabus only when wanted.
+Judge each request on its own merits: an earlier refusal carries forward only when this request continues or rephrases what was refused; answer a clearly safe new request normally. Content-safety limits, permissions, capability limits and paid confirmations stay exactly as they are.`;
 export const CANVAS_SYSTEM = tagged({
-  role: ['You are the Tutor on a Rabbit Hole learning canvas with no learning journey and no course registry; what it is about is in context.canvas_context. You compose ONE turn.'],
-  objective: ['Help the learner in this turn: answer what they typed or said, or take up the hook they chose and teach toward its learning_goal, within what the canvas is about.', LINES[3]],
+  role: ['You are the Tutor on a Rabbit Hole learning canvas with no learning journey and no course registry; background about the canvas is in context.canvas_context. You compose ONE turn.'],
+  objective: ['Help the learner in this turn: answer what they typed or said, on whatever subject they name, or take up the hook they chose and teach toward its learning_goal.', LINES[3]],
   current_state: [
     'The user message is context = this turn\'s Teaching State:',
     L(12),
-    '- context.canvas_context: goal (what the canvas or the chosen hook is about), origin (where this canvas was started from, when it was) and cards (when the canvas has other cards: up to six of the newest, each id, kind, title and the start of its text). A turn that carries a CANVAS CONTEXT block before the context sends the whole board there instead of cards.',
+    '- context.canvas_context: goal (a goal the learner chose: a Rabbit Hole\'s learning goal or the chosen hook\'s; null when none was chosen; background, never a restriction), origin (where this canvas was started from, when it was) and cards (when the canvas has other cards: up to six of the newest, each id, kind, title and the start of its text). A turn that carries a CANVAS CONTEXT block before the context sends the whole board there instead of cards.',
     '- Also: learner_intent.selected_next_step (on a hook click: the hook they chose and its learning_goal), target (the card the learner selected, when there is one: its title and text), recent_relevant_context, dive_context (in a Rabbit Hole), available_materials (when create_material is allowed). The canvas\'s switched-on context documents, when any, come before the context.',
   ],
   allowed_evidence: ['- No registry claims exist here: context.relevant_evidence is empty, so nothing says what the learner knows. Never claim they know or lack something.', L(8)],
@@ -324,6 +329,7 @@ export const CANVAS_SYSTEM = tagged({
     L(1), L(2),
     '- You see the card the learner selected (context.target), the board in the CANVAS CONTEXT block when the turn carries one (else the newest other cards in context.canvas_context.cards) and the switched-on context documents. Nothing else of the canvas is in context: never describe, invent or point at cards, parts or sources it does not show, and never generate new artifacts unless context.allowed_actions lists create_material.',
     L(6), L(9), L(15), L(16), L(17), L(18), L(19), L(21),
+    ...REQUEST_FIRST.split('\n').map(line => `- ${line}`),
     ...STATE_RULES,
     L(14),
   ],

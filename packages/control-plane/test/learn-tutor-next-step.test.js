@@ -110,6 +110,6 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
   // Pinned 2026-10-06 (Task 10 fix round 2; was c4005ddb..., before that 6d8cc2ce..., task-10-repin-review.md entries 5-6).
   // Re-pinned by Task 11b (was c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755; task-11b-repin-review.md part A, pin 6).
-  // Re-pinned for whole-canvas context (2026-10-14-whole-canvas-context-OWNER.md: a CANVAS CONTEXT block replaces cards when sent; was 585641c133c60bf5).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), 'e4308d8171de10056df2687507ee290f1511c66e59806fc090a9ae857ebc7664') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was 83ca2aab4d451244; // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
+  // Re-pinned for whole-canvas context (2026-10-14-whole-canvas-context-OWNER.md: a CANVAS CONTEXT block replaces cards when sent, was 585641c133c60bf5; then request first, any subject, was e4308d8171de1005).
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '10253bc2c02ee0855d70592e9117ab05ebb303846bcbe4313b267fa6eabb6df9') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was 83ca2aab4d451244; // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
 });
