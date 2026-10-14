@@ -705,3 +705,40 @@ of where the position of the generate output should be."
 - Browser (inline-ai-check, mocked provider): the ghost's box equals the accepted object's box; the ghost is topmost
   (elementFromPoint at its centre is the ghost); it goes on Reject and on Esc; the board thumbnail and the undo stack
   do not contain it.
+
+## A8. Context by relevance, and an Explain that teaches (owner, 2026-10-13)
+
+Owner task, verbatim in agent-coordination/tasks/2026-10-13-inline-context-OWNER.md. It replaces section 3's tiny
+proximity fallback (three objects within 60 units) and section 9's storage-minded wording. Node 23 is a regression
+example only; nothing here is written around trees.
+
+### Selection and intent
+
+- The selection says what the request is about. The Edit/Explain pill and the learner's words say what to do. A circle
+  holding "23" is read through the request and what surrounds it, never assumed to be a tree node.
+- Only the selected ids, or the exact selected range, may be edited (inline-ai-apply.js validateEdit). Everything else
+  in the context is read-only support, however much of it there is.
+
+### What the context holds (inline-ai-context.js on canvas-semantics.js)
+
+- The target: the selected objects, or the exact range with the words around it.
+- Its stored connections, both ways, with completeness, and siblings through a shared parent (as before).
+- Supporting material chosen by relevance, each entry with the reason it is there:
+  - **diagram**: up to three steps along stored links and drawn arrows. A drawn arrow counts only as much as the reading
+    of its ends is sure.
+  - **inferred**: drawn arrows touching the target, with direction from their arrowheads and the label at their middle.
+  - **label**: a short text on or against the target, or against an included object.
+  - **heading or section**: the column heading above it and, when the section is small, the section's other material;
+    or a heading written on the canvas just above its region.
+  - **text before or after**: text boxes stacked with a text target, read in order.
+  - **group**: its group and the other members.
+  - **discussion**: a chat answered about the target.
+  - **shares its terms**: anything that shares words with the request or the target, however far away.
+- Closeness alone never qualifies. An unrelated note beside the target stays out, and so does the rest of the canvas.
+- `relations` says how the included objects relate. Each relation keeps its source: a stored link (connector), a drawn
+  arrow (inferred, with a confidence; uncertain below 0.7), or an earlier note's connector (annotation). Direction is
+  kept. Nothing is turned into parent and child.
+- `metadata.canvasTitle` (and the learning goal) are background only. The title can be out of date or name another topic.
+  It never chooses context, and a canvas can hold several topics.
+- `considered` is how many objects were weighed. The context never claims to be the whole canvas.
+- Selection only: the target alone, as before.

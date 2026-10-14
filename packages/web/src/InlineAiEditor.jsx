@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
-import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
+import { buildContext, clippedOf, contextShape, RELATIONS, staleness, unionBox } from './inline-ai-context.js';
 import { cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
@@ -13,7 +13,11 @@ import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
 
 const W = 360, GAP = 12, EDGE = 8;
 const LABEL = { shape: 'Shape', line: 'Line', text: 'Text', sticky: 'Note', equation: 'Equation', section: 'Divider', card: 'Card', chat: 'Chat', connection: 'Connector' };
-const RELATION = { connected: 'connected', sibling: 'sibling', inferred: 'drawn arrow (inferred)', group: 'same group', annotation: 'earlier note', nearby: 'nearby' };
+// Why each supporting object is in the context: its line in the details, and its count in the compact line.
+const RELATION = { connected: 'connected', sibling: 'sibling', diagram: 'same diagram', inferred: 'drawn arrow', group: 'same group', heading: 'heading or section',
+  label: 'label', flow: 'text before or after', discussion: 'discussion', mentions: 'shares its terms', annotation: 'earlier note' };
+const COUNTED = { connected: 'connected', sibling: 'sibling', diagram: 'in its diagram', inferred: 'by drawn arrow', group: 'in group', heading: 'heading or section',
+  label: 'label', flow: 'around it', discussion: 'discussion', mentions: 'sharing its terms', annotation: 'earlier note' };
 const short = (text, n = 48) => { const one = String(text || '').replace(/\s+/g, ' ').trim(); return one.length > n ? `${one.slice(0, n - 1)}…` : one; };
 const busy = status => status === 'routing' || status === 'generating' || status === 'streaming';
 
@@ -85,9 +89,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   }
 
   // A1: context prepared while the learner writes - local work only, scheduled off the input path; refreshed at submit.
-  const prepare = (only = selectionOnly) => {
+  // request: the learner's words, at submit - what the context is chosen for, with the selection (owner 2026-10-13).
+  const prepare = (only = selectionOnly, request = '') => {
     const started = performance.now(), misses = canvas.cache.stats.misses;
-    const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, extras: config.extras?.() || {} });
+    const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -126,7 +131,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         // An open text editor's words are saved first, so what the model reads and the fingerprint Accept checks come
         // from the same saved text - never from words captured when the editor opened.
         canvas.flushEdits?.();
-        const made = prepare();
+        const made = prepare(selectionOnly, text);
         setPrepared(made);
         return { context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context) }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
@@ -288,9 +293,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const counts = prepared?.context.counts;
   const omittedTotal = prepared ? Object.values(prepared.context.omitted).reduce((sum, n) => sum + n, 0) : 0;
   const contextLine = !prepared ? 'Preparing context…' : selectionOnly ? 'Selection only' : [
-    `${counts.target} selected`, counts.connected && `${counts.connected} connected`, counts.sibling && `${counts.sibling} sibling${counts.sibling > 1 ? 's' : ''}`,
-    counts.group && `${counts.group} in group`, counts.inferred && `${counts.inferred} drawn arrow${counts.inferred > 1 ? 's' : ''}`, counts.annotation && `${counts.annotation} earlier note${counts.annotation > 1 ? 's' : ''}`, counts.nearby && `${counts.nearby} nearby`,
-  ].filter(Boolean).join(' · ');
+    `${counts.target} selected`, ...RELATIONS.filter(relation => counts[relation]).map(relation => `${counts[relation]} ${COUNTED[relation]}`),
+  ].join(' · ');
   const writing = status === 'streaming' || (busy(status) && !preview);
   const acceptable = (status === 'preview' || status === 'proposal') && preview && !state.accepted;
   const z = view.z;
@@ -414,7 +418,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             {prepared.context.target.objects.map(entry => <li key={entry.id} className="truncate"><span data-inline-context-target className="font-medium text-ai">Selected</span> · {LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(target.range && target.range.id === entry.id ? target.range.text : entry.text)}</li>)}
             {prepared.context.related.map(entry => <li key={entry.id} className="truncate">{RELATION[entry.relation] || entry.relation} · {LABEL[entry.type] || entry.type} · {short(entry.text)}</li>)}
             {prepared.context.target.group && <li className="truncate">group “{short(prepared.context.target.group.label || 'untitled', 30)}”</li>}
-            {prepared.context.broader.title && <li className="truncate">canvas title “{short(prepared.context.broader.title, 40)}”</li>}
+            {prepared.context.metadata.canvasTitle && <li className="truncate">canvas title “{short(prepared.context.metadata.canvasTitle, 40)}” (background only)</li>}
             {omittedTotal > 0 && <li>{omittedTotal} more left out by the limits</li>}
             {selectionOnly && <li>Surroundings left out (selection only)</li>}
           </ul>

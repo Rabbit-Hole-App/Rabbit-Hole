@@ -90,7 +90,7 @@ await run('node 23: Ctrl+K, Explain streams a grounded note, Accept adds a note 
   check('A4: opening prepared the context locally with no model, routing or handler call', (await page.evaluate(() => window.__inlineMock.calls.length)) === 0 && /1 connected/.test(await page.locator('[data-inline-context]').innerText()));
   await page.locator('[data-inline-context]').click();
   const contextText = await page.locator('[data-inline-context-list]').innerText();
-  check('the context indicator lists the parent, the sibling and the label beside it - and not the unrelated note', /connected · Shape · 4/.test(contextText) && /sibling · Shape · 3/.test(contextText) && /nearby · Text · bottom row/.test(contextText) && !/Buy milk/.test(contextText), contextText.replace(/\n/g, ' | '));
+  check('the context indicator lists the parent, the sibling and the label beside it - and not the unrelated note', /connected · Shape · 4/.test(contextText) && /sibling · Shape · 3/.test(contextText) && /label · Text · bottom row/.test(contextText) && !/Buy milk/.test(contextText), contextText.replace(/\n/g, ' | '));
   await shot('01-tree-explain-open');
   await page.locator('[data-inline-prompt]').fill('Explain this node');
   await page.keyboard.press('Enter');
