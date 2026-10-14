@@ -713,7 +713,8 @@ export function MenuItem({ icon: Icon, hint, className, children, ...props }) {
   );
 }
 
-// the product mark (favicon set) as an inline icon; brand rule: never lucide Sparkles
+// The product mark (favicon set) as an inline icon. Brand identity only (headers, logos), never the icon of a feature,
+// menu row or button (owner 2026-10-13: "never use the icon for rabbit hole for features"), and never lucide Sparkles either.
 export const AppIcon = ({ size = 15, className }) => (
   <img src={learnPreview ? RABBIT_HOLE_MARK : '/icon-32.png'} alt="" width={size} height={size} className={cn(learnPreview && 'rounded-[22%]', className)} />
 );
