@@ -154,9 +154,13 @@ directory (exported with the other logs) with one line per decision.
   template runs for every candidate until the app moves the gate environment into the check, as it did for the three above.
   What the app's check would have to do is what the template does: read `BASE`, `SMALL_CP` and `LOCAL_CP_VARS`, mint its session
   on the local control plane, create its own canvas, read the provider tripwire at the end, and print `N/N checks passed` with
-  N at least 15 (collect and run.mjs require it). The template's assertions are those of 9e2b459e (they still assert the Card
-  conversation panel that the release branch removes), so a candidate that removes it fails the template; moving the check is
-  the fix, not editing the template.
+  N at least 15 (collect and run.mjs require it).
+  The template asserts the r38 behaviour, the owner decision of 2026-10-13 (polish 1f626264): there is no Card conversation tab or
+  panel; a question about a selected card is answered as an ordinary chat card, scoped to that card (the plan request still
+  targets it), and the right panel does not open for it; a clarification stays above chat and material creation is unchanged.
+  Its assertions are, line for line, those of the app's own rewritten check at 401903a9 (`prepare-sources.test.mjs` compares
+  them), so it prints 17/17 checks passed, 16 of the app's plus the tripwire. A candidate from before that decision (r37, which
+  still opens the panel) fails this stage; the harness no longer accepts it.
 
 ## Known flakes
 

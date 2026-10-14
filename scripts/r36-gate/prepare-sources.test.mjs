@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { prepare, FIXTURE_ADAPTERS, GATE_ENV_MARKER } from './prepare.mjs';
 import { SHARDS } from './shards.mjs';
@@ -78,3 +79,31 @@ test('a check that already carries its adapter\'s fix runs as the candidate wrot
     if (bash) for (let k = 1; k <= SHARDS.length; k++) assert.equal(spawnSync(bash, ['-n', join(moved.dir, `shard-${k}.sh`)], { windowsHide: true }).status, 0, `shard-${k}`);
   } finally { [old, moved].forEach(done); }
 });
+
+// The template runs for every candidate until the app's own check takes the gate environment, so it asserts what the release does.
+// Owner decision, 2026-10-13 (polish 1f626264): the Card conversation tab and panel are removed; a question about a selected card is
+// answered as an ordinary chat card scoped to that card, and the right panel does not open for it.
+const HERE = dirname(fileURLToPath(import.meta.url));
+const POLISH = '401903a9'; // feature/ui-polish-r38: the app's own rewritten answer-routing-check.mjs
+const polishCheck = spawnSync('git', ['show', `${POLISH}:packages/web/e2e/answer-routing-check.mjs`], { cwd: HERE, encoding: 'utf8', maxBuffer: 1 << 26 });
+const template = () => readFileSync(join(HERE, 'templates/answer-routing.mjs'), 'utf8').replaceAll('\r\n', '\n');
+test('the answer-routing template no longer asserts the Card conversation panel, and says what the release does instead', () => {
+  const text = template();
+  assert.doesNotMatch(text, /page\.locator\('\[data-card-conversation="/, 'no card conversation panel is looked up');
+  assert.doesNotMatch(text, /panel\.isVisible\(\)|opens the right panel without another card|follow-up stays with the same card conversation|restores its conversation|card conversations remain isolated/);
+  assert.match(text, /name: 'Card conversation' \}\)\.count\(\) === 0/, 'the tab is asserted absent');
+  assert.ok(text.split('conversationUi() === 0').length - 1 >= 4, 'no conversation UI after the answer, the follow-up, a reselect and the clarification');
+  assert.match(text, /context\?\.target\?\.description\)\.includes\('Card 0 explains a different idea\.'\)/, 'the question is still scoped to the selected card');
+  assert.match(text, /the answer leaves the right panel as it was/);
+  // collect and run.mjs want the stage to print at least 15 checks; the tripwire check is the template's own.
+  assert.ok(text.match(/^  check\(/gm).length >= 15);
+  assert.ok(text.includes("check('provider tripwire remains empty'"));
+});
+test('the template\'s assertions are, line for line, those of the app\'s rewritten check at 401903a9', { skip: polishCheck.status !== 0 }, () => {
+  const between = (text, end) => text.replaceAll('\r\n', '\n').slice(text.indexOf('try {\n'), text.indexOf(end));
+  const theirs = between(polishCheck.stdout, '  writeFileSync(`${OUT}/evidence.json`');
+  const ours = between(template(), '  const tripwireResponse');
+  assert.ok(theirs.length > 4000 && ours.length > 4000);
+  assert.equal(ours, theirs, 'everything between try { and the evidence file: the template adds only the environment, the tripwire read and the N/N line');
+});
+
