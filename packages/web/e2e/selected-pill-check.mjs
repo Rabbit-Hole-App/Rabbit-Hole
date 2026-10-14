@@ -183,21 +183,16 @@ await check('owner: selecting another card moves the one pill to it', async () =
   assert.equal(await page.locator('[data-canvas-target]').count(), 1);
   await blank(page);
 });
-// Each answer above is a chat card linked to its card (1f626264). Each lands in free space beside its card: no answer
-// covers a card, a note or another answer (they once all stacked on one spot over the foot of the column).
-await check('owner: the answer cards sit in free space, over no card and no other answer', async () => {
+// The chat workspace keeps each answer above in the Chat pane: none becomes a canvas card on its own (owner brief 2026-10-13
+// section 10: do not automatically turn every chat answer into a canvas card; a card comes only from Add as card).
+await check('owner: the answers stay in the Chat pane; none becomes a canvas card', async () => {
   await fit(page);
   const ids = new Set([...KINDS, EMPTY].map(kind => kind.id));
   const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-block-id],[data-item-id]')].map(node => {
     const r = node.getBoundingClientRect();
     return { id: node.dataset.blockId || node.dataset.itemId, x: r.left, y: r.top, w: r.width, h: r.height };
   }).filter(box => box.w && box.h));
-  const answers = boxes.filter(box => !ids.has(box.id));
-  assert.ok(answers.length >= KINDS.length - 1, `answer cards: ${answers.length}`);
-  const hit = (a, b) => a.x < b.x + b.w - 1 && a.x + a.w - 1 > b.x && a.y < b.y + b.h - 1 && a.y + a.h - 1 > b.y;
-  const over = answers.flatMap(a => boxes.filter(b => b.id !== a.id && hit(a, b)).map(b => `${a.id.slice(0, 8)} over ${b.id.slice(0, 8)}`));
-  if (over.length) await page.screenshot({ path: `${SHOTS}/answers-overlap.png` });
-  assert.deepEqual(over, [], `overlapping answer cards (${over.length})`);
+  assert.deepEqual(boxes.filter(box => !ids.has(box.id)).map(box => box.id), [], 'no answer card on the canvas');
 });
 
 // ---- Add to chat on a dropped image, a text box and a sticky note (r35 gave them Ask in chat; owner 2026-10-13: "rename Ask in chat
@@ -265,6 +260,9 @@ for (const { kind } of ASKS) {
     assert.equal(await composer.inputValue(), '', 'no question is written');
     assert.equal(asks.length + plans.length, sent, 'nothing sent');
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-armed.png` });
+    // A chip stays attached to the chat until removed (contract A5), so its x clears it for the next object's one chip.
+    await chip.locator('button').last().click();
+    await chip.waitFor({ state: 'detached', timeout: 5000 });
     await composer.fill('');
     await blank(page);
     assert.equal(await askBar().count(), 0, 'gone with the selection');
