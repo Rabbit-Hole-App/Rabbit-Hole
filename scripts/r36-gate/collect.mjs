@@ -12,6 +12,7 @@ import { pathToFileURL } from 'node:url';
 import { SHARDS, UNIT_STAGES, mergeShards } from './shards.mjs';
 import { prerequisite } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
+import { verifyVerdict, verifyRuns } from './verify-check.mjs';
 
 const APP_SHA = process.env.TESTED_SHA, APP_TREE = process.env.TESTED_TREE;
 if (!/^[a-f0-9]{40}$/.test(APP_SHA || '') || !/^[a-f0-9]{40}$/.test(APP_TREE || '')) throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
@@ -25,6 +26,11 @@ const dir = part => join(input, `r36-windows-${part}-${APP_SHA}-${process.env.GI
 const json = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
 const failures = [];
 if (process.env.MATRIX_RESULT !== 'success') failures.push(`matrix jobs: ${process.env.MATRIX_RESULT || 'unknown'}`);
+// The same-sha canonical verify.yml must have succeeded for the harness and the application (each run job used to wait for it).
+// It usually finishes within 3 min and collect starts after the slowest part; a verify still running, missing or unreadable fails closed.
+for (const sha of new Set([APP_SHA, process.env.HARNESS_SHA])) {
+  try { const v = verifyVerdict(verifyRuns(sha), sha); if (v) failures.push(`verify: ${v}`); } catch (error) { failures.push(`verify: gh run list failed for ${sha}: ${error.message.split('\n')[0]}`); }
+}
 
 // The Dive checkpoint (after its preflight) is the complete gate's prerequisite, as in run.mjs's gate phase.
 const diveFile = join(dir('dive'), 'dive-receipt.json');
