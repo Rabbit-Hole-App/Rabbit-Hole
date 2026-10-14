@@ -251,11 +251,50 @@ export async function repositoryThreads(req,db,user,app,id){
     const {results}=await db.prepare('SELECT role,content FROM messages WHERE thread_id=? ORDER BY id').bind(thread.id).all();
     return json({id:thread.id,messages:results,commit:thread.commit_sha});
   }
-  if(!id){const {results}=await db.prepare('SELECT id,title,created_at,commit_sha FROM threads WHERE org=? AND user=? AND scope_ref=? ORDER BY created_at DESC LIMIT 20').bind(user.org,user.email,app.name).all();return json({threads:results});}
+  // History (chat-workspace-CONTRACT.md A3): newest activity first, ?q= matches a title or any message, ?limit=1..50.
+  if(!id){
+    const q=(query.get('q')||'').trim().slice(0,200),limit=Math.min(50,Math.max(1,Number.parseInt(query.get('limit'),10)||30)),like=`%${q.replace(/[\\%_]/g,c=>`\\${c}`)}%`;
+    const list=state=>{const activity=state?'COALESCE(st.last_activity_at,t.created_at)':'t.created_at';return db.prepare(`SELECT t.id,t.title,t.created_at,t.commit_sha,${activity} AS activity,(SELECT substr(content,1,400) FROM messages WHERE thread_id=t.id ORDER BY id DESC LIMIT 1) AS latest FROM threads t${state?' LEFT JOIN chat_thread_state st ON st.thread_id=t.id':''} WHERE t.org=? AND t.user=? AND t.scope_ref=?${q?" AND (t.title LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM messages s WHERE s.thread_id=t.id AND s.content LIKE ? ESCAPE '\\'))":''} ORDER BY datetime(${activity}) DESC, t.rowid DESC LIMIT ?`).bind(user.org,user.email,app.name,...(q?[like,like]:[]),limit).all();};
+    const {results}=await withoutChatTables(()=>list(true),()=>list(false));
+    return json({threads:results.map(({activity,latest,...t})=>({...t,createdAt:isoTime(t.created_at),lastActivityAt:isoTime(activity),preview:(latest||'').replace(/\s+/g,' ').trim().slice(0,140)}))});
+  }
   const thread=await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(id,user.org,user.email,app.name).first();if(!thread)return json({error:'Chat not found'},404);
-  if(req.method==='DELETE'){await db.batch([db.prepare('DELETE FROM messages WHERE thread_id=?').bind(id),db.prepare('DELETE FROM threads WHERE id=?').bind(id)]);return json({ok:true});}
+  if(req.method==='DELETE'){
+    // Feedback first: it finds its rows through the messages it belongs to.
+    const base=()=>[db.prepare('DELETE FROM messages WHERE thread_id=?').bind(id),db.prepare('DELETE FROM threads WHERE id=?').bind(id)];
+    await withoutChatTables(()=>db.batch([db.prepare('DELETE FROM chat_message_feedback WHERE message_id IN (SELECT id FROM messages WHERE thread_id=?)').bind(id),db.prepare('DELETE FROM chat_message_meta WHERE thread_id=?').bind(id),db.prepare('DELETE FROM chat_thread_state WHERE thread_id=?').bind(id),...base()]),()=>db.batch(base()));
+    return json({ok:true});
+  }
   if(req.method==='PATCH'){const {title}=await req.json();if(typeof title!=='string'||!title.trim()||title.length>120)throw Error('Invalid chat title');await db.prepare('UPDATE threads SET title=? WHERE id=?').bind(title,id).run();return json({ok:true});}
-  const {results}=await db.prepare('SELECT m.role,m.content,g.graph_json FROM messages m LEFT JOIN repository_message_graphs g ON g.message_id=m.id WHERE m.thread_id=? ORDER BY m.id').bind(id).all();return json({id,messages:results.map(({graph_json,...m})=>({...m,...(graph_json?{graph:JSON.parse(graph_json)}:{})})),commit:thread.commit_sha});
+  // Restore (A2): the thread's mode, attached refs and draft, and its messages with Part B's meta and this user's feedback.
+  const rows=full=>db.prepare(`SELECT m.id,m.role,m.content,g.graph_json${full?',cm.meta_json,cm.alternative_of,f.rating,f.reason':''} FROM messages m LEFT JOIN repository_message_graphs g ON g.message_id=m.id${full?' LEFT JOIN chat_message_meta cm ON cm.message_id=m.id LEFT JOIN chat_message_feedback f ON f.message_id=m.id AND f.user=?':''} WHERE m.thread_id=? ORDER BY m.id`).bind(...(full?[user.email]:[]),id).all();
+  const [{results},state]=await Promise.all([withoutChatTables(()=>rows(true),()=>rows(false)),withoutChatTables(()=>db.prepare('SELECT mode,context_json,draft_json FROM chat_thread_state WHERE thread_id=?').bind(id).first(),()=>null)]);
+  const contextRefs=parsed(state?.context_json);
+  return json({id,title:thread.title,mode:CHAT_MODES.includes(state?.mode)?state.mode:'auto',contextRefs:Array.isArray(contextRefs)?contextRefs:[],draft:parsed(state?.draft_json),messages:threadMessages(results),commit:thread.commit_sha});
+}
+// The chat workspace's side tables (learn-migrations 0019: chat_message_meta, chat_message_feedback, chat_thread_state).
+// A database without them answers as before (plain messages, created_at order); nothing here ever creates them.
+export const CHAT_MODES=['auto','ask','tutor'];
+const withoutChatTables=async(read,fallback)=>{try{return await read();}catch(error){if(/no such table/i.test(error?.message||''))return fallback();throw error;}};
+const parsed=text=>{try{return text?JSON.parse(text):null;}catch{return null;}};
+const isoTime=value=>value&&!value.includes('T')?`${value.replace(' ','T')}Z`:value||null;
+// Rows oldest first. A turn's regenerated answers (alternative_of = its first answer) collapse to the newest, in the first
+// answer's place, with every answer of the turn in meta.alternatives (B2). A message without a meta row is an old one:
+// plain and done, nothing invented; only a rating given to it since comes back, as meta.feedback.
+export function threadMessages(rows){
+  const turnOf=row=>String(row.alternative_of??row.id),turns=new Map(),shown=new Set(),messages=[];
+  for(const row of rows)if(row.role==='assistant'&&row.meta_json)turns.set(turnOf(row),[...(turns.get(turnOf(row))||[]),row]);
+  for(const row of rows){
+    const turn=row.role==='assistant'&&row.meta_json?turns.get(turnOf(row)):null;
+    if(turn&&shown.has(turnOf(row)))continue;
+    if(turn)shown.add(turnOf(row));
+    const {id,role,content,graph_json,meta_json,alternative_of,rating,reason}=turn?turn.at(-1):row,meta=parsed(meta_json),feedback=rating?{rating,reason:reason??null}:null;
+    const message={messageId:String(id),role,content,status:'done',...(graph_json?{graph:JSON.parse(graph_json)}:{})};
+    if(role==='user'&&meta)messages.push({...message,...(CHAT_MODES.includes(meta.mode)?{mode:meta.mode}:{}),command:meta.command??null,contextRefs:Array.isArray(meta.contextRefs)?meta.contextRefs:[]});
+    else if(role==='assistant'&&meta){const {kind,status,...rest}=meta;messages.push({...message,status:status==='stopped'?'stopped':'done',...(kind?{kind}:{}),meta:{...rest,alternativeOf:alternative_of==null?null:String(alternative_of),alternatives:turn.map(r=>String(r.id)),feedback}});}
+    else messages.push(role==='assistant'&&feedback?{...message,meta:{feedback}}:message);
+  }
+  return messages;
 }
 // A selected line range, read from stored source. A large one keeps its identity (repository-browser.md, owner brief §10):
 // the stored question names every selected line, and only the first 120 ride along, with a note; the model reads the rest
