@@ -8,15 +8,10 @@ import { canvasesFetch, canvasRoute, chatThreadState, validContextRefs } from '.
 import { threadMessages } from '../src/repositories.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
-// The contract's B7 tables, as Lane B's 0019 will create them.
-const SIDE_TABLES = `
-CREATE TABLE chat_message_meta (message_id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, alternative_of INTEGER, meta_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
-CREATE TABLE chat_message_feedback (message_id INTEGER NOT NULL, user TEXT NOT NULL, rating TEXT NOT NULL, reason TEXT, updated_at TEXT NOT NULL, PRIMARY KEY (message_id, user));
-CREATE TABLE chat_thread_state (thread_id TEXT PRIMARY KEY, mode TEXT, draft_json TEXT, summary_json TEXT, context_json TEXT, last_activity_at TEXT, updated_at TEXT NOT NULL);`;
-
 function fixture(t, { sideTables }) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close()); sqlite.exec(schema);
-  if (sideTables) sqlite.exec(SIDE_TABLES);
+  // repository-schema.sql carries learn-migrations 0019; dropping its tables stands in for a database it has not reached yet.
+  if (!sideTables) sqlite.exec('DROP TABLE chat_message_meta; DROP TABLE chat_message_feedback; DROP TABLE chat_thread_state;');
   sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Attention')");
   const db = { prepare: sql => { let args = []; const stmt = sqlite.prepare(sql); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; }, batch: async statements => Promise.all(statements.map(s => s.run())) };
   const env = { LEARN_DB: db, DB: { prepare() { throw Error('live D1 touched'); } },
