@@ -114,6 +114,11 @@ test('LearnPage: canvasVersion, graded, /ask and /teach, the repository detach a
   // Owner task 2: the semantic fingerprint rides on the same report (professor-next-steps.md 2.8).
   assert.match(canvas, /card: JSON\.parse\(cardKey\), content, attempts, semanticFingerprint, semanticSettling \}\); \}, \[[^\]]*content, attempts, semanticFingerprint, semanticSettling, onState\]\);/);
   assert.match(page, /previous\.semanticSettling === next\.semanticSettling/, 'typing reaches the page state at once');
+  // The onState effect's dependency list is read during render: the state it names must be declared above it (a
+  // declaration below it threw 'Cannot access semanticFingerprint before initialization' and blanked the canvas).
+  const stateAt = canvas.indexOf('const [semanticFingerprint, setSemanticFingerprint] = useState(null);'), reportAt = canvas.indexOf('semanticFingerprint, semanticSettling, onState]);');
+  assert.ok(stateAt > 0 && stateAt < reportAt, 'semanticFingerprint is declared before onState reads it');
+  assert.ok(canvas.indexOf('const [semanticSettling, setSemanticSettling] = useState(false);') < reportAt);
 });
 
 test('SharedBoardPage: the shared hooks start the private hole with the step; stale restarts without it; signed out it waits for this link and hook', () => {

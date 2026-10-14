@@ -1476,6 +1476,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The open text editor's handle (RichText onApi): the style panel formats its characters while it is open.
   const editorRef = useRef(null);
   const [editorTick, setEditorTick] = useState(0);
+  // Curious (semanticReader, below): what the page hears of the canvas's meaning, declared before onState reads it.
+  const [semanticFingerprint, setSemanticFingerprint] = useState(null);
+  const [semanticSettling, setSemanticSettling] = useState(false);
   const editorUnsub = useRef(null);
   const onEditorApi = useCallback(api => {
     editorUnsub.current?.();
@@ -2623,8 +2626,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
   // editor's words and the selection have been still for 150 ms, focused on recent edits; typing settles at once. The
   // fingerprint and settling reach the page (onState), so a change of meaning re-plans and a move does not.
-  const [semanticFingerprint, setSemanticFingerprint] = useState(null);
-  const [semanticSettling, setSemanticSettling] = useState(false);
   const semanticLive = useRef(null);
   semanticLive.current = { semanticBoard, editorWords };
   const semanticRef = useRef(null);
