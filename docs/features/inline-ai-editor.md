@@ -797,3 +797,36 @@ Owner brief, verbatim in agent-coordination/tasks/2026-10-13-inline-composer-OWN
   output appears.
 - The selected object's words are not repeated in a header; screen readers get them in a visually hidden label.
 - Every icon button has a label, a tooltip and a visible focus ring.
+
+### Verification (point 9), real calls, local real stack, 2026-10-13
+
+Driver: packages/web/e2e/inline-context-real.mjs. It uses one fresh canvas per case of CONTEXT_CASES, and its canvas
+title includes the misleading "Linked List". Each case keeps the payload the browser sent, its size, the context
+preparation time, the time to the first words and to the preview, the input tokens, and the explanation. Screenshots
+come from inline-composer-shots.mjs: the initial composer, the mode menu, the Context popover and a preview, before and
+after, light and dark. Results are in .review/inline-context-point9 (local). Every call was reserved and settled in the
+shared ledger: 24 calls, $0.30 in all ($0.11 before, $0.19 after). The machine was heavily loaded (several agents and
+stacks), so timings vary by seconds.
+
+| case | context prep ms | context bytes | input tokens | first words ms | preview ms | missing / unwanted |
+|---|---|---|---|---|---|---|
+| tree (title Linked List) | 2.4 -> 6.8 | 1316 -> 1860 | 1242 -> 1850 | 3002 -> 3694 | 4213 -> 5819 | none -> none |
+| flowchart | 2.9 -> 2.5 | 2132 -> 1869 | 1578 -> 1811 | 1769 -> 1835 | 2832 -> 3648 | start missing -> none |
+| code with notes | 0.8 -> 2.0 | 1151 -> 1284 | 1135 -> 1527 | 2277 -> 1758 | 3549 -> 3606 | spec missing, lunch in -> none |
+| text in an explanation | 0.8 -> 2.1 | 1189 -> 1624 | 1132 -> 1676 | 5448 -> 2137 | 6663 -> 3522 | heading missing -> none |
+| card in a group | 3.0 -> 5.9 | 1601 -> 1623 | 1308 -> 1669 | 1973 -> 2326 | 3751 -> 3823 | none -> none |
+| two topics (title Linked List) | 1.1 -> 2.4 | 1316 -> 2033 | 1242 -> 1932 | 2128 -> 5169 | 3062 -> 6995 | heading missing -> none |
+
+- Before, explanations talked storage and title: "terminal node in the Linked List canvas", "(not stored
+  connections)", "nearby but not formally connected", "isn't connected to it". After, none of those phrases and no
+  ids appear. The flowchart's unsure arrow is qualified ("appears to lead to Allow entry - worth checking
+  that path is drawn as you intend"). The code note uses the far spec note ("the cart's pre-tax amount").
+- Changed context: after the far note changed to cents, the same request's payload carried the new words and the
+  explanation said cents (before: the note was never in the context). Edit "rename here and in the notes too" changed
+  only the code; the notes were untouched, before and after.
+- The first after run of the card case pulled in Breadth-first search through the common word "before" shared with
+  Quick sort. Common words are now ignored (inline-ai-relevance.test.mjs). The rerun has no unwanted material.
+- A card in a group cannot be targeted alone in the app today: Ctrl+click on a card starts a marquee (a canvas finding,
+  reported). The real card case therefore selects the group, and the unit tests cover the single card.
+- Cost of the change: about 400-700 more input tokens per request, and 1-4 ms more context preparation. Time to the
+  first words is unchanged within the noise.

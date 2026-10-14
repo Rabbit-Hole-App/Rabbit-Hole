@@ -84,3 +84,11 @@ test('selection only still means the selection alone', () => {
   assert.deepEqual(supporting(context), []);
   assert.deepEqual(context.relations, []);
 });
+
+// Real run 2026-10-13 (after): with the whole group selected, as the canvas selects a grouped card, "before" in Quick
+// sort's words pulled in Breadth-first search from the next section. Common words never make two things related.
+test('a selected group: a shared common word ("before") never pulls in the next section', () => {
+  const { context } = contextOf('card', { target: ['merge', 'quick'] });
+  assert.ok(!supporting(context).some(id => id === 'bfs' || id === 'graphs'), supporting(context).join(','));
+  assert.ok(supporting(context).includes('sorting'));
+});

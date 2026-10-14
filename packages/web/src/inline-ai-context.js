@@ -117,12 +117,13 @@ export const unionBox = boxes => {
 };
 const round = box => box && { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.w), h: Math.round(box.h) };
 
-/// The kinds of supporting material, in the order the context indicator lists them.
+// The kinds of supporting material, in the order the context indicator lists them.
 export const RELATIONS = ['connected', 'sibling', 'diagram', 'inferred', 'group', 'heading', 'label', 'flow', 'discussion', 'mentions', 'annotation'];
 const HOP = [1, 0.7, 0.5];
 const STOP = new Set(('the a an and or of to in on for is are be was were this that these those it its with as at by from what does do how why '
   + 'explain explains show tell me about here there which who can will would should could please make into than then them they their your you '
-  + 'not no yes all any each one two get got has have had').split(' '));
+  + 'not no yes all any each one two get got has have had before after every going until while where when also only just '
+  + 'more most some such other same very then than into over under again still even much many well first last next').split(' '));
 // The words that carry meaning, lowercased, a plural's s dropped: what "shares its terms" compares.
 export const terms = text => new Set((String(text || '').toLowerCase().match(/[a-z0-9_]+/g) || [])
   .map(word => (word.length > 3 && word.endsWith('s') && !word.endsWith('ss') ? word.slice(0, -1) : word)).filter(word => word.length >= 2 && !STOP.has(word)));
