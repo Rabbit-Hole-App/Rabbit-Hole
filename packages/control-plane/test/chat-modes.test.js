@@ -233,6 +233,23 @@ test('Tutor: a syllabus answer is kind syllabus with journey-shaped topics; a mi
   assert.equal(TUTOR_SYSTEM.includes('cooking'), false, 'no topic in the prompt');
 });
 
+test('Tutor plans only: one call with no tools, so no reader opens and no card lands; an overlong objective or an untitled topic never loses the syllabus', async t => {
+  const f = fixture(t);
+  f.replies.push(`A two-topic path.\n<answer_meta>${JSON.stringify({ syllabus: { goal: 'Read a tide table', topics: [{ title: ' ', objectives: ['dropped'] }, { title: 'Tides', objectives: ['x'.repeat(300)] }, { title: 'Spring and neap', objectives: ['Explain spring tides'] }] } })}</answer_meta>`);
+  const { events } = await f.ask({ message: 'I am a beginner; make me a syllabus on ocean tides', mode: 'tutor' });
+  assert.deepEqual(events.map(e => e.event), ['chunk', 'answer_meta', 'done'], 'no wiki, video, paper, outline or progress event');
+  assert.equal(f.calls.length, 1);
+  assert.equal('tools' in f.calls[0] || 'tool_choice' in f.calls[0], false, 'no tool is offered, so none can run');
+  assert.doesNotMatch(f.calls[0].system, /search_arxiv/, 'the paper research prompt stays out');
+  const meta = events[1].data;
+  assert.equal(meta.kind, 'syllabus');
+  assert.deepEqual(meta.syllabus.topics.map(topic => [topic.id, topic.title, topic.objectives[0].length]), [['t1', 'Tides', 240], ['t2', 'Spring and neap', 20]]);
+  assert.match(TUTOR_SYSTEM, /the trailer always carries the syllabus/);
+  // Ask keeps its tools: the Wikipedia reader is offered there.
+  await f.ask({ message: 'What causes tides?', mode: 'ask' });
+  assert.ok(f.calls[1].tools.some(tool => tool.name === 'show_wikipedia'));
+});
+
 test('Ask never becomes a syllabus, even with a live journey on the canvas and a syllabus in the trailer', async t => {
   const f = fixture(t);
   f.replies.push(`Sure.\n<answer_meta>${JSON.stringify({ syllabus: { goal: 'g', topics: [{ title: 't', objectives: ['o'] }] } })}</answer_meta>`);
