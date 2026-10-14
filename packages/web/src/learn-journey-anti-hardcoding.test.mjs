@@ -246,7 +246,7 @@ test('anti-hardcoding: no example topic or fixture id in journey runtime code, n
     '../../control-plane/src/learn-journey.js', '../../control-plane/src/learn-journey-planners.js', '../../control-plane/src/learn-journey-store.js'];
   const EXAMPLES = /\b(?:logistic|sigmoid|softmax|nanogpt|transformers?|attention|photosynthesis|chlorophyll|bastille|eigen\w*|aqueducts?|tidal|classification vs regression)\b|-foundations\b|-core\/|-practice\//i;
   for (const file of JOURNEY_ONLY) assert.equal(code(file).match(EXAMPLES)?.[0] ?? null, null, file);
-  const TUTOR = ['./learn-tutor.js', './learn-tutor-select.js', './learn-tutor-validate.js', './learn-tutor-evidence.js', './LearnTutor.jsx', './ask.jsx', './LearnPage.jsx',
+  const TUTOR = ['./learn-tutor.js', './learn-tutor-select.js', './learn-tutor-validate.js', './learn-tutor-evidence.js', './LearnTutor.jsx', './ask.jsx', './ChatMessages.jsx', './Md.jsx', './LearnPage.jsx',
     './learn-tutor-claims.js', './learn-tutor-domains.js', '../../control-plane/src/learn-tutor-routes.js'];
   const DISPATCH = /\bkind\s*[!=]==\s*'(?:nanogpt|journey)'|[!=]==\s*NANOGPT\b|\bNANOGPT\s*[!=]==/;
   for (const file of TUTOR) assert.equal(code(file).match(DISPATCH)?.[0] ?? null, null, file);
@@ -257,7 +257,7 @@ test('anti-hardcoding: no example topic or fixture id in journey runtime code, n
 // registry's TUTOR_DOMAINS data is the one place the nanoGPT entry lives, and its resolver code names no course either.
 test('anti-hardcoding: no nanoGPT repository, board, domain or name comparison in shared Tutor code; the registry data holds the one entry', () => {
   const code = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/(^|\s)\/\/.*$/gm, '$1');
-  const SHARED = ['./LearnTutor.jsx', './LearnPage.jsx', './ask.jsx', './learn-journey-domain.js', '../../control-plane/src/learn-tutor-routes.js',
+  const SHARED = ['./LearnTutor.jsx', './LearnPage.jsx', './ask.jsx', './ChatMessages.jsx', './Md.jsx', './learn-journey-domain.js', '../../control-plane/src/learn-tutor-routes.js',
     ...readdirSync(new URL('.', import.meta.url)).filter(f => /^learn-tutor[\w-]*\.js$/.test(f) && f !== 'learn-tutor-domains.js').map(f => `./${f}`)];
   assert.ok(['./learn-tutor.js', './learn-tutor-claims.js', './learn-tutor-select.js', './learn-tutor-validate.js', './learn-tutor-evidence.js'].every(f => SHARED.includes(f)));
   const BRANCH = [/['"]karpathy\/nanoGPT['"]/i, /\bCOURSE_REPO\b/, /[!=]==\s*(?:TUTOR_BOARD|NANOGPT)\b/, /\b(?:TUTOR_BOARD|NANOGPT)\s*[!=]==/,

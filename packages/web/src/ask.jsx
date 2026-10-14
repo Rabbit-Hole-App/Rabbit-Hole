@@ -3,27 +3,25 @@ import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
 import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
-import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
-import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
 import { destinationOf } from './answer-destination.js';
 import { commandTone } from './CommandTone.jsx';
-import { waitingText } from './waiting-text.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { holdsLine, releaseLine } from './learn-slash.js';
 import { openOnce } from './learn-opening.js';
-import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
+import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 // Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
@@ -44,126 +42,12 @@ const MODEL_META = Object.fromEntries(MODEL_CHOICES.map(({ key, hint }) => [key,
 // Model picker keys → labels (server holds the allowlist; auto = default).
 const MODELS = MODEL_CHOICES.map(({ key, label }) => [key, label]);
 
-function EvidencePill({ icon: Icon = FileText, children, ...props }) {
-  const Tag = props.href ? 'a' : props.onClick ? 'button' : 'span';
-  return <Tag {...props} className={cn('inline-flex max-w-full items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2 no-underline', (props.href || props.onClick) && 'cursor-pointer hover:bg-hover hover:text-ink')}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-words min-w-0">{children}</span></Tag>;
-}
+export { Md } from './Md.jsx';
 
 // Code references on a repository context (code-refs.js; repository-browser.md "Code references"): inside it a path:start-end
 // in an answer is a link only when the snapshot has that file, and a click opens it in that page's reader with the range
 // selected - Learn's Files panel on the Main canvas, the Map's Files view on the Map. No model is asked. Elsewhere `onFile` decides.
 export { CodeRefs };
-
-// Tiny safe markdown: **bold**, `code`, "- " bullets. Built as elements - no HTML injection.
-// has: the snapshot test inside a repository context (CodeRefs), else null - every reference with an onFile is a link.
-function inline(s, math = [], onFile, sourcePath, has = null) {
-  return s.split(INLINE_PARTS).map((part, i) => {
-    const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
-    if (link) return <EvidencePill key={i} href={link[2]} target="_blank" rel="noreferrer">{inline(link[1], math)}</EvidencePill>;
-    const token = part.match(/^\uE000(\d+)\uE001$/);
-    if (token && math[Number(token[1])]) return <MathText key={i} {...math[Number(token[1])]} />;
-    const reference=onFile&&sourceReference(part,sourcePath);
-    if(linkable(reference,has))return <EvidencePill key={i} type="button" data-code-ref={`${reference.path}:${reference.start}-${reference.end}`} aria-label={referenceLabel(reference)} title={referenceLabel(reference)} onClick={()=>onFile(reference.path,reference.start,reference.end)}>{part.replace(/^`(.*)`$/,'$1')}</EvidencePill>;
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={i} className="rounded-xs bg-code px-1 font-mono text-[0.9em]">{part.slice(1, -1)}</code>;
-    }
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{inline(part.slice(2, -2), math, onFile, sourcePath, has)}</strong>;
-    return part;
-  });
-}
-
-// A source token like "job.py:15" or "small.toml" - clickable when onFile is wired.
-
-function SourcesLine({ text, onFile, onRun, onDecision, has = null }) {
-  const parts = text.slice(9).split(/[,;]/).map(part => part.trim().replace(/^\x60(.*)\x60$/, '$1')).filter(Boolean);
-  return (
-    <div aria-label="Answer evidence" className="flex flex-col items-start gap-2 pt-2">
-      {parts.map((part, i) => {
-        const found = part.replace(/[–—]/g, '-').match(FILE_TOKEN), file = found && (!has || has(found[1])) ? found : null;
-        const run = part.match(/^(?:run\s+)?(r-[\w-]+)$/i);
-        const decision = part.match(/^decision:([a-f0-9-]{36})$/);
-        const open = file && onFile ? () => onFile(file[1], file[2] ? Number(file[2]) : null, file[3] ? Number(file[3]) : null)
-          : run && onRun ? () => onRun(run[1])
-          : decision && onDecision ? () => onDecision(decision[1]) : null;
-        const label = run ? 'Run · ' + run[1] : decision ? 'Approved decision' : part;
-        const Icon = run ? Play : decision ? Shield : FileText;
-        const name = file && file[2] ? referenceLabel({ path: file[1], start: Number(file[2]), end: Number(file[3] || file[2]) }) : 'Open ' + label;
-        return <EvidencePill key={i} icon={Icon} {...(open ? { type: 'button', onClick: open, title: name, 'aria-label': name } : {})}>{label}</EvidencePill>;
-      })}
-    </div>
-  );
-}
-
-export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text) }) {
-  const refs = useContext(CodeRefs);
-  // Where the caller links files at all (an onFile), a repository context's own reader takes the click and its snapshot decides.
-  const onFile = given && refs ? refs.open : given, has = given && refs ? refs.has : null;
-  const { source, math } = tokenizeMath(text.replace(/^Papers read:\s*/gm, ''));
-  const lines = source.split('\n');
-  const out = [];
-  let bullets = null;
-  let fence = null; // collecting a ``` block
-  let table = null; // collecting consecutive | … | rows
-  const flushTable = key => {
-    const [head, ...rows] = table;
-    out.push(<div key={key} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{inline(c, math, onFile, sourcePath, has)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{inline(c, math, onFile, sourcePath, has)}</td>)}</tr>)}</tbody></table></div>);
-    table = null;
-  };
-  lines.forEach((l, i) => {
-    if (fence !== null) {
-      if (/^\s*```/.test(l)) {
-        out.push(<CodeBlock key={`f${i}`} className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
-        fence = null;
-      } else {
-        fence.push(l);
-      }
-      return;
-    }
-    if (/^\s*```/.test(l)) {
-      fence = [];
-      return;
-    }
-    if (/^\s*\|.*\|\s*$/.test(l)) {
-      const cells = l.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim());
-      if (!cells.every(cell => /^:?-{3,}:?$/.test(cell))) (table = table || []).push(cells);
-      return;
-    }
-    if (table) flushTable(`t${i}`);
-    if (/^\s*[-*] /.test(l)) {
-      bullets = bullets || [];
-      bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''), math, onFile, sourcePath, has)}</li>);
-      return;
-    }
-    if (bullets) {
-      out.push(<ul key={`ul${i}`} className="my-1 list-disc pl-5">{bullets}</ul>);
-      bullets = null;
-    }
-    const token = l.trim().match(/^\uE000(\d+)\uE001$/);
-    const heading = l.match(/^(#{1,6})\s+(\S.*?)\s*#*$/);
-    // A line that is nothing but bold text is a section title in all but syntax.
-    const boldTitle = !heading && l.trim().match(/^\*\*([^*]{3,90})\*\*:?$/);
-    if (token && math[Number(token[1])]?.display) {
-      out.push(<MathText key={i} {...math[Number(token[1])]} />);
-    } else if (heading || boldTitle) {
-      const Heading = heading ? `h${heading[1].length}` : 'h3';
-      // A long answer reads as one wall without a break before each section.
-      const rule = out.length ? 'mt-4 border-t border-line pt-3' : 'mt-1';
-      out.push(<Heading key={i} className={`${rule} mb-1 font-semibold text-ink`}>{inline(heading ? heading[2] : boldTitle[1], math, onFile, sourcePath, has)}</Heading>);
-    } else if (l.startsWith('Sources: ')) {
-      out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} has={has} />);
-    } else if (l.trim()) {
-      out.push(<p key={i} className="my-1">{inline(l, math, onFile, sourcePath, has)}</p>);
-    }
-  });
-  if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
-  if (table) flushTable('t-end');
-  if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
-  // Every file the answer cites, in one Sources dropdown, each opening its file (owner, 2026-10-04).
-  const cited = onFile ? citedSources(text).filter(c => linkable(c, has)) : [];
-  if (cited.length) out.push(<details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
-    <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source aria-label={referenceLabel(c)} title={referenceLabel(c)} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>);
-  return <div className="min-w-0 text-sm leading-normal">{out}</div>;
-}
 
 // The cited file in a side panel, scrolled to (and highlighting) the cited line.
 const evidenceCrumbs = (appName, label, onBack) => [
@@ -227,115 +111,6 @@ export function FilePeek({ appName, path, line, lineEnd, onClose }) {
   );
 }
 
-// Phase 2 proposal card: what will happen with the exact inputs; nothing runs
-// until Run posts the approval. Change hands the args back to the input box.
-const TOOL_LABEL = {
-  run: 'Run', run_again: 'Run again', pause_schedule: 'Pause schedule',
-  resume_schedule: 'Resume schedule', share: 'Share', unshare: 'Unshare',
-};
-
-function ProposalCard({ proposal, onDone, onChange }) {
-  const [busy, setBusy] = useState(false);
-  const approve = async () => {
-    setBusy(true);
-    try {
-      const d = await api('/api/ask/approve', { method: 'POST', body: JSON.stringify({ proposal_id: proposal.id }) });
-      // a started run becomes a live result card in the chat
-      onDone(d.runId ? { runId: d.runId } : `✓ ${TOOL_LABEL[proposal.tool] || proposal.tool} executed`);
-    } catch (e) {
-      onDone(`✗ ${e.message}`);
-    }
-  };
-  return (
-    <div className="max-w-[440px] rounded-md border border-line p-3">
-      <div className="pb-1 text-sm font-medium">{TOOL_LABEL[proposal.tool] || proposal.tool}?</div>
-      <pre className="overflow-x-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{JSON.stringify(proposal.args, null, 2)}</pre>
-      <div className="flex gap-2 pt-2">
-        <button
-          disabled={busy}
-          onClick={approve}
-          className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-sm bg-accent px-2.5 text-[13px] font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-        >
-          {busy && <Loader2 size={12} className="animate-spin" />} Run
-        </button>
-        <button
-          onClick={() => onChange(`${TOOL_LABEL[proposal.tool] || proposal.tool} with ${JSON.stringify(proposal.args)} but `)}
-          className="h-7 cursor-pointer rounded-sm px-2.5 text-[13px] text-ink-2 hover:bg-hover hover:text-ink"
-        >
-          Change
-        </button>
-        <button onClick={() => onDone('(proposal dismissed)')} className="h-7 cursor-pointer rounded-sm px-2.5 text-[13px] text-ink-2 hover:bg-hover hover:text-ink">
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// After an approved run: live result right in the chat - status, log tail,
-// outputs with the same inline previews as the run peek.
-function RunResultCard({ runId, app }) {
-  const [meta, setMeta] = useState(null);
-  const [lines, setLines] = useState([]);
-  const [outs, setOuts] = useState(null);
-  const cursor = useRef(-1);
-  useEffect(() => {
-    let stop = false;
-    const tick = async () => {
-      try {
-        const d = await api(`/api/runs/${runId}?after=${cursor.current}`);
-        if (stop) return;
-        cursor.current = d.cursor;
-        setMeta(d);
-        if (d.lines.length) setLines((l) => [...l, ...d.lines]);
-        if (d.status === 'running') setTimeout(() => !stop && tick(), 1500);
-        else api(`/api/runs/${runId}/outputs`).then((o) => !stop && setOuts(o.outputs)).catch(() => setOuts([]));
-      } catch { if (!stop) setTimeout(() => !stop && tick(), 3000); }
-    };
-    tick();
-    return () => { stop = true; };
-  }, [runId]);
-  const runUrl = app?.name ? `/apps/${app.name}/runs/${runId}` : null;
-  return (
-    <div className="max-w-[520px] rounded-md border border-line p-3 text-sm">
-      <div className="flex items-center gap-2 pb-1.5">
-        {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-ink-3" />}
-        <span className="font-medium">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
-        <span className="text-ink-2">{meta?.status || 'starting…'}</span>
-        {runUrl && (
-          <button className="ml-auto cursor-pointer text-xs text-accent hover:underline" onClick={() => window.history.pushState(null, '', runUrl) || window.dispatchEvent(new PopStateEvent('popstate'))}>
-            open
-          </button>
-        )}
-      </div>
-      {lines.length > 0 && (
-        <pre className="no-scrollbar max-h-40 overflow-y-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{lines.slice(-15).join('\n')}</pre>
-      )}
-      {outs && outs.length > 0 && (
-        <div className="pt-2">
-          {outs.map((o) => <OutputRow key={o.name} runId={runId} name={o.name} size={o.size} />)}
-        </div>
-      )}
-      {outs && !outs.length && meta?.status !== 'running' && <div className="pt-1 text-xs text-ink-3">no outputs</div>}
-    </div>
-  );
-}
-
-// compact copy of the run peek's output renderer (kept local - run.jsx imports us)
-function OutputRow({ runId, name, size }) {
-  const url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}`;
-  const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024;
-  const isText = /\.(json|csv|txt)$/i.test(name) && size < 4096;
-  const [text, setText] = useState(null);
-  useEffect(() => { if (isText) fetch(url).then((r) => r.text()).then(setText).catch(() => {}); }, [url, isText]);
-  return (
-    <div className="pb-1.5">
-      <a href={url} download={name} className="text-xs text-ink-2 hover:text-ink">{name}</a>
-      {isImg && <img src={url} alt={name} className="mt-1 max-h-[180px] max-w-full rounded-sm border border-line" />}
-      {isText && text != null && <pre className="no-scrollbar mt-1 max-h-32 overflow-y-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{text}</pre>}
-    </div>
-  );
-}
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
@@ -1071,55 +846,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && msgs.map((m, i) => (sheetMode && m.card) ? null : (
-          <div key={i} className={cn('py-1.5', (m.role === 'user' || m.role === 'step') && 'flex justify-end')}>
-            {m.role === 'step' ? (
-              // A chosen next step (sendStep): the hook the learner clicked, drawn as a choice - never as their own words.
-              <div data-step-chip title="A next step you chose" className="inline-flex max-w-[85%] items-start gap-1.5 rounded-lg border border-[#b42318]/25 bg-[#b42318]/[0.04] px-3 py-1.5 text-sm text-ink">
-                <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" /><span className="min-w-0">{m.content}</span>
-              </div>
-            ) : m.role === 'user' ? (
-              <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
-                {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
-                {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
-                {m.content}
-              </div>
-            ) : m.role === 'proposal' ? (
-              <ProposalCard
-                proposal={m.proposal}
-                onDone={(r) => setMsgs((ms) => ms.map((x, j) => (j === i ? (r?.runId ? { role: 'run', runId: r.runId } : { role: 'assistant', content: r }) : x)))}
-                onChange={(text) => { setMsgs((ms) => ms.filter((_, j) => j !== i)); setInput(text); inputRef.current?.focus(); }}
-              />
-            ) : m.role === 'run' ? (
-              <RunResultCard runId={m.runId} app={fileApp ? { name: fileApp } : null} />
-            ) : m.content?.startsWith('✗ ') ? (
-              <div role="alert" className="flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">
-                <span className="min-w-0 flex-1 break-words">{m.content}</span>
-                <button type="button" aria-label="Copy error" title="Copy error" onClick={() => navigator.clipboard.writeText(m.content)} className="shrink-0 rounded p-1 hover:bg-danger/10"><Copy size={14} /></button>
-              </div>
-            ) : m.content ? (
-              <>{learnChat ? <div className="relative min-w-0 rounded-lg border border-accent/30 p-3 pr-10">
-                <Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} />
-                <button type="button" title="Copy" aria-label="Copy answer" className="absolute top-2 right-2 rounded p-1 text-accent hover:bg-accent/10" onClick={async () => {
-                  try { await navigator.clipboard.writeText(m.content); setBlockCopy({ reply: m.id || i, text: 'Copied' }); }
-                  catch { setBlockCopy({ reply: m.id || i, text: 'Copy failed' }); }
-                }}><Copy size={14} /></button>
-                {blockCopy?.reply === (m.id || i) && <span role="status" className="absolute right-2 top-9 z-10 rounded border border-accent/30 bg-accent/10 px-2 py-1 text-xs text-black shadow-sm">{blockCopy.text}</span>}
-              </div> : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
-              {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
-              {sheetMode && onAddToCanvas && !m.demo && !m.content.startsWith('\u2717') && !(busy && i === msgs.length - 1) && (
-                <button type="button" data-add-to-canvas disabled={m.added} onClick={() => {
-                  onAddToCanvas({ question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '', answer: m.content });
-                  setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
-                }} className="mt-2 flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:text-green-700 disabled:hover:bg-transparent">
-                  {m.added ? <><Check size={13} />On the canvas</> : <><Plus size={13} />Add to canvas</>}
-                </button>
-              )}</>
-            ) : (
-              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.status)}</span></span>
-            )}
-          </div>
-        ))}
+        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} blockCopy={blockCopy} setBlockCopy={setBlockCopy} />}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
