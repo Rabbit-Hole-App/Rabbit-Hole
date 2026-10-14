@@ -40,6 +40,8 @@ test('telemetry units: stage values are milliseconds as numbers; routing is a nu
 
 import { inlineGenerateFetch, inlineRouteFetch } from '../src/learn-inline.js';
 import * as inlineRoute from '../../web/src/inline-ai-route.js';
+import { KEY_ENV, decided, jevSays } from './learn-inline-fixture.js';
+import { inlineDecideFetch } from '../src/learn-inline.js';
 
 const PROMPT_MAX = inlineRoute.PROMPT_MAX ?? 1000;
 
@@ -57,11 +59,15 @@ test('prompt limit: the worker enforces the shared limit on route and generate, 
   const routed = await route.json();
   assert.equal(routed.code, 'too_long');
   assert.match(routed.error, /1001 characters; inline requests stop at 1000/);
-  // generate leaves room for a /simplify, /example or /deeper instruction in front of the learner's words (M1).
-  const generate = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'a'.repeat(PROMPT_MAX + (inlineRoute.PROMPT_ROOM ?? 0) + 1), context }), {}, { authorize, callModel: async () => assert.fail('no model call') });
-  assert.equal(generate.status, 400);
-  assert.equal((await generate.json()).code, 'too_long');
-  const atLimit = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'a'.repeat(PROMPT_MAX), context }), {}, { authorize, callModel: async () => sse('ok') });
+  // Since the request check, the limit is the check's (a free local one): an over-limit request is never decided, so it
+  // can never be generated; one at the limit is.
+  const request = { kind: 'selection', mode: 'explain', targetIds: ['n23'], prompt: long, context };
+  const checked = await (await inlineDecideFetch(post('/api/learn/inline/decide', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', request }), KEY_ENV, { authorize, transport: 'direct', ask: async () => assert.fail('no JEV call') })).json();
+  assert.deepEqual([checked.decision, checked.token], ['invalid', undefined]);
+  assert.match(checked.message, /1001 characters; inline requests stop at 1000/);
+  const generate = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', request }), KEY_ENV, { authorize, callModel: async () => assert.fail('no model call') });
+  assert.equal(generate.status, 403);
+  const atLimit = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', prompt: 'a'.repeat(PROMPT_MAX), context })), KEY_ENV, { authorize, callModel: async () => sse('ok') });
   assert.equal(atLimit.status, 200);
 });
 
@@ -71,7 +77,7 @@ import { readGeneration } from '../../web/src/inline-ai-transport.js';
 test('refine: the worker sends the earlier result and the original request, and the model is told to revise it', async () => {
   let sent = null;
   const callModel = async (env, body) => { sent = body; return sse('Child of 4.'); };
-  const ask = extra => inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt: 'make it much shorter', context, ...extra }), {}, { authorize: async () => ({ name: 'canvas-0a1b2c3d' }), callModel });
+  const ask = async extra => inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', prompt: 'make it much shorter', context, ...extra })), KEY_ENV, { authorize: async () => ({ name: 'canvas-0a1b2c3d' }), callModel });
   const out = await readGeneration(await ask({ revise: { prompt: 'Explain this node', result: 'Node 23 is a child of node 4.' } }), () => {});
   assert.equal(out.result.text, 'Child of 4.');
   const message = JSON.parse(sent.messages[0].content);
@@ -109,18 +115,19 @@ test('S4: askJev marks a refusal before any request as not called', async () => 
 });
 
 test('M1: /simplify on a full-length request is accepted; the worker never quotes a length the learner did not type', async () => {
-  const { NOTE_COMMANDS, PROMPT_ROOM } = inlineRoute;
+  const { NOTE_COMMANDS } = inlineRoute;
   const authorize = async () => ({ name: 'canvas-0a1b2c3d' });
-  const generate = prompt => inlineGenerateFetch(post('/api/learn/inline/generate', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', mode: 'explain', route: 'note', prompt, context }), {}, { authorize, callModel: async () => sse('ok') });
-  // The learner typed /simplify and 990 more characters (1000 in all); the editor sends the instruction in front.
-  const sent = `${NOTE_COMMANDS.simplify} ${'a'.repeat(PROMPT_MAX - '/simplify '.length)}`;
-  assert.ok(sent.length > PROMPT_MAX);
-  assert.equal((await generate(sent)).status, 200);
-  const over = await generate('a'.repeat(PROMPT_MAX + PROMPT_ROOM + 1));
-  assert.equal(over.status, 400);
-  const body = await over.json();
-  assert.equal(body.code, 'too_long');
-  assert.doesNotMatch(body.error, /\d{4} characters/, 'no length the learner did not type');
+  // The learner typed /simplify and 990 more characters (1000 in all); the worker puts the instruction in front itself.
+  let sent = null;
+  const typed = `/simplify ${'a'.repeat(PROMPT_MAX - '/simplify '.length)}`;
+  const body = await decided({ app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', prompt: typed, context });
+  const response = await inlineGenerateFetch(post('/api/learn/inline/generate', body), KEY_ENV, { authorize, callModel: async (env, request) => { sent = JSON.parse(request.messages[0].content).request; return sse('ok'); } });
+  assert.equal(response.status, 200);
+  assert.ok(sent.startsWith(NOTE_COMMANDS.simplify) && sent.length > PROMPT_MAX);
+  // Over the limit, the check quotes what the learner typed, never a length with the instruction added.
+  const over = await (await inlineDecideFetch(post('/api/learn/inline/decide', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', request: { ...body.request, prompt: `${typed}a` } }), KEY_ENV, { authorize, transport: 'direct', ask: jevSays('proceed') })).json();
+  assert.equal(over.decision, 'invalid');
+  assert.match(over.message, new RegExp(`${PROMPT_MAX + 1} characters`));
 });
 
 import { cleanMetrics } from '../src/learn-inline.js';

@@ -417,6 +417,11 @@ await page.keyboard.press('Control+k');
 await page.waitForTimeout(600);
 assert.equal(url().searchParams.get('hole'), null);
 assert.equal(await page.getByPlaceholder('Describe what you are looking for').count(), 0, 'Ctrl+K with no card is not Search');
+// With nothing selected it opens the inline editor to add (inline creation brief 2026-10-13 §1). Its prompt keeps a text field's
+// own keys (shortcut-owner.js), so it is closed before Search's chord.
+assert.equal(await page.locator('[data-inline-prompt]').getAttribute('placeholder'), 'What would you like to add or understand?', 'Ctrl+K with no card opens the editor to add');
+await page.keyboard.press('Escape');
+await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
 await page.keyboard.press('Control+Shift+F');
 await page.getByPlaceholder('Describe what you are looking for').waitFor({ timeout: 5000 });
 await shot('14-ctrl-shift-f-search');
