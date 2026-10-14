@@ -36,7 +36,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: gate-sharded-${{ inputs.app_sha || 'd443ecf4ca2e711c19abc0211521805711652407' }}
+  group: gate-sharded-${{ github.ref_name }}-${{ inputs.app_sha || 'd443ecf4ca2e711c19abc0211521805711652407' }}
   cancel-in-progress: false
 
 env:
