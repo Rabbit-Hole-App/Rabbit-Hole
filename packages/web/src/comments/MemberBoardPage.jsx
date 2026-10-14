@@ -35,7 +35,7 @@ export default function MemberBoardPage({ boardId }) {
       setBoard(read.body); setAbout(info.status === 200 ? info.body : null);
     }, () => setProblem('This canvas could not be opened. Check your connection and try again.'));
   }, [base]);
-  const comments = useCanvasComments({ base: board && base, canAdd: !!about?.can.post, openPanel: openComments, canvasApi, link: `/c/${boardId}` });
+  const comments = useCanvasComments({ base: board && base, canAdd: !!about?.can.post, openPanel: openComments, canvasApi, link: `/c/${boardId}`, shown: commentsOpen });
 
   if (problem) return <main className="grid h-screen place-items-center bg-white p-6"><div className="max-w-sm text-center"><h1 className="text-lg font-semibold text-ink">{problem}</h1><a href="/" className="mt-3 inline-block text-sm text-ink-2 underline">Go to {PRODUCT}</a></div></main>;
   if (!board) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the canvas…</main>;

@@ -366,7 +366,20 @@ Stored as `canvas_comment_settings.public_mode`: `off` | `open` | `closed`. No r
 - while presenting.
 
 Choosing Add comment shows a ghost pin and opens Comments on a draft with its "Visible to" row. Nothing is saved before
-Send; Esc or × removes the ghost.
+Send.
+
+**Esc is Cancel (owner, 2026-10-13).** Esc anywhere in the New comment panel (the composer, empty or typed, the Cancel
+button, Visible to) runs Cancel's own handler, so both leave the same state: the draft closed and the thread list back, no
+ghost, nothing posted, the typed words kept for that object's next draft (session storage, as before), and the focus back on
+the canvas (the page, where the canvas's keys work). Esc never sends. A menu open in the panel (the @ suggestions) takes
+the first Esc; the next one cancels. The canvas's own Esc (it listens on `window` in the capture phase, before the panel)
+stands down for an Esc pressed in the New comment panel, so it neither clears the selection nor resets the tool, the style
+panel or a sketch.
+
+**The ghost shows only while its New comment panel shows (owner, 2026-10-13).** Cancel, Esc and Send take it away; so
+does hiding the right panel, switching it to another tab, or closing Comments on `/c` and `/e`: the draft (its anchor and
+words) stays, and the ghost returns with it when Comments shows again. A deleted target takes the ghost away too (no slot;
+the panel says "Card deleted"); undo brings it back.
 
 ### Pins
 
@@ -380,6 +393,9 @@ change - stays where it was placed; no new ones are made.
 
 A speech-bubble pin at a constant screen size showing its thread's live message count (owner, 2026-10-08): the starter
 plus replies, deleted ones excluded, `99+` above 99; accessible name "N comments". Only the new-comment draft shows a +.
+**No pin without a text comment (owner, 2026-10-13):** a thread shows a pin only while it has at least one live comment
+(every live comment has text); once its last one is deleted, by its author, the owner, or Block and remove their
+comments, the pin goes. The thread stays in the list as "This comment was deleted". Derived in `pinsOf` (`useCanvasComments.js`), never hidden with CSS.
 - **Look:** filled with its colour and outlined solid in it; orange (the canvas palette's `#f59e0b`) unless recoloured.
   The count and the + use the `white` token: white in light mode, the dark surface in dark mode.
 - **Unread:** accent ring. **Open in the panel:** an ink ring. **Picked:** the selection ring.

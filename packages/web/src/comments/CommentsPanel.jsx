@@ -125,8 +125,16 @@ function NewThread({ client, about, anchor, live, onCancel, onPosted }) {
   const fixed = about.role === 'viewer' ? 'public' : null;
   const [audience, setAudience] = useState(fixed || 'members');
   const canPost = audience === 'public' ? about.can.post_public : about.can.post;
+  // Esc anywhere in the draft is Cancel (owner, 2026-10-13), typed words or not, and never sends: a menu open in it (the @
+  // suggestions) takes the first Esc and stops it; the canvas stands down for this one (AdaptiveCanvas); the focus falls
+  // back to the canvas as the draft closes.
+  const escape = event => {
+    if (event.key !== 'Escape' || event.defaultPrevented || event.nativeEvent.isComposing) return;
+    event.preventDefault(); event.stopPropagation();
+    onCancel();
+  };
   return (
-    <div data-comment-draft className="flex min-h-0 flex-1 flex-col">
+    <div data-comment-draft onKeyDown={escape} className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-ink">New comment</h2>
         <Button size="sm" onClick={onCancel}>Cancel</Button>

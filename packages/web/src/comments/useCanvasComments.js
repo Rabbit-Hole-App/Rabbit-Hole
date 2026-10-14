@@ -6,7 +6,17 @@ import { commentsApi, displayName } from './comments-api.js';
 // board once it is saved (member family), or a publication (public family); null means no comments here (Q5).
 // `link`: the page a thread link opens (/c/<board id> or /e/<token>), with ?thread=<id>; a link to this page opens the thread.
 const THREAD = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function useCanvasComments({ base, enabled = true, canAdd = true, openPanel, canvasApi, link = null }) {
+// The pins the canvas draws. No comment pin without a text comment (owner, 2026-10-13): a thread's pin only while it has
+// a live comment (every live comment has text; `comments` counts them), and the draft's ghost only while its New
+// comment panel shows (`composing`). Oldest first, so an object's slot keeps its order as threads get busy.
+export const pinsOf = (threads, selected, draft, composing) => [
+  ...threads.filter(thread => (thread.comments ?? 1) > 0).sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)).map(thread => ({ id: thread.id, anchor: thread.anchor, author: thread.author, unread: thread.unread, selected: thread.id === selected, label: displayName(thread.author),
+    color: thread.color || null, can: thread.can || {}, comments: thread.comments ?? 1 })),
+  ...(draft && composing ? [{ id: 'draft', anchor: draft, ghost: true }] : []),
+];
+// `shown`: the page shows its Comments panel (open, on the Comments tab); a draft left behind a closed panel keeps its words
+// but draws no ghost until the panel shows again.
+export function useCanvasComments({ base, enabled = true, canAdd = true, openPanel, canvasApi, link = null, shown }) {
   const [draft, setDraft] = useState(null);
   const [selected, setSelected] = useState(() => {
     const asked = new URLSearchParams(window.location.search).get('thread');
@@ -36,12 +46,7 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
     return null;
   }, [client]);
   // View → Show comments hides every pin (and the draft's ghost) until it is turned back on.
-  const pins = useMemo(() => (active && showPins ? [
-    // Oldest first, so an object's slot keeps its order as threads get busy.
-    ...[...threads].sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)).map(thread => ({ id: thread.id, anchor: thread.anchor, author: thread.author, unread: thread.unread, selected: thread.id === selected, label: displayName(thread.author),
-      color: thread.color || null, can: thread.can || {}, comments: thread.comments ?? 1 })),
-    ...(draft ? [{ id: 'draft', anchor: draft, ghost: true }] : []),
-  ] : null), [active, showPins, threads, selected, draft]);
+  const pins = useMemo(() => (active && showPins ? pinsOf(threads, selected, draft, shown) : null), [active, showPins, threads, selected, draft, shown]);
   return {
     active,
     unread: active ? threads.filter(thread => thread.unread).length : 0,
