@@ -1,17 +1,19 @@
 // Canvas utilities never cover canvas content (docs/features/learn-canvas-blocks.md), on the restored
 // shell (2026-09-30): the tools in the left gutter, the Rabbit Hole navigator in the right gutter, Home in the top-left
 // corner, and the bottom strip (owner, 2026-10-08): the minimap lower left directly above the zoom row, one group on one
-// left edge, left of the composer. The strip floats (owner, 2026-10-08: "in the canvas above the chat composer you are
+// left edge, on the canvas, clear of the Chat pane at its right (owner brief 2026-10-13 sections 2 and 4: the composer is the
+// Chat pane's, no canvas dock). The strip floats (owner, 2026-10-08: "in the canvas above the chat composer you are
 // cutting the canvas too much"): the canvas runs to the bottom under it, the empty strip passes the pointer to the canvas,
 // and zoom to fit frames every card clear of it. Chrome may float over the canvas but never hides what the learner cannot
 // reach, so the edge probes stop above the strip, and on a phone the tools' strip sits above the canvas.
 // Desktop (the review viewport, 1720 x 1100): the widest card is panned hard right, then hard left; the
 // card is on top all along each canvas edge, the tools, navigator and minimap sit wholly outside the
-// canvas surface, the minimap clears the composer. A wheel over empty gutter space pans the canvas;
+// canvas surface, the minimap stays on the canvas, clear of the Chat pane. A wheel over empty gutter space pans the canvas;
 // the tools still work; zoom stays 100%. Wide screen (2200 x 1200): the same shell. Phone (390 x 844):
 // the canvas has a real working height, the tools are a scrolling strip below it, the overview opens
-// below the strip (not over the card), the zoom controls sit clear of the composer (a tap on the
-// "Ask about" input reaches the input) and of the canvas, and the table of contents is reachable.
+// below the strip (not over the card), the zoom controls sit clear of the Chat pane's composer (a tap on its
+// field reaches the field; the Chat side of the Chat/Sources switch when the phone shows one) and of the canvas, and the
+// table of contents is reachable.
 //
 // It reads and pans only. Against the local stack (127.0.0.1) it signs in with the local control
 // plane's secret and makes its own canvas with the board; against a deployed review worker it uses
@@ -54,7 +56,9 @@ const geometry = page => page.evaluate(() => {
     overview: box(document.querySelector('[data-tool-gutter] [aria-label="Canvas overview"]')?.parentElement),
     minimap: (() => { const r = document.querySelector('[data-canvas-minimap] [aria-label="Canvas overview"]')?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom } : null; })(),
     navigator: box(document.querySelector('[data-dive-navigator]')),
-    composer: box(document.querySelector('[data-canvas-composer]')),
+    composer: box(document.querySelector('[data-chat-pane] [data-chat-composer]')),
+    pane: box(document.querySelector('[data-chat-pane]')),
+    hooks: box(document.querySelector('[data-hooks-slot] section[data-next-steps]')),
     home: box(document.querySelector('[data-learn-home]')),
     zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim(),
     zoomRow: box(document.querySelector('[data-zoom]')),
@@ -124,14 +128,15 @@ async function probeEdge(page, card, title, label, side = 'right') {
   let g = await geometry(page);
   let box = await card.boundingBox();
   if (!(box.x + box.width > g.surface.right + 60)) fail(`desktop: the card was not panned past the right edge (${JSON.stringify(round(box))})`);
-  // The restored shell: tools left of the canvas, navigator right of it, the minimap below it, above the zoom row, left of the composer.
+  // The restored shell: tools left of the canvas, navigator right of it, the Chat pane right of both, the minimap below it, above the zoom row, on the canvas.
   if (!(g.toolbar.right <= g.surface.x + 0.5)) fail(`desktop: the tools ${JSON.stringify(round(g.toolbar))} are not in the left gutter`);
   if (!disjoint(g.toolbar, g.surface)) fail(`desktop: toolbar ${JSON.stringify(round(g.toolbar))} overlaps the canvas ${JSON.stringify(round(g.surface))}`);
   if (g.navigator && !(g.navigator.x >= g.surface.right - 0.5)) fail(`desktop: the navigator ${JSON.stringify(round(g.navigator))} is not in the right gutter`);
+  if (!g.pane || g.pane.x < g.surface.right - 0.5 || (g.navigator && g.pane.x < g.navigator.right - 0.5)) fail(`desktop: the Chat pane ${JSON.stringify(round(g.pane))} is not right of the canvas and the navigator`);
   if (!g.minimap) fail('desktop: no minimap in the lower left');
   else {
-    if (!(g.surface.bottom >= g.strip.bottom - 2 && g.surface.bottom >= g.composer.bottom)) fail(`desktop: the canvas ${JSON.stringify(round(g.surface))} stops above the strip ${JSON.stringify(round(g.strip))}`);
-    if (!disjoint(g.minimap, g.composer) || g.minimap.right > g.composer.x) fail('desktop: the minimap does not clear the composer on its left');
+    if (!(g.surface.bottom >= g.strip.bottom - 2)) fail(`desktop: the canvas ${JSON.stringify(round(g.surface))} stops above the strip ${JSON.stringify(round(g.strip))}`);
+    if (!disjoint(g.minimap, g.pane) || g.minimap.right > g.surface.right) fail('desktop: the minimap is not on the canvas, clear of the Chat pane');
     if (!(g.minimap.bottom <= g.zoomRow.y + 0.5) || Math.abs(g.minimap.x - g.zoomRow.x) > 1.5 || g.zoomRow.y - g.minimap.bottom > 12) fail(`desktop: the minimap ${JSON.stringify(round(g.minimap))} is not directly above the zoom row ${JSON.stringify(round(g.zoomRow))} on its left edge`);
     if (g.minimap.w < 150) fail(`desktop: the minimap is only ${Math.round(g.minimap.w)}px wide`);
   }
@@ -140,8 +145,8 @@ async function probeEdge(page, card, title, label, side = 'right') {
     const at = await page.evaluate(([gx, gy]) => {
       const r = document.querySelector('[title="Reset zoom"]').getBoundingClientRect();
       return { gap: !!document.elementFromPoint(gx, gy)?.closest('[data-canvas-surface]'), reset: !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest('[title="Reset zoom"]') };
-    }, [(g.stack.right + g.composer.x) / 2, g.zoomRow.y + g.zoomRow.h / 2]);
-    if (!at.gap) fail('desktop: the empty strip between the zoom stack and the composer does not reach the canvas');
+    }, [(g.stack.right + Math.min(g.surface.right, g.hooks?.x ?? Infinity)) / 2, g.zoomRow.y + g.zoomRow.h / 2]);
+    if (!at.gap) fail('desktop: the empty strip between the zoom stack and the hooks does not reach the canvas');
     if (!at.reset) fail('desktop: the zoom row does not take the pointer');
   }
   if (!g.home || g.home.x > 24 || g.home.y > 24) fail('desktop: no Home button in the top-left corner');
@@ -185,13 +190,13 @@ async function probeEdge(page, card, title, label, side = 'right') {
   {
     const fit = await geometry(page);
     const under = await page.evaluate(chrome => [...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => [el.getAttribute('data-block-id'), el.getBoundingClientRect()])
-      .filter(([, r]) => r.width && chrome.some(c => c && r.right > c.x && c.right > r.x && r.bottom > c.y && c.bottom > r.y)).map(([id, r]) => `${id} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}`), [fit.composer, fit.stack]);
+      .filter(([, r]) => r.width && chrome.some(c => c && r.right > c.x && c.right > r.x && r.bottom > c.y && c.bottom > r.y)).map(([id, r]) => `${id} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}`), [fit.stack, fit.hooks]);
     const scale = await page.evaluate(() => Number(/scale\(([\d.]+)\)/.exec(document.querySelector('[data-canvas-surface] div[style*="scale("]')?.style.transform || '')?.[1] || 1));
-    console.log(`desktop: zoom to fit at ${Math.round(scale * 100)}%, composer ${JSON.stringify(round(fit.composer))}, stack ${JSON.stringify(round(fit.stack))}`);
+    console.log(`desktop: zoom to fit at ${Math.round(scale * 100)}%, stack ${JSON.stringify(round(fit.stack))}, hooks ${JSON.stringify(round(fit.hooks))}`);
     // The fit's zoom floor is 20% (frame in AdaptiveCanvas.jsx): a board taller than the room above the chrome even there
     // (the depth ladder) starts at the room's top and pans out from under the chrome.
     const first = await page.evaluate(() => Math.min(...[...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => el.getBoundingClientRect().top)));
-    if (scale > 0.2001 && under.length) fail(`desktop: after zoom to fit, card(s) under the composer or the minimap and zoom: ${under.join('; ')}`);
+    if (scale > 0.2001 && under.length) fail(`desktop: after zoom to fit, card(s) under the minimap and zoom or the hooks: ${under.join('; ')}`);
     if (scale <= 0.2001 && first > fit.surface.y + 49) fail(`desktop: at the 20% floor the fit does not start at the top (${Math.round(first)})`);
   }
   results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, right, left: opened, penArmed: armed === 'true' };
@@ -203,7 +208,8 @@ async function probeEdge(page, card, title, label, side = 'right') {
 {
   const { context, page } = await open({ width: 2200, height: 1200 });
   const g = await geometry(page);
-  if (!g.minimap || !(g.surface.bottom >= g.composer.bottom) || g.minimap.right > g.composer.x || !(g.minimap.bottom <= g.zoomRow.y + 0.5)) fail('wide: the canvas stops above the strip, or no minimap in the lower left above the zoom row');
+  if (!g.minimap || !(g.surface.bottom >= g.strip.bottom - 2) || g.minimap.right > g.surface.right || !disjoint(g.minimap, g.pane) || !(g.minimap.bottom <= g.zoomRow.y + 0.5)) fail('wide: the canvas stops above the strip, or no minimap in the lower left above the zoom row, clear of the Chat pane');
+  if (!g.pane || g.pane.x < g.surface.right - 0.5) fail('wide: the Chat pane is not right of the canvas');
   if (!disjoint(g.toolbar, g.surface) || (g.navigator && !disjoint(g.navigator, g.surface))) fail('wide: a utility overlaps the canvas');
   results.wide = { surface: round(g.surface), minimap: round(g.minimap), toolbar: round(g.toolbar), navigator: round(g.navigator) };
   console.log('wide: tools left, navigator right, minimap lower left above the zoom row, all outside the canvas');
@@ -216,22 +222,27 @@ async function probeEdge(page, card, title, label, side = 'right') {
   let g = await geometry(page);
   if (g.surface.h < 0.45 * 844) fail(`phone: the canvas is only ${Math.round(g.surface.h)}px tall`);
   if (!disjoint(g.toolbar, g.surface) || g.toolbar.bottom > g.surface.y + 1) fail('phone: the tool strip is not above the canvas');
-  if (!(g.surface.bottom >= g.composer.bottom)) fail(`phone: the canvas ${JSON.stringify(round(g.surface))} stops above the composer ${JSON.stringify(round(g.composer))}`);
+  if (!(g.surface.bottom >= g.strip.bottom - 2)) fail(`phone: the canvas ${JSON.stringify(round(g.surface))} stops above the strip ${JSON.stringify(round(g.strip))}`);
   if (g.toolbar.x < 0 || g.toolbar.right > 390) fail('phone: the tool strip runs off screen');
   if (g.overview) fail('phone: the overview is open by default');
-  // The zoom controls never sit on the composer: the input's centre reaches the input.
-  await page.locator('input[placeholder^="Ask about"]').scrollIntoViewIfNeeded();
-  const dock = await page.evaluate(() => {
+  // The zoom row floats over the canvas now; the empty strip right of it passes the pointer to the canvas (measured before
+  // the scroll to the Chat pane below).
+  const through = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-canvas-surface]'), [(g.zoomRow.right + g.surface.right) / 2, g.zoomRow.y + g.zoomRow.h / 2]);
+  // The zoom controls never sit on the composer, now the Chat pane's (on the narrow layout its side of the Chat/Sources
+  // switch, brief section 2): the field's centre reaches the field.
+  const chatTab = page.locator('[data-pane-switch-tab="chat"]').first();
+  if (await chatTab.count() && await chatTab.getAttribute('aria-selected') !== 'true') await chatTab.click();
+  const FIELD = '[data-chat-pane] [data-chat-composer] textarea';
+  await page.locator(FIELD).scrollIntoViewIfNeeded();
+  const dock = await page.evaluate(FIELD => {
     const box = element => { if (!element) return null; const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; };
-    const input = document.querySelector('input[placeholder^="Ask about"]'), r = input.getBoundingClientRect();
+    const input = document.querySelector(FIELD), r = input.getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return { zoom: box(document.querySelector('[aria-label="Zoom controls"]')), form: box(input.closest('form')), surface: box(document.querySelector('[data-canvas-surface]')), onInput: !!hit && input.contains(hit), hit: hit?.closest('[aria-label]')?.getAttribute('aria-label') || hit?.tagName };
-  });
+  }, FIELD);
   if (!dock.zoom || !dock.form) fail('phone: the zoom controls or the composer are missing');
   if (!disjoint(dock.zoom, dock.form)) fail(`phone: the zoom controls ${JSON.stringify(round(dock.zoom))} overlap the composer ${JSON.stringify(round(dock.form))}`);
   if (!dock.onInput) fail(`phone: a tap on the composer input lands on ${dock.hit}, not the input`);
-  // The zoom row floats over the canvas now; the empty strip right of it passes the pointer to the canvas.
-  const through = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-canvas-surface]'), [(dock.zoom.right + dock.surface.right) / 2, dock.zoom.y + dock.zoom.h / 2]);
   if (!through) fail('phone: the empty strip beside the zoom row does not reach the canvas');
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
@@ -256,7 +267,9 @@ async function probeEdge(page, card, title, label, side = 'right') {
   const showPanel = page.getByRole('button', { name: 'Show the right panel' }).first();
   if (await showPanel.count()) { await showPanel.click(); await page.waitForTimeout(500); }
   // The Table of contents tab's block, heading and outline (a8a674ad, docs/features/panel-header.md, owner 2026-10-07): the
-  // first list in the panel is now Find's hidden results, and a board with no headings has an empty outline.
+  // first list in the panel is now Find's hidden results, and a board with no headings has an empty outline. Chat is the
+  // panel's default tab now (owner brief 2026-10-13 section 3): the contents are one tab away, in the panel header.
+  await page.locator('aside[aria-label="Learn agent chat"] [data-panel-tab="toc"]').click();
   const toc = page.locator('aside[aria-label="Learn agent chat"] [data-toc]');
   await toc.scrollIntoViewIfNeeded();
   const tocVisible = await toc.isVisible();

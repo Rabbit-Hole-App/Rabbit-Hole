@@ -13,9 +13,13 @@ Owner request, 2026-10-07. This is the header of the canvas's right panel (`Lear
 - **Active colour:** the /teach violet, `#5b21b6` (`--cmd-teach-fg`, slash-command-tones.md), with a white icon. Inactive icons are neutral, and a thin divider runs under the header.
 - **Keyboard:** the arrow keys move between the enabled tabs and select as they go. Comments is skipped.
 
-## Table of contents (default)
+**Chat (chat workspace, owner brief 2026-10-13 section 3):** Chat (lucide `MessageSquareText`) is a permanent fourth tab,
+first in the group and the tab the panel opens on. The header is then six icon buttons: Chat, Find, Table of contents,
+Comments, Pin, Close. `e2e/panel-header-check.mjs` holds this order and default.
 
-- It is the tab the panel opens on.
+## Table of contents
+
+- Before the Chat tab it was the tab the panel opened on.
 - The outline works as before: add, rename, drag, tick done, delete.
 - An open reader (Wikipedia, paper, PDF, repository source) still shows under the outline. Opening a reader brings this tab forward.
 - With the panel closed, the ContentsRail ticks still mirror the outline.

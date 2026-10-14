@@ -183,6 +183,22 @@ await check('owner: selecting another card moves the one pill to it', async () =
   assert.equal(await page.locator('[data-canvas-target]').count(), 1);
   await blank(page);
 });
+// Each answer above is a chat card linked to its card (1f626264). Each lands in free space beside its card: no answer
+// covers a card, a note or another answer (they once all stacked on one spot over the foot of the column).
+await check('owner: the answer cards sit in free space, over no card and no other answer', async () => {
+  await fit(page);
+  const ids = new Set([...KINDS, EMPTY].map(kind => kind.id));
+  const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-block-id],[data-item-id]')].map(node => {
+    const r = node.getBoundingClientRect();
+    return { id: node.dataset.blockId || node.dataset.itemId, x: r.left, y: r.top, w: r.width, h: r.height };
+  }).filter(box => box.w && box.h));
+  const answers = boxes.filter(box => !ids.has(box.id));
+  assert.ok(answers.length >= KINDS.length - 1, `answer cards: ${answers.length}`);
+  const hit = (a, b) => a.x < b.x + b.w - 1 && a.x + a.w - 1 > b.x && a.y < b.y + b.h - 1 && a.y + a.h - 1 > b.y;
+  const over = answers.flatMap(a => boxes.filter(b => b.id !== a.id && hit(a, b)).map(b => `${a.id.slice(0, 8)} over ${b.id.slice(0, 8)}`));
+  if (over.length) await page.screenshot({ path: `${SHOTS}/answers-overlap.png` });
+  assert.deepEqual(over, [], `overlapping answer cards (${over.length})`);
+});
 
 // ---- Add to chat on a dropped image, a text box and a sticky note (r35 gave them Ask in chat; owner 2026-10-13: "rename Ask in chat
 // to Add to chat (ctrl + L) or Quick Edit (ctrl + k )"): the selection actions above the top right, the object as the composer's
@@ -222,8 +238,10 @@ for (const { kind } of ASKS) {
     if (THREADS[kind.id]) {
       const pin = await page.locator(`[data-comment-pin="${THREADS[kind.id]}"]`).boundingBox();
       assert.ok(pin, 'its pin');
-      assert.ok(pin.x + pin.width <= pillBox.x + 1, `the pin is left of the pill: ${JSON.stringify([pin, pillBox])}`);
-      assert.ok(pillBox.x - (pin.x + pin.width) < 24, `right next to it: ${JSON.stringify([pin, pillBox])}`);
+      // Never under the actions (comments-check `beside`): the pin's box never overlaps the bar's box. A bar clamped inside the
+      // narrower canvas (the Chat pane beside it) can run wider than the object, and the pin then sits below it.
+      const barOverlap = [Math.min(pin.x + pin.width, pillBox.x + pillBox.width) - Math.max(pin.x, pillBox.x), Math.min(pin.y + pin.height, pillBox.y + pillBox.height) - Math.max(pin.y, pillBox.y)];
+      assert.ok(barOverlap.some(overlap => overlap <= 1), `the pin is never under the actions: ${JSON.stringify([pin, pillBox])}`);
       const contact = [Math.min(pin.x + pin.width, box.x + box.width) - Math.max(pin.x, box.x), Math.min(pin.y + pin.height, box.y + box.height) - Math.max(pin.y, box.y)];
       assert.ok(contact.every(overlap => overlap >= 2), `touching the object: ${JSON.stringify([pin, box])}`);
       // Over no control: a text box's H1 to Text ladder, Text | Code, the actions, or anything else a press would reach.
@@ -236,8 +254,14 @@ for (const { kind } of ASKS) {
     const sent = asks.length + plans.length;
     await askPill().click();
     await page.waitForTimeout(500);
-    assert.equal(await pill(page).getAttribute('data-selected-card'), kind.id, 'the strip is the object');
-    assert.equal(await page.locator('[data-canvas-target]').count(), 1, 'one strip');
+    // The chat workspace (chat-workspace-CONTRACT.md A5): the object is one context chip in the Chat pane, and the card's
+    // selection pill steps aside (one object, never two chips).
+    const chip = page.locator('[data-chat-pane] [data-context-chip="ready"]');
+    await chip.waitFor({ timeout: 5000 });
+    assert.equal(await chip.count(), 1, 'one context chip');
+    const named = await chip.locator('button').first().getAttribute('title');
+    assert.ok(named?.includes(words(kind)), `the chip is the object: ${named}`);
+    assert.equal(await page.locator('[data-canvas-target]').count(), 0, 'the selection pill steps aside');
     assert.equal(await composer.inputValue(), '', 'no question is written');
     assert.equal(asks.length + plans.length, sent, 'nothing sent');
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-armed.png` });
@@ -447,6 +471,6 @@ await browser.close();
 const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json()).hits.length));
 console.log('provider tripwire hits', tripwire.join(' / '), 'refused', refused.length ? refused.join(', ') : 'none', 'page errors', errors.length ? errors.join(' | ') : 'none');
 assert.deepEqual(tripwire, [0, 0], 'no model call');
-const TOTAL = KINDS.length * 2 + 2 + 7 + ASKS.length + 1;
+const TOTAL = KINDS.length * 2 + 3 + 7 + ASKS.length + 1;
 console.log(`${results.length}/${TOTAL} checks passed`);
 process.exit(results.length === TOTAL ? 0 : 1);

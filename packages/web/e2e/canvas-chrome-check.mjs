@@ -3,7 +3,10 @@
 // and "if the questions are still being loaded just show the skeleton and a spinner and not the previous question". On an owned
 // and a shared canvas, at 1440 and 1024 wide and at phone width: the minimap sits directly above the zoom row on its left edge;
 // the hooks sit right of the composer with their bottom on the composer's bottom (on a phone, above the composer at the right);
-// no chrome overlaps other chrome; a loading set is a skeleton, never the previous hooks. And (owner, 2026-10-08: "in the
+// no chrome overlaps other chrome; a loading set is a skeleton, never the previous hooks. The owned canvas has no dock now
+// (owner brief 2026-10-13 sections 2 and 4): its composer is the Chat pane's, right of the canvas (on a phone, under it), so
+// there the hooks sit at the canvas's lower right on the strip's baseline, right of the minimap and zoom (on a phone,
+// at the right, above the Chat pane), and no chrome covers the Chat pane. The shared board keeps its own dock composer. And (owner, 2026-10-08: "in the
 // canvas above the chat composer you are cutting the canvas too much") the strip floats: the canvas runs to the bottom under
 // it, the empty strip lets the pointer through to the canvas, its controls stay clickable, and zoom to fit frames every card
 // clear of the composer, the hooks, the minimap and zoom (a bottom inset; on a phone the tools' strip is at the top). Against the
@@ -50,7 +53,8 @@ const open = async (who, path, viewport) => {
   await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   await context.addInitScript(entries => { for (const [key, value] of Object.entries(entries)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, seed);
   // Nothing is asked: a question would be a send. The hook requests are the real route, answered by the stack's fixtures.
-  await context.route(/\/api\/(ask|learn\/(ask|tutor\/plan|home-ask|artifact))\b/, route => { sent.push(new URL(route.request().url()).pathname); return route.abort(); });
+  // The Chat pane's thread list (/api/ask/threads) is not a question: it passes.
+  await context.route(/\/api\/(ask(?!\/threads)|learn\/(ask|tutor\/plan|home-ask|artifact))\b/, route => { sent.push(new URL(route.request().url()).pathname); return route.abort(); });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
   await page.goto(`${BASE}${path}`);
@@ -63,44 +67,61 @@ const round = b => b && Object.fromEntries(Object.entries(b).map(([k, v]) => [k,
 // The geometry rules, one page at a time. phone: the hooks above the composer at the right, the overview in the tools' strip.
 const layout = async (page, where, { phone = false, shared = false } = {}) => {
   const hooks = await box(page, '[data-hooks-slot] section[data-next-steps]');
+  // The shared board's dock composer; the owned canvas has none, its composer is in the Chat pane.
   const composer = await box(page, '[data-canvas-composer]');
+  const pane = await box(page, '[data-chat-pane]');
   const surface = await box(page, '[data-canvas-surface]');
   const zoom = await box(page, '[data-zoom]');
   const minimap = await box(page, '[data-canvas-minimap] [aria-label="Canvas overview"]');
   const strip = await box(page, '[data-canvas-bottom]');
   const stack = await box(page, '[data-zoom-stack]');
-  assert.ok(hooks && composer && surface && zoom && strip && stack, `${where}: hooks ${!!hooks}, composer ${!!composer}, surface ${!!surface}, zoom ${!!zoom}`);
+  assert.ok(hooks && (shared ? composer : pane && !composer) && surface && zoom && strip && stack, `${where}: hooks ${!!hooks}, dock ${!!composer}, Chat pane ${!!pane}, surface ${!!surface}, zoom ${!!zoom}`);
   // The canvas runs to the bottom: no band of its own under it; the strip floats over its lower edge.
-  assert.ok(surface.bottom >= strip.bottom - 2 && surface.bottom >= composer.bottom, `${where}: the canvas ${JSON.stringify(round(surface))} stops above the strip ${JSON.stringify(round(strip))}`);
+  assert.ok(surface.bottom >= strip.bottom - 2 && (!composer || surface.bottom >= composer.bottom), `${where}: the canvas ${JSON.stringify(round(surface))} stops above the strip ${JSON.stringify(round(strip))}`);
   // No chrome over other chrome.
-  for (const [name, b] of [['hooks', hooks], ['zoom', zoom], ['minimap', minimap]]) if (b) assert.ok(disjoint(b, composer), `${where}: the ${name} covers the composer`);
+  for (const [name, b] of [['hooks', hooks], ['zoom', zoom], ['minimap', minimap]]) if (b) assert.ok(disjoint(b, composer) && disjoint(b, pane), `${where}: the ${name} covers the composer or the Chat pane`);
+  assert.ok(disjoint(hooks, stack), `${where}: the hooks ${JSON.stringify(round(hooks))} cover the minimap and zoom ${JSON.stringify(round(stack))}`);
+  if (pane) assert.ok(phone ? pane.y >= surface.bottom - 0.5 : pane.x >= surface.right - 0.5, `${where}: the Chat pane ${JSON.stringify(round(pane))} is not ${phone ? 'under' : 'right of'} the canvas ${JSON.stringify(round(surface))}`);
   // Its controls take the pointer: the composer's field, the zoom row, a hook.
   const hit = (x, y) => page.evaluate(([px, py]) => {
     const el = document.elementFromPoint(px, py);
-    return { surface: !!el?.closest('[data-canvas-surface]'), field: !!el?.closest('[data-canvas-composer] input[placeholder], [data-canvas-composer] textarea[placeholder]'), zoom: !!el?.closest('[title="Reset zoom"]'), hook: !!el?.closest('[data-hooks-slot] [data-next-step]') };
+    return { surface: !!el?.closest('[data-canvas-surface]'), field: !!el?.closest('[data-canvas-composer] input[placeholder], [data-canvas-composer] textarea[placeholder], [data-chat-pane] [data-chat-composer] textarea'), zoom: !!el?.closest('[title="Reset zoom"]'), hook: !!el?.closest('[data-hooks-slot] [data-next-step]') };
   }, [x, y]);
-  const field = await box(page, '[data-canvas-composer] input[placeholder], [data-canvas-composer] textarea[placeholder]');
   const reset = await box(page, '[title="Reset zoom"]');
   const hook = await box(page, '[data-hooks-slot] [data-next-step]');
-  assert.ok((await hit(field.x + field.w / 2, field.y + field.h / 2)).field, `${where}: the composer's field is not on top`);
   assert.ok((await hit(reset.x + reset.w / 2, reset.y + reset.h / 2)).zoom, `${where}: the zoom row is not on top`);
   assert.ok((await hit(hook.x + hook.w / 2, hook.y + hook.h / 2)).hook, `${where}: a hook is not on top`);
   // The empty strip lets the pointer through: right of the zoom stack, level with the zoom row, the canvas takes it.
-  const gapX = (stack.right + (phone ? surface.right : composer.x)) / 2;
+  const gapX = (stack.right + (phone ? surface.right : composer ? composer.x : hooks.x)) / 2;
   assert.ok((await hit(gapX, zoom.y + zoom.h / 2)).surface, `${where}: the empty strip at (${Math.round(gapX)}, ${Math.round(zoom.y + zoom.h / 2)}) does not reach the canvas`);
   if (phone) {
     const tools = await box(page, '[role="toolbar"][aria-label="Canvas tools"]');
     assert.ok(!tools || tools.bottom <= surface.y + 1, `${where}: on a phone the tools' strip is not above the canvas`);
   }
   if (phone) {
-    assert.ok(hooks.bottom <= composer.y + 0.5 && hooks.right >= composer.right - 24, `${where}: on a phone the hooks sit above the composer at the right ${JSON.stringify(round(hooks))} ${JSON.stringify(round(composer))}`);
+    // Above the dock, or above the canvas's own bottom (the Chat pane is under it), at the right.
+    const floor = composer || { y: surface.bottom, right: surface.right };
+    assert.ok(hooks.bottom <= floor.y + 0.5 && hooks.right >= floor.right - 24, `${where}: on a phone the hooks sit above the composer at the right ${JSON.stringify(round(hooks))} ${JSON.stringify(round(floor))}`);
   } else {
-    assert.ok(Math.abs(hooks.bottom - composer.bottom) <= 2, `${where}: the hooks' bottom ${Math.round(hooks.bottom)} is not the composer's ${Math.round(composer.bottom)}`);
-    assert.ok(hooks.x >= composer.right - 0.5, `${where}: the hooks are not right of the composer`);
-    assert.ok(minimap, `${where}: a minimap`);
-    assert.ok(minimap.bottom <= zoom.y + 0.5 && zoom.y - minimap.bottom <= 12 && Math.abs(minimap.x - zoom.x) <= 1.5, `${where}: the minimap ${JSON.stringify(round(minimap))} is not directly above the zoom row ${JSON.stringify(round(zoom))}`);
-    assert.ok(minimap.right <= composer.x + 0.5, `${where}: the minimap is not left of the composer`);
+    // On the dock's baseline, right of it; with no dock, on the strip's baseline (the minimap and zoom group's bottom), right
+    // of that group, at the lower right: out to the canvas's right edge (the strip spans the right gutter too), short of the Chat pane.
+    const base = composer || stack;
+    assert.ok(Math.abs(hooks.bottom - base.bottom) <= 2, `${where}: the hooks' bottom ${Math.round(hooks.bottom)} is not the ${composer ? 'composer' : 'minimap and zoom group'} bottom ${Math.round(base.bottom)}`);
+    assert.ok(hooks.x >= (composer || stack).right - 0.5, `${where}: the hooks are not right of the ${composer ? 'composer' : 'minimap and zoom'}`);
+    if (!composer) assert.ok(hooks.right >= surface.right - 24 && hooks.right <= pane.x + 0.5, `${where}: the hooks ${JSON.stringify(round(hooks))} are not at the canvas's lower right ${JSON.stringify(round(surface))}, short of the Chat pane ${JSON.stringify(round(pane))}`);
+    // A canvas 640 px wide or less (1024 wide with the Chat pane open) keeps the overview in the tools, as a phone does.
+    if (strip.w <= 640) assert.ok(!minimap && await page.getByRole('button', { name: 'Show overview' }).count(), `${where}: a ${Math.round(strip.w)} px canvas offers no Show overview`);
+    else assert.ok(minimap, `${where}: a minimap`);
+    if (minimap) assert.ok(minimap.bottom <= zoom.y + 0.5 && zoom.y - minimap.bottom <= 12 && Math.abs(minimap.x - zoom.x) <= 1.5, `${where}: the minimap ${JSON.stringify(round(minimap))} is not directly above the zoom row ${JSON.stringify(round(zoom))}`);
+    if (minimap) assert.ok(minimap.right <= (composer ? composer.x : hooks.x) + 0.5, `${where}: the minimap is not left of the ${composer ? 'composer' : 'hooks'}`);
   }
+  // The composer's field takes the pointer. A phone's Chat pane is under the canvas: scrolled to for the tap (after every
+  // measure above), then the canvas back.
+  const fieldSelector = composer ? '[data-canvas-composer] input[placeholder], [data-canvas-composer] textarea[placeholder]' : '[data-chat-pane] [data-chat-composer] textarea';
+  await page.locator(fieldSelector).first().scrollIntoViewIfNeeded();
+  const field = await box(page, fieldSelector);
+  assert.ok((await hit(field.x + field.w / 2, field.y + field.h / 2)).field, `${where}: the composer's field is not on top`);
+  await page.locator('[data-canvas-surface]').scrollIntoViewIfNeeded();
   // The Voice and Tutor caption's stack never holds the hooks now.
   assert.equal(await page.locator('[data-left-stack] [data-next-steps]').count(), 0, `${where}: hooks in the left stack`);
   // Zoom to fit (the minimap's Back to content; on a phone the tools' strip opens the overview, which has the same button)
@@ -127,7 +148,7 @@ const ready = page => page.locator('[data-hooks-slot] section[data-next-steps="r
 const settle = page => page.getByText('You are seeing the latest saved version of this board.').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
 
 for (const [label, viewport, phone] of [['1440', { width: 1440, height: 900 }, false], ['1024', { width: 1024, height: 768 }, false], ['phone', { width: 390, height: 844 }, true]]) {
-  await check(`owned canvas at ${label}: the canvas runs under the floating strip; the minimap above the zoom row, the hooks right of the composer on its baseline${phone ? ' (a phone: above it, at the right)' : ''}; the controls take the pointer, the empty strip passes it on; a fit clears the chrome`, async () => {
+  await check(`owned canvas at ${label}: the canvas runs under the floating strip; the minimap above the zoom row, the hooks at the lower right on the strip's baseline${phone ? ' (a phone: at the right, above the Chat pane)' : ''}; no chrome over the Chat pane; the controls and the Chat composer take the pointer, the empty strip passes it on; a fit clears the chrome`, async () => {
     const page = await open(owner, `/apps/${canvas.name}`, viewport);
     await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
     await ready(page);

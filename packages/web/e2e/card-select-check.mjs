@@ -94,7 +94,7 @@ await check('1 single click selects the card and opens nothing', async () => {
   await press('k-exp', { on: card('k-exp').getByText('Why salt melts ice') });
   assert.ok(await isSelected('k-exp'));
   assert.equal(page.url(), url, 'no navigation');
-  assert.equal(await page.locator('[aria-label="Learn agent chat"] [aria-label="Wikipedia reader"]').count(), 0, 'no reader');
+  assert.equal(await page.locator('[data-sources-pane] [aria-label="Wikipedia reader"]').count(), 0, 'no reader');
   assert.equal(await card('k-exp').getAttribute('tabindex'), '0', 'and Tab reaches it');
 });
 await shot('B-selected-card');
@@ -125,8 +125,17 @@ await check('4 Esc clears the selection and the strip', async () => {
 await check('5 a click on the blank canvas clears them', async () => {
   await press('k-exp');
   assert.equal(await strip().count(), 1);
-  const box = await card('k-exp').boundingBox();
-  await page.mouse.click(box.x + box.width + 260, box.y + 20);
+  // A bare point of canvas, never a fixed offset: beside the Chat pane the canvas is narrower and a fixed point can land on the
+  // Rabbit Holes Map or a card.
+  const point = await page.evaluate(() => {
+    for (let y = 120; y < 700; y += 40) for (let x = 360; x < 1400; x += 40) {
+      const element = document.elementFromPoint(x, y);
+      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[role="dialog"],[data-chat-pane],[data-dive-navigator],button,a,iframe')) return { x, y };
+    }
+    return null;
+  });
+  assert.ok(point, 'a bare point of canvas');
+  await page.mouse.click(point.x, point.y);
   await page.waitForTimeout(200);
   assert.ok(!(await isSelected('k-exp')));
   assert.equal(await strip().count(), 0);
@@ -191,13 +200,13 @@ await check('12 the card\'s own controls never open it: a double-click on a quiz
   await page.waitForTimeout(800);
   assert.equal(page.url(), before.url, 'no navigation');
   assert.equal(await holes(), before.holes, 'no Rabbit Hole');
-  assert.equal(await page.locator('[aria-label="Learn agent chat"] [aria-label="Wikipedia reader"]').count(), 0, 'no reader');
+  assert.equal(await page.locator('[data-sources-pane] [aria-label="Wikipedia reader"]').count(), 0, 'no reader');
 });
 
 await check('2 a double-click opens: an article card its reader; a learning card its Rabbit Hole', async () => {
   // The card's header; a double-click on the article text belongs to the article (selecting a word).
   await press('k-wiki', { double: true, on: card('k-wiki').getByText('Wikipedia', { exact: true }).first() });
-  await page.locator('[aria-label="Learn agent chat"] [aria-label="Wikipedia reader"]').waitFor({ timeout: 10000 });
+  await page.locator('[data-sources-pane] [aria-label="Wikipedia reader"]').waitFor({ timeout: 10000 });
   assert.ok(await isSelected('k-wiki'), 'the reader opens from the selected card');
   await press('k-exp', { double: true, on: card('k-exp').getByText('lowers its freezing point') });
   await page.waitForURL(/[?&]hole=canvas-[a-f0-9]{8}/, { timeout: 20000 });

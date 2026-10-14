@@ -423,7 +423,7 @@ await shot('14-ctrl-shift-f-search');
 await page.keyboard.press('Escape');
 
 // ---- J: one rule for the empty hint and for keeping the hole (owner r29). A shape, text, or a chat card added to the
-// canvas from the dock's sheet each hides the hint at once and keeps the hole; leaving and coming back finds it. ----
+// canvas by the Chat pane's Add as card each hides the hint at once and keeps the hole; leaving and coming back finds it. ----
 const hint = () => page.locator('[data-dive-empty]').count();
 const tool = name => page.locator('[data-tool-gutter]').getByRole('button', { name, exact: true }).click();
 const surface = () => page.locator('[aria-label="Lesson canvas"]').boundingBox();
@@ -442,7 +442,7 @@ const firstObjects = {
   // The bug the owner saw: the card was on the canvas, the hint stayed over it, and leaving discarded both.
   'chat card': async () => {
     await composer().click(); await composer().fill('Why does this matter?'); await composer().press('Enter');
-    const add = page.getByRole('button', { name: 'Add to canvas' }).last();
+    const add = page.locator('[data-chat-pane] [data-add-to-canvas]').last();
     await add.waitFor(); await add.click();
     await page.locator('[data-chat-block]').first().waitFor();
   },

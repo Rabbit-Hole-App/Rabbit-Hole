@@ -51,7 +51,7 @@ import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { createContextCache, freezeTarget } from './inline-ai-context.js';
-import { applyTx, obstaclesOf, placeNote } from './inline-ai-apply.js';
+import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 
@@ -2286,14 +2286,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // null follows the width (open from 1400px of canvas); a click makes it the learner's choice.
   const [overview, setOverview] = useState(null);
   const column = useRef(null);
-  const measureBlocks = useCallback(() => {
+  const measureNow = () => {
     const next = {};
     for (const element of column.current?.querySelectorAll('[data-block-id]') || []) {
       const owner = exchangesRef.current.find(item => item.id === element.dataset.blockId) || blocksRef.current.find(item => item.id === element.dataset.blockId);
       if (owner) next[owner.id] = { x: element.offsetLeft + owner.dx, y: element.offsetTop + owner.dy, w: element.offsetWidth, h: element.offsetHeight };
     }
+    return next;
+  };
+  const measureBlocks = useCallback(() => {
+    const next = measureNow();
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   boundsRef.current = bounds;
   // Move the camera only if the card is not in the visible area - one in view stays put - and never the zoom.
   const bringIntoView = id => showBox(boundsRef.current[id]);
@@ -2736,6 +2740,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return { ...(idKey ? { id: element.dataset[idKey] } : {}), x: (rect.left - at.left - v.x) / v.z, y: (rect.top - at.top - v.y) / v.z, w: rect.width / v.z, h: rect.height / v.z };
     }).filter(box => box.w && box.h);
   };
+  // Every kind of thing on the board as boxes with their ids (obstaclesOf): the inline editor's obstacles, and linked answers'.
+  const boardObstacles = (exclude = []) => obstaclesOf({ boxes: contentBoxes(), paths: inlinePaths(), frames: inlineScreenBoxes('[data-group-box]', 'groupBox'), areas: areas.map(stored => ({ ...areaBox(stored), id: stored.id })), pins: inlineScreenBoxes('[data-comment-pin]') }, exclude);
   const inlineCanvas = {
     boardKey: inlineKey.current, cache: inlineCache.current,
     board: inlineBoard,
@@ -2743,7 +2749,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     boxOf: id => boxesOf([id])[0] || null,
     // Every kind of thing on the board (A7): measured boxes, connectors along their drawn paths, group frames, areas and
     // comment pins, in world units.
-    obstacles: exclude => obstaclesOf({ boxes: contentBoxes(), paths: inlinePaths(), frames: inlineScreenBoxes('[data-group-box]', 'groupBox'), areas: areas.map(stored => ({ ...areaBox(stored), id: stored.id })), pins: inlineScreenBoxes('[data-comment-pin]') }, exclude).map(({ id: _id, ...box }) => box),
+    obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
     // The camera moves to show a world box (a ghost placed off-screen), the way an inserted card is shown.
     reveal: box => showBox(box, true),
     visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
@@ -3193,48 +3199,65 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       paper: { id: block.paper.id, page: block.paper.page, selection: { region: selection.region, preview: selection.preview } },
     });
   };
-  // A question asked about a block auto-links that block to its answer node,
-  // parks the node below its source and slides it past anything already
-  // there. Placement repeats once the answer is complete, when the node's
-  // height is final.
+  // A question asked about a block auto-links that block to its answer node. A card's answer goes beside its card in
+  // free space (placeAnswers, the inline editor's placer): clear of every card, note, shape, connector and answer, the
+  // ones placed in the same pass included, and nothing else moves. Placement repeats once the answer is complete, when
+  // the node's height is final. A floated answer (LearnPage) is placed only while it has no spot of its own: one saved
+  // with its spot stays where it was saved.
   const autoLinked = useRef(new Set());
   const autoSettled = useRef(new Set());
   useEffect(() => {
-    for (const exchange of exchanges) {
-      if (!exchange.linkFrom) continue;
-      const placed = autoLinked.current.has(exchange.id);
-      if (placed && (autoSettled.current.has(exchange.id) || exchange.status !== 'done')) continue;
+    const due = exchanges.filter(exchange => {
+      if (!exchange.linkFrom) return false;
+      if (autoLinked.current.has(exchange.id)) return !autoSettled.current.has(exchange.id) && exchange.status === 'done';
+      return !exchange.float || (!exchange.dx && !exchange.dy);
+    });
+    if (!due.length) return;
+    // Measured now: an answer placed a moment ago has moved before its bounds caught up.
+    const live = boundsRef.current = measureNow();
+    const place = (exchange, own, x, y, sides, area = null) => {
+      const flowX = own.x - exchange.dx, flowY = own.y - exchange.dy;
+      onMove(exchange.id, x - flowX, y - flowY);
+      if (centerRef.current === exchange.id) { centerRef.current = null; centerOn({ x, y, w: own.w, h: own.h }); }
+      const mine = present.current.links.find(link => link.from === exchange.linkFrom && link.to === exchange.id);
+      if (!mine) {
+        setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: sides[0], to: exchange.id, toSide: sides[1], ...(area ? { route: 'curve' } : {}), color: area ? '#dc2626' :LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
+      } else if (mine.fromSide !== sides[0] || mine.toSide !== sides[1]) {
+        setLinks(previous => previous.map(link => link.id === mine.id ? { ...link, fromSide: sides[0], toSide: sides[1] } : link));
+      }
+    };
+    const cards = [], beside = [];
+    for (const exchange of due) {
       const linkedArea = areaById(exchange.linkFrom);
-      const source = bounds[exchange.linkFrom] || (linkedArea && areaBox(linkedArea)), own = bounds[exchange.id];
+      const source = boxesOf([exchange.linkFrom])[0] || (linkedArea && areaBox(linkedArea)), own = live[exchange.id];
       if (!source || !own) continue; // wait for both to be measured
       autoLinked.current.add(exchange.id);
       if (exchange.status === 'done') autoSettled.current.add(exchange.id);
-      // An asked-about area's answer goes beside what the area sits on (a slide, a card), on the
-      // nearer side and a little above the area, never over it; a card's answer goes under it.
       const area = String(exchange.linkFrom).startsWith('area:') ? source : null;
-      let x = source.x + (source.w - own.w) / 2, y = source.y + source.h + 28, sides = ['bottom', 'top'];
-      if (area) {
-        const under = Object.entries(bounds).filter(([id, b]) => id !== exchange.id && b.x < area.x + area.w && b.x + b.w > area.x && b.y < area.y + area.h && b.y + b.h > area.y).map(([, b]) => b);
-        const left = Math.min(area.x, ...under.map(b => b.x)), right = Math.max(area.x + area.w, ...under.map(b => b.x + b.w));
-        const toRight = area.x + area.w / 2 >= (left + right) / 2;
-        x = toRight ? right + 48 : left - 48 - own.w;
-        y = area.y - 24;
-        sides = toRight ? ['right', 'left'] : ['left', 'right'];
-      }
+      if (!area) { cards.push({ exchange, own, source }); continue; }
+      // An asked-about area's answer goes beside what the area sits on (a slide, a card), on the
+      // nearer side and a little above the area, never over it.
+      const under = Object.entries(live).filter(([id, b]) => id !== exchange.id && b.x < area.x + area.w && b.x + b.w > area.x && b.y < area.y + area.h && b.y + b.h > area.y).map(([, b]) => b);
+      const left = Math.min(area.x, ...under.map(b => b.x)), right = Math.max(area.x + area.w, ...under.map(b => b.x + b.w));
+      const toRight = area.x + area.w / 2 >= (left + right) / 2;
+      const x = toRight ? right + 48 : left - 48 - own.w;
+      let y = area.y - 24;
       // Push below any node whose box would overlap this one.
-      const others = Object.entries(bounds).filter(([id]) => id !== exchange.id && id !== exchange.linkFrom).map(([, box]) => box).sort((a, b) => a.y - b.y);
+      // ponytail: an area's answer keeps its beside-the-host rule and this column-only push; move it to placeAnswers if
+      // it is ever seen over a note or a shape.
+      const others = Object.entries(live).filter(([id]) => id !== exchange.id && id !== exchange.linkFrom).map(([, box]) => box).sort((a, b) => a.y - b.y);
       for (let pass = 0; pass < 8; pass++) {
         const hit = others.find(box => x < box.x + box.w && x + own.w > box.x && y < box.y + box.h && y + own.h > box.y);
         if (!hit) break;
         y = hit.y + hit.h + 24;
       }
-      const flowX = own.x - exchange.dx, flowY = own.y - exchange.dy;
-      onMove(exchange.id, x - flowX, y - flowY);
-      if (centerRef.current === exchange.id) { centerRef.current = null; centerOn({ x, y, w: own.w, h: own.h }); }
-      if (!present.current.links.some(link => link.from === exchange.linkFrom && link.to === exchange.id)) {
-        setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: sides[0], to: exchange.id, toSide: sides[1], ...(area ? { route: 'curve' } : {}), color: area ? '#dc2626' :LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
-      }
+      place(exchange, own, x, y, toRight ? ['right', 'left'] : ['left', 'right'], area);
+      beside.push({ x, y, w: own.w, h: own.h });
     }
+    if (!cards.length) return;
+    const answers = cards.map(({ exchange, own, source }) => ({ id: exchange.id, target: source, size: { w: own.w, h: own.h },
+      ignore: [exchange.linkFrom, ...present.current.links.filter(link => link.from === exchange.id || link.to === exchange.id).map(link => link.id)] }));
+    placeAnswers(answers, [...boardObstacles(), ...beside]).forEach((spot, i) => place(cards[i].exchange, cards[i].own, spot.x, spot.y, spot.sides));
   }, [exchanges, bounds, areas]);
   // A new question's card lands in the middle of the view, once: chat cards
   // sit at the top of the column, so following the column's bottom left the
@@ -4479,8 +4502,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </svg>
         )}
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {/* An answer to a red box lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides or the box down. */}
-          {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:')
+          {/* An answer to a red box, or to a card asked about (float, LearnPage), lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides, the cards or the box down. */}
+          {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}>

@@ -12,9 +12,15 @@ import * as esbuild from 'esbuild';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const dir = mkdtempSync(join(tmpdir(), 'answer-footer-')), outfile = join(dir, 'footer.cjs');
+// ChatMessages reaches pdf.js through the Chat workspace (chat-context.js, context-docs.js, learn-paper-figures.js) and a Vite
+// ?url import, which node has no use for: it becomes an empty string (as next-steps-wiring-ui.test.mjs does).
+const viteUrl = { name: 'vite-url', setup(build) {
+  build.onResolve({ filter: /\?url$/ }, args => ({ path: args.path, namespace: 'vite-url' }));
+  build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
+} };
 await esbuild.build({
   stdin: { contents: "export { default as AnswerFooter, copyAnswer, nextRating, footerShown, cardIdFor } from './AnswerFooter.jsx'; export { ChatMessages } from './ChatMessages.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
-  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
+  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });

@@ -306,6 +306,15 @@ await check('6 Learn attaches the exact range and carries it into Learn, sending
 
 // Learn's composer is an input (LearnPage, Dive.jsx), a textarea in other docks: match either.
 const COMPOSER = '[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])';
+// Ask in chat opens the Chat pane in the right panel (owner brief 2026-10-13 section 5, Add to Chat), so the next range is
+// dragged after going back to the panel's Files tab, at train.py.
+const panelFiles = async () => {
+  const filesTab = page.locator('[data-panel-tab="files"]');
+  if (await filesTab.getAttribute('aria-selected') !== 'true') await filesTab.click();
+  const source = page.locator('[data-learn-files]').getByRole('region', { name: 'Repository source' }).locator('[data-source-line="5"]');
+  if (!await source.count()) await page.locator('[data-learn-files] [data-file-row="train.py"]').click();
+  await source.waitFor({ timeout: 10000 });
+};
 await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, Ask in chat puts the lines on the canvas as a selected Code card and writes the question, with the range as context; nothing is sent', async () => {
   const n = asks.length, sent = learnRequests.length;
   await tab('Learn').click();
@@ -338,6 +347,7 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
   const cardId = await codeCards.first().getAttribute('data-block-id');
   await page.locator(`[data-chat-pane] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
   // Ask in chat on the same lines again reselects that card: no second card.
+  await panelFiles();
   await drag(5, 7);
   await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
   await page.waitForTimeout(600);
@@ -350,6 +360,7 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
 
 await check('10b Copy in the panel says Copied on the button; pasting it on the canvas asks Code card or Jupyter notebook first, and Cancel places nothing; prose pastes as text', async () => {
   const n = asks.length, sent = learnRequests.length, canvasFrame = page.getByLabel('Lesson canvas');
+  await panelFiles();
   await drag(5, 7);
   await actions.getByRole('button', { name: 'Copy', exact: true }).click();
   await actions.getByRole('button', { name: 'Copied', exact: true }).waitFor({ timeout: 5000 }); // in place, not a corner toast
@@ -392,6 +403,7 @@ await check('10c Send carries the Code card and the line range on the Learn chat
   const n = asks.length, tutorTurns = learnRequests.filter((p) => p.startsWith('/api/learn/tutor')).length;
   const field = page.locator(COMPOSER).first();
   // Ask in chat once more: its Code card is selected again and the question waits, unsent.
+  await panelFiles();
   await drag(5, 7);
   await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
   const pill = page.locator('[data-chat-pane] [data-selected-card]');
@@ -407,9 +419,10 @@ await check('10c Send carries the Code card and the line range on the Learn chat
   assert.equal(asks.at(-1).canvas_target?.id, cardId, 'the Code card rides as the selected card');
   assert.ok(String(asks.at(-1).canvas_target?.text || '').includes(content['train.py'].split('\n')[4].trim()), 'with its lines');
   assert.equal(learnRequests.filter((p) => p.startsWith('/api/learn/tutor')).length, tutorTurns, 'not a Tutor turn');
-  await page.locator('[data-chat-sheet] blockquote', { hasText: 'train.py · lines 5–7' }).first().waitFor({ timeout: 5000 }); // the question's own passage line
+  await page.locator('[data-chat-pane] blockquote', { hasText: 'train.py · lines 5–7' }).first().waitFor({ timeout: 5000 }); // the question's own passage line, in the transcript
   await shot('L-learn-files-send');
   const learnFiles = page.locator('[data-learn-files]');
+  await panelFiles();
   await learnFiles.locator('[data-learn-open-map]').click();
   await page.waitForURL(/[?]tab=map$/);
 });
@@ -429,9 +442,8 @@ await check('10d a code reference in an answer opens the Files panel at that ran
   await link.waitFor({ timeout: 5000 });
   assert.equal(await page.locator('[data-code-ref^="nanogpt/missing.py"]').count(), 0, 'an unknown path is no link');
   assert.ok(await page.getByText(/nanogpt\/missing\.py:1-2 does not exist/).count() > 0, 'it stays as text');
-  // Closed panel: the click opens it on Files, model.py, lines 177-179 selected (the toolbar Ask in chat and Copy act on).
-  // A closed panel slides off the right edge but stays in the page, so isVisible() is true there: test it is on screen.
-  if (await page.locator('[data-panel-close]').evaluate((n) => n.getBoundingClientRect().right <= innerWidth)) await page.locator('[data-panel-close]').click();
+  // The answer is in the Chat pane, in the right panel: the click turns that panel to Files, model.py, lines 177-179 selected
+  // (the toolbar Ask in chat and Copy act on).
   await link.click();
   await page.locator('[data-learn-files]').waitFor({ timeout: 10000 });
   assert.equal(await page.locator('[data-panel-tab="files"]').getAttribute('aria-selected'), 'true');

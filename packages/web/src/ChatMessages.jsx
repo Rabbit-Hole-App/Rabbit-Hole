@@ -1,5 +1,5 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
-import { useEffect, useRef, useState } from 'react';
+import { Component, useEffect, useRef, useState } from 'react';
 import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
@@ -120,6 +120,15 @@ function OutputRow({ runId, name, size }) {
   );
 }
 
+// A Learn answer that throws while drawing (a malformed record from the server or a test double) falls back to its plain
+// text: main.jsx swaps the whole page for its crash screen on any uncaught error, so one answer never takes the page down.
+export class AnswerBoundary extends Component {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error) { console.error('[chat answer]', error); }
+  render() { return this.state.failed ? <div data-answer className="min-w-0 whitespace-pre-wrap text-sm">{String(this.props.text ?? '')}</div> : this.props.children; }
+}
+
 // The contract's message status (CONTRACT A2). Today's client keeps a progress stage in m.status while streaming, so
 // anything else is done unless it is the reply still arriving.
 const answerStatus = (m, arriving) => (['streaming', 'done', 'stopped', 'error'].includes(m.status) ? m.status : arriving ? 'streaming' : 'done');
@@ -162,16 +171,18 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
         <>{learnChat ? (
           // A Learn answer reads as a document at the pane's width, no colored box (owner brief section 9); the footer is
           // its one utility row (section 10). data-answer-body is what Copy puts on the clipboard as HTML.
+          <AnswerBoundary key={m.messageId ?? i} text={m.content}>
           <div data-answer className="group/answer min-w-0">
-            <div data-answer-body><Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
+            <div data-answer-body><Md doc text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
             {/* A Tutor syllabus (contract B6): an editable list under its answer; edits save to this message (chat-syllabus-route.js)
                 once it has its server id. */}
-            {m.kind === 'syllabus' && m.meta?.syllabus && <SyllabusMessage syllabus={m.meta.syllabus} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
+            {m.kind === 'syllabus' && Array.isArray(m.meta?.syllabus?.topics) && <SyllabusMessage syllabus={m.meta.syllabus} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
               onAddAsCard={onAddToCanvas && addAsCard} onLocateCard={onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
               onRegenerate={onRegenerate} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
             {prepare && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
           </div>
+          </AnswerBoundary>
         ) : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
         {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
 </>

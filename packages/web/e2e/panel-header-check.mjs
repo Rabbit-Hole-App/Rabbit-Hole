@@ -1,5 +1,5 @@
-// The canvas's right panel header (docs/features/panel-header.md): Find, Table of contents and a Comments placeholder
-// as icon tabs, then Pin and Close; a real find that frames and selects a card off screen. Against the LOCAL stack
+// The canvas's right panel header (docs/features/panel-header.md): Chat (permanent, first and the default: chat workspace
+// brief 2026-10-13 section 3), Find, Table of contents and Comments as icon tabs, then Pin and Close; a real find that frames and selects a card off screen. Against the LOCAL stack
 // only: local D1 and fresh browser profiles. No model is called: /api/learn/ask is answered here and any other model
 // route fails the run. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 node e2e/panel-header-check.mjs [shotsDir]
@@ -80,18 +80,20 @@ await card('k-exp').waitFor({ timeout: 60000 });
 await page.waitForTimeout(2500); // past the 1200 ms hook debounce
 const hooksAtOpen = hookBases.length;
 
-await check('1 the header is five icon buttons in the owner\'s order, no visible text', async () => {
+await check('1 the header is six icon buttons in the owner\'s order, Chat first, no visible text', async () => {
   await openPanel();
   const header = page.locator('[data-panel-header]');
   const names = await header.locator('button').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('title')]));
-  assert.deepEqual(names, [['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
+  assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
   assert.equal((await header.innerText()).trim(), '', 'icons only');
-  assert.equal(await header.locator('button svg').count(), 5);
-  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 3, 'the three tabs share one group');
+  assert.equal(await header.locator('button svg').count(), 6);
+  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 4, 'the four tabs share one group');
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-pin], [data-panel-header] [role="tablist"] [data-panel-close]').count(), 0, 'Pin and Close sit outside it');
 });
 
-await check('2 Table of contents is the default tab: violet with a white icon, its outline below the header', async () => {
+await check('2 Chat is the default tab; Table of contents selects violet with a white icon, its outline below the header', async () => {
+  assert.deepEqual(await selected(), ['chat']);
+  await tab('Table of contents').click();
   assert.deepEqual(await selected(), ['toc']);
   const [bg, fg] = await tab('Table of contents').evaluate(node => [getComputedStyle(node).backgroundColor, getComputedStyle(node).color]);
   assert.deepEqual([bg, fg], ['rgb(91, 33, 182)', 'rgb(255, 255, 255)']);
@@ -131,7 +133,9 @@ await check('5 arrow keys move between the enabled tabs, Comments included on a 
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['comments']);
   await page.keyboard.press('ArrowRight');
-  assert.deepEqual(await selected(), ['find'], 'wraps');
+  assert.deepEqual(await selected(), ['chat'], 'wraps');
+  await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await selected(), ['find']);
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['toc']);
   assert.equal(await tab('Table of contents').evaluate(node => node === document.activeElement), true);
