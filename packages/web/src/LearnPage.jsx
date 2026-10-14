@@ -1544,12 +1544,13 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
             onClick={() => goBack('/apps')}
             className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
           {/* One line, never wrapped (owner r35): in a project, [project] › [canvas], the project part to its Main canvas,
-              shrinking first down to its minimum; then the canvas title (renamable) and what hangs off it. The project's
+              kept whole on a desktop (the canvas narrows beside the Chat pane) and on a phone shrinking first down to its
+              minimum; then the canvas title (renamable) and what hangs off it. The project's
               name is the one its card shows (cardModel), never the repository's own. */}
           <div data-title-crumbs className="flex max-w-full min-w-0 items-center">
           {project && <>
             <button type="button" data-project-crumb title={cardModel(project).title} onClick={() => navigate(canvasHref(project.name))}
-              className="h-8 max-w-60 min-w-12 shrink-[50] truncate rounded-lg px-1.5 text-sm text-ink-2 hover:bg-hover hover:text-ink">{cardModel(project).title}</button>
+              className="h-8 max-w-60 min-w-12 shrink-[50] truncate rounded-lg md:shrink-0 px-1.5 text-sm text-ink-2 hover:bg-hover hover:text-ink">{cardModel(project).title}</button>
             {projectMenu}
             <span aria-hidden="true" className="shrink-0 px-0.5 text-ink-3">›</span>
           </>}
@@ -1674,7 +1675,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} filesOn={!!files} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
-        onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder} autoFocus />
+        onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
+        // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
+        // the page past Learn's header strip.
+        autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}

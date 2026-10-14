@@ -94,8 +94,9 @@ No new endpoint. What already exists:
     project's own title once it has one, else the repository's name), never the repository hardcoded. It opens the Main canvas.
   - The canvas part is the existing title field: it renames as before, and the switcher hangs off it, with the canvas's
     Rabbit Holes as a group under the current canvas (dive-v1.md "Title menu").
-  - One line, never wrapped: the project part shrinks first, down to 3 rem, then the title. Both cut with an ellipsis and
-    show the full name on hover. The row wraps around the crumbs on a phone, never inside them.
+  - One line, never wrapped: on a desktop (md up) the project part stays whole and only the title is cut, also when the
+    canvas narrows beside the Chat pane; on a phone the project part shrinks first, down to 3 rem, then the title. Both
+    cut with an ellipsis and show the full name on hover. The row wraps around the crumbs on a phone, never inside them.
   - A canvas outside its project (`CanvasPage`, `/apps/canvas-…`) keeps its "In <project> →" row; a standalone canvas
     shows its title only.
 
