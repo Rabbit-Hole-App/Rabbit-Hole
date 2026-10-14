@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -108,4 +108,10 @@ test('older-answer toggle state is keyed by thread and message: opening one neve
     assert.equal(shown('canvaschat-2'), 0, 'another chat stays collapsed');
     assert.equal(shown('canvaschat-1', '813'), 0, 'another message stays collapsed');
   } finally { delete globalThis.__state; delete globalThis.__set; }
+});
+
+test('ChatMessages mounts the suggestions under a Learn chat answer, as one standalone line after the answer content, latest by position, once the composer API is passed', () => {
+  const src = readFileSync(new URL('./ChatMessages.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(src, /import AnswerSuggestions from '\.\/AnswerSuggestions\.jsx';/);
+  assert.match(src, /\n {8}\{learnChat && prepare && <AnswerSuggestions message=\{m\} latest=\{i === msgs\.length - 1\} threadId=\{threadId\} prepare=\{prepare\} insertNotebook=\{insertNotebook\} \/>\}\n {8}\{m\.graph&&onGraph&&/);
 });

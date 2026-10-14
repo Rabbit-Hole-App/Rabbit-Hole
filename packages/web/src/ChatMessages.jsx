@@ -5,6 +5,7 @@ import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
 import { waitingText } from './waiting-text.js';
 import { cn } from './ui.jsx';
+import AnswerSuggestions from './AnswerSuggestions.jsx';
 
 // Phase 2 proposal card: what will happen with the exact inputs; nothing runs
 // until Run posts the approval. Change hands the args back to the input box.
@@ -117,7 +118,7 @@ function OutputRow({ runId, name, size }) {
 }
 
 // One message. Everything it reads from AskPanel comes in as a prop.
-export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, blockCopy, setBlockCopy }) {
+export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, blockCopy, setBlockCopy, threadId, prepare, insertNotebook }) {
   return (
     <div key={i} className={cn('py-1.5', (m.role === 'user' || m.role === 'step') && 'flex justify-end')}>
       {m.role === 'step' ? (
@@ -153,6 +154,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           }}><Copy size={14} /></button>
           {blockCopy?.reply === (m.id || i) && <span role="status" className="absolute right-2 top-9 z-10 rounded border border-accent/30 bg-accent/10 px-2 py-1 text-xs text-black shadow-sm">{blockCopy.text}</span>}
         </div> : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
+        {learnChat && prepare && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
         {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
         {sheetMode && onAddToCanvas && !m.demo && !m.content.startsWith('\u2717') && !(busy && i === msgs.length - 1) && (
           <button type="button" data-add-to-canvas disabled={m.added} onClick={() => {
