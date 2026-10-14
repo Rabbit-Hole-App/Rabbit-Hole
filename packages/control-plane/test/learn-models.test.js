@@ -62,7 +62,7 @@ test('chat and grading on Auto run claude-opus-5 with the server-side fallback, 
     const calls = recordFetch(t), DB = recordingDb();
     await chat({ ...env, DB }, null);
     assert.deepEqual(shape(calls), [auto]);
-    assert.equal(calls[0].maxTokens, 2400);
+    assert.equal(calls[0].maxTokens, 6000);
     assert.deepEqual(DB.sql, []);
   }
   // The grader posts only the block's fields (and an Explain Back sketch, docs/features/explain-back-sketch.md) to
@@ -148,7 +148,7 @@ test('no Learn task sets thinking, effort or temperature: the model defaults app
 
 test('the task configuration states what the requests above carry, and the limits keep their values', () => {
   const pick = ({ provider, model, maxTokens }) => ({ provider, model, maxTokens });
-  assert.deepEqual(pick(LEARN_TASKS.chat), { provider: 'anthropic', model: null, maxTokens: 2400 });
+  assert.deepEqual(pick(LEARN_TASKS.chat), { provider: 'anthropic', model: null, maxTokens: 6000 });
   assert.deepEqual(pick(LEARN_TASKS.grading), { provider: 'anthropic', model: null, maxTokens: 2400 });
   assert.deepEqual(pick(LEARN_TASKS.artifact), { provider: 'plan', model: 'claude-opus-5', maxTokens: 4000 });
   assert.deepEqual(pick(LEARN_TASKS.tutor), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 2000 });

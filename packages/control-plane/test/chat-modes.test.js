@@ -9,6 +9,7 @@ import * as chatModes from '../src/chat-modes.js';
 import { chatFields, contextRefs, courseIntent, resolveMode, validateSyllabus, syllabusPath, chatContext, TUTOR_SYSTEM } from '../src/chat-modes.js';
 import { pathOutput } from '../src/agents/learn-journey.js';
 import { REQUEST_FIRST } from '../src/agents/learn-tutor.js';
+import { CUT_NOTE, DECLINE } from '../src/learn-research.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { contextDocsFetch } from '../src/learn-context-docs.js';
 import { LEARN_SYSTEM } from '../src/agents/learn-chat.js';
@@ -296,6 +297,21 @@ test('any subject in Ask, Auto and Tutor gets the request-first rule; a refused 
   const after = f.calls.at(-1);
   assert.deepEqual(after.messages.slice(0, -1).map(m => m.content), ['a request the assistant refuses', 'I can\'t help with that request.'], 'history keeps the refusal for a rephrase to meet');
   assert.ok(after.system.includes(REQUEST_FIRST));
+});
+
+// lane-b-real/RESULTS.md: a refusal reached the pane as "No Learn answer returned (refusal; no content)" and a long whole-board
+// answer as "cut short" with nothing kept. The chat stream now answers with the decline, or the text it has plus a note.
+test('a refused turn answers with the decline and a cut turn keeps its text; both stored as the answer, no error event', async t => {
+  const f = fixture(t);
+  f.replies.push({ stop_reason: 'refusal', content: [] });
+  const refused = (await f.ask({ message: 'a request the model declines', mode: 'tutor' })).events;
+  assert.deepEqual(refused.map(e => e.event), ['chunk', 'answer_meta', 'done']);
+  assert.equal(refused[0].data.text, DECLINE);
+  f.replies.push({ stop_reason: 'max_tokens', content: [{ type: 'text', text: 'A long review of the whole board.' }] });
+  const cut = (await f.ask({ message: 'Review the whole board', mode: 'ask' })).events;
+  assert.equal(cut[0].data.text, `A long review of the whole board.\n\n${CUT_NOTE}`);
+  assert.deepEqual(f.rows("SELECT content FROM messages WHERE role = 'assistant' ORDER BY id").map(r => r.content), [DECLINE, `A long review of the whole board.\n\n${CUT_NOTE}`]);
+  assert.equal(f.calls[0].max_tokens, 6000);
 });
 
 test('Ask never becomes a syllabus, even with a live journey on the canvas and a syllabus in the trailer', async t => {

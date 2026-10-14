@@ -35,8 +35,9 @@ export const askModel = (key, fallback = null) => (typeof key === 'string' && Ob
 // roles carry an effort, so the model default thinks inside maxTokens.
 export const LEARN_TASKS = Object.freeze({
   // Sheet asks, Ask in chat, Continue convo and chat-answered slash commands,
-  // on every canvas kind. The picker key resolves through askModel.
-  chat: Object.freeze({ provider: 'anthropic', model: null, picker: true, fallback: 'server-side default on Auto only, where spend is not enforced', thinking: 'model default', toolChoice: 'auto; none on the last research step', maxTokens: 2400 }),
+  // on every canvas kind. The picker key resolves through askModel. maxTokens 6000 (owner, 2026-10-14): adaptive thinking counts
+  // against it, and whole-board answers ran out at 2400; spend admission reserves max_tokens at the output price (learn-spend.js).
+  chat: Object.freeze({ provider: 'anthropic', model: null, picker: true, fallback: 'server-side default on Auto only, where spend is not enforced', thinking: 'model default', toolChoice: 'auto; none on the last research step', maxTokens: 6000 }),
   // The visible grade (/api/learn/assess, learn-grade-routes.js): Auto, one
   // call with no tools, a thinking-only turn replayed once.
   grading: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default where spend is not enforced', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
