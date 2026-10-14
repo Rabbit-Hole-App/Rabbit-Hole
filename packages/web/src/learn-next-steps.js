@@ -40,9 +40,10 @@ export function goalOf({ context = null, record = null, title = '', liveTitle = 
 // Owner task 2: the canvas's native content, from the shared snapshot (canvas-semantics.js semanticSnapshot, already
 // budgeted and free of hidden practice answers): objects with their words, relations with their source (connector,
 // annotation or inferred), groups, and what the budget cut. Positions never travel.
+// fingerprint names the snapshot this content came from, so the request carries what its basis says.
 const nativeOf = snapshot => (!snapshot ? {} : {
   objects: (snapshot.objects || []).map(({ id, kind, text, groupId, sectionId }) => ({ id, kind, text, ...(groupId ? { groupId } : {}), ...(sectionId ? { sectionId } : {}) })),
-  relations: snapshot.relations || [], groups: snapshot.groups || [], omitted: snapshot.omitted || { objects: 0, chars: 0 },
+  relations: snapshot.relations || [], groups: snapshot.groups || [], omitted: snapshot.omitted || { objects: 0, chars: 0 }, fingerprint: snapshot.fingerprint,
 });
 
 // context: tutorContext's (or a hook turn's) { domain, source }, null where none resolves; a plain canvas or hole has the
@@ -59,8 +60,9 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
   const states = domain ? deriveClaimStates(events, claims) : {};
   // kind is the block type, as TutorDecisionEvent's canvas_summary.kinds. A chat card ({ id, question, answer }, no type) is
   // kind chat titled by the learner's own question - grounding only: topicOf skips it - and never its answer.
+  const words = new Map((snapshot?.cards || []).map(card => [card.id, card.text]));
   const shown = blocks.slice(-L.blocks).map(block => {
-    const chat = !block.type;
+    const chat = !block.type, text = chat ? '' : words.get(block.id) || '';
     let named = null;
     try { named = chat ? null : describe?.(block) ?? null; } catch { /* the block's own title */ }
     const t = resolveTarget(block);
@@ -69,6 +71,8 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
       concept_ids: t.concept_ids.filter(c => Object.hasOwn(concepts, c)).slice(0, L.ids),
       claim_ids: (domain?.targetClaims?.({ block_id: block.id, card_id: t.card_id, part_id: t.part_id, selected_object: t.selected_object, concept_ids: t.concept_ids }) || []).filter(known).slice(0, L.ids),
       practice: block.activity ? block.attemptLog?.at(-1)?.result ?? 'open' : null,
+      // Owner task 2: the card's visible words (the snapshot's, budgeted; never a hidden answer), so a text edit re-plans.
+      ...(text ? { text } : {}),
     };
   });
   const mode = context?.source === 'journey' ? 'journey' : record ? 'dive' : 'canvas';
@@ -180,13 +184,15 @@ const fnv = text => {
 // eleventh message 2, 3): also the effective Tutor context (context, parent: the snapshot's) - its kind (journey, dive,
 // registry, canvas), the journey it stands on (a live one, or a hole's read parent), its section - and the goal the input
 // is grounded on (goalOf, so a rename that changes it re-asks), and a hole's live dive title, which every hole's input carries
-// (fix round 4: a renamed learning_goal hole re-asks too). Nothing else is read.
-export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null, context = null, parent = null, title = '', liveTitle = null }) {
+// (fix round 4: a renamed learning_goal hole re-asks too). Owner task 2: the plain canvas's background title and the
+// canvas's semantic fingerprint (words, labels, kinds, relations and groups; never positions, selection or camera), so a
+// text edit with the same ids re-asks. Nothing else is read.
+export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null, context = null, parent = null, title = '', liveTitle = null, fingerprint = null }) {
   const j = journey?.journey;
   return `nb_${fnv(JSON.stringify([lastTurn?.turn_id ?? null, store?.seq ?? 0, j?.evidence?.seq ?? null, journey?.path?.version ?? null, j?.active_section_id ?? null,
     j?.section_plan?.heading_block_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded, record?.dive_id ?? null, !!store?.returned,
     context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title, liveTitle }).goal ?? null, record ? liveTitle || record.title : null,
-    goalOf({ context, record, title, liveTitle }).background]))}`;
+    goalOf({ context, record, title, liveTitle }).background, fingerprint]))}`;
 }
 
 // Not a stopping point (contract §1.2): the Tutor answering, journey work (a pending action, a section being built) or

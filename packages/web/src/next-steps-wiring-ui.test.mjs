@@ -109,8 +109,10 @@ test('LearnPage: canvasVersion, graded, /ask and /teach, the repository detach a
   assert.match(page, /if \(parsed && \['deeper', 'simplify', 'ask', 'teach'\]\.includes\(parsed\.name\)\) tutor\.slash\(parsed\.name, text\.trim\(\)\);/);
   assert.match(page, /onExchange=\{onExchange\} tutor=\{tutor\.active \? tutor : null\} scope=\{askScope\}/);
   assert.match(page, /previous\.attempts === next\.attempts/, 'an attempt reaches the page state, so the basis sees it');
+  assert.match(page, /previous\.semanticFingerprint === next\.semanticFingerprint/, 'a change of meaning reaches the page state, so the basis sees it');
   assert.match(canvas, /const attempts = blocks\.reduce\(\(sum, block\) => sum \+ \(block\.attemptLog\?\.length \|\| 0\), 0\);/);
-  assert.match(canvas, /card: JSON\.parse\(cardKey\), content, attempts \}\); \}, \[[^\]]*content, attempts, onState\]\);/);
+  // Owner task 2: the semantic fingerprint rides on the same report (professor-next-steps.md 2.8).
+  assert.match(canvas, /card: JSON\.parse\(cardKey\), content, attempts, semanticFingerprint \}\); \}, \[[^\]]*content, attempts, semanticFingerprint, onState\]\);/);
 });
 
 test('SharedBoardPage: the shared hooks start the private hole with the step; stale restarts without it; signed out it waits for this link and hook', () => {

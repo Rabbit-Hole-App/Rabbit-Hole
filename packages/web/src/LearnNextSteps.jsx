@@ -54,20 +54,25 @@ export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-st
     const p = read();
     return { p, s: p.tutor?.askStep ? p.tutor.snapshot() : null, blocks: p.canvasApi?.current?.blocks?.() || [] };
   };
+  // Owner task 2: the canvas's semantic snapshot (canvasApi.semantic(), the last one the canvas computed) - read with the
+  // trigger state, and handed to update() with the basis its fingerprint is in, so the request carries that snapshot.
+  const semanticOf = p => p.canvasApi?.current?.semantic?.() ?? null;
   return {
     // Contract §2.3 triggers only; off where no Tutor context resolves (Ruling F10).
     state() {
       const { p, s, blocks } = now();
       if (!s?.context) return { basis: null, stop: 'off' };
+      const semantic = semanticOf(p), snapshot = semantic?.snapshot;
       return {
-        basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle }),
+        basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle, fingerprint: semantic?.fingerprint ?? null }),
         // Task 14 C-M2: the goal the input is built from (goalOf over the snapshot), never the title fallback prop alone.
-        stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, goal: goalOf({ context: s.context, record: s.record, title: p.title, liveTitle: s.liveTitle }).goal, plain: s.context.source === 'canvas' && !s.record }),
+        stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, objects: snapshot ? snapshot.objects.length + snapshot.omitted.objects : 0, goal: goalOf({ context: s.context, record: s.record, title: p.title, liveTitle: s.liveTitle }).goal, plain: s.context.source === 'canvas' && !s.record }),
+        ...(semantic ? { semantic } : {}),
       };
     },
-    update: ({ basis, stop }) => life.controller().update({ basis, stop, input: previous => {
+    update: ({ basis, stop, semantic = null }) => life.controller().update({ basis, stop, input: previous => {
       const { p, s, blocks } = now();
-      const built = nextStepsInput({ ...s, journey: p.journey, blocks, title: p.title, lastTurn: p.tutor?.lastTurn, previous, basis, describe: p.describe });
+      const built = nextStepsInput({ ...s, journey: p.journey, blocks, title: p.title, lastTurn: p.tutor?.lastTurn, previous, basis, describe: p.describe, snapshot: semantic?.snapshot ?? null });
       // The trace identity as this input is sent, so a set that lands after the canvas moved on keeps its own ids.
       if (built.input) sent.set(built.input, {
         mode: built.input.mode === 'canvas' && s?.context?.source === 'registry' ? 'course' : built.input.mode,
@@ -93,8 +98,8 @@ export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, re
   const live = useRef(null);
   live.current = { tutor, journey, canvasApi, canvasState, record, access, title, graded, canvasVersion, board, describe };
   const [steps] = useState(() => ownedSteps(() => live.current));
-  const { basis, stop } = steps.state();
-  useEffect(() => { steps.update({ basis, stop }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { basis, stop, semantic } = steps.state();
+  useEffect(() => { steps.update({ basis, stop, semantic }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
   return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh };
 }

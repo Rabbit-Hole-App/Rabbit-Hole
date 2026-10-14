@@ -1099,3 +1099,22 @@ test('Curious: native objects make a canvas not blank; the planner prompt says s
   assert.match(NEXT_STEPS_SYSTEM, /A blank canvas \(mode canvas, no cards, no canvas\.objects, empty scope\)/);
   assert.match(NEXT_STEPS_SYSTEM, /canvas\.title[^\n]*background/);
 });
+
+test('Curious: the basis carries the semantic fingerprint; the same cards with other words are another basis', () => {
+  const b = fingerprint => nextStepsBasis({ store: emptyStore(), canvasState: { cards: [['k1']] }, context: tutorContext({ title: 'Linked List' }), title: 'Linked List', fingerprint });
+  assert.notEqual(b('fp_a'), b('fp_b'));
+  assert.equal(b('fp_a'), b('fp_a'));
+});
+
+test('Curious: recent edits are the ids whose words, kind or links changed or which arrived; a move is not an edit', async () => {
+  const { recentEdits } = await import('./curious-context.js');
+  const board = { shapes: [{ id: 's1', kind: 'ellipse', x1: 0, y1: 0, x2: 9, y2: 9, text: '8' }], items: [{ id: 't1', kind: 'text', x: 0, y: 0, text: 'tree' }], links: [], blocks: [{ id: 'k1', type: 'explanation', title: 'Nodes', body: 'a' }] };
+  const start = recentEdits(null, board);
+  assert.deepEqual(start.ids, [], 'the first read is the baseline, not an edit');
+  const moved = recentEdits(start, { ...board, shapes: [{ ...board.shapes[0], x1: 50, x2: 59 }] });
+  assert.deepEqual(moved.ids, []);
+  const edited = recentEdits(moved, { ...board, items: [{ ...board.items[0], text: 'AVL tree' }], blocks: [{ ...board.blocks[0], body: 'b' }] });
+  assert.deepEqual(edited.ids, ['t1', 'k1']);
+  const linked = recentEdits(edited, { ...board, items: [{ ...board.items[0], text: 'AVL tree' }], blocks: [{ ...board.blocks[0], body: 'b' }], links: [{ id: 'l1', from: 's1', to: 't1' }] });
+  assert.deepEqual(linked.ids, ['s1', 't1', 'k1'], 'newest first, no repeats');
+});
