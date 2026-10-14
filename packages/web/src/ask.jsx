@@ -239,13 +239,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // A standalone canvas chat (canvases.js): no + attachments, and no app context to filter.
   const canvasChat = /^canvas-[a-f0-9]{8}$/.test(scope.app || '');
   const learnChat = conversation === 'learn';
-  // The Learn Chat pane (owner brief 2026-10-13 sections 4-5): the one Learn AskPanel that is neither the canvas dock nor a
-  // card's follow-up composer. Its draft, / command and mode live in the chat workspace (chat-draft.js, thread.mode), so
-  // menus, mode changes and resizing never clear them. Every other chat (chat === null) keeps its own state.
-  // A2: its thread, History, New chat and resume come from the workspace thread; the per-card composers keep their own.
+  // The Learn Chat pane (owner brief 2026-10-13 sections 3-5): the one Learn AskPanel that is neither the canvas dock nor a
+  // card's follow-up composer. Its thread, History, New chat and resume (A2), and its draft, / command and mode (A3a) live
+  // in the chat workspace, so menus, mode changes and resizing never clear them. Every other chat (chat === null) keeps its own state.
   const workspace = useChatWorkspace();
-  const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null;
-  const chatThread = chat ? chat.thread : null;
+  const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
   const turnKey = useRef(null);
   turnKey.current = chatThread?.turnKey ?? null;
 
@@ -572,8 +570,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
-        // path), exactly the chips attached at Send with card, group, image and media text resolved now, and a regeneration.
-        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(chat.context.attached), ...(regenerate ? { regenerate } : {}) } : {}),
+        // path), exactly the chips attached at Send with card, group, image and media text resolved now.
+        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(chat.context.attached) } : {}),
       };
       if (privateChat) {
         const d = await api(askPath, { method: 'POST', body: JSON.stringify({ ...payload,
