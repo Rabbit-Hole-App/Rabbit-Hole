@@ -217,7 +217,12 @@ await run('Quick Edit opens with Edit selection active (needs the inline editor 
   await settle(page);
   await page.getByRole('button', { name: 'Quick Edit' }).click();
   await page.locator('[data-inline-ai]').waitFor();
-  check('Edit selection is the active mode, and Explain selection is still offered', (await page.locator('[data-inline-ai]').innerText()).includes('Edit') && await page.evaluate(() => !!document.querySelector('[data-inline-ai] [data-inline-mode="edit"][aria-checked="true"], [data-inline-ai] [data-inline-mode="edit"][aria-selected="true"], [data-inline-ai] [data-inline-mode="edit"][aria-pressed="true"]')));
+  // Since inline-context point 8 (182507b1) the modes sit in a menu behind the mode toggle: open it, then read the toggle's
+  // current mode and the checked row, as inline-ai-check does.
+  const toggle = page.locator('[data-inline-ai] [data-inline-mode-toggle]');
+  await toggle.click();
+  check('Edit selection is the active mode, and Explain selection is still offered', (await toggle.getAttribute('data-inline-mode-current')) === 'edit'
+    && (await page.locator('[data-inline-ai] [data-inline-mode="edit"]').getAttribute('aria-checked')) === 'true' && await page.locator('[data-inline-ai] [data-inline-mode="explain"]').isVisible());
   await context.close();
 });
 
