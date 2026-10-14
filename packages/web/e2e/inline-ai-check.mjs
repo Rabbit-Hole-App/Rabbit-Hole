@@ -1231,6 +1231,8 @@ await run('Composer: the Context popover is the indicator (point 8) and never gr
   const after = await page.locator('[data-inline-ai]').boundingBox();
   check('opening it does not enlarge the composer', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }));
   check('it is bounded and scrolls inside', await pop.evaluate(node => getComputedStyle(node).overflowY === 'auto' && parseFloat(getComputedStyle(node).maxHeight) <= 260));
+  const popBox = await pop.boundingBox(), targetBox = await page.locator('[data-inline-target]').first().boundingBox();
+  check('it opens away from the target, never over it', !(popBox.x < targetBox.x + targetBox.width && popBox.x + popBox.width > targetBox.x && popBox.y < targetBox.y + targetBox.height && popBox.y + popBox.height > targetBox.y), JSON.stringify({ popBox, targetBox }));
   const selected = await page.locator('[data-inline-context-entry="selected"]').allInnerTexts();
   const support = await page.locator('[data-inline-context-entry="supporting"]').allInnerTexts();
   check('the selection under Selected, the rest under Supporting, read-only', selected.length === 1 && /23/.test(selected[0]) && support.length > 0

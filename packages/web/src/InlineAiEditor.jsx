@@ -289,7 +289,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // Placed for the room it may grow into (RESERVE), so a streamed preview never moves it: a spot above the target is held
   // by its bottom edge and grows up, any other by its top edge and grows down.
   const [height, setHeight] = useState(RESERVE);
-  useLayoutEffect(() => { const h = Math.max(RESERVE, box.current?.offsetHeight || 0); if (h > height + 2) setHeight(h); });
+  const [actual, setActual] = useState(110);
+  useLayoutEffect(() => {
+    const now = box.current?.offsetHeight || 0;
+    if (Math.max(RESERVE, now) > height + 2) setHeight(Math.max(RESERVE, now));
+    if (now && Math.abs(now - actual) > 2) setActual(now);
+  });
   // Clamped to the surface, never over the target, the style panel or the bottom strip (minimap, zoom, composer, hooks):
   // the first spot clear of all of them, else the one that covers least (a phone-sized canvas).
   const place = (() => {
@@ -303,6 +308,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return { ...tries.reduce((best, spot) => (cost(spot) < cost(best) ? spot : best)), width };
   })();
 
+  // The mode menu and the Context popover open away from the target, where there is room for them.
+  const shellTop = place.up ? place.top + height - actual : place.top;
+  const roomBelow = surface.h - (shellTop + actual), roomAbove = shellTop;
+  const popBelow = place.up ? roomAbove < 270 && roomBelow > roomAbove : roomBelow >= 270 || roomBelow > roomAbove;
   const preview = state.preview;
   const status = state.status;
   const streamText = state.stream?.text;
@@ -491,7 +500,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
               {MODES.find(([value]) => value === mode)[1]}<ChevronDown size={12} />
             </button>
             {modeOpen && (
-              <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${place.up ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
+              <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
                 {MODES.map(([value, label]) => (
                   <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
                     onClick={() => { setMode(value); setModeOpen(false); field.current?.focus({ preventScroll: true }); }}
@@ -515,7 +524,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {/* Point 8: the Context popover - anchored, bounded and scrolling, never part of the composer's own height. */}
         {contextOpen && (
           <div role="dialog" aria-label="Context" data-inline-context-popover data-scroll
-            className={`absolute left-0 z-50 max-h-64 w-80 max-w-full overflow-y-auto rounded-xl border border-line bg-white p-2 text-xs text-ink-2 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${place.up ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+            className={`absolute left-0 z-50 max-h-64 w-80 max-w-full overflow-y-auto rounded-xl border border-line bg-white p-2 text-xs text-ink-2 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
             {!prepared ? <p>Preparing context…</p> : (
               <ul data-inline-context-list className="space-y-0.5">
                 <li data-inline-context-target className="font-medium text-ai">Selected{mode === 'edit' ? ' · the only thing an edit changes' : ''}</li>
