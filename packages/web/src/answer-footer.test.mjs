@@ -13,7 +13,7 @@ import * as esbuild from 'esbuild';
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const dir = mkdtempSync(join(tmpdir(), 'answer-footer-')), outfile = join(dir, 'footer.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as AnswerFooter, copyAnswer, nextRating, footerShown, cardIdFor } from './AnswerFooter.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as AnswerFooter, copyAnswer, nextRating, footerShown, cardIdFor } from './AnswerFooter.jsx'; export { ChatMessages } from './ChatMessages.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -99,4 +99,21 @@ test('canvas insertChat takes the card id, markdown and sources, and locates an 
   assert.ok(body.indexOf('if (exchangesRef.current.some(exchange => exchange.id === id)) { commandsRef.current.focusObject(id); return id; }') < body.indexOf('snapshot(true);'), 'the duplicate check runs before the undo snapshot');
   assert.match(body, /onAddRef\.current\?\.\(\[\{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0, \.\.\.\(sources\?\.length \? \{ sources \} : \{\}\) \}\]\);/);
   assert.match(canvas, /hasCard: id => exchangesRef\.current\.some\(exchange => exchange\.id === id\),/);
+});
+
+// The assistant answer wrapper in ChatMessages.jsx (brief section 9: no prominent colored box; section 10: the footer).
+test('a Learn answer is a plain document with the footer under it: no accent box, one Copy, Add as card, Regenerate on the latest only', () => {
+  const msgs = [{ role: 'user', content: 'Why?' }, answer({ messageId: '807', status: undefined, meta: { alternatives: ['807'] } }), { role: 'user', content: 'And?' }, answer({ status: 'thinking' })];
+  const chat = (props = {}) => B.renderToStaticMarkup(B.createElement('div', null, B.ChatMessages({ msgs, learnChat: true, busy: false, onAddToCanvas: () => {}, onRegenerate: () => {}, setMsgs: () => {}, setFilePeek: () => {}, setRunPeek: () => {}, ...props })));
+  const html = chat();
+  assert.doesNotMatch(html, /border-accent\/30/, 'no colored box around the answer');
+  assert.equal((html.match(/data-answer-footer/g) || []).length, 2);
+  assert.equal((html.match(/aria-label="Copy answer"/g) || []).length, 2, 'one Copy per answer, in its footer');
+  assert.equal((html.match(/>Add as card</g) || []).length, 2);
+  assert.equal((html.match(/aria-label="Regenerate answer"/g) || []).length, 1, 'Regenerate only on the latest answer');
+  assert.ok(html.lastIndexOf('aria-label="Regenerate answer"') > html.lastIndexOf('data-answer-body'));
+  assert.match(html, /<div data-answer="true" class="group\/answer min-w-0"><div data-answer-body="true">/);
+  assert.equal((chat({ busy: true }).match(/data-answer-footer/g) || []).length, 1, 'the reply still arriving has no footer');
+  assert.doesNotMatch(chat({ onAddToCanvas: null }), /Add as card/);
+  assert.doesNotMatch(chat({ onRegenerate: null }), /Regenerate answer/, 'Regenerate waits for the send loop to pass it');
 });
