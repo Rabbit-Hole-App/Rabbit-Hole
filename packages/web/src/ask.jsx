@@ -1,7 +1,11 @@
-import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
+import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './ChatComposer.jsx';
+import ModeSelector from './ModeSelector.jsx';
+import ContextChips from './ContextChips.jsx';
+import { useChatWorkspace } from './chat-workspace.jsx';
+import { refsForSend } from './chat-draft.js';
 import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
-import { useContextDocs } from './context-docs.js';
+import { CONTEXT_ACCEPT, useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
 import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
@@ -9,7 +13,7 @@ import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourc
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useContext, useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Library, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, Upload, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -21,7 +25,7 @@ import { commandTone } from './CommandTone.jsx';
 import { waitingText } from './waiting-text.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
-import { holdsLine, releaseLine } from './learn-slash.js';
+import { holdsLine, parseSlash, releaseLine } from './learn-slash.js';
 import { openOnce } from './learn-opening.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
@@ -457,9 +461,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // A standalone canvas chat (canvases.js): no + attachments, and no app context to filter.
   const canvasChat = /^canvas-[a-f0-9]{8}$/.test(scope.app || '');
   const learnChat = conversation === 'learn';
+  // The Learn Chat pane (owner brief 2026-10-13 sections 4-5): the one Learn AskPanel that is neither the canvas dock nor a
+  // card's follow-up composer. Its draft, / command and mode live in the chat workspace (chat-draft.js, thread.mode), so
+  // menus, mode changes and resizing never clear them. Every other chat (chat === null) keeps its own state.
+  const workspace = useChatWorkspace();
+  const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null;
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
   // tutor.extras move to the left caption.
-  const voiceOn = !!(dock && voice && voice.state !== 'off');
+  const voiceOn = !!((dock || chat) && voice && voice.state !== 'off');
   const guardedHistory = privateChat || learnChat;
   const [msgs, setMsgs] = useState([]);
   // The Learn canvas dock (sheet): plain questions answer in a panel above the
@@ -469,11 +478,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [sheetOpen, setSheetOpen] = useState(true);
   const [sheetHistory, setSheetHistory] = useState(false);
   const sheetThread = useRef(null);
-  const [input, setInput] = useState('');
-  // Learn's command slot (owner 2026-09-30): Auto, or the chosen command as a removable pill. The command
+  const [localInput, setLocalInput] = useState('');
+  const input = chat ? chat.composer.text : localInput, setInput = chat ? chat.composer.setText : setLocalInput;
+  // Learn's command slot (owner 2026-09-30; "/" since 2026-10-13): "/", or the chosen command as a removable pill. The command
   // is structured state beside the text, never parsed back out of it. `stash` keeps the typed text while
   // the palette is open over it, so choosing or closing gives it back.
-  const [command, setCommand] = useState(null);
+  const [localCommand, setLocalCommand] = useState(null);
+  const command = chat ? chat.composer.command : localCommand, setCommand = chat ? chat.composer.setCommand : setLocalCommand;
   const stash = useRef(null);
   const setComposerInput = (value) => {
     const chosen = slash && value.match(/^\/([\w-]+) $/);
@@ -530,7 +541,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const threadId = useRef(null);
   const historyRequest = useRef(0);
   const boxRef = useRef(null);
-  const inputRef = useRef(null);
+  const localInputRef = useRef(null);
+  const inputRef = chat ? chat.composer.inputRef : localInputRef;
   const fileRef = useRef(null);
   useEffect(() => {
     if (!demo?.startRef) return;
@@ -598,13 +610,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
   // command, never as a chat message. held: a /command Enter while busy (learn-slash.js holdsLine), sent when busy clears.
   const slashRef = useRef(null), held = useRef(null);
+  // The command a sent /line ran, so a command whose prompt comes back to this chat route (onPrompt) is named in its body.
+  const promptCommand = useRef(null);
   // Stop (the docked shell): aborts the answer being streamed.
   const answerFlight = useRef(null);
-  const send = async (raw, scopeOverride, { opening = false, skipJourney = false } = {}) => {
-    // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the pill goes back to Auto.
+  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null } = {}) => {
+    // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the slot goes back to "/".
     // A typed /command replaces the pill rather than nesting inside it.
-    if (slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
-    if (slash && raw.trim().startsWith('/')) { setCommand(null); if (slashRef.current?.intercept(raw)) return; }
+    if (slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); promptCommand.current = command; setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
+    if (slash && raw.trim().startsWith('/')) { promptCommand.current = parseSlash(raw)?.name || null; setCommand(null); if (slashRef.current?.intercept(raw)) return; }
+    // An explicit Ask never goes to the journey resolver or starts a journey (owner brief section 5): a course or journey
+    // on this canvas must not turn an Ask turn into syllabus work.
+    if (chat?.thread.mode === 'ask') skipJourney = true;
     // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
     // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
     // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
@@ -759,6 +776,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(canvasSeed && !threadId.current ? { canvas_seed: { question: canvasSeed.question, answer: canvasSeed.answer }, ...(!target && canvasSeed.target ? { canvas_target: canvasTargetField(canvasSeed.target) } : {}) } : {}),
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
         ...(model !== 'auto' ? { model } : {}),
+        // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
+        // path), exactly the chips attached at Send with card, group, image and media text resolved now, and a regeneration.
+        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(chat.context.attached), ...(regenerate ? { regenerate } : {}) } : {}),
       };
       if (privateChat) {
         const d = await api(askPath, { method: 'POST', body: JSON.stringify({ ...payload,
@@ -884,14 +904,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   };
   if (nextStepRef) nextStepRef.current = sendStep; // the page's hook card sends through the dock (LearnPage)
 
-  // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question - from the dock only
+  // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question - from the dock or the Chat pane only
   // (final review C-I1: a journey hole's block composers get the same Tutor and would each send it again).
   useEffect(() => {
-    if (!dock || !tutor?.opening || busy || !openOnce(openedHoles, tutor.opening.key)) return;
+    if (!(dock || chat) || !tutor?.opening || busy || !openOnce(openedHoles, tutor.opening.key)) return;
     // A hook carried from a shared canvas (contract §1.4): the hole opens on it once, as the step, keyed by opening.key.
     if (tutor.opening.next_step) { sendStep(tutor.opening.next_step, tutor.opening.next_step.hook); return; }
     // Voice Mode: the opening is a voice turn - spoken, in the Tutor caption only, never a chat bubble.
-    if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;
+    if ((dock || chat) && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;
     send(tutor.opening.question, undefined, { opening: true });
   }, [tutor?.opening?.key, busy, voice?.on]); // eslint-disable-line react-hooks/exhaustive-deps
   // A /command Enter while busy (held, below in onKeyDown) runs once the turn ends, if the composer still shows it.
@@ -924,18 +944,19 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </Menu>
           </div>
   );
-  // Learn's command slot: Auto (Rabbit Hole picks the action and the model) opens the same palette typing / does;
-  // a chosen command sits here as a pill (its name, no slash) - the name reopens the palette to swap it, × goes back to Auto and keeps the text.
+  // Learn's command slot (owner brief 2026-10-13 section 5): "/" opens the same palette typing / does; a chosen command
+  // sits here as a pill (/name) - the name reopens the palette to swap it, × returns the slot to "/" and keeps the text.
+  // The slot is never the mode: Auto / Ask / Tutor is the separate ModeSelector, and removing a command never changes it.
   const slashControl = slash && (command
     // A command with a family wears its tint (CommandTone.jsx); the rest stay neutral. Never the whole composer.
-    ? <span data-command-pill data-command-tone={commandTone(command) || undefined} className={cn(dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border', !commandTone(command) && 'border-line bg-hover text-ink', voiceOn && 'opacity-45')}>
+    ? <span data-command-pill data-command-tone={commandTone(command) || undefined} className={cn(chat ? 'h-8 rounded-lg pl-2 text-sm' : dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border', !commandTone(command) && 'border-line bg-hover text-ink', voiceOn && 'opacity-45')}>
         <button type="button" title="Change the command" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={openPalette} className="inline-flex cursor-pointer items-center gap-1 font-medium">/{command}</button>
-        <button type="button" aria-label={`Remove ${command}`} title="Back to Auto" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
-          className={cn(dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
+        <button type="button" aria-label={`Remove ${command}`} title="Remove the command" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
+          className={cn(chat ? 'mx-0.5 h-6 w-6' : dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
       </span>
-    : <button type="button" aria-label="Auto" title="Auto: Rabbit Hole picks the action. Choose a command" aria-expanded={input.startsWith('/')} disabled={voiceOn}
+    : <button type="button" data-command-slot aria-label="Commands" title="Choose a command" aria-expanded={input.startsWith('/')} disabled={voiceOn}
         onMouseDown={event => event.preventDefault()} onClick={() => { if (!input.startsWith('/')) return openPalette(); setComposerInput(''); inputRef.current?.focus(); }}
-        className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>Auto</button>);
+        className={cn(chat ? cn(COMPOSER_TOOL, 'font-mono text-[15px]') : dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>/</button>);
   const chatControl = learnChat ? slashControl : modelControl;
   if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
@@ -1206,27 +1227,30 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
-        {dock && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
-          dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}
+          dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
+          stacked={!!chat} chips={chat ? <ContextChips /> : null}
           leading={<>
           <div className="relative shrink-0">
             <button
               type="button"
               aria-label="Add"
               disabled={voiceOn}
+              title={chat ? 'Add context' : undefined}
               onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
-              className={cn(dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}
+              className={cn(chat ? COMPOSER_TOOL : dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}
             >
-              <Plus size={14} strokeWidth={1.5} />
+              <Plus size={chat ? 16 : 14} strokeWidth={1.5} />
             </button>
-            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
-              <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
+              {/* The Chat pane uploads into the canvas's one context collection (chat.context.upload: the context-docs upload). */}
+              {chat ? <MenuItem icon={Upload} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>Upload a PDF, text or Markdown file</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
-              </MenuItem>
+              </MenuItem>}
               <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
                 Mention an app
               </MenuItem>
@@ -1234,12 +1258,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             <input
               ref={fileRef}
               type="file"
-              accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.txt"
+              accept={chat ? CONTEXT_ACCEPT : '.png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.txt'}
               className="hidden"
-              onChange={(e) => { if (e.target.files[0]) setFile(e.target.files[0]); e.target.value = ''; }}
+              onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
             />
           </div>
-          {contextDocs.enabled && (
+          {contextDocs.enabled && !chat && (
             <div className="relative shrink-0">
               <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
                 onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
@@ -1252,7 +1276,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
-          {srcOpts.length > 0 && (
+          {srcOpts.length > 0 && !chat && (
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -1284,11 +1308,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
-          {dock && chatControl}
-          {dock && voice && voice.state === 'off' && <VoiceToggle voice={voice} disabled={busy} />}
+          {/* The Chat toolbar after Plus, in order: Sources, the mode, the / slot, the mic; Send sits at the far right. */}
+          {chat && <button type="button" data-chat-sources aria-label="Sources" title="Open sources" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={() => chat.panels.openSources()} className={COMPOSER_TOOL}><Library size={16} strokeWidth={1.5} /></button>}
+          {chat && <ModeSelector disabled={voiceOn} />}
+          {(dock || chat) && chatControl}
+          {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
           </>}
           voice={voiceOn ? <VoiceField voice={voice} /> : null}
-          trailing={dock ? null : chatControl}
+          trailing={dock || chat ? null : chatControl}
         />
       </div>
       </>)}

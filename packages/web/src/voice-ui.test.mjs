@@ -46,8 +46,8 @@ test('VOICE-01: off, the mic is the neutral composer button; it waits while a ty
   assert.doesNotMatch(off, /disabled/);
   assert.match(off, /rounded-lg border border-line/, 'COMPOSER_ADD, like the + button');
   assert.match(buttons(render(VoiceToggle, { voice: voiceIn('off'), disabled: true }))[0], /disabled=""/);
-  // At the end of the dock's leading row, only while off, and disabled while busy (its Stop is in that slot).
-  assert.match(ask, /\{dock && chatControl\}\n\s+\{dock && voice && voice\.state === 'off' && <VoiceToggle voice=\{voice\} disabled=\{busy\} \/>\}\n\s+<\/>\}/);
+  // At the end of the dock's (or the Chat pane's) leading row, only while off, and disabled while busy (its Stop is in that slot).
+  assert.match(ask, /\{\(dock \|\| chat\) && chatControl\}\n\s+\{\(dock \|\| chat\) && voice && voice\.state === 'off' && \(chat \? <span [^\n]*><VoiceToggle voice=\{voice\} disabled=\{busy\} \/><\/span> : <VoiceToggle voice=\{voice\} disabled=\{busy\} \/>\)\}\n\s+<\/>\}/);
 });
 
 test('r36: with listening paused, the mic says so, is disabled and cannot start Voice Mode', () => {
@@ -85,10 +85,10 @@ test('VOICE-03: in every on state the mic is the red breathing one, with the sta
   // Below md the prefix is screen-reader only, so the visible state word is never clipped.
   assert.match(render(VoiceField, { voice: voiceIn('speaking') }), /<span class="max-md:sr-only">Voice on ·<\/span>/);
   // ask.jsx swaps the field for VoiceField and rests the side controls while voice is on.
-  assert.match(ask, /const voiceOn = !!\(dock && voice && voice\.state !== 'off'\);/);
+  assert.match(ask, /const voiceOn = !!\(\(dock \|\| chat\) && voice && voice\.state !== 'off'\);/);
   assert.match(ask, /voice=\{voiceOn \? <VoiceField voice=\{voice\} \/> : null\}/);
   assert.match(ask, /aria-label="Add"\n\s+disabled=\{voiceOn\}/);
-  assert.match(ask, /aria-label="Auto"[^\n]*disabled=\{voiceOn\}/);
+  assert.match(ask, /aria-label="Commands"[^\n]*disabled=\{voiceOn\}/);
   assert.match(ask, /data-context-button disabled=\{voiceOn\}/);
 });
 
@@ -140,7 +140,7 @@ test('VOICE-08: a small lower-left window shows only the reply being spoken now,
   assert.match(canvas, /data-tool-gutter[\s\S]*?toolSide === 'left' \? `order-first /);
   // While voice is on, tutor.extras live in the caption, not the chat sheet.
   assert.ok(ask.includes('{tutor?.extras && !voiceOn && <div data-tutor-extras'));
-  assert.ok(ask.includes("{dock && voice?.state === 'off' && voice.caption?.error && <div role=\"alert\" data-voice-error "));
+  assert.ok(ask.includes("{(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role=\"alert\" data-voice-error "));
 });
 
 test('VOICE-20: without voice the composer renders its field and Send exactly as text mode', () => {
@@ -166,7 +166,7 @@ test('the breathing ring stops under reduced motion and leaves a static ring', (
 test('a Rabbit Hole opening in Voice Mode is a voice turn, never a chat bubble (ask.jsx)', () => {
   // The opening goes to voice.say when Voice Mode is on (or turning on after the move); send() - the chat path that
   // draws the bubble and the typed reply - runs only when Voice Mode is off.
-  const say = ask.indexOf('if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;');
+  const say = ask.indexOf('if ((dock || chat) && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;');
   const typed = ask.indexOf('send(tutor.opening.question, undefined, { opening: true });');
   assert.ok(say > 0 && typed > say && ask.slice(say, typed).split('\n').length === 2, 'voice.say first; send only when it does not take the turn');
 });

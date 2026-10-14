@@ -33,12 +33,39 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // ready: the caller can send an empty line (Learn, with a command chosen: a bare /dive).
 // voice (Learn Voice Mode, docs/features/voice-tutor-mvp.md): a node that stands in for the field and the Send/Stop
 // control while voice is on; the frame, leading and trailing stay. Callers without it render exactly as before.
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null }) {
+// stacked (the Learn Chat pane, owner brief 2026-10-13 section 4): a 12px-rounded box with the multiline field on top
+// (about two lines, growing to a bound, then scrolling), the `chips` slot under it, then ONE toolbar row - leading,
+// a spacer, trailing, and Send (Stop while busy) at the far right. Its toolbar controls take COMPOSER_TOOL.
+export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null, stacked = false, chips = null }) {
   const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
+  const keys = event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
-  const field = multiline
-    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } }} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-33 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
+  const field = stacked
+    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={2} value={value} onChange={event => onChange(event.target.value)} onKeyDown={keys} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className="max-h-48 min-h-12 w-full resize-none bg-transparent px-1 text-[15px] leading-6 outline-none [field-sizing:content] placeholder:text-ink-3 max-md:text-sm" />
+    : multiline
+    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={keys} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-33 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
     : <input ref={inputRef} autoFocus={autoFocus} value={value} onChange={event => onChange(event.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3 ${dock ? 'h-9 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'h-7 text-sm'}`} />;
+  const size = stacked ? 'h-8 w-8' : dock ? 'h-9 w-9' : 'h-6 w-6';
+  const send = voice ? null : busy && onStop ? (
+    <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white ${size}`}>
+      <Square size={stacked ? 12 : dock ? 13 : 10} fill="currentColor" />
+    </button>
+  ) : (
+    <button type="submit" aria-label="Send" disabled={busy || disabled || !(ready || value.trim())} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white ${size} ${dock || stacked ? 'disabled:opacity-45' : 'disabled:opacity-30'}`}>
+      {busy ? <Loader2 size={dock || stacked ? 16 : 13} className="animate-spin" /> : <ArrowUp size={dock ? 17 : stacked ? 16 : 13} strokeWidth={2} />}
+    </button>
+  );
+  if (stacked) return <form data-chat-composer data-composer-stacked className="flex flex-col gap-1.5 rounded-xl border border-line bg-white p-2.5 focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]" onSubmit={event => { event.preventDefault(); submit(); }}>
+    {voice || field}
+    {chips}
+    <div data-composer-toolbar className="flex min-w-0 items-center gap-0.5">
+      {leading}
+      <span className="min-w-0 flex-1" />
+      {trailing}
+      {send}
+    </div>
+  </form>;
   const frame = dock
     ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
@@ -47,14 +74,6 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     {voice || field}
     {trailing}
     {dock && <ComposerHideButton />}
-    {voice ? null : busy && onStop ? (
-      <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white ${dock ? 'h-9 w-9' : 'h-6 w-6'}`}>
-        <Square size={dock ? 13 : 10} fill="currentColor" />
-      </button>
-    ) : (
-      <button type="submit" aria-label="Send" disabled={busy || disabled || !(ready || value.trim())} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white ${dock ? 'h-9 w-9 disabled:opacity-45' : 'h-6 w-6 disabled:opacity-30'}`}>
-        {busy ? <Loader2 size={dock ? 16 : 13} className="animate-spin" /> : <ArrowUp size={dock ? 17 : 13} strokeWidth={2} />}
-      </button>
-    )}
+    {send}
   </form>;
 }
