@@ -20,12 +20,13 @@ const STAGE = { 'shared-canvas-ask-check.mjs': 'sca', 'selected-pill-check.mjs':
 const DEV_CLONE_CHECK = "const BASE = process.env.BASE || 'https://rabbit-hole-web-dev-answer-routing.tryrabbithole.workers.dev';\nif (new URL(BASE).hostname !== 'rabbit-hole-web-dev-answer-routing.tryrabbithole.workers.dev') throw Error('Use the answer-routing review clone');\n";
 const GATE_CHECK = `const LOCAL_CP_VARS = ${GATE_ENV_MARKER};\nconsole.log('2/2 checks passed');\n`;
 
-function gate({ moved = false, routing } = {}) {
+function gate({ moved = false, routing, chatPane = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'r36-sources-'));
   const app = join(root, 'app'), e2e = join(app, 'packages/web/e2e');
   mkdirSync(e2e, { recursive: true });
   for (const [name, adapt] of Object.entries(FIXTURE_ADAPTERS)) writeFileSync(join(e2e, name), moved && MOVED.includes(name) ? adapt(fixture(name)) : fixture(name));
   if (routing !== undefined) writeFileSync(join(e2e, 'answer-routing-check.mjs'), routing);
+  if (chatPane) { mkdirSync(join(app, 'packages/web/src'), { recursive: true }); writeFileSync(join(app, 'packages/web/src/ChatPane.jsx'), ''); }
   const { gate: dir } = prepare({ app, state: join(root, 'state'), sha: 'a'.repeat(40), tree: 'b'.repeat(40), grant: 'self-test' });
   const int35 = readFileSync(join(dir, 'int35.sh'), 'utf8');
   return { root, e2e, dir, int35, runLine: stage => int35.match(new RegExp(`^run stack\\.sh ${stage} (\\S+)$`, 'm'))?.[1], notes: readFileSync(join(dir, 'adapters.log'), 'utf8') };
@@ -78,6 +79,29 @@ test('a check that already carries its adapter\'s fix runs as the candidate wrot
     const bash = process.env.GATE_BASH || process.env.GIT_BASH_PATH;
     if (bash) for (let k = 1; k <= SHARDS.length; k++) assert.equal(spawnSync(bash, ['-n', join(moved.dir, `shard-${k}.sh`)], { windowsHide: true }).status, 0, `shard-${k}`);
   } finally { [old, moved].forEach(done); }
+});
+
+// The chat workspace (ChatPane.jsx in the candidate) is judged by answer-routing-chat.mjs; an older candidate keeps answer-routing.mjs.
+test('answer-routing picks the chat workspace template when the candidate has the Chat pane', () => {
+  const chat = gate({ routing: DEV_CLONE_CHECK, chatPane: true }), dock = gate({ routing: DEV_CLONE_CHECK });
+  try {
+    assert.equal(chat.runLine('answer-routing'), 'r36-routing-operator.mjs');
+    assert.ok(readFileSync(join(chat.e2e, 'r36-routing-operator.mjs'), 'utf8').includes("const pane = page.locator('[data-chat-pane]');"), 'the chat template is copied in');
+    assert.match(chat.notes, /^answer-routing: template answer-routing-chat\.mjs$/m);
+    assert.ok(readFileSync(join(dock.e2e, 'r36-routing-operator.mjs'), 'utf8').includes("page.locator('[data-learn-dock] [data-chat-composer] input"), 'the dock template is copied in');
+    assert.match(dock.notes, /^answer-routing: template answer-routing\.mjs$/m);
+  } finally { [chat, dock].forEach(done); }
+});
+// Owner brief 2026-10-13 and contract B5: one composer, in the Chat pane; answers in its transcript; a card only by Add as card.
+test('the chat workspace template drives the Chat pane and asserts answers stay in the transcript until Add as card', () => {
+  const text = readFileSync(join(HERE, 'templates/answer-routing-chat.mjs'), 'utf8');
+  assert.doesNotMatch(text, /\[data-learn-dock\] \[data-chat-composer\]|data-chat-sheet/, 'no dock composer and no sheet above it');
+  assert.match(text, /const pane = page\.locator\('\[data-chat-pane\]'\)/);
+  assert.match(text, /check\('no canvas card is created by itself for an answer', await cards\(\) === 0\)/);
+  assert.match(text, /locator\('\[data-add-to-canvas\]'\)\.click\(\)/);
+  assert.match(text, /a click on Added locates the card and adds no duplicate/);
+  assert.ok(text.match(/^  check\(/gm).length >= 15);
+  assert.ok(text.includes("check('provider tripwire remains empty'"));
 });
 
 // The template runs for every candidate until the app's own check takes the gate environment, so it asserts what the release does.

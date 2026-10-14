@@ -65,6 +65,10 @@ export function prepare({app,state,sha,tree,grant}) {
   const routingFile=ownRouting?'answer-routing-check.mjs':'r36-routing-operator.mjs';
   notes.push(ownRouting?'answer-routing: the candidate check answer-routing-check.mjs runs as it is'
     :`answer-routing: ${existsSync(candidateRouting)?'the candidate check answer-routing-check.mjs does not take the gate environment (no LOCAL_CP_VARS)':'the candidate has no answer-routing-check.mjs'}; the harness template runs`);
+  // The chat workspace (ChatPane.jsx) moved the composer into the right-side Chat pane and answers into its transcript, so it is
+  // judged by answer-routing-chat.mjs; an older candidate (the canvas dock, answers as cards) keeps answer-routing.mjs.
+  const routingTemplate=existsSync(join(app,'packages/web/src/ChatPane.jsx'))?'answer-routing-chat.mjs':'answer-routing.mjs';
+  if(!ownRouting)notes.push(`answer-routing: template ${routingTemplate}`);
   for(const file of files(source)) {
     const relative=file.slice(source.length+1).replaceAll('\\','/');
     let text=replacements(readFileSync(file,'utf8').replace(/\r\n/g,'\n'));
@@ -108,7 +112,7 @@ $taskSnapshot = @(Get-CimInstance Win32_Process)`);
   const secret=randomBytes(24).toString('hex'), master=randomBytes(32).toString('hex');
   const vars=`SMALL_ENV=test\nTEST_BYPASS_SECRET=${secret}\nMASTER_KEY=${master}\nOAUTH_MOCK=true\nJOURNEY_MODEL_STUB=fixtures\n`;
   for(const folder of ['packages/web','packages/control-plane'])writeFileSync(join(app,folder,'.dev.vars'),vars);
-  if(!ownRouting)copyFileSync(join(gate,'answer-routing.mjs'),join(e2e,'r36-routing-operator.mjs'));
+  if(!ownRouting)copyFileSync(join(gate,routingTemplate),join(e2e,'r36-routing-operator.mjs'));
   for (const [name, out] of adapted) if(out!==null)writeFileSync(join(e2e,`r36-${name}`), out);
   writeFileSync(join(gate,'adapters.log'),notes.map(line=>`${line}\n`).join(''));
   for(const line of notes)console.log(line);

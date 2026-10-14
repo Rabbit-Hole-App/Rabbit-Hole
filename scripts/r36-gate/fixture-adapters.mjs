@@ -29,7 +29,7 @@ const TUTOR_WAIT = "await page.getByText('Here is CausalSelfAttention.forward').
 const TUTOR_NEW = `await page.waitForFunction(title => [...document.querySelectorAll('[data-block-id]:not([data-chat-block])')]
   .some(node => node.textContent?.includes(title) && node.className.includes('ring-2')), TITLE('depth-attention-deep'), { timeout: 30000 });
 await page.waitForFunction(prior => window.__tutorBench?.length > prior && window.__tutorBench.at(-1)?.ms?.canvas_done != null, priorTutorBenchCount, { timeout: 30000 });
-assert.equal(await page.getByText('Here is CausalSelfAttention.forward').count(), 0, 'navigation does not duplicate narration');`;
+assert.ok(await page.getByText('Here is CausalSelfAttention.forward').count() <= 1, 'navigation does not duplicate narration');`;
 
 // A canvas-only navigate turn has no reply line either (r36 routing: the card is the answer, ask.jsx returns before any
 // reply is drawn); its turn completes and focuses the Deep card, and the existing no-"Thinking..." assertion stays.
@@ -50,13 +50,13 @@ export function adaptTutorSlice(source) {
 
 const PAN_MARKER = 'const press = async (page, kind, side = false) => {';
 const PAN_HELPER = `const safePanPoint = async (page, requested) => page.evaluate(({ requested }) => {
-  const blocked = '[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],[data-learn-dock],[data-comments-panel],[data-hooks-slot],button,a,iframe';
+  const blocked = '[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],[data-learn-dock],[data-chat-pane],[data-comments-panel],[data-hooks-slot],button,a,iframe';
   for (let y = 120; y < 700; y += 40) for (let x = 360; x < 1400; x += 40) {
     const hit = document.elementFromPoint(x, y);
     if (hit?.closest('[data-canvas-surface]') && !hit.closest(blocked)) return { x, y };
   }
   const requestedBounds = requested.bounds;
-  const hit = document.elementFromPoint(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2))?.closest?.('[data-canvas-surface], [data-learn-dock], [data-comments-panel], [role="dialog"]')?.outerHTML?.slice(0, 240) || null;
+  const hit = document.elementFromPoint(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2))?.closest?.('[data-canvas-surface], [data-learn-dock], [data-chat-pane], [data-comments-panel], [role="dialog"]')?.outerHTML?.slice(0, 240) || null;
   throw new Error(\`no safe canvas pan point for \${JSON.stringify({ requested, requestedBounds })}; hit=\${hit}\`);
 }, { requested });
 const intendedSelectionPoint = async (page, kind, box, side) => page.evaluate(({ id, item, box, side }) => {
@@ -70,7 +70,7 @@ const intendedSelectionPoint = async (page, kind, box, side) => page.evaluate(({
   // (AdaptiveCanvas): there the point is the bare canvas surface inside the target's rectangle, under no panel.
   const r = target.getBoundingClientRect();
   const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-  const covered = '[data-block-id],[data-item-id],[role="dialog"],[data-shared-ask],[data-learn-dock],[data-comments-panel],[data-hooks-slot],button,a,iframe';
+  const covered = '[data-block-id],[data-item-id],[role="dialog"],[data-shared-ask],[data-learn-dock],[data-chat-pane],[data-comments-panel],[data-hooks-slot],button,a,iframe';
   return inside && hit?.closest('[data-canvas-surface]') && !hit.closest(covered) ? { x, y } : null;
 }, { id: kind.id, item: Boolean(kind.item), box, side });
 `;
@@ -99,8 +99,9 @@ export function adaptSelectedPill(source) {
   out = out.replace(click, '  await page.mouse.click(selectionPoint.x, selectionPoint.y);');
   // A view-only board's cards and notes take no pointer events, so elementFromPoint calls a point on a card bare canvas
   // and the "blank" click selected that card (run 38343974325). A blank point is also outside every card and note box.
-  const bare = `      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],[data-learn-dock],button,a,iframe')) return { x, y };`;
-  if (!out.includes(bare)) throw Error('selected-pill blank point changed; refusing an unreviewed transformation');
+  // The blank point keeps clear of the main composer: the canvas dock (r38) or, since the chat workspace (A3b 8fa30fcd), the Chat pane.
+  const bare = ['[data-learn-dock]', '[data-chat-pane]'].map(composer => `      if (element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],${composer},button,a,iframe')) return { x, y };`).find(line => out.includes(line));
+  if (!bare) throw Error('selected-pill blank point changed; refusing an unreviewed transformation');
   out = out.replace(bare, `      const onObject = [...document.querySelectorAll('[data-block-id],[data-item-id]')].some(node => { const r = node.getBoundingClientRect(); return x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8; });
 ${bare.replace('if (element', 'if (!onObject && element')}`);
   return out;

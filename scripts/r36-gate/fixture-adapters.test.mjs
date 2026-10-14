@@ -56,6 +56,18 @@ test('all adapters reject source drift instead of rewriting unknown fixtures', (
   assert.throws(() => adaptSelectedPill(selected.replace('  await page.mouse.click(side && !kind.item ? box.x + 40 : box.x + box.width / 2, kind.item ? box.y + box.height / 2 : box.y + 8);', '  await page.mouse.click(1, 1);')), /click changed/);
 });
 
+// Chat workspace A3b (8fa30fcd) retargets the blank point from the canvas dock to the Chat pane; the adapter takes either.
+test('selected pill adapter applies to the Chat pane retarget as to the dock', () => {
+  const swap = (from, to) => selected.replaceAll(`[data-shared-ask],${from},button,a,iframe`, `[data-shared-ask],${to},button,a,iframe`);
+  // Whichever composer the fixture names, both variants are built from it (r38 names the dock, the chat workspace the pane).
+  for (const [composer, source] of [['[data-learn-dock]', swap('[data-chat-pane]', '[data-learn-dock]')], ['[data-chat-pane]', swap('[data-learn-dock]', '[data-chat-pane]')]]) {
+    assert.ok(source.includes(`[data-shared-ask],${composer},button,a,iframe`), `${composer}: the blank point names it`);
+    const out = adaptSelectedPill(source);
+    assert.ok(out.includes(`if (!onObject && element?.closest('[data-canvas-surface]') && !element.closest('[data-block-id],[data-item-id],[data-block],[data-view-selection],[role="dialog"],[data-shared-ask],${composer},button,a,iframe'))`), `${composer}: the blank point is adapted`);
+    assert.match(out, /\[data-learn-dock\],\[data-chat-pane\],\[data-comments-panel\]/, 'the injected probes keep both off chrome');
+  }
+});
+
 test('combined transformation preserves all source test markers', () => {
   const out = adaptAll({ shared, tutor, selected });
   for (const marker of ['provider tripwire', 'the ask route answers a dead link 404', 'GT-04', 'GT-D1', 'selected card', 'Send carries it']) {

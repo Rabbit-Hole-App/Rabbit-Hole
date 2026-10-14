@@ -161,6 +161,14 @@ directory (exported with the other logs) with one line per decision.
   Its assertions are, line for line, those of the app's own rewritten check at 401903a9 (`prepare-sources.test.mjs` compares
   them), so it prints 17/17 checks passed, 16 of the app's plus the tripwire. A candidate from before that decision (r37, which
   still opens the panel) fails this stage; the harness no longer accepts it.
+- A candidate with the chat workspace (`packages/web/src/ChatPane.jsx` in its tree) runs `templates/answer-routing-chat.mjs` instead
+  (`adapters.log`: `answer-routing: template answer-routing-chat.mjs`). The canvas dock is gone, so it drives the composer in
+  `[data-chat-pane]`; answers stay in the Chat transcript (`[data-answer]`) and no `[data-chat-block]` card appears until the
+  answer footer's Add as card (`[data-add-to-canvas]`), which adds exactly one card with no request, and Added only locates it
+  (owner brief 2026-10-13 section 10, contract B5). It prints 20/20. An older candidate keeps `answer-routing.mjs` as above.
+- The selected-pill adapter takes the blank-point line naming either `[data-learn-dock]` (r38) or `[data-chat-pane]` (chat
+  workspace A3b, 8fa30fcd); the tutor-slice adapter allows at most one copy of the navigation narration (the Chat transcript
+  shows it once; r38 showed none).
 
 ## Known flakes
 
