@@ -12,6 +12,8 @@ import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { contextDocsFetch } from '../src/learn-context-docs.js';
 import { LEARN_SYSTEM } from '../src/agents/learn-chat.js';
 import { HISTORY_TURNS } from '../src/learn-models.js';
+import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from '../src/canvas-context.js';
+import { canvasPackage } from './canvas-context-fixture.js';
 
 const ref = (over = {}) => ({ sourceId: 'doc:ctx:0123456789ab', kind: 'doc', name: 'Notes.pdf', version: '2026-10-14 07:00:00', range: null, ...over });
 
@@ -99,7 +101,7 @@ test('chat context: summary and refs ride bounded, selection text as evidence, a
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
 const apiAskSource = source.match(/export async function apiAsk\([^]*?\n\}/)[0].replace(/^export /, '');
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
-const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js'].map(path => import(path)));
+const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js', '../src/canvas-context.js'].map(path => import(path)));
 const baseDeps = Object.fromEntries(modules.flatMap(m => Object.entries(m)).filter(([name]) => name !== 'default'));
 // A test double of B4's trailer functions (on this base they are stubs): the wiring is what is under test here.
 const fakeMeta = {
@@ -248,6 +250,32 @@ test('Tutor plans only: one call with no tools, so no reader opens and no card l
   // Ask keeps its tools: the Wikipedia reader is offered there.
   await f.ask({ message: 'What causes tides?', mode: 'ask' });
   assert.ok(f.calls[1].tools.some(tool => tool.name === 'show_wikipedia'));
+});
+
+// Whole-canvas context (2026-10-14-whole-canvas-context-OWNER.md): no phrase decides whether the board rides. Ask, Auto
+// (answering or entering Tutor), Tutor and an old client send the same block and rules for unseen paraphrases and follow-ups.
+test('canvas_context: every mode and any wording carries the same board block and rules; none sent, none added; a malformed one is refused', async t => {
+  const f = fixture(t);
+  const block = canvasContextText(validateCanvasContext(canvasPackage()));
+  const turns = [['ask', 'What am I missing in this canvas?'], ['auto', 'Is this complete?'], ['tutor', 'Review my work'], ['auto', 'make me a course from this board'],
+    ['ask', 'Does this contradict anything else here?'], ['auto', 'Hmm, and after that?'], [undefined, 'What should I explore next?']];
+  for (const [mode, message] of turns) {
+    f.replies.push('Answer.');
+    assert.equal((await f.ask({ message, ...(mode ? { mode } : {}), canvas_context: canvasPackage() })).res.status, 200, message);
+  }
+  assert.equal(f.calls.length, turns.length);
+  f.calls.forEach((call, i) => {
+    assert.ok(JSON.stringify(call.messages.at(-1)).includes(JSON.stringify(block).slice(1, -1)), `${turns[i][1]}: the block rides whole`);
+    assert.ok(call.system.includes(CANVAS_CONTEXT_RULES), `${turns[i][1]}: the rules ride`);
+  });
+  assert.match(f.calls[3].system, /Tutor mode/, 'Auto entered Tutor: the mode changes the workflow, not the context');
+  f.replies.push('Answer.');
+  await f.ask({ message: 'What am I missing in this canvas?', mode: 'ask' });
+  assert.equal(JSON.stringify(f.calls.at(-1)).includes('CANVAS CONTEXT (built'), false, 'no package: nothing is added');
+  assert.equal(f.calls.at(-1).system.includes(CANVAS_CONTEXT_RULES), false);
+  const refused = await f.ask({ message: 'q', mode: 'ask', canvas_context: canvasPackage({ excerpts: 'all of it' }) });
+  assert.equal(refused.res.status, 400);
+  assert.match((await refused.res.json()).error, /^canvas_context: excerpts/);
 });
 
 test('Ask never becomes a syllabus, even with a live journey on the canvas and a syllabus in the trailer', async t => {

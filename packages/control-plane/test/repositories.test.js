@@ -8,6 +8,8 @@ import { researchAnswer } from '../src/learn-research.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { putUploadedPaper } from '../src/learn-paper.js';
 import { aiSettings } from '../src/ask.js';
+import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from '../src/canvas-context.js';
+import { canvasPackage } from './canvas-context-fixture.js';
 
 const sha='a'.repeat(40), newer='b'.repeat(40);
 const snapshot={repo:'example/project',commit:sha,version:'graphifyy-0.9.63-small-1',files:{'model.py':'class Model:\n    def forward(self, x):\n        return x + 1','README.md':'A model'},skipped:[],graph:{nodes:[{id:'model',label:'Model',path:'model.py',line:1},{id:'forward',label:'forward()',path:'model.py',line:2}],edges:[{source:'model',target:'forward',relation:'contains',confidence:'EXTRACTED'}]}};
@@ -330,6 +332,28 @@ test('a repository ask takes a + attachment up to 4 MB while JSON requests keep 
   assert.equal((await upload(new Uint8Array(10),{message:'q',lesson_snapshot:'x'.repeat(70000)})).status,413,'the JSON part stays under 64 KB');
   assert.equal((await f.send('ask',{message:'q',outline:[{id:'h',label:'x'.repeat(70000),level:1,done:false}]})).status,413);
   assert.equal((await f.send('file',{path:'x'.repeat(70000)})).status,413);
+});
+// Whole-canvas context on a repository canvas (canvas-context.js): the same block and rules as /api/learn/ask. The ask's JSON
+// takes the package and context_refs beside its own 64 KB, which still holds; a body past that whole ceiling is refused.
+test('a repository ask renders canvas_context like /api/learn/ask, and its body cap leaves room for the package and refs',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'Answer.'}],stop_reason:'end_turn'});};
+  const refs=Array.from({length:20},(_,i)=>({sourceId:`card:shape:${i}`,kind:'card',name:`Card ${i}`,version:'v',range:null,text:'y'.repeat(1600)}));
+  // A near-worst board: the 300-item inventory and two 6,000-character excerpts, beside 20 refs carrying their 32,000 characters.
+  const base=canvasPackage(),many=Array.from({length:292},(_,i)=>({id:`x${i}`,type:'text',label:`Note ${i}`,region:'center'}));
+  const pkg={...base,inventory:{...base.inventory,items:[...base.inventory.items,...many]},excerpts:[...base.excerpts,...['x0','x1'].map(id=>({id,type:'text',text:'w'.repeat(6000),reason:'relevant',inclusion:'full',omitted_chars:0}))],coverage:{...base.coverage,objects_total:300,listed:300}};
+  const body={message:'Review my work',canvas_context:pkg,context_refs:refs};
+  assert.ok(JSON.stringify(body).length>64000,'past the old 64 KB cap');
+  const res=await f.send('ask',body);
+  assert.equal(res.status,200);await res.text();
+  assert.ok(JSON.stringify(prompts[0].messages.at(-1)).includes(JSON.stringify(canvasContextText(validateCanvasContext(pkg))).slice(1,-1)),'the block rides');
+  assert.ok(prompts[0].system.includes(CANVAS_CONTEXT_RULES),'the rules ride');
+  const own=await f.send('ask',{message:'q',outline:[{id:'h',label:'x'.repeat(70000),level:1,done:false}],canvas_context:canvasPackage()});
+  assert.equal(own.status,413,'the ask\'s own fields keep 64 KB');
+  assert.equal((await f.send('ask',{message:'q',context_refs:[{text:'z'.repeat(210000)}]})).status,413,'past the whole ceiling');
+  assert.equal((await f.send('ask',{message:'q',canvas_context:canvasPackage({version:9})})).status,400);
+  const none=await f.send('ask',{message:'Review my work'});await none.text();
+  assert.equal(prompts.at(-1).system.includes(CANVAS_CONTEXT_RULES),false,'no package, no rules');
 });
 // context-11: a mention the repository chat cannot read says so instead of vanishing.
 test('an unknown or fourth repository mention is named as not available',async t=>{

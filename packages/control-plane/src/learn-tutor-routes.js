@@ -11,6 +11,7 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
+import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { JEV_TRANSPORTS, THRESHOLDS, askJev } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
@@ -288,13 +289,13 @@ function streamedActions(input) {
 // reason_codes, then the Task 11b reading fields, all written after the actions) that is cut, unparsable or lost keeps those
 // actions, with reason and reason_codes null, the reading fields absent (traced as missing) and telemetry.tail_lost (no
 // rollback). A cut inside the reading fields alone therefore also drops reason and reason_codes.
-async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null, onActions = null } = {}, documents = []) {
+async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null, onActions = null, canvas = null } = {}, documents = []) {
   const started = Date.now();
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
   const cache = env.TUTOR_PLANNER_CACHE !== 'off' && env.SUBSCRIPTION_ONLY !== 'true'; // F default: on
   const speed = env.TUTOR_PLANNER_SPEED === 'fast' && model === LEARN_TASKS.tutor.model && env.SUBSCRIPTION_ONLY !== 'true' ? 'fast' : null;
   // TUTOR_AVATAR=on adds suggest_avatar_clip (Avatar Teacher §4.1); unset or anything else, the request is unchanged.
-  const request = plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed, avatar: env.TUTOR_AVATAR === 'on' });
+  const request = plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed, avatar: env.TUTOR_AVATAR === 'on', canvas });
   // TutorDecisionEvent versions (professor-next-steps.md §3.1): prompt_version is every system block and the tool sent (a hook
   // turn's NEXT_STEP_SYSTEM included), hashed beside the model call and awaited after it, never in front of it; cost_usd prices
   // the reported usage at the requested model, null without usage.
@@ -457,6 +458,9 @@ export async function tutorRoute(path, req, env, deps = {}) {
   }
   const serialized = JSON.stringify(body?.context ?? null);
   if (!body?.context || typeof body.context !== 'object' || serialized.length > CONTEXT_LIMIT) return json({ error: `context must be an object of at most ${CONTEXT_LIMIT} characters` }, 400);
+  // Whole-canvas context (canvas-context.js), beside context and outside its limit: the same package and rules as /api/learn/ask.
+  try { if (body.canvas_context != null) paidDeps.canvas = { text: canvasContextText(validateCanvasContext(body.canvas_context)), system: CANVAS_CONTEXT_RULES }; }
+  catch (error) { return json({ error: error.message }, 400); }
   const image = await tutorImageContext(env, access, body);
   if (image.error) return json({ error: image.error }, image.status);
   const withNotice = result => image.notice ? { ...result, notice: image.notice } : result;
