@@ -38,6 +38,7 @@ import ResizableSidePanel from './ResizableSidePanel.jsx';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
 import ChatPane, { PaneSwitch } from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
+import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { MessageCircle } from 'lucide-react';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -327,7 +328,18 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // <ChatWorkspaceRef into={chatWorkspace} /> (SourceReader.jsx) inside it. While it is set, every reader opener below opens the
   // source in the Sources pane beside Chat instead of in place of the transcript (brief 6, 13.1), and changes no request context:
   // viewing never attaches (contract A5). While it is null, the old right-panel readers open as before.
+  // canvasOps (chat-workspace.jsx) for Lane B's footer and actions: Add as card, Open in Notebook, locate.
+  useEffect(() => chat?.setCanvasOps?.({
+    insertChat: entry => canvasApi.current?.insertChat(entry),
+    hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
+    locate: id => canvasApi.current?.focusBlock(id),
+    insertNotebook: (cells, language = 'python') => {
+      const block = newNotebookBlock(), [cell] = block.ipynb.cells;
+      return canvasApi.current?.insertImported({ ...block, language, ipynb: { ...block.ipynb, cells: cells.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') })) } });
+    },
+  }), [chat?.setCanvasOps]); // eslint-disable-line react-hooks/exhaustive-deps
   const chatWorkspace = useRef(null);
+  chatWorkspace.current = chat; // the provider wraps this page (A1), so the handle is the page's own workspace
   const trackPaper = next => {
     if (paperOpen) return;
     setPaperContext(previous => (previous?.id === next.paperId && previous.page === next.page ? previous
@@ -1662,7 +1674,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       {switched && <PaneSwitch view={panels.view} onView={view => (view === 'chat' ? panels.openChat() : panels.setView(view))} />}
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} filesOn={!!files} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
-      <ChatPane key={app.name} hidden={panelTab !== 'chat'} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
+      <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
         onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder} autoFocus />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}

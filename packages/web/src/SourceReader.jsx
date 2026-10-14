@@ -1,3 +1,4 @@
+import { docUrl } from './chat-context.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MessageSquarePlus } from 'lucide-react';
 import LearnPaper from './LearnPaper.jsx';
@@ -55,8 +56,7 @@ function DocReader({ app, sourceRef, position, save, startPage }) {
   useEffect(() => {
     const controller = new AbortController();
     let url = null;
-    // ponytail: built inline; the lead swaps it for chat-context.js docUrl(canvas, id) at merge
-    fetch(`/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`, { headers: wsHeaders(), signal: controller.signal })
+    fetch(docUrl(app, id), { headers: wsHeaders(), signal: controller.signal })
       .then(async response => {
         const type = response.ok ? response.headers.get('content-type') || '' : '';
         const next = /pdf/.test(type) ? { pdf: (url = URL.createObjectURL(await response.blob())) } : /^text\//.test(type) ? { text: await response.text() } : {};
