@@ -404,7 +404,7 @@ test('wiring: useTutor and LearnPage decide the Tutor only through the resolver;
   assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead, recordPending\), store: load\(\), parent: parentJourney, record, liveTitle \}\),/);
   assert.match(tutor, /const recordPending = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(app\.name\) && !dive\.tree;/);
   assert.match(tutor, /\}, \[access, record, here\.app, here\.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle, openResearch, reads\]\);/); // Task 11c-B: reads
-  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock \}\);/);
+  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext \}\);/);
   assert.match(page, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
   assert.equal(TUTOR_DOMAINS.filter(e => e.domain === NANOGPT).length, 1);
   assert.equal(registry.match(/'karpathy\/nanoGPT'/g).length, 1);

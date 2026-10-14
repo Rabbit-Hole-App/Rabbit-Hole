@@ -17,7 +17,8 @@ import { useChatSources } from './chat-sources.js';
 const ChatWorkspace = createContext(null);
 export const useChatWorkspace = () => useContext(ChatWorkspace);
 
-// canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), hasBlock(id), locate(id) },
+// canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), hasBlock(id), locate(id),
+// canvasContext(options) - a turn's canvas_context built now (chat-canvas-context.js) - selection() },
 // for Lane B's footer and actions (contract B3, B5). null until the canvas mounts; callers check before use.
 export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, children }) {
   // The canvas API lives below the provider, so the page sets canvasOps once its canvas mounts (setCanvasOps).
@@ -41,6 +42,8 @@ export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, ch
   const sender = useRef(null);
   const registerSender = useCallback(send => { sender.current = send; return () => { if (sender.current === send) sender.current = null; }; }, []);
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
-  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate]);
+  // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
+  const [canvasCoverage, setCanvasCoverage] = useState(null);
+  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps, canvasCoverage, setCanvasCoverage }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, canvasCoverage]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }

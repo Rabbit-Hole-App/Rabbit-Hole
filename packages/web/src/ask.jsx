@@ -3,6 +3,7 @@ import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { refsForSend } from './chat-draft.js';
+import { chatHistory, refIds } from './chat-canvas-context.js';
 import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
 import { CONTEXT_ACCEPT, useContextDocs } from './context-docs.js';
@@ -482,6 +483,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (target && !target.card) onClearCanvasTarget?.();
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const tutorImage = !target?.paper && !questionPaper ? (target?.image ? { id: target.image } : questionImage?.blockId ? { block_id: questionImage.blockId } : questionImage?.id ? { id: questionImage.id } : null) : null;
+    // Whole-canvas context (chat-canvas-context.js): every Learn canvas turn carries the live canvas, built at submit by the page -
+    // below for /api/learn/ask, in the Tutor's turn for its plan. The selection is the target and what is selected now; the user
+    // message keeps the ids it went with (refs), so a follow-up's history still points at them. imageObject: the canvas object
+    // whose picture rides (image_context), the only one the package may call inspected.
+    const canvasOps = learnChat && !isDemo ? workspace?.canvasOps : null;
+    const selection = [(target || canvasSeed?.target)?.id, ...(canvasOps?.selection?.() || [])].filter(Boolean);
+    const attachments = chat ? refIds(chat.context.attached) : [];
+    const canvasArgs = { history: chatHistory(msgs), selection, attachments };
+    const sentRefs = [...new Set([...selection, ...attachments])];
+    const imageObject = target?.image ? target.id : questionImage?.blockId || null;
     const replyId = crypto.randomUUID();
     // The late-response guard (contract A5): the Chat's open thread when this turn was sent.
     const sentKey = turnKey.current, late = () => !!chatThread && lateEvent(sentKey, turnKey.current);
@@ -502,7 +513,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // A regenerated answer streams in its old answer's place; the server keeps the old one as an alternative (B5).
       const reply = { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card, ...(chatThread ? { messageId: `local-${replyId}`, status: 'streaming' } : {}) };
       if (regenerate) { setMsgs(m => m.map(item => (item.messageId === regenerate.messageId ? reply : item))); return; }
-      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done' } : {}) }, reply]);
+      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(sentRefs.length ? { refs: sentRefs } : {}), ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done' } : {}) }, reply]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
     // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
@@ -533,7 +544,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // Tutor's workflow on a journey or Tutor canvas (owner brief section 5).
       if (viaTutor) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
-        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin, ...canvasArgs, inspected: tutorImage && imageObject ? [imageObject] : [] }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
         if (sheetMode) {
           const routed = typeof reply === 'string' ? { to: 'tray', text: reply } : destinationOf(reply, target, { setup: journeySetup });
@@ -547,6 +558,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         } else { begin(); mirror(reply); }
         return;
       }
+      const canvasContext = canvasOps?.canvasContext?.({ request: message, ...canvasArgs, inspected: imageId && imageObject ? [imageObject] : [] });
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
@@ -578,6 +590,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
         ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(chat.context.attached) } : {}),
+        // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
+        ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
       if (privateChat) {
         const d = await api(askPath, { method: 'POST', body: JSON.stringify({ ...payload,

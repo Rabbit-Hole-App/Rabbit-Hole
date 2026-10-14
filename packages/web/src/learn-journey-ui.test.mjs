@@ -194,7 +194,7 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
   // The path is chat-route.js tutorTurn: the Tutor in Auto (and off the Chat pane); Ask and Tutor modes post to /api/learn/ask.
   assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, chat, mode: chat\?\.thread\.mode \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
-  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin \}\)/);
+  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\] \}\)/);
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
   assert.match(ask, /<TutorPromptTray tray=\{tray\.tray\}/);
@@ -209,7 +209,7 @@ test('LearnPage.jsx: useJourney off the nanoGPT course, its props on the Chat co
   assert.match(page, /const journey = useJourney\(\{ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole \}\)/);
   assert.match(page, /journey, journeyStarter: journey\.journey \? null : journey\.start, journeySetup: inJourneySetup\(journey\.journey\), tray: journey\.trayProps/);
   // LP1 Task 12: the journey reaches useTutor, so the Chat's tutor prop is the Tutor on a journey canvas (D1).
-  assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock \}\);/);
+  assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext \}\);/);
   assert.match(page, /tutor: tutor\.active \? tutor : null, journey,/);
 });
 
