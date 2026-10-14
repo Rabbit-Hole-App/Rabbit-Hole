@@ -29,6 +29,7 @@ import { composerKey } from './composer-keys.js';
 import { holdsLine, parseSlash, releaseLine } from './learn-slash.js';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
+import { newThreadId, turnSaver } from './chat-persist.js';
 import { tutorTurn } from './chat-route.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
@@ -246,8 +247,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // in the chat workspace, so menus, mode changes and resizing never clear them. Every other chat (chat === null) keeps its own state.
   const workspace = useChatWorkspace();
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
-  const turnKey = useRef(null);
-  turnKey.current = chatThread?.turnKey ?? null;
 
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
   // tutor.extras move to the left caption.
@@ -455,6 +454,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (isDemo && demo.disabled) return;
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
     if (guardedHistory) historyRequest.current++;
+    chatThread?.claim(); // a restore still on its way never replaces this turn
     onSent?.();
     if (contentPanel) { setFilePeek(null); onCloseContentPanel?.(); setView('chat'); }
     setChoices(null);
@@ -494,8 +494,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const sentRefs = [...new Set([...selection, ...attachments])];
     const imageObject = target?.image ? target.id : questionImage?.blockId || null;
     const replyId = crypto.randomUUID();
-    // The late-response guard (contract A5): the Chat's open thread when this turn was sent.
-    const sentKey = turnKey.current, late = () => !!chatThread && lateEvent(sentKey, turnKey.current);
+    // The late-response guard (contract A5): the Chat's open thread when this turn was sent, against the one open now, read
+    // from the thread hook itself, so a turn whose pane went away with its canvas is late too.
+    const sentKey = chatThread?.liveKey(), late = () => !!chatThread && lateEvent(sentKey, chatThread.liveKey());
+    // Chat persistence (chat-persist.js): an Auto turn the Tutor answers is saved by this client, bound now to this canvas and
+    // thread (a new chat's thread id is made here), so a late reply is saved where it was asked. Ask and Tutor modes are saved
+    // by /api/learn/ask. A demo or a regenerated answer is no new turn.
+    const askedTitle = message.slice(0, 120);
+    const autoSave = chatThread && !isDemo && !regenerate ? turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId: replyId, title: chatThread.id ? null : askedTitle, onAsked: () => { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle); } }) : null;
     let card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
     // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
     // (begin), only for a turn it answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
@@ -509,6 +515,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (begun) return;
       begun = true;
       if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
+      // A Tutor turn's question is saved now, before the Tutor generates; the thread is this Chat's at once (saved, it also
+      // becomes the canvas's active thread: onAsked).
+      if (viaTutor && autoSave) { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle, { remember: false }); autoSave.user(message); }
+      if (late()) return; // another thread or canvas is open in this Chat now: nothing of this turn is drawn there
       // In the Chat pane each message carries { messageId, status } (contract A2): local ids until `done` names the server's.
       // A regenerated answer streams in its old answer's place; the server keeps the old one as an alternative (B5).
       const reply = { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card, ...(chatThread ? { messageId: `local-${replyId}`, status: 'streaming' } : {}) };
@@ -555,7 +565,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           card = panelAsk ? {} : { card: true };
           begin();
           mirror(routed.text);
-        } else { begin(); mirror(reply); }
+        } else {
+          // The reply as shown, or a Stop as interrupted, saved in the turn's own thread - even when the learner is elsewhere now.
+          begin();
+          const stopped = flight.signal.aborted;
+          autoSave?.assistant(reply, stopped ? 'interrupted' : 'done').catch(error => console.info('[chat] answer not saved:', error.message));
+          if (late()) return;
+          mirror(reply);
+          if (stopped && chatThread) setMsgs(messages => settle(messages, replyId, 'stopped'));
+        }
         return;
       }
       const canvasContext = canvasOps?.canvasContext?.({ request: message, ...canvasArgs, inspected: imageId && imageObject ? [imageObject] : [] });
