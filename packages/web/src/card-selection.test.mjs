@@ -68,6 +68,8 @@ test('selecting one card arms the composer strip; moving off it clears the strip
   assert.match(effect, /const object = selected \? objectById\(selected\) : null;\n\s+if \(object && armTarget\(object\)\) \{ selectionArmed\.current = object\.id; return; \}/);
   assert.match(effect, /\}, \[selected\]\);/);
   assert.doesNotMatch(effect, /readOnly/, 'a view-only board arms the shared composer too');
+  // A view-only board selects by the press point: a connection's hit path never takes that press (r38 selected-pill gate).
+  assert.match(canvas, /strokeWidth=\{14 \/ view\.z\} style=\{\{ pointerEvents: readOnly \? 'none' : 'stroke', cursor: 'pointer' \}\}/, 'no connection hit path on a view-only board');
   assert.match(canvas, /const objectById = id => blocksRef\.current\.find\(entry => entry\.id === id\) \|\| exchangesRef\.current\.find\(entry => entry\.id === id\) \|\| itemsRef\.current\.find\(entry => entry\.id === id\) \|\| null;/);
   assert.match(canvas, /const describeObject = object => describeBlock\(object\) \|\| describeCanvasObject\(object\);/);
   assert.match(effect, /if \(was && askTargetId === was && armedId\.current === was\) \{ armedId\.current = null; onAskTargetRef\.current\?\.\(null\); \}/);
