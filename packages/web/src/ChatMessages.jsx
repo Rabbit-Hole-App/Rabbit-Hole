@@ -1,0 +1,175 @@
+// The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
+import { useEffect, useRef, useState } from 'react';
+import { Check, Copy, CornerDownRight, Loader2, Network, Plus } from 'lucide-react';
+import { api, navigate } from './api.js';
+import { EvidencePill, Md } from './Md.jsx';
+import { waitingText } from './waiting-text.js';
+import { cn } from './ui.jsx';
+
+// Phase 2 proposal card: what will happen with the exact inputs; nothing runs
+// until Run posts the approval. Change hands the args back to the input box.
+const TOOL_LABEL = {
+  run: 'Run', run_again: 'Run again', pause_schedule: 'Pause schedule',
+  resume_schedule: 'Resume schedule', share: 'Share', unshare: 'Unshare',
+};
+
+function ProposalCard({ proposal, onDone, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const approve = async () => {
+    setBusy(true);
+    try {
+      const d = await api('/api/ask/approve', { method: 'POST', body: JSON.stringify({ proposal_id: proposal.id }) });
+      // a started run becomes a live result card in the chat
+      onDone(d.runId ? { runId: d.runId } : `✓ ${TOOL_LABEL[proposal.tool] || proposal.tool} executed`);
+    } catch (e) {
+      onDone(`✗ ${e.message}`);
+    }
+  };
+  return (
+    <div className="max-w-[440px] rounded-md border border-line p-3">
+      <div className="pb-1 text-sm font-medium">{TOOL_LABEL[proposal.tool] || proposal.tool}?</div>
+      <pre className="overflow-x-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{JSON.stringify(proposal.args, null, 2)}</pre>
+      <div className="flex gap-2 pt-2">
+        <button
+          disabled={busy}
+          onClick={approve}
+          className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-sm bg-accent px-2.5 text-[13px] font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+        >
+          {busy && <Loader2 size={12} className="animate-spin" />} Run
+        </button>
+        <button
+          onClick={() => onChange(`${TOOL_LABEL[proposal.tool] || proposal.tool} with ${JSON.stringify(proposal.args)} but `)}
+          className="h-7 cursor-pointer rounded-sm px-2.5 text-[13px] text-ink-2 hover:bg-hover hover:text-ink"
+        >
+          Change
+        </button>
+        <button onClick={() => onDone('(proposal dismissed)')} className="h-7 cursor-pointer rounded-sm px-2.5 text-[13px] text-ink-2 hover:bg-hover hover:text-ink">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// After an approved run: live result right in the chat - status, log tail,
+// outputs with the same inline previews as the run peek.
+export function RunResultCard({ runId, app }) {
+  const [meta, setMeta] = useState(null);
+  const [lines, setLines] = useState([]);
+  const [outs, setOuts] = useState(null);
+  const cursor = useRef(-1);
+  useEffect(() => {
+    let stop = false;
+    const tick = async () => {
+      try {
+        const d = await api(`/api/runs/${runId}?after=${cursor.current}`);
+        if (stop) return;
+        cursor.current = d.cursor;
+        setMeta(d);
+        if (d.lines.length) setLines((l) => [...l, ...d.lines]);
+        if (d.status === 'running') setTimeout(() => !stop && tick(), 1500);
+        else api(`/api/runs/${runId}/outputs`).then((o) => !stop && setOuts(o.outputs)).catch(() => setOuts([]));
+      } catch { if (!stop) setTimeout(() => !stop && tick(), 3000); }
+    };
+    tick();
+    return () => { stop = true; };
+  }, [runId]);
+  const runUrl = app?.name ? `/apps/${app.name}/runs/${runId}` : null;
+  return (
+    <div className="max-w-[520px] rounded-md border border-line p-3 text-sm">
+      <div className="flex items-center gap-2 pb-1.5">
+        {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-ink-3" />}
+        <span className="font-medium">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
+        <span className="text-ink-2">{meta?.status || 'starting…'}</span>
+        {runUrl && (
+          <button className="ml-auto cursor-pointer text-xs text-accent hover:underline" onClick={() => window.history.pushState(null, '', runUrl) || window.dispatchEvent(new PopStateEvent('popstate'))}>
+            open
+          </button>
+        )}
+      </div>
+      {lines.length > 0 && (
+        <pre className="no-scrollbar max-h-40 overflow-y-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{lines.slice(-15).join('\n')}</pre>
+      )}
+      {outs && outs.length > 0 && (
+        <div className="pt-2">
+          {outs.map((o) => <OutputRow key={o.name} runId={runId} name={o.name} size={o.size} />)}
+        </div>
+      )}
+      {outs && !outs.length && meta?.status !== 'running' && <div className="pt-1 text-xs text-ink-3">no outputs</div>}
+    </div>
+  );
+}
+
+// compact copy of the run peek's output renderer (kept local - run.jsx imports us)
+function OutputRow({ runId, name, size }) {
+  const url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}`;
+  const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024;
+  const isText = /\.(json|csv|txt)$/i.test(name) && size < 4096;
+  const [text, setText] = useState(null);
+  useEffect(() => { if (isText) fetch(url).then((r) => r.text()).then(setText).catch(() => {}); }, [url, isText]);
+  return (
+    <div className="pb-1.5">
+      <a href={url} download={name} className="text-xs text-ink-2 hover:text-ink">{name}</a>
+      {isImg && <img src={url} alt={name} className="mt-1 max-h-[180px] max-w-full rounded-sm border border-line" />}
+      {isText && text != null && <pre className="no-scrollbar mt-1 max-h-32 overflow-y-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{text}</pre>}
+    </div>
+  );
+}
+
+// One message. Everything it reads from AskPanel comes in as a prop.
+export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, blockCopy, setBlockCopy }) {
+  return (
+    <div key={i} className={cn('py-1.5', (m.role === 'user' || m.role === 'step') && 'flex justify-end')}>
+      {m.role === 'step' ? (
+        // A chosen next step (sendStep): the hook the learner clicked, drawn as a choice - never as their own words.
+        <div data-step-chip title="A next step you chose" className="inline-flex max-w-[85%] items-start gap-1.5 rounded-lg border border-[#b42318]/25 bg-[#b42318]/[0.04] px-3 py-1.5 text-sm text-ink">
+          <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" /><span className="min-w-0">{m.content}</span>
+        </div>
+      ) : m.role === 'user' ? (
+        <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
+          {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
+          {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
+          {m.content}
+        </div>
+      ) : m.role === 'proposal' ? (
+        <ProposalCard
+          proposal={m.proposal}
+          onDone={(r) => setMsgs((ms) => ms.map((x, j) => (j === i ? (r?.runId ? { role: 'run', runId: r.runId } : { role: 'assistant', content: r }) : x)))}
+          onChange={(text) => { setMsgs((ms) => ms.filter((_, j) => j !== i)); setInput(text); inputRef.current?.focus(); }}
+        />
+      ) : m.role === 'run' ? (
+        <RunResultCard runId={m.runId} app={fileApp ? { name: fileApp } : null} />
+      ) : m.content?.startsWith('✗ ') ? (
+        <div role="alert" className="flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">
+          <span className="min-w-0 flex-1 break-words">{m.content}</span>
+          <button type="button" aria-label="Copy error" title="Copy error" onClick={() => navigator.clipboard.writeText(m.content)} className="shrink-0 rounded p-1 hover:bg-danger/10"><Copy size={14} /></button>
+        </div>
+      ) : m.content ? (
+        <>{learnChat ? <div className="relative min-w-0 rounded-lg border border-accent/30 p-3 pr-10">
+          <Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} />
+          <button type="button" title="Copy" aria-label="Copy answer" className="absolute top-2 right-2 rounded p-1 text-accent hover:bg-accent/10" onClick={async () => {
+            try { await navigator.clipboard.writeText(m.content); setBlockCopy({ reply: m.id || i, text: 'Copied' }); }
+            catch { setBlockCopy({ reply: m.id || i, text: 'Copy failed' }); }
+          }}><Copy size={14} /></button>
+          {blockCopy?.reply === (m.id || i) && <span role="status" className="absolute right-2 top-9 z-10 rounded border border-accent/30 bg-accent/10 px-2 py-1 text-xs text-black shadow-sm">{blockCopy.text}</span>}
+        </div> : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
+        {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
+        {sheetMode && onAddToCanvas && !m.demo && !m.content.startsWith('\u2717') && !(busy && i === msgs.length - 1) && (
+          <button type="button" data-add-to-canvas disabled={m.added} onClick={() => {
+            onAddToCanvas({ question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '', answer: m.content });
+            setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
+          }} className="mt-2 flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:text-green-700 disabled:hover:bg-transparent">
+            {m.added ? <><Check size={13} />On the canvas</> : <><Plus size={13} />Add to canvas</>}
+          </button>
+        )}</>
+      ) : (
+        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.status)}</span></span>
+      )}
+    </div>
+  );
+}
+
+export function ChatMessages(props) {
+  const { msgs, sheetMode } = props;
+  return msgs.map((m, i) => (sheetMode && m.card) ? null : <ChatMessage key={i} {...props} m={m} i={i} />);
+}
