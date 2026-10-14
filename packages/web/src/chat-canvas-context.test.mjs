@@ -63,11 +63,22 @@ test('chatHistory: the last six user and assistant messages, oldest first, user 
 
 test('wiring: the canvas API reads live; the page builds through the helper; Ask posts canvas_context; the user bubble keeps its refs', () => {
   const canvas = read('./AdaptiveCanvas.jsx'), page = read('./LearnPage.jsx'), ask = read('./ask.jsx');
-  assert.match(canvas, /liveBoard: \(\) => \(\{ \.\.\.semanticBoard\(\), boxes: inlineCanvas\.layout\(\) \}\),\s+selection: \(\) => selectedRef\.current,/);
+  assert.match(canvas, /liveBoard: \(\) => \(\{ \.\.\.semanticBoard\(\), strokes: present\.current\.strokes, boxes: inlineCanvas\.layout\(\) \}\),\s+selection: \(\) => selectedRef\.current,/);
   assert.match(page, /const built = canvasContextNow\(\{ api: canvasApi\.current, title: titleNow\.current, \.\.\.options \}\);/);
   assert.match(page, /canvasContext, selection: \(\) => canvasApi\.current\?\.selection\?\.\(\) \|\| \[\],/);
   assert.match(ask, /const canvasContext = canvasOps\?\.canvasContext\?\.\(\{ request: message, \.\.\.canvasArgs, inspected: imageId && imageObject \? \[imageObject\] : \[\] \}\);/);
   assert.match(ask, /\.\.\.\(canvasContext \? \{ canvas_context: canvasContext \} : \{\}\),\s+\};/);
   assert.match(ask, /\.\.\.\(sentRefs\.length \? \{ refs: sentRefs \} : \{\}\)/);
   assert.match(ask, /begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\] \}\)/);
+});
+
+test('the This canvas chip: its text stays; title and data-canvas-coverage are the package summary, rebuilt from the draft on hover or focus', () => {
+  const chip = read('./ContextChips.jsx'), page = read('./LearnPage.jsx'), tutor = read('./LearnTutor.jsx');
+  assert.match(chip, /const preview = \(\) => chat\.canvasOps\?\.canvasContext\?\.\(\{ request: chat\.composer\.text, attachments: refIds\(chat\.context\.attached\) \}\);/);
+  assert.match(chip, /<li data-canvas-context title=\{chat\.canvasCoverage \|\| '[^']+'\} data-canvas-coverage=\{chat\.canvasCoverage \|\| undefined\}\s+tabIndex=\{0\} onPointerEnter=\{preview\} onFocus=\{preview\}/);
+  assert.match(chip, /\/> This canvas\s+<\/li>/);
+  assert.doesNotMatch(chip.match(/<li data-canvas-context[^>]*>/)[0], /\bread\b/, 'never "read": sending is not reading');
+  // Every built package's summary reaches the chip, a sent turn's included (Ask through canvasOps, the Tutor through useTutor).
+  assert.match(page, /if \(built\) chat\.setCanvasCoverage\?\.\(built\.coverage\.summary\);/);
+  assert.match(tutor, /const canvasPackage = canvasContext\?\.\(\{ request: nextStep\?\.hook \?\? raw, history, selection: targetId \? \[targetId, \.\.\.selection\] : selection, attachments, inspected: ridingImage \}\) \?\? null;/);
 });

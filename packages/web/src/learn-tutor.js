@@ -411,7 +411,9 @@ export const enforce = validateActions;
 // repository (Task 11c-B): the canvas reads a repository, so the plan may hand off to repository_context; an accepted handoff
 // runs after the plan through the handoff route (runHandoff), its answer follows the plan's own words in `text`, a failure
 // says the source context could not be retrieved, and bench.handoff / bench.ms.handoff / bench.ms.to_answer time it.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false, trace = false, image = null }) {
+// canvasContext: the turn's whole-canvas package (chat-canvas-context.js), sent as the plan request's top-level canvas_context
+// beside context, never inside it; null sends none.
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false, trace = false, image = null, canvasContext = null }) {
   if (nextStep) raw = '';
   const t = [now()];
   // The hook click's time for the event (selected_at): the page's click time when it passes one, else this turn's start.
@@ -504,7 +506,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     onSpeakable(spoken);
   };
   const imageContext = image ? { image_context: image, board: here.board } : {};
-  try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...access, context, ...imageContext, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', { ...access, context, ...imageContext })), out => out.telemetry?.outcome ?? 'ok'); }
+  const planBody = { ...access, context, ...imageContext, ...(canvasContext ? { canvas_context: canvasContext } : {}) };
+  try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...planBody, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', planBody)), out => out.telemetry?.outcome ?? 'ok'); }
   catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
   let { actions, log, decisions, reading } = tracer.step('action_validation', () => enforce(response, routed, turn, domain),

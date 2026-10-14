@@ -78,7 +78,8 @@ export const hookContext = (where, read, recordPending = false) => (recordPendin
 // Given, the Tutor may offer suggest_research (a Research this chip that calls it); absent, it never offers one. Nothing is
 // researched inside a Tutor turn. repository (Task 11c-B): whether the turn may hand off to repository_context; the page may pass
 // false when the learner detached the repository source (LearnPage repoAttached), else it is the app's own (canvasRepository).
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null }) {
+// canvasContext(options) (LearnPage, chat-canvas-context.js): the turn's whole-canvas package, built from the live canvas.
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -137,7 +138,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // The Tutor's domain on this canvas, built per turn: a journey canvas's (§3.2) from the journey, its path and the canvas
   // blocks; a hole opened from a journey section (Task 14) the dive domain over the parent journey, session evidence; else
   // the registered course's; else the canvas domain (Task 10; typed and voice turns too since Task 11b).
-  const domainOf = (canvas, selected = null) => tutorContext({ ...where, journey: journeyRef.current, blocks: canvas?.blocks?.() || [], selected })?.domain;
+  const domainOf = canvas => tutorContext({ ...where, journey: journeyRef.current, blocks: canvas?.blocks?.() || [] })?.domain;
 
   // Back on a parent after a hole: its next turn carries returned_from (§6.4).
   useEffect(() => { if (active) save(arriveAt(load(), here)); }, [active, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -160,14 +161,15 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // nextStep (contract §1.4): a clicked hook's selected_next_step, never evidence - no target block (so no practice rung), no
   // journey resolver, no learner words (so no evaluate), and a waiting /deeper stays for the next typed turn. selectedAt: the
   // click's time, for the decision trace.
-  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null, image = null }) => {
+  // history, selection, attachments, inspected (ask.jsx): the chat's side of the turn's canvas_context; a voice or hook turn has none.
+  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null, image = null, history = [], selection = [], attachments = [], inspected = [] }) => {
     const canvas = canvasApi.current;
     // Task 14 C-M1: the hooks on screen as the turn is sent, read before any await (the journey resolver's), so a busy re-render
     // that clears them meanwhile never empties the trace.
     const onScreen = shown.current;
     // A chat card, note, reader or file card selected (owner, 2026-10-08: any card has the pill) rides as its words (objectCard).
     const block = nextStep ? null : canvas?.objectCard?.(targetId) || canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
-    const domain = domainOf(canvas, block?.id ?? null); // fix B2: the selected block is the target, not one of the canvas cards
+    const domain = domainOf(canvas);
     if (!domain) return { text: '', handled: true, failed: true };
     const slash = nextStep ? null : slashNext.current;
     if (!nextStep) slashNext.current = null;
@@ -203,6 +205,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     }
     const preparedImage = nextStep ? { image: null } : await prepareTutorImage({ canvas, targetId, image });
     if (preparedImage.notice) put({ notices: [...desk.notices, { tone: 'info', text: preparedImage.notice }] });
+    // Whole-canvas context: the live canvas for the plan request (typed, voice and hook turns alike), read once the turn is the
+    // Tutor's and its image is settled, so only a picture that rides is called inspected.
+    const ridingImage = preparedImage.image ? [...inspected, ...(preparedImage.image.block_id ? [preparedImage.image.block_id] : [])] : [];
+    const canvasPackage = canvasContext?.({ request: nextStep?.hook ?? raw, history, selection: targetId ? [targetId, ...selection] : selection, attachments, inspected: ridingImage }) ?? null;
     onAnswer?.();
     const journeyAtStart = journeyRef.current?.journey?.id ?? null;
     let result;
@@ -210,7 +216,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       result = await runTurn({
         // The typed command is read in place of the composer's words only where it fixes the move (/deeper or /simplify on a
         // depth ladder); /ask, /teach (fix A3) and a ladderless /deeper or /simplify (fix B5) keep the composer's words.
-        ...common, image: preparedImage.image, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
+        ...common, image: preparedImage.image, canvasContext: canvasPackage, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
         nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch, repository: reads }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: onScreen, selected_at: selectedAt },
@@ -357,7 +363,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     ...steps,
     // begin (ask.jsx): draws the turn's chat bubbles and exchange, once the turn is the Tutor's. A turn the journey took
     // resolves to { handled: true, failed } and draws nothing.
-    ask: ({ raw, targetId, image = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null, resolved = false }) => answer({ resolved, raw, targetId, image, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin }),
+    ask: ({ raw, targetId, image = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null, resolved = false, history, selection, attachments, inspected }) => answer({ resolved, raw, targetId, image, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin, history, selection, attachments, inspected }),
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry. A turn the journey took
     // says nothing: the tray shows where the journey is.

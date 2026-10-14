@@ -1402,7 +1402,7 @@ test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive reco
   // Task 11 fix round: the opening lives in learn-next-steps.js holeOpening, handed this hole's domain.
   assert.match(tutor, /holeOpening\(\{[^\n]*domain: \(\) => domainOf\(canvasApi\.current\) \}\)/);
   assert.match(read('learn-next-steps.js'), /enterHole\(load\(\), record, domain\(\)\)/);
-  assert.match(tutor, /const domainOf = \(canvas, selected = null\) => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], selected \}\)\?\.domain;/);
+  assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
   assert.match(domains, /if \(parentJourney && record\?\.journey\) \{\n    return \{ domain: journeyDomain\(\{ journey: parentJourney\.journey, path: parentJourney\.path, blocks, dive: record\.journey \}\)/);
   // The parent's resolver and tray run only for a live journey on this board: the hole posts no journey action.
   assert.match(tutor, /if \(live && !slash && !opening && !skipJourney && !nextStep\)/);

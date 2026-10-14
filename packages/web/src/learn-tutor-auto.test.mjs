@@ -321,7 +321,7 @@ rmSync(dir, { recursive: true, force: true });
 // Task 11c-B: app (default the plain canvas), repository (the page's flag) and handoff (the handoff route's reply) as options.
 // Fix round 1: handoff may be a function of the request signal (a Stop test); events collects the window events (the bench);
 // logs collects console.info lines, so the [tutor] drop log stays out of the test output (asserted where it matters).
-async function plainTutor(plan, run, { blocks = [], openResearch = null, journey = null, app: appOver = null, repository = null, handoff = HANDOFF_OK } = {}) {
+async function plainTutor(plan, run, { blocks = [], openResearch = null, journey = null, app: appOver = null, repository = null, handoff = HANDOFF_OK, canvasContext = null } = {}) {
   const storage = new Map(), calls = [], events = [], logs = [], inserted = [];
   const globals = {
     window: { dispatchEvent: event => { events.push(event); return true; } },
@@ -342,7 +342,7 @@ async function plainTutor(plan, run, { blocks = [], openResearch = null, journey
     const app = { name: 'canvas-0000aaaa', title: 'Gradient notes', org: 'o', email: 'e@x.com', ...appOver };
     const dive = { tree: { path: [{ app: app.name, board: 'main', title: app.title, kind: 'canvas' }], children: [], dive: null }, suggestionCard: null, navigator: null };
     const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, insertBlock: block => { inserted.push(block); return 'blk-new'; }, reserve: () => null, release: () => {} } };
-    const Page = () => { tutor = bundled.useTutor({ app, board: 'main', access: { app: app.name }, canvasApi, canvasState: { card: null }, dive, journey, openResearch, ...(repository == null ? {} : { repository }) }); return null; };
+    const Page = () => { tutor = bundled.useTutor({ app, board: 'main', access: { app: app.name }, canvasApi, canvasState: { card: null }, dive, journey, openResearch, canvasContext, ...(repository == null ? {} : { repository }) }); return null; };
     bundled.renderToStaticMarkup(bundled.createElement(Page));
     const out = await run(tutor);
     await new Promise(done => setTimeout(done, 0)); // runMaterials is not awaited by the turn
@@ -639,22 +639,35 @@ test('fix B1: on a Tutor canvas the LP1 word gate never intercepts; the Auto Tut
   assert.ok(planOf(voice.calls).allowed_actions.includes('suggest_journey'));
 });
 
-// B2: plain-canvas grounding - the selected card is the target, and up to six of the newest other cards travel as
-// canvas_context.cards (id, kind, title, text), in canvas order, chat cards by their question only; never in the hook basis.
-test('fix B2: a plain canvas sends up to six of its newest other cards as canvas_context.cards; the selected one is the target', async () => {
-  const blocks = [...Array(8)].map((_, i) => ({ id: `b${i}`, type: 'explanation', title: `Card ${i}`, body: `Body ${i} `.repeat(40) }));
-  blocks.push({ id: 'chat1', question: 'Why does it overshoot?', answer: 'Because the step is too large.' });
-  const d = canvasDomain({ goal: 'g', blocks, selected: 'b7' });
-  assert.deepEqual(d.context.cards.map(c => c.id), ['b2', 'b3', 'b4', 'b5', 'b6', 'chat1']);
-  assert.deepEqual(d.context.cards[0], { id: 'b2', kind: 'explanation', title: 'Card 2', text: 'Body 2 '.repeat(40).slice(0, 200) });
-  assert.deepEqual(d.context.cards.at(-1), { id: 'chat1', kind: 'chat', title: 'Why does it overshoot?', text: null }, 'a chat card: its question, never its answer');
-  assert.deepEqual(canvasDomain({ goal: 'g', blocks: [{ id: 'x', type: 'graph', prompt: 'p'.repeat(100) }] }).context.cards, [{ id: 'x', kind: 'graph', title: 'p'.repeat(80), text: null }], 'title fallback, capped');
-  assert.deepEqual(canvasDomain({ goal: 'g' }).context, { goal: 'g', origin: null }, 'no other cards: no key');
-  assert.deepEqual(tutorContext({ title: 'g', blocks, selected: 'b7' }).domain.context.cards.map(c => c.id), ['b2', 'b3', 'b4', 'b5', 'b6', 'chat1']);
-  assert.equal(nextStepsBasis({ context: tutorContext({ title: 'g', blocks }), title: 'g' }), nextStepsBasis({ context: tutorContext({ title: 'g', blocks: [] }), title: 'g' }), 'not in the hook basis');
+// Whole-canvas context (owner brief 2026-10-14) replaces fix B2's six newest cards: the canvas domain keeps goal and origin only,
+// and typed, voice and hook turns send the page's whole-canvas package as the plan request's top-level canvas_context, beside
+// context. The selected card stays the target and leads the package's selection; never in the hook basis.
+test('whole-canvas context: no cards in the canvas domain; typed, voice and hook turns send canvas_context beside context', async () => {
+  const blocks = [...Array(8)].map((_, i) => ({ id: `b${i}`, type: 'explanation', title: `Card ${i}`, body: `Body ${i}` }));
+  assert.deepEqual(canvasDomain({ goal: 'g', blocks, selected: 'b7' }).context, { goal: 'g', origin: null });
+  assert.deepEqual(tutorContext({ blocks, selected: 'b7' }).domain.context, { goal: null, origin: null });
+  assert.equal(nextStepsBasis({ context: tutorContext({ blocks }), title: 'g' }), nextStepsBasis({ context: tutorContext({ blocks: [] }), title: 'g' }), 'not in the hook basis');
   const OTHER = { id: 'blk-other', type: 'explanation', title: 'Learning rate', body: 'The step size.' };
-  const { calls } = await plainTutor(RESPOND, t => t.ask({ raw: 'This part confuses me.', targetId: CARD.id }), { blocks: [OTHER, CARD] });
-  assert.deepEqual([planOf(calls).target.description, planOf(calls).canvas_context.cards], [`${CARD.title}\n${CARD.body}`, [{ id: OTHER.id, kind: 'explanation', title: OTHER.title, text: OTHER.body }]]);
+  const PACKAGE = { version: 1, coverage: { summary: '2 objects listed' } }, asked = [];
+  const canvasContext = options => { asked.push(options); return PACKAGE; };
+  const plan = calls => calls.find(c => c.path === '/api/learn/tutor/plan').body;
+  const history = [{ role: 'user', text: 'What sets the step size?', refs: [OTHER.id] }];
+  const typed = await plainTutor(RESPOND, t => t.ask({ raw: 'This part confuses me.', targetId: CARD.id, history, selection: ['s1'], attachments: [OTHER.id] }), { blocks: [OTHER, CARD], canvasContext });
+  assert.deepEqual([plan(typed.calls).canvas_context, plan(typed.calls).context.canvas_context, plan(typed.calls).context.target.description], [PACKAGE, { goal: null, origin: null }, `${CARD.title}\n${CARD.body}`]);
+  assert.deepEqual(asked[0], { request: 'This part confuses me.', history, selection: [CARD.id, 's1'], attachments: [OTHER.id], inspected: [] });
+  const voice = await plainTutor(RESPOND, t => t.voiceTurn({ raw: 'And the momentum term?', turnId: 'v1' }), { canvasContext });
+  const STEP = { suggestion_id: 'ns_01010101.1', set_id: 'ns_01010101', hook: 'Why does a large step overshoot?', learning_goal: 'g', concept_ids: [], claim_ids: [] };
+  const hook = await plainTutor(RESPOND, t => t.askStep({ selected_next_step: STEP }), { canvasContext });
+  assert.deepEqual([plan(voice.calls).canvas_context, plan(hook.calls).canvas_context, asked[1].request, asked[2].request], [PACKAGE, PACKAGE, 'And the momentum term?', STEP.hook]);
+  const none = await plainTutor(RESPOND, t => t.ask({ raw: 'Why?' }));
+  assert.equal('canvas_context' in plan(none.calls), false, 'no canvas API: no package, never an empty one');
+  // runTurn itself: the plain and the streamed plan post carry it beside context.
+  for (const onSpeakable of [null, () => {}]) {
+    const w = worker({ strategy: 'none', constraints_add: [], actions: [SAY] });
+    await runTurn({ raw: 'why?', block: null, store: emptyStore(), post: w.post, ...plainCanvas(), onSpeakable, canvasContext: PACKAGE });
+    const body = w.sent.find(s => s.path === '/api/learn/tutor/plan').body;
+    assert.deepEqual([body.canvas_context, 'canvas_context' in body.context ? Object.keys(body.context.canvas_context) : null, !!body.stream], [PACKAGE, ['goal', 'origin'], !!onSpeakable]);
+  }
 });
 
 const PLAIN_AT = plainCanvas();
