@@ -210,6 +210,18 @@ await check('6 Refresh: a fresh set, one request for repeated activation, its ow
 });
 await shot('06-after-refresh');
 
+await check('6b Minimize and Restore keep the same suggestions and ask nothing', async () => {
+  await quiet(1500);
+  const before = calls.length, was = await hooks();
+  await page.locator('[data-next-steps-minimize]').click();
+  await page.locator('[data-next-steps-minimized]').waitFor({ timeout: 5000 });
+  await page.locator('[data-next-steps-restore]').click();
+  await ready();
+  await quiet(1500);
+  assert.equal(calls.length, before);
+  assert.deepEqual(await hooks(), was);
+});
+
 await check('7 a blank canvas: no content, no title, no goal; a titled blank canvas grounds on its title', async () => {
   const blank = await canvasWith('Untitled canvas');
   let before = calls.length;
