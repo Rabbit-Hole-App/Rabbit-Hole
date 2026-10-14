@@ -252,8 +252,14 @@ for (const { kind } of ASKS) {
     const sent = asks.length + plans.length;
     await askPill().click();
     await page.waitForTimeout(500);
-    assert.equal(await pill(page).getAttribute('data-selected-card'), kind.id, 'the strip is the object');
-    assert.equal(await page.locator('[data-canvas-target]').count(), 1, 'one strip');
+    // The chat workspace (chat-workspace-CONTRACT.md A5): the object is one context chip in the Chat pane, and the card's
+    // selection pill steps aside (one object, never two chips).
+    const chip = page.locator('[data-chat-pane] [data-context-chip="ready"]');
+    await chip.waitFor({ timeout: 5000 });
+    assert.equal(await chip.count(), 1, 'one context chip');
+    const named = await chip.locator('button').first().getAttribute('title');
+    assert.ok(named?.includes(words(kind)), `the chip is the object: ${named}`);
+    assert.equal(await page.locator('[data-canvas-target]').count(), 0, 'the selection pill steps aside');
     assert.equal(await composer.inputValue(), '', 'no question is written');
     assert.equal(asks.length + plans.length, sent, 'nothing sent');
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-armed.png` });

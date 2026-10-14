@@ -350,7 +350,13 @@ await check('Add to chat arms the equation, writes no question and sends nothing
   await settle();
   assert.equal(await composer().inputValue(), '', 'no question is written');
   assert.equal(asks.length + plans.length, a0 + p0, 'nothing sent');
-  assert.equal(await pill().getAttribute('title'), `Equation: ${latex}`);
+  // The chat workspace (chat-workspace-CONTRACT.md A5): the equation is one context chip in the Chat pane, and the card's
+  // selection pill steps aside (one object, never two chips).
+  const chip = page.locator('[data-chat-pane] [data-context-chip="ready"]');
+  await chip.waitFor({ timeout: 5000 });
+  assert.equal(await chip.count(), 1, 'one context chip');
+  assert.equal(await chip.locator('button').first().getAttribute('title'), `Open ${latex}`, 'the chip is the equation');
+  assert.equal(await pill().count(), 0, 'the selection pill steps aside');
   await page.screenshot({ path: `${SHOTS}/7-pill-and-no-prefilled-question.png` });
   await composer().fill('Can you explain this equation?');
   await composer().press('Enter');
