@@ -80,6 +80,12 @@ test('older answers render only a quiet collapsed Suggestions toggle; nothing fo
     assert.equal(html({ message }), '', JSON.stringify(message).slice(0, 60));
   }
   assert.doesNotMatch(html({ message: msg({ meta: { actions: [], followUps: META.followUps } }) }), /Suggested actions/, 'no empty actions row');
+  // A Tutor syllabus answer with actions and no usable question: no bare Explore next heading.
+  for (const followUps of [[], [{ id: 'f1', text: '  ', kind: 'next' }, { id: 'f2', kind: 'next' }, null], undefined]) {
+    const out = html({ message: msg({ meta: { actions: META.actions, followUps } }) });
+    assert.match(out, /Suggested actions/);
+    assert.doesNotMatch(out, /Explore next/, JSON.stringify(followUps));
+  }
 });
 
 test('clicks: a generation action prepares command, subject and refs only; notebook code inserts; a question prepares its text', () => {
