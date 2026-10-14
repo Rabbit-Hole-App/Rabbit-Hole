@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { repositoryUrl } from './card-sources.js';
 import { uploadContextDoc, useContextDocs } from './context-docs.js';
-import { toast } from './ui.jsx';
+// ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
+const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 
 // Sub-lane A4a (Sources pane and shared context) owns this file. Contract: chat-workspace-CONTRACT.md A2 (ContextRef), A5.
 // Shape every other sub-lane relies on:
@@ -90,8 +91,19 @@ export function useChatContext(canvas, thread) {
   const [attached, dispatch] = useReducer(attachedReducer, restore?.contextRefs, validRefs);
   const key = useRef(restore?.key);
   key.current = restore?.key;
-  const offered = useRef(new Set());
-  useEffect(() => { offered.current = new Set(); dispatch({ type: 'restore', refs: restore?.contextRefs }); }, [restore?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const offered = useRef(new Set()), known = useRef(JSON.stringify(attached));
+  useEffect(() => {
+    offered.current = new Set();
+    known.current = JSON.stringify(validRefs(restore?.contextRefs)); // what the thread already holds: restoring never saves
+    dispatch({ type: 'restore', refs: restore?.contextRefs });
+  }, [restore?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A change the user made saves to the open thread (A2's debounced state PUT; a no-op before the thread has an id).
+  useEffect(() => {
+    const json = JSON.stringify(attached);
+    if (json === known.current) return;
+    known.current = json;
+    thread?.saveState?.({ contextRefs: attached });
+  }, [attached]); // eslint-disable-line react-hooks/exhaustive-deps
   // A new conversation follows the canvas's switched-on docs until it has an id (its first send); the list arrives async.
   const fresh = thread != null && thread.id == null;
   useEffect(() => {
