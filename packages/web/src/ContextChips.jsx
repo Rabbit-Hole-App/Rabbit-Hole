@@ -1,6 +1,7 @@
 import { CircleAlert, FileCode2, FileText, Film, Globe, Group, Image, Loader2, RotateCw, Shapes, StickyNote, X } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { rangeLabel, refKey } from './chat-context.js';
+import { refIds } from './chat-canvas-context.js';
 
 // Sub-lane A4a owns this file: attached-context chips under the composer text area (brief section 7). A3a mounts it.
 // First a fixed "This canvas" indicator (the canvas scope the server always reads, contract A5), then this conversation's
@@ -20,10 +21,14 @@ export default function ContextChips() {
   if (!chat) return null;
   const chips = chat.context.items.filter(item => item.attached || item.state !== 'ready');
   const failed = chips.filter(item => item.state === 'failed');
+  // "This canvas" says what goes with a message (whole-canvas context): the coverage line of the package the draft would send,
+  // built on hover or focus, else of the one the last message sent (canvasCoverage: the page sets it whenever it builds one).
+  const preview = () => chat.canvasOps?.canvasContext?.({ request: chat.composer.text, attachments: refIds(chat.context.attached) });
   return (
     <div data-context-chips>
       <ul aria-label="Context for this chat" className="flex flex-wrap items-center gap-1">
-        <li data-canvas-context title="The agent always reads this canvas" className={`${CHIP} bg-hover px-1.5 text-ink-2`}>
+        <li data-canvas-context title={chat.canvasCoverage || 'An overview of this canvas goes with each message'} data-canvas-coverage={chat.canvasCoverage || undefined}
+          tabIndex={0} onPointerEnter={preview} onFocus={preview} className={`${CHIP} bg-hover px-1.5 text-ink-2`}>
           <Shapes size={14} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-3" /> This canvas
         </li>
         {chips.map(item => {

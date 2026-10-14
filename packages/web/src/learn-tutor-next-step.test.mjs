@@ -421,12 +421,13 @@ test('canvasDomain: the members the router, contract and trace read; goal and or
 });
 
 // Review Focus: holes and records from before this feature - no learning_goal, no source, a deleted shared source.
-test('old hole records: no learning_goal, no source, a deleted shared source - the hole title is the goal and a hook turn still runs', async () => {
+test('old hole records: no learning_goal, no source, a deleted shared source - the Tutor has no goal (never a title), the hook goal is the hole title, and a hook turn still runs', async () => {
   const record = { dive_id: 'canvas-0000old1', title: 'Exploring from Somewhere', concept: 'Exploring from Somewhere', origin: { parent: { app: 'share:0f0f', board: 'main' }, origin_block_id: ':root' } };
   const root = { app: 'share:0f0f', board: 'main', title: 'Shared canvas', kind: 'shared' };
-  // No live title known: the record title (fix round 2: a live title, once the page passes it, wins - below).
+  // Topic restriction (owner 2026-10-14): no learning_goal, no goal - a title is never the Tutor's goal (dive_context names the
+  // hole); the hook input still takes the hole title as its goal (goalOf).
   const context = tutorContext({ board: 'main', root, record });
-  assert.deepEqual([context.source, context.capabilities, context.domain.context], ['canvas', { tutor: true, hook_turns: true }, { goal: 'Exploring from Somewhere', origin: null }]);
+  assert.deepEqual([context.source, context.capabilities, context.domain.context], ['canvas', { tutor: true, hook_turns: true }, { goal: null, origin: null }]);
   const { input } = nextStepsInput({ context, store: emptyStore(), journey: null, blocks: [], record, parent: null, title: '', lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b' });
   assert.deepEqual([input.mode, input.goal, input.dive.title, input.dive.parent_states, input.scope.claims], ['dive', 'Exploring from Somewhere', 'Exploring from Somewhere', {}, {}]);
   const w = worker({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Start with the basics.' }, { type: 'return_from_dive' }] });
@@ -440,13 +441,13 @@ test('old hole records: no learning_goal, no source, a deleted shared source - t
   chips[0].run();
   assert.equal(climbed, 1, 'a hole can still climb back');
   assert.equal(r.text, 'Start with the basics.');
-  assert.deepEqual([w.sent[0].body.context.canvas_context, w.sent[0].body.context.dive_context.dive_id], [{ goal: 'Exploring from Somewhere', origin: null }, record.dive_id]);
+  assert.deepEqual([w.sent[0].body.context.canvas_context, w.sent[0].body.context.dive_context.dive_id], [{ goal: null, origin: null }, record.dive_id]);
   assert.equal(r.trace.identity.mode, 'dive');
   // A newer hole: its learning_goal leads, and the shared canvas it came from is its origin.
   const newer = { ...record, learning_goal: 'Understand why rising dough traps gas', source: { title: 'Bread science' } };
   assert.deepEqual(tutorContext({ board: 'main', root, record: newer, title: 'x' }).domain.context, { goal: 'Understand why rising dough traps gas', origin: 'Bread science' });
-  // A renamed hole without a learning_goal: the live title, never the creation-time record title.
-  assert.equal(tutorContext({ board: 'main', root, record, title: 'Renamed hole' }).domain.context.goal, 'Renamed hole');
+  // A renamed hole without a learning_goal: still no goal, whatever the title.
+  assert.equal(tutorContext({ board: 'main', root, record, title: 'Renamed hole' }).domain.context.goal, null);
 });
 
 // Fix round 3: dive_context.title is the live title (the turn's canvas.liveTitle; record.title is the creation title), and
