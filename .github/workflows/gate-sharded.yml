@@ -30,6 +30,11 @@ on:
         required: false
         type: string
         default: ''
+      canary_fail_attempt:
+        description: Proof only - apply canary_fail_stage only on this run attempt (a failed-only rerun then passes); empty means every attempt
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -58,7 +63,7 @@ jobs:
       ANTHROPIC_API_KEY: ''
       OPENAI_API_KEY: ''
       CLOUDFLARE_API_TOKEN: ''
-      GATE_CANARY_FAIL_STAGE: ${{ inputs.canary_fail_stage }}
+      GATE_CANARY_FAIL_STAGE: ${{ (inputs.canary_fail_attempt == '' || inputs.canary_fail_attempt == github.run_attempt) && inputs.canary_fail_stage || '' }}
     steps:
       - name: Checkout gate harness
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
