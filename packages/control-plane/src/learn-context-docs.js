@@ -124,11 +124,12 @@ export async function contextDocsFetch(req, env, deps = {}) {
 // text documents. `app` is a canvasAccess result (org, name, the session email). Missing bytes are skipped.
 // Rows on past the count or the budget (switched on around the route) are not sent, newest first wins: a
 // closing text block tells the model which, and one log line records it.
-export async function contextDocumentBlocks(env, app) {
+// ids: a Chat turn's doc refs (chat-modes.js docIds) name exactly the documents that ride; null keeps the switched-on ones.
+export async function contextDocumentBlocks(env, app, ids = null) {
   if (!env?.LEARN_DB || !app?.name || !CANVAS.test(app.name) || !app.email) return [];
   const who = owner(app);
   const on = [], skipped = [];
-  for (const doc of (await list(env.LEARN_DB, who)).filter(d => d.attached)) (on.length < ATTACHED_LIMIT && !budgetRefusal(on, doc) ? on : skipped).push(doc);
+  for (const doc of (await list(env.LEARN_DB, who)).filter(d => (ids ? ids.has(d.id) : d.attached))) (on.length < ATTACHED_LIMIT && !budgetRefusal(on, doc) ? on : skipped).push(doc);
   const blocks = [];
   for (const doc of on) {
     const object = await learnMedia(env).get(await objectKey(who, doc.id));
