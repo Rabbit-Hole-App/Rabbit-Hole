@@ -363,7 +363,8 @@ await check('Add to chat arms the equation, writes no question and sends nothing
   await until('the question', async () => asks.length + plans.length > a0 + p0, 8000);
   const body = JSON.stringify(asks.length > a0 ? asks.at(-1) : plans.at(-1));
   assert.ok(body.includes(JSON.stringify(latex).slice(1, -1)), `the request carries the LaTeX: ${body.slice(0, 300)}`);
-  if (asks.length > a0) assert.equal(asks.at(-1).canvas_target?.kind, 'Equation');
+  // The chip rides as the turn's one card context ref (chat-workspace-CONTRACT.md A4), not a canvas_target: the pill stepped aside.
+  if (asks.length > a0) assert.deepEqual(asks.at(-1).context_refs?.filter(ref => ref.kind === 'card').map(ref => ref.name), [latex], JSON.stringify(asks.at(-1).context_refs)?.slice(0, 300));
   await settle(400);
   const collapse = page.getByRole('button', { name: 'Collapse chat' });
   if (await collapse.count()) await collapse.first().click();
