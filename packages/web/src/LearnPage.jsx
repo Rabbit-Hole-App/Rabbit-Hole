@@ -62,7 +62,6 @@ import { registeredCourse } from './learn-tutor-domains.js';
 import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.jsx';
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
-import { useChatWorkspace } from './chat-workspace.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
