@@ -239,3 +239,52 @@ test('an inventory past its cap says so: 300 of 412 listed, the overflow recorde
   assert.equal(tight.coverage.listed + tight.coverage.items.filter(entry => entry.status === 'omitted').length, 412);
   assert.match(tight.coverage.summary, new RegExp(`^${tight.coverage.listed} of 412 objects listed; `));
 });
+
+test('freehand ink is never dropped: one unavailable object per region that holds strokes, counted and named in the summary', () => {
+  const stroke = (x, y) => ({ tool: 'pen', color: '#37352f', width: 2, points: [{ x, y }, { x: x + 40, y: y + 10 }, { x: x + 80, y: y + 30 }] });
+  const plain = { items: [text('t1', 'Top left words', 0, 0, 200), text('t2', 'Bottom right words', 2800, 2900, 200)], shapes: [], blocks: [], links: [], groups: [], exchanges: [] };
+  const inked = { ...plain, strokes: [stroke(50, 60), stroke(120, 200), stroke(300, 100), stroke(2700, 2800), stroke(2850, 2850)] };
+  const pack = build(inked, { request: 'What is on this board?' });
+  assertValid(pack);
+  const inks = pack.inventory.items.filter(item => item.type === 'ink');
+  assert.deepEqual(inks.map(item => [item.id, item.kind, item.label, item.region]), [['ink:top-left', 'strokes', '3 freehand strokes', 'top-left'], ['ink:bottom-right', 'strokes', '2 freehand strokes', 'bottom-right']]);
+  assert.equal(pack.inventory.counts.ink, 2);
+  assert.deepEqual(inks.map(item => status(pack, item.id)), inks.map(item => ({ id: item.id, type: 'ink', status: 'unavailable', reason: 'unreadable' })), 'never full');
+  assert.ok(!pack.excerpts.some(entry => entry.type === 'ink'));
+  assert.equal(pack.coverage.objects_total, 4);
+  assert.equal(pack.coverage.unavailable_or_omitted, 2);
+  assert.match(pack.coverage.summary, /^4 objects listed; 2 included in full, 0 partially; freehand ink in 2 areas not described$/);
+  const bare = build(plain, { request: 'What is on this board?' });
+  assert.ok(!bare.inventory.items.some(item => item.type === 'ink') && !('ink' in bare.inventory.counts));
+  assert.equal(bare.coverage.summary, '2 objects listed; 2 included in full, 0 partially');
+});
+
+test('full without an excerpt only when the label sent is the whole text: a short note is full; crowded until labels shrink below it, it is not', () => {
+  const words = 'Check the units twice please';
+  const note = { id: 'n0', kind: 'sticky', x: 0, y: 0, w: 160, text: words };
+  const small = build({ items: [note], shapes: [], blocks: [], links: [], groups: [], exchanges: [] }, { request: '' });
+  assert.equal(small.inventory.items[0].label, words);
+  assert.deepEqual(status(small, 'n0'), { id: 'n0', type: 'sticky', status: 'full' });
+  assert.equal(small.excerpts.length, 0);
+  // Padded text: the label is trimmed, so it does not carry the whole text.
+  const padded = build({ items: [{ ...note, text: `${words}  ` }], shapes: [], blocks: [], links: [], groups: [], exchanges: [] }, { request: '' });
+  assert.notEqual(padded.inventory.items[0].label, `${words}  `);
+  assert.ok(status(padded, 'n0').status !== 'full' || excerpt(padded, 'n0')?.inclusion === 'full', 'full only through a full excerpt');
+  const crowd = Array.from({ length: 411 }, (_, i) => ({ id: `c${i}`, kind: 'sticky', x: (i % 30) * 200, y: Math.floor(i / 30) * 200 + 200, w: 160, text: `Crowd note ${i} with a sentence too long for any label` }));
+  const board = { items: [note, ...crowd], shapes: [], blocks: [], links: [], groups: [], exchanges: [] };
+  const crowded = build(board, { request: '', budgetChars: 6000 });
+  assertValid(crowded);
+  assert.equal(crowded.inventory.items.find(item => item.id === 'n0').label.length, 24, 'the label shrank below the text');
+  assert.equal(excerpt(crowded, 'n0'), undefined, 'no room left for an excerpt');
+  assert.deepEqual(status(crowded, 'n0'), { id: 'n0', type: 'sticky', status: 'listed', reason: 'budget', omitted_chars: words.length });
+  // Every 'full' on any of these packages is a full excerpt or a label that is exactly the text.
+  const texts = new Map(board.items.map(item => [item.id, item.text]));
+  for (const pack of [small, crowded, build(board, { request: 'units' })]) {
+    const items = new Map(pack.inventory.items.map(item => [item.id, item]));
+    for (const entry of pack.coverage.items.filter(e => e.status === 'full')) {
+      assert.ok(excerpt(pack, entry.id)?.inclusion === 'full' || items.get(entry.id).label === texts.get(entry.id), entry.id);
+    }
+    // The count is exact even where coverage.items had to stop at 300: full excerpts plus labels that are the whole text.
+    assert.equal(pack.coverage.included_full, pack.inventory.items.filter(item => excerpt(pack, item.id)?.inclusion === 'full' || item.label === texts.get(item.id)).length);
+  }
+});

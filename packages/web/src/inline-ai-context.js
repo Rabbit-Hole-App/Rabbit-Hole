@@ -418,8 +418,8 @@ const itemType = item => (item.mode === 'code' ? 'code' : item.kind === 'equatio
 // builder's inputs: objects { id, type, kind?, text, label?, x, y, w, h, group_id?, section_id?, media?, unreadable? },
 // connectors { id, from, to, label?, explicit, kind?: 'near'|'labels', basis? }, groups { id, label, member_ids }.
 // Stored links (annotations aside) are explicit; drawn arrows and labels are what the picture suggests, never stated as fact.
-// ponytail: ink strokes are not on the live board (they carry no ids), so they are not listed; send them as type 'ink'
-// (unavailable) when the canvas API gives them ids.
+// Freehand strokes (board.strokes, { points } in world units) carry no ids and are not recognised: one listed object per
+// region that holds ink, its content unavailable - never left out, never read as absent.
 export function boardObjects(board) {
   const snap = semanticSnapshot(board, { budget: { objects: Infinity, chars: Infinity } });
   const boxes = board.boxes || {}, blocks = new Map((board.blocks || []).map(block => [block.id, block]));
@@ -447,6 +447,10 @@ export function boardObjects(board) {
       basis: `drawn ${shapes.get(relation.id)?.kind || 'line'}${relation.label ? ` "${relation.label.slice(0, 40)}"` : ''} (ends matched by position, confidence ${relation.confidence})` });
   }
   for (const entry of snap.objects) if (entry.labelOf) connectors.push({ id: `${entry.id}>${entry.labelOf}`, from: entry.id, to: entry.labelOf, explicit: false, kind: 'labels', basis: 'short text touching one shape (by position)' });
+  const inks = (board.strokes || []).map(stroke => unionBox((stroke.points || []).map(p => ({ x: p.x, y: p.y, w: 0, h: 0 })))).filter(Boolean);
+  const area = unionBox([...objects.filter(placed), ...inks]), regions = new Map();
+  for (const box of inks) { const region = regionIn(box, area); regions.set(region, [...(regions.get(region) || []), box]); }
+  for (const [region, boxes] of regions) objects.push({ id: `ink:${region}`, type: 'ink', kind: 'strokes', text: '', label: plural(boxes.length, 'freehand stroke'), region, ...unionBox(boxes) });
   return { objects, connectors, groups: snap.groups.map(group => ({ id: group.id, label: group.title, member_ids: group.memberIds })) };
 }
 
@@ -463,6 +467,10 @@ const shorten = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}â€
 const jsonSize = value => JSON.stringify(value).length + 1; // + the comma between list entries
 const sum = (list, of) => list.reduce((total, entry) => total + of(entry), 0);
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+const placed = o => [o.x, o.y, o.w, o.h].every(Number.isFinite);
+// A coarse 3x3 area of the board's box, from the object's centre.
+const third = (at, start, length) => (length > 0 ? Math.min(2, Math.max(0, Math.floor(((at - start) / length) * 3))) : 1);
+const regionIn = (box, area) => REGION[third(box.y + box.h / 2, area.y, area.h)][third(box.x + box.w / 2, area.x, area.w)];
 
 // A text cut to `cap` chars: whole when it fits; else its opening passage, then the passages that share the most weighted
 // terms, then the rest in order - as ascending [start, end) offsets into the text, joined by SEP.
@@ -505,15 +513,14 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
   const add = entry => { const id = String(entry.id ?? ''); if (id && !byId.has(id)) { byId.set(id, { ...entry, id, index: entries.length }); entries.push(byId.get(id)); } };
   for (const o of objects) add({ id: o.id, type: TYPE.test(o.type) ? o.type : 'card', kind: o.kind, text: String(o.text ?? ''), name: o.label,
     group: o.group_id == null ? null : String(o.group_id), section: o.section_id == null ? null : String(o.section_id),
-    box: [o.x, o.y, o.w, o.h].every(Number.isFinite) ? { x: o.x, y: o.y, w: o.w, h: o.h } : null,
+    box: placed(o) ? { x: o.x, y: o.y, w: o.w, h: o.h } : null, region: REGION.flat().includes(o.region) ? o.region : null,
     media: !!o.media, inspected: !!(o.media && o.inspected), dark: o.type === 'ink' || !!o.unreadable });
   const links = connectors.filter(c => byId.has(String(c.from)) && byId.has(String(c.to)));
   for (const c of links) if (c.explicit) add({ id: c.id, type: 'connector', text: String(c.label ?? '') });
   for (const g of groups) add({ id: g.id, type: 'group', text: String(g.label ?? ''), members: true });
   for (const e of entries) if (e.members) e.box = unionBox(entries.filter(m => m.group === e.id).map(m => m.box));
   const board = unionBox(entries.map(e => e.box));
-  const third = (at, start, length) => (length > 0 ? Math.min(2, Math.max(0, Math.floor(((at - start) / length) * 3))) : 1);
-  for (const e of entries) if (e.box && board) e.region = REGION[third(e.box.y + e.box.h / 2, board.y, board.h)][third(e.box.x + e.box.w / 2, board.x, board.w)];
+  for (const e of entries) if (e.box && board && !e.region) e.region = regionIn(e.box, board); // ink comes with the region it was gathered by
 
   // Relevance: the request's terms (weight 1) and the recent turns' (0.5), ids cited in earlier turns, then a share of the
   // best related object's score - along any connection, and among group and section mates. Board order breaks ties.
@@ -558,7 +565,8 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
   while (items.length && (labelChars + linkRoom > reserve || inventoryJson > CANVAS.inventoryJson)) { const gone = items.pop(); labelChars -= gone.label.length; inventoryJson -= jsonSize(gone); }
   listed = listed.slice(0, items.length);
   const listedIds = new Set(listed.map(e => e.id));
-  const held = e => !!e.text.trim() && e.text.trim() === shorten(nameOf(e), max); // the label is the whole text, line breaks and all
+  // 'full' without an excerpt only when the label sent IS the whole text, untrimmed, after any shortening.
+  const held = e => !!e.text.trim() && e.text === shorten(nameOf(e), max);
 
   // (2)+(3) The rest of the budget as excerpts, each bounded (CANVAS.focus for the selection and attachments, CANVAS.other
   // else) and cut to its most relevant passages. Three rounds: the selection and attachments (at most half), one
@@ -597,9 +605,11 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
   const total = entries.length, full = count(s => s.status === 'full'), partial = count(s => s.status === 'partial');
   const byType = list => Object.entries(list.reduce((tally, s) => ({ ...tally, [s.e.type]: (tally[s.e.type] || 0) + 1 }), {})).map(([type, n]) => plural(n, type)).join(', ');
   const inspected = statuses.filter(s => s.status === 'media'), unseen = statuses.filter(s => s.reason === 'media');
-  const capped = count(s => s.status === 'omitted'), unavailable = count(s => s.status === 'unavailable' && s.reason !== 'media');
+  const capped = count(s => s.status === 'omitted'), ink = count(s => s.status === 'unavailable' && s.e.type === 'ink');
+  const unavailable = count(s => s.status === 'unavailable' && s.reason !== 'media' && s.e.type !== 'ink');
   const summary = [listed.length === total ? `${plural(total, 'object')} listed` : `${listed.length} of ${total} objects listed`, `${full} included in full, ${partial} partially`,
     ...(inspected.length ? [`${byType(inspected)} inspected`] : []), ...(unseen.length ? [`${byType(unseen)} not inspected`] : []),
+    ...(ink ? [`freehand ink in ${plural(ink, 'area')} not described`] : []),
     ...(capped ? [`${capped} omitted for space`] : []), ...(unavailable ? [`${unavailable} unavailable`] : [])].join('; ').slice(0, 200);
 
   const counts = {};
