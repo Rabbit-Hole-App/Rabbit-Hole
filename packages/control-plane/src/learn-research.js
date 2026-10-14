@@ -23,8 +23,12 @@ export async function modelFailure(response, label, suffix = '') {
 // arxiv: false (the Tutor repository_context handoff, learn-tutor-handoff.js) offers only the caller's tools and leaves out
 // LEARN_RESEARCH_SYSTEM, so no paper tool is sent, named or run; every other caller keeps the default.
 const SHOWN_CARD = { show_wikipedia: 'wiki', show_video: 'video' }; // learn-wiki.js, learn-youtube.js
+// graceful (Learn chat, askStream): what a learner sees when the model declines (stop_reason refusal) or stops at max_tokens
+// part-way through an answer. Off (the Tutor handoff), both stay errors, so the caller can name them refused and too_large.
+export const DECLINE = "I can't help with that request.";
+export const CUT_NOTE = '_This answer stopped at the length limit. Ask me to continue for the rest._';
 export async function researchAnswer(env, turns, system, model, {
-  callModel, onProgress = async () => {}, findPapers = searchArxiv, readPaper = readArxivPaper, initialPapers = [], tools = [], runTool, arxiv = true,
+  callModel, onProgress = async () => {}, findPapers = searchArxiv, readPaper = readArxivPaper, initialPapers = [], tools = [], runTool, arxiv = true, graceful = false,
 }) {
   const messages = [...turns], papers = new Map(initialPapers.map(p => [p.id, p]));
   let shown = null; // a paper the agent asked to put in front of the learner
@@ -44,19 +48,24 @@ export async function researchAnswer(env, turns, system, model, {
     const result = await response.json();
     const calls = result.content?.filter(block => block.type === 'tool_use') || [];
     if (!calls.length) {
-      if (result.stop_reason === 'max_tokens') throw new Error('The answer was cut short. Try a narrower question.');
+      // The model declined (stop_reason refusal): a short decline is the answer, never an error, and any partial text is dropped.
+      if (graceful && result.stop_reason === 'refusal') return { answer: DECLINE, papers: [...papers.values()], shown: null };
       const answer = result.content?.filter(block => block.type === 'text').map(block => block.text).join('\n\n');
       if (!answer?.trim()) {
-        // Adaptive thinking can end a turn with only a thinking block; replay it
+        // Adaptive thinking can end a turn with only a thinking block (also when it used the whole max_tokens); replay it
         // (blocks must be preserved verbatim) and ask once for the text answer.
         if (step < RESEARCH_STEPS && result.content?.some(block => block.type === 'thinking')) {
           messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: 'Continue with your final answer now, as plain text.' });
           await onProgress('Preparing answer...');
           continue;
         }
+        if (result.stop_reason === 'max_tokens') throw new Error('The answer was cut short. Try a narrower question.');
         throw new Error(`No Learn answer returned (${result.stop_reason || result.type || 'unknown'}; ${(result.content || []).map(b => b.type).join(',') || 'no content'})`);
       }
-      return { answer: [...said, answer].join('\n\n'), papers: [...papers.values()], shown };
+      // Stopped at max_tokens: keep what was written and say so. Once the chat trailer has started, the answer itself was whole.
+      if (!graceful && result.stop_reason === 'max_tokens') throw new Error('The answer was cut short. Try a narrower question.');
+      const kept = result.stop_reason === 'max_tokens' && !answer.includes('<answer_meta>') ? `${answer}\n\n${CUT_NOTE}` : answer;
+      return { answer: [...said, kept].join('\n\n'), papers: [...papers.values()], shown };
     }
     if (step === RESEARCH_STEPS || calls.length !== 1) throw new Error('Learn research limit reached');
     const call = calls[0];

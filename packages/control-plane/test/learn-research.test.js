@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { researchAnswer } from '../src/learn-research.js';
+import { CUT_NOTE, DECLINE, researchAnswer } from '../src/learn-research.js';
+import { requestSpendBound } from '../src/learn-spend.js';
 import { readFileSync } from 'node:fs';
 
 const paper = { id: '1506.02640v5', title: 'YOLO', pdfUrl: 'https://arxiv.org/pdf/1506.02640v5' };
@@ -158,4 +159,30 @@ test('the answer written beside a show tool is kept; a preamble beside a search 
     findPapers: async () => [], tools: [{ name: 'show_wikipedia' }], runTool: async () => ({ opened: true }),
   });
   assert.equal(result.answer, 'A chord is three or more notes.\n\n<answer_meta>{}</answer_meta>');
+});
+
+// Owner decisions 2026-10-14 (lane-b-real/RESULTS.md: whole-board answers ran out at 2400 tokens, and a refusal showed as an error).
+test('a refusal is a short decline as the answer, never an error, and partial text from it is dropped', async () => {
+  const refused = await researchAnswer({}, [], 'Tutor', null, { graceful: true, callModel: async () => Response.json({ stop_reason: 'refusal', content: [] }) });
+  assert.equal(refused.answer, DECLINE);
+  const partial = await researchAnswer({}, [], 'Tutor', null, { graceful: true, callModel: async () => Response.json({ stop_reason: 'refusal', content: [{ type: 'text', text: 'Step one is' }] }) });
+  assert.equal(partial.answer, DECLINE, 'nothing the model began before declining is shown');
+});
+test('max_tokens keeps the text written with a short note; a started trailer means the answer was whole; only thinking replays once', async () => {
+  const cut = body => Response.json({ stop_reason: 'max_tokens', content: body });
+  const kept = await researchAnswer({}, [], 'Tutor', null, { graceful: true, callModel: async () => cut([{ type: 'text', text: 'A long review of the board.' }]) });
+  assert.equal(kept.answer, `A long review of the board.\n\n${CUT_NOTE}`);
+  const trailer = await researchAnswer({}, [], 'Tutor', null, { graceful: true, callModel: async () => cut([{ type: 'text', text: 'Whole answer.\n<answer_meta>{"actions":[' }]) });
+  assert.equal(trailer.answer, 'Whole answer.\n<answer_meta>{"actions":[', 'the note never lands inside or after the trailer');
+  let calls = 0;
+  const replayed = await researchAnswer({}, [], 'Tutor', null, { graceful: true, callModel: async () => (calls++ ? text('The answer.') : cut([{ type: 'thinking', thinking: 'long', signature: 's' }])) });
+  assert.deepEqual([replayed.answer, calls], ['The answer.', 2], 'thinking that used the whole budget is replayed once for the answer');
+  await assert.rejects(researchAnswer({}, [], 'Tutor', null, { graceful: true, callModel: async () => cut([]) }), /The answer was cut short/);
+});
+test('a chat call asks for 6000 tokens, and spend admission reserves them at the output price', async () => {
+  let sent = null;
+  await researchAnswer({}, [], 'Tutor', null, { graceful: true, callModel: async (_, body) => { sent = body; return text('ok'); } });
+  assert.equal(sent.max_tokens, 6000);
+  const extra = requestSpendBound(sent, 'claude-opus-5') - requestSpendBound({ ...sent, max_tokens: 2400 }, 'claude-opus-5');
+  assert.ok(Math.abs(extra - 3600 * 25 / 1e6) < 1e-6, `3600 more output tokens at $25/M reserve $0.09 more (got ${extra})`);
 });

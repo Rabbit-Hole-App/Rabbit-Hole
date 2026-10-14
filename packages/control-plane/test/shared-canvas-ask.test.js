@@ -64,7 +64,7 @@ test('a signed-in viewer is answered from the board, its sources and the reposit
   const [first, second] = sent;
   assert.equal(sent.length, 2);
   assert.equal(first.model, 'claude-opus-5');
-  assert.equal(first.max_tokens, 2400);
+  assert.equal(first.max_tokens, 6000);
   assert.ok(first.system.startsWith(`${SHARED_CANVAS_SYSTEM}\n${REPOSITORY_SYSTEM}`));
   assert.deepEqual(first.tools.map(tool => tool.name), ['get_repo_overview', 'search_code', 'get_relationships', 'explain_symbol', 'find_connection_path', 'query_graph', 'read_source', 'search_arxiv', 'read_arxiv_paper']);
   const context = JSON.parse(lastUserText(first).split('\n\n---\n\n')[0]);
