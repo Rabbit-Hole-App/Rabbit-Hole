@@ -3,6 +3,8 @@ import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
+import { chatContext, chatFields, chatSystem, docIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory } from './chat-modes.js';
+import { ANSWER_META_SYSTEM, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
@@ -994,10 +996,14 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) - the run tool can use it for a file-type input via attachment_id + attachment_input`;
     }
   }
-  const { scope = {}, message, thread_id, sources, model } = body;
-  let seed;
-  try { seed = canvasSeed(body, conversation); }
+  const { scope = {}, thread_id, sources, model } = body;
+  let { message } = body;
+  // chat: the Chat composer's mode, command, context_refs and regenerate (chat-modes.js); null for an old client.
+  let seed, chat;
+  try { seed = canvasSeed(body, conversation); chat = chatFields(body); }
   catch (error) { return json({ error: error.message }, 400); }
+  if (chat && conversation !== 'learn') return json({ error: 'mode, command, context_refs and regenerate are Learn chat fields' }, 400);
+  if (chat?.regenerate && !thread_id) return json({ error: 'regenerate needs its thread_id' }, 400);
   let lessonSnapshot = null;
   // The tutor may propose outline changes when the learner's canvas has sections.
   // runTool only records: canvas blocks are browser state, so nothing here can
@@ -1063,7 +1069,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   try { videoContext = validateLearnContext(body, conversation); canvasTarget = validateCanvasTarget(body.canvas_target, conversation); }
   catch (error) { return json({ error: error.message }, 400); }
   if (conversation === 'learn' && (!scope?.app || scope.run)) return json({ error: 'Learn requires an app scope' }, 400);
-  if (!message || typeof message !== 'string' || message.length > MESSAGE_LIMIT) return json({ error: 'message required (max 4000 chars)' }, 400);
+  // A regeneration reuses its turn's stored question, so whatever message it carries is not read.
+  if (!chat?.regenerate && (!message || typeof message !== 'string' || message.length > MESSAGE_LIMIT)) return json({ error: 'message required (max 4000 chars)' }, 400);
   // sources picker (Notion "My sources"): only the toggled context rides, and an empty list is
   // every toggle off, not everything; no list reads them all. Model from the allowlist.
   const useSet = Array.isArray(sources) ? new Set(sources.map(String)) : null;
@@ -1136,14 +1143,23 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     context = JSON.stringify({ lesson: context, ...source });
     canAct = false;
   }
+  const db = seam ? seam.db : env.DB;
+  // B5: a regeneration runs its turn again as it was sent: the stored question, mode, command and refs, never whatever
+  // this request attaches now. Read-only here; the thread's ownership is checked below, before anything is sent or stored.
+  let turn = null;
+  if (chat?.regenerate) {
+    turn = await regenerateTurn(db, thread_id, chat.regenerate.messageId);
+    if (!turn) return json({ error: 'no such answer in this thread' }, 404);
+    message = turn.message;
+    chat = { ...chat, mode: turn.mode, command: turn.command, contextRefs: turn.contextRefs };
+  }
   // Canvas context documents (docs/features/canvas-context-docs.md): the switched-on ones ride every
-  // Learn ask on their canvas, after any single source above.
+  // Learn ask on their canvas, after any single source above. A Chat turn's doc refs name exactly the ones that ride.
   if (scopedApp && conversation === 'learn') {
-    try { extraBlocks.push(...await contextDocumentBlocks(env, scopedApp)); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+    try { extraBlocks.push(...await contextDocumentBlocks(env, scopedApp, docIds(chat?.contextRefs))); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
   }
   context = appendCanvasTarget(context, canvasTarget);
   // thread per scope and user; follow-ups ride the same thread
-  const db = seam ? seam.db : env.DB;
   let threadId = thread_id || null;
   if (threadId) {
     const t = seam ? await seam.findThread(threadId) : await askThreadForUser(env, user, threadId);
@@ -1158,7 +1174,19 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       .bind(user.org, user.email, scopeKind, scopeRef).run();
     threadId = r.meta.last_row_id;
   }
-  const history = await threadTurns(db, threadId, seed, attachedName ? `${message} [attached: ${attachedName}]` : message);
+  const history = await threadTurns(db, threadId, seed, attachedName ? `${message} [attached: ${attachedName}]` : message, turn?.userMessageId);
+  let system = conversation === 'learn' ? (lessonSnapshot ? LEARN_SNAPSHOT_SYSTEM : LEARN_SYSTEM) : undefined;
+  // A Chat turn (A4, B6): its writes, the mode it runs in, the summary and refs as context, and the trailer prompts.
+  let resolved = null, memory = null, trailer = null;
+  if (chat) {
+    await recordUserTurn(db, threadId, history.userMessageId, chat, !!turn);
+    resolved = resolveMode(chat, message);
+    memory = await threadMemory(db, threadId, history.userMessageId);
+    context = chatContext(context, chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS);
+    system = chatSystem(system, ANSWER_META_SYSTEM, resolved, memory.long);
+    // The trailer is split off before any chunk is sent or anything stored.
+    research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
+  }
 
   const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
   // tools ride only when the user can edit the scope - a viewer's model has none
@@ -1175,9 +1203,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     : null;
   // A canvas turn hands askStream its LEARN_DB thread store as DB. The moment log does not depend on that:
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
-  return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full) => {
+  return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
+    // motionDev false: /motion exists only in a dev web build (VITE_MOTION_DEV); the control plane has no motion flag, so it never suggests motion.
+    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: false }) });
+    if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
-  }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, conversation === 'learn' ? (lessonSnapshot ? LEARN_SNAPSHOT_SYSTEM : LEARN_SYSTEM) : undefined, research);
+  }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, system, research);
 }
 
 // ---------- Slack adapter (transport for Ask) ----------

@@ -17,6 +17,8 @@ import { findVideoMoments, videoMomentTools } from '../src/learn-youtube.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { learnMedia } from '../src/learn-storage.js';
 import { contextDocumentBlocks } from '../src/learn-context-docs.js';
+import * as chatModes from '../src/chat-modes.js';
+import * as answerMeta from '../src/chat-answer-meta.js';
 import { randomHex } from '../src/token.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
 import { canvasTargetField } from '../../web/src/learn-ask-target.js';
@@ -53,6 +55,8 @@ const deps = {
   readAskRequest,
   learnMedia,
   contextDocumentBlocks,
+  ...chatModes,
+  ...answerMeta,
   randomHex,
   ASK_TOOLS: [],
   LEARN_SYSTEM,

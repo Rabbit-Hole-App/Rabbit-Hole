@@ -945,12 +945,14 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
       </div>
     );
   }
-  // The cards' Ask in chat (r35), on a text box or note with words in it; never while it is edited. A text box's pill
-  // shares the ladder's row and is pushed to the right edge, so a short text never has the two over each other.
+  // The selection actions (Add to chat, Quick Edit; r35's Ask in chat), on a text box or note with words in it; never while it
+  // is edited. A text box's actions keep its top right, the place its comment pins leave free (pillRow), so while they show
+  // the ladder and Text | Code take the line above: beside the ladder the 293 px actions ran past a narrow box's right edge
+  // and its pin landed on H1 (r38 selected-pill gate).
   const chrome = !locked && (editing || (selected && tool === 'select'));
   const ladder = !sticky && item.kind === 'text' && onLevel && chrome;
   const ask = selected && !editing && tool === 'select' && !!String(item.text || '').trim();
-  const modeAbove = ladder && !!onMode && ask && !code;
+  const above = ladder && ask;
   const askPill = <SelectionActionsHost id={item.id} className={sticky ? 'absolute z-30 -translate-x-full' : 'ml-auto'} style={sticky ? { left: item.x + (item.w || 160), top: item.y - 40 } : null} />;
   const base = itemBase(item);
   const ink = sticky ? (value => value) : inkAware;
@@ -971,14 +973,17 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
       {/* A selected or editing text box offers its ladder right there - H1 to
           text - and Text / Code, instead of asking the learner to find the style
           panel. pointerdown is swallowed so choosing never blurs or deselects. */}
-      {/* Beside the ladder and Ask in chat, Text | Code would push the pill past the box's right edge, so it takes
-          its own line above them; the ladder and pill keep their row. */}
+      {/* Beside the ladder and Text | Code, the selection actions would run past the box's right edge, so those two take
+          their own line above; the actions keep the row against the box. */}
       {(ladder || (ask && !sticky)) && (
         <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full flex-col items-start gap-1.5">
-          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
+          {above && <div className="flex items-center gap-2">
+            {!code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+            {onMode && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
+          </div>}
           <div className="flex items-center gap-2 self-stretch">
-            {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
-            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
+            {ladder && !code && !above && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
+            {ladder && onMode && !above && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
             {ask && !sticky && askPill}
           </div>
         </div>
@@ -1333,6 +1338,9 @@ function ToolButton({ value, Icon, label, hint, active, onPick }) {
     </button>
   );
 }
+
+// A group's outline sits GROUP_PAD outside its members; its name chip's row starts GROUP_CHIP above the outline.
+const GROUP_PAD = 12, GROUP_CHIP = 28;
 
 // The name tag of a group, floating just above its top-left corner. Click
 // selects the whole group; double-click renames it in place.
@@ -1851,16 +1859,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return revealAfter(block.id);
       },
       // A validated block from a / command (learn-slash.js).
-      // A chat answer the learner puts on the canvas from the dock's sheet: a
-      // finished chat card, centred like a fresh question's.
-      insertChat: ({ question, answer }) => {
+      // A chat answer the learner puts on the canvas (the answer footer's Add as card): a finished chat card, centred like
+      // a fresh question's. `answer` is the stored markdown, so inline citations stay; `sources` (the answer's refs) ride
+      // along as data. `id` (chat-<messageId>): a card already holding it is located, never added twice.
+      insertChat: ({ id = crypto.randomUUID(), question, answer, sources = null }) => {
+        if (exchangesRef.current.some(exchange => exchange.id === id)) { commandsRef.current.focusObject(id); return id; }
         snapshot(true);
-        const id = crypto.randomUUID();
         seenChats.current.add(id);
         centerRef.current = id;
-        onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0 }]);
+        onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0, ...(sources?.length ? { sources } : {}) }]);
         return id;
       },
+      // Whether the canvas holds this card (the footer's Added state).
+      hasCard: id => exchangesRef.current.some(exchange => exchange.id === id),
       // `after` (a block id): right after that block in the flow, ignoring the view - a journey section's steps
       // under their heading (learn-journey-materialize.js). The updater reads `previous`, so inserts chained in one
       // tick land in order.
@@ -3312,8 +3323,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const members = groupMembers[id];
     const boxes = boxesOf(members || [id]);
     if (!boxes.length) return null;
-    const pad = members ? 12 : 0; // a group's outline sits 12 outside its members, and its pill row above that
+    const pad = members ? GROUP_PAD : 0; // a group's outline sits outside its members, and its pill row above that
     const top = Math.min(...boxes.map(box => box.y)) - pad, right = Math.max(...boxes.map(box => box.x + box.w)) + pad;
+    // A group's actions float above its name chip at screen size (barAnchor below: placeBar's 8 px gap, a 34 px bar), so its
+    // pins share that row at any zoom.
+    if (members) return { right: right - PILL.ask / view.z, top: top - GROUP_CHIP - 42 / view.z, height: 34 / view.z };
     return { right: right - pillRow(id), top: top - 40, height: 30 };
   };
   const pickedPin = pinPick ? commentPins?.find(pin => pin.id === pinPick && !pin.ghost) || null : null;
@@ -4318,8 +4332,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }
   // The selection action bar's anchor (SelectionActions.jsx): the selection's box in the surface's pixels. A lone empty text box has
   // nothing to add, so it gets none.
+  // A whole group's box is its outline with the name chip's row, so the bar sits above the chip, never over it: the chip keeps
+  // its press, its rename and its right-click menu (Add comment).
   const emptyText = id => { const entry = items.find(item => item.id === id); return !!entry && entry.kind !== 'equation' && !String(entry.text || '').trim(); };
-  const barAnchor = tool === 'select' && selection.some(id => !emptyText(id)) ? anchorOf(boxesOf(selection), view) : null;
+  const barBoxes = boxesOf(selection);
+  if (selectedGroup && barBoxes.length) {
+    const { left, top, right, bottom } = anchorOf(barBoxes, { x: 0, y: 0, z: 1 });
+    barBoxes.push({ x: left - GROUP_PAD, y: top - GROUP_PAD - GROUP_CHIP, w: right - left + GROUP_PAD * 2, h: bottom - top + GROUP_PAD * 2 + GROUP_CHIP });
+  }
+  const barAnchor = tool === 'select' && selection.some(id => !emptyText(id)) ? anchorOf(barBoxes, view) : null;
   // The room it may use ends where the bottom chrome (zoom, composer) begins, under the bar's width.
   const barBox = { w: surface.current?.clientWidth || 1200, h: surface.current && barAnchor ? chromeTop(barAnchor.right - 300, barAnchor.right) : 800 };
   return (
@@ -4421,7 +4442,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                 <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />
                 {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end')}
                 {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start')}
-                <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                {/* A view-only board edits no connection, so its hit path takes no press: a press on a card a connection crosses
+                    selects the card (r38: answers about a selected card are linked chat cards, so connections cross cards). */}
+                <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: readOnly ? 'none' : 'stroke', cursor: 'pointer' }}
                   onPointerDown={event => { event.stopPropagation(); select(link.id, event); }}
                   onDoubleClick={() => startLabel(link.id)}><title>Select connection · choose a color, arrowheads, a route or press Delete · double-click or Enter to label</title></path>
                 <LineLabel at={path.mid} entry={link} editing={editingLabel === link.id} pickable={isSelected(link.id) && tool === 'select'} onPick={() => startLabel(link.id)} onDone={(runs, how) => changeLabel(link.id, runs, how)} onApi={onEditorApi} />
@@ -4538,7 +4561,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             if (member.x !== undefined) grow(member.x, member.y, member.w || (member.kind === 'sticky' ? 160 : 220), member.h || (member.kind === 'sticky' ? 160 : 40));
           }
           if (!Number.isFinite(left)) return null;
-          const pad = 12;
+          const pad = GROUP_PAD;
           const active = members.some(member => selection.includes(member.id));
           const portal = divePortals?.portals?.[group.id];
           return (
@@ -4560,7 +4583,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   let last = local(event);
                   startDrag(event, last, (x, y) => { shift(x - last.x, y - last.y, targets); last = { x, y }; }, view.z);
                 }} />
-              <div style={{ left: left - pad, top: top - pad - 28 }} className="absolute z-20 flex items-center gap-1">
+              <div style={{ left: left - pad, top: top - pad - GROUP_CHIP }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />

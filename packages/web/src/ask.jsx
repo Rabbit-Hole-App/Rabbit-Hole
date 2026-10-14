@@ -9,6 +9,7 @@ import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx
 import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
+import { useFollowLatest } from './chat-scroll.js';
 import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
@@ -276,12 +277,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return () => document.removeEventListener('pointerdown', away, true);
   }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
-  const [blockCopy, setBlockCopy] = useState(null);
-  useEffect(() => {
-    if (!blockCopy) return;
-    const timer = setTimeout(() => setBlockCopy(null), 1800);
-    return () => clearTimeout(timer);
-  }, [blockCopy]);
   const [choices, setChoices] = useState(null); // { message, candidates }
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
@@ -375,9 +370,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return () => { if (guardedHistory) historyRequest.current++; };
   }, [historyScope, scopeRef, privateChat, appName]);
   const newChat = () => { if (chatThread) { boardContext?.removeImage(); return chatThread.newChat(); } setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; sheetThread.current = null; setSheetHistory(false); boardContext?.removeImage(); setMsgs([]); setChoices(null); setView('chat'); };
-  useEffect(() => {
-    if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
-  }, [msgs]);
+  const follow = useFollowLatest(boxRef, [msgs]);
 
   // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
   // command, never as a chat message. held: a /command Enter while busy (learn-slash.js holdsLine), sent when busy clears.
@@ -886,7 +879,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} blockCopy={blockCopy} setBlockCopy={setBlockCopy} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>

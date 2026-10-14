@@ -79,7 +79,7 @@ const canvasBox = await page.locator('[aria-label="Lesson canvas"]').boundingBox
 const cardBox = await added.boundingBox();
 const openSheet = await sheet.boundingBox();
 check('the added card is in view, above the open sheet', cardBox && cardBox.y >= canvasBox.y - 1 && cardBox.y + Math.min(cardBox.height, 120) <= openSheet.y && cardBox.x >= canvasBox.x && cardBox.x + cardBox.width <= canvasBox.x + canvasBox.width, cardBox ? `card ${Math.round(cardBox.x)},${Math.round(cardBox.y)}, sheet top ${Math.round(openSheet.y)}` : 'none');
-check('the button says the answer is on the canvas', await sheet.locator('[data-add-to-canvas]').last().getByText('On the canvas').isVisible());
+check('the button says the answer was added as a card', await sheet.locator('[data-add-to-canvas]').last().getByText('Added').isVisible());
 await shot(page, 'sheet-added');
 
 // 4. Collapse hides the sheet; Ask in chat on a card: a linked card, not in the sheet
