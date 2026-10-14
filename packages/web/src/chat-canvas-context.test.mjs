@@ -52,6 +52,17 @@ test('only the object whose picture rides is inspected', () => {
   assert.deepEqual(seen[0].objects.filter(o => o.inspected).map(o => o.id), ['b1']);
 });
 
+test('through the real builder: the live board becomes a v1 package; only a riding image is inspected; ink is listed', () => {
+  const board = { ...BOARD, blocks: [...BOARD.blocks, { id: 'img1', type: 'file', kind: 'image', label: 'diagram.png', mediaId: 'm1' }], strokes: [{ points: [{ x: 1, y: 1 }, { x: 5, y: 5 }] }] };
+  const [plain, shown] = [[], ['img1']].map(inspected => canvasContextNow({ api: { liveBoard: () => board, selection: () => [] }, title: 'T', request: 'heaps', inspected }));
+  const ids = plain.inventory.items.map(item => item.id);
+  for (const id of ['b1', 'b2', 's1', 't1', 'img1']) assert.ok(ids.includes(id), id);
+  assert.ok(plain.inventory.items.some(item => item.type === 'ink'), 'freehand strokes are listed');
+  assert.deepEqual([plain.version, plain.relations.explicit.some(r => r.from === 'b1' && r.to === 'b2')], [1, true]);
+  assert.deepEqual([plain.coverage.media_inspected, shown.coverage.media_inspected], [0, 1]);
+  for (const p of [plain, shown]) assert.doesNotMatch(p.coverage.summary, /\bread\b/);
+});
+
 test('chatHistory: the last six user and assistant messages, oldest first, user refs kept; refIds: card ids and group members only', () => {
   const messages = [{ role: 'user', content: 'q0' }, ...Array.from({ length: 6 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `m${i}`, ...(i === 2 ? { refs: ['b1'] } : {}) })),
     { role: 'step', content: 'hook' }, { role: 'assistant', content: '' }];
