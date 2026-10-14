@@ -325,7 +325,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     const what = composerKey(event.nativeEvent);
     if (what !== 'send' || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
-    if (state.status === 'proposal' || (state.preview && !prompt.trim())) return;
+    // Always require text (owner 2026-10-14): an empty prompt never sends, with or without a selection, like the Send button.
+    if (state.status === 'proposal' || !prompt.trim()) return;
     submit(prompt);
   };
 

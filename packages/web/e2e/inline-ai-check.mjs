@@ -1289,8 +1289,9 @@ await run('The check: invalid, unsupported and blocked show one short message, k
   await ctrlK(page);
   await page.locator('[data-inline-prompt]').waitFor();
   await page.keyboard.press('Enter');
-  await page.locator('[data-inline-decision="invalid"]').waitFor({ timeout: 5000 });
-  check('Enter on an empty prompt: invalid, said once, with no call', (await page.locator('[data-inline-decision]').innerText()) === 'Describe what you\'d like to change or understand.' && (await calls(page, 'decide')).length === 0);
+  await page.waitForTimeout(400);
+  // Always require text (owner 2026-10-14): an empty prompt never sends - no message, no call, Send stays off.
+  check('Enter on an empty prompt with a selection: nothing sent, no message, Send stays disabled', (await page.locator('[data-inline-decision]').count()) === 0 && (await calls(page, 'decide')).length === 0 && await page.locator('[data-inline-submit]').isDisabled());
   for (const [words, decision, message] of [['asdkjh qwpoe', 'invalid', /Describe what you'd like/], ['send this to my whole class', 'unsupported', /isn't something the editor can make here/], ['something prohibited', 'blocked', /can't help with that/]]) {
     await page.locator('[data-inline-prompt]').fill(words);
     await page.keyboard.press('Enter');
@@ -1319,6 +1320,9 @@ await run('Creation: nothing selected, Ctrl+K adds at the last empty-canvas clic
   await ctrlK(page);
   await page.locator('[data-inline-prompt]').waitFor({ timeout: 5000 });
   check('nothing selected: the editor opens to add, in Explain, with its own placeholder', (await page.locator('[data-inline-prompt]').getAttribute('placeholder')) === 'What would you like to add or understand?' && (await modeOf(page)) === 'explain');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+  check('nothing selected, nothing typed: Send is disabled and Enter sends nothing', await page.locator('[data-inline-submit]').isDisabled() && (await page.locator('[data-inline-decision]').count()) === 0 && (await calls(page, 'decide')).length === 0);
   const marker = await page.locator('[data-inline-anchor]').boundingBox();
   check('a subtle marker sits at the last deliberate click on empty canvas', Math.abs(marker.x + marker.width / 2 - click.x) <= 2 && Math.abs(marker.y + marker.height / 2 - click.y) <= 2, JSON.stringify({ marker, click }));
   await page.locator('[data-inline-mode-toggle]').click();
