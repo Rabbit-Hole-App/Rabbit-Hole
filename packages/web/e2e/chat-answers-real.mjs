@@ -152,7 +152,7 @@ if (want('regen') && rich?.done) {
 const music = await canvasWith('Untitled');
 if (want('auto-plain')) {
   const plain = await paid('auto-plain', () => turn(music, { message: 'What is a chord in music?', mode: 'auto', context_refs: [] }));
-  if (plain?.done) check(plain.summary.kind !== 'syllabus', `Auto keeps a plain question an answer (kind ${plain.summary.kind})`);
+  if (plain?.done) { check(plain.summary.kind !== 'syllabus', `Auto keeps a plain question an answer (kind ${plain.summary.kind})`); check(plain.text.trim().length > 40, `the answer has text (${plain.text.trim().length} chars), even when the model used a tool`); }
 }
 if (want('auto-course')) {
   const course = await paid('auto-course', () => turn(music, { message: 'Make me a course on music theory. I am a complete beginner and I play a little guitar.', mode: 'auto', context_refs: [] }));

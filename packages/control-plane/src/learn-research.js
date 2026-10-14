@@ -28,8 +28,9 @@ export async function researchAnswer(env, turns, system, model, {
 }) {
   const messages = [...turns], papers = new Map(initialPapers.map(p => [p.id, p]));
   let shown = null; // a paper the agent asked to put in front of the learner
-  // said: text the model wrote beside its tool calls. Returned apart from the final turn's answer, so a caller whose final
-  // turn can hold only a trailer (the chat answer metadata, ask.js) still has the answer the learner was meant to read.
+  // said: the answer the model wrote beside a show tool (show_paper, show_wikipedia, show_video), which it calls once its answer
+  // is written; the final turn may then hold only a closing line or the chat trailer (live 2026-10-14: a chord answer was
+  // lost). Text beside a search or read call is a preamble ("let me look that up") and stays out.
   const said = [];
   for (let step = 0; step <= RESEARCH_STEPS; step++) {
     const response = await callModel(env, {
@@ -54,7 +55,7 @@ export async function researchAnswer(env, turns, system, model, {
         }
         throw new Error(`No Learn answer returned (${result.stop_reason || result.type || 'unknown'}; ${(result.content || []).map(b => b.type).join(',') || 'no content'})`);
       }
-      return { answer, said: said.join('\n\n'), papers: [...papers.values()], shown };
+      return { answer: [...said, answer].join('\n\n'), papers: [...papers.values()], shown };
     }
     if (step === RESEARCH_STEPS || calls.length !== 1) throw new Error('Learn research limit reached');
     const call = calls[0];
@@ -80,7 +81,7 @@ export async function researchAnswer(env, turns, system, model, {
         if (SHOWN_CARD[call.name]) await onProgress(`${call.name.replaceAll('_', ' ')}...`, SHOWN_CARD[call.name]);
       } else throw new Error('Unknown Learn tool');
     } catch (error) { await onProgress(`Retrieval failed: ${error.message}`); is_error = true; content = [{ type: 'text', text: error.message }]; }
-    said.push(...(result.content || []).filter(block => block.type === 'text' && block.text.trim()).map(block => block.text));
+    if (call.name.startsWith('show_')) said.push(...(result.content || []).filter(block => block.type === 'text' && block.text.trim()).map(block => block.text));
     messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, content, is_error }] });
     await onProgress('Preparing answer...');
   }

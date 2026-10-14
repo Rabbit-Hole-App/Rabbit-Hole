@@ -150,12 +150,12 @@ test('arxiv: false sends only the caller tools and Tutor system text, and never 
   const refused = sent[1].messages.at(-1).content[0];
   assert.deepEqual([refused.is_error, refused.content[0].text], [true, 'Unknown Learn tool'], 'an unoffered paper tool is refused as unknown');
 });
-test('text written beside a tool call is returned as said, apart from the final answer', async () => {
+test('the answer written beside a show tool is kept; a preamble beside a search call is not', async () => {
   let calls = 0;
+  const turn = (words, name) => Response.json({ content: [{ type: 'text', text: words }, { type: 'tool_use', name, input: { query: 'chord' }, id: `call-${calls}` }] });
   const result = await researchAnswer({}, [], 'Tutor', null, {
-    callModel: async () => (calls++ ? text('<answer_meta>{}</answer_meta>') : Response.json({ content: [{ type: 'text', text: 'A chord is three or more notes.' }, { type: 'tool_use', name: 'search_arxiv', input: { query: 'chord' }, id: 'call-1' }] })),
-    findPapers: async () => [],
+    callModel: async () => [() => turn('Let me look that up.', 'search_arxiv'), () => turn('A chord is three or more notes.', 'show_wikipedia'), () => text('<answer_meta>{}</answer_meta>')][calls++](),
+    findPapers: async () => [], tools: [{ name: 'show_wikipedia' }], runTool: async () => ({ opened: true }),
   });
-  assert.equal(result.said, 'A chord is three or more notes.');
-  assert.equal(result.answer, '<answer_meta>{}</answer_meta>');
+  assert.equal(result.answer, 'A chord is three or more notes.\n\n<answer_meta>{}</answer_meta>');
 });

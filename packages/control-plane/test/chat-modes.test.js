@@ -344,9 +344,9 @@ test('PUT syllabus: the owner saves an edited syllabus over the answer meta, val
 });
 
 // Live 2026-10-14: the model answered beside a Wikipedia tool call, then closed with only the trailer; the answer was lost.
-test('an answer written beside a tool call survives a final turn that holds only the trailer', async t => {
+test('an answer written beside a show tool call survives a final turn that holds only the trailer', async t => {
   const f = fixture(t);
-  f.replies.push({ content: [{ type: 'text', text: 'A chord is three or more notes sounded together.' }, { type: 'tool_use', id: 'call-1', name: 'search_wikipedia', input: { query: 'chord music' } }], stop_reason: 'tool_use' },
+  f.replies.push({ content: [{ type: 'text', text: 'A chord is three or more notes sounded together.' }, { type: 'tool_use', id: 'call-1', name: 'show_wikipedia', input: { title: 'Chord (music)' } }], stop_reason: 'tool_use' },
     '<answer_meta>{"followUps":[]}</answer_meta>');
   const { events } = await f.ask({ message: 'What is a chord?', mode: 'ask', context_refs: [] });
   assert.equal(events.find(e => e.event === 'chunk').data.text, 'A chord is three or more notes sounded together.');
