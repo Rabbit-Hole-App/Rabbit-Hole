@@ -1114,9 +1114,12 @@ await run('review regressions', async () => {
   check('a click in the blank part of a note keeps editing, caret at the end', (await editorText(note.page)) === 'topX');
   // 11: Add to chat (its ask-focus event, with no question) shows a hidden composer.
   await note.page.keyboard.press('Escape');
+  // The composer comes back on a render after the event, not before dispatchEvent returns: wait for it, bounded.
   await note.page.getByRole('button', { name: 'Hide chat composer' }).click();
+  await note.page.locator('[data-canvas-composer][data-composer-hidden]').waitFor({ state: 'attached', timeout: 5000 });
   await note.page.evaluate(() => window.dispatchEvent(new CustomEvent('small:ask-focus', { detail: {} })));
-  check('Add to chat brings a hidden composer back', !(await note.page.locator('[data-canvas-composer][data-composer-hidden]').count()));
+  const shown = note.page.locator('[data-canvas-composer]:not([data-composer-hidden])');
+  check('Add to chat brings a hidden composer back', await shown.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false) && await shown.count() === 1 && await shown.isVisible());
   await note.context.close();
 });
 
