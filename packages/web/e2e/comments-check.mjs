@@ -457,6 +457,8 @@ await check('18 a pin is orange with a solid outline and shows its count; the + 
     await tab.locator('[data-comments-panel]').getByRole('button', { name: 'Cancel' }).click();
     return seen;
   };
+  // Check 17 leaves the group selected; with the Chat pane beside the canvas its style panel floats over the box: close it.
+  await noStylePanel();
   assert.deepEqual(await draftOn(page, 'light'), { border: 'solid', fill: ORANGE, plus: 'rgb(255, 255, 255)', count: 'rgb(255, 255, 255)' });
   const dark = await context.newPage();
   dark.on('pageerror', error => errors.push(error.message));
