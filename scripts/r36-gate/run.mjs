@@ -49,9 +49,9 @@ function command(file,args,{cwd=app,log,timeout=1800000,allowFailure=false,extra
     let tail='';
     // bounded.mjs: at the limit the whole process tree is killed and the command settles as timed out, even if a
     // surviving process still holds its output pipes.
-    runBounded(file,args,{cwd,env:{...env,...extra},timeout,onData:b=>{if(log)appendFileSync(log,b);if(stream)process.stdout.write(b);tail=(tail+b.toString()).slice(-5000);}}).then(({code,signal,timedOut})=>{
-      receipt.stages.push({command:[file,...args],started:began,ended:new Date().toISOString(),code,signal,timedOut,log});
-      if(timedOut)reject(Error(`Command timed out after ${timeout/60000} min and its process tree was killed: ${file} ${args.join(' ')}; see ${log}`));
+    runBounded(file,args,{cwd,env:{...env,...extra},timeout,onData:b=>{if(log)appendFileSync(log,b);if(stream)process.stdout.write(b);tail=(tail+b.toString()).slice(-5000);}}).then(({code,signal,timedOut,killError})=>{
+      receipt.stages.push({command:[file,...args],started:began,ended:new Date().toISOString(),code,signal,timedOut,killError,log});
+      if(timedOut)reject(Error(`Command timed out after ${timeout/60000} min; ${killError?`the process tree kill failed (${killError}), the direct child was ended`:'its process tree was killed'}: ${file} ${args.join(' ')}; see ${log}`));
       else if(code!==0&&!allowFailure)reject(Error(`Command failed (${code}/${signal}): ${file} ${args.join(' ')}; see ${log}`));else resolve({code,signal,tail});
     },reject);
   });

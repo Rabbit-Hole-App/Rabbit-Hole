@@ -54,3 +54,25 @@ test('a hung restart is bounded, and the scoped stop.ps1 then ends the server it
   await new Promise(res => setTimeout(res, 1000));
   assert.equal(await listening(port), false, 'no orphan server after the scoped cleanup');
 });
+
+// Review finding (2026-10-14): the termination command itself must be bounded and its failure handled.
+test('a stalled termination command is cut off at its own limit; the command still settles, timed out, with the kill error', async () => {
+  const began = Date.now();
+  const r = await runBounded(process.execPath, ['-e', 'setInterval(()=>{},1000)'], {
+    timeout: 1500, grace: 2000, kill: { command: process.execPath, args: ['-e', 'setInterval(()=>{},1000)'], timeout: 1500 },
+  });
+  assert.equal(r.timedOut, true);
+  assert.match(r.killError, /the kill command timed out after 1500 ms/);
+  assert.ok(Date.now() - began < 10000, `settled after ${Date.now() - began} ms`);
+});
+
+test('a failing termination command is reported, the direct child is still ended, and the command settles', async () => {
+  let out = '';
+  const r = await runBounded(process.execPath, ['-e', 'console.log("pid "+process.pid);setInterval(()=>{},1000)'], {
+    timeout: 1500, grace: 2000, onData: b => { out += b; }, kill: { command: process.execPath, args: ['-e', 'process.exit(5)'] },
+  });
+  assert.equal(r.timedOut, true);
+  assert.equal(r.killError, 'the kill command exited 5');
+  await new Promise(res => setTimeout(res, 500));
+  assert.equal(alive(Number(out.match(/pid (\d+)/)[1])), false, 'the direct child is gone despite the failed tree kill');
+});
