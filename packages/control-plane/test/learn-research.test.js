@@ -150,3 +150,12 @@ test('arxiv: false sends only the caller tools and Tutor system text, and never 
   const refused = sent[1].messages.at(-1).content[0];
   assert.deepEqual([refused.is_error, refused.content[0].text], [true, 'Unknown Learn tool'], 'an unoffered paper tool is refused as unknown');
 });
+test('text written beside a tool call is returned as said, apart from the final answer', async () => {
+  let calls = 0;
+  const result = await researchAnswer({}, [], 'Tutor', null, {
+    callModel: async () => (calls++ ? text('<answer_meta>{}</answer_meta>') : Response.json({ content: [{ type: 'text', text: 'A chord is three or more notes.' }, { type: 'tool_use', name: 'search_arxiv', input: { query: 'chord' }, id: 'call-1' }] })),
+    findPapers: async () => [],
+  });
+  assert.equal(result.said, 'A chord is three or more notes.');
+  assert.equal(result.answer, '<answer_meta>{}</answer_meta>');
+});

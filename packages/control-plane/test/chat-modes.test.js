@@ -137,7 +137,8 @@ function fixture(t, { migration = true } = {}) {
   globalThis.fetch = async (url, init) => {
     if (new URL(String(url)).hostname !== 'api.anthropic.com') return new Response('', { status: 404 });
     calls.push(JSON.parse(init.body));
-    return Response.json({ content: [{ type: 'text', text: replies.shift() ?? 'Plain answer.' }], stop_reason: 'end_turn' });
+    const reply = replies.shift() ?? 'Plain answer.'; // a string is a final text turn; an object is a whole provider reply (a tool call)
+    return Response.json(typeof reply === 'string' ? { content: [{ type: 'text', text: reply }], stop_reason: 'end_turn' } : reply);
   };
   const seam = () => canvasAskSeam(env, canvasApp(sqlite.prepare("SELECT * FROM canvases WHERE name='canvas-0a1b2c3d'").get(), owner));
   const ask = async (body, apiAsk = build()) => {
@@ -340,4 +341,15 @@ test('PUT syllabus: the owner saves an edited syllabus over the answer meta, val
   assert.equal((await put({ topics }, owner, `/api/learn/chat/messages/${events.at(-1).data.userMessageId}/syllabus`)).status, 404, 'a user message has no syllabus');
   assert.equal((await put({ topics }, owner, `/api/learn/chat/messages/${id}/syllabus`, 'POST')).status, 405);
   assert.equal(await chatSyllabusFetch(new Request('https://dev.test/api/learn/ask'), f.env), null);
+});
+
+// Live 2026-10-14: the model answered beside a Wikipedia tool call, then closed with only the trailer; the answer was lost.
+test('an answer written beside a tool call survives a final turn that holds only the trailer', async t => {
+  const f = fixture(t);
+  f.replies.push({ content: [{ type: 'text', text: 'A chord is three or more notes sounded together.' }, { type: 'tool_use', id: 'call-1', name: 'search_wikipedia', input: { query: 'chord music' } }], stop_reason: 'tool_use' },
+    '<answer_meta>{"followUps":[]}</answer_meta>');
+  const { events } = await f.ask({ message: 'What is a chord?', mode: 'ask', context_refs: [] });
+  assert.equal(events.find(e => e.event === 'chunk').data.text, 'A chord is three or more notes sounded together.');
+  assert.equal(f.rows("SELECT content FROM messages WHERE role = 'assistant'")[0].content, 'A chord is three or more notes sounded together.');
+  assert.equal(events.find(e => e.event === 'answer_meta').data.followUps.length, 1, 'the trailer from the final turn is still read');
 });

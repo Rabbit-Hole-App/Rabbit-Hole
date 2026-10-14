@@ -409,6 +409,9 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
 ${research.system}` : system;
         const result = await researchAnswer(env, turns, researchSystem, model, { callModel: loggedModel('chat', anthropic), initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: (stage, card) => send('progress', card ? { stage, card } : { stage }) });
         full = research.onAnswer ? research.onAnswer(result.answer) : result.answer;
+        // A final turn that held only the trailer (the model answered beside a tool call, then closed with the metadata):
+        // the answer is what it wrote beside its tools, with the same trailer split off.
+        if (research.onAnswer && !full.trim() && result.said?.trim()) full = research.onAnswer(`${result.said}\n\n${result.answer}`);
         if (result.papers.length) {
           // An uploaded PDF has no arXiv id or public link: its title alone.
           const references = result.papers.map(p => (p.pdfUrl ? `[${p.title} (arXiv:${p.id})](${p.pdfUrl})` : p.title)).join(' | ');
