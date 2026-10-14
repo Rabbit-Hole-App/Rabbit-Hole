@@ -926,10 +926,17 @@ crashes. The machine was heavily loaded, so times vary.
   - A refine's "make it one sentence" was asked to clarify, because the check did not know a result was being refined.
     The request now names the output it revises (`revising`); the check validates the words for that output, and a
     question about what "it" means passes.
-- **Open, reported.**
+- **Reported, fixed on feature/inline-main (2026-10-14).**
   - A native diagram of the existing tree ("how this tree would look after inserting 5") failed three times. The
     model's tool input carried wrapper keys ($0, dialog, $FUNCTION_NAME) and canvas ids, and the server's diagram check
-    refused it. Nothing was added. The new-topic diagram works.
-  - "make it" with a node selected was routed to a diagram instead of a clarify.
+    refused it. Now `diagramOf` (inline-diagram.js) drops call-template keys and lifts a spec wrapped one level down
+    before the strict check, and the diagram prompt says canvas ids are never its shape ids or connector ends: to show
+    existing material it draws all of it again.
+  - "make it" with a node selected was routed to a diagram instead of a clarify. The clarify criterion now covers words
+    that name no action or result, even with material selected. On the labelled set only that prompt changed (see
+    inline-ai-validation.md, 2026-10-14 rerun).
   - The sensitive-educational request was routed to an explanation card, whose handler then refused a body over 2,000
-    characters (an error, nothing added, $0.12).
+    characters (an error, nothing added, $0.12). The repair message already gave the limit and the model overran it
+    again, so each card tool's description now states its long text fields' limits in words (learn-artifact.js).
+- **Always require text** (owner, 2026-10-14). Send stays disabled until something is typed, with or without a
+  selection, and Enter on an empty prompt sends nothing and shows nothing. There is no one-click Explain.

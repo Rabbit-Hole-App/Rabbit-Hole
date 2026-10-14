@@ -111,6 +111,23 @@ wall is the round trip through the local worker.
   the same proceed with a changed prompt was refused (403).
 - Spend: $0.205 of lane R's $1.50 (JEV $0.012, Haiku $0.152, the real diagram $0.042).
 
+### Rerun, 2026-10-14 (feature/inline-main, JEV only, owner-approved $0.05)
+
+The set gained a6, "make it" with a selected ellipse labelled 23 (labelled `clarify`), for the lane R report's open
+item. The decide response's `meta` now also carries JEV's raw `missing` answer.
+
+| Run | Prompts | Decisions correct | False rejections | Prohibited blocked | Route correct when proceeding | p50 / p95 (ms) | Spend |
+|---|---|---|---|---|---|---|---|
+| Before the fix | 62 | 95.2% | 2.6% | 6 of 6 | 100% | 209 / 299 | $0.003291 |
+| After the clarify criterion | 62 | 96.8% | 2.6% | 6 of 6 | 100% | 217 / 327 | $0.003353 |
+
+- Before: misses a1 ("explain this" with nothing selected: proceed/note), a6 (proceed/shapes, JEV's missing =
+  `target`, route p 0.52) and r4 (as before).
+- A settle rule (clarify when JEV picked the route and named a missing piece) was rejected on this data. a6's missing
+  answer was `target`, not `format`. A `format` rule would have flipped v5, and a `target` rule c3 and i1. A route
+  probability cut would have hit v4 and v5 (0.52 and 0.51).
+- After: only a6 changed (to clarify). Every other prompt kept its decision and route. a1 and r4 remain.
+
 ## Limits and follow-ups
 
 - JEV writes no text, so clarify and unsupported messages are four question templates and one limitation line, in
