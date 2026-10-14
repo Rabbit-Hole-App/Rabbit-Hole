@@ -59,6 +59,20 @@ Shared state, kept inside one shard (`UNITS` in `pack.mjs`; the packer never spl
 - The provider tripwire counts hits over a stack's lifetime. A hit still shows in the tripwire line of the stage that
   caused it, as it did unsharded, so any hit still fails the gate.
 
+canvas-shell and canvas-toolbar (Task A6b, 45 required stages) run after thumbnails and are conditional like project-menu:
+`int35.sh` runs each only when `$INT35_EXPECTED_TREE` carries its check (`git cat-file -e`), and `mergeShards` requires it
+only then (`CONDITIONAL`), so an older candidate is still judged by its own tree.
+- canvas-shell is a plain `run stack.sh canvas-shell canvas-shell-check.mjs` line. It reads `BASE` from `$E` and the shots
+  directory from argv[2]; this needs the check's `const BASE = process.env.BASE || 'http://127.0.0.1:8788';` (an app
+  release-branch change). It prints one `canvas shell ok ...` line, which `cnt()` counts as 1/1.
+- canvas-toolbar takes `<base> <board> <outDir>` and decides local (the stack's `packages/control-plane/.dev.vars`, `SMALL_CP`
+  from `$E`) from a 127.0.0.1 base, so it has its own block in `int35.sh` (like rh-local) with `run()`'s memcheck,
+  check_tree, tripwire and rerun-once steps. Its exit line is `canvas-toolbar exit $rc  N/N checks passed` (N is its desktop,
+  wide and phone section lines) or `fail 1` on a nonzero exit.
+- The candidate's `gateVerdict` only attests a stage it lists in `GATE_STAGES`; at 9e2b459e neither name is listed, so the
+  app release branch must add both (with `check:` set to the files above) for the gate to require them. Until then a
+  failing one still fails the gate (any nonzero exit does), and a passing one is recorded but not required.
+
 `canary_fail_stage` (dispatch input, proof only) swaps one run-line stage's check for a missing file, so the gate must
 fail. It can only fail a stage, never pass or skip one.
 
@@ -132,9 +146,11 @@ Per part, median of the three runs:
 ### Per-stage durations (`durations.json`)
 
 `durations.json` is `{ "<stage>": <median minutes> }` for every name in `ORDER` in `shards.mjs`: the median of the
-three runs. All 43 stages are measured; none is null.
+three runs. 43 of the 45 stages are measured. canvas-shell (0.6) and canvas-toolbar (1.5) are ESTIMATES from the toolbar
+agent's local runs, not gate receipts (Task A6b could not run the gate). After the first gate run that includes them,
+replace both with `timing.mjs` medians and repack.
 
-- Check stages (39 of the 43): the check process only, from `process-<check>-<ms>-<pid>.start.json` to `.exit.json`.
+- Check stages (39 of the 43 measured): the check process only, from `process-<check>-<ms>-<pid>.start.json` to `.exit.json`.
   Every `timeout N node e2e/...` is wrapped by `prepare.mjs`, so the journey-stack checks (journey J1-J8, tutor-slice,
   blank-hooks, practice-card, canvas-chrome) and rh-local have receipts too. Receipt names follow the prepared script,
   not `int35.sh`: `r36-shared-canvas-ask-check.mjs` (sca), `r36-selected-pill-check.mjs`, `r36-tutor-slice-check.mjs`,
@@ -189,23 +205,23 @@ Predicted wall is the per-part overhead plus the slowest shard; runner minutes a
 
 | K | Predicted wall | Shard runner minutes |
 |---|---|---|
-| 4 | 11.02 | 43.51 |
-| 5 | 9.46 | 47.04 |
-| 6 | 8.55 | 50.57 |
-| 7 | 7.83 | 53.72 |
+| 4 | 11.48 | 45.77 |
+| 5 | 9.98 | 49.30 |
+| 6 | 8.88 | 52.65 |
+| 7 | 8.11 | 55.98 |
 
-K = 7: K = 6 is 0.72 min slower than K = 7, so 6 is outside the 0.5 band. The committed shards, each with its predicted
+K = 7: K = 6 is 0.77 min slower than K = 7, so 6 is outside the 0.5 band. The committed shards, each with its predicted
 cost (own work) and wall (plus the 3.15):
 
 | Shard | Stages | Check minutes | Cost | Wall |
 |---|---|---|---|---|
 | shard-1 | journey J1-J8, tutor-slice, blank-hooks, practice-card, canvas-chrome | 3.12 | 4.39 | 7.54 |
-| shard-2 | rh-app, comments, comments-invite, sketch, fork, handle, explore | 3.14 | 4.46 | 7.61 |
-| shard-3 | sca, dive, naming, equation, filedrop | 3.85 | 4.63 | 7.78 |
-| shard-4 | rh-dev, selected-pill, visibility, panel-header, slash-sheet | 3.70 | 4.48 | 7.63 |
-| shard-5 | project-canvases, explore-holes, repo-browser, cross-device, library-folders, share-revocation | 3.64 | 4.50 | 7.65 |
-| shard-6 | card-select, card-redesign, creator-profile, thumbnails, bundle(dist), bundle(dist-dev) | 3.09 | 4.53 | 7.68 |
-| shard-7 | answer-routing, sidebar, project-menu, analytics-ui, workspace, card-context-menu, rh-local | 3.74 | 4.68 | 7.83 |
+| shard-2 | rh-app, comments, comments-invite, project-canvases, explore, explore-holes, naming, repo-browser | 3.49 | 4.89 | 8.04 |
+| shard-3 | sketch, fork, dive, handle, card-select | 4.18 | 4.96 | 8.11 |
+| shard-4 | rh-dev, selected-pill, analytics-ui, card-context-menu, slash-sheet, library-folders, share-revocation | 4.02 | 4.96 | 8.11 |
+| shard-5 | answer-routing, visibility, card-redesign, creator-profile, panel-header, cross-device | 4.10 | 4.96 | 8.11 |
+| shard-6 | sidebar, project-menu, canvas-shell, canvas-toolbar, bundle(dist), bundle(dist-dev) | 3.47 | 4.91 | 8.06 |
+| shard-7 | sca, workspace, equation, thumbnails, rh-local, filedrop | 4.00 | 4.86 | 8.01 |
 
 The `checkpoints` part (8.48 in the Speed baseline, which includes its 0.63 verify wait, since removed) now runs about as
 long as the slowest shard, so a further shard cannot shorten the gate.

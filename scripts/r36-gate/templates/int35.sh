@@ -40,7 +40,7 @@ memcheck() {
 # PASS / ok / "flow X ok" lines counted (any FAIL line makes it "fail N").
 cnt() { local L=$1 s p f; s=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -aoE '[0-9]+/[0-9]+ checks passed|[0-9]+ checks passed' | tail -1)
   [ -n "$s" ] && { echo "$s"; return; }
-  p=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^(PASS|ok)\b|^ok:|^flow [A-Za-z0-9]+ ok')
+  p=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^(PASS|ok)\b|^ok:|^flow [A-Za-z0-9]+ ok|^canvas shell ok\b')
   f=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^FAIL|^not ok')
   if [ "$f" != 0 ]; then echo "fail $f"; else echo "$p/$p checks passed"; fi; }
 alive() { [ "$(curl -s -o /dev/null -m 10 -w %{http_code} http://127.0.0.1:8878/)" != 000 ] && [ "$(curl -s -o /dev/null -m 10 -w %{http_code} http://127.0.0.1:8879/)" != 000 ]; }
@@ -103,6 +103,29 @@ run stack.sh panel-header panel-header-check.mjs
 run stack.sh slash-sheet slash-sheet-check.mjs
 run stack.sh equation equation-check.mjs
 run stack.sh thumbnails card-thumbnails-check.mjs
+if git cat-file -e "$INT35_EXPECTED_TREE:packages/web/e2e/canvas-shell-check.mjs" 2>/dev/null; then
+  run stack.sh canvas-shell canvas-shell-check.mjs
+fi
+if git cat-file -e "$INT35_EXPECTED_TREE:packages/web/e2e/canvas-toolbar-check.mjs" 2>/dev/null; then
+  # canvas-toolbar-check takes <base> <board> <outDir> where run() passes only <outDir>, so it has its own block with run()'s steps.
+  TL=$F/canvas-toolbar-r35.log
+  check_tree
+  memcheck canvas-toolbar
+  alive || { echo "canvas-toolbar: stack down before the check, restarting"; bash $F/stack.sh restart | tail -1; }
+  (cd $W/packages/web && env $E timeout 900 node e2e/canvas-toolbar-check.mjs http://127.0.0.1:8878 nanogpt-deep-dive $F/canvas-toolbar-shots-r35 > $TL 2>&1); rc=$?
+  if [ $rc != 0 ]; then
+    echo "canvas-toolbar: exit $rc (stack alive: $(alive && echo yes || echo no)) - rerun once"
+    cp $TL ${TL%.log}-first.log; cp $F/app.log ${TL%.log}-first-app.log 2>/dev/null; cp $F/cp.log ${TL%.log}-first-cp.log 2>/dev/null
+    alive || bash $F/stack.sh restart | tail -1
+    (cd $W/packages/web && env $E timeout 900 node e2e/canvas-toolbar-check.mjs http://127.0.0.1:8878 nanogpt-deep-dive $F/canvas-toolbar-shots-r35 > $TL 2>&1); rc=$?
+  fi
+  TWH=$(curl -s -m 10 http://127.0.0.1:8878/__provider-tripwire | python -c "import json,sys; print(len(json.load(sys.stdin)['hits']))" 2>/dev/null || echo "unreadable")
+  echo "canvas-toolbar provider-tripwire hits since stack start: $TWH" >> $G/tripwire.log; echo "canvas-toolbar provider-tripwire hits: $TWH"
+  [ "$TWH" != "0" ] && echo "canvas-toolbar: PROVIDER TRIPWIRE $TWH (see $G/tripwire.log)"
+  # Its count: the section lines it prints on success (desktop, wide, phone; not desktop's zoom-to-fit note).
+  if [ $rc = 0 ]; then n=$(grep -aE '^(desktop|wide|phone): ' $TL | grep -acv 'zoom to fit'); sc="$n/$n checks passed"; else sc="fail 1"; fi
+  echo "canvas-toolbar exit $rc  $sc"
+fi
 # #73: rabbit-hole-check Map/project cases in LOCAL=1 mode (nanoGPT fixture, every unrouted ask aborted, no .env).
 # wp6-learn: and wp6-mobile are NOT RUN (stale, left unchanged; clone run not authorised).
 memcheck rh-local

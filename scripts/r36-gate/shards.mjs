@@ -10,25 +10,25 @@ export const ORDER = ['make test-unit', 'fixture regression', 'rh-app', 'comment
   'answer-routing', 'rh-dev', 'sca', 'project-canvases', 'fork', 'dive', 'handle', 'explore', 'explore-holes',
   'card-select', 'selected-pill', 'naming', 'visibility', 'sidebar', 'card-redesign', 'project-menu', 'creator-profile',
   'analytics-ui', 'workspace', 'card-context-menu', 'repo-browser', 'panel-header', 'slash-sheet', 'equation',
-  'thumbnails', 'rh-local', 'cross-device', 'filedrop', 'library-folders', 'share-revocation', 'bundle(dist)',
-  'bundle(dist-dev)', 'journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'];
+  'thumbnails', 'canvas-shell', 'canvas-toolbar', 'rh-local', 'cross-device', 'filedrop', 'library-folders', 'share-revocation',
+  'bundle(dist)', 'bundle(dist-dev)', 'journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'];
 
 // The two stages the units part runs (run.mjs units), so no shard does: the same commands on the same windows-2022 image
 // and tree that shard 1 used to repeat. mergeShards takes their lines from the units record.
 export const UNIT_STAGES = ['make test-unit', 'fixture regression'];
 
-// The output of pack.mjs for the measured durations.json (README "Shard packing"): seven shards of 4.4-4.7 predicted
+// The output of pack.mjs for the measured durations.json (README "Shard packing"): seven shards of 4.4-5.0 predicted
 // minutes each. Kept as a literal so a reviewer sees the shards; pack.test.mjs fails if it drifts from the packer.
 // explore follows comments in one shard: its phone creator-card row needs a second creator with a live publication, and
 // comments-check's published canvas (comments-check.mjs:233, never unpublished) is the one the unsharded gate gives it.
 export const SHARDS = [
   ['journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'],
-  ['rh-app', 'comments', 'comments-invite', 'sketch', 'fork', 'handle', 'explore'],
-  ['sca', 'dive', 'naming', 'equation', 'filedrop'],
-  ['rh-dev', 'selected-pill', 'visibility', 'panel-header', 'slash-sheet'],
-  ['project-canvases', 'explore-holes', 'repo-browser', 'cross-device', 'library-folders', 'share-revocation'],
-  ['card-select', 'card-redesign', 'creator-profile', 'thumbnails', 'bundle(dist)', 'bundle(dist-dev)'],
-  ['answer-routing', 'sidebar', 'project-menu', 'analytics-ui', 'workspace', 'card-context-menu', 'rh-local'],
+  ['rh-app', 'comments', 'comments-invite', 'project-canvases', 'explore', 'explore-holes', 'naming', 'repo-browser'],
+  ['sketch', 'fork', 'dive', 'handle', 'card-select'],
+  ['rh-dev', 'selected-pill', 'analytics-ui', 'card-context-menu', 'slash-sheet', 'library-folders', 'share-revocation'],
+  ['answer-routing', 'visibility', 'card-redesign', 'creator-profile', 'panel-header', 'cross-device'],
+  ['sidebar', 'project-menu', 'canvas-shell', 'canvas-toolbar', 'bundle(dist)', 'bundle(dist-dev)'],
+  ['sca', 'workspace', 'equation', 'thumbnails', 'rh-local', 'filedrop'],
 ];
 
 // Stages int35.sh runs only when the candidate tree carries their check (and gateVerdict then requires).
@@ -36,6 +36,8 @@ export const CONDITIONAL = {
   'project-menu': 'packages/web/e2e/project-menu-check.mjs',
   'library-folders': 'packages/web/e2e/library-folders-check.mjs',
   'share-revocation': 'packages/web/e2e/share-revocation-check.mjs',
+  'canvas-shell': 'packages/web/e2e/canvas-shell-check.mjs',
+  'canvas-toolbar': 'packages/web/e2e/canvas-toolbar-check.mjs',
 };
 
 // The script's sections, in order; null = one block per stage, else the section's stages run as one unit.
@@ -53,7 +55,7 @@ function blocks(text) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]; let j = i, stages = [];
     if (/^run stack(-app)?\.sh /.test(line)) stages = [line.split(' ')[2]];
-    else if (line.startsWith('if git cat-file ')) { j = until(i, l => l === 'fi'); stages = [lines[i + 1].trim().split(' ')[2]]; }
+    else if (line.startsWith('if git cat-file ')) { j = until(i, l => l === 'fi'); stages = [lines.slice(i + 1, j).join('\n').match(/^\s*(?:run \S+|memcheck) (\S+)/m)?.[1]]; if (!stages[0]) throw Error('Original gate block boundaries changed'); }
     else if (line.startsWith('for beta in ')) { j = until(i, l => l === 'done'); stages = line.match(/^for beta in (.+?); do$/)[1].split(' '); }
     else if (line.startsWith('# #73:')) { j = until(i, l => l.startsWith('echo "rh-local exit')); stages = ['rh-local']; }
     out.push({ text: lines.slice(i, j + 1).join('\n'), stages });

@@ -14,6 +14,7 @@ const at = stage => SHARDS.findIndex(s => s.includes(stage));
 const stagesOf = script => script.split('\n').flatMap(line => {
   if (line === 'memcheck unit') return ['make test-unit', 'fixture regression'];
   if (line === 'memcheck rh-local') return ['rh-local'];
+  if (line === '  memcheck canvas-toolbar') return ['canvas-toolbar'];
   if (line.startsWith('bash $F/stack.sh prod')) return ['bundle(dist)', 'bundle(dist-dev)'];
   if (line.startsWith('# Journeys + tutor slice')) return ['journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'];
   const beta = line.match(/^for beta in (.+?); do$/);
@@ -62,6 +63,11 @@ test('the shard scripts partition the prepared gate: every stage once, in order,
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('the manifest has 45 stages including canvas-shell and canvas-toolbar, each run by one shard', () => {
+  assert.equal(ORDER.length, 45);
+  for (const s of ['canvas-shell', 'canvas-toolbar']) assert.equal(SHARDS.filter(sh => sh.includes(s)).length, 1, s);
+});
+
 // A synthetic complete record in the unsharded order, split by shard the way the shard scripts print it.
 const TREE = 'tree HEAD d443ecf4 MERGE_HEAD  index ' + 'b'.repeat(40);
 const stageLines = s => [`mem before ${s}: 12000\r MB free`, `${s} provider-tripwire hits: 0`, `${s} exit 0  7/7 checks passed`];
@@ -70,6 +76,24 @@ const shardLog = (k, stages = SHARDS[k]) => ['warning: noise', 'INT35 preflight:
 
 // The units part's record: the two unit stages int35.sh prints first (run.mjs units writes them in this format).
 const unitsLog = ['INT35 preflight: candidate x; grant g; ok.', TREE, ...UNIT_STAGES.map(s => `${s} exit 0  7/7 checks passed`), 'INT35-DONE', ''].join('\n');
+
+test('canvas-shell and canvas-toolbar follow thumbnails, and only run where the candidate tree carries their check', () => {
+  assert.deepEqual(ORDER.slice(ORDER.indexOf('thumbnails'), ORDER.indexOf('thumbnails') + 4), ['thumbnails', 'canvas-shell', 'canvas-toolbar', 'rh-local']);
+  const int35 = readFileSync(new URL('./templates/int35.sh', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  for (const stage of ['canvas-shell', 'canvas-toolbar']) {
+    assert.equal(CONDITIONAL[stage], `packages/web/e2e/${stage}-check.mjs`);
+    assert.ok(int35.includes(`if git cat-file -e "$INT35_EXPECTED_TREE:${CONDITIONAL[stage]}" 2>/dev/null; then\n`), `${stage} is guarded on its check file`);
+  }
+  // canvas-toolbar-check takes <base> <board> <outDir>, so it has its own block (run() passes only the outDir).
+  assert.ok(int35.includes('node e2e/canvas-toolbar-check.mjs http://127.0.0.1:8878 nanogpt-deep-dive $F/canvas-toolbar-shots-r35'));
+  assert.match(int35, /^ {2}echo "canvas-toolbar exit \$rc {2}\$sc"$/m);
+  assert.match(int35, /; echo "canvas-toolbar provider-tripwire hits: \$TWH"$/m);
+  // Without its check in the tree a stage is not required; with it, a missing stage fails the merge.
+  const newStages = ['canvas-shell', 'canvas-toolbar'], oldTree = p => !newStages.some(s => p === CONDITIONAL[s]);
+  const shardLogs = SHARDS.map((_, k) => shardLog(k, SHARDS[k].filter(s => !newStages.includes(s))));
+  assert.ok(mergeShards(shardLogs, oldTree, unitsLog));
+  assert.throws(() => mergeShards(shardLogs, () => true, unitsLog), /missing.*canvas-shell, canvas-toolbar/);
+});
 
 test('the merged record keeps every stage line in the unsharded order and refuses gaps, duplicates and strays', () => {
   const merged = mergeShards(SHARDS.map((_, k) => shardLog(k)), () => true, unitsLog);
