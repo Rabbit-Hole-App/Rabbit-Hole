@@ -1,10 +1,12 @@
 name: sharded release gate
 
 # Owner GO 2026-10-13 ("cut this 1h without compromising the test"): the release gate of r36-windows-gate.yml - full
-# units, the four focused stages, the preflight and Dive checkpoints and every int35.sh stage - with the complete gate's
-# stages split over four fresh Windows runners (scripts/r36-gate/shards.mjs), each with its own preflight-prepared stack.
-# The collect job merges the four records into the one gate.log the candidate's gateVerdict reads and judges it as the
-# unsharded gate phase does. All seven runners start at once; each installs while canonical verify runs and waits for
+# units with the fixture regression (the units runner), the preflight and Dive checkpoints and every int35.sh stage -
+# with the complete gate's stages split over four fresh Windows runners (scripts/r36-gate/shards.mjs), each with its own
+# preflight-prepared stack. The focused four-stage run is not a part: sca, selected-pill, J1-J8 and the Tutor slice run
+# in the shards, and no shard repeats the unit stages (README "Removed duplicate runs"). The collect job merges the
+# units and shard records into the one gate.log the candidate's gateVerdict reads and judges it as the unsharded gate
+# phase does. All six runners start at once; each installs while canonical verify runs and waits for
 # both verify runs before its phase. Any failed job, shard, checkpoint or stage fails the gate.
 on:
   push:
@@ -47,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [units, focused, checkpoints, shard-1, shard-2, shard-3, shard-4]
+        part: [units, checkpoints, shard-1, shard-2, shard-3, shard-4]
     env:
       CI: true
       SMALL_ENV: test

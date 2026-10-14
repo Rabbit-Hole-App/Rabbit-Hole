@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { prepare, FIXTURE_ADAPTERS } from './prepare.mjs';
-import { ORDER, SHARDS, CONDITIONAL, shardScript, mergeShards, canary } from './shards.mjs';
+import { ORDER, SHARDS, UNIT_STAGES, CONDITIONAL, shardScript, mergeShards, canary } from './shards.mjs';
 
 // The stages a script runs, read independently of shards.mjs's own parser.
 const stagesOf = script => script.split('\n').flatMap(line => {
@@ -29,7 +29,7 @@ test('the shard scripts partition the prepared gate: every stage once, in order,
     const { gate } = prepare({ app, state: join(root, 'state'), sha: 'a'.repeat(40), tree: 'b'.repeat(40), grant: 'self-test' });
     const full = readFileSync(join(gate, 'int35.sh'), 'utf8');
     assert.deepEqual(stagesOf(full), ORDER);
-    assert.deepEqual([...SHARDS.flat()].sort(), [...ORDER].sort());
+    assert.deepEqual([...SHARDS.flat(), ...UNIT_STAGES].sort(), [...ORDER].sort());
     const head = full.slice(0, full.indexOf('memcheck unit\n'));
     SHARDS.forEach((stages, k) => {
       const script = readFileSync(join(gate, `shard-${k + 1}.sh`), 'utf8');
@@ -62,27 +62,44 @@ const stageLines = s => [`mem before ${s}: 12000\r MB free`, `${s} provider-trip
 const shardLog = (k, stages = SHARDS[k]) => ['warning: noise', 'INT35 preflight: candidate x; grant g; ok.', TREE, 'stack app 200 cp 302',
   ...ORDER.filter(s => stages.includes(s)).flatMap(stageLines), 'Stopped 0 scoped processes', 'INT35-DONE', ''].join('\n');
 
+// The units part's record: the two unit stages int35.sh prints first (run.mjs units writes them in this format).
+const unitsLog = ['INT35 preflight: candidate x; grant g; ok.', TREE, ...UNIT_STAGES.map(s => `${s} exit 0  7/7 checks passed`), 'INT35-DONE', ''].join('\n');
+
 test('the merged record keeps every stage line in the unsharded order and refuses gaps, duplicates and strays', () => {
-  const merged = mergeShards(SHARDS.map((_, k) => shardLog(k)));
+  const merged = mergeShards(SHARDS.map((_, k) => shardLog(k)), () => true, unitsLog);
   const lines = merged.split('\n');
   assert.deepEqual(lines.filter(l => / exit \d/.test(l)), ORDER.map(s => `${s} exit 0  7/7 checks passed`));
-  assert.equal(lines.filter(l => l.includes('provider-tripwire hits: 0')).length, ORDER.length);
+  assert.equal(lines.filter(l => l.includes('provider-tripwire hits: 0')).length, ORDER.length - UNIT_STAGES.length);
   assert.equal(lines.filter(l => l.startsWith('tree HEAD ')).length, 1);
   assert.equal(lines[2], TREE);
   assert.equal(merged.trimEnd().split('\n').at(-1), 'INT35-DONE');
   assert.equal(lines.filter(l => l === 'INT35-DONE').length, 1);
-  assert.match(merged, /mem before unit: 12000\r MB free|mem before make test-unit: 12000\r MB free/);
+  assert.match(merged, /mem before rh-app: 12000\r MB free/);
 
   const logs = SHARDS.map((_, k) => shardLog(k));
-  assert.throws(() => mergeShards(logs.slice(1)), /Expected 4/);
-  assert.throws(() => mergeShards(logs.with(1, logs[1].replace('INT35-DONE', ''))), /Shard 2 record is unfinished/);
-  assert.throws(() => mergeShards(logs.with(2, logs[2].replace(TREE, TREE.replace('d443ecf4', 'deadbeef')))), /Shard 3 .*different/);
-  assert.throws(() => mergeShards(logs.with(1, shardLog(1, [...SHARDS[1], 'sidebar']))), /Shard 2 ran sidebar/);
-  assert.throws(() => mergeShards(logs.with(0, logs[0].replace('INT35-DONE', 'rh-app exit 0  1/1 checks passed\nINT35-DONE'))), /rh-app is duplicated/);
-  assert.throws(() => mergeShards(logs.with(3, shardLog(3, SHARDS[3].filter(s => s !== 'tutor-slice')))), /missing.*tutor-slice/);
+  assert.throws(() => mergeShards(logs.slice(1), () => true, unitsLog), /Expected 4/);
+  assert.throws(() => mergeShards(logs.with(1, logs[1].replace('INT35-DONE', '')), () => true, unitsLog), /Shard 2 record is unfinished/);
+  assert.throws(() => mergeShards(logs.with(2, logs[2].replace(TREE, TREE.replace('d443ecf4', 'deadbeef'))), () => true, unitsLog), /Shard 3 .*different/);
+  assert.throws(() => mergeShards(logs.with(1, shardLog(1, [...SHARDS[1], 'sidebar'])), () => true, unitsLog), /Shard 2 ran sidebar/);
+  assert.throws(() => mergeShards(logs.with(0, logs[0].replace('INT35-DONE', 'rh-app exit 0  1/1 checks passed\nINT35-DONE')), () => true, unitsLog), /rh-app is duplicated/);
+  assert.throws(() => mergeShards(logs.with(3, shardLog(3, SHARDS[3].filter(s => s !== 'tutor-slice'))), () => true, unitsLog), /missing.*tutor-slice/);
   const noMenu = logs.with(2, shardLog(2, SHARDS[2].filter(s => s !== 'project-menu')));
-  assert.throws(() => mergeShards(noMenu), /missing.*project-menu/);
-  assert.ok(mergeShards(noMenu, p => p !== CONDITIONAL['project-menu']).includes('sidebar exit 0'));
+  assert.throws(() => mergeShards(noMenu, () => true, unitsLog), /missing.*project-menu/);
+  assert.ok(mergeShards(noMenu, p => p !== CONDITIONAL['project-menu'], unitsLog).includes('sidebar exit 0'));
   // A failed stage stays in the record as failed: the merge never judges, gateVerdict does.
-  assert.match(mergeShards(logs.with(1, logs[1].replace('naming exit 0  7/7', 'naming exit 1  0/0'))), /^naming exit 1 {2}0\/0 checks passed$/m);
+  assert.match(mergeShards(logs.with(1, logs[1].replace('naming exit 0  7/7', 'naming exit 1  0/0')), () => true, unitsLog), /^naming exit 1 {2}0\/0 checks passed$/m);
+});
+
+test('the units record supplies the two unit stages; a shard record carrying one fails', () => {
+  const head = 'INT35 preflight: x\ntree HEAD abc MERGE_HEAD  index t\n';
+  const unitsLog = head + 'make test-unit exit 0  ℹ tests 1 ℹ fail 0\nfixture regression exit 0  # pass 5 # fail 0\nINT35-DONE\n';
+  const shardLogs = SHARDS.map(stages => head + stages.map(s => `${s} exit 0  1/1 checks passed`).join('\n') + '\nINT35-DONE\n');
+  const merged = mergeShards(shardLogs, () => true, unitsLog);
+  assert.match(merged, /^make test-unit exit 0/m);
+  assert.ok(merged.indexOf('make test-unit exit') < merged.indexOf('rh-app exit'));
+  const bad = shardLogs.map((l, k) => k === 0 ? l.replace('INT35-DONE', 'make test-unit exit 0  x\nINT35-DONE') : l);
+  assert.throws(() => mergeShards(bad, () => true, unitsLog), /belongs to another shard|duplicated/);
+  // No units record, or one holding a unit stage twice, is not a complete gate.
+  assert.throws(() => mergeShards(shardLogs), /missing.*make test-unit, fixture regression/);
+  assert.throws(() => mergeShards(shardLogs, () => true, unitsLog.replace('INT35-DONE', 'make test-unit exit 0  y\nINT35-DONE')), /make test-unit is duplicated/);
 });

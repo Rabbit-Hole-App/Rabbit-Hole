@@ -101,9 +101,19 @@ async function tripwire() {
 try {
   await memory('preflight');
   if(units) {
-  // Full units on the exact committed tree, supervised like every gate child: no stack and no local credentials.
-  await command(process.execPath,[join(SOURCE,'supervise.mjs'),join(out,'unit-process'),'--','-e',"const c=require('node:child_process').spawnSync(process.env.GATE_BASH,['-c','make test-unit'],{stdio:'inherit',windowsHide:true});process.exit(c.status??1)"],{log:join(out,'unit.log'),timeout:2400000,stream:true,extra:{UV_OFFLINE:'1'}});
+  // Full units and the nanoGPT fixture regression on the exact committed tree, supervised like every gate child: no stack
+  // and no local credentials. No shard runs these two stages (shards.mjs UNIT_STAGES). The record carries the head and the
+  // two stage lines in the format int35.sh echoes for them, so collect.mjs merges them where gateVerdict reads them.
+  const log=join(out,'gate-shard.log'),unitLog=join(out,'int35-unit.log'),fixLog=join(out,'fixture.log');
+  writeFileSync(log,`INT35 preflight: candidate ${APP_TREE}; grant ${process.env.GATE_GRANT_ID}; local keyless prerequisites checked.\ntree HEAD ${git('rev-parse','--short','HEAD')} MERGE_HEAD  index ${APP_TREE}\n`);
+  const u=await command(process.execPath,[join(SOURCE,'supervise.mjs'),join(out,'unit-process'),'--','-e',"const c=require('node:child_process').spawnSync(process.env.GATE_BASH,['-c','make test-unit'],{stdio:'inherit',windowsHide:true});process.exit(c.status??1)"],{log:unitLog,timeout:3600000,stream:true,allowFailure:true,extra:{UV_OFFLINE:'1'}});
+  const summary=readFileSync(unitLog,'utf8').replace(/\x1b\[[0-9;]*m/g,'').split(/\r?\n/).filter(l=>/^ℹ (tests|fail) /.test(l)).join(' ');
+  appendFileSync(log,`make test-unit exit ${u.code}  ${summary}\n`);
+  const f=await command(process.execPath,['--test','--test-reporter=tap','e2e/nanogpt-repository-fixture.test.mjs'],{cwd:join(app,'packages/web'),log:fixLog,allowFailure:true});
+  const fx=readFileSync(fixLog,'utf8').split(/\r?\n/).filter(l=>/^# (pass|fail)/.test(l)).join(' ');
+  appendFileSync(log,`fixture regression exit ${f.code}  ${fx}\nINT35-DONE\n`);
   unchanged();
+  if(u.code!==0||f.code!==0)throw Error('units failed; see int35-unit.log and fixture.log');
   } else if(fresh) {
   await command(process.execPath,['-e','const c=require("node:child_process").spawnSync(process.execPath,["-e","process.exit(0)"]);if(c.status!==0)process.exit(1)']);
   await command('powershell.exe',['-NoProfile','-Command','$ErrorActionPreference="Stop"; $self=Get-CimInstance Win32_Process -Filter "ProcessId = $PID"; if (-not $self.CreationDate) { throw "Process identity unavailable" }; $null=(Get-Process -Id $PID).Handle; $null=Get-NetTCPConnection -State Listen; "Process observation capability passed"'],{log:join(out,'process-preflight.log')});

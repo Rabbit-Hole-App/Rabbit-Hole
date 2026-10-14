@@ -13,11 +13,16 @@ export const ORDER = ['make test-unit', 'fixture regression', 'rh-app', 'comment
   'thumbnails', 'rh-local', 'cross-device', 'filedrop', 'library-folders', 'share-revocation', 'bundle(dist)',
   'bundle(dist-dev)', 'journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'];
 
-// Balanced on the measured stage times of that run (seconds, stack starts and stops included): ~485, ~470, ~520, ~515.
+// The two stages the units part runs (run.mjs units), so no shard does: the same commands on the same windows-2022 image
+// and tree that shard 1 used to repeat. mergeShards takes their lines from the units record.
+export const UNIT_STAGES = ['make test-unit', 'fixture regression'];
+
+// Balanced on the measured stage times of that run (seconds, stack starts and stops included): ~485, ~470, ~520, ~515;
+// shard 1's ~485 included the unit stages, which the units part now runs (UNIT_STAGES).
 // explore follows comments in shard 1: its phone creator-card row needs a second creator with a live publication, and
 // comments-check's published canvas (comments-check.mjs:233, never unpublished) is the one the unsharded gate gives it.
 export const SHARDS = [
-  ['make test-unit', 'fixture regression', 'rh-app', 'comments', 'comments-invite', 'sketch', 'answer-routing', 'rh-dev',
+  ['rh-app', 'comments', 'comments-invite', 'sketch', 'answer-routing', 'rh-dev',
     'sca', 'project-canvases', 'explore', 'bundle(dist)', 'bundle(dist-dev)'],
   ['fork', 'dive', 'handle', 'explore-holes', 'card-select', 'selected-pill', 'naming', 'visibility'],
   ['sidebar', 'card-redesign', 'project-menu', 'creator-profile', 'analytics-ui', 'workspace', 'card-context-menu',
@@ -83,11 +88,12 @@ export function shardScript(full, n) {
 const STAGE_EXIT = /^([^:]+?) exit (\d+)\b/;
 const meaningful = lines => lines.filter(l => !l.startsWith('warning: ')).join('\n');
 
-// -> the one gate record from the shard records (in SHARDS order): the first record's head through its tree line, then
+// -> the one gate record from the shard records (in SHARDS order) and the units record (unitsLog, which must hold the
+// UNIT_STAGES lines): the first record's head through its tree line, then
 // each stage's lines (everything after the previous stage's exit line up to its own) in ORDER, then every shard's
 // closing lines and one -DONE line. Throws on an unfinished record, a different tree line, a stage outside its shard,
 // a duplicate or a missing stage (a conditional one is missing only when the tree carries its check).
-export function mergeShards(logs, inTree = () => true) {
+export function mergeShards(logs, inTree = () => true, unitsLog = null) {
   if (logs.length !== SHARDS.length) throw Error(`Expected ${SHARDS.length} shard records, got ${logs.length}`);
   const chunks = new Map(), closing = [];
   let head;
@@ -108,6 +114,10 @@ export function mergeShards(logs, inTree = () => true) {
     }
     closing.push(...chunk);
   });
+  // The units part's record supplies UNIT_STAGES (it runs them; no shard does).
+  if (unitsLog !== null) {
+    for (const line of unitsLog.split('\n')) { const s = line.match(STAGE_EXIT)?.[1]; if (UNIT_STAGES.includes(s)) { if (chunks.has(s)) throw Error(`Stage ${s} is duplicated`); chunks.set(s, [line]); } }
+  }
   const missing = ORDER.filter(s => !chunks.has(s) && !(CONDITIONAL[s] && !inTree(CONDITIONAL[s])));
   if (missing.length) throw Error(`Stages missing from the shard records: ${missing.join(', ')}`);
   return [...head, ...ORDER.flatMap(s => chunks.get(s) ?? []), ...closing, 'INT35-DONE', ''].join('\n');

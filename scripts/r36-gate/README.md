@@ -25,21 +25,23 @@ and Windows PowerShell must be available to Git Bash.
 ## Final r36 verification (workflow r36-windows-gate.yml)
 
 Pinned to the frozen candidate in the workflow env. Three clean runners in parallel: `run.mjs units` (supervised
-`make test-unit` on the exact tree, no stack) and `run.mjs focused` (SCA, selected-pill, J1-J8, Tutor slice).
+`make test-unit` and the nanoGPT fixture regression on the exact tree, no stack) and `run.mjs focused` (SCA, selected-pill, J1-J8, Tutor slice).
 A third runner runs preflight, Dive and the complete gate at the same time, uploading after each; preview
 deployment needs all three to pass. Every
 phase except `all` stops the sign-in probe stack and proves 8878/8879/9318/9319 free before the next preflight.
 
 ## Sharded gate (workflow gate-sharded.yml, owner GO 2026-10-13)
 
-The same checks on seven clean Windows runners at once: `units`, `focused`, `checkpoints` (preflight then Dive,
-uploaded as today) and `shard-1`..`shard-4`. Each shard is `run.mjs shard-N`: the fresh preflight of `focused`, then
+The same checks on six clean Windows runners at once: `units`, `checkpoints` (preflight then Dive,
+uploaded as today) and `shard-1`..`shard-4`. `units` runs `make test-unit` and the fixture regression, the two stages
+no shard runs (`UNIT_STAGES` in `shards.mjs`); it writes them to its `gate-shard.log` in int35.sh's line format. Each
+shard is `run.mjs shard-N`: the same fresh preflight as the `focused` phase, then
 `shard-N.sh`, which is the prepared `int35.sh` with only the other shards' stages removed (`shards.mjs`). A shard keeps
 the header, its stage lines in the original order, the stacks those stages run on, their stops and every `export`. The
-`collect` job (Linux) merges the four `gate-shard.log` records into one `gate.log`: same stage lines, same order, same
-counts. It then applies run.mjs's gate-phase verdict (the candidate's `gateVerdict` plus the routing and project-menu
+`collect` job (Linux) merges the units record and the four `gate-shard.log` records into one `gate.log` (the two unit stage lines
+first, where int35.sh printed them): same stage lines, same order, same counts. It then applies run.mjs's gate-phase verdict (the candidate's `gateVerdict` plus the routing and project-menu
 receipts) with the passed Dive receipt as the prerequisite. A failed matrix job, a failed or missing shard, or a missing,
-duplicated or stray stage fails it. Every runner installs first and then waits for both canonical verify runs before its phase.
+duplicated or stray stage, or a missing or failed units record, fails it. Every runner installs first and then waits for both canonical verify runs before its phase.
 
 Shared state, kept inside one shard. The stage times are from run 38352166115 attempt 2:
 - rh-app, comments and comments-invite run on the stack-app.sh build, so they stay with their stack start (shard 1).
@@ -57,6 +59,23 @@ Shared state, kept inside one shard. The stage times are from run 38352166115 at
 
 `canary_fail_stage` (dispatch input, proof only) swaps one run-line stage's check for a missing file, so the gate must
 fail. It can only fail a stage, never pass or skip one.
+
+## Removed duplicate runs (2026-10-13)
+
+| Removed execution | Kept execution | Why it is the same logical test |
+|---|---|---|
+| focused: sca | shard: sca | same `run stack.sh sca shared-canvas-ask-check.mjs` line (r36 adapter), same stack.sh dev section; the shard run follows more stages, as in the full gate |
+| focused: selected-pill | shard: selected-pill | same run line and section |
+| focused: journey J1-J8 | shard: journey J1-J8 | same journey() function on the same jstack.sh |
+| focused: tutor-slice | shard: tutor-slice | same slice() function on the same jstack.sh |
+| shard-1: make test-unit | units: make test-unit | same command on the same windows-2022 image and tree |
+| shard-1: fixture regression | units: fixture regression | moved: the units part did not run it before, and now does; same node --test file on the same tree |
+
+Kept on purpose: the Dive checkpoint (fresh stack) and shard dive (after fork) - different preceding state.
+
+`inventory.mjs` lists each stage with its check file, stack script and the parts that run it; `inventory.test.mjs` fails
+if any stage runs in more than one part, and checks that the old configuration shows exactly the four focused duplicates.
+The `focused` phase of `run.mjs` stays for r36-windows-gate.yml; gate-sharded.yml no longer runs it.
 
 ## Speed baseline (2026-10-13)
 

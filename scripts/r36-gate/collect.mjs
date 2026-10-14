@@ -1,14 +1,15 @@
-// The sharded gate's collect job: the shard records merged into the one gate.log (shards.mjs mergeShards), judged by
-// the candidate's own gateVerdict plus run.mjs's routing/project-menu receipts, exactly as the unsharded gate phase
-// judges its record; the passed Dive checkpoint stays its prerequisite. A failed matrix job, a failed or missing shard,
-// a missing or duplicated stage, or a rejected record fails it.
+// The sharded gate's collect job: the shard records and the units record (the two UNIT_STAGES lines) merged into the
+// one gate.log (shards.mjs mergeShards), judged by the candidate's own gateVerdict plus run.mjs's routing/project-menu
+// receipts, exactly as the unsharded gate phase judges its record; the passed Dive checkpoint stays its prerequisite.
+// A failed matrix job, a failed or missing shard or units record, a missing or duplicated stage, or a rejected record
+// fails it.
 //   node scripts/r36-gate/collect.mjs <downloaded artifacts dir>
 // Env: APP_ROOT TESTED_SHA TESTED_TREE HARNESS_SHA GATE_GRANT_ID ARTIFACT_ROOT GITHUB_RUN_ATTEMPT MATRIX_RESULT
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { SHARDS, mergeShards } from './shards.mjs';
+import { SHARDS, UNIT_STAGES, mergeShards } from './shards.mjs';
 import { prerequisite } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
 
@@ -30,22 +31,24 @@ const diveFile = join(dir('dive'), 'dive-receipt.json');
 const diveError = prerequisite('gate', json(diveFile), identity);
 if (diveError) failures.push(`checkpoint: ${diveError}`);
 
-const shards = SHARDS.map((_, k) => {
-  const part = `shard-${k + 1}`, d = dir(part), receiptFile = join(d, `${part}-receipt.json`), receipt = json(receiptFile);
+// A part's receipt must pass with this run's identity and its gate-shard.log must exist; the units part is read like a shard.
+const read = part => {
+  const d = dir(part), receiptFile = join(d, `${part}-receipt.json`), receipt = json(receiptFile);
   const wrong = Object.keys(identity).filter(key => receipt?.[key] !== identity[key]);
   if (!receipt?.pass || !receipt.ended || receipt.cleanupFailure || wrong.length) failures.push(`${part}: ${receipt?.failure || receipt?.cleanupFailure || (wrong.length ? `identity mismatch: ${wrong.join(', ')}` : 'receipt missing or not passed')}`);
   const logFile = join(d, 'gate-shard.log'), log = existsSync(logFile) ? readFileSync(logFile, 'utf8') : null;
   if (log === null) failures.push(`${part}: gate-shard.log missing`);
   // The shard's record and receipts travel with the merged record; its diagnostics stay in its own artifact.
   mkdirSync(join(out, 'shards', part), { recursive: true });
-  for (const f of ['gate-shard.log', 'shard-verdict.json', `${part}-receipt.json`, 'identity.json']) if (existsSync(join(d, f))) copyFileSync(join(d, f), join(out, 'shards', part, f));
+  for (const f of ['gate-shard.log', 'shard-verdict.json', `${part}-receipt.json`, 'identity.json', 'identity-units.json']) if (existsSync(join(d, f))) copyFileSync(join(d, f), join(out, 'shards', part, f));
   return { part, pass: !!receipt?.pass, receiptSha256: receipt ? sha256(receiptFile) : null, logSha256: log === null ? null : sha256(logFile), log };
-});
+};
+const units = read('units'), shards = SHARDS.map((_, k) => read(`shard-${k + 1}`));
 
 let verdict = 'not computed: shard records incomplete', extraPassed = false;
-if (shards.every(s => s.log !== null)) {
+if ([units, ...shards].every(s => s.log !== null)) {
   try {
-    const record = mergeShards(shards.map(s => s.log), inTree);
+    const record = mergeShards(shards.map(s => s.log), inTree, units.log);
     writeFileSync(join(out, 'gate.log'), record);
     // Identical to run.mjs's gate phase verdict.
     const { gateVerdict, stageCount } = await import(pathToFileURL(join(app, 'scripts/dev-deploy.mjs')));
@@ -57,9 +60,9 @@ if (shards.every(s => s.log !== null)) {
   } catch (error) { verdict = `not computed: ${error.message}`; failures.push(`merge: ${error.message}`); }
 }
 const pass = failures.length === 0;
-const sharded = { shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), matrix: process.env.MATRIX_RESULT, failures };
+const sharded = { units: { part: 'units', stages: UNIT_STAGES, pass: units.pass }, shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), matrix: process.env.MATRIX_RESULT, failures };
 writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, sharded }, null, 2));
 writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version,
-  prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, shards: shards.map(({ log, ...s }) => s), failures, pass }, null, 2));
+  prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, units: (({ log, ...u }) => u)(units), shards: shards.map(({ log, ...s }) => s), failures, pass }, null, 2));
 console.log(JSON.stringify({ applicationSha: APP_SHA, harnessSha: identity.harnessSha, gateVerdict: verdict, extraPassed, pass, failures }));
 if (!pass) process.exitCode = 1;
