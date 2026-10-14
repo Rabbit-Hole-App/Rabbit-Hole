@@ -148,7 +148,7 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
           <button type="button" onClick={on.lock} className="rounded-md px-2 py-0.5 text-xs font-medium text-ink hover:bg-hover">Unlock</button>
         </div>
       )}
-      {panel.stroke && <ColorRow label={panel.paper ? 'Note' : 'Stroke'} name="Color" value={values.color} onPick={on.color} refocus={refocus} />}
+      {panel.stroke && <ColorRow label={panel.paper ? 'Note' : 'Stroke'} name="Color" value={values.stroke} onPick={on.color} none={panel.noStroke ? 'No stroke' : null} refocus={refocus} />}
       {panel.fill && <>
         {/* Fill keeps the Excalidraw habit of a light tint by default (25%), now adjustable. */}
         <ColorRow label="Fill" value={values.fill} onPick={on.fill} none="No fill" tint={0.35} refocus={refocus} />

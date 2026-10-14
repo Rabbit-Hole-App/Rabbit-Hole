@@ -159,6 +159,16 @@ text is open, so the next shortcut reaches the canvas. As with stroke colour, an
 panel is also armed for the next new object. On a phone (≤ 640 px of
 canvas) the panel sits in the tools strip above the canvas and scrolls, so it never covers the text being edited.
 
+**No stroke** (owner, 2026-10-13) is the first swatch of the Stroke row, drawn with the same slash as No fill, for the
+closed shapes that Fill is offered for (a line, an arrow or a pen mark is its stroke, so it has no such swatch). It
+hides the outline and keeps the fill and the words. It is stored as `noStroke: true` beside the colour, never as a
+colour, so the width, the dash and the colour the words follow stay on the shape: picking a colour afterwards clears
+the flag and the outline returns as it was. The selection outline and the resize handles are editor chrome and stay.
+A pick that disagrees shows Mixed; one press or pick is one undo step; the flag saves with the board, is armed for the
+next shape drawn, and copies and pastes with the style. Exports draw no outline for it (the DOM pictures render the
+shape; the group picture, `learn-group-shot.js`, skips the stroke). Text boxes have no outline of their own, so they
+have none to hide, and a note's Note row is its paper colour, so neither is offered it.
+
 Arrowheads are stored as `startHead` / `endHead` on shapes and links. Without them, a drawn arrow, curve, elbow or
 diagram connector ends in the open arrow it always had.
 

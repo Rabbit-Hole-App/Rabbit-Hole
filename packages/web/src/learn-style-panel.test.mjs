@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { panelFor, textStyle, reorder, dashStyle, dashArray, TEXT_LEVELS, routeOf, ARROW_KINDS, reorderStep, headsOf, copyStyle, pasteStyle } from './learn-style-panel.js';
+import { panelFor, textStyle, reorder, dashStyle, dashArray, TEXT_LEVELS, routeOf, ARROW_KINDS, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf } from './learn-style-panel.js';
 
 const shape = (id, kind = 'rect') => ({ id, kind });
 const text = id => ({ id, kind: 'text' });
@@ -206,4 +206,52 @@ test('the panel reads a selection honestly: typography for words, locked objects
   assert.equal(locked.open, true, 'the panel still offers Unlock');
   assert.equal(panelFor({ tool: 'select', selection: ['b1', 'b2'], units: 2 }).arrange, true);
   assert.equal(panelFor({ tool: 'arrow', selection: [] }).heads, true);
+});
+
+// No stroke (owner, 2026-10-13): the first swatch of the Stroke row, same slash as No fill.
+// What AdaptiveCanvas applyStyle does with a panel patch.
+const restyle = (list, ids, patch) => list.map(entry => (ids.includes(entry.id) ? { ...entry, ...patch } : entry));
+
+test('No stroke is offered for the shapes that fill is, and for nothing a stroke is the whole mark of', () => {
+  assert.equal(panelFor({ tool: 'rect', selection: [] }).noStroke, true);
+  assert.equal(panelFor({ tool: 'star', selection: [] }).noStroke, true);
+  for (const tool of ['pen', 'highlighter', 'line', 'arrow', 'sticky', 'text']) assert.equal(panelFor({ tool, selection: [] }).noStroke, false, tool);
+  const shapes = [shape('a', 'rect'), shape('b', 'ellipse'), shape('c', 'line')];
+  assert.equal(panelFor({ tool: 'select', selection: ['a', 'b'], shapes }).noStroke, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['a', 'c'], shapes }).noStroke, false, 'one line in the pick would vanish');
+  assert.equal(panelFor({ tool: 'select', selection: ['n1'], items: [sticky('n1')] }).noStroke, false);
+  assert.equal(panelFor({ tool: 'select', selection: ['l1'], links: [{ id: 'l1' }] }).noStroke, false);
+});
+
+test('No stroke leaves the width, the dash and the colour alone, so a colour pick restores the old outline', () => {
+  const box = { id: 'a', kind: 'rect', color: '#b42318', width: 6, dash: 'dashed', fill: '#2383e2', text: 'words' };
+  assert.deepEqual(Object.keys(strokePatch(null)), ['noStroke'], 'the patch touches nothing else');
+  const none = restyle([box], ['a'], strokePatch(null))[0];
+  assert.equal(strokeOf(none, '#37352f'), null);
+  assert.deepEqual([none.color, none.width, none.dash, none.fill, none.text], ['#b42318', 6, 'dashed', '#2383e2', 'words']);
+  const back = restyle([none], ['a'], strokePatch('#1a7f37'))[0];
+  assert.equal(strokeOf(back, '#37352f'), '#1a7f37');
+  assert.equal(back.noStroke, undefined, 'a colour pick clears it, and undefined never reaches the saved JSON');
+  assert.deepEqual([back.width, back.dash, back.fill], [6, 'dashed', '#2383e2']);
+  assert.equal(JSON.stringify(back).includes('noStroke'), false);
+});
+
+test('No stroke on a multi-selection reaches every one of them and restores each at its own width', () => {
+  const list = [{ id: 'a', kind: 'rect', color: '#b42318', width: 2 }, { id: 'b', kind: 'ellipse', color: '#2383e2', width: 6, dash: 'dotted' }, { id: 'c', kind: 'rect', color: '#37352f', width: 3.5 }];
+  const none = restyle(list, ['a', 'b'], strokePatch(null));
+  assert.deepEqual(none.map(entry => strokeOf(entry, '#37352f')), [null, null, '#37352f'], 'the third was not picked');
+  const mixed = new Set(none.map(entry => strokeOf(entry, '#37352f')));
+  assert.equal(mixed.size, 2, 'a pick of one without and one with an outline disagrees, so the panel says Mixed');
+  const back = restyle(none, ['a', 'b'], strokePatch('#7c3aed'));
+  assert.deepEqual(back.map(entry => [entry.color, entry.width, entry.dash]), [['#7c3aed', 2, undefined], ['#7c3aed', 6, 'dotted'], ['#37352f', 3.5, undefined]]);
+});
+
+test('copy style carries No stroke, and a pasted colour brings the outline back', () => {
+  const hidden = copyStyle({ kind: 'rect', color: '#b42318', width: 3.5, noStroke: true });
+  assert.equal(pasteStyle({ id: 'x', kind: 'ellipse', color: '#37352f' }, hidden).noStroke, true);
+  const drawn = copyStyle({ kind: 'rect', color: '#2383e2', width: 6 });
+  const shown = pasteStyle({ id: 'y', kind: 'rect', color: '#37352f', noStroke: true, width: 2 }, drawn);
+  assert.equal(shown.noStroke, undefined);
+  assert.equal(shown.color, '#2383e2');
+  assert.equal(pasteStyle({ id: 'l', kind: 'line', color: '#37352f' }, hidden).noStroke, undefined, 'a line cannot have none');
 });

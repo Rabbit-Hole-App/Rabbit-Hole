@@ -1051,6 +1051,79 @@ await run('review regressions', async () => {
 });
 
 
+// Owner request, 2026-10-13: a "No stroke" swatch, first in the Stroke row, same slash as No fill. It hides the outline and
+// keeps fill and words; the selection outline and handles are editor chrome and stay. A colour pick brings the outline
+// back at its old width and dash. Multi-selection, undo (one step), reload and drawing with the tool armed all follow.
+await run('no stroke', async () => {
+  const box = { id: 'a', kind: 'rect', x1: 100, y1: 100, x2: 360, y2: 200, ...style, color: '#b42318', width: 6, dash: 'dashed', fill: '#2383e2', text: 'Softmax turns scores into probabilities.' };
+  const ring = { id: 'b', kind: 'ellipse', x1: 100, y1: 300, x2: 260, y2: 380, ...style, color: '#2383e2', width: 3.5 };
+  const rule = { id: 'l', kind: 'line', x1: 500, y1: 100, x2: 700, y2: 100, ...style };
+  const { page, context, saved, reload, screen, shot } = await open('no-stroke', { shapes: [box, ring, rule] });
+  const click = async (x, y, modifiers = []) => { const at = await screen(x, y); for (const key of modifiers) await page.keyboard.down(key); await page.mouse.click(at.x, at.y); for (const key of modifiers) await page.keyboard.up(key); };
+  const panel = page.locator('[data-style-panel]');
+  const strokeRow = panel.locator('xpath=.//span[normalize-space()="Stroke"]/../..');
+  const none = strokeRow.locator('button').first();
+  const paint = id => page.locator(`[data-shape-id="${id}"]`).locator('rect, ellipse').first().evaluate(node => { const css = getComputedStyle(node); return { stroke: css.stroke, width: css.strokeWidth, dash: css.strokeDasharray, fill: css.fill }; });
+  const pick = hex => panel.getByRole('button', { name: `Color ${hex}`, exact: true }).click();
+  await click(230, 150);
+  check('No stroke is the first swatch of the Stroke row, drawn with the same slash as No fill', (await none.getAttribute('aria-label')) === 'No stroke' && (await none.innerHTML()) === (await panel.getByRole('button', { name: 'No fill', exact: true }).innerHTML()));
+  check('with a stroke colour on the shape, No stroke is not pressed', (await none.getAttribute('aria-pressed')) === 'false');
+  await shot('no-stroke-1-panel');
+  await none.click();
+  let shape = await shapeOf(saved, 'a');
+  let drawn = await paint('a');
+  check('No stroke takes the outline off the shape', drawn.stroke === 'none' && shape.noStroke === true, JSON.stringify(drawn));
+  check('it keeps the fill, the words, the width, the dash and the colour the words follow', drawn.fill === 'rgb(35, 131, 226)' && shape.fill === '#2383e2' && shape.text.startsWith('Softmax') && shape.width === 6 && shape.dash === 'dashed' && shape.color === '#b42318' && (await page.locator('[data-shape-id="a"] [data-shape-text]').innerText()).startsWith('Softmax'), JSON.stringify(shape));
+  check('the panel shows No stroke pressed', (await none.getAttribute('aria-pressed')) === 'true');
+  const outline = await page.locator('[data-shape-id="a"] rect[data-thumbnail-hide]').evaluate(node => getComputedStyle(node).stroke);
+  check('the selection outline and the four resize handles stay: they are editor chrome, not the stroke', outline === 'rgb(35, 131, 226)' && (await page.locator('[data-shape-id="a"] [data-handle]').count()) === 4 && await page.locator('[data-shape-id="a"] [data-handle]').first().isVisible(), outline);
+  await shot('no-stroke-2-borderless-box');
+  await page.keyboard.press('Control+z');
+  shape = await shapeOf(saved, 'a');
+  drawn = await paint('a');
+  check('one undo puts the outline back', shape.noStroke === undefined && drawn.stroke === 'rgb(180, 35, 24)', JSON.stringify(drawn));
+  await page.keyboard.press('Control+y');
+  check('redo takes it off again', (await paint('a')).stroke === 'none' && (await shapeOf(saved, 'a')).noStroke === true);
+  // Undo and redo drop the selection, as everywhere on the canvas: pick the shape again.
+  await click(230, 150);
+  await pick('#1a7f37');
+  shape = await shapeOf(saved, 'a');
+  drawn = await paint('a');
+  check('picking a colour brings the outline back at the previous width and dash', drawn.stroke === 'rgb(26, 127, 55)' && drawn.width === '6px' && /18/.test(drawn.dash) && shape.width === 6 && shape.dash === 'dashed' && shape.color === '#1a7f37' && !('noStroke' in shape), JSON.stringify(drawn));
+  check('the panel no longer shows No stroke pressed', (await none.getAttribute('aria-pressed')) === 'false');
+  // Reload keeps it.
+  await none.click();
+  await reload();
+  await click(230, 150);
+  check('No stroke survives a reload, and the panel still shows it', (await paint('a')).stroke === 'none' && (await none.getAttribute('aria-pressed')) === 'true');
+  // Multi-selection: a without an outline and b with one is Mixed; one press takes both off, one pick puts each back at its own width.
+  await click(180, 340, ['Shift']);
+  check('a pick that disagrees shows Mixed on the Stroke row and presses nothing', (await strokeRow.locator('span[data-mixed]').count()) === 1 && (await none.getAttribute('aria-pressed')) === 'false');
+  await none.click();
+  check('No stroke applies to every selected shape', (await paint('a')).stroke === 'none' && (await paint('b')).stroke === 'none');
+  await pick('#7c3aed');
+  const [a, b] = [await paint('a'), await paint('b')];
+  check('a colour pick restores each at its own width', a.stroke === 'rgb(124, 58, 237)' && b.stroke === 'rgb(124, 58, 237)' && a.width === '6px' && b.width === '3.5px', JSON.stringify([a.width, b.width]));
+  await page.keyboard.press('Control+z');
+  check('undo of a multi-selection pick is one step', (await paint('a')).stroke === 'none' && (await paint('b')).stroke === 'none');
+  // A line is its stroke: the swatch is not offered beside one.
+  await page.keyboard.press('Escape');
+  await click(230, 150);
+  await click(600, 100, ['Shift']);
+  check('with a line in the pick there is no No stroke, and the colours stay', (await panel.getByRole('button', { name: 'No stroke', exact: true }).count()) === 0 && (await panel.getByRole('button', { name: 'Color #b42318', exact: true }).count()) === 1);
+  // Armed: pick it before drawing and the next rectangle has no outline.
+  await page.keyboard.press('Escape');
+  await click(700, 500);
+  await page.keyboard.press('r');
+  check('with the rectangle tool armed the Stroke row offers No stroke first', (await none.getAttribute('aria-label')) === 'No stroke');
+  await none.click();
+  const from = await screen(420, 300), to = await screen(600, 380);
+  await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 6 }); await page.mouse.up();
+  const drew = (await saved()).shapes.find(entry => !['a', 'b', 'l'].includes(entry.id));
+  check('the next rectangle drawn has no outline', drew && drew.kind === 'rect' && drew.noStroke === true, JSON.stringify(drew));
+  await context.close();
+});
+
 await run('panel focus', async () => {
   const { page, context, screen } = await open('panel-focus', { shapes: [{ id: 'r1', kind: 'rect', x1: 100, y1: 100, x2: 300, y2: 180, ...style, text: 'words' }] });
   const c = await screen(200, 140);

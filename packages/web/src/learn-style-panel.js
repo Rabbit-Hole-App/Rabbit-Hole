@@ -30,6 +30,11 @@ export function dashArray(dash, width) {
   return undefined;
 }
 
+// No stroke is a flag beside the colour, never a colour: width, dash and the colour the words follow all stay put, so
+// picking a colour brings the old outline back as it was. A colour pick clears it (undefined: it never reaches the JSON).
+export const strokePatch = value => (value === null ? { noStroke: true } : { color: value, noStroke: undefined });
+export const strokeOf = (entry, ink) => (entry.noStroke ? null : entry.color || ink);
+
 // Paint order is array order, so send-to-back is a move to the front of it.
 export function reorder(list, ids, toFront) {
   const moving = list.filter(entry => ids.includes(entry.id));
@@ -79,6 +84,9 @@ export function panelFor({ tool, selection, shapes = [], links = [], items = [],
     // selection - a mixed pick falls back to the ink controls both understand.
     text: tool === 'text' || (pickedTexts.length > 0 && !pickedShapes.length && !pickedLinks.length && !pickedStickies.length),
     fill: CLOSED_SHAPES.has(tool) || allShapes(CLOSED_SHAPES),
+    // No stroke: the same shapes as fill. A line, an arrow or a pen mark is its stroke, so hiding it would hide the mark.
+    // ponytail: closed shapes only. A note's border and a connector's line have no separate outline to hide; add if asked.
+    noStroke: CLOSED_SHAPES.has(tool) || allShapes(CLOSED_SHAPES),
     corners: tool === 'rect' || allShapes(new Set(['rect'])),
     order: targets.length > 0,
     // Straight / curved / elbow: for connectors and drawn arrows, and only
@@ -134,7 +142,7 @@ export function styleKeysFor(entry, link = false) {
   if (entry.kind === 'sticky') return ['color', 'opacity', ...TEXT_STYLE.filter(key => key !== 'level')];
   if (entry.kind === 'equation') return ['color'];
   if (LINEAR_SHAPES.has(entry.kind)) return ['color', 'width', 'dash', 'opacity', 'startHead', 'endHead', ...TEXT_STYLE];
-  if (CLOSED_SHAPES.has(entry.kind)) return ['color', 'width', 'dash', 'fill', 'fillOpacity', 'opacity', 'valign', ...TEXT_STYLE, ...(entry.kind === 'rect' ? ['round'] : [])];
+  if (CLOSED_SHAPES.has(entry.kind)) return ['color', 'noStroke', 'width', 'dash', 'fill', 'fillOpacity', 'opacity', 'valign', ...TEXT_STYLE, ...(entry.kind === 'rect' ? ['round'] : [])];
   return [];
 }
 export function copyStyle(entry, link = false) {
@@ -147,6 +155,8 @@ export function copyStyle(entry, link = false) {
 export function pasteStyle(entry, style, link = false) {
   const next = { ...entry };
   for (const key of styleKeysFor(entry, link)) if (key in style) next[key] = style[key];
+  // A pasted colour brings the outline back, unless its source had none.
+  if (CLOSED_SHAPES.has(entry.kind) && 'color' in style && !style.noStroke) delete next.noStroke;
   // Onto a text box, a source's text colour is the box's colour.
   if (entry.kind === 'text' && style.textColor) next.color = style.textColor;
   return next;

@@ -84,7 +84,7 @@ export async function groupShot({ box, members, strokes, shapes, items, blocks, 
     else if (shape.kind === 'line' || shape.kind === 'arrow' || shape.kind === 'curve') { ctx.moveTo(shape.x1, shape.y1); ctx.lineTo(shape.x2, shape.y2); }
     else ctx.roundRect(x, y, w, h, shape.round ? 14 : 2);
     if (shape.fill) { ctx.fillStyle = shape.fill; ctx.globalAlpha = 0.25; ctx.fill(); ctx.globalAlpha = shape.opacity ?? 1; }
-    ctx.stroke();
+    if (!shape.noStroke) ctx.stroke();
     ctx.globalAlpha = 1;
   }
   for (const item of items) {
