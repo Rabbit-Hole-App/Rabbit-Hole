@@ -281,7 +281,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         opener.open(id, 'learner_dblclick');
       } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
       {selected && opens && opener.single === id && (
         <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
@@ -981,7 +981,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
         // nothing shifts; the padding is cancelled by the margin for the same
         // reason - glyphs stay exactly where they were placed.
         ? '-rotate-1 flex flex-col overflow-hidden rounded-sm border p-3 text-[13px] leading-snug shadow-md'
-        : `min-w-24 -mx-1 -my-0.5 rounded border px-1 py-0.5 leading-snug ${code ? 'border-line bg-hover/60' : 'border-transparent'} ${tool === 'select' && !code ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
+        : `min-w-24 -mx-1 -my-0.5 rounded border px-1 py-0.5 leading-snug ${code ? 'border-line bg-hover/60' : 'border-transparent'} ${tool === 'select' && !code ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-select ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={event => { if (tool === 'select') startEdit(event); }}>
       {/* A selected or editing text box offers its ladder right there - H1 to
           text - and Text / Code, instead of asking the learner to find the style
@@ -1047,7 +1047,7 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
   };
   return (
     <div data-block data-item-id={item.id} data-equation={editing ? 'editing' : ''} style={{ left: item.x, top: item.y, fontSize: size, color: inkAware(item.color || COLORS[0]) }}
-      className={`absolute z-10 -mx-1 rounded border px-1 [&_[data-chat-math]]:my-0 [&_[data-chat-math]]:py-0 ${editing ? 'cursor-text border-line bg-white' : `cursor-grab border-transparent active:cursor-grabbing ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
+      className={`absolute z-10 -mx-1 rounded border px-1 [&_[data-chat-math]]:my-0 [&_[data-chat-math]]:py-0 ${editing ? 'cursor-text border-line bg-white' : `cursor-grab border-transparent active:cursor-grabbing ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-select ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={() => { if (tool === 'select' && !locked) setEditing(true); }}>
       {editing
         ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
@@ -1306,10 +1306,10 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
           </div>
         </foreignObject>
       )}
-      {selected && !linear && <rect data-thumbnail-hide x={x - 5} y={y - 5} width={w + 10} height={h + 10} fill="none" stroke="#2383e2" strokeWidth="1" strokeDasharray="4 3" />}
+      {selected && !linear && <rect data-thumbnail-hide x={x - 5} y={y - 5} width={w + 10} height={h + 10} fill="none" style={{ stroke: 'var(--color-select)' }} strokeWidth="1" strokeDasharray="4 3" />}
       {selected && tool === 'select' && !locked && handles.map(([hx, hy, grip], index) => (
-        <circle key={index} data-thumbnail-hide data-handle={linear ? grip : grip.join('')} cx={hx} cy={hy} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
-          style={{ pointerEvents: 'all', cursor: linear ? 'move' : grip[0] === grip[1] ? 'nwse-resize' : 'nesw-resize' }}
+        <circle key={index} data-thumbnail-hide data-handle={linear ? grip : grip.join('')} cx={hx} cy={hy} r={5 / zoom} fill="white" strokeWidth={1.5 / zoom}
+          style={{ stroke: 'var(--color-select)', pointerEvents: 'all', cursor: linear ? 'move' : grip[0] === grip[1] ? 'nwse-resize' : 'nesw-resize' }}
           onPointerDown={event => {
             if (event.button !== 0) return;
             onGesture();
@@ -1324,8 +1324,8 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
       {textBox && tool === 'select' && onConnect && SIDES.map(side => {
         const at = sidePoint({ x, y, w, h }, side);
         return (
-          <circle key={side} data-port={side} data-owner={shape.id} cx={at.x} cy={at.y} r={6 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
-            className={selected || showPorts ? '' : 'opacity-0 group-hover:opacity-100'} style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+          <circle key={side} data-port={side} data-owner={shape.id} cx={at.x} cy={at.y} r={6 / zoom} fill="white" strokeWidth={1.5 / zoom}
+            className={selected || showPorts ? '' : 'opacity-0 group-hover:opacity-100'} style={{ stroke: 'var(--color-select)', pointerEvents: 'all', cursor: 'crosshair' }}
             onPointerDown={event => onConnect(event, shape.id, side)}><title>Drag or click to connect</title></circle>
         );
       })}
@@ -4360,8 +4360,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {links.filter(link => isSelected(link.id) && connecting?.hide !== link.id).flatMap(link => {
               const path = linkRoute(link);
               return path ? [['from', portPosition(link.from, link.fromSide)], ['to', path.tip]].map(([end, at]) => at && (
-                <circle key={`${link.id}-${end}`} data-link-for={link.id} data-link-end={end} cx={at.x} cy={at.y} r={6 / view.z} fill="white" stroke="#2383e2" strokeWidth={1.5 / view.z}
-                  style={{ pointerEvents: 'all', cursor: 'move' }} onPointerDown={event => repoint(event, link, end)}><title>Drag to attach this end somewhere else</title></circle>
+                <circle key={`${link.id}-${end}`} data-link-for={link.id} data-link-end={end} cx={at.x} cy={at.y} r={6 / view.z} fill="white" strokeWidth={1.5 / view.z}
+                  style={{ stroke: 'var(--color-select)', pointerEvents: 'all', cursor: 'move' }} onPointerDown={event => repoint(event, link, end)}><title>Drag to attach this end somewhere else</title></circle>
               )) : [];
             })}
           </svg>
@@ -4386,7 +4386,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         )}
         {readOnly && selected && bounds[selected] && (
           <div data-view-selection={selected} aria-hidden="true" style={{ left: bounds[selected].x - 3, top: bounds[selected].y - 3, width: bounds[selected].w + 6, height: bounds[selected].h + 6 }}
-            className="pointer-events-none absolute z-20 rounded-[14px] ring-2 ring-[#2383e2]" />
+            className="pointer-events-none absolute z-20 rounded-[14px] ring-2 ring-select" />
         )}
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
         {presenting === null && !readOnly && !selection.length && gaps.filter(gap => gap.index === hoverGap).map(gap => (
@@ -4464,7 +4464,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   Ctrl presses and non-select tools fall through to the canvas. */}
               <div data-group-box={group.id}
                 style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
-                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} cursor-grab active:cursor-grabbing`}
+                className={`absolute rounded-xl border ${active ? 'border-select bg-select/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} cursor-grab active:cursor-grabbing`}
                 onDoubleClick={divePortals ? () => (portal ? divePortals.enter(portal.name) : divePortals.open?.(group.id, group.label || `${members.length} items`)) : undefined}
                 onPointerDown={event => {
                   if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;

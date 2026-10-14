@@ -300,8 +300,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           history, the thumbnail (data-thumbnail-hide) or an export; only the ghost itself takes the pointer, so nothing
           under it is clicked by mistake. */}
       <div data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+        {/* The target is purple while the editor is open (owner 2026-10-13): its own canvas selection marks take --color-ai;
+            every other selection stays blue. */}
+        <style data-inline-target-color>{`${[...target.ids.flatMap(id => ['shape-id', 'item-id', 'block-id', 'link-for'].map(key => `[data-${key}="${CSS.escape(id)}"]`)),
+          ...(target.groupId && target.wholeGroup ? [`[data-group-box="${CSS.escape(target.groupId)}"]`] : [])].join(',')}{--color-select:var(--color-ai)}`}</style>
         {target.ids.map(id => canvas.boxOf(id)).filter(Boolean).map((world, index) => (
-          <div key={index} data-inline-target className="absolute rounded-md outline-2 outline-offset-4 outline-dashed outline-[#2383e2]"
+          <div key={index} data-inline-target className="absolute rounded-md outline-2 outline-offset-4 outline-dashed outline-ai"
             style={{ left: world.x * z + view.x, top: world.y * z + view.y, width: world.w * z, height: world.h * z }} />
         ))}
         {(() => {
@@ -349,7 +353,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {(() => {
           const place = id => { const world = canvas.boxOf(id); return world && { left: world.x * z + view.x, top: world.y * z + view.y, minWidth: world.w * z, minHeight: world.h * z }; };
           // Over its own object, so it lets clicks through: the learner can still open and edit those words.
-          const frame = 'absolute rounded-md border border-dashed border-[#2383e2] bg-white/95 px-1 text-ink opacity-60 dark:bg-[#202020]/95';
+          const frame = 'absolute rounded-md border border-dashed border-ai bg-white/95 px-1 text-ink opacity-60 dark:bg-[#202020]/95';
           if (status === 'streaming' && state.stream?.edits) return Object.entries(state.stream.edits).map(([id, text]) => {
             const at = place(id);
             return at && <div key={id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={id} className={frame} style={{ ...at, fontSize: 14 * z }}>{text}</div>;
@@ -390,7 +394,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'Describe the change' : 'What should the explanation cover?'}
             placeholder={preview ? 'Refine…' : mode === 'edit' ? 'Describe the change…' : 'Explain this… or /diagram, /code'}
             disabled={readOnly}
-            className="max-h-28 min-h-8 flex-1 resize-none rounded-lg border border-line bg-white px-2 py-1.5 text-sm leading-5 outline-none placeholder:text-ink-3 focus:border-[#2383e2]" />
+            className="max-h-28 min-h-8 flex-1 resize-none rounded-lg border border-line bg-white px-2 py-1.5 text-sm leading-5 outline-none placeholder:text-ink-3 focus:border-ai" />
           {/* Submit keeps its place while a request runs (disabled, spinning): Stop is never under the pointer or finger that
               just pressed Submit, so a double press cannot cancel what it sent. */}
           <button type="button" data-inline-submit disabled={readOnly || status === 'proposal' || busy(status) || prompt.length > PROMPT_MAX} onClick={() => submit(prompt)} title={preview ? 'Refine (Enter)' : 'Submit (Enter)'}
@@ -407,7 +411,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         </div>
         {contextOpen && prepared && (
           <ul data-inline-context-list data-scroll className="max-h-36 overflow-y-auto rounded-lg bg-hover px-2 py-1 text-xs text-ink-2">
-            {prepared.context.target.objects.map(entry => <li key={entry.id} className="truncate"><span className="text-ink">Selected</span> · {LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(target.range && target.range.id === entry.id ? target.range.text : entry.text)}</li>)}
+            {prepared.context.target.objects.map(entry => <li key={entry.id} className="truncate"><span data-inline-context-target className="font-medium text-ai">Selected</span> · {LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(target.range && target.range.id === entry.id ? target.range.text : entry.text)}</li>)}
             {prepared.context.related.map(entry => <li key={entry.id} className="truncate">{RELATION[entry.relation] || entry.relation} · {LABEL[entry.type] || entry.type} · {short(entry.text)}</li>)}
             {prepared.context.target.group && <li className="truncate">group “{short(prepared.context.target.group.label || 'untitled', 30)}”</li>}
             {prepared.context.broader.title && <li className="truncate">canvas title “{short(prepared.context.broader.title, 40)}”</li>}

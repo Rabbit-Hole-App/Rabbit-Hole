@@ -1116,6 +1116,45 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   check('A7: Esc removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
   await context.close();
 });
+
+// ---- Owner 2026-10-13: "the color when selecting something and do ctrl + k should be purple and not blue". ----
+await run('Purple target: with the editor open the target ring, its selection marks and the focused field are the --color-ai token, in light and dark; other selections stay blue', async () => {
+  const { page, context } = await open('purple');
+  // A token's colour as the browser computes it, and the colours of the marks on n23 and its editor.
+  const colours = () => page.evaluate(() => {
+    const probe = document.createElement('i');
+    document.body.append(probe);
+    probe.style.color = 'var(--color-ai)';
+    const ai = getComputedStyle(probe).color;
+    probe.remove();
+    const ring = document.querySelector('[data-inline-target]'), field = document.querySelector('[data-inline-prompt]');
+    const mark = document.querySelector('[data-shape-id="n23"] rect[data-thumbnail-hide]'), port = document.querySelector('[data-shape-id="n23"] [data-port]');
+    return { ai, ring: ring && getComputedStyle(ring).outlineColor, mark: mark && getComputedStyle(mark).stroke, port: port && getComputedStyle(port).stroke, field: field && getComputedStyle(field).borderTopColor,
+      marker: document.querySelector('[data-inline-context-target]') && getComputedStyle(document.querySelector('[data-inline-context-target]')).color };
+  });
+  const blue = 'rgb(35, 131, 226)';
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(dark => document.documentElement.classList.toggle('dark', dark), theme === 'dark');
+    await clickShape(page, 'n23');
+    await ctrlK(page);
+    await page.locator('[data-inline-ai]').waitFor();
+    await page.locator('[data-inline-context]').click();
+    await page.locator('[data-inline-prompt]').focus();
+    const c = await colours();
+    const [r, g, b] = (c.ai.match(/\d+/g) || []).map(Number);
+    check(`purple (${theme}): the --color-ai token is a purple (red and blue over green), not the selection blue`, c.ai !== blue && r > g && b > g, c.ai);
+    check(`purple (${theme}): the target ring, the target's own selection mark, the focused field and the Selected marker are --color-ai`,
+      c.ring === c.ai && c.mark === c.ai && c.port === c.ai && c.field === c.ai && c.marker === c.ai, JSON.stringify(c));
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+    await clickShape(page, 'n23');
+    const after = await colours();
+    check(`purple (${theme}): with the editor closed the same selection is blue again`, after.mark === blue && after.port === blue, `${after.mark} ${after.port}`);
+    await page.mouse.click(60, 120);
+  }
+  await context.close();
+});
 await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);
