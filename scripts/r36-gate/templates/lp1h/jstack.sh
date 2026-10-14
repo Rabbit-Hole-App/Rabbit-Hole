@@ -22,6 +22,8 @@ npx --no-install wrangler d1 execute rabbit-hole-byoc-dev --local -c $C --persis
 echo "local D1 ready"
 rm -f $J/app.log $J/cp.log
 export WRANGLER_REGISTRY_PATH=$J/registry-j; mkdir -p "$WRANGLER_REGISTRY_PATH"
+# Each worker's wrangler debug log lands in $J/wrangler-logs: classify-retry.mjs reads the crash signature there, and run.mjs exports the .log files.
+export WRANGLER_LOG=debug WRANGLER_LOG_PATH="$J/wrangler-logs"; mkdir -p "$WRANGLER_LOG_PATH"
 (npx --no-install wrangler dev -c $WS/cfg/app/wrangler.jsonc -c $C --local --persist-to $P --ip 127.0.0.1 --port 8878 > $J/app.log 2>&1 &)
 for i in $(seq 1 150); do grep -q "Ready on" $J/app.log 2>/dev/null && break; sleep 1; done
 (npx --no-install wrangler dev -c $C --local --persist-to $P --ip 127.0.0.1 --port 8879 > $J/cp.log 2>&1 &)

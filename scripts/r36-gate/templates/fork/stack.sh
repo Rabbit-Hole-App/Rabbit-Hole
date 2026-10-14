@@ -46,6 +46,8 @@ cd $W; rm -f "$J/app.log" "$J/cp.log"
 # A private dev registry (see lanes/lane-stack.sh): other local stacks churning the machine-wide one crashed this
 # stack mid-gate (wrangler ProxyController error, 2026-10-06). App and control plane run in-process; nothing needs it.
 export WRANGLER_REGISTRY_PATH=$J/registry-integ; mkdir -p "$WRANGLER_REGISTRY_PATH"
+# Each worker's wrangler debug log lands in $J/wrangler-logs: classify-retry.mjs reads the crash signature there, and run.mjs exports the .log files.
+export WRANGLER_LOG=debug WRANGLER_LOG_PATH="$J/wrangler-logs"; mkdir -p "$WRANGLER_LOG_PATH"
 (npx --no-install wrangler dev -c "$W/packages/web/integ-local$TW.jsonc" -c "$W/packages/control-plane/integ-local$TW.jsonc" --local --persist-to $P --port 8878 --inspector-port 9318 > "$J/app.log" 2>&1 &)
 for i in $(seq 1 120); do
   stop_requested

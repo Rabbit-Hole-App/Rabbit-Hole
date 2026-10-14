@@ -67,14 +67,54 @@ only then (`CONDITIONAL`), so an older candidate is still judged by its own tree
   release-branch change). It prints one `canvas shell ok ...` line, which `cnt()` counts as 1/1.
 - canvas-toolbar takes `<base> <board> <outDir>` and decides local (the stack's `packages/control-plane/.dev.vars`, `SMALL_CP`
   from `$E`) from a 127.0.0.1 base, so it has its own block in `int35.sh` (like rh-local) with `run()`'s memcheck,
-  check_tree, tripwire and rerun-once steps. Its exit line is `canvas-toolbar exit $rc  N/N checks passed` (N is its desktop,
+  check_tree, tripwire and retry steps. Its exit line is `canvas-toolbar exit $rc  N/N checks passed` (N is its desktop,
   wide and phone section lines) or `fail 1` on a nonzero exit.
 - The candidate's `gateVerdict` only attests a stage it lists in `GATE_STAGES`; at 9e2b459e neither name is listed, so the
   app release branch must add both (with `check:` set to the files above) for the gate to require them. Until then a
   failing one still fails the gate (any nonzero exit does), and a passing one is recorded but not required.
 
 `canary_fail_stage` (dispatch input, proof only) swaps one run-line stage's check for a missing file, so the gate must
-fail. It can only fail a stage, never pass or skip one.
+fail. It can only fail a stage, never pass or skip one. It fails once and is not retried (its stack is alive). It reaches
+only the unindented `run stack...` lines: the guarded stages (project-menu, canvas-shell, library-folders, share-revocation),
+canvas-toolbar, rh-local and the journey-stack stages are not reachable with it, and naming one does nothing.
+
+## Qualified retry (Task A8)
+
+`int35.sh` used to rerun any failed check once, which could turn an intermittent product failure green. Now `retry_check`
+(`templates/classify-retry.mjs`, configured by `templates/transients.json`) allows a retry only when all of these hold:
+- the check failed and its stack no longer answers on both 8878 and 8879 (`alive`);
+- the check log has no assertion (`✗`, `AssertionError`, `not ok`, `FAIL`) and `app.log` and `cp.log` have no worker exception
+  (`workerErrors`);
+- a wrangler debug log written during this stage (newer than the stack dir's `stage-start` file, which each stage touches
+  once its stack is up) holds every string of one `transients` entry: today only `proxy-keepalive`, wrangler's ProxyWorker
+  "Network connection lost" error (the dropped keep-alive that exits wrangler 4.129 dev);
+- the stage is in `retrySafe`: proven to namespace every record it creates by a per-run value (or, on the journey stack,
+  to start from the empty D1 that `jstack.sh` recreates) and to assert only on its own records;
+- fewer than `maxRetriesPerPart` (2) retries are used in this part (`RETRIES` in the part's shell script).
+
+Everything else is a real failure on its first attempt. That includes the notebook-CDN flake the old comment named: with the
+stack alive it is not retried. A stack restart keeps the persisted state (explore reads comments' publication), so a stage
+whose records are shared across runs cannot be proven safe: project-canvases is out because it filters Explore by the fixed
+label `acme/project-canvases`. `transients.json` lists every gate stage once, in `retrySafe` with its file:line evidence or in
+`notRetrySafe` with its reason; `classify-retry.test.mjs` fails when a stage is added to `ORDER` without a decision. A candidate
+that edits a listed check needs its evidence re-read.
+
+Evidence of a retried stage, in the stack dir (`fork/` or `lp1h/`), which `run.mjs` exports with the other logs:
+- `attempt-1/<stage>/check.log`, `app.log`, `cp.log`, `wrangler-logs/` and `shots/`: the first attempt, copied before the restart;
+- `wrangler-logs/*.log`: the wrangler debug log of every worker start (`WRANGLER_LOG=debug` in the three stack scripts);
+- `crash-<time>-app.log` and `-cp.log`: the dead stack's own logs, kept by the restart as before.
+
+The gate record carries `<stage>: exit N (stack alive: no) - retry proxy-keepalive` (or `fail <reason>` for a refusal) and, after
+the rerun, `<stage>: retried (proxy-keepalive) - first attempt diagnostics in attempt-1/<stage>`. The stage's own
+`<stage> exit N ...` line is the rerun's and is unchanged for `gateVerdict`. The restart zeroes the stack's provider tripwire,
+so `<stage> attempt-1 provider-tripwire hits: N` records what the first attempt's stack still reported; any N other than 0 fails
+the gate as every other tripwire count does.
+
+## Known flakes
+
+| Where | Symptom | Owner | Fix status |
+|---|---|---|---|
+| `harness.test.mjs:77` (supervisor test) | `.memory.jsonl` receipt missing under heavy machine CPU (seen at about 70%); fails on c37c7ed0 too | harness | open |
 
 ## Removed duplicate runs (2026-10-13)
 

@@ -131,7 +131,8 @@ export function mergeShards(logs, inTree = () => true, unitsLog = null) {
 }
 
 // Proof only (dispatch input canary_fail_stage): that run-line stage gets a check file that does not exist, so it
-// fails twice and the gate must fail. It can only make a stage fail, never pass or skip one.
+// fails (its stack is alive, so it is not retried) and the gate must fail. It can only make a stage fail, never pass or
+// skip one. It matches unindented `run stack...` lines only: a guarded or block stage (see README) is left unchanged.
 export function canary(script, stage) {
   if (!stage) return script;
   if (!ORDER.includes(stage)) throw Error(`canary_fail_stage names no gate stage: ${stage}`);
