@@ -114,8 +114,8 @@ test('regression 3: an unsupported context stays unsupported through capability 
 // Ruling F4 (Task 10), amended by Task 11b: where no journey, hole journey or registered entry resolves, the canvas gets the
 // canvas domain - capabilities { tutor: true, hook_turns: true } since 11b (owner eleventh message 6: plain-canvas typing and
 // Voice are Auto Tutor input; until 11b it was { tutor: false, hook_turns: true }, typed text staying the Learn chat). A
-// registered entry that refuses the Tutor still refuses it, hooks too. goal: a hole's learning_goal or title, else the canvas
-// title; origin: the shared canvas a hole came from.
+// registered entry that refuses the Tutor still refuses it, hooks too. goal: a hole's learning_goal only, never a title (topic
+// restriction, owner 2026-10-14); origin: the shared canvas a hole came from.
 test('F4 + 11b: a plain canvas or a plain hole gets the canvas domain, typed and hook turns alike; a registered entry that refuses stays off', () => {
   const entry = TUTOR_DOMAINS.find(e => e.domain === NANOGPT);
   let canvas = 0, refused = 0;
@@ -127,8 +127,8 @@ test('F4 + 11b: a plain canvas or a plain hole gets the canvas domain, typed and
       if (registeredCourse(where, registry)) { refused++; assert.equal(context, null, JSON.stringify(c)); continue; }
       canvas++;
       assert.deepEqual([context.source, context.capabilities, context.domain.kind, context.domain.contextKey], ['canvas', { tutor: true, hook_turns: true }, 'canvas', 'canvas_context'], JSON.stringify(c));
-      // The live canvas title (fix round 2): a hole without a learning_goal takes it too, never its creation-time title.
-      assert.deepEqual(context.domain.context, { goal: 'My canvas', origin: null }, JSON.stringify(c));
+      // A titled canvas, or a hole without a learning_goal: no goal, and the title nowhere in the domain's context.
+      assert.deepEqual([context.domain.context, context.domain.subject], [{ goal: null, origin: null }, null], JSON.stringify(c));
     }
   }
   assert.ok(canvas > 0 && refused > 0);
@@ -140,6 +140,20 @@ test('F4 + 11b: a plain canvas or a plain hole gets the canvas domain, typed and
   const shared = { kind: 'shared', title: 'Bread science', app: 'share:0f0f', board: 'main' };
   const record = { dive_id: 'canvas-0000aaaa', title: 'Exploring from Bread science', learning_goal: 'Understand why rising dough traps gas', source: { title: 'Bread science' } };
   assert.deepEqual(tutorContext({ board: 'main', root: shared, record, title: 'x' }).domain.context, { goal: 'Understand why rising dough traps gas', origin: 'Bread science' });
+});
+
+// Topic restriction (owner 2026-10-14): a canvas title never becomes the Tutor's goal or subject, so it never limits what may be
+// asked on the canvas; the title rides only as canvas_context.title, a weak hint. A hole's explicit learning_goal stays its goal.
+test('topic: a titled plain canvas or hole has no goal or subject and no title in its domain context; a learning_goal is the goal', () => {
+  for (const title of ['Trees', 'Sourdough notes', 'A study of tides']) {
+    for (const where of [{ board: 'main' }, { board: 'main', record: { dive_id: 'canvas-0000aaaa', title, concept: title, origin: {} } }]) {
+      const { domain } = tutorContext({ ...where, title });
+      assert.deepEqual([domain.context.goal, domain.subject], [null, null], title);
+      assert.ok(!JSON.stringify(domain.context).includes(title), `${title} is nowhere in the domain context`);
+    }
+  }
+  const record = { dive_id: 'canvas-0000bbbb', title: 'Hole', learning_goal: 'Explain how yeast gas lifts dough', origin: {} };
+  assert.deepEqual([tutorContext({ board: 'main', record, title: 'Trees' }).domain.context.goal, tutorContext({ board: 'main', record }).domain.subject], [record.learning_goal, record.learning_goal]);
 });
 
 test('regression 4: renamed course and domain ids change nothing - ids and kind labels are labels, never keys', () => {
@@ -246,9 +260,9 @@ test('F4 + 11b through useTutor: a plain canvas and a shared-canvas hole run hoo
   const shared = { kind: 'shared', title: 'Bread science', app: 'share:0f0f', board: 'main' };
   const cases = [
     // A plain canvas whose dives record has landed (no dive): fix round 2 holds hooks until it has.
-    [{ app: { name: 'canvas-0000aaaa', title: 'Sourdough notes' }, tree: { path: [{ app: 'canvas-0000aaaa', board: 'main', title: 'Sourdough notes', kind: 'canvas' }], children: [], dive: null } }, { goal: 'Sourdough notes', origin: null }, 'small.tutor:o:e@x.com:canvas:canvas-0000aaaa|main'],
+    [{ app: { name: 'canvas-0000aaaa', title: 'Sourdough notes' }, tree: { path: [{ app: 'canvas-0000aaaa', board: 'main', title: 'Sourdough notes', kind: 'canvas' }], children: [], dive: null } }, { goal: null, origin: null }, 'small.tutor:o:e@x.com:canvas:canvas-0000aaaa|main'],
     [{ app: { name: 'canvas-0000bbbb', title: 'Exploring from Bread science' }, root: shared, record: { dive_id: 'canvas-0000bbbb', title: 'Exploring from Bread science', origin: { parent: { app: 'share:0f0f', board: 'main' } }, source: { title: 'Bread science' } } },
-      { goal: 'Exploring from Bread science', origin: 'Bread science' }, 'small.tutor:o:e@x.com:canvas:canvas-0000bbbb|main'],
+      { goal: null, origin: 'Bread science' }, 'small.tutor:o:e@x.com:canvas:canvas-0000bbbb|main'],
   ];
   for (const [where, canvasContext, key] of cases) {
     const storage = new Map(), calls = [];
@@ -350,20 +364,20 @@ test('hookContext: a canvas whose dives record has not landed has no hook contex
 });
 
 // Fix round 3 (coordinator ruling): the canonical live title is the server title useTutor already has - the dives path's last
-// level (Dive reloads it on a rename; a pending hole's renamed title in session), app.title last. It grounds canvas_context
-// and dive_context.title; a learning_goal leads the goal; the record title (creation time) is never read for them.
-test('the live title: canvas_context.goal and dive_context.title follow the dives path title, over app.title and the record title', async () => {
+// level (Dive reloads it on a rename; a pending hole's renamed title in session), app.title last. It grounds a hole's
+// dive_context.title; only a learning_goal is the goal - never a title (topic restriction, owner 2026-10-14).
+test('the live title: dive_context.title follows the dives path title, over app.title and the record title; canvas_context.goal is only a learning_goal', async () => {
   const STEP = { v: 1, set_id: 'ns_0f0f0f0f', suggestion_id: 'ns_0f0f0f0f.2', basis: 'b', hook: 'Why does a wet dough rise faster?', learning_goal: 'Explain hydration and gas', concept_ids: [], claim_ids: [], scope: 'owned' };
   const shared = { kind: 'shared', title: 'Bread science', app: 'share:0f0f', board: 'main' };
   const level = (app, title, extra = {}) => ({ app, board: 'main', kind: 'canvas', ...(title ? { title } : {}), ...extra });
   const created = { dive_id: 'canvas-0000bbbb', title: 'Hole as created', concept: 'Hole as created', source: { title: 'Bread science' } };
   const cases = [
-    ['a persisted plain canvas, renamed', { app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: { path: [level('canvas-0000aaaa', 'Renamed canvas')], children: [], dive: null } }, 'Renamed canvas', null],
-    ['no path title: app.title', { app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: { path: [level('canvas-0000aaaa')], children: [], dive: null } }, 'Created as', null],
-    ['a canvas-domain hole, renamed', { app: { name: 'canvas-0000bbbb', title: 'Hole as created' }, tree: { path: [shared, level('canvas-0000bbbb', 'Renamed hole')], children: [], dive: created } }, 'Renamed hole', 'Renamed hole'],
+    ['a persisted plain canvas, renamed', { app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: { path: [level('canvas-0000aaaa', 'Renamed canvas')], children: [], dive: null } }, null, null],
+    ['no path title: app.title', { app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: { path: [level('canvas-0000aaaa')], children: [], dive: null } }, null, null],
+    ['a canvas-domain hole, renamed', { app: { name: 'canvas-0000bbbb', title: 'Hole as created' }, tree: { path: [shared, level('canvas-0000bbbb', 'Renamed hole')], children: [], dive: created } }, null, 'Renamed hole'],
     ['a hole with a learning_goal keeps its goal', { app: { name: 'canvas-0000bbbb', title: 'Hole as created' }, tree: { path: [shared, level('canvas-0000bbbb', 'Renamed hole')], children: [], dive: { ...created, learning_goal: 'Explain why dough traps gas' } } }, 'Explain why dough traps gas', 'Renamed hole'],
     // Dive.jsx rename of a pending hole: holeRef title, dive.title and dive.concept, then the tree reloads from it.
-    ['a pending hole renamed in session', { app: { name: 'canvas-0000cccc', title: 'Pending as created' }, tree: { path: [level('canvas-0000aaaa', 'Parent'), level('canvas-0000cccc', 'Renamed pending', { pending: true })], children: [], dive: { dive_id: 'canvas-0000cccc', title: 'Renamed pending', concept: 'Renamed pending', origin: {} } } }, 'Renamed pending', 'Renamed pending'],
+    ['a pending hole renamed in session', { app: { name: 'canvas-0000cccc', title: 'Pending as created' }, tree: { path: [level('canvas-0000aaaa', 'Parent'), level('canvas-0000cccc', 'Renamed pending', { pending: true })], children: [], dive: { dive_id: 'canvas-0000cccc', title: 'Renamed pending', concept: 'Renamed pending', origin: {} } } }, null, 'Renamed pending'],
   ];
   for (const [name, where, goal, diveTitle] of cases) {
     const storage = new Map(), calls = [];
@@ -391,20 +405,20 @@ test('the live title: canvas_context.goal and dive_context.title follow the dive
 test('wiring: useTutor and LearnPage decide the Tutor only through the resolver; the registry holds the one nanoGPT entry', () => {
   const tutor = read('LearnTutor.jsx'), page = read('LearnPage.jsx'), registry = read('learn-tutor-domains.js');
   // Task 11c-B: repository (the page's handoff flag, else the app's own: canvasRepository).
-  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null \}\)/);
-  assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record, title: liveTitle \};/);
+  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null \}\)/);
+  assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record \};/);
   assert.match(tutor, /const liveTitle = dive\.tree\?\.path\?\.at\(-1\)\?\.title \?\? app\.title \?\? null;/);
   // Merge of Tasks 10 and 11: the opening lives in holeOpening (learn-next-steps.js), handed the live title.
   assert.match(tutor, /holeOpening\(\{ storage: sessionStorage, load, record, title: liveTitle, hookTurns, settled, active, /);
   assert.match(tutor, /const common = \{ canvas: \{ \.\.\.here, \.\.\.\(record \? \{ dive: record, liveTitle \} : \{\}\) \},/);
   assert.match(tutor, /const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
-  assert.match(tutor, /const domainOf = \(canvas, selected = null\) => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], selected \}\)\?\.domain;/);
+  assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
   // Task 10 fix round 1: the parent read records the hole it settled for, snapshot() waits on it, and a rename rebuilds turn().
   assert.match(tutor, /diveJourney\(record, path => api\(path\)\)\.then\(found => \{ if \(current\) \{ setParentJourney\(found\); setParentRead\(record\.dive_id\); \} \}\);/);
   assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead, recordPending\), store: load\(\), parent: parentJourney, record, liveTitle \}\),/);
   assert.match(tutor, /const recordPending = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(app\.name\) && !dive\.tree;/);
   assert.match(tutor, /\}, \[access, record, here\.app, here\.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle, openResearch, reads\]\);/); // Task 11c-B: reads
-  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock \}\);/);
+  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext \}\);/);
   assert.match(page, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
   assert.equal(TUTOR_DOMAINS.filter(e => e.domain === NANOGPT).length, 1);
   assert.equal(registry.match(/'karpathy\/nanoGPT'/g).length, 1);

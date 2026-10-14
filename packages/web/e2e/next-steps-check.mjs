@@ -452,15 +452,16 @@ const noCanvas = id => { if (state.canvas) return false; record(id, 'FAIL', 'no 
 const ONLY_PLAN = routes => routes.length === 1 && routes[0] === '/api/learn/tutor/plan';
 const chipsOf = (actions, domain, extra = {}) => executeActions(actions, { canvas: {}, suggestDive: () => {}, climb: () => {}, domain, ...extra });
 
-// N8: a plain canvas typed turn goes to the Tutor plan request with the canvas's cards.
+// N8: a plain canvas typed turn goes to the Tutor plan request. Its domain context is goal and origin only: the board travels as
+// the page's top-level canvas_context (whole-canvas context; e2e/canvas-context-check.mjs), and the title is never the goal.
 async function n8() {
   if (noCanvas('N8')) return;
   const c = state.canvas, { result, routes, context, decision } = await autoTurn(c, { raw: AUTO_RAW });
   check('N8 plan request', ONLY_PLAN(routes) && context?.learner_intent?.raw_user_message === AUTO_RAW && !('journey_context' in context) && result.text === CANNED,
     'a typed turn made exactly one request, to /api/learn/tutor/plan, with the words and no journey context (no /evaluate, no /api/learn/journey)', `requests ${routes.join(', ') || 'none'}; reply ${result.text ? 'present' : 'missing'}`);
-  const cards = context?.canvas_context?.cards || [];
-  check('N8 canvas cards', JSON.stringify(cards.map(x => x.id)) === JSON.stringify(c.blocks.map(b => b.id)) && cards.every(x => x.kind === 'explanation' && x.title && x.text),
-    `canvas_context.cards holds the ${cards.length} saved blocks, in canvas order, with kind, title and text`, `cards ${JSON.stringify(cards.map(x => [x.id, x.kind]))}`);
+  const domainContext = context?.canvas_context || {};
+  check('N8 canvas domain', JSON.stringify(Object.keys(domainContext)) === '["goal","origin"]' && domainContext.goal === null && !JSON.stringify(domainContext).includes(c.title),
+    'context.canvas_context holds goal and origin only - no cards, and the canvas title is not the goal', `canvas_context ${JSON.stringify(domainContext)}`);
   check('N8 auto reading', decision?.intent_mode === 'auto' && result.trace?.identity?.mode === 'canvas' && context?.allowed_actions?.includes('respond_text') && context.allowed_actions.includes('create_material'),
     'trace: intent_mode auto, mode canvas; the planner may reply or make material', `intent_mode ${decision?.intent_mode}, mode ${result.trace?.identity?.mode}, allowed ${context?.allowed_actions?.join(',')}`);
 }

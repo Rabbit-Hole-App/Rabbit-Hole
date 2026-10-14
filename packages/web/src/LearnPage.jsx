@@ -40,6 +40,7 @@ import ChatPane, { PaneSwitch } from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
+import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle } from 'lucide-react';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
@@ -332,6 +333,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     insertChat: entry => canvasApi.current?.insertChat(entry),
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
     locate: id => canvasApi.current?.focusBlock(id),
+    canvasContext, selection: () => canvasApi.current?.selection?.() || [],
     insertNotebook: (cells, language = 'python') => {
       const block = newNotebookBlock(), [cell] = block.ipynb.cells;
       return canvasApi.current?.insertImported({ ...block, language, ipynb: { ...block.ipynb, cells: cells.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') })) } });
@@ -659,6 +661,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // A pending Rabbit Hole's asks carry its parent and title: it has no canvas row until its first object (Dive.jsx).
   const askScope = hole ? { app: app.name, pending: { parent: hole.parent, title: app.title } } : { app: app.name };
   const canvasApi = useRef(null);
+  // Whole-canvas context (chat-canvas-context.js): the canvas_context every chat turn on this canvas carries, built from the live
+  // canvas when it is sent - Ask and Tutor modes (canvasOps, ask.jsx) and Auto's Tutor (useTutor) alike. The title is a weak hint
+  // (titleNow, set below); the summary is the "This canvas" chip's line. Refs and stable setters only, so any render's copy works.
+  const titleNow = useRef(null);
+  const canvasContext = options => {
+    const built = canvasContextNow({ api: canvasApi.current, title: titleNow.current, ...options });
+    if (built) chat.setCanvasCoverage?.(built.coverage.summary);
+    return built;
+  };
   // The server is the source of truth for every owned board (docs/features/canvas-persistence.md): each is saved there,
   // and a newer server copy replaces this browser's on open. This browser keeps the instant copy, the offline queue and
   // the cache. Review boards (?board=, dev tooling) are saved there only while shared (canvas-sharing.md).
@@ -694,7 +705,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // repository: a detached repository source is honoured by the Tutor's handoff too, as by Learn chat (contract §4.7.2).
   // ponytail: no openResearch until a Home/Library Research entry can take a seeded request; until then the Tutor offers no
   // Research this (contract §4.5).
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock });
+  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);
@@ -1359,6 +1370,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const fallbackTitle = isCanvas ? app.title || 'Untitled canvas'
     : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : project ? 'Main canvas' : app.repo || app.name)
     : courseTitle || app.repo || app.name;
+  titleNow.current = canvasTitle || fallbackTitle;
   // Never the canvas id: its title, or plain words when there is none.
   // A canvas title is a weak hint (chat brief section 8), so the canvas composer never names it.
   const askPlaceholder = isCanvas ? 'Ask about this canvas…' : `Ask about ${app.repo || app.name}…`;
