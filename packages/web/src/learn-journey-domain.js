@@ -89,21 +89,16 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
 
 // A canvas with no journey and no registered course (Professor Next Steps Task 10; Task 11b): typed, voice and hook turns run
 // the Tutor here, with no claims in scope (route off_slice: words, plus create_material when materials are offered), and
-// nothing it says is evidence. goal: the canvas title, or a hole's learning_goal or title; origin: the shared canvas a hole was started from.
+// nothing it says is evidence. goal: a hole's learning_goal, never a canvas title (tutorContext); origin: the shared canvas a hole was started from.
 // context travels as context.canvas_context (contextKey), which picks the canvas planner prompt. Pure.
-// cards (Task 11b fix B2): the grounding a plain canvas has - up to six of its newest blocks other than the selected one (the
-// turn's target), in canvas order, as nextStepsInput shows blocks: a chat card by its question only, never its answer.
-// ponytail: text is the block's body, text or caption; a type that keeps its words elsewhere sends its title alone.
-export function canvasDomain({ goal = null, origin = null, blocks = [], selected = null } = {}) {
-  const cards = blocks.filter(block => block.id !== selected).slice(-6).map(block => {
-    const chat = !block.type, words = chat ? null : block.body ?? block.text ?? block.caption ?? null;
-    return { id: block.id, kind: chat ? 'chat' : cap(block.type, 40), title: cap(chat ? block.question : block.title ?? block.question ?? block.prompt ?? block.text, 80), text: words == null ? null : cap(words, 200) };
-  });
+// The board itself is not here: every turn carries the whole-canvas package as the plan request's top-level canvas_context
+// (chat-canvas-context.js, runTurn), which replaced Task 11b fix B2's six newest cards.
+export function canvasDomain({ goal = null, origin = null } = {}) {
   return {
     kind: 'canvas', subject: goal, concepts: {}, claims: {}, practice: () => null,
     targetClaims: () => [], defaultClaims: () => [], conceptOf: () => null,
     cards: [], cardModule: () => null, cardType: () => null, catalogue: () => [], ladder: [], ladderStep: () => null, showCard: () => false,
-    context: { goal: goal == null ? null : cap(goal, 200), origin: origin == null ? null : cap(origin, 200), ...(cards.length ? { cards } : {}) }, contextKey: 'canvas_context',
+    context: { goal: goal == null ? null : cap(goal, 200), origin: origin == null ? null : cap(origin, 200) }, contextKey: 'canvas_context',
     sectionId: null, evidence: { mode: 'session' },
   };
 }

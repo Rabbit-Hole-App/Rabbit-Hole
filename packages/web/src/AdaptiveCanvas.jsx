@@ -1772,6 +1772,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       blocks: () => blocksRef.current,
       // Curious (owner task 2): the last semantic snapshot and its fingerprint (semanticBoard below); blocks() is unchanged.
       semantic: () => semanticRef.current.value(),
+      // Whole-canvas context (chat-canvas-context.js), read when a chat turn is sent: the live lists with the open editor's
+      // unsaved words, the freehand strokes, every object's measured box in world units, and the ids selected now.
+      liveBoard: () => ({ ...semanticBoard(), strokes: present.current.strokes, boxes: inlineCanvas.layout() }),
+      selection: () => selectedRef.current,
       updateBlock: (id, change) => {
         const current = blocksRef.current.find(block => block.id === id);
         const next = current && change(current);
