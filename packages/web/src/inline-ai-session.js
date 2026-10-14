@@ -10,9 +10,10 @@
 //   prompt, scope): the same request again reuses it instead of generating twice; new words around the selection do not
 //   (owner 2026-10-13, point 7). A move changes none of these.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
-import { commandInput, decideRoute, EARLIER_MAX, explicitCommand, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
+import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
+import { DEFAULT_ENABLED, INLINE_SLASH, checkRequest, commandOf, generationPrompt as generationArgs } from './inline-ai-decide.js';
 
-export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…' });
+export const STAGES = Object.freeze({ routing: 'Checking the request…', note: 'Writing the explanation…', edit: 'Preparing the edit…', shapes: 'Drawing the diagram…', artifact: 'Making the {label}…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
 export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }) => JSON.stringify([boardKey, prints.target, prints.relations, prints.context ?? null, mode, String(prompt).trim(), !!selectionOnly]);
 // The A5 route column of one request's metrics. jev: this request asked JEV, or tried to and fell back
@@ -38,15 +39,19 @@ export function earlierResult(preview) {
 }
 const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `r${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
 
-// transport: { route(input, { signal }) -> readRoute() result, or throws;
-//              generate(input, { signal, onEvent }) -> { result, usage, streaming } (onEvent gets { type: 'delta' | 'preview', ... });
-//              artifact(input, { signal }) -> the /api/learn/artifact answer }
+// transport: { decide({ requestId, request }, { signal }) -> /decide's answer, or { error, code, retryable };
+//              generate({ requestId, request, token, revise? }, { signal, onEvent }) -> { result, usage } (note, edit, shapes;
+//                onEvent gets { type: 'delta' | 'preview', ... });
+//              card({ requestId, request, token, revise? }, { signal }) -> the card handler's answer (via /generate);
+//              artifact({ command: 'image', args }, { signal }) -> a photo search card, staged with no call }
 // validate(result, plan) -> { ok, preview, errors }: the editor's check against the live board (inline-ai-apply.js).
 export function createInlineSession({ transport, boardKey, enabled = ['note'], validate, motion = null, now = () => performance.now(), flushMs = 50, setTimer = setTimeout, clearTimer = clearTimeout, onChange = () => {}, onMetrics = () => {} }) {
   let token = 0, controller = null, closed = false, flushTimer = null, pending = '', pendingRequest = null;
+  // What the check may route to: the canvas's enabled capabilities, a diagram meaning the native one (INLINE_SLASH).
+  const capabilities = [...new Set([...DEFAULT_ENABLED, ...enabled.map(id => INLINE_SLASH[id] || id)])];
   const results = new Map();
   const metrics = new Map();
-  const state = { status: 'idle', stage: null, requestId: null, mode: null, route: null, via: null, notice: null, stream: null, preview: null, clarify: null, error: null, proposal: null, accepted: false, stale: null };
+  const state = { status: 'idle', stage: null, requestId: null, mode: null, route: null, via: null, notice: null, stream: null, preview: null, clarify: null, error: null, proposal: null, accepted: false, stale: null, declined: null, retry: false };
   const emit = () => { if (!closed) onChange({ ...state }); };
   const set = patch => { Object.assign(state, patch); emit(); };
   const metric = id => {
@@ -103,11 +108,13 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       if (!proposal) throw Object.assign(new Error('Video explainers (Motion) are not available on this canvas.'), { code: 'unavailable' });
       return { kind: 'proposal', route, block: proposal.block, message: proposal.message, primitive: 'motion' };
     }
-    if (route === 'note' || route === 'edit') {
+    // Generation gets the decided request, exactly, and the server's proceed for it (its own words, mode and context).
+    const decided = { requestId: id, request: request.wire, token: request.token, ...(request.revise ? { revise: request.revise } : {}) };
+    if (route === 'note' || route === 'edit' || route === 'shapes') {
       set({ status: 'generating', stage: STAGES[route], stream: null });
       mark(id, 'providerStart');
       count(id, 'modelCalls');
-      const out = await transport.generate({ requestId: id, mode: request.mode, route, prompt: input.args, context: request.context, ...(request.revise ? { revise: request.revise } : {}) }, { signal, onEvent: onEvent(mine, id) });
+      const out = await transport.generate(decided, { signal, onEvent: onEvent(mine, id) });
       if (!live(mine)) return null;
       if (out.usage) metric(id).tokens = { input: out.usage.input_tokens ?? null, output: out.usage.output_tokens ?? null };
       return out.result;
@@ -115,7 +122,9 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     set({ status: 'generating', stage: STAGES.artifact.replace('{label}', (ROUTES[route]?.label || route).toLowerCase()), stream: null });
     mark(id, 'providerStart');
     count(id, 'modelCalls');
-    const answer = await transport.artifact({ requestId: id, command: route, args: input.args, context: request.context, ...(request.revise ? { revise: request.revise } : {}) }, { signal });
+    // /image runs no model (a photo search once accepted): staged here after the proceed. Every other card comes from
+    // /generate, as the handler's own answer.
+    const answer = route === 'image' ? await transport.artifact({ requestId: id, command: route, args: input.args, context: request.context }, { signal }) : await transport.card(decided, { signal });
     if (!live(mine)) return null;
     mark(id, 'firstOutput');
     if (answer.result === 'artifact') return { kind: 'card', route, block: answer.block, primitive: answer.primitive };
@@ -185,7 +194,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const key = idempotencyKey({ boardKey, prints: snapshot.prints, mode, prompt: previous ? `${previous.requestId}|${prompt}` : prompt, selectionOnly: snapshot.selectionOnly });
       const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: snapshot.frozen, key,
         ...(previous ? { replaces: previous.requestId, revise: { prompt: String(previous.origin || ''), result: earlierResult(previous) } } : {}) };
-      set({ requestId: id, mode, error: null, notice: null, clarify: null, stale: null });
+      set({ requestId: id, mode, error: null, notice: null, clarify: null, stale: null, declined: null, retry: false });
       const kept = results.get(key);
       if (kept) {
         // The same request again: its result, re-checked against the board now; no second generation or charge.
@@ -199,45 +208,52 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
         }
         results.delete(key);
       }
-      let plan = previous ? { route: previous.route, via: 'refine', args: String(prompt).trim() } : planRoute({ mode, prompt, enabled });
-      if (plan.classify) {
-        set({ status: 'routing', stage: STAGES.routing });
-        mark(id, 'routeStart');
-        count(id, 'routeCalls');
-        let read;
-        try { read = await transport.route({ requestId: id, prompt, selection: snapshot.summary }, { signal: controller.signal }); }
-        catch (error) { read = { error: error.code === 'timeout' || error.name === 'TimeoutError' ? 'timeout' : error.message || 'unavailable' }; if (read.error === 'timeout') count(id, 'timeouts'); }
-        if (!live(mine)) return 'dropped';
-        mark(id, 'routeEnd');
-        // The worker refused the request itself (400: too long, malformed): say why, never a quiet plain note.
-        if (read.status === 400) {
-          // Refused before any JEV call: skipped, never jev.
-          metric(id).routing = `skipped:${read.error || 'invalid'}`; count(id, 'errors');
-          set({ status: shown('error'), stage: null, error: read.message || 'This request was refused. Change it and send again.' });
-          finish(id, 'invalid');
-          return 'invalid';
-        }
-        plan = decideRoute(read, { enabled });
-        metric(id).routing = plan.via !== 'fallback' ? 'jev' : read.called === false ? `skipped:${read.error}` : `fallback:${read.error}`;
-      } else metric(id).routing = previous ? 'refine' : 'bypassed';
+      // One check per request (owner brief 2026-10-13, validation; docs/features/inline-ai-validation.md): the server's
+      // /decide routes and validates in one call - Edit, a plain Explain, a / command, a creation and each refine alike -
+      // and only its signed proceed lets /generate run. The request it decides is the exact one generation gets.
+      // A refine says which output it revises, so the check reads "make it shorter" as about the result shown.
+      const wire = { ...snapshot.request, mode, prompt: String(prompt), ...(previous ? { revising: previous.route } : {}) };
+      // The free checks first, here as on the worker: an empty request is answered without a call.
+      const local = checkRequest(wire);
+      if (local && !local.error) {
+        metric(id).routing = 'local';
+        set({ status: shown('declined'), stage: null, declined: { decision: local.decision, message: local.message } });
+        finish(id, local.decision);
+        return local.decision;
+      }
+      set({ status: 'routing', stage: STAGES.routing });
+      mark(id, 'routeStart');
+      count(id, 'routeCalls');
+      let decision;
+      try { decision = await transport.decide({ requestId: id, request: wire, enabled: capabilities }, { signal: controller.signal }); }
+      catch (error) { decision = { error: 'Couldn\'t check this request. Try again.', code: error.code === 'timeout' || error.name === 'TimeoutError' ? 'timeout' : 'unavailable', retryable: true }; }
+      if (!live(mine)) return 'dropped';
+      mark(id, 'routeEnd');
+      metric(id).routing = decision.meta?.validator ? decision.meta.validator : decision.error ? `skipped:${decision.code || 'error'}` : 'local';
+      // The check failed (timeout, a malformed answer, the network): retryable, and never a fall-through to generation.
+      if (decision.error) {
+        count(id, decision.code === 'timeout' ? 'timeouts' : 'errors');
+        set({ status: shown('error'), stage: null, error: decision.error, retry: !!decision.retryable });
+        finish(id, 'check_failed');
+        return 'check_failed';
+      }
+      // Anything but proceed: one short message in the editor, the prompt kept, nothing made or started.
+      if (decision.decision !== 'proceed') {
+        metric(id).decision = decision.decision;
+        if (decision.decision === 'clarify') set({ status: 'clarify', stage: null, clarify: { question: decision.message } });
+        else set({ status: shown('declined'), stage: null, declined: { decision: decision.decision, message: decision.message } });
+        finish(id, decision.decision);
+        return decision.decision;
+      }
+      const capability = decision.route.capability;
+      // A refine revises its candidate only when the check keeps the same output; another output is a new request.
+      const revising = previous && previous.route === capability;
+      if (previous && !revising) { delete request.replaces; delete request.revise; }
+      const plan = { route: capability, via: revising ? 'refine' : commandOf(wire) ? 'command' : 'decided', args: generationArgs(wire) };
+      Object.assign(request, { wire, token: decision.token, paid: !!decision.paid });
       pendingRequest = request;
-      if (plan.clarify) { set({ status: 'clarify', stage: null, clarify: plan.clarify }); finish(id, 'clarify'); return 'clarify'; }
-      if (plan.unavailable) { metric(id).capability = plan.unavailable.route; set({ status: shown('error'), stage: null, error: plan.unavailable.text }); finish(id, 'unavailable'); return 'unavailable'; }
-      if (plan.notice) set({ notice: plan.notice });
       await run(mine, id, plan, request);
       return live(mine) ? state.status : 'dropped';
-    },
-    // A clarification answered: generate with that route, no second routing call.
-    async choose(route) {
-      if (closed || state.status !== 'clarify' || !pendingRequest) return 'ignored';
-      const mine = ++token, id = uuid();
-      controller?.abort(); controller = new AbortController();
-      mark(id, 'submit'); mark(id, 'refreshed');
-      metric(id).routing = 'clarified';
-      set({ clarify: null, requestId: id });
-      if (!enabled.includes(route) && route !== 'note') { set({ status: 'error', error: `${ROUTES[route]?.label || route} isn't available on this canvas.` }); finish(id, 'unavailable'); return 'unavailable'; }
-      await run(mine, id, { route, via: 'clarified', args: pendingRequest.prompt }, pendingRequest);
-      return state.status;
     },
     // A question asked while a preview was showing: back to that preview, which is still there and still bound to its
     // own snapshot. The question's request is settled (clarify); answering it afterwards is not possible.
@@ -286,7 +302,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       finish(id, 'accepted');
       return out || { ok: true };
     },
-    reject() { if (state.preview) finish(state.preview.requestId, 'rejected'); token += 1; controller?.abort(); stopTimers(); set({ status: 'idle', preview: null, stream: null, proposal: null, stale: null }); },
+    reject() { if (state.preview) finish(state.preview.requestId, 'rejected'); token += 1; controller?.abort(); stopTimers(); set({ status: 'idle', preview: null, stream: null, proposal: null, stale: null, declined: null, retry: false }); },
     // The editor closed, the board changed or the canvas unmounted: nothing of this session lands anywhere after this.
     dispose(reason = 'closed') {
       if (state.requestId && busyStates.has(state.status)) { count(state.requestId, 'cancels'); finish(state.requestId, reason); }

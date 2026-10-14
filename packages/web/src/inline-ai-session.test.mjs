@@ -1,22 +1,26 @@
 // Mocked: a scripted transport stands in for the worker, JEV and the model. These prove the session's contract (one
 // request, late results dropped, idempotency, refine, coalescing), never provider behaviour or latency.
+import { scripted } from './inline-ai-test-transport.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createInlineSession, stageTimings } from './inline-ai-session.js';
 import { readGeneration, readSse } from './inline-ai-transport.js';
 
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
-const snapshot = (extra = {}) => () => ({ context: { target: { objects: [{ id: 'n23', type: 'shape', text: '23' }] } }, summary: 'shape "23"', frozen: { ids: ['n23'] }, prints: { target: 't', relations: 'r' }, selectionOnly: false, ...extra });
+const snapshot = (extra = {}) => () => {
+  const context = { target: { objects: [{ id: 'n23', type: 'shape', text: '23' }] } };
+  return { request: { kind: 'selection', targetIds: ['n23'], context }, context, summary: 'shape "23"', frozen: { ids: ['n23'] }, prints: { target: 't', relations: 'r' }, selectionOnly: false, ...extra };
+};
 const okValidate = result => ({ ok: true, preview: { text: result.text || result.block?.type || 'x' } });
 let clock = 0;
 const now = () => (clock += 1);
 const make = (transport, extra = {}) => {
   const changes = [], metrics = [];
-  const session = createInlineSession({ transport, boardKey: 'board-a', enabled: ['note', 'diagram', 'code', 'motion'], validate: okValidate, now, flushMs: 0, onChange: state => changes.push(state), onMetrics: entry => metrics.push(entry), ...extra });
+  const session = createInlineSession({ transport: scripted(transport), boardKey: 'board-a', enabled: ['note', 'diagram', 'code', 'motion'], validate: okValidate, now, flushMs: 0, onChange: state => changes.push(state), onMetrics: entry => metrics.push(entry), ...extra });
   return { session, changes, metrics };
 };
 
-test('a plain explain: no routing call, one generation, streamed text coalesced, then a validated preview', async () => {
+test('a plain explain: one check (its route fixed), one generation, streamed text coalesced, then a validated preview', async () => {
   const calls = { route: 0, generate: 0 };
   const transport = {
     route: async () => { calls.route += 1; },
@@ -24,14 +28,15 @@ test('a plain explain: no routing call, one generation, streamed text coalesced,
   };
   const { session, changes, metrics } = make(transport);
   assert.equal(await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() }), 'preview');
-  assert.deepEqual(calls, { route: 0, generate: 1 });
+  assert.deepEqual(calls, { route: 0, generate: 1 }, 'the route is fixed (a plain explain): the check validates it, no route is chosen');
   assert.ok(changes.some(state => state.status === 'streaming' && state.stream?.text === 'Node 23 '), 'the first chunk showed before the end');
   assert.equal(session.state.preview.text, 'Node 23 is a leaf.');
-  assert.equal(metrics[0].routing, 'bypassed');
+  assert.equal(metrics[0].routing, 'jev', 'every request is checked once (owner brief 2026-10-13, validation)');
+  assert.equal(metrics[0].counts.routeCalls, 1);
   assert.equal(metrics[0].counts.modelCalls, 1);
   assert.equal(metrics[0].streaming, true);
   const timings = stageTimings(metrics[0]);
-  assert.equal(timings.routing, 'bypassed');
+  assert.equal(typeof timings.routing, 'number');
   assert.ok(timings.firstPreview > 0 && timings.complete >= timings.firstPreview);
 });
 
@@ -135,36 +140,33 @@ test('accept applies once; a stale target blocks it with the reason and keeps th
   })();
 });
 
-test('JEV: a natural request is classified once; timeout and malformed fall back to the note and say so', async () => {
+test('the check: a natural request is checked and routed in one call; a failed check is retryable and never falls through', async () => {
   let routes = 0;
   const generated = [];
-  const make2 = route => make({ route: async () => { routes += 1; return route(); }, generate: async input => { generated.push(input.route); return { result: { kind: 'note', text: 'n' } }; }, artifact: async input => { generated.push(input.command); return { result: 'artifact', primitive: 'flow_diagram', block: { type: 'flow' } }; } });
-  const ok = make2(() => ({ choice: 'diagram', confidence: 0.9, probability: 0.9, ranked: ['diagram', 'note'] })).session;
-  await ok.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
-  assert.deepEqual(generated, ['diagram']);
-  assert.equal(ok.state.preview.kind, 'card');
-  const timeout = make2(() => { throw Object.assign(new Error('Jev timed out'), { code: 'timeout' }); });
-  await timeout.session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
-  assert.equal(generated.at(-1), 'note');
-  assert.match(timeout.session.state.notice, /short note/);
+  const make2 = route => make({ route: async () => { routes += 1; return route(); }, generate: async input => { generated.push(input.route); return { result: { kind: 'note', text: 'n' } }; }, artifact: async input => { generated.push(input.command); return { result: 'artifact', primitive: input.command, block: { type: 'snippet' } }; } });
+  const ok = make2(() => ({ choice: 'diagram', confidence: 0.9, probability: 0.9, ranked: ['diagram', 'note'] }));
+  await ok.session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
+  assert.deepEqual(generated, ['shapes'], 'a diagram is the native one (inline-ai-decide.js INLINE_SLASH)');
+  assert.equal(ok.metrics[0].counts.routeCalls, 1);
+  const timeout = make2(() => ({ error: 'timeout' }));
+  assert.equal(await timeout.session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() }), 'check_failed');
+  assert.deepEqual(generated, ['shapes'], 'nothing generated on a failed check');
+  assert.equal(timeout.session.state.retry, true);
   assert.equal(timeout.metrics[0].counts.timeouts, 1);
+  assert.equal(timeout.metrics[0].routing, 'skipped:timeout');
   const malformed = make2(() => ({ error: 'invalid' }));
-  await malformed.session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
-  assert.equal(generated.at(-1), 'note');
-  assert.equal(malformed.metrics[0].routing, 'fallback:invalid');
+  assert.equal(await malformed.session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() }), 'check_failed');
+  assert.deepEqual(generated, ['shapes']);
   assert.equal(routes, 3);
 });
 
-test('low confidence asks one question; the answer generates with no second routing call', async () => {
-  let routes = 0, artifacts = 0;
-  const { session } = make({ route: async () => { routes += 1; return { choice: 'diagram', confidence: 0.2, probability: 0.4, ranked: ['diagram', 'note'] }; }, artifact: async () => { artifacts += 1; return { result: 'artifact', primitive: 'mermaid_diagram', block: { type: 'mermaid' } }; } });
+test('an unsure check asks one question and generates nothing; the learner answers in their own words', async () => {
+  let artifacts = 0, generations = 0;
+  const { session } = make({ route: async () => ({ choice: 'diagram', confidence: 0.2, probability: 0.4, ranked: ['diagram', 'note'] }), artifact: async () => { artifacts += 1; return { result: 'artifact', primitive: 'x', block: { type: 'snippet' } }; }, generate: async () => { generations += 1; return { result: { kind: 'note', text: 'n' } }; } });
   assert.equal(await session.submit({ mode: 'explain', prompt: 'show the structure', prepare: snapshot() }), 'clarify');
-  assert.deepEqual(session.state.clarify.options, ['diagram', 'note']);
-  assert.equal(artifacts, 0, 'nothing expensive ran on a guess');
-  await session.choose('diagram');
-  assert.equal(routes, 1);
-  assert.equal(artifacts, 1);
-  assert.equal(session.state.preview.kind, 'card');
+  assert.equal(session.state.clarify.question, 'Which would you like: a text explanation, a diagram or a card?');
+  assert.equal(session.state.clarify.options, undefined, 'one question, no menu of guesses');
+  assert.deepEqual([artifacts, generations], [0, 0], 'nothing expensive ran on a guess');
 });
 
 test('paid: a proposal waits for Generate; declining starts nothing; Motion off is never substituted', async () => {
@@ -177,8 +179,8 @@ test('paid: a proposal waits for Generate; declining starts nothing; Motion off 
   session.reject();
   assert.equal(started, 0);
   const off = make({}, { motion, enabled: ['note'] }).session;
-  assert.equal(await off.submit({ mode: 'explain', prompt: '/motion softmax', prepare: snapshot() }), 'unavailable');
-  assert.match(off.state.error, /not available/);
+  assert.equal(await off.submit({ mode: 'explain', prompt: '/motion softmax', prepare: snapshot() }), 'unsupported');
+  assert.match(off.state.declined.message, /not available/);
   // A paid artifact proposal (animate's maths animation) is a proposal too, never a started job.
   const animate = make({ artifact: async () => ({ result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'mathAnimation', operation: {} }, message: 'This uses paid generation.' }) }, { enabled: ['note', 'animate'] }).session;
   await animate.submit({ mode: 'explain', prompt: '/animate it', prepare: snapshot() });
@@ -231,4 +233,20 @@ test('point 7: a change to supporting text is a new request, a move reuses the a
   assert.equal(await session.submit({ mode: 'explain', prompt: 'Explain what this function does', prepare: prepareFor(cents) }), 'preview', 'the note it relied on changed: a new answer');
   assert.equal(generations, 2);
   assert.equal(session.state.preview.text, 'answer 2');
+});
+
+// The validation brief: an empty request is invalid, answered by the free local check with one short message and no call;
+// a request the check does not let through creates nothing, keeps the words, and the composer shows its message.
+test('the check: an empty request is invalid with no call; unsupported, blocked and clarify generate nothing', async () => {
+  let checks = 0, generations = 0;
+  const answers = { 'please send this to my team': { decision: 'unsupported', message: 'That isn\'t something the editor can make here.', paid: false }, 'something prohibited': { decision: 'blocked', message: 'I can\'t help with that request.', paid: false }, 'make a chart': { decision: 'clarify', message: 'What values or content should it use?', missing: ['data'], paid: false } };
+  const { session } = make({ decide: async ({ request }) => { checks += 1; return answers[request.prompt]; }, generate: async () => { generations += 1; return { result: { kind: 'note', text: 'n' } }; } });
+  assert.equal(await session.submit({ mode: 'explain', prompt: '   ', prepare: snapshot() }), 'invalid');
+  assert.equal(session.state.declined.message, 'Describe what you\'d like to change or understand.');
+  assert.equal(checks, 0, 'the free local check, no call');
+  for (const [prompt, outcome] of [['please send this to my team', 'unsupported'], ['something prohibited', 'blocked'], ['make a chart', 'clarify']]) {
+    assert.equal(await session.submit({ mode: 'explain', prompt, prepare: snapshot() }), outcome);
+  }
+  assert.equal(session.state.clarify.question, 'What values or content should it use?');
+  assert.deepEqual([checks, generations], [3, 0]);
 });

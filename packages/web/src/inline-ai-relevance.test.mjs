@@ -92,3 +92,40 @@ test('a selected group: a shared common word ("before") never pulls in the next 
   assert.ok(!supporting(context).some(id => id === 'bfs' || id === 'graphs'), supporting(context).join(','));
   assert.ok(supporting(context).includes('sorting'));
 });
+
+// Owner brief 2026-10-13, creation §2-§4: no selection - an insertion anchor; the same builder, seeded by the region.
+import { buildCreationContext, regionSummary } from './inline-ai-context.js';
+const creationOf = (board, anchor, request = 'Add an explanation here', style = null) => buildCreationContext(withBoxes(board), anchor, { cache: createContextCache(), boardKey: 'c', request, extras: { title: 'Linked List' }, style });
+
+test('creation beside a diagram: the region and its diagram are the subject; far unrelated material is not; nothing is a target', () => {
+  const context = creationOf(CONTEXT_CASES.tree.board(), { x: 760, y: 392 });
+  assert.equal(context.creation, true);
+  assert.deepEqual(context.target.ids, []);
+  const ids = context.related.map(entry => entry.id);
+  assert.ok(ids.includes('n23') && ids.includes('n4'), ids.join(','));
+  assert.ok(!ids.includes('clutter'), 'the note far below is not about this region');
+  assert.deepEqual(context.metadata, { canvasTitle: 'Linked List' }, 'the title stays metadata');
+});
+
+test('creation on a blank canvas: no supporting material, nothing weighed; the request and the default look decide', () => {
+  const context = creationOf({ shapes: [], items: [], links: [], blocks: [], groups: [], exchanges: [] }, { x: 0, y: 0 }, 'Draw the water cycle');
+  assert.deepEqual([context.related.length, context.considered], [0, 0]);
+  assert.match(regionSummary(context), /empty canvas/);
+});
+
+test('creation: a new topic in the request reaches distant material that shares its terms; the region still reads as region', () => {
+  const context = creationOf(CONTEXT_CASES.code.board(), { x: 700, y: 120 }, 'Explain photosynthesis in plants');
+  const photo = context.related.find(entry => entry.id === 'photo');
+  assert.equal(photo?.relation, 'mentions');
+});
+
+test('creation: subject and style travel apart, and the validator gets a compact region summary, never the package', () => {
+  const style = { kind: 'ellipse', color: '#37352f', fill: null, font: 'sans', fontSize: 14, route: 'straight', from: 6 };
+  const context = creationOf(CONTEXT_CASES.tree.board(), { x: 760, y: 392 }, 'Add a node', style);
+  assert.deepEqual(context.style, style);
+  assert.ok(!context.related.some(entry => 'style' in entry), 'style is never mixed into the subject entries');
+  const summary = regionSummary(context);
+  assert.ok(summary.length <= 1500);
+  assert.match(summary, /near the insertion point: .*"23"/);
+  assert.match(summary, /style: kind ellipse/);
+});

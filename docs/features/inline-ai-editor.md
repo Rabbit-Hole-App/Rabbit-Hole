@@ -832,3 +832,104 @@ stacks), so timings vary by seconds.
   reported). The real card case therefore selects the group, and the unit tests cover the single card.
 - Cost of the change: about 400-700 more input tokens per request, and 1-4 ms more context preparation. Time to the
   first words is unchanged within the noise.
+
+## A10. The check, and native diagrams, in the editor (owner briefs 2026-10-13: validation, creation §5-§7)
+
+The worker side is docs/features/inline-ai-validation.md (lane R). In the editor:
+
+- Every request is checked once by /api/learn/inline/decide before anything generates: Edit, a plain Explain, a /
+  command, natural language and each refine's new words. The request it decides is the exact one /generate then gets,
+  with the server's proceed. The editor's free local check answers an empty request (invalid) with no call.
+- Anything but proceed is one short message in the composer: invalid, unsupported or blocked as a line
+  (`[data-inline-decision]`), clarify as one question. The prompt is kept, and nothing is previewed, placed or started.
+  A check that failed (timeout, a malformed answer, the network) is a red line with Try again. It never falls through
+  to generation.
+- A refine whose words the check routes to the same output revises the candidate. Words routed to another output make
+  a new request.
+- /diagram and natural-language diagram requests make a native diagram: shapes, text and connectors. It is laid out
+  deterministically in the region's style, placed in free space near the selection (nothing moves), shown as a pale
+  ghost, and added in one Accept, groups included, which one Undo removes. A spot taken before Accept is placed again.
+  Off-screen, the camera goes to where it will land.
+- Cards come from /generate. /image stays a photo search staged in the editor, and /motion stays a paid proposal with
+  Generate, both after a proceed.
+
+## A11. Ctrl/Cmd+K with nothing selected: creation (owner brief, 2026-10-13, sections 1-4 and 8-9)
+
+Owner brief, verbatim in agent-coordination/tasks/2026-10-13-inline-create-OWNER.md. Routing, validation, native
+diagrams and placement are A10 and docs/features/inline-ai-validation.md. The central shortcut owner and Search on
+Ctrl/Cmd+Shift+F are the polish lane's.
+
+- **Opening.** With the canvas focused and nothing selected, Ctrl/Cmd+K opens the same composer in Explain, to add.
+  It never falls through to Search, never opens from a field, a dialog or a menu, and never on a view-only canvas.
+  - An empty selection on a populated canvas is not a blank canvas.
+  - The placeholder reads "What would you like to add or understand?".
+  - Edit is disabled in the mode menu, which says "Select something to edit."
+  - The canvas API's inlineAi(mode) opens it the same way.
+- **The request.** It is a creation: `{ kind: 'creation', anchor, region, context }`, with no target ids and no dummy
+  object. Edit's checks are never widened.
+- **The insertion anchor.** It is the last deliberate click on empty canvas while that point is still in view, else
+  the middle of the view. It is kept in world units and shown as a small purple ring while the composer is open.
+  Opening saves nothing. Pointer movement is never read as intent.
+- **Context** (inline-ai-context.js `buildCreationContext`). It is the same builder and relevance, seeded by the region
+  around the anchor (within 250 world units, the nearer the stronger).
+  - It takes in the diagrams that region belongs to (along links and drawn arrows), the heading or section above the
+    anchor, and anything that shares the request's terms, however far.
+  - Subject and style travel apart: `context.style` is the region's look (inline-placement.js regionStyle), used to match
+    shapes, colours, fonts and arrows, never as subject.
+  - The canvas title stays metadata, and the request's own topic wins.
+  - On a blank canvas the context is empty and the default look applies.
+  - The check gets only `region`, a summary of at most 1,500 characters (`regionSummary`).
+- **Placement.** A note, a diagram or a card is placed in free space near the anchor (placeResult; placeNote's rings
+  when the middle is taken). It never lands under the composer or the room it may grow into, and nothing on the board
+  moves. A creation note has no connector.
+- **Preview, Accept, Undo.** As for a selection: a pale ghost, one transaction, one Undo. Reject, Esc and close discard
+  it. A refine revises it. Stop cancels, and late output is dropped. Paid media keep their proposal and Generate.
+- **Stale.** The context is rebuilt at submit. At Accept, if the material around the anchor changed meaningfully (its
+  words, its links), the result is marked outdated, with Regenerate. A pan or a zoom never does that. A taken spot is
+  placed again and shown.
+
+### Verification (creation section 10, the validation brief), real calls, local real stack, 2026-10-13
+
+Driver: packages/web/e2e/inline-create-real.mjs, through the app on the local real stack, reserved and settled in the
+shared ledger. Lane I spent $0.59 in all (46 ledger entries), within the $2.50 cap, including reruns after stack
+crashes. The machine was heavily loaded, so times vary.
+
+- **Creation.**
+  - Blank canvas, "What is photosynthesis?": a note at the anchor, with no connector; one Undo removes it.
+  - Empty space on a populated canvas: a note grounded in the nearby code (the TypeError of `s += p` on a string).
+  - `/code` with nothing selected: a code card. "Plot y = x squared from -3 to 3" with no command: routed to a graph.
+  - A video request: unsupported here; video and Motion are not enabled on this stack. No proposal, no job.
+  - A crowded grid: the note overlaps none of the 60 cells.
+  - "Draw a diagram of the water cycle" beside the tree on a canvas titled Linked List: a native diagram (8 shapes,
+    11 connectors). Accept added it; one Undo removed all of it.
+  - Refine "make it one sentence": revised in place. Stop on a new request kept the earlier preview and dropped the late
+    output. Reject left nothing on the canvas.
+- **The check** (JEV).
+
+  | prompt type | decision | generated? |
+  |---|---|---|
+  | valid short | proceed | yes |
+  | multilingual | proceed (answered in Spanish) | yes |
+  | code | proceed | yes |
+  | sensitive educational | proceed | yes |
+  | gibberish | invalid | no |
+  | email this to my teacher | unsupported | no |
+  | prohibited | blocked | no |
+
+  - No false rejection among the proceed cases. Every non-proceed kept the prompt and added nothing.
+  - The check took 0.40-1.02 s inside the worker (about 0.5 s typical); the round trip from the editor was 0.65-1.6 s.
+    Context preparation: 0.2-7.5 ms.
+  - Canvas responsiveness: up to 7 long tasks (max 605 ms) per request on the loaded machine, the largest on the
+    preview render.
+- **Found and fixed in the run.**
+  - A creation's "this" did not count the material around the anchor (clarify). The criterion and JEV's state now do.
+  - A refine's "make it one sentence" was asked to clarify, because the check did not know a result was being refined.
+    The request now names the output it revises (`revising`); the check validates the words for that output, and a
+    question about what "it" means passes.
+- **Open, reported.**
+  - A native diagram of the existing tree ("how this tree would look after inserting 5") failed three times. The
+    model's tool input carried wrapper keys ($0, dialog, $FUNCTION_NAME) and canvas ids, and the server's diagram check
+    refused it. Nothing was added. The new-topic diagram works.
+  - "make it" with a node selected was routed to a diagram instead of a clarify.
+  - The sensitive-educational request was routed to an explanation card, whose handler then refused a body over 2,000
+    characters (an error, nothing added, $0.12).

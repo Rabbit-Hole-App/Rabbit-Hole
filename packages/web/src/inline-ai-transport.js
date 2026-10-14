@@ -1,7 +1,8 @@
 // The inline AI editor's wire (docs/features/inline-ai-editor.md §6-§7, A2): the routing call, the streamed
 // explanation/edit, and the existing /api/learn/artifact handler for every specialized capability. No new generation
 // system: a card still comes from the shared command path (learn-slash.js generateCommand), only without its insert.
-import { generateCommand, imageSearchBlock } from './learn-slash.js';
+import { imageSearchBlock } from './learn-slash.js';
+import { checkDecision } from './inline-ai-decide.js';
 
 // Server-sent events from a fetch body: { event, data } per message, data parsed as JSON. Chunks arrive split anywhere.
 export async function readSse(body, onMessage) {
@@ -46,32 +47,32 @@ export async function readGeneration(response, onEvent) {
 }
 
 // The page's transport. fetchRaw: apiFetch (api.js), so auth, the workspace header and the preview write guard apply.
-export function httpTransport({ app, pending = null, board = 'main', fetchRaw, post }) {
+export function httpTransport({ app, pending = null, board = 'main', fetchRaw }) {
   const scope = pending ? { app, pending } : { app };
   const json = (path, body, signal) => fetchRaw(path, { method: 'POST', body: JSON.stringify({ ...scope, ...body }), signal });
   return {
-    async route({ requestId, prompt, selection }, { signal }) {
+    // The one check per request (route + validate): its answer, or { error, code, retryable } when the check itself failed.
+    // A refusal before the check (400 malformed, 401/403) is not retryable; a 503 says whether it is.
+    async decide({ requestId, request, enabled }, { signal }) {
       let response;
-      // A request that never reached the worker (the network) never reached JEV either: called false. A stop or a
-      // timeout is the session's to handle, as before.
-      try { response = await json('/api/learn/inline/route', { request_id: requestId, prompt, selection }, signal); }
-      catch (error) { if (error.name === 'AbortError' || error.name === 'TimeoutError') throw error; return { error: 'unavailable', called: false }; }
+      try { response = await json('/api/learn/inline/decide', { request_id: requestId, request, enabled }, signal); }
+      catch (error) { if (error.name === 'AbortError' || error.name === 'TimeoutError') throw error; return { error: "Couldn't check this request. Try again.", code: 'unavailable', retryable: true }; }
+      const body = await response.json().catch(() => null);
+      if (!response.ok) return { error: body?.error || "Couldn't check this request. Try again.", code: body?.code || 'unavailable', retryable: response.status === 503 ? body?.retryable !== false : false };
+      try { return checkDecision(body); } catch (error) { return { error: error.message, code: 'malformed', retryable: true }; }
+    },
+    // Generation for a decided request: the exact request /decide saw, and its proceed.
+    async generate({ requestId, request, token, revise = null }, { signal, onEvent }) {
+      return readGeneration(await json('/api/learn/inline/generate', { request_id: requestId, request, token, board, ...(revise ? { revise } : {}) }, signal), onEvent);
+    },
+    async card({ requestId, request, token, revise = null }, { signal }) {
+      const response = await json('/api/learn/inline/generate', { request_id: requestId, request, token, board, ...(revise ? { revise } : {}) }, signal);
       const body = await response.json().catch(() => ({}));
-      // A refused request (any non-2xx: too long, auth, too large) was refused before any JEV call. A 400 carries the
-      // worker's reason, which the editor shows rather than routing around it.
-      if (!response.ok) return { error: body.code || 'unavailable', status: response.status, message: body.error || null, called: false };
+      if (!response.ok) throw Object.assign(new Error(body.error || `HTTP ${response.status}`), { code: body.code || 'http', status: response.status });
       return body;
     },
-    async generate({ requestId, mode, route, prompt, context, revise = null }, { signal, onEvent }) {
-      return readGeneration(await json('/api/learn/inline/generate', { request_id: requestId, mode, route, prompt, context, board, ...(revise ? { revise } : {}) }, signal), onEvent);
-    },
-    artifact({ command, args, context, revise = null }, { signal }) {
-      // /image runs no model and no request: its card searches real photos once accepted, as the direct command's does.
-      if (command === 'image') return Promise.resolve({ result: 'artifact', primitive: 'image', block: imageSearchBlock(args) });
-      const first = context.target.objects[0];
-      const selection = first ? { kind: 'canvas_object', id: first.id, title: String(first.text || first.kind || first.type).slice(0, 200) } : null;
-      return generateCommand(command, args, { app, selection, context: artifactContext(context, revise), signal, post: (path, body, options) => post(path, { ...body, ...(pending ? { pending } : {}) }, options) });
-    },
+    // /image runs no model and no request: its card searches real photos once accepted, as the direct command's does.
+    artifact({ args }) { return Promise.resolve({ result: 'artifact', primitive: 'image', block: imageSearchBlock(args) }); },
   };
 }
 

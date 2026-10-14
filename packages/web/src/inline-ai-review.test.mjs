@@ -1,5 +1,6 @@
 // Regression checks for the review of cf9216b2..5b3552a5 (mocked transport; no provider). Each failed on 5b3552a5
 // unless it says otherwise.
+import { scripted } from './inline-ai-test-transport.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createInlineSession } from './inline-ai-session.js';
@@ -7,8 +8,8 @@ import { createInlineSession } from './inline-ai-session.js';
 let clock = 0;
 const now = () => (clock += 1);
 const target = { objects: [{ id: 'n23', type: 'shape', kind: 'ellipse', text: '23' }] };
-const snapshot = (prints = 't1', objects = target.objects) => () => ({ context: { target: { objects } }, summary: objects.map(entry => `${entry.type}:${entry.kind} "${entry.text}"`).join('; '), frozen: { ids: objects.map(entry => entry.id), prints: { target: prints, relations: 'r' } }, prints: { target: prints, relations: 'r' }, selectionOnly: false });
-const make = (transport, extra = {}) => createInlineSession({ transport, boardKey: 'b', enabled: ['note', 'diagram', 'image', 'motion'], validate: result => ({ ok: true, preview: { text: result.text, block: result.block } }), now, flushMs: 0, ...extra });
+const snapshot = (prints = 't1', objects = target.objects) => () => ({ request: { kind: 'selection', targetIds: objects.map(entry => entry.id), context: { target: { objects } } }, context: { target: { objects } }, summary: objects.map(entry => `${entry.type}:${entry.kind} "${entry.text}"`).join('; '), frozen: { ids: objects.map(entry => entry.id), prints: { target: prints, relations: 'r' } }, prints: { target: prints, relations: 'r' }, selectionOnly: false });
+const make = (transport, extra = {}) => createInlineSession({ transport: scripted(transport), boardKey: 'b', enabled: ['note', 'diagram', 'image', 'motion'], validate: result => ({ ok: true, preview: { text: result.text, block: result.block } }), now, flushMs: 0, ...extra });
 const held = () => { let release; const gate = new Promise(resolve => { release = resolve; }); return { gate, release: () => release() }; };
 
 test('accept snapshot: a failed refine leaves the preview bound to the board it was made from', async () => {
@@ -71,7 +72,7 @@ test('telemetry route column: jev only when this request asked JEV (its meaning,
 test('telemetry units: stage times are milliseconds to 0.1 ms from the monotonic clock (passes on 5b3552a5 too)', async () => {
   const marks = [1000, 1003.27, 1003.3, 1310.45, 1400, 1520.06, 2100, 2350.5, 2350.55, 2600, 2700, 2800];
   let at = 0;
-  const session = createInlineSession({ transport: { route: async () => ({ choice: 'note', confidence: 0.9, probability: 0.9, ranked: ['note'] }), generate: async (input, { onEvent }) => { onEvent({ type: 'delta', text: 'a' }); return { result: { kind: 'note', text: 'a' } }; } }, boardKey: 'b', validate: result => ({ ok: true, preview: { text: result.text } }), now: () => marks[at++], flushMs: 0 });
+  const session = createInlineSession({ transport: scripted({ route: async () => ({ choice: 'note', confidence: 0.9, probability: 0.9, ranked: ['note'] }), generate: async (input, { onEvent }) => { onEvent({ type: 'delta', text: 'a' }); return { result: { kind: 'note', text: 'a' } }; } }), boardKey: 'b', validate: result => ({ ok: true, preview: { text: result.text } }), now: () => marks[at++], flushMs: 0 });
   await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot('u') });
   const timings = sessionModule.stageTimings(session.metrics(session.state.preview.requestId));
   for (const value of Object.values(timings)) assert.ok(value == null || value === 'bypassed' || (typeof value === 'number' && Math.round(value * 10) === value * 10), `ms with one decimal: ${value}`);
@@ -91,17 +92,19 @@ test('prompt limit: one shared limit; over it nothing is sent and the editor say
   assert.equal(await session.submit({ mode: 'explain', prompt: `explain ${'a'.repeat(992)}`, prepare: snapshot() }), 'preview', 'exactly at the limit is sent');
 });
 
-test('prompt limit: a refused routing call (400) is an error with its reason, never a quiet plain note', async () => {
+test('prompt limit: a refused check (400) is an error with its reason; a failed check is retryable - never a quiet note', async () => {
   let generated = 0;
-  const session = make({ route: async () => ({ error: 'too_long', status: 400, message: 'This request is 1200 characters; inline requests stop at 1000. Shorten it and send again.' }), generate: async () => { generated += 1; return { result: { kind: 'note', text: 'x' } }; } });
-  assert.equal(await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'invalid');
+  const session = make({ decide: async () => ({ error: 'This request is 1200 characters; inline requests stop at 1000. Shorten it and send again.', code: 'too_long', retryable: false }), generate: async () => { generated += 1; return { result: { kind: 'note', text: 'x' } }; } });
+  assert.equal(await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'check_failed');
   assert.equal(generated, 0);
   assert.equal(session.state.preview, null);
   assert.match(session.state.error, /1200 characters/);
-  // Any other routing failure still falls back to a stated note (§6).
-  const other = make({ route: async () => ({ error: 'timeout' }), generate: async () => ({ result: { kind: 'note', text: 'x' } }) });
-  assert.equal(await other.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'preview');
-  assert.match(other.state.notice, /short note/);
+  assert.equal(session.state.retry, false);
+  // A timeout or a malformed answer is retryable, and nothing is generated (owner brief 2026-10-13, validation).
+  const other = make({ decide: async () => ({ error: 'Couldn\'t check this request. Try again.', code: 'timeout', retryable: true }), generate: async () => { generated += 1; return { result: { kind: 'note', text: 'x' } }; } });
+  assert.equal(await other.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'check_failed');
+  assert.equal(generated, 0);
+  assert.equal(other.state.retry, true);
 });
 
 import * as slashModule from './learn-slash.js';
@@ -112,7 +115,7 @@ const recorder = (route = null) => {
   const session = make({
     route: async () => route,
     artifact: async input => { seen.artifact.push(input.args); return { result: 'artifact', primitive: input.command, block: { type: 'flow' } }; },
-    generate: async input => { seen.generate.push(input.prompt); return { result: { kind: 'note', text: 'x' } }; },
+    generate: async input => { seen.generate.push([input.route, input.prompt]); return { result: { kind: 'note', text: 'x' } }; },
   }, { motion: (args, about) => { const proposal = slashModule.motionProposal(args, { concept: about?.concept || null }, about?.selection); seen.motion.push(proposal.block.operation); return proposal; } });
   return { session, seen };
 };
@@ -139,14 +142,15 @@ test('command input: a bare /image searches the selection\'s words; with none it
   assert.equal(none.seen.artifact.length, 0);
 });
 
-test('command input: a bare /diagram names the selection as its subject; with none it asks', async () => {
+test('command input: a bare /diagram draws the selection natively; with nothing selected to draw it asks', async () => {
   const { session, seen } = recorder();
   await session.submit({ mode: 'explain', prompt: '/diagram', prepare: snapshot() });
-  assert.deepEqual(seen.artifact, ['the selected canvas material: 23']);
+  assert.deepEqual(seen.generate, [['shapes', '']], 'the native diagram, about the selection the request carries');
+  assert.deepEqual(seen.artifact, [], 'never the old picture-in-a-card');
   const none = recorder();
   assert.equal(await none.session.submit({ mode: 'explain', prompt: '/diagram', prepare: snapshot('e', empty) }), 'clarify');
   assert.match(none.session.state.clarify.question, /What should the diagram show\?/);
-  assert.equal(none.seen.artifact.length, 0);
+  assert.equal(none.seen.generate.length, 0);
 });
 
 test('command input: a routed sentence goes as written with the selection as Motion\'s concept; a routed photo searches the selection', async () => {
@@ -158,7 +162,7 @@ test('command input: a routed sentence goes as written with the selection as Mot
   assert.deepEqual(photo.seen.artifact, ['23']);
   const diagram = recorder({ choice: 'diagram', confidence: 0.95, probability: 0.95, ranked: ['diagram'] });
   await diagram.session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
-  assert.deepEqual(diagram.seen.artifact, ['Explain this with a diagram']);
+  assert.deepEqual(diagram.seen.generate, [['shapes', 'Explain this with a diagram']]);
 });
 
 test('command input: the page gives inline Motion the selection, never the canvas title', async () => {
@@ -173,12 +177,12 @@ test('refine: the instruction, the previous output and the original request go t
   const seen = [];
   let routes = 0;
   const session = make({
-    route: async () => { routes += 1; return { choice: 'diagram', confidence: 0.9, probability: 0.9, ranked: ['diagram'] }; },
-    generate: async input => { seen.push(input); return { result: { kind: 'note', text: ['Node 23 is a child of node 4.', 'Child of 4.', 'Leaf; child of 4.'][seen.length - 1] } }; },
+    route: async () => { routes += 1; return { choice: 'note', confidence: 0.9, probability: 0.9, ranked: ['note'] }; },
+    generate: async input => { seen.push(input); return { result: { kind: 'note', text: ['Node 23 is a child of node 4.', 'Child of 4.', 'Leaf; child of 4.', 'Simpler.'][seen.length - 1] } }; },
   });
   await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() });
   await session.submit({ mode: 'explain', prompt: 'make it much shorter', prepare: snapshot() });
-  assert.equal(routes, 0, 'a refine keeps its output: no routing call');
+  assert.equal(routes, 0, 'a refine is checked with its output fixed (the request says what it revises); no route is chosen again');
   assert.deepEqual([seen[1].route, seen[1].prompt, seen[1].revise], ['note', 'make it much shorter', { prompt: 'Explain this node', result: 'Node 23 is a child of node 4.' }]);
   assert.equal(session.state.preview.text, 'Child of 4.', 'the candidate on screen is the revision');
   // A second refine revises the newest candidate, with the original request still as context.
@@ -189,19 +193,27 @@ test('refine: the instruction, the previous output and the original request go t
   assert.equal(seen[3].revise, undefined);
 });
 
+test('refine: the check is told what is being refined, so "make it shorter" is about the result shown', async () => {
+  const asked = [];
+  const session = make({ decide: async ({ request, requestId }) => { asked.push(request); return { decision: 'proceed', route: { capability: 'note', outcome: 'text' }, paid: false, token: `t-${requestId}`, meta: { validator: 'jev' } }; }, generate: async () => ({ result: { kind: 'note', text: 'n' } }) });
+  await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() });
+  await session.submit({ mode: 'explain', prompt: 'make it shorter', prepare: snapshot() });
+  assert.deepEqual([asked[0].revising, asked[1].revising], [undefined, 'note']);
+});
+
 test('refine: a card is revised by its own handler, with the card and the original request in its context', async () => {
   const seen = [];
   const session = make({
-    route: async () => ({ choice: 'diagram', confidence: 0.95, probability: 0.95, ranked: ['diagram'] }),
-    artifact: async input => { seen.push(input); return { result: 'artifact', primitive: 'diagram', block: { type: 'flow', title: `Where node 23 sits ${seen.length}` } }; },
-  });
-  await session.submit({ mode: 'explain', prompt: 'Explain this with a diagram', prepare: snapshot() });
-  await session.submit({ mode: 'explain', prompt: 'add the root', prepare: snapshot() });
-  assert.equal(seen[1].command, 'diagram');
-  assert.equal(seen[1].args, 'add the root');
-  assert.deepEqual(seen[1].revise, { prompt: 'Explain this with a diagram', result: JSON.stringify({ type: 'flow', title: 'Where node 23 sits 1', text: '' }) });
+    route: async () => ({ choice: 'code', confidence: 0.95, probability: 0.95, ranked: ['code'] }),
+    artifact: async input => { seen.push(input); return { result: 'artifact', primitive: 'code_snippet', block: { type: 'snippet', title: `Sum a list ${seen.length}` } }; },
+  }, { enabled: ['note', 'code'] });
+  await session.submit({ mode: 'explain', prompt: 'Show code for this', prepare: snapshot() });
+  await session.submit({ mode: 'explain', prompt: 'add a docstring', prepare: snapshot() });
+  assert.equal(seen[1].command, 'code');
+  assert.equal(seen[1].args, 'add a docstring');
+  assert.deepEqual(seen[1].revise, { prompt: 'Show code for this', result: JSON.stringify({ type: 'snippet', title: 'Sum a list 1', text: '' }) });
   const context = transportModule.artifactContext({ target: { ids: ['n23'] } }, seen[1].revise);
-  assert.match(context, /^Revise this earlier card .* original request was: "Explain this with a diagram"\nEarlier card: \{"type":"flow","title":"Where node 23 sits 1"/);
+  assert.match(context, /^Revise this earlier card .* original request was: "Show code for this"\nEarlier card: \{"type":"snippet","title":"Sum a list 1"/);
 });
 
 test('refine telemetry: the candidate a refine revised is settled as refined, not left provisional', async () => {
@@ -247,17 +259,17 @@ test('S3: a target the context clipped (the total budget, not only its own lengt
   assert.match(checked.errors[0], /Select fewer objects, then press Ctrl.K/);
 });
 
-test('S4: a routing call the worker refused before calling JEV is recorded as bypassed, never jev', async () => {
+test('S4: a check refused or failed before any validator is recorded as skipped, never jev; a decided request is jev', async () => {
   const rows = [];
-  const run = async read => {
-    const session = make({ route: async () => read, generate: async () => ({ result: { kind: 'note', text: 'x' } }) }, { onMetrics: entry => rows.push(entry) });
+  const run = async decide => {
+    const session = make({ decide, generate: async () => ({ result: { kind: 'note', text: 'x' } }) }, { onMetrics: entry => rows.push(entry) });
     await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() });
     const entry = rows.at(-1);
     return [entry.routing, sessionModule.routeColumn(entry), sessionModule.stageTimings(entry).routing];
   };
-  assert.deepEqual(await run({ error: 'unavailable', called: false }), ['skipped:unavailable', 'bypassed', 'bypassed']);
-  const [routing, column, stage] = await run({ error: 'timeout', called: true });
-  assert.deepEqual([routing, column, typeof stage], ['fallback:timeout', 'jev', 'number'], 'a call that reached JEV and failed is still jev');
+  assert.deepEqual(await run(async () => ({ error: 'unavailable', code: 'unavailable', retryable: true })), ['skipped:unavailable', 'bypassed', 'bypassed']);
+  const [routing, column, stage] = await run(async ({ requestId }) => ({ decision: 'proceed', route: { capability: 'note', outcome: 'text' }, paid: false, token: `t-${requestId}`, meta: { validator: 'jev' } }));
+  assert.deepEqual([routing, column, typeof stage], ['jev', 'jev', 'number'], 'a decided request was checked by JEV');
 });
 
 test('M2: a refine of a long edit sends at most the worker limit, cut per operation and marked', () => {
@@ -308,7 +320,7 @@ test('M5: the dead code the review found is gone', async () => {
 test('M6: a question asked while a preview shows can go back to that preview, and Accept works again', async () => {
   const session = make({ generate: async () => ({ result: { kind: 'note', text: 'P1' } }) });
   await session.submit({ mode: 'explain', prompt: 'Explain this', prepare: snapshot() });
-  assert.equal(await session.submit({ mode: 'explain', prompt: '/quiz', prepare: snapshot() }), 'clarify');
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/diagram', prepare: snapshot('e', empty) }), 'clarify');
   assert.equal(session.state.preview.text, 'P1');
   assert.equal(session.back(), 'preview');
   assert.equal(session.state.clarify, null);
@@ -357,26 +369,20 @@ test('re-review S3 gap: a group of more stickies than the object budget clips th
   assert.deepEqual(contextModule.clippedOf(context), ['s24', 's25']);
 });
 
-test('re-review M8: a routing request refused by the worker or lost on the network says JEV was not called', async () => {
-  const transport = fetchRaw => transportModule.httpTransport({ app: 'canvas-0a1b2c3d', fetchRaw, post: async () => ({}) });
+test('re-review M8: a check refused by the worker (400, 401, 413) is not retryable; a 503 says whether it is; nothing generates', async () => {
+  const transport = fetchRaw => transportModule.httpTransport({ app: 'canvas-0a1b2c3d', fetchRaw });
   const signal = new AbortController().signal;
   for (const status of [400, 401, 413]) {
-    const read = await transport(async () => new Response(JSON.stringify({ error: 'refused', code: status === 400 ? 'too_long' : undefined }), { status })).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal });
-    assert.deepEqual([read.status, read.called], [status, false]);
+    const read = await transport(async () => new Response(JSON.stringify({ error: 'refused', code: status === 400 ? 'too_long' : undefined }), { status })).decide({ requestId: 'r', request: {}, enabled: [] }, { signal });
+    assert.deepEqual([read.error, read.retryable], ['refused', false]);
   }
-  // A 400 is shown as its error, and its row says JEV was not asked.
-  const refusedRows = [];
-  const refused = make({ route: async () => ({ error: 'too_long', status: 400, message: 'Too long.', called: false }) }, { onMetrics: entry => refusedRows.push(entry) });
-  assert.equal(await refused.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() }), 'invalid');
-  assert.deepEqual([refusedRows.at(-1).routing, sessionModule.routeColumn(refusedRows.at(-1)), sessionModule.stageTimings(refusedRows.at(-1)).routing], ['skipped:too_long', 'bypassed', 'bypassed']);
-  const lost = await transport(async () => { throw new TypeError('Failed to fetch'); }).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal });
-  assert.deepEqual(lost, { error: 'unavailable', called: false });
-  await assert.rejects(transport(async () => { throw Object.assign(new Error('stopped'), { name: 'AbortError' }); }).route({ requestId: 'r', prompt: 'p', selection: '' }, { signal }), { name: 'AbortError' });
-  // The session records such a request as bypassed, never jev.
-  const rows = [];
-  const session = make({ route: async () => lost, generate: async () => ({ result: { kind: 'note', text: 'x' } }) }, { onMetrics: entry => rows.push(entry) });
-  await session.submit({ mode: 'explain', prompt: 'Show the shape of this', prepare: snapshot() });
-  assert.equal(sessionModule.routeColumn(rows.at(-1)), 'bypassed');
+  const busy = await transport(async () => new Response(JSON.stringify({ error: 'Couldn\'t check this request. Try again.', code: 'timeout', retryable: true }), { status: 503 })).decide({ requestId: 'r', request: {}, enabled: [] }, { signal });
+  assert.deepEqual([busy.code, busy.retryable], ['timeout', true]);
+  const lost = await transport(async () => { throw new TypeError('network'); }).decide({ requestId: 'r', request: {}, enabled: [] }, { signal });
+  assert.equal(lost.retryable, true);
+  // An answer that is not a decision (a malformed body) is a retryable error, never a proceed.
+  const odd = await transport(async () => new Response(JSON.stringify({ decision: 'proceed', paid: false }), { status: 200 })).decide({ requestId: 'r', request: {}, enabled: [] }, { signal });
+  assert.deepEqual([odd.code, odd.retryable], ['malformed', true]);
 });
 
 test('re-review M9 (B1/S1): the request text and its fingerprint come from the same saved text, never words captured at open', () => {

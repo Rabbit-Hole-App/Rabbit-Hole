@@ -140,10 +140,11 @@ export function describeChange(change) {
 // the editor adds: a note, a card, their connector.
 const GAP = 40, PAD = 12, STEP = 28;
 const overlaps = (a, b) => a.x < b.x + b.w + PAD && a.x + a.w + PAD > b.x && a.y < b.y + b.h + PAD && a.y + a.h + PAD > b.y;
-const inside = (a, v) => a.x >= v.x && a.y >= v.y && a.x + a.w <= v.x + v.w && a.y + a.h <= v.y + v.h;
+export const inside = (a, v) => a.x >= v.x && a.y >= v.y && a.x + a.w <= v.x + v.w && a.y + a.h <= v.y + v.h;
 // A spot is free when it keeps clear of every obstacle and the target (with PAD all round).
 export const freeSpot = (spot, obstacles, target = null) => !obstacles.some(box => overlaps(spot, box)) && !(target && overlaps(spot, target));
-export function placeNote(target, size, obstacles, visible = null) {
+// reach: how many steps out the rings go (12 for a note beside its target; a larger result asks for more).
+export function placeNote(target, size, obstacles, visible = null, reach = 12) {
   const bases = [
     ['right', { x: target.x + target.w + GAP, y: target.y + target.h / 2 - size.h / 2 }, [0, 1]],
     ['left', { x: target.x - GAP - size.w, y: target.y + target.h / 2 - size.h / 2 }, [0, 1]],
@@ -151,7 +152,7 @@ export function placeNote(target, size, obstacles, visible = null) {
     ['top', { x: target.x + target.w / 2 - size.w / 2, y: target.y - GAP - size.h }, [1, 0]],
   ];
   const tries = [];
-  for (let k = 0; k <= 12; k += 1) for (const [side, at, [ax, ay]] of bases) for (const sign of k ? [1, -1] : [1]) {
+  for (let k = 0; k <= reach; k += 1) for (const [side, at, [ax, ay]] of bases) for (const sign of k ? [1, -1] : [1]) {
     const out = Math.floor(k / 4) * STEP * 3; // every four steps, one ring further out
     const push = { right: [out, 0], left: [-out, 0], bottom: [0, out], top: [0, -out] }[side];
     tries.push({ side, x: at.x + ax * sign * k * STEP + push[0], y: at.y + ay * sign * k * STEP + push[1] });
@@ -213,7 +214,7 @@ export function explainTx({ requestId, text, frozen, board, boxes, size, visible
     color: '#6b7280', width: 2, dash: 'dashed', fill: null, opacity: 1, round: true, text: String(text), textColor: '#37352f', align: 'left', valign: 'top', inline };
   const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
   const connectable = !!one;
-  const [fromSide, toSide] = FACING[place.side];
+  const [fromSide, toSide] = FACING[place.side] || FACING.right;
   const link = connectable ? { id: linkId(requestId), from: note.id, fromSide, to: one, toSide, color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
   return { id: requestId, kind: 'explain', shapes: [note], links: link ? [link] : [], place };
 }
@@ -227,7 +228,7 @@ export function cardTx({ requestId, block, frozen, board, route, place = null })
   const card = { ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline };
   const after = place ? null : frozen.ids.find(id => (board.blocks || []).some(entry => entry.id === id)) || null;
   const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
-  const [fromSide, toSide] = place ? FACING[place.side] : ['top', 'bottom'];
+  const [fromSide, toSide] = place ? FACING[place.side] || FACING.right : ['top', 'bottom'];
   const link = one ? { id: linkId(requestId), from: card.id, fromSide, to: one, toSide, color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
   return { id: requestId, kind: 'card', block: card, after, ...(place ? { end: true } : {}), links: link ? [link] : [] };
 }
@@ -249,5 +250,6 @@ export function applyTx(state, tx) {
     next.blocks = tx.first ? [tx.block, ...state.blocks] : at < 0 ? [...state.blocks, tx.block] : [...state.blocks.slice(0, at + 1), tx.block, ...state.blocks.slice(at + 1)];
   }
   if (tx.links?.length) next.links = [...state.links, ...tx.links.filter(link => !has('links', link.id))];
+  if (tx.groups?.length) next.groups = [...(state.groups || []), ...tx.groups.filter(group => !has('groups', group.id))];
   return next;
 }
