@@ -205,11 +205,12 @@ async function openBoard(board) {
   await context?.close();
   context = await browser.newContext({ viewport: { width: 1800, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-  await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, board.seeds);
+  // Top frame only: a sandboxed iframe (an embed or runner) has no localStorage, and reading it there throws.
+  await context.addInitScript(seeds => { if (window !== window.top) return; for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, board.seeds);
   if (board.repo) await routeRepository(context); // registered first, so this file's router (below) runs first and falls back to it
   await context.route('**/*', router);
   page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
+  page.on('pageerror', error => errors.push(`${board.name}: ${error.message.slice(0, 160)}`));
   await page.goto(`${BASE}/apps/${board.name}${board.repo ? '?tab=learn' : ''}`);
   await page.locator(`[data-block-id="${board.first}"]`).waitFor({ timeout: 60000 });
   await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
@@ -264,10 +265,11 @@ const clearSelection = async () => {
   if (await pane().locator('[data-canvas-target]').count()) await blank();
   assert.equal(await pane().locator('[data-canvas-target]').count(), 0, 'nothing selected');
 };
-// Select one card (a press on its top edge) or one note / text box (a press near its top-left corner).
+// Select one card (a press on its top edge, off the middle where the connection port sits) or one note / text box (a press near
+// its top-left corner).
 const select = async (id, item = false) => {
   const b = await reveal(page.locator(item ? `[data-item-id="${id}"]` : `[data-block-id="${id}"]`).first(), true);
-  await page.mouse.click(item ? b.x + 24 : b.x + Math.min(b.width, 400) / 2, item ? b.y + 24 : b.y + 8);
+  await page.mouse.click(b.x + (item ? 24 : 40), item ? b.y + 24 : b.y + 8);
   await pane().locator(`[data-selected-card="${id}"]`).waitFor({ timeout: 5000 });
 };
 const waitFor = async (test, ms = 8000) => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error('timed out'); await page.waitForTimeout(100); } };
