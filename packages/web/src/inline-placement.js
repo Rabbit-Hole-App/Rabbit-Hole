@@ -76,8 +76,11 @@ export function regionStyle(board, at, { radius = REGION } = {}) {
 export function placeResult(bounds, anchor, obstacles, viewport = null) {
   const size = { w: bounds.w, h: bounds.h };
   const centred = { x: anchor.x - size.w / 2, y: anchor.y - size.h / 2 };
-  const spot = freeSpot({ ...centred, ...size }, obstacles) && (!viewport || inside({ ...centred, ...size }, viewport))
-    ? { ...centred, side: null, offscreen: false }
+  const seen = !viewport || inside({ ...centred, ...size }, viewport);
+  // A result larger than the view can never be wholly in it: centred on the anchor is then the nearest place it can go.
+  const fits = !viewport || (size.w <= viewport.w && size.h <= viewport.h);
+  const spot = freeSpot({ ...centred, ...size }, obstacles) && (seen || !fits)
+    ? { ...centred, side: null, offscreen: !seen }
     : placeNote({ x: anchor.x, y: anchor.y, w: 0, h: 0 }, size, obstacles, viewport, REACH);
   return { x: spot.x, y: spot.y, dx: spot.x - bounds.x, dy: spot.y - bounds.y, side: spot.side, offscreen: spot.offscreen };
 }

@@ -38,6 +38,9 @@ test('placeResult: when no free spot is in view, it says so instead of landing s
   assert.ok(freeSpot({ ...bounds, x: spot.x, y: spot.y }, wall));
   // With no viewport there is nothing to be off.
   assert.equal(placeResult(bounds, { x: 800, y: 500 }, [], null).offscreen, false);
+  // A result taller than the view stays centred on the anchor, and says it is not wholly in view.
+  const tall = placeResult({ x: 0, y: 0, w: 800, h: 1900 }, { x: 600, y: 400 }, [], view);
+  assert.deepEqual([tall.x, tall.y, tall.offscreen], [200, -550, true]);
 });
 
 test('placeResult: real board obstacles from the canvas fixtures', () => {
