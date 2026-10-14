@@ -7,6 +7,7 @@ import { checkEdit, checkNote, cleanMetrics, inlineGenerateFetch, inlineRouteFet
 import { JevError } from '../src/learn-grade-jev.js';
 import { INLINE_EDIT_SYSTEM, INLINE_NOTE_SYSTEM } from '../src/agents/learn-inline.js';
 import { readGeneration } from '../../web/src/inline-ai-transport.js';
+import { KEY_ENV, decided } from './learn-inline-fixture.js';
 
 const who = { name: 'canvas-0a1b2c3d', email: 'maker@test', user_id: 'u-maker-1' };
 const authorize = async () => who;
@@ -61,7 +62,7 @@ test('generate (note): the model\'s real deltas stream through, the result is va
       ['message_stop', { type: 'message_stop' }],
     ]);
   };
-  const response = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'Explain this node', context }), {}, { authorize, callModel });
+  const response = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'Explain this node', context })), KEY_ENV, { authorize, callModel });
   assert.equal(response.headers.get('content-type'), 'text/event-stream');
   const deltas = [];
   const out = await readGeneration(response, event => deltas.push(event.type === 'meta' ? { streaming: event.streaming } : event.text));
@@ -88,7 +89,7 @@ test('generate (edit): partial op text streams as previews; the finished tool in
     ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 30 } }],
   ]);
   const previews = [];
-  const out = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'edit', route: 'edit', prompt: 'shorter', context }), {}, { authorize, callModel }), event => previews.push(event));
+  const out = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'edit', route: 'edit', prompt: 'shorter', context })), KEY_ENV, { authorize, callModel }), event => previews.push(event));
   assert.ok(previews.length >= 1);
   assert.equal(previews.at(-1).text, 'Leaf "23"');
   assert.deepEqual(out.result, { kind: 'edit', summary: 'Shorter', ops: [{ op: 'replace_text', id: 'n23', text: 'Leaf "23"' }] });
@@ -100,7 +101,7 @@ test('generate (edit) under the subscription bridge asks for the whole answer, s
   let streamed = null;
   const callModel = async (env, body) => { streamed = body.stream; return Response.json({ model: 'claude-opus-5', stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 5 }, content: [{ type: 'tool_use', id: 't', name: 'inline_edit', input: { summary: 'Bold', ops: [{ op: 'set_style', id: 'n23', style: { bold: true } }] } }] }); };
   const events = [];
-  const out = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'edit', route: 'edit', prompt: 'bold', context }), { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'maker@test' }, { authorize: async () => ({ ...who }), callModel }), event => events.push(event));
+  const out = await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'edit', route: 'edit', prompt: 'bold', context })), { ...KEY_ENV, SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'maker@test' }, { authorize: async () => ({ ...who }), callModel }), event => events.push(event));
   assert.equal(streamed, false);
   assert.deepEqual(out.result.ops, [{ op: 'set_style', id: 'n23', style: { bold: true } }]);
   assert.deepEqual(events.filter(event => event.type === 'meta'), [{ type: 'meta', streaming: false }]);
@@ -108,17 +109,18 @@ test('generate (edit) under the subscription bridge asks for the whole answer, s
 
 test('generate: not configured, spend refusal, a cut-off answer and an empty note are errors, never previews', async () => {
   const notConfigured = async () => Response.json({ type: 'error', error: { type: 'not_configured', message: 'x' } }, { status: 503 });
-  const r1 = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context }), {}, { authorize, callModel: notConfigured });
+  const r1 = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context })), KEY_ENV, { authorize, callModel: notConfigured });
   assert.equal(r1.status, 503);
   await assert.rejects(readGeneration(r1, () => {}), /configured/);
   const capped = async () => Response.json({ error: 'Paid Learn calls are paused.', code: 'spend_limited' }, { status: 429 });
-  const r2 = await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context }), {}, { authorize, callModel: capped });
+  const r2 = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context })), KEY_ENV, { authorize, callModel: capped });
   assert.equal(r2.status, 429);
   const cutOff = async () => sse([['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text' } }], ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Node 23 is' } }], ['message_delta', { type: 'message_delta', delta: { stop_reason: 'max_tokens' }, usage: {} }]]);
-  await assert.rejects(readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context }), {}, { authorize, callModel: cutOff }), () => {}), /cut off/);
+  await assert.rejects(readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context })), KEY_ENV, { authorize, callModel: cutOff }), () => {}), /cut off/);
   assert.match(checkNote('   ').error, /no explanation/);
-  assert.equal((await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'edit', route: 'note', prompt: 'x', context }), {}, { authorize })).status, 400, 'the pill decides the operation: Edit cannot ask for a note');
-  assert.equal((await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context }), {}, { authorize: refuse })).status, 401);
+  // The pill and the route come from the decided request alone: a body naming them, with no proceed, generates nothing.
+  assert.equal((await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'edit', route: 'note', prompt: 'x', context }), KEY_ENV, { authorize, callModel: async () => assert.fail('no model call') })).status, 403);
+  assert.equal((await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'x', context })), KEY_ENV, { authorize: refuse })).status, 401);
 });
 
 test('generate: a flattened image goes to the explanation model as one picture; the image reader gets only the board card id', async () => {
@@ -126,13 +128,13 @@ test('generate: a flattened image goes to the explanation model as one picture; 
   const images = async (env, access, body) => { asked = body; return { blocks: [{ type: 'text', text: 'Image: tree' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } }] }; };
   const callModel = async (env, body) => { sentContent = body.messages[0].content; return sse([['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text' } }], ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'A picture of a tree.' } }], ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: {} }]]); };
   const withImage = { ...context, image: { id: 'img1' } };
-  await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: withImage, board: 'main' }), {}, { authorize, callModel, images }), () => {});
+  await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: withImage, board: 'main' })), KEY_ENV, { authorize, callModel, images }), () => {});
   assert.deepEqual(asked, { image_context: { block_id: 'img1' }, board: 'main' });
   assert.equal(sentContent[1].type, 'image');
   // An uploaded image is read by its media id under the app's identity; anything else that looks like one is ignored.
-  await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: { ...context, image: { id: 'img1', mediaId: 'media:0123456789ab' } } }), {}, { authorize, callModel, images }), () => {});
+  await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: { ...context, image: { id: 'img1', mediaId: 'media:0123456789ab' } } })), KEY_ENV, { authorize, callModel, images }), () => {});
   assert.deepEqual(asked.image_context, { id: 'media:0123456789ab' });
-  await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', { app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: { ...context, image: { id: 'img1', mediaId: '../etc/passwd' } } }), {}, { authorize, callModel, images }), () => {});
+  await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: { ...context, image: { id: 'img1', mediaId: '../etc/passwd' } } })), KEY_ENV, { authorize, callModel, images }), () => {});
   assert.deepEqual(asked.image_context, { block_id: 'img1' });
 });
 

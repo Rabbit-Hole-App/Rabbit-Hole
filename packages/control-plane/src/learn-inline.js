@@ -18,7 +18,14 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { isUploadedMediaId } from './learn-media.js';
-import { INLINE_EDIT_SYSTEM, INLINE_EDIT_TOOL, INLINE_NOTE_SYSTEM } from './agents/learn-inline.js';
+import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, INLINE_EDIT_TOOL, INLINE_NOTE_SYSTEM } from './agents/learn-inline.js';
+import { decide, proceedGate } from './learn-inline-route.js';
+import { commandOf, generationPrompt } from '../../web/src/inline-ai-decide.js';
+import { validateDiagram } from '../../web/src/inline-diagram.js';
+import { commandInput } from '../../web/src/inline-ai-route.js';
+import { artifactContext } from '../../web/src/inline-ai-transport.js';
+import { generateArtifact } from './learn-artifact.js';
+import { contextDocumentBlocks } from './learn-context-docs.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 // A note needs little room; an edit may rewrite a code block. Both inside LEARN_TASKS.artifact's 4000.
@@ -68,6 +75,20 @@ export async function inlineRouteFetch(req, env, { authorize = authorizedBoardAp
   }
 }
 
+// POST /api/learn/inline/decide {app, request_id, request, enabled}: the request check and route in ONE call, and a signed
+// proceed that /generate requires (learn-inline-route.js, docs/features/inline-ai-validation.md). Every entry point -
+// Edit, plain Explain, slash commands, creation - comes here first.
+export async function inlineDecideFetch(req, env, { authorize = authorizedBoardApp, ...deps } = {}) {
+  const { body, response } = await readBody(req, 60000);
+  if (response) return response;
+  if (!REQUEST_ID.test(String(body.request_id))) return json({ error: 'Invalid inline request' }, 400);
+  const allowed = await access(req, env, body, authorize);
+  if (allowed instanceof Response) return allowed;
+  const out = await decide(env, { app: body.app, requestId: body.request_id, request: body.request, enabled: body.enabled }, { transport: jevTransport(env), ...deps });
+  log({ stage: 'decide', request_id: body.request_id, outcome: out.body.decision || out.body.code || 'invalid', capability: out.body.route?.capability ?? null, called: out.called, validator: out.body.meta?.validator ?? null, ms: out.body.meta?.ms ?? null });
+  return json(out.body, out.status || 200);
+}
+
 // The partial text of each edit operation inside a tool input still streaming in (A2): an op's id, then its text so far.
 // Best effort over incomplete JSON; the complete input is validated before anything is accepted.
 export function partialEdits(text) {
@@ -94,6 +115,33 @@ export function checkEdit(input, targetIds) {
   if (outside) return { error: `The edit reached outside the selection (${String(outside?.id).slice(0, 60)}).` };
   const limitation = typeof input.limitation === 'string' ? input.limitation.slice(0, 300) : undefined;
   return { result: { kind: 'edit', summary: String(input.summary || '').slice(0, 200), ops, ...(limitation ? { limitation } : {}) } };
+}
+
+// A diagram is structure only, checked in full before it may be laid out (web/src/inline-diagram.js).
+export function checkDiagram(input) {
+  const checked = validateDiagram(input);
+  return checked.ok ? { result: { kind: 'diagram', spec: checked.spec } } : { error: `The diagram didn't check out: ${checked.errors.slice(0, 3).join(' ')}` };
+}
+
+// A card or media capability decided to proceed: its /command's own handler (learn-artifact.js), with no insert. /image
+// and /motion make nothing here (a photo search and a paid proposal the editor stages without a model).
+async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents }) {
+  if (route === 'image' || route === 'motion') return json({ error: 'This output is staged in the editor, not generated here.', code: 'invalid' }, 400);
+  const command = commandOf(decided);
+  const input = commandInput({ route, via: command ? 'command' : 'jev', args: command?.args || '' }, { prompt: decided.prompt, context });
+  if (input.clarify) return json({ result: 'clarification', question: input.clarify.question });
+  const first = context.target?.objects?.[0];
+  const selection = first ? { kind: 'canvas_object', id: String(first.id), title: String(first.text || first.kind || first.type).slice(0, 200) } : null;
+  let docs;
+  try { docs = await documents(env, allowed); } catch (error) { return json({ error: `Context documents: ${error.message}`, code: 'error' }, 502); }
+  try {
+    const out = await artifact(env, { command: route, args: input.args, selection, context: artifactContext(context, revise), ...(docs.length ? { documents: docs } : {}) });
+    log({ stage: 'generate', request_id: requestId, mode: 'explain', route, outcome: out.result, total_ms: Date.now() - started });
+    return json(out);
+  } catch (error) {
+    log({ stage: 'generate', request_id: requestId, mode: 'explain', route, outcome: 'error', total_ms: Date.now() - started });
+    return json({ error: error.message || 'Generation failed.', code: 'error' }, 502);
+  }
 }
 
 // Anthropic's stream, read event by event: text deltas, tool input deltas, usage and the stop reason.
@@ -124,39 +172,48 @@ async function readModelStream(body, on) {
   }
 }
 
-export async function inlineGenerateFetch(req, env, { authorize = authorizedBoardApp, callModel = planModel, images = tutorImageContext } = {}) {
+export async function inlineGenerateFetch(req, env, { authorize = authorizedBoardApp, callModel = planModel, images = tutorImageContext, artifact = generateArtifact, documents = contextDocumentBlocks } = {}) {
   const { body, response } = await readBody(req, 60000);
   if (response) return response;
-  const { mode, route } = body;
-  // The learner's words plus, for /simplify, /example and /deeper, the instruction the editor puts in front of them.
-  if (typeof body.prompt === 'string' && body.prompt.length > PROMPT_MAX + PROMPT_ROOM) return json({ error: promptTooLong(), code: 'too_long' }, 400);
+  // Only a request the server itself decided to proceed with (learn-inline-route.js, /api/learn/inline/decide), and only
+  // as decided: the mode, route, words and context come from that signed request, never from fields beside it.
+  const gate = await proceedGate(env, body);
+  if (!gate) return json({ error: 'This request wasn\'t checked first. Send it again.', code: 'not_validated' }, 403);
+  const decided = gate.request, route = gate.capability, mode = decided.mode, creation = decided.kind === 'creation';
+  // The learner's words plus, for /simplify, /example and /deeper, their instruction in front of them.
+  const prompt = generationPrompt(decided), context = decided.context;
+  if (prompt.length > PROMPT_MAX + PROMPT_ROOM) return json({ error: promptTooLong(), code: 'too_long' }, 400);
   // A refine (§10) carries the candidate it revises and the original request.
   const revise = body.revise ?? null;
   if (revise !== null && (typeof revise !== 'object' || typeof revise.result !== 'string' || !revise.result || revise.result.length > EARLIER_MAX || typeof revise.prompt !== 'string' || revise.prompt.length > PROMPT_MAX)) return json({ error: 'Invalid inline request' }, 400);
-  if (!((mode === 'explain' && route === 'note') || (mode === 'edit' && route === 'edit')) || typeof body.prompt !== 'string'
-    || !body.context || typeof body.context !== 'object' || !Array.isArray(body.context.target?.ids) || !body.context.target.ids.length || !REQUEST_ID.test(String(body.request_id))) {
+  // Edit's targets are the decided selection, exactly; a creation has none, and Edit never runs without one.
+  const targetIds = creation ? [] : decided.textRange ? [String(decided.textRange.id)] : decided.targetIds.map(String);
+  const sameTargets = ids => Array.isArray(ids) && ids.length === targetIds.length && ids.every(id => targetIds.includes(String(id)));
+  if (!((mode === 'explain' && route !== 'edit') || (mode === 'edit' && route === 'edit' && !creation))
+    || !context || typeof context !== 'object' || (!creation && !sameTargets(context.target?.ids)) || !REQUEST_ID.test(String(body.request_id))) {
     return json({ error: 'Invalid inline request' }, 400);
   }
   const allowed = await access(req, env, body, authorize);
   if (allowed instanceof Response) return allowed;
-  const edit = mode === 'edit', started = Date.now(), requestId = body.request_id;
-  const targetIds = body.context.target.ids.map(String);
+  const edit = mode === 'edit', shapes = route === 'shapes', started = Date.now(), requestId = body.request_id;
+  if (!edit && route !== 'note' && !shapes) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
+  const tool = edit ? INLINE_EDIT_TOOL : shapes ? INLINE_DIAGRAM_TOOL : null;
   // A flattened image goes to the vision-capable explanation model as one picture of the board's own card - never to JEV.
   let pictures = [];
-  if (!edit && typeof body.context.image?.id === 'string') {
+  if (!edit && typeof context.image?.id === 'string') {
     // The card's uploaded copy when it has one (read under this app's identity), else the board's own card.
-    const ref = isUploadedMediaId(body.context.image.mediaId) ? { id: body.context.image.mediaId } : { block_id: body.context.image.id };
+    const ref = isUploadedMediaId(context.image.mediaId) ? { id: context.image.mediaId } : { block_id: context.image.id };
     const got = await images(env, allowed, { image_context: ref, board: typeof body.board === 'string' ? body.board : 'main' }).catch(() => null);
     if (got?.blocks) pictures = got.blocks;
   }
-  const text = JSON.stringify({ request: body.prompt, canvas: body.context, ...(revise ? { earlier: { request: revise.prompt, result: revise.result } } : {}) });
+  const text = JSON.stringify({ request: prompt, canvas: context, ...(revise ? { earlier: { request: revise.prompt, result: revise.result } } : {}) });
   const request = {
-    // The subscription bridge replays a streamed answer as text only, which would drop an edit's tool call: an edit asks
-    // for the whole answer there (the non-streaming branch below reads it).
-    max_tokens: edit ? EDIT_MAX_TOKENS : NOTE_MAX_TOKENS, stream: !(edit && env.SUBSCRIPTION_ONLY === 'true'),
-    system: edit ? INLINE_EDIT_SYSTEM : INLINE_NOTE_SYSTEM,
+    // The subscription bridge replays a streamed answer as text only, which would drop a tool call (an edit, a diagram):
+    // those ask for the whole answer there (the non-streaming branch below reads it).
+    max_tokens: tool ? EDIT_MAX_TOKENS : NOTE_MAX_TOKENS, stream: !(tool && env.SUBSCRIPTION_ONLY === 'true'),
+    system: edit ? INLINE_EDIT_SYSTEM : shapes ? INLINE_DIAGRAM_SYSTEM : creation ? INLINE_CREATE_SYSTEM : INLINE_NOTE_SYSTEM,
     messages: [{ role: 'user', content: pictures.length ? [...pictures, { type: 'text', text }] : text }],
-    ...(edit ? { tools: [INLINE_EDIT_TOOL], tool_choice: { type: 'any', disable_parallel_tool_use: true } } : {}),
+    ...(tool ? { tools: [tool], tool_choice: { type: 'any', disable_parallel_tool_use: true } } : {}),
   };
   let upstream;
   try { upstream = await callModel(env, request, LEARN_TASKS.artifact.model, null); }
@@ -186,7 +243,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
             reader: reader => { upstreamReader = reader; },
             start: message => { got.model = message.model || null; got.usage = { ...(message.usage || {}) }; },
             tool: block => { got.tool = block; },
-            text: piece => { firstNow(); got.text += piece; if (!edit && piece) send('delta', { text: piece }); },
+            text: piece => { firstNow(); got.text += piece; if (!tool && piece) send('delta', { text: piece }); },
             json: piece => {
               firstNow(); got.json += piece;
               if (edit) for (const part of partialEdits(got.json)) if (sent.get(part.id) !== part.text) { sent.set(part.id, part.text); send('preview', part); }
@@ -199,16 +256,16 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
           firstNow();
           got.model = message.model || null; got.usage = message.usage || {}; got.stop = message.stop_reason;
           for (const part of message.content || []) {
-            if (part.type === 'text') { got.text += part.text; if (!edit) send('delta', { text: part.text }); }
+            if (part.type === 'text') { got.text += part.text; if (!tool) send('delta', { text: part.text }); }
             if (part.type === 'tool_use') { got.tool = part; got.json = JSON.stringify(part.input || {}); }
           }
         }
         let checked;
         if (got.stop === 'max_tokens') checked = { error: 'The answer was cut off before it was complete.' };
-        else if (edit) {
+        else if (tool) {
           let input = null;
-          try { input = got.tool?.name === INLINE_EDIT_TOOL.name ? JSON.parse(got.json || '{}') : null; } catch { input = null; }
-          checked = checkEdit(input, targetIds);
+          try { input = got.tool?.name === tool.name ? JSON.parse(got.json || '{}') : null; } catch { input = null; }
+          checked = edit ? checkEdit(input, targetIds) : checkDiagram(input);
         } else checked = checkNote(got.text);
         if (checked.error) send('error', { error: checked.error, code: 'invalid' });
         else { outcome = 'done'; send('done', { result: checked.result, usage: { input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null }, ms: { first: got.first == null ? null : got.first - started, total: Date.now() - started } }); }
@@ -217,7 +274,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
         send('error', { error: 'The answer stopped before it was complete.', code: 'stream' });
         outcome = 'stream_error';
       } finally {
-        log({ stage: 'generate', request_id: requestId, mode, outcome, streaming, model: got.model, first_ms: got.first == null ? null : got.first - started, total_ms: Date.now() - started, input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null, image: pictures.length > 0 });
+        log({ stage: 'generate', request_id: requestId, mode, route, outcome, streaming, model: got.model, first_ms: got.first == null ? null : got.first - started, total_ms: Date.now() - started, input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null, image: pictures.length > 0 });
         try { controller.close(); } catch { /* already cancelled */ }
       }
     },
