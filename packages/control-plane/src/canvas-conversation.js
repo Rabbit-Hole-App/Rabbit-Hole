@@ -1,5 +1,11 @@
 import { HISTORY_TURNS } from './learn-models.js';
 
+// The answer a declined chat turn stores (learn-research.js, graceful). Later turns never resend the declined request's text:
+// the provider's safety check reads the whole history, so carrying it declines every later turn, safe or not (lane-b-real
+// RECHECK.md 6c). The model still sees that a request was declined, and a request that itself asks again is declined afresh.
+export const DECLINE = "I can't help with that request.";
+export const WITHHELD = '(An earlier request in this conversation was declined; its text is withheld.)';
+
 // A new canvas branch starts with only its own displayed question and answer.
 // These are conversation text, never trusted source evidence or instructions.
 export function canvasSeed(body, conversation = 'learn') {
@@ -28,6 +34,7 @@ export async function threadTurns(db, threadId, seed, userText, before = null) {
     ({ results: history } = await recent(` AND NOT EXISTS (SELECT 1 FROM chat_message_meta x WHERE x.message_id > m.id AND x.alternative_of = COALESCE((SELECT a.alternative_of FROM chat_message_meta a WHERE a.message_id = m.id), m.id))`));
   } catch { ({ results: history } = await recent('')); }
   history.reverse();
+  history.forEach((turn, i) => { if (turn.role === 'user' && history[i + 1]?.role === 'assistant' && history[i + 1].content === DECLINE) turn.content = WITHHELD; });
   if (before) return Object.assign(history, { userMessageId: before });
   const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(threadId, 'user', userText).first();
   return Object.assign(history, { userMessageId: row?.id ?? null });
