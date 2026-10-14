@@ -71,9 +71,21 @@ test('Open in Notebook: a Code exercise gives its Given setup, then its current 
   assert.equal(exercise.draft, null);
 });
 
+test('Open in notebook: a Code sample gives its code verbatim in one cell, never its output, and the card is untouched', () => {
+  const sample = Object.freeze({ id: 'cs', type: 'snippet', title: 'Vocabulary', brief: 'Why', code: 'chars = sorted(set(text))\nprint(chars)  # kept\n', output: "[' ', 'e']" });
+  const before = JSON.stringify(sample);
+  const { block } = notebookFromCode(sample);
+  assert.equal(block.type, 'notebook');
+  assert.notEqual(block.id, sample.id);
+  assert.deepEqual(block.ipynb.cells.map(cell => [cell.cell_type, cell.source]), [['code', sample.code]]);
+  assert.equal(JSON.stringify(sample), before);
+  assert.deepEqual(notebookFromCode({ type: 'snippet', code: 'x = 1', language: 'Python' }).block.ipynb.cells.map(cell => cell.source), ['x = 1']);
+});
+
 test('Open in Notebook is Python only, and only for a code card', () => {
   assert.deepEqual(notebookFromCode({ kind: 'text', mode: 'code', lang: 'javascript', text: 'let a' }), { disabled: 'Notebooks run Python only' });
   assert.deepEqual(notebookFromCode({ type: 'code', language: 'r', starter: 'x <- 1' }), { disabled: 'Notebooks run Python only' });
+  assert.deepEqual(notebookFromCode({ type: 'snippet', language: 'javascript', code: 'let a = 1' }), { disabled: 'Notebooks run Python only' });
   assert.equal(notebookFromCode({ kind: 'text', text: 'x = 1' }), null);
-  assert.equal(notebookFromCode({ type: 'snippet', code: 'x = 1' }), null);
+  assert.equal(notebookFromCode({ type: 'explanation', body: 'x = 1' }), null);
 });

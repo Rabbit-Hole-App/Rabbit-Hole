@@ -803,7 +803,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
             className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
             <MessageCircle size={13} />Ask in chat
           </button>
-          <NotebookButton entry={block} onNotebook={onNotebook} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink shadow-md hover:bg-hover" />
+          <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
@@ -833,16 +833,16 @@ function LevelPill({ level, onLevel, className = '', style = null, levels = TEXT
   );
 }
 
-// Open in Notebook (docs/features/canvas-notebook.md) on a code card's own row: off, with its reason, for code a notebook
-// cannot run.
+// Open in notebook (docs/features/canvas-notebook.md) on a code card's own row, a small icon beside Ask in chat: off, with
+// its reason, for code a notebook cannot run.
 function NotebookButton({ entry, onNotebook, className = '' }) {
   const made = notebookFromCode(entry);
   if (!made || !onNotebook) return null;
   return (
-    <button type="button" data-open-notebook disabled={!!made.disabled} title={made.disabled || 'Open this code in a new notebook card'}
+    <button type="button" data-open-notebook aria-label="Open in notebook" disabled={!!made.disabled} title={made.disabled || 'Open in notebook'}
       onPointerDown={event => event.stopPropagation()} onClick={() => onNotebook(entry.id)}
-      className={`flex items-center gap-1.5 whitespace-nowrap disabled:cursor-default disabled:text-ink-3 ${className}`}>
-      <NotebookPen size={13} />Open in Notebook
+      className={`flex items-center justify-center disabled:cursor-default disabled:text-ink-3 ${className}`}>
+      <NotebookPen size={13} aria-hidden="true" />
     </button>
   );
 }
@@ -990,10 +990,10 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
           its own line above them; the ladder and pill keep their row. */}
       {(ladder || (ask && !sticky)) && (
         <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full flex-col items-start gap-1.5">
-          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded px-1.5 py-0.5 text-[11px] text-ink-2 hover:bg-hover hover:text-ink" />} />}
+          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
           <div className="flex items-center gap-2 self-stretch">
             {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
-            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded px-1.5 py-0.5 text-[11px] text-ink-2 hover:bg-hover hover:text-ink" />} />}
+            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
             {ask && !sticky && askPill}
           </div>
         </div>
@@ -3230,10 +3230,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // pill. In world units: where the reserved row starts (`right`), its top and height. A dropped image, a text box and a
   // sticky note have the same Ask in chat (r35); a shape keeps the slot it would take. PILL: the pills' rendered widths,
   // with a little room.
-  const PILL = { ask: 112, select: 124, explain: 144, more: 138, notebook: 150, gap: 6 };
+  const PILL = { ask: 112, select: 124, explain: 144, more: 138, notebook: 30, gap: 6 };
   const pillRow = id => {
     const block = blocks.find(entry => entry.id === id);
-    if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0) + (block.type === 'code' ? PILL.gap + PILL.notebook : 0);
+    if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0) + (block.type === 'code' || block.type === 'snippet' ? PILL.gap + PILL.notebook : 0);
     if (exchanges.some(entry => entry.id === id)) return PILL.explain + PILL.gap + PILL.more;
     return PILL.ask;
   };
@@ -3904,7 +3904,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (slot) setSlots(previous => fillSlot(previous, into, block.id));
     return revealAfter(block.id, slot?.moves);
   };
-  // Open in Notebook: a new notebook card from one code card, beside it in free space - placeNote and its obstacles
+  // Open in notebook: a new notebook card from one code card, beside it in free space - placeNote and its obstacles
   // (inlineCanvas.obstacles: obstaclesOf), the inline editor's, so nothing else moves - selected, and panned to when the
   // spot is off-screen, as the editor's ghost is; one undo step. The code card is left as it is.
   const openInNotebook = id => {
@@ -4561,12 +4561,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             </MenuRow>
           );
           const typed = [];
-          // Open in Notebook, for exactly one selected code card (canvas-notebook.md); off with its reason otherwise.
+          // Open in notebook, for exactly one selected code card (canvas-notebook.md); off with its reason otherwise.
           const codeCard = selection.length === 1 && selection[0] === menuAt.id ? block || items.find(entry => entry.id === menuAt.id) : null;
           const fromCode = notebookFromCode(codeCard);
           if (fromCode) {
             typed.push(<MenuRow key="nb" icon={NotebookPen} data-menu-open-notebook disabled={!!fromCode.disabled} title={fromCode.disabled} className={fromCode.disabled ? 'h-auto py-1' : undefined}
-              onClick={act(() => openInNotebook(codeCard.id))}>Open in Notebook{fromCode.disabled && <span className="block text-xs text-ink-3">{fromCode.disabled}</span>}</MenuRow>);
+              onClick={act(() => openInNotebook(codeCard.id))}>Open in notebook{fromCode.disabled && <span className="block text-xs text-ink-3">{fromCode.disabled}</span>}</MenuRow>);
           }
           if (block?.type === 'wiki') {
             typed.push(<MenuRow key="wr" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('wiki-reader', { title: block.title, section: block.section || 0 }))}>Open in reader</MenuRow>);

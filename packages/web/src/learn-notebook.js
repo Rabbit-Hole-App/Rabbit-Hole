@@ -45,16 +45,16 @@ export function newNotebookBlock() {
   return { id: crypto.randomUUID(), type: 'notebook', notebook_id: crypto.randomUUID(), language: 'python', dx: 0, dy: 0, active_path: FIRST_NOTEBOOK, files: [FIRST_NOTEBOOK], ipynb_path: FIRST_NOTEBOOK, ipynb: emptyNotebook() };
 }
 
-// Open in Notebook (docs/features/canvas-notebook.md): a new notebook card holding a code card's code - a Code box's text
-// in one cell; a Code exercise's Given setup, then its current code, so Run all runs - and otherwise a default notebook.
+// Open in notebook (docs/features/canvas-notebook.md): a new notebook card holding a code card's code - a Code box's text
+// or a Code sample's code in one cell; a Code exercise's Given setup, then its current code, so Run all runs.
 // { disabled } for code a notebook cannot run; null for anything that is not a code card. The code card is never touched.
 export function notebookFromCode(entry) {
   const box = entry?.kind === 'text' && entry.mode === 'code';
-  if (!box && entry?.type !== 'code') return null;
+  if (!box && entry?.type !== 'code' && entry?.type !== 'snippet') return null;
   if ((box ? codeLang(entry) : String(entry.language || 'python').toLowerCase()) !== 'python') return { disabled: 'Notebooks run Python only' };
   const block = newNotebookBlock();
   const [cell] = block.ipynb.cells;
-  const sources = box ? [entry.text] : [entry.setup, entry.draft ?? entry.starter];
+  const sources = box ? [entry.text] : entry.type === 'snippet' ? [entry.code] : [entry.setup, entry.draft ?? entry.starter];
   const cells = sources.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') }));
   return { block: { ...block, ipynb: { ...block.ipynb, cells } } };
 }

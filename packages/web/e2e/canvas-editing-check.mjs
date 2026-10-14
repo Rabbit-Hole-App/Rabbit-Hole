@@ -339,6 +339,32 @@ await run('open in notebook', async () => {
   await context.close();
 });
 
+// Owner, 2026-10-13: "code card should have a small icon next to Open or Ask in chat which says Open in notebook". On a Code
+// sample (block type snippet) a small icon-only button named Open in notebook sits right beside Ask in chat, and makes the
+// notebook from the sample's code; for a JavaScript sample it is off, with the reason. A fresh page: the camera is where
+// it started, so both cards are on screen.
+await run('open in notebook: code sample icon', async () => {
+  const sample = { id: 'cs', type: 'snippet', dx: 0, dy: 80, title: 'Sample', brief: 'A Python sample.', code: 'x = 1\nprint(x)', output: '1' };
+  const js = { id: 'jsnip', type: 'snippet', dx: 0, dy: 0, title: 'Next in JS', brief: 'A JavaScript sample.', language: 'javascript', code: 'let a = 1', output: '' };
+  const { page, context, saved } = await open('open-notebook-sample', { blocks: [sample, js] });
+  const card = id => page.locator(`[data-block-id="${id}"]`);
+  const button = id => card(id).getByRole('button', { name: 'Open in notebook', exact: true });
+  await card('jsnip').getByText('Next in JS').click();
+  check('a JavaScript Code sample shows the icon off, with the reason', (await button('jsnip').isDisabled()) && (await button('jsnip').getAttribute('title')) === 'Notebooks run Python only');
+  await card('cs').getByText('Sample', { exact: true }).click();
+  const icon = button('cs'), ask = card('cs').getByRole('button', { name: 'Ask in chat', exact: true });
+  const [iconBox, askBox] = [await icon.boundingBox(), await ask.boundingBox()];
+  check('a Code sample shows a small Open in notebook icon button, named Open in notebook, with a tooltip', !!iconBox && (await icon.isVisible()) && (await icon.getAttribute('title')) === 'Open in notebook' && (await icon.innerText()).trim() === '' && (await icon.locator('svg').count()) === 1 && iconBox.y >= 0 && iconBox.width <= 40 && iconBox.height <= 40, JSON.stringify(iconBox));
+  check('and it sits right beside Ask in chat, on the same row', !!iconBox && !!askBox && iconBox.x >= askBox.x + askBox.width - 1 && iconBox.x - (askBox.x + askBox.width) <= 16 && Math.abs((iconBox.y + iconBox.height / 2) - (askBox.y + askBox.height / 2)) <= 4, JSON.stringify({ iconBox, askBox }));
+  await icon.click();
+  const board = await saved();
+  const made = board.blocks.filter(block => block.type === 'notebook');
+  check('clicking it makes one notebook, holding the sample code verbatim in one cell', made.length === 1 && JSON.stringify(made[0].ipynb.cells.map(cell => cell.source)) === JSON.stringify([sample.code]), JSON.stringify(made.map(block => block.ipynb.cells.map(cell => cell.source))));
+  const kept = board.blocks.find(block => block.id === 'cs');
+  check('the Code sample is still there, unchanged', kept && ['title', 'brief', 'code', 'output'].every(key => kept[key] === sample[key]), JSON.stringify(kept));
+  await context.close();
+});
+
 
 const shapeOf = async (saved, id) => (await saved()).shapes.find(shape => shape.id === id);
 const near = (a, b, tolerance = 0.6) => Math.abs(a - b) <= tolerance;

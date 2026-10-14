@@ -31,17 +31,22 @@ second execution model and no custom cell format.
   notebook's folder.
 - Hidden: title bar, menus, launcher, side tab strips, right sidebar, running
   kernels, extension manager, status bar.
-- **Open in Notebook** (owner, 2026-10-13: "for a Code card we should have an
+- **Open in notebook** (owner, 2026-10-13: "for a Code card we should have an
   option of Open in Notebook so we keep the code card but generate a
-  jupyterlab card") makes a new notebook card from a code card. A code card is
-  a Code-mode text box (canvas-editing.md section 3) or a Code exercise card
-  (block type `code`).
-  - Where: a button on the selected code card's own row (a Code box's
-    Text | Code row; a Code exercise's action row above the card, beside Ask
-    in chat), and the canvas right-click menu, when exactly one code card is
+  jupyterlab card"; later that day: "code card should have a small icon next to
+  Open or Ask in chat which says Open in notebook") makes a new notebook card
+  from a code card. A code card is a Code-mode text box (canvas-editing.md
+  section 3), a Code exercise card (block type `code`) or a Code sample card
+  (block type `snippet`).
+  - Where: one small icon button (lucide NotebookPen, 13px, tooltip and
+    accessible name "Open in notebook", no text) on the selected code card's own
+    row, right beside Ask in chat (a Code box: after its Text | Code | language
+    controls; a Code exercise or Code sample: the action row above the card),
+    and the canvas right-click menu row, when exactly one code card is
     selected.
   - What: a new card from `newNotebookBlock()` and `emptyNotebook()`. A Code
-    box gives one code cell holding its text verbatim. A Code exercise gives
+    box gives one code cell holding its text verbatim, and a Code sample one
+    holding its code verbatim (never its output). A Code exercise gives
     two: its Given setup, then its current code (the learner's draft, else the
     starter), so **Run all** runs; never its checks. Everything else is a
     default new notebook. The code card is unchanged, and the two cards are
@@ -57,8 +62,8 @@ second execution model and no custom cell format.
     selected, and when the spot is off-screen the camera pans to it, as the
     editor's ghost does. The whole action is one undo step.
   - Python only: notebooks run Python (Pyodide). A Code box is Python when its
-    `lang` is; a Code exercise is Python unless it names another `language`.
-    Otherwise the item shows disabled, with the reason
+    `lang` is; a Code exercise or Code sample is Python unless it names another
+    `language`. Otherwise the icon shows disabled, with the reason
     "Notebooks run Python only".
 
 ## Storage contract
@@ -159,14 +164,17 @@ origin. The shared site deploys from the same config with
 Open in Notebook, locally:
 
 - `node --test packages/web/src/learn-notebook.test.mjs`: a Code box gives one
-  cell with its text verbatim; an exercise gives setup then current code,
+  cell with its text verbatim; a Code sample gives one cell with its code
+  verbatim; an exercise gives setup then current code,
   never checks; neither card changes; a non-Python card gives the disabled
   reason; anything else gives nothing.
 - `packages/web/e2e/canvas-editing-check.mjs --only="open in notebook"`: from an
   exercise's row, a Code box's row and the right-click menu, the notebook
   holds the expected cells, covers no card, text box or shape, is selected
   and in view, and one Ctrl+Z removes it; a JavaScript box shows the item
-  disabled with its reason in both places.
+  disabled with its reason in both places. A Code sample shows the icon button
+  named Open in notebook right beside Ask in chat and makes a notebook from its
+  code; a JavaScript sample shows it disabled with the reason.
 
 On the deployed clone:
 
