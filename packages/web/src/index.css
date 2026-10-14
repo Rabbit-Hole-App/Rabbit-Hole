@@ -27,6 +27,11 @@
   --color-code: #f7f6f3; /* inline code, code blocks, inputs at rest */
   --color-accent: #2383e2;
   --color-accent-hover: #1b6fc2;
+  /* The canvas selection (rings, outlines, handles). The inline AI editor turns its own target's selection purple while
+     it is open (owner 2026-10-13: purple, not blue) by setting --color-select to --color-ai on that target only. */
+  --color-select: #2383e2;
+  /* The inline AI editor's target and accent: the product's purple (--tok-k, --viz-prediction), flipped in .dark. */
+  --color-ai: #9065b0;
   --color-danger: #eb5757;
   --color-warn: #d9730d;
   --color-success: #448361;
@@ -335,6 +340,7 @@ html {
   --tok-c: #82817d;
   --tok-s: #6fbf8e;
   --tok-k: #b79ae3;
+  --color-ai: #b79ae3;
   --tok-n: #e8a15c;
   --color-white: #191919; /* page + popover surfaces */
   --color-ink: #d4d4d4;

@@ -6,14 +6,15 @@
 //   late stream chunks; nothing of an old request reaches a new one.
 // - Streamed text lives only here and in the preview layer, coalesced to one update per flushMs (A2): never the board,
 //   never autosave or undo. The result is accepted only once complete and validated.
-// - A completed result is kept by idempotency key (board, target fingerprints, mode, prompt, scope): the same request
-//   again reuses it instead of generating twice.
+// - A completed result is kept by idempotency key (board, target fingerprints, the supporting context's fingerprint, mode,
+//   prompt, scope): the same request again reuses it instead of generating twice; new words around the selection do not
+//   (owner 2026-10-13, point 7). A move changes none of these.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
 import { commandInput, decideRoute, EARLIER_MAX, explicitCommand, planRoute, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
 
 export const STAGES = Object.freeze({ routing: 'Choosing a format…', note: 'Writing the explanation…', edit: 'Preparing the edit…', artifact: 'Making the {label}…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
-export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }) => JSON.stringify([boardKey, prints.target, prints.relations, mode, String(prompt).trim(), !!selectionOnly]);
+export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }) => JSON.stringify([boardKey, prints.target, prints.relations, prints.context ?? null, mode, String(prompt).trim(), !!selectionOnly]);
 // The A5 route column of one request's metrics. jev: this request asked JEV, or tried to and fell back
 // (fallback:<reason>). direct: an explicit / command. bypassed: no routing call for this request - a plain explain,
 // Edit, a reused result, an answered clarification (its routing call, if any, was the earlier request's row).

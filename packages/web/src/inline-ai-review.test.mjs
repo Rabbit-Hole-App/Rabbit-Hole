@@ -395,7 +395,7 @@ test('re-review M9 (B1/S1): submit saves an open editor before it builds the req
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   const prepareAt = editor.indexOf('prepare: () => {');
   assert.ok(prepareAt > 0);
-  const flushAt = editor.indexOf('canvas.flushEdits?.();', prepareAt), buildAt = editor.indexOf('const made = prepare();', prepareAt);
+  const flushAt = editor.indexOf('canvas.flushEdits?.();', prepareAt), buildAt = editor.indexOf('const made = prepare(', prepareAt);
   assert.ok(flushAt > prepareAt && flushAt < buildAt, 'flushEdits runs first in submit');
   assert.doesNotMatch(editor, /liveText/);
   assert.doesNotMatch(canvas, /liveText/);

@@ -69,6 +69,7 @@ const READERS = {
   'web/src/inline-ai-apply.js': 'writes the annotation connector with kind annotation',
   'web/src/InlineAiEditor.jsx': 'finds a target among them; no structure',
   'web/src/inline-ai-fixtures.js': 'test boards',
+  'web/src/canvas-semantics.js': 'the shared snapshot: kind annotation is source annotation, never a connector (its own tests)',
   'web/src/canvas-persist.js': 'saves them as one of the board lists',
   'web/src/learn-style-panel.js': 'styles selected links',
   'control-plane/src/learn-boards.js': 'copies the list on fork; no reading',

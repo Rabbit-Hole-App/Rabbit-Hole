@@ -6,8 +6,12 @@
 // (id -> { x, y, w, h } in world units) the canvas measures. Content and layout stay apart (A1): a content record says
 // what an object is and says; where it is comes from `boxes` on each build, so a move never rebuilds a description.
 
-export const CONTEXT_VERSION = 'inline-context-1';
-export const LIMITS = Object.freeze({ objects: 24, targetChars: 4000, chars: 400, total: 8000, nearby: 3, nearbyGap: 60, touch: 14, rangeAround: 200, connections: 40 });
+import { cardText, semanticSnapshot } from './canvas-semantics.js';
+
+export const CONTEXT_VERSION = 'inline-context-2';
+// relevant: the score a supporting object needs (structure, grouping, section, reading order, shared terms - never
+// closeness alone); hops: how far along the diagram's relations; flowGap: the gap between two text boxes read in order.
+export const LIMITS = Object.freeze({ objects: 24, targetChars: 4000, chars: 400, total: 8000, rangeAround: 200, connections: 40, relevant: 0.35, hops: 3, flowGap: 48 });
 // What a move changes and a description never reads.
 const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'w', 'h', 'fresh']);
 const LINEAR = new Set(['line', 'arrow', 'curve', 'elbow']);
@@ -53,11 +57,22 @@ function describe(entity, list, describeCard) {
 export function createContextCache() {
   let key = null, lists = {}, entities = new Map(), byEnd = new Map(), links = new Map(), members = new Map();
   const records = new Map();
-  const stats = { hits: 0, misses: 0, resets: 0 };
-  const reset = () => { key = null; lists = {}; entities = new Map(); byEnd = new Map(); links = new Map(); members = new Map(); records.clear(); stats.resets += 1; };
+  const stats = { hits: 0, misses: 0, resets: 0, snapshots: 0, snapshotHits: 0 };
+  let semanticBasis = null, semanticValue = null;
+  const reset = () => { key = null; lists = {}; entities = new Map(); byEnd = new Map(); links = new Map(); members = new Map(); records.clear(); semanticBasis = null; semanticValue = null; stats.resets += 1; };
   return {
     stats,
     reset,
+    // The board's semantic snapshot (point 7): read again only when a list or a measured box changed since the last
+    // build - so the build at submit reuses the one made while the learner wrote, unless the board changed meanwhile.
+    semantic(board) {
+      const basis = { lists: ['shapes', 'items', 'links', 'blocks', 'groups', 'exchanges'].map(list => board[list]), boxes: JSON.stringify(board.boxes || {}) };
+      if (semanticValue && basis.boxes === semanticBasis.boxes && basis.lists.every((list, i) => list === semanticBasis.lists[i])) { stats.snapshotHits += 1; return semanticValue; }
+      stats.snapshots += 1;
+      semanticBasis = basis;
+      semanticValue = semanticSnapshot(board, { budget: { objects: Infinity, chars: Infinity } });
+      return semanticValue;
+    },
     lookups(board, boardKey, describeCard = null) {
       if (boardKey !== key) { reset(); key = boardKey; }
       const owned = ['shapes', 'items', 'blocks', 'exchanges'];
@@ -100,8 +115,111 @@ export const unionBox = boxes => {
   const x = Math.min(...list.map(box => box.x)), y = Math.min(...list.map(box => box.y));
   return { x, y, w: Math.max(...list.map(box => box.x + box.w)) - x, h: Math.max(...list.map(box => box.y + box.h)) - y };
 };
-const near = (point, box, slack) => point.x >= box.x - slack && point.x <= box.x + box.w + slack && point.y >= box.y - slack && point.y <= box.y + box.h + slack;
 const round = box => box && { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.w), h: Math.round(box.h) };
+
+// The kinds of supporting material, in the order the context indicator lists them.
+export const RELATIONS = ['connected', 'sibling', 'diagram', 'inferred', 'group', 'heading', 'label', 'flow', 'discussion', 'mentions', 'annotation'];
+const HOP = [1, 0.7, 0.5];
+const STOP = new Set(('the a an and or of to in on for is are be was were this that these those it its with as at by from what does do how why '
+  + 'explain explains show tell me about here there which who can will would should could please make into than then them they their your you '
+  + 'not no yes all any each one two get got has have had before after every going until while where when also only just '
+  + 'more most some such other same very then than into over under again still even much many well first last next').split(' '));
+// The words that carry meaning, lowercased, a plural's s dropped: what "shares its terms" compares.
+export const terms = text => new Set((String(text || '').toLowerCase().match(/[a-z0-9_]+/g) || [])
+  .map(word => (word.length > 3 && word.endsWith('s') && !word.endsWith('ss') ? word.slice(0, -1) : word)).filter(word => word.length >= 2 && !STOP.has(word)));
+const HEADING = new Set(['h1', 'h2', 'h3']);
+
+// The supporting objects for one target, each with the reason it is there and a score; only those that reach
+// limits.relevant, best first (nearest first among equals). Pure: the snapshot, the board's own entities and boxes.
+// ponytail: fixed weights and plain term overlap (no stemming beyond a plural s, no synonyms); tune the weights or add a
+// small embedding when the canvas fixtures show a miss.
+export function relevant(snapshot, board, look, present, { request = '', boxes = {}, limits = LIMITS } = {}) {
+  const entries = new Map([...snapshot.cards, ...snapshot.objects].map(entry => [entry.id, entry]));
+  const boxOf = id => boxes[id] || entries.get(id)?.box || null;
+  const targetBox = unionBox(present.map(boxOf));
+  const best = new Map();
+  const offer = (id, relation, score, extra = {}) => {
+    const entry = entries.get(id), found = look.entities.get(id);
+    if (!entry || present.includes(id) || !found || (found.list === 'shapes' && LINEAR.has(found.entity.kind)) || found.entity.inline) return;
+    if ((best.get(id)?.score ?? -1) < score) best.set(id, { id, relation, score, extra });
+  };
+  // The diagram: along stored links and drawn arrows, both ways, up to limits.hops; a drawn arrow counts as much as the
+  // reading of its ends is sure. Annotation connectors are earlier notes, not the diagram.
+  const next = new Map();
+  for (const relation of snapshot.relations) {
+    if (relation.source === 'annotation') continue;
+    const weight = relation.source === 'inferred' ? relation.confidence : 1;
+    for (const [a, b] of [[relation.from, relation.to], [relation.to, relation.from]]) next.set(a, [...(next.get(a) || []), { id: b, weight, relation }]);
+  }
+  let frontier = present.map(id => ({ id, score: 1 }));
+  const reached = new Set(present);
+  for (let hop = 0; hop < Math.min(limits.hops, HOP.length) && frontier.length; hop += 1) {
+    const step = [];
+    for (const from of frontier) for (const edge of next.get(from.id) || []) {
+      if (reached.has(edge.id)) continue;
+      const score = from.score * HOP[hop] * edge.weight;
+      const relation = hop ? 'diagram' : edge.relation.source === 'inferred' ? 'inferred' : 'connected';
+      offer(edge.id, relation, score, { hops: hop + 1, ...(edge.relation.source === 'inferred' ? { confidence: edge.relation.confidence } : {}) });
+      step.push({ id: edge.id, score });
+    }
+    for (const entry of step) reached.add(entry.id);
+    frontier = step;
+  }
+  // Labels written on or right against the target.
+  for (const entry of snapshot.objects) if (present.includes(entry.labelOf)) offer(entry.id, 'label', 0.95, { labelOf: entry.labelOf });
+  // Its section: the column heading above it, and the section's other material when the section is small.
+  const sections = new Set(present.map(id => entries.get(id)?.sectionId).filter(Boolean));
+  for (const section of sections) {
+    offer(section, 'heading', 0.9);
+    const members = [...entries.values()].filter(entry => entry.sectionId === section && entry.id !== section);
+    for (const entry of members) offer(entry.id, 'heading', members.length <= 8 ? 0.4 : 0.25, { section });
+  }
+  // A heading written on the canvas just above the target's region.
+  if (targetBox) {
+    const above = (board.items || []).filter(item => HEADING.has(item.level) && item.mode !== 'code' && boxOf(item.id)).map(item => ({ item, box: boxOf(item.id) }))
+      .filter(({ box }) => box.y + box.h <= targetBox.y + 4 && targetBox.y - (box.y + box.h) <= 600 && box.x < targetBox.x + targetBox.w + 200 && box.x + box.w > targetBox.x - 200)
+      .sort((a, b) => b.box.y - a.box.y);
+    if (above[0]) offer(above[0].item.id, 'heading', 0.85);
+  }
+  // Reading order: the text boxes stacked with a text target, before and after it.
+  const texts = (board.items || []).filter(item => item.kind === 'text' && item.mode !== 'code' && boxOf(item.id));
+  for (const id of present) {
+    if (!texts.some(item => item.id === id)) continue;
+    for (const dir of [-1, 1]) {
+      let at = boxOf(id);
+      for (let step = 0; step < 4; step += 1) {
+        const following = texts.filter(item => !present.includes(item.id) && Math.abs(boxOf(item.id).x - at.x) <= 24)
+          .map(item => { const box = boxOf(item.id); return { item, box, gap: dir > 0 ? box.y - (at.y + at.h) : at.y - (box.y + box.h) }; })
+          .filter(({ gap }) => gap >= -4 && gap <= limits.flowGap).sort((a, b) => a.gap - b.gap)[0];
+        if (!following) break;
+        offer(following.item.id, HEADING.has(following.item.level) ? 'heading' : 'flow', 0.85 - step * 0.15, { order: dir < 0 ? 'before' : 'after' });
+        at = following.box;
+      }
+    }
+  }
+  // Discussion of it: a chat answered about the target.
+  for (const exchange of board.exchanges || []) if (present.includes(exchange.linkFrom)) offer(exchange.id, 'discussion', 0.9);
+  // Shared terms with the request and the target's own words, however far away.
+  const query = new Set([...terms(request), ...present.flatMap(id => [...terms(entries.get(id)?.text)])]);
+  for (const entry of entries.values()) {
+    const shared = [...terms(`${entry.title || ''} ${entry.text}`)].filter(word => query.has(word));
+    const score = shared.length >= 2 ? 0.45 + 0.1 * Math.min(shared.length - 2, 3) : shared.length === 1 && shared[0].length >= 6 ? 0.38 : 0;
+    const known = best.get(entry.id);
+    if (score && known) best.set(entry.id, { ...known, score: Math.max(known.score, score) + 0.1 });
+    else if (score) offer(entry.id, 'mentions', score, { shared: shared.slice(0, 5) });
+  }
+  // Labels on what is already in: a label travels with its object.
+  for (const entry of snapshot.objects) if (entry.labelOf && (best.get(entry.labelOf)?.score ?? 0) >= limits.relevant) offer(entry.id, 'label', 0.5, { labelOf: entry.labelOf });
+  const distance = id => (targetBox && boxOf(id) ? gapBetween(targetBox, boxOf(id)) : Infinity);
+  return [...best.values()].filter(entry => entry.score >= limits.relevant).sort((a, b) => b.score - a.score || distance(a.id) - distance(b.id));
+}
+
+// What a cached answer depended on besides the target (point 7): the supporting objects' words and why they are there,
+// the relations among them and the metadata - never positions, so a move keeps the answer and an edit around it does not.
+const supportPrint = context => hash(JSON.stringify([
+  context.related.map(entry => [entry.id, entry.relation, entry.text]), context.relations.map(r => [r.from, r.to, r.label || '', r.directed, r.source]),
+  context.connections.map(link => [link.id, link.from, link.to, link.label || '']), context.target.group?.label ?? null, context.metadata,
+]));
 
 // The fingerprints a response is checked against before it applies (§11): what the target says (never where it is),
 // and the stored connections and group membership around it. Annotation connectors are not structure.
@@ -150,10 +268,10 @@ export function freezeTarget(board, selection, { range = null } = {}) {
 // away), its siblings through a shared parent, visually touching arrows (inferred, not stored), its group, earlier
 // annotations about it, labels right beside it, then the canvas's title and goal. Everything past the limits is
 // counted in `omitted`; nothing says the model saw the whole canvas.
-export function buildContext(board, target, { cache, boardKey, describeCard = null, selectionOnly = false, extras = {}, limits = LIMITS } = {}) {
+export function buildContext(board, target, { cache, boardKey, describeCard = null, selectionOnly = false, extras = {}, request = '', limits = LIMITS } = {}) {
   const look = cache.lookups(board, boardKey, describeCard);
   const boxes = board.boxes || {};
-  const omitted = { connected: 0, sibling: 0, inferred: 0, group: 0, annotation: 0, nearby: 0, truncated: 0, connections: 0 };
+  const omitted = { ...Object.fromEntries(RELATIONS.map(relation => [relation, 0])), truncated: 0, connections: 0 };
   let chars = 0, objects = 0;
   const seen = new Set();
   const take = (record, relation, extra = {}, max = limits.chars) => {
@@ -188,7 +306,6 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     omitted.connections += 1;
     if (of) complete[of] = false;
   };
-  const targetBox = unionBox(present.map(id => boxes[id]));
   if (!selectionOnly) {
     // 2. Stored connections, both ways, with their other end - near or far.
     const parents = [];
@@ -215,18 +332,6 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
         if (!connections.some(known => known.id === link.id)) addConnection({ id: link.id, kind: 'connection', from: link.from, to: link.to, ...(link.label ? { label: String(link.label).slice(0, limits.chars) } : {}), direction: 'sibling', of: parent, other: link.to });
       }
     }
-    // 4. Drawn arrows touching the target: what the picture suggests, not a stored connection.
-    if (targetBox) for (const shape of board.shapes || []) {
-      if (!LINEAR.has(shape.kind) || present.includes(shape.id)) continue;
-      const ends = [{ x: shape.x1, y: shape.y1 }, { x: shape.x2, y: shape.y2 }];
-      const touching = present.filter(id => boxes[id] && ends.some(end => near(end, boxes[id], limits.touch)));
-      if (!touching.length) continue;
-      const far = ends.find(end => !touching.some(id => near(end, boxes[id], limits.touch)));
-      const otherId = far && Object.keys(boxes).find(id => !present.includes(id) && id !== shape.id && look.entities.has(id) && near(far, boxes[id], limits.touch));
-      const entry = take(look.record(shape.id), 'inferred', { touches: touching, ...(otherId ? { leadsTo: otherId } : {}), note: 'A drawn arrow or line touching the selection: its meaning is inferred from the picture, not a stored connection.' });
-      if (entry) related.push(entry);
-      if (otherId) { const end = take(look.record(otherId), 'inferred', { via: shape.id }); if (end) related.push(end); }
-    }
   }
   // 5. The group: its label always (it names what the selection belongs to); its other members unless selection-only.
   const gid = target.groupId || (present.length && present.every(id => look.entities.get(id)?.entity.groupId === look.entities.get(present[0])?.entity.groupId) ? look.entities.get(present[0])?.entity.groupId : null);
@@ -237,50 +342,58 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     const entry = take(look.record(id), 'group');
     if (entry) related.push(entry);
   }
-  // 6. Earlier inline explanations about the target, and 7. labels right beside it (only those within nearbyGap).
-  if (!selectionOnly && targetBox) {
-    for (const shape of board.shapes || []) {
-      if (seen.has(shape.id) || !shape.inline?.sources?.some(id => present.includes(id))) continue;
-      const entry = take(look.record(shape.id), 'annotation', { note: 'An earlier explanation added beside the selection; not part of the diagram.' });
+  // 6. Earlier inline explanations about the target.
+  if (!selectionOnly) for (const shape of board.shapes || []) {
+    if (seen.has(shape.id) || !shape.inline?.sources?.some(id => present.includes(id))) continue;
+    const entry = take(look.record(shape.id), 'annotation', { note: 'An earlier explanation added beside the selection; not part of the diagram.' });
+    if (entry) related.push(entry);
+  }
+  // 7. Everything else that helps explain the selection, by relevance (canvas-semantics.js gives the board's structure):
+  // the diagram it is part of, labels on it, its heading or section, the text read before and after it, discussion of it,
+  // and anything that shares its terms or the request's - however far away. Closeness alone never qualifies.
+  const snapshot = selectionOnly ? null : cache.semantic(board);
+  const relations = [];
+  if (snapshot) {
+    const picked = relevant(snapshot, board, look, present, { request, boxes, limits });
+    for (const { id, relation, score, extra } of picked) {
+      const entity = look.entities.get(id);
+      if (!entity || seen.has(id)) continue;
+      // A card's words as the learner sees them (never a hidden answer); every other object as described.
+      const record = entity.list === 'blocks' ? { ...look.record(id), text: cardText(entity.entity) } : look.record(id);
+      const entry = take(record, relation, { score: Math.round(score * 100) / 100, ...extra });
       if (entry) related.push(entry);
     }
-    const candidates = [];
-    for (const [id, box] of Object.entries(boxes)) {
-      if (seen.has(id) || present.includes(id) || !look.entities.has(id)) continue;
-      const record = look.record(id);
-      if (!record?.text.trim() || record.type === 'line') continue;
-      const gap = gapBetween(targetBox, box);
-      if (gap <= limits.nearbyGap) candidates.push({ record, gap });
-    }
-    candidates.sort((a, b) => a.gap - b.gap);
-    candidates.slice(limits.nearby).forEach(() => { omitted.nearby += 1; });
-    for (const { record, gap } of candidates.slice(0, limits.nearby)) {
-      const entry = take(record, 'nearby', { gap: Math.round(gap), note: 'Only near the selection on the canvas; no stored connection.' });
-      if (entry) related.push(entry);
+    // How the included objects relate, every source kept apart: a stored link, an arrow drawn on the canvas (with how
+    // sure the reading of its ends is), an earlier note's connector. The target's own stored links are in connections.
+    const included = new Set([...present, ...related.map(entry => entry.id)]);
+    const listed = new Set(connections.map(link => link.id));
+    for (const relation of snapshot.relations) {
+      if (!included.has(relation.from) || !included.has(relation.to) || listed.has(relation.id)) continue;
+      relations.push({ from: relation.from, to: relation.to, ...(relation.label ? { label: relation.label.slice(0, limits.chars) } : {}), directed: relation.directed, source: relation.source,
+        ...(relation.source === 'inferred' ? { confidence: relation.confidence, ...(relation.confidence < 0.7 ? { uncertain: true } : {}) } : {}) });
     }
   }
-  // 8. The canvas's own title and learning goal, and a short excerpt of a chat linked to the target.
-  const conversation = selectionOnly ? '' : (board.exchanges || []).filter(exchange => present.includes(exchange.linkFrom))
-    .map(exchange => `Q: ${exchange.question || ''}\nA: ${exchange.answer || ''}`).join('\n\n');
-  const broader = {
-    ...(extras.title ? { title: String(extras.title).slice(0, 200) } : {}),
-    ...(extras.goal ? { goal: String(extras.goal).slice(0, 300) } : {}),
-    ...(conversation ? { conversation: clip(conversation, 600).text } : {}),
+  // 8. Metadata: the canvas's title and goal, which may be out of date or name another topic than the selection's.
+  const metadata = {
+    ...(extras.title ? { canvasTitle: String(extras.title).slice(0, 200) } : {}),
+    ...(extras.goal ? { learningGoal: String(extras.goal).slice(0, 300) } : {}),
   };
   const image = targets.find(entry => entry.flattened);
   const imageEntity = image && look.entities.get(image.id)?.entity;
-  const counts = { target: targets.length, ...Object.fromEntries(['connected', 'sibling', 'inferred', 'group', 'annotation', 'nearby'].map(relation => [relation, related.filter(entry => entry.relation === relation).length])) };
-  return {
+  const counts = { target: targets.length, ...Object.fromEntries(RELATIONS.map(relation => [relation, related.filter(entry => entry.relation === relation).length])) };
+  const context = {
     version: CONTEXT_VERSION,
     target: { ids: present, gone, ...(target.range ? { range: true } : {}), objects: targets, ...(group ? { group } : {}) },
-    connections, related, complete,
-    broader,
+    connections, related, relations, complete,
+    metadata,
     ...(image ? { image: { id: image.id, ...(imageEntity?.mediaId ? { mediaId: imageEntity.mediaId } : {}) } } : {}),
     selectionOnly: !!selectionOnly,
     omitted, counts,
+    // How many objects on the canvas were weighed for this context: what it says it chose from, never "everything".
+    considered: snapshot ? snapshot.cards.length + snapshot.objects.length - present.length : 0,
     size: { objects, chars },
-    prints: fingerprints(look, target),
   };
+  return { ...context, prints: { ...fingerprints(look, target), context: supportPrint(context) } };
 }
 
 // Every target the model did not read whole - cut short, or left out by the object or character budget. For the frozen

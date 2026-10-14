@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, CircleHelp, CornerDownLeft, Loader2, RotateCcw, Square, X } from 'lucide-react';
+import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
 import { cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
@@ -11,9 +11,15 @@ import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
 // Accept lives here and in its overlay - never in the board, its autosave or its undo history. The canvas hands it a
 // small adapter (board(), apply(tx), boxes, view) and owns nothing of a request.
 
-const W = 360, GAP = 12, EDGE = 8;
+// The composer (owner brief 2026-10-13): about 420 px wide, a prompt that grows to 180 px, then scrolls.
+const W = 420, GAP = 12, EDGE = 8, PROMPT_H = 180, RESERVE = 300;
+// The character count shows only near the limit.
+const NEAR = Math.round(PROMPT_MAX * 0.9);
+const MODES = [['edit', 'Edit selection'], ['explain', 'Explain selection']];
 const LABEL = { shape: 'Shape', line: 'Line', text: 'Text', sticky: 'Note', equation: 'Equation', section: 'Divider', card: 'Card', chat: 'Chat', connection: 'Connector' };
-const RELATION = { connected: 'connected', sibling: 'sibling', inferred: 'drawn arrow (inferred)', group: 'same group', annotation: 'earlier note', nearby: 'nearby' };
+// Why each supporting object is in the context, as its line in the details says it.
+const RELATION = { connected: 'connected', sibling: 'sibling', diagram: 'same diagram', inferred: 'drawn arrow', group: 'same group', heading: 'heading or section',
+  label: 'label', flow: 'text before or after', discussion: 'discussion', mentions: 'shares its terms', annotation: 'earlier note' };
 const short = (text, n = 48) => { const one = String(text || '').replace(/\s+/g, ' ').trim(); return one.length > n ? `${one.slice(0, n - 1)}…` : one; };
 const busy = status => status === 'routing' || status === 'generating' || status === 'streaming';
 
@@ -38,11 +44,14 @@ const selectionKind = (target, board) => {
   return (board.links || []).some(entry => entry.id === id) ? 'connection' : 'shape';
 };
 
-export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, onClose }) {
-  const [mode, setMode] = useState(target.range ? 'edit' : 'explain');
+// initialMode: 'edit' | 'explain' from the opener (the selection action bar's Quick Edit); else Edit for selected words,
+// Explain for objects.
+export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
+  const [mode, setMode] = useState(['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
   const [selectionOnly, setSelectionOnly] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false);
   const [prepared, setPrepared] = useState(null);
   const [state, setState] = useState({ status: 'idle' });
   // A7: each candidate's placement, by request id - computed once, before its ghost shows, and the one Accept applies.
@@ -85,9 +94,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   }
 
   // A1: context prepared while the learner writes - local work only, scheduled off the input path; refreshed at submit.
-  const prepare = (only = selectionOnly) => {
+  // request: the learner's words, at submit - what the context is chosen for, with the selection (owner 2026-10-13).
+  const prepare = (only = selectionOnly, request = '') => {
     const started = performance.now(), misses = canvas.cache.stats.misses;
-    const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, extras: config.extras?.() || {} });
+    const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -96,6 +106,13 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     const timer = setTimeout(() => { const made = prepare(); setPrepared(made); }, 0);
     return () => clearTimeout(timer);
   }, [selectionOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The prompt grows with its words up to PROMPT_H, then scrolls inside.
+  useLayoutEffect(() => {
+    const node = field.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${Math.min(node.scrollHeight, PROMPT_H)}px`;
+  }, [prompt]);
   useLayoutEffect(() => {
     field.current?.focus({ preventScroll: true });
     if (opened != null) openMs.current = Math.round((performance.now() - opened) * 10) / 10;
@@ -126,7 +143,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         // An open text editor's words are saved first, so what the model reads and the fingerprint Accept checks come
         // from the same saved text - never from words captured when the editor opened.
         canvas.flushEdits?.();
-        const made = prepare();
+        const made = prepare(selectionOnly, text);
         setPrepared(made);
         return { context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context) }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
@@ -245,7 +262,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const keyDown = event => {
     if (event.key === 'Escape') {
       event.preventDefault(); event.stopPropagation();
-      if (contextOpen) { setContextOpen(false); return; }
+      // An open mode menu or Context popover closes first, focus back on its control; then the editor.
+      if (modeOpen) { setModeOpen(false); box.current?.querySelector('[data-inline-mode-toggle]')?.focus(); return; }
+      if (contextOpen) { setContextOpen(false); box.current?.querySelector('[data-inline-context]')?.focus(); return; }
       close();
       return;
     }
@@ -267,8 +286,15 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if (!world) return null;
     return { x: world.x * view.z + view.x, y: world.y * view.z + view.y, w: world.w * view.z, h: world.h * view.z };
   })();
-  const [height, setHeight] = useState(180);
-  useLayoutEffect(() => { if (box.current && Math.abs(box.current.offsetHeight - height) > 2) setHeight(box.current.offsetHeight); });
+  // Placed for the room it may grow into (RESERVE), so a streamed preview never moves it: a spot above the target is held
+  // by its bottom edge and grows up, any other by its top edge and grows down.
+  const [height, setHeight] = useState(RESERVE);
+  const [actual, setActual] = useState(110);
+  useLayoutEffect(() => {
+    const now = box.current?.offsetHeight || 0;
+    if (Math.max(RESERVE, now) > height + 2) setHeight(Math.max(RESERVE, now));
+    if (now && Math.abs(now - actual) > 2) setActual(now);
+  });
   // Clamped to the surface, never over the target, the style panel or the bottom strip (minimap, zoom, composer, hooks):
   // the first spot clear of all of them, else the one that covers least (a phone-sized canvas).
   const place = (() => {
@@ -277,20 +303,22 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if (!targetScreen) return { ...clamp(EDGE, EDGE), width };
     const t = targetScreen, chrome = canvas.chromeRects();
     const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
-    const tries = [[t.x, t.y + t.h + GAP], [t.x, t.y - GAP - height], [t.x + t.w + GAP, t.y], [t.x - GAP - width, t.y], [t.x + t.w - width, t.y + t.h + GAP], [t.x + t.w - width, t.y - GAP - height], [t.x + t.w + GAP, t.y + t.h - height], [t.x - GAP - width, t.y + t.h - height]].map(([left, top]) => clamp(left, top));
+    const tries = [[t.x, t.y + t.h + GAP], [t.x, t.y - GAP - height, true], [t.x + t.w + GAP, t.y], [t.x - GAP - width, t.y], [t.x + t.w - width, t.y + t.h + GAP], [t.x + t.w - width, t.y - GAP - height, true], [t.x + t.w + GAP, t.y + t.h - height], [t.x - GAP - width, t.y + t.h - height]].map(([left, top, up]) => ({ ...clamp(left, top), up: !!up }));
     const cost = spot => { const box = { x: spot.left, y: spot.top, w: width, h: height }; return overlap(box, t) * 4 + chrome.reduce((sum, rect) => sum + overlap(box, rect), 0); };
     return { ...tries.reduce((best, spot) => (cost(spot) < cost(best) ? spot : best)), width };
   })();
 
+  // The mode menu and the Context popover open away from the target, where there is room for them.
+  const shellTop = place.up ? place.top + height - actual : place.top;
+  const roomBelow = surface.h - (shellTop + actual), roomAbove = shellTop;
+  const popBelow = place.up ? roomAbove < 270 && roomBelow > roomAbove : roomBelow >= 270 || roomBelow > roomAbove;
   const preview = state.preview;
   const status = state.status;
   const streamText = state.stream?.text;
-  const counts = prepared?.context.counts;
   const omittedTotal = prepared ? Object.values(prepared.context.omitted).reduce((sum, n) => sum + n, 0) : 0;
-  const contextLine = !prepared ? 'Preparing context…' : selectionOnly ? 'Selection only' : [
-    `${counts.target} selected`, counts.connected && `${counts.connected} connected`, counts.sibling && `${counts.sibling} sibling${counts.sibling > 1 ? 's' : ''}`,
-    counts.group && `${counts.group} in group`, counts.inferred && `${counts.inferred} drawn arrow${counts.inferred > 1 ? 's' : ''}`, counts.annotation && `${counts.annotation} earlier note${counts.annotation > 1 ? 's' : ''}`, counts.nearby && `${counts.nearby} nearby`,
-  ].filter(Boolean).join(' · ');
+  // Point 8 (owner 2026-10-13), in the Context popover: the targets apart from the supporting material, what it was chosen
+  // from and what the limits left out - never a reading of the whole canvas.
+  const considered = prepared?.context.considered ?? 0;
   const writing = status === 'streaming' || (busy(status) && !preview);
   const acceptable = (status === 'preview' || status === 'proposal') && preview && !state.accepted;
   const z = view.z;
@@ -300,8 +328,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           history, the thumbnail (data-thumbnail-hide) or an export; only the ghost itself takes the pointer, so nothing
           under it is clicked by mistake. */}
       <div data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+        {/* The target is purple while the editor is open (owner 2026-10-13): its own canvas selection marks take --color-ai;
+            every other selection stays blue. */}
+        <style data-inline-target-color>{`${[...target.ids.flatMap(id => ['shape-id', 'item-id', 'block-id', 'link-for'].map(key => `[data-${key}="${CSS.escape(id)}"]`)),
+          ...(target.groupId && target.wholeGroup ? [`[data-group-box="${CSS.escape(target.groupId)}"]`] : [])].join(',')}{--color-select:var(--color-ai)}`}</style>
         {target.ids.map(id => canvas.boxOf(id)).filter(Boolean).map((world, index) => (
-          <div key={index} data-inline-target className="absolute rounded-md outline-2 outline-offset-4 outline-dashed outline-[#2383e2]"
+          <div key={index} data-inline-target className="absolute rounded-md outline-2 outline-offset-4 outline-dashed outline-ai"
             style={{ left: world.x * z + view.x, top: world.y * z + view.y, width: world.w * z, height: world.h * z }} />
         ))}
         {(() => {
@@ -349,7 +381,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {(() => {
           const place = id => { const world = canvas.boxOf(id); return world && { left: world.x * z + view.x, top: world.y * z + view.y, minWidth: world.w * z, minHeight: world.h * z }; };
           // Over its own object, so it lets clicks through: the learner can still open and edit those words.
-          const frame = 'absolute rounded-md border border-dashed border-[#2383e2] bg-white/95 px-1 text-ink opacity-60 dark:bg-[#202020]/95';
+          const frame = 'absolute rounded-md border border-dashed border-ai bg-white/95 px-1 text-ink opacity-60 dark:bg-[#202020]/95';
           if (status === 'streaming' && state.stream?.edits) return Object.entries(state.stream.edits).map(([id, text]) => {
             const at = place(id);
             return at && <div key={id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={id} className={frame} style={{ ...at, fontSize: 14 * z }}>{text}</div>;
@@ -370,73 +402,42 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           });
         })()}
       </div>
-      <div ref={box} role="dialog" aria-label="Edit or explain with AI" aria-modal="false" data-inline-ai data-keep-focus data-status={status}
-        onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()} onContextMenu={event => event.stopPropagation()} onKeyDown={keyDown}
-        style={{ left: place.left, top: place.top, width: place.width }}
-        className="absolute z-40 flex flex-col gap-1.5 rounded-xl border border-line bg-white p-2 text-sm text-ink shadow-pop">
-        <div className="flex items-center gap-1.5">
-          <div role="radiogroup" aria-label="Edit or explain" className="flex shrink-0 rounded-lg bg-hover p-0.5">
-            {[['edit', 'Edit'], ['explain', 'Explain']].map(([value, label]) => (
-              <button key={value} type="button" role="radio" aria-checked={mode === value} data-inline-mode={value} disabled={busy(status)}
-                onClick={() => setMode(value)}
-                className={`h-6 rounded-md px-2.5 text-xs font-medium ${mode === value ? 'bg-white text-ink shadow-sm' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
-            ))}
-          </div>
-          <span data-inline-target-label title="The selection this request is about. Selecting something else does not change it." className="min-w-0 flex-1 truncate text-xs text-ink-2">{targetLabel(target, board())}</span>
-          <button type="button" aria-label="Close" title="Close (Esc)" onClick={close} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink"><X size={14} /></button>
-        </div>
-        <div className="flex items-end gap-1.5">
-          <textarea ref={field} rows={1} value={prompt} onChange={event => setPrompt(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
-            aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'Describe the change' : 'What should the explanation cover?'}
-            placeholder={preview ? 'Refine…' : mode === 'edit' ? 'Describe the change…' : 'Explain this… or /diagram, /code'}
-            disabled={readOnly}
-            className="max-h-28 min-h-8 flex-1 resize-none rounded-lg border border-line bg-white px-2 py-1.5 text-sm leading-5 outline-none placeholder:text-ink-3 focus:border-[#2383e2]" />
-          {/* Submit keeps its place while a request runs (disabled, spinning): Stop is never under the pointer or finger that
-              just pressed Submit, so a double press cannot cancel what it sent. */}
-          <button type="button" data-inline-submit disabled={readOnly || status === 'proposal' || busy(status) || prompt.length > PROMPT_MAX} onClick={() => submit(prompt)} title={preview ? 'Refine (Enter)' : 'Submit (Enter)'}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-ink px-2.5 text-xs font-medium text-white disabled:opacity-40">{busy(status) && <Loader2 size={12} className="animate-spin" />}{preview ? 'Refine' : 'Submit'}<kbd className="ml-0.5 flex items-center font-sans text-[10px] text-white/70"><CornerDownLeft size={10} /></kbd></button>
-        </div>
-        {/* The supported limit, shown while writing; over it Submit waits and the count says what to do. Nothing is cut. */}
-        {prompt.length > 0 && <p data-inline-count className={`-mt-1 text-right text-[11px] ${prompt.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{prompt.length} / {PROMPT_MAX}{prompt.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
-        {readOnly && <p data-inline-readonly className="text-xs text-ink-2">This canvas is view-only, so Edit and Explain can't add to it.</p>}
-        <div className="flex items-center gap-2 text-xs text-ink-2">
-          <button type="button" data-inline-context aria-expanded={contextOpen} onClick={() => setContextOpen(open => !open)} className="flex min-w-0 items-center gap-1 rounded px-0.5 hover:text-ink">
-            {contextOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}<span className="truncate">Context: {contextLine}{omittedTotal ? ` · ${omittedTotal} left out` : ''}</span>
-          </button>
-          <label className="ml-auto flex shrink-0 items-center gap-1"><input type="checkbox" data-inline-selection-only checked={selectionOnly} disabled={busy(status) || !!preview} title={preview ? 'This preview was made with this scope. Reject it to change the scope.' : undefined} onChange={event => setSelectionOnly(event.target.checked)} className="h-3 w-3" />Selection only</label>
-        </div>
-        {contextOpen && prepared && (
-          <ul data-inline-context-list data-scroll className="max-h-36 overflow-y-auto rounded-lg bg-hover px-2 py-1 text-xs text-ink-2">
-            {prepared.context.target.objects.map(entry => <li key={entry.id} className="truncate"><span className="text-ink">Selected</span> · {LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(target.range && target.range.id === entry.id ? target.range.text : entry.text)}</li>)}
-            {prepared.context.related.map(entry => <li key={entry.id} className="truncate">{RELATION[entry.relation] || entry.relation} · {LABEL[entry.type] || entry.type} · {short(entry.text)}</li>)}
-            {prepared.context.target.group && <li className="truncate">group “{short(prepared.context.target.group.label || 'untitled', 30)}”</li>}
-            {prepared.context.broader.title && <li className="truncate">canvas title “{short(prepared.context.broader.title, 40)}”</li>}
-            {omittedTotal > 0 && <li>{omittedTotal} more left out by the limits</li>}
-            {selectionOnly && <li>Surroundings left out (selection only)</li>}
-          </ul>
-        )}
-        {state.notice && <p data-inline-notice className="text-xs text-ink-2">{state.notice}</p>}
-        {moved && moved === preview?.requestId && <p data-inline-moved role="status" className="text-xs text-ink-2">Something is where this was going, so it has a new place on the canvas. Check it, then Accept again.</p>}
-        {busy(status) && (
-          <div className="flex items-center gap-1.5 text-xs text-ink-2">
-            {!streamText && !state.stream?.edits && <p data-inline-stage role="status" className="flex min-w-0 items-center gap-1.5"><Loader2 size={12} className="shrink-0 animate-spin" /><span className="truncate">{state.stage}{preview ? ' (your last preview stays until this one is ready)' : ''}</span></p>}
-            <button type="button" data-inline-stop onClick={() => session.cancel()} title="Stop" aria-label="Stop" className="ml-auto flex h-6 shrink-0 items-center gap-1 rounded-md border border-line px-2 text-ink-2 hover:bg-hover hover:text-ink"><Square size={10} fill="currentColor" />Stop</button>
-          </div>
-        )}
+      {/* The composer (owner brief 2026-10-13): one surface - the prompt, then a thin row of Context, the mode and Send along
+          its bottom edge; output appears beneath the prompt only when there is some. */}
+      <div ref={box} role="dialog" aria-label="Quick Edit" aria-modal="false" data-inline-ai data-keep-focus data-status={status}
+        onPointerDown={event => { event.stopPropagation(); if (!event.target.closest('[data-inline-mode-menu],[data-inline-mode-toggle]')) setModeOpen(false); if (!event.target.closest('[data-inline-context-popover],[data-inline-context]')) setContextOpen(false); }}
+        onDoubleClick={event => event.stopPropagation()} onContextMenu={event => event.stopPropagation()} onKeyDown={keyDown}
+        style={{ left: place.left, width: place.width, ...(place.up ? { bottom: surface.h - place.top - height } : { top: place.top }) }}
+        className="absolute z-40 flex flex-col rounded-xl border border-line bg-white p-3 text-sm text-ink shadow-[0_2px_12px_rgba(15,15,15,0.08)]">
+        {/* What the request is about, for screen readers: the canvas keeps the selection highlighted; no header repeats it. */}
+        <span data-inline-target-label className="sr-only">{targetLabel(target, board())}</span>
+        <button type="button" data-inline-close aria-label="Close" title="Close (Esc)" onClick={close}
+          className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-md text-ink-3 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai"><X size={14} /></button>
+        <textarea ref={field} rows={2} value={prompt} onChange={event => setPrompt(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
+          aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
+          placeholder={mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
+          disabled={readOnly} style={{ maxHeight: PROMPT_H }}
+          className="min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 pr-7 text-sm leading-5 outline-none placeholder:text-ink-3" />
+        {readOnly && <p data-inline-readonly className="mt-1 text-xs text-ink-2">This canvas is view-only, so Edit and Explain can't add to it.</p>}
+        {/* Output, beneath the prompt, only when there is some; a short status only while nothing has arrived. */}
+        {state.notice && <p data-inline-notice className="mt-2 text-xs text-ink-2">{state.notice}</p>}
+        {moved && moved === preview?.requestId && <p data-inline-moved role="status" className="mt-2 text-xs text-ink-2">Something is where this was going, so it has a new place on the canvas. Check it, then Accept again.</p>}
+        {busy(status) && !streamText && !state.stream?.edits && <p data-inline-stage role="status" className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-ink-2"><Loader2 size={12} className="shrink-0 animate-spin" /><span className="truncate">{state.stage}{preview ? ' (your last preview stays until this one is ready)' : ''}</span></p>}
         {(writing && streamText) || (preview?.kind === 'note' && status !== 'streaming') ? (
-          <div data-inline-preview="note" data-scroll className="max-h-40 overflow-y-auto rounded-lg border border-line px-2 py-1.5 text-sm leading-5 whitespace-pre-wrap">
+          // While words stream in, the box keeps one height and scrolls: the composer never grows per chunk.
+          <div data-inline-preview="note" data-scroll className={`mt-2 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-sm leading-5 whitespace-pre-wrap ${status === 'streaming' ? 'h-40' : 'max-h-40'}`}>
             {status === 'streaming' || !preview ? streamText : preview.text}
             <p className="mt-1 text-[11px] text-ink-3">{status === 'streaming' ? 'Writing… (not on the canvas until you accept)' : `Adds an editable note${target.ids.length === 1 ? ' with an arrow' : ''} beside the selection.`}</p>
           </div>
         ) : null}
         {(state.stream?.edits && busy(status)) && (
-          <div data-inline-preview="edit-stream" data-scroll className="max-h-40 overflow-y-auto rounded-lg border border-line px-2 py-1.5 text-xs">
+          <div data-inline-preview="edit-stream" data-scroll className="mt-2 h-40 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             {Object.entries(state.stream.edits).map(([id, text]) => <pre key={id} className="whitespace-pre-wrap font-mono text-[12px] text-[#1a7f37]">{text}</pre>)}
             <p className="mt-1 text-[11px] text-ink-3">Writing… (checked before you can accept)</p>
           </div>
         )}
         {preview?.kind === 'edit' && !busy(status) && (
-          <div data-inline-preview="edit" data-scroll className="max-h-48 overflow-y-auto rounded-lg border border-line px-2 py-1.5 text-xs">
+          <div data-inline-preview="edit" data-scroll className="mt-2 max-h-48 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             {preview.summary && <p className="mb-1 text-ink-2">{preview.summary}</p>}
             {preview.changes.map(change => (
               <div key={change.id} data-inline-change={change.id} className="mb-1.5">
@@ -451,14 +452,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </div>
         )}
         {(preview?.kind === 'card' || preview?.kind === 'proposal') && !busy(status) && (
-          <div data-inline-preview={preview.kind} data-card-type={preview.block?.type} className="rounded-lg border border-line px-2 py-1.5 text-xs">
+          <div data-inline-preview={preview.kind} data-card-type={preview.block?.type} className="mt-2 rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             <p className="font-medium text-ink">{ROUTES[preview.route]?.label || 'Card'}: {short(preview.block?.title || preview.describe?.title || '', 60)}</p>
             {(() => { const b = preview.block || {}; const words = [b.brief, b.caption, b.body, b.goal, b.operation?.request, typeof b.code === 'string' ? b.code : null].find(value => typeof value === 'string' && value.trim()) || preview.describe?.text; return words ? <p className="mt-0.5 line-clamp-3 text-ink-2">{short(words, 220)}</p> : null; })()}
             <p className="mt-1 text-[11px] text-ink-3">Adds this card ({short(preview.block?.type, 20)}) to the canvas when you {preview.kind === "proposal" ? "generate" : "accept"}.</p>
           </div>
         )}
         {status === 'proposal' && (
-          <div data-inline-paid role="group" aria-label="Paid generation" className="rounded-lg bg-hover px-2 py-1.5 text-xs text-ink-2">
+          <div data-inline-paid role="group" aria-label="Paid generation" className="mt-2 rounded-lg bg-hover px-2 py-1.5 text-xs text-ink-2">
             <p>{state.proposal?.message || 'This uses paid generation.'} Starting it can cost money even if you later reject or undo the card; undoing is not a refund. Once started, the job runs on its card and can't be cancelled from here.</p>
             <div className="mt-1.5 flex justify-end gap-1.5">
               <button type="button" data-paid-cancel onClick={reject} className="h-7 rounded-lg border border-line bg-white px-2.5 text-ink hover:bg-hover">Cancel</button>
@@ -467,8 +468,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </div>
         )}
         {status === 'clarify' && state.clarify && (
-          <div data-inline-clarify className="rounded-lg bg-hover px-2 py-1.5 text-xs">
-            <p className="flex items-start gap-1 text-ink"><CircleHelp size={13} className="mt-px shrink-0 text-accent" />{state.clarify.question}</p>
+          <div data-inline-clarify className="mt-2 rounded-lg bg-hover px-2 py-1.5 text-xs">
+            <p className="flex items-start gap-1 text-ink"><CircleHelp size={13} className="mt-px shrink-0 text-ai" />{state.clarify.question}</p>
             {state.clarify.options?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{state.clarify.options.map(option => (
               <button key={option} type="button" data-inline-option={option} onClick={() => session.choose(option)} className="h-6 rounded-md border border-line bg-white px-2 text-ink hover:bg-hover">{ROUTES[option]?.label || option}</button>
             ))}</div>}
@@ -476,14 +477,69 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </div>
         )}
         {status === 'stale' && state.stale && (
-          <p data-inline-stale role="alert" className="flex items-center gap-1.5 text-xs text-[#b42318]">{state.stale.text} <button type="button" onClick={() => submit(prompt)} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Regenerate</button></p>
+          <p data-inline-stale role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.stale.text} <button type="button" onClick={() => submit(prompt)} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Regenerate</button></p>
         )}
-        {state.error && <p data-inline-error role="alert" className="text-xs text-[#b42318]">{state.error}</p>}
+        {state.error && <p data-inline-error role="alert" className="mt-2 text-xs text-[#b42318]">{state.error}</p>}
         {(preview && status !== 'proposal') && (
-          <div className="flex items-center justify-end gap-1.5 pt-0.5">
-            <button type="button" data-inline-reject onClick={reject} className="h-7 rounded-lg border border-line bg-white px-2.5 text-xs text-ink hover:bg-hover">Reject</button>
+          <div className="mt-2 flex items-center justify-end gap-1.5">
+            <button type="button" data-inline-reject onClick={reject} className="h-6 rounded-md border border-line bg-white px-2 text-xs text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ai">Reject</button>
             <button type="button" data-inline-accept onClick={accept} disabled={!acceptable || readOnly} title={busy(status) ? 'Waiting for the new version' : 'Accept (Ctrl Enter)'}
-              className="flex h-7 items-center gap-1 rounded-lg bg-ink px-2.5 text-xs font-medium text-white disabled:opacity-40"><Check size={12} />Accept</button>
+              className="flex h-6 items-center gap-1 rounded-md bg-ink px-2 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40"><Check size={12} />Accept</button>
+          </div>
+        )}
+        {/* The count, only near the supported limit or past it: nothing is cut, Send waits and says what to do. */}
+        {prompt.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${prompt.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{prompt.length} / {PROMPT_MAX}{prompt.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
+        <div className="mt-2 flex items-center gap-2">
+          <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"
+            onClick={() => { setModeOpen(false); setContextOpen(open => !open); }}
+            className="rounded-md px-1 py-0.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai">Context</button>
+          <div className="relative ml-auto flex items-center gap-1.5">
+            <button type="button" data-inline-mode-toggle data-inline-mode-current={mode} aria-haspopup="menu" aria-expanded={modeOpen} disabled={busy(status)} title="Quick Edit mode"
+              onClick={() => { setContextOpen(false); setModeOpen(open => !open); }}
+              className="flex h-7 items-center gap-0.5 rounded-md px-1.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40">
+              {MODES.find(([value]) => value === mode)[1]}<ChevronDown size={12} />
+            </button>
+            {modeOpen && (
+              <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
+                {MODES.map(([value, label]) => (
+                  <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
+                    onClick={() => { setMode(value); setModeOpen(false); field.current?.focus({ preventScroll: true }); }}
+                    className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover">
+                    <span className="flex w-3.5 justify-center">{mode === value && <Check size={13} className="text-ai" />}</span>{label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {busy(status) ? (
+              // A second press of a double press lands here as detail 2: it never stops the request it just sent.
+              <button type="button" data-inline-stop aria-label="Stop" title="Stop" onClick={event => { if (event.detail < 2) session.cancel(); }}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
+            ) : (
+              <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
+                disabled={readOnly || status === 'proposal' || !prompt.trim() || prompt.length > PROMPT_MAX} onClick={() => submit(prompt)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
+            )}
+          </div>
+        </div>
+        {/* Point 8: the Context popover - anchored, bounded and scrolling, never part of the composer's own height. */}
+        {contextOpen && (
+          <div role="dialog" aria-label="Context" data-inline-context-popover data-scroll
+            className={`absolute left-0 z-50 max-h-64 w-80 max-w-full overflow-y-auto rounded-xl border border-line bg-white p-2 text-xs text-ink-2 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+            {!prepared ? <p>Preparing context…</p> : (
+              <ul data-inline-context-list className="space-y-0.5">
+                <li data-inline-context-target className="font-medium text-ai">Selected{mode === 'edit' ? ' · the only thing an edit changes' : ''}</li>
+                {prepared.context.target.objects.map(entry => <li key={entry.id} data-inline-context-entry="selected" className="truncate pl-2">{LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(target.range && target.range.id === entry.id ? target.range.text : entry.text)}</li>)}
+                {!selectionOnly && <li data-inline-context-group="supporting" className="pt-1 font-medium text-ink">Supporting · read-only{prepared.context.related.length ? '' : ': none found'}</li>}
+                {prepared.context.related.map(entry => <li key={entry.id} data-inline-context-entry="supporting" className="truncate pl-2">{RELATION[entry.relation] || entry.relation} · {LABEL[entry.type] || entry.type} · {short(entry.text)}</li>)}
+                {prepared.context.target.group && <li className="truncate pl-2">group “{short(prepared.context.target.group.label || 'untitled', 30)}”</li>}
+                {prepared.context.metadata.canvasTitle && <li className="truncate pl-2">canvas title “{short(prepared.context.metadata.canvasTitle, 40)}” (background only)</li>}
+                <li data-inline-context-group="limits" className="pt-1 font-medium text-ink">Limits</li>
+                {selectionOnly ? <li className="pl-2">Surroundings left out (selection only).</li>
+                  : <li data-inline-context-scope className="pl-2">{considered > 0 ? `Chosen by relevance from ${considered} other object${considered === 1 ? '' : 's'} on the canvas. The rest were not sent.` : 'Nothing else is on the canvas.'}</li>}
+                {omittedTotal > 0 && <li className="pl-2">{omittedTotal} more relevant left out by the limits.</li>}
+              </ul>
+            )}
+            <label className="mt-2 flex items-center gap-1.5 border-t border-line pt-2 text-ink"><input type="checkbox" data-inline-selection-only checked={selectionOnly} disabled={busy(status) || !!preview} title={preview ? 'This preview was made with this scope. Reject it to change the scope.' : undefined} onChange={event => setSelectionOnly(event.target.checked)} className="h-3 w-3 accent-[var(--color-ai)]" />Selection only</label>
           </div>
         )}
       </div>

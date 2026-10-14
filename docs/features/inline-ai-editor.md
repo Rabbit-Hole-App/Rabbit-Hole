@@ -705,3 +705,128 @@ of where the position of the generate output should be."
 - Browser (inline-ai-check, mocked provider): the ghost's box equals the accepted object's box; the ghost is topmost
   (elementFromPoint at its centre is the ghost); it goes on Reject and on Esc; the board thumbnail and the undo stack
   do not contain it.
+
+## A8. Context by relevance, and an Explain that teaches (owner, 2026-10-13)
+
+Owner task, verbatim in agent-coordination/tasks/2026-10-13-inline-context-OWNER.md. It replaces section 3's tiny
+proximity fallback (three objects within 60 units) and section 9's storage-minded wording. Node 23 is a regression
+example only; nothing here is written around trees.
+
+### Selection and intent
+
+- The selection says what the request is about. The Edit/Explain pill and the learner's words say what to do. A circle
+  holding "23" is read through the request and what surrounds it, never assumed to be a tree node.
+- Only the selected ids, or the exact selected range, may be edited (inline-ai-apply.js validateEdit). Everything else
+  in the context is read-only support, however much of it there is.
+
+### What the context holds (inline-ai-context.js on canvas-semantics.js)
+
+- The target: the selected objects, or the exact range with the words around it.
+- Its stored connections, both ways, with completeness, and siblings through a shared parent (as before).
+- Supporting material chosen by relevance, each entry with the reason it is there:
+  - **diagram**: up to three steps along stored links and drawn arrows. A drawn arrow counts only as much as the reading
+    of its ends is sure.
+  - **inferred**: drawn arrows touching the target, with direction from their arrowheads and the label at their middle.
+  - **label**: a short text on or against the target, or against an included object.
+  - **heading or section**: the column heading above it and, when the section is small, the section's other material;
+    or a heading written on the canvas just above its region.
+  - **text before or after**: text boxes stacked with a text target, read in order.
+  - **group**: its group and the other members.
+  - **discussion**: a chat answered about the target.
+  - **shares its terms**: anything that shares words with the request or the target, however far away.
+- Closeness alone never qualifies. An unrelated note beside the target stays out, and so does the rest of the canvas.
+- `relations` says how the included objects relate. Each relation keeps its source: a stored link (connector), a drawn
+  arrow (inferred, with a confidence; uncertain below 0.7), or an earlier note's connector (annotation). Direction is
+  kept. Nothing is turned into parent and child.
+- `metadata.canvasTitle` (and the learning goal) are background only. The title can be out of date or name another topic.
+  It never chooses context, and a canvas can hold several topics.
+- `considered` is how many objects were weighed. The context never claims to be the whole canvas.
+- Selection only: the target alone, as before.
+
+### Explain teaches the subject (control-plane/src/agents/learn-inline.js)
+
+- The note explains what the selected material means, its role and the relationships that matter. It may use general
+  knowledge of the subject. Any claim about the learner's own diagram, code or notes rests on the context.
+- It talks about the subject, never about canvas storage: no ids, and no "shape", "drawn shape", "stored connection",
+  "connector", "not connected", "label" or "nearby" for canvas objects, unless the learner asks about the canvas itself.
+- "Only stored connections are structure" is gone, and so is every tree-specific rule (parent, leaf). An arrow shows a
+  relation in its direction and does not by itself make a parent, a cause or an owner. An uncertain relation is
+  qualified in a few words, or asked about in one short question.
+- Edit: the selection's objects are the only ones that may change. The rest of the context is read-only background.
+
+### Fresh and fast
+
+- The context is prepared while the learner writes and built again at submit, after any open text editor is saved
+  (A1, as before), now with the request's words. The board's semantic snapshot is kept in the context cache and read
+  again only when a list or a measured box changed. The build at submit costs about 3.5 ms on a 1,200-object board, and
+  the first build when the editor opens about 30 ms there (under 1 ms on 100 objects).
+- The result cache key holds the supporting context's fingerprint (prints.context). That is the supporting objects'
+  words and reasons, their relations, the target's connections and the metadata, never positions. New words around the
+  selection make a new request; a move reuses the answer. Nothing calls the model on a canvas edit.
+
+### What the context included (point 8): the composer's Context popover
+
+The indicator is the Context popover of A9. It lists the selected targets under Selected ("the only thing an edit
+changes" in Edit), and the supporting material under Supporting · read-only, each with its reason, the group and the
+canvas title (background only). Under Limits it says what the context was chosen from ("Chosen by relevance from N
+other objects on the canvas. The rest were not sent."), and how many relevant objects the limits left out. It never
+reads as the whole canvas. Selection only lives there.
+
+## A9. The composer (owner brief, 2026-10-13)
+
+Owner brief, verbatim in agent-coordination/tasks/2026-10-13-inline-composer-OWNER.md. The Ctrl/Cmd+K editor is
+"Quick Edit": one rounded surface about 420 px wide and 90-110 px tall, with a subtle border and a light shadow.
+
+- Before typing it shows only the prompt (no border of its own, growing to 180 px, then scrolling), a close icon at the
+  top right, Context at the bottom left, and the mode dropdown and a round Send button at the bottom right.
+- The mode dropdown reads "Edit selection" or "Explain selection". Its menu checks the active mode. Switching keeps the
+  words and sends nothing. The first mode is the opener's (openInline's mode, canvasApi.inlineAi(mode); Quick Edit
+  passes 'edit'), else Edit for selected words and Explain for objects.
+- Placeholders: "What would you like to change?" (Edit) and "What would you like to understand?" (Explain).
+- Enter sends, Shift+Enter adds a line, and an Enter during IME composition never sends.
+- Context opens an anchored popover, bounded and scrolling. It never grows the composer.
+- While a request runs, Stop takes Send's place. A double press's second click never stops what it just sent. A short
+  status shows only until output arrives.
+- Output appears beneath the prompt only when there is some, bounded and scrolling. A streaming note keeps one height,
+  so the composer neither moves nor resizes per chunk. The composer is placed for the room it may grow into: above the
+  target it holds its bottom edge, elsewhere its top edge.
+- Then a compact Accept / Reject. The prompt stays for a refine. A paid proposal keeps its own Generate and cost words,
+  never a plain Accept.
+- The character count shows only from 900 of 1000 characters, and past the limit.
+- Escape closes the open menu, then the open popover, then the editor. Closing cancels a running request, and no late
+  output appears.
+- The selected object's words are not repeated in a header; screen readers get them in a visually hidden label.
+- Every icon button has a label, a tooltip and a visible focus ring.
+
+### Verification (point 9), real calls, local real stack, 2026-10-13
+
+Driver: packages/web/e2e/inline-context-real.mjs. It uses one fresh canvas per case of CONTEXT_CASES, and its canvas
+title includes the misleading "Linked List". Each case keeps the payload the browser sent, its size, the context
+preparation time, the time to the first words and to the preview, the input tokens, and the explanation. Screenshots
+come from inline-composer-shots.mjs: the initial composer, the mode menu, the Context popover and a preview, before and
+after, light and dark. Results are in .review/inline-context-point9 (local). Every call was reserved and settled in the
+shared ledger: 24 calls, $0.30 in all ($0.11 before, $0.19 after). The machine was heavily loaded (several agents and
+stacks), so timings vary by seconds.
+
+| case | context prep ms | context bytes | input tokens | first words ms | preview ms | missing / unwanted |
+|---|---|---|---|---|---|---|
+| tree (title Linked List) | 2.4 -> 6.8 | 1316 -> 1860 | 1242 -> 1850 | 3002 -> 3694 | 4213 -> 5819 | none -> none |
+| flowchart | 2.9 -> 2.5 | 2132 -> 1869 | 1578 -> 1811 | 1769 -> 1835 | 2832 -> 3648 | start missing -> none |
+| code with notes | 0.8 -> 2.0 | 1151 -> 1284 | 1135 -> 1527 | 2277 -> 1758 | 3549 -> 3606 | spec missing, lunch in -> none |
+| text in an explanation | 0.8 -> 2.1 | 1189 -> 1624 | 1132 -> 1676 | 5448 -> 2137 | 6663 -> 3522 | heading missing -> none |
+| card in a group | 3.0 -> 5.9 | 1601 -> 1623 | 1308 -> 1669 | 1973 -> 2326 | 3751 -> 3823 | none -> none |
+| two topics (title Linked List) | 1.1 -> 2.4 | 1316 -> 2033 | 1242 -> 1932 | 2128 -> 5169 | 3062 -> 6995 | heading missing -> none |
+
+- Before, explanations talked storage and title: "terminal node in the Linked List canvas", "(not stored
+  connections)", "nearby but not formally connected", "isn't connected to it". After, none of those phrases and no
+  ids appear. The flowchart's unsure arrow is qualified ("appears to lead to Allow entry - worth checking
+  that path is drawn as you intend"). The code note uses the far spec note ("the cart's pre-tax amount").
+- Changed context: after the far note changed to cents, the same request's payload carried the new words and the
+  explanation said cents (before: the note was never in the context). Edit "rename here and in the notes too" changed
+  only the code; the notes were untouched, before and after.
+- The first after run of the card case pulled in Breadth-first search through the common word "before" shared with
+  Quick sort. Common words are now ignored (inline-ai-relevance.test.mjs). The rerun has no unwanted material.
+- A card in a group cannot be targeted alone in the app today: Ctrl+click on a card starts a marquee (a canvas finding,
+  reported). The real card case therefore selects the group, and the unit tests cover the single card.
+- Cost of the change: about 400-700 more input tokens per request, and 1-4 ms more context preparation. Time to the
+  first words is unchanged within the noise.
