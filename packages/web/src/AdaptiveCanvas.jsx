@@ -3305,9 +3305,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!boxes.length) return null;
     const pad = members ? GROUP_PAD : 0; // a group's outline sits outside its members
     const x = Math.min(...boxes.map(box => box.x)) - pad, y = Math.min(...boxes.map(box => box.y)) - pad;
-    // lead: the width of a group's name chip, over its outline's top left, which its pins keep clear (the chip keeps its menu).
-    const lead = members ? worldRef.current?.querySelector(`[data-group-chip="${id}"]`)?.offsetWidth || 0 : 0;
-    return { x, y, w: Math.max(...boxes.map(box => box.x + box.w)) + pad - x, h: Math.max(...boxes.map(box => box.y + box.h)) + pad - y, row: pillRow(id), lead };
+    const w = Math.max(...boxes.map(box => box.x + box.w)) + pad - x;
+    // lead: what its pins keep clear at its top left - a group's name chip (it keeps its menu); a text box's, an equation's or
+    // a text shape's whole top edge, where its ladder, Text | Code and a shape's actions sit from the left (so they hang on
+    // its left edge, never over H1 or another control).
+    const item = items.find(entry => entry.id === id), shape = shapes.find(entry => entry.id === id);
+    const lead = members ? worldRef.current?.querySelector(`[data-group-chip="${id}"]`)?.offsetWidth || 0 : (item && item.kind !== 'sticky') || (shape && TEXT_BOX[shape.kind]) ? w : 0;
+    return { x, y, w, h: Math.max(...boxes.map(box => box.y + box.h)) + pad - y, row: pillRow(id), lead };
   };
   const pickedPin = pinPick ? commentPins?.find(pin => pin.id === pinPick && !pin.ghost) || null : null;
   const dropPin = () => { setPinPick(null); setPinAsk(null); };

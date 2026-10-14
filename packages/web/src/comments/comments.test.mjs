@@ -98,6 +98,12 @@ test('every pin touches its object (owner, 2026-10-13): on its top edge left of 
   const chipped = pinOn(group, 0, ROW, 80);
   assert.ok(chipped.left >= 100 + 80 && chipped.top === 200 + INTO - SIZE, `right of the chip: ${JSON.stringify(chipped)}`);
   assert.deepEqual(pinSpot({ ...group, right: 420 }, ROW, 0, SIZE, GAP, 80), { left: 100 + CONTACT - SIZE, top: 200 + 2 * CONTACT, tail: 'br' }, 'no room right of the chip');
+  // A text box keeps its whole top edge (its ladder, Text | Code and actions sit above it from the left): its pin hangs on its
+  // left edge, below its top and left of its text, so it covers no control and no word, and still touches it.
+  const text = { left: 100, top: 200, right: 420, bottom: 232 };
+  const onText = pinOn(text, 0, ROW, 320);
+  assert.deepEqual([onText.left, onText.top, onText.tail], [100 + CONTACT - SIZE, 200 + 2 * CONTACT, 'br']);
+  assert.ok(onText.top > text.top && onText.right <= text.left + CONTACT, `clear of its controls and its words: ${JSON.stringify(onText)}`);
   // Any box, any zoom (a dot of a shape at 25% included), any index, with a chip or not: the pin overlaps it by CONTACT on both axes.
   for (const box of [card, note, group, { left: 50, top: 50, right: 52, bottom: 51 }, { left: 0, top: 0, right: 600, bottom: 0 }, { left: 10, top: 10, right: 330, bottom: 40 }])
     for (let index = 0; index < 6; index++) for (const row of [0, ROW, 591]) for (const lead of [0, 80]) {
@@ -148,7 +154,8 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   const canvas = read('../AdaptiveCanvas.jsx'), page = read('../LearnPage.jsx'), panel = read('./CommentsPanel.jsx');
   assert.doesNotMatch(canvas, /Add comment here/, 'no comment on the bare canvas');
   assert.match(canvas, /<CommentPins pins=\{commentPins\} view=\{view\} board=\{commentBoard\} slotOf=\{commentSlot\} /, 'object pins sit in their slot');
-  assert.match(canvas, /return \{ x, y, w: [^\n]*, row: pillRow\(id\), lead \};/, "the slot is the object's box, its pill row and a group's chip");
+  assert.match(canvas, /return \{ x, y, w, h: [^\n]*, row: pillRow\(id\), lead \};/, "the slot is the object's box, its pill row and what its top left keeps clear");
+  assert.match(canvas, /\(item && item\.kind !== 'sticky'\) \|\| \(shape && TEXT_BOX\[shape\.kind\]\) \? w : 0/, 'a text box, an equation and a text shape keep their whole top edge for their controls');
   assert.match(read('./CommentPins.jsx'), /pinSpot\(box, slot\.row \* Math\.max\(view\.z, 1\), index, SIZE, GAP, \(slot\.lead \|\| 0\) \* view\.z\)/, 'every object pin goes through pinSpot');
   assert.match(canvas, /Start Rabbit Hole<\/MenuRow>\}\r?\n\s+\{addComment && commentOn && <MenuRow icon=\{MessageCircle\} [^\n]*hint="C"[^\n]*>Add comment<\/MenuRow>\}/, 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');

@@ -226,6 +226,11 @@ for (const { kind } of ASKS) {
       assert.ok(pillBox.x - (pin.x + pin.width) < 24, `right next to it: ${JSON.stringify([pin, pillBox])}`);
       const contact = [Math.min(pin.x + pin.width, box.x + box.width) - Math.max(pin.x, box.x), Math.min(pin.y + pin.height, box.y + box.height) - Math.max(pin.y, box.y)];
       assert.ok(contact.every(overlap => overlap >= 2), `touching the object: ${JSON.stringify([pin, box])}`);
+      // Over no control: a text box's H1 to Text ladder, Text | Code, the actions, or anything else a press would reach.
+      const covered = await page.evaluate(at => [...document.querySelectorAll('button, input, select, textarea, [role="toolbar"], [role="radio"], [role="tab"]')]
+        .filter(control => !control.closest('[data-comment-pins]')).map(control => [control.getAttribute('aria-label') || control.textContent.trim().slice(0, 20), control.getBoundingClientRect()])
+        .filter(([, r]) => r.width && r.height && r.left < at.x + at.width - 1 && r.right > at.x + 1 && r.top < at.y + at.height - 1 && r.bottom > at.y + 1).map(([name]) => name), pin);
+      assert.deepEqual(covered, [], `the pin covers no control: ${JSON.stringify(pin)}`);
     }
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-pill.png` });
     const sent = asks.length + plans.length;

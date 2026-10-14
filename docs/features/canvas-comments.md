@@ -396,7 +396,9 @@ to"):** every object pin touches its object - card, chat card, image, text box, 
 at any size and zoom: its box overlaps the object's by at least 4 px on both axes. It sits on the object's top edge, its tail
 10 px into it (past the gap between two cards of a column, so it never reads as hanging from the card above), left of the reserved pill row (kept at least its 100% width on screen, as the floating actions bar does not
 shrink) and right of a group's name chip; pins that do not fit there (a narrow object, a low zoom) hang on its left edge
-from just below its top, the tail on the object, so a pin is never under the actions bar or the chip. One pure function,
+from just below its top, the tail on the object, so a pin is never under the actions bar or the chip. A text box, an equation
+and a text shape keep their whole top edge for the controls that sit there from the left (the H1 to Text ladder, Text | Code,
+a shape's actions), so their pins always hang on their left edge, over no control and no word. One pure function,
 `pinSpot` in `comments/anchors.js`, places every kind; comments-check 26b checks every kind at 100% and 25%.
 
 A speech-bubble pin at a constant screen size showing its thread's live message count (owner, 2026-10-08): the starter
