@@ -44,9 +44,9 @@ await page.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await page.locator('[data-block-id="seed-2"]').waitFor({ timeout: 60000 });
 await page.waitForTimeout(800);
 const surface = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
-const dock = await page.locator('[data-learn-dock] [data-chat-composer]').first().boundingBox();
+const dock = await page.locator('[data-chat-pane] [data-chat-composer]').first().boundingBox();
 // What the learner sees: the canvas above the dock.
-const composer = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"])').first();
+const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 
 const sheetTop = () => page.evaluate(() => { const box = document.querySelector('[data-chat-sheet]')?.getBoundingClientRect(); return box?.height ? box.top : null; });
 const ask = async (label, text, { addToCanvas = true } = {}) => {

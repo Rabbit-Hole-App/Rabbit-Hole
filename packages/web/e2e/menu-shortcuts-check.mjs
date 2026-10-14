@@ -162,7 +162,7 @@ await page.waitForTimeout(150);
 ok('Esc closes it', (await sheet.count()) === 0);
 
 // --- keys stand down while typing ---
-const composer = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"])');
+const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))');
 await blank();
 await composer.click();
 await page.keyboard.type('what does / mean?');

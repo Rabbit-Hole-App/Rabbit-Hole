@@ -101,8 +101,8 @@ for (let run = 1; run <= RUNS; run++) {
     await page.keyboard.press('Shift+Digit1'); await page.waitForTimeout(500);
     await cardEl(id).locator('[data-drag-zone]').last().click(); await page.waitForTimeout(250);
   };
-  const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
-  const replies = () => page.evaluate(() => [...document.querySelectorAll('[data-learn-dock] div')].filter(node => String(node.className).includes('border-accent/30') || node.getAttribute('role') === 'alert').map(node => node.innerText));
+  const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
+  const replies = () => page.evaluate(() => [...document.querySelectorAll('[data-chat-pane] div')].filter(node => String(node.className).includes('border-accent/30') || node.getAttribute('role') === 'alert').map(node => node.innerText));
   const spinning = () => page.getByText('Thinking...').count();
   await page.goto(`${BASE}/apps/${root.name}?board=${TUTOR_BOARD}`);
   await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 }); await page.waitForTimeout(1500);

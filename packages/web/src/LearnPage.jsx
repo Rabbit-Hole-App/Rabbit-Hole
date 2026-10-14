@@ -61,6 +61,7 @@ import { registeredCourse } from './learn-tutor-domains.js';
 import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.jsx';
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
+import { useChatWorkspace } from './chat-workspace.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
@@ -232,8 +233,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const [setupChat, setSetupChat] = useState(false);
   const [narration, setNarration] = useState('');
   const [editor, setEditor] = useState(null);
-  // Chat exchanges shown on the adaptive canvas. AskPanel mirrors each dock
-  // turn here; the canvas renders them as movable cards. Blocks persist in
+  // Chat exchanges shown on the adaptive canvas (saved cards; a Chat answer becomes one only through Add as card,
+  // never automatically); the canvas renders them as movable cards. Blocks persist in
   // this browser so a refresh does not clear the canvas; a stream cut by a
   // refresh is kept as-is and marked done.
   const canvasKey = `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${app.name}`;
@@ -617,13 +618,6 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       });
     },
   };
-  const placeExchange = event => setExchanges(previous => {
-    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, linkFrom: event.linkFrom || null, answer: '', status: 'thinking', dx: 0, dy: 0 }];
-    return previous.map(exchange => exchange.id !== event.id ? exchange
-      : event.delta ? { ...exchange, answer: exchange.answer + event.delta, status: 'streaming' }
-      : event.stage ? { ...exchange, status: event.stage }
-      : { ...exchange, status: 'done' });
-  });
   const moveExchange = (id, dx, dy) => setExchanges(previous => previous.map(exchange => exchange.id === id ? { ...exchange, dx, dy } : exchange));
   const deleteExchange = id => setExchanges(previous => previous.filter(exchange => exchange.id !== id));
   const resizeExchange = (id, w, h) => setExchanges(previous => previous.map(exchange => exchange.id === id ? { ...exchange, w, h } : exchange));
@@ -663,7 +657,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // ponytail: a hole inside a journey hole carries no journey (the hole board has no live journey of its own); hand the
   // record's journey down when nested journey holes need their cause too.
   const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '', journeyContext: block => journeyDiveContext(journey.journey, journey.path, block) });
-  // Learning journeys (LearnJourney.jsx) on Learn canvases: its tray sits in the dock composer, and a broad intent starts
+  // Learning journeys (LearnJourney.jsx) on Learn canvases: its tray sits in the Chat composer, and a broad intent starts
   // one while the board has none. Not on repository apps (the route refuses them; the supplied nanoGPT course is one) nor
   // on a pending hole, which has no canvas row yet.
   const journey = useJourney({ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole });
@@ -676,8 +670,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // ponytail: no openResearch until a Home/Library Research entry can take a seeded request; until then the Tutor offers no
   // Research this (contract §4.5).
   const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock });
-  // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a dock
-  // composer, never on a review board; a click goes through the dock (AskPanel nextStepRef).
+  // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
+  // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);
   const nextStepSend = useRef(null);
   // The path rail's upcoming section whose purpose is open (a click on it never generates anything, §8).
@@ -685,7 +679,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // The board path whose saved board the canvas holds: the server's copy may replace this browser's (canvasEpoch) when
   // the board GET lands, so until then the canvas may be an empty stand-in.
   const [restoredBoard, setRestoredBoard] = useState(null);
-  // Voice Mode wherever the Tutor is (docs/features/voice-tutor-mvp.md §6b): the dock mic, the left caption.
+  // Voice Mode wherever the Tutor is (docs/features/voice-tutor-mvp.md §6b): the Chat composer's mic, the left caption.
   // A selected card stays the context after a voice turn too, as after a typed one (ask.jsx); a region or group rides once.
   const voice = useVoiceSession({ tutor, app, access: askScope, targetId: askTarget?.id, onTargetUsed: () => { if (!askTarget?.card) clearAskTarget(); } });
   const voiceOn = !!voice && voice.state !== 'off';
@@ -996,6 +990,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const clearAskTarget = () => { setAskTarget(null); canvasApi.current?.deselect(); };
   // The selected-card context belongs to the canvas it was chosen on: another canvas or board (a Rabbit Hole) starts clear.
   useEffect(() => { setAskTarget(null); }, [app.name, boardName]);
+  // The page's own handlers (the hook card, the teach handoff) run outside the Chat workspace provider: ChatHandle reads it from inside.
+  const chatRef = useRef(null);
   const playback = useRef(null);
   const startDemo = useRef(null);
   const [progress, setProgress] = useState(null);
@@ -1281,16 +1277,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       if (kind === 'teach' && !prompt) return no('rejected', 'The prompt is empty.');
       if (!latest.lessonShown) latest.requestLearningView('lesson');
       if (kind === 'teach') {
-        const input = await until(() => window.document.querySelector('[data-learn-dock] [data-chat-composer] input:not([type="file"])'), 10000);
-        if (!input) return no('failed', 'The Learn chat did not open. Open Learn and try again.');
-        if (input.value.trim() && input.value !== prompt) return no('rejected', 'The Learn chat already has a draft. Send or clear it, then try again.');
-        // The composer is React-controlled: set the value the way typing does,
-        // so its own onChange takes it.
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, prompt);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        if (!input.isConnected || input.value !== prompt) return no('failed', 'The prompt could not be placed in the Learn chat.');
-        input.focus(); input.setSelectionRange(prompt.length, prompt.length);
+        // The right-side Chat's composer (contract A6 prepare): it opens Chat and focuses, and never sends.
+        const chat = await until(() => chatRef.current, 10000);
+        if (!chat) return no('failed', 'The Learn chat did not open. Open Learn and try again.');
+        if (chat.composer.text.trim() && chat.composer.text !== prompt) return no('rejected', 'The Learn chat already has a draft. Send or clear it, then try again.');
+        chat.composer.prepare(chat.composer.text === prompt ? {} : { text: prompt });
         return { id, kind, status: 'prefilled' };
       }
       if (!await until(() => canvasApi.current, 10000)) return no('failed', 'The Learn canvas did not open. Open Learn and try again.');
@@ -1342,6 +1333,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     : courseTitle || app.repo || app.name;
   // Never the canvas id: its title, or plain words when there is none.
   const askPlaceholder = isCanvas ? ((canvasTitle || app.title) ? `Ask about ${canvasTitle || app.title}…` : 'Ask about this canvas…') : `Ask about ${app.repo || app.name}…`;
+  // The right-side Chat is the one main Learn composer (owner brief 2026-10-13 section 4): the canvas dock is gone, and what it
+  // carried rides on the Chat's AskPanel (ChatPane, A1 spreads these): the / commands, the Tutor, the journey's starter and tray,
+  // Voice Mode, the Next Steps hook sends and the selected card's chip. Its answers never land on the canvas by themselves (no
+  // onExchange): Add as card is Lane B's footer, through the provider's canvasOps.
+  const chatAskProps = { slash: learnSlash, tutor: tutor.active ? tutor : null, journey, journeyStarter: journey.journey ? null : journey.start, journeySetup: inJourneySetup(journey.journey), tray: journey.trayProps, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget };
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
   // Renaming a canvas from the top bar saves it on the server through the Rabbit Hole map's rename
   // (Dive.jsx), so the map, Home, Library and the placeholder follow; that rename calls saveTitle back.
@@ -1606,7 +1602,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
             land as movable blocks. Lesson playback stays parked. */}
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none" style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={null}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock}>{steps => <AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
-          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : nextStepSend.current?.(step, hook.hook))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock sheet onAddToCanvas={chat => canvas()?.insertChat(chat)} boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} tutor={tutor.active ? tutor : null} journey={journey} journeyStarter={journey.journey ? null : journey.start} journeySetup={inJourneySetup(journey.journey)} tray={journey.trayProps} voice={voice} nextStepRef={nextStepSend} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}</div>
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}<ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -1769,6 +1765,17 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   </main>;
 }
 
+// The Chat workspace from inside its provider (A1 mounts it around the canvas and panels), for the page's handlers above it. The
+// shortcuts that focused the canvas dock (Ctrl/Cmd+J, and Ctrl/Cmd+O in the preview: small:ask-focus) open Chat and focus it.
+function ChatHandle({ to }) {
+  to.current = useChatWorkspace();
+  useEffect(() => {
+    const open = () => { to.current?.panels.openChat(); to.current?.composer.focus(); };
+    window.addEventListener('small:ask-focus', open);
+    return () => window.removeEventListener('small:ask-focus', open);
+  }, [to]);
+  return null;
+}
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.7): useNextSteps mounts only where the page allows it
 // (on), and outside the canvas, so presenting or a canvas remount never asks for a set again. children(steps): the hooks'
 // state, or null where they are not mounted.

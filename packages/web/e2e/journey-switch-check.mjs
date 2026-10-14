@@ -73,7 +73,7 @@ watch(page);
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async name => { await page.waitForTimeout(500); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
-const composer = () => page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 const send = async text => { await composer().fill(text); await composer().press('Enter'); };
 const tray = () => page.evaluate(() => {
   const t = document.querySelector('[data-tutor-prompt-tray]');

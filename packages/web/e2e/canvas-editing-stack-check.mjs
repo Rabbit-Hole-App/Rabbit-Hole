@@ -105,7 +105,7 @@ check('the server copy holds the code box, literal', code?.text === 'def f():\n 
 
 // The selected text box's pill and Tutor context read the plain words.
 await page.locator(`[data-item-id="${text.id}"]`).click();
-const pill = await page.locator('[data-chat-composer], [data-learn-dock]').first().innerText().catch(() => '');
+const pill = await page.locator('[data-chat-composer], [data-chat-pane]').first().innerText().catch(() => '');
 check('selecting it puts its plain words (not markup) in the composer context', pill.includes('Line one') && !pill.includes('data-run'), JSON.stringify(pill.slice(0, 120)));
 await context.close();
 

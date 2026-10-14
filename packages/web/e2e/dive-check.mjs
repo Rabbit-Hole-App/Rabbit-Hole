@@ -45,7 +45,7 @@ const url = () => new URL(page.url());
 const blocks = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.map(node => node.dataset.blockId));
 // A card is selected by pressing its drag strip (the frame handle sits under the card's own strip).
 const select = async id => { const strip = page.locator(`[data-block-id="${id}"] [data-drag-zone]`).last(); await strip.scrollIntoViewIfNeeded(); await strip.click({ position: { x: 12, y: 8 } }); await page.waitForTimeout(300); };
-const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"]):not([data-slash-search])').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const slash = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(150); await composer().press('Enter'); await page.waitForTimeout(800); };
 // Down from the selected card by /dive with no topic (dive-v1.md: "Selected card. /dive [topic] dives from it"): the
 // picker fills "/dive ", Enter runs it. Ctrl/Cmd+K on a selected card is the inline AI editor's (owner 2026-10-13).
@@ -136,7 +136,7 @@ await inGutter('map reset');
 console.log('holes map grip ok');
 const [card1, card2] = (await blocks()).slice(0, 2);
 // The composer: Auto (not a model picker) opens the palette; a chosen command is a removable pill.
-const dock = page.locator('[data-learn-dock]');
+const dock = page.locator('[data-chat-pane]');
 assert.doesNotMatch(await dock.innerText(), /\b(Opus|Sonnet|Haiku)\b/, 'no model names in the Learn composer');
 await composer().fill('softmax');
 await dock.getByRole('button', { name: 'Auto' }).click();
@@ -321,7 +321,7 @@ await page.getByText('What do you want to go deeper into?').first().waitFor();
 assert.equal((await blocks()).length, before, 'no card made without a topic');
 assert.equal(url().searchParams.get('hole'), null);
 await shot('07d-bare-dive-asks');
-await page.locator('[data-learn-dock]').getByRole('button', { name: 'Remove dive' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
+await page.locator('[data-chat-pane]').getByRole('button', { name: 'Remove dive' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
 // /dive <topic> with no card: the anchor shows the topic once, with no Explanation kicker; leaving
 // the empty hole takes its temporary portal with it.
 await deselect();
@@ -401,7 +401,7 @@ console.log('flow I ok');
 // canvas; it draws inside the Tutor's extras under its reply in the dock sheet. A Tutor turn opens that sheet first.
 const card3 = (await blocks())[2];
 await composer().click(); await composer().fill('What should I look at next?'); await composer().press('Enter');
-await page.locator('[data-tutor-extras], [data-learn-dock]').first().waitFor();
+await page.locator('[data-tutor-extras], [data-chat-pane]').first().waitFor();
 await page.waitForTimeout(800);
 await page.evaluate(id => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail: { blockId: id, topic: 'cross-entropy' } })), card3);
 await page.locator('[data-tutor-extras] [data-dive-suggestion]').waitFor();

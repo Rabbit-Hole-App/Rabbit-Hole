@@ -178,7 +178,7 @@ await check('5 a kept hole: the card is its portal, and right-click Start Rabbit
   await startItem().click();
   await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
   await opening;
-  const composer = page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+  const composer = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
   await composer.click(); await composer.fill('/whiteboard Bulge sketch'); await page.waitForTimeout(150); await composer.press('Enter');
   await page.waitForTimeout(500);
   assert.ok(url().searchParams.get('hole'), 'the command waits while the opening turn runs');

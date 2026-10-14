@@ -46,7 +46,7 @@ const select = async id => {
   await cardEl(id).locator('[data-drag-zone]').last().click(); await page.waitForTimeout(300);
 };
 const selected = id => cardEl(id).evaluate(node => node.className.includes('ring-2'));
-const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const ask = async text => { await composer().click(); await composer().fill(text); if (text.startsWith('/')) await page.waitForTimeout(150); await composer().press('Enter'); };
 const chips = () => page.locator('[data-tutor-chips]');
 
@@ -95,7 +95,7 @@ if (LIVE) {
     const evaluation = await Promise.race([evaluated, page.waitForTimeout(100).then(() => null)]);
     const plan = await response.json().catch(() => null);
     await page.getByText('Thinking...').first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
-    const reply = (await page.locator('[data-learn-dock]').innerText()).split('\n').filter(Boolean).slice(-3).join(' | ');
+    const reply = (await page.locator('[data-chat-pane]').innerText()).split('\n').filter(Boolean).slice(-3).join(' | ');
     const row = request.postDataJSON().context?.route?.row;
     await page.waitForTimeout(300);
     const bench = await page.evaluate(() => window.__tutorBench?.at(-1) || null); // the passive small:tutor-bench record
@@ -140,7 +140,7 @@ if (LIVE) {
   await shot('live-06-gap');
   // The words right before the suggestion: at most two sentences (locked gap row; enforce() in learn-tutor.js).
   // The reply bubble is the dock's last accent-bordered answer (ask.jsx, learnChat).
-  const before = await page.evaluate(() => [...document.querySelectorAll('[data-learn-dock] div')].filter(node => String(node.className).includes('border-accent/30')).at(-1)?.innerText || '');
+  const before = await page.evaluate(() => [...document.querySelectorAll('[data-chat-pane] div')].filter(node => String(node.className).includes('border-accent/30')).at(-1)?.innerText || '');
   const sentences = before.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
   console.log('live L6 reply before the suggestion', sentences.length, 'sentence(s):', JSON.stringify(before.slice(0, 400)));
   if (suggested) assert.ok(sentences.length >= 1 && sentences.length <= 2, `at most two sentences before the Rabbit Hole suggestion (${sentences.length})`);

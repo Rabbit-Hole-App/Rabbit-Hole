@@ -348,7 +348,7 @@ async function pageFor(browser, { traced = false } = {}) {
   return { context, page, errors, ignored, seen, aborted };
 }
 const posted = (seen, path) => seen.filter(entry => entry.method === 'POST' && entry.path === path);
-const composerOf = page => page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
+const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 async function n7() {
   if (!state.canvas) return record('N7 trace sink', 'FAIL', 'no canvas from N1');
   const browser = await chromium.launch();

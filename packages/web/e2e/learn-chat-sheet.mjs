@@ -46,7 +46,7 @@ await page.route('**/api/learn/ask', async route => {
 await page.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await page.locator('[data-block-id="seed-1"]').waitFor({ timeout: 60000 });
 await page.waitForTimeout(600);
-const composer = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"])').first();
+const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 const sheet = page.locator('[data-chat-sheet]');
 const chatCards = () => page.locator('[data-chat-block]').count();
 const say = async text => { await composer.click(); await composer.fill(text); await composer.press('Enter'); };
@@ -56,7 +56,7 @@ const answered = async n => { await sheet.getByText(`Answer ${n}.`).waitFor({ ti
 await say('hi');
 await answered(1);
 check('a plain question opens the sheet above the composer', await sheet.isVisible());
-const sheetBox = await sheet.boundingBox(), dockBox = await page.locator('[data-learn-dock] [data-chat-composer]').first().boundingBox();
+const sheetBox = await sheet.boundingBox(), dockBox = await page.locator('[data-chat-pane] [data-chat-composer]').first().boundingBox();
 check('the sheet sits directly above the composer, same width', sheetBox.y + sheetBox.height <= dockBox.y + 2 && Math.abs(sheetBox.width - dockBox.width) < 4, `sheet ${Math.round(sheetBox.width)}w bottom ${Math.round(sheetBox.y + sheetBox.height)}, composer ${Math.round(dockBox.width)}w top ${Math.round(dockBox.y)}`);
 check('"hi" makes no card on the canvas', await chatCards() === 0);
 check('the sheet shows the question and the answer', await sheet.getByText('hi', { exact: true }).isVisible() && await sheet.getByText('Answer 1.').isVisible());

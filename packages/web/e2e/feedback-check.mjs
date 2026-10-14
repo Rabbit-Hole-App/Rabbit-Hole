@@ -24,7 +24,7 @@ for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['ph
   await page.waitForTimeout(1200);
   const boxes = await page.evaluate(() => {
     const box = node => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, r: r.right, b: r.bottom }; };
-    return { button: box(document.querySelector('[data-feedback]')), zoom: box(document.querySelector('[data-zoom]')), composer: box(document.querySelector('[data-learn-dock] [data-chat-composer]')), vw: innerWidth, vh: innerHeight };
+    return { button: box(document.querySelector('[data-feedback]')), zoom: box(document.querySelector('[data-zoom]')), composer: box(document.querySelector('[data-chat-pane] [data-chat-composer]')), vw: innerWidth, vh: innerHeight };
   });
   const overlaps = (a, b) => a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
   ok(`${label}: the button sits lower left, beside the zoom controls, over nothing`, boxes.button.x < boxes.vw / 2 && boxes.button.y > boxes.vh * 0.6 && !overlaps(boxes.button, boxes.zoom) && !overlaps(boxes.button, boxes.composer), JSON.stringify(boxes.button));

@@ -24,6 +24,8 @@ import { SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } fr
 import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
+import { useChatWorkspace } from './chat-workspace.jsx';
+import { objectKind, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
@@ -3043,10 +3045,25 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       dark: document.documentElement.classList.contains('dark'),
     }).then(blob => { if (blob) onGroupShotRef.current?.(blob, group?.label || label, id); }).catch(() => { /* text still asks */ });
   };
+  // On a Learn canvas (the Chat workspace, chat-workspace-CONTRACT.md A5) the selection is ONE ContextRef in the right-side Chat
+  // (selection-ref.js): Chat opens in Ask, the draft stays, its composer takes the focus, nothing is sent. The card's selection
+  // chip steps aside, so one card is never two chips or sent twice. A view-only board has no workspace and keeps the path below.
+  const chatWorkspace = useChatWorkspace();
   const addToChat = () => {
     const ids = selectedRef.current.filter(id => objectById(id) || shapesRef.current.some(shape => shape.id === id));
     if (!ids.length) return false;
     const object = ids.length === 1 ? objectById(ids[0]) : null;
+    if (chatWorkspace) {
+      const described = object && describeObject(object);
+      const read = () => (described ? liveAskText(object.id, described)() : groupTargetText(ids.map(askEntryOf).filter(Boolean)));
+      const group = ids.length > 1 && groups.find(entry => ids.every(id => groupOf(id) === entry.id) && membersOf(entry.id).length === ids.length);
+      const picked = window.getSelection(), node = picked && !picked.isCollapsed ? picked.anchorNode : null;
+      const quote = object && (node?.nodeType === 1 ? node : node?.parentElement)?.closest('[data-block-id]')?.getAttribute('data-block-id') === object.id ? picked.toString() : '';
+      chatWorkspace.addToChat(selectionRef({ ids, kind: objectKind(object), name: described?.title || (group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`), content: read(), quote, text: read }));
+      if (object && askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
+      if (object?.type === 'file' && object.kind === 'image' && object.mediaId) onCardActionRef.current?.('image-attach', { blockId: object.id, mediaId: object.mediaId, label: object.label });
+      return true;
+    }
     if (object && describeObject(object)) {
       askedId.current = object.id;
       if (!armTarget(object)) return false;

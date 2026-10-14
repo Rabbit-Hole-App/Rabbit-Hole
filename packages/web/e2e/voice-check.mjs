@@ -89,7 +89,7 @@ await shot('01-text-mode-neutral-mic');
 await mic.click();
 await waitState('listening');
 assert.ok(await page.locator('[data-voice-field] .voice-breathe').count(), 'the red mic breathes');
-assert.equal(await page.locator('[data-learn-dock] input:not([type="file"]), [data-learn-dock] textarea').count(), 0, 'no typing field while voice is on');
+assert.equal(await page.locator('[data-chat-pane] [data-chat-composer] input:not([type="file"]), [data-chat-pane] [data-chat-composer] textarea').count(), 0, 'no typing field while voice is on');
 assert.equal(await caption().count(), 0, 'nothing said yet: no caption window');
 await shot('02-voice-on');
 
@@ -199,7 +199,7 @@ await page.getByRole('button', { name: 'Voice mode on - turn off' }).click();
 await page.getByRole('button', { name: 'Voice mode', exact: true }).waitFor();
 assert.equal(await field().count(), 0);
 assert.equal(await caption().count(), 0, 'the caption rail leaves with Voice Mode');
-assert.ok(await page.locator('[data-learn-dock] input:not([type="file"]), [data-learn-dock] textarea').count(), 'the typing field is back');
+assert.ok(await page.locator('[data-chat-pane] [data-chat-composer] input:not([type="file"]), [data-chat-pane] [data-chat-composer] textarea').count(), 'the typing field is back');
 await shot('12-voice-off-composer-restored');
 
 // VOICE-20: Text -> Voice works again; VOICE-21: an STT failure ends Voice with its message, nothing faked.

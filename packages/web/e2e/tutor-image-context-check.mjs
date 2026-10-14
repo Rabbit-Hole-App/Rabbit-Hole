@@ -96,7 +96,7 @@ async function open(who) {
 const { page, seen } = await open(owner);
 // The owner page closes before shared-reader/fork checks; polling must outlive that page.
 const until = async (ok, timeout = 15000) => { for (const end = Date.now() + timeout; !(await ok()) && Date.now() < end;) await delay(250); return ok(); };
-const composer = p => p.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
+const composer = p => p.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 const shot = (p, name) => p.screenshot({ path: `${SHOTS}/${name}.png` });
 const card = (p, id) => p.locator(`[data-block-id="${id}"]`).first();
 // A typed Tutor turn: the plan request it sent (null when no plan request came).
