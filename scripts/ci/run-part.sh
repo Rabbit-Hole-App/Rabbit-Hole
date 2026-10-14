@@ -66,6 +66,7 @@ while IFS=$'\t' read -r c r; do
   case $r in
     fork) FORK+=("$c") ;;
     harness) if [ -n "${PORT[$c]+x}" ]; then HARNESS+=("$c"); else echo "$c: no server rule in run-part.sh PORT table"; FAIL=1; fi ;;
+    unknown) echo "$c: not in scripts/ci/check-map.json; add it there with runner fork or harness"; FAIL=1 ;;
     *) echo "$c: runner '$r' cannot run in the fast tier"; FAIL=1 ;;
   esac
 done <<< "$ROWS"

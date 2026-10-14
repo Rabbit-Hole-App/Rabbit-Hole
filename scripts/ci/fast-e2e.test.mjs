@@ -22,9 +22,35 @@ test('the e2e parts need nothing; only verdict needs them', () => {
 test('install never depends on a cache hit', () => {
   assert.match(y, /npm ci --no-audit --no-fund/);
   assert.match(y, /npx playwright install chromium/);
-  assert.doesNotMatch(y, /cache-hit/);
+  assert.doesNotMatch(y, /if: steps\.\w+\.outputs\.cache-hit/);
+  assert.ok(steps.filter(s => /npm ci|playwright install/.test(s)).every(s => !/cache-hit/.test(s)), 'an install step must not look at a cache hit');
 });
-test('history is fetched so the baseline can be found', () => assert.match(y, /fetch-depth: 0/));
+test('history is fetched so the baseline can be found, and the checkout keeps no credentials', () => {
+  assert.match(y, /fetch-depth: 0/);
+  assert.match(steps[step(/actions\/checkout/)], /persist-credentials: false/);
+});
+test('npm and Playwright caches are restored and saved by hand: saved right after install on a miss, never for an empty part', () => {
+  assert.doesNotMatch(y, /cache: npm/, 'setup-node runs before selection: an empty part would save an empty ~/.npm under the real key');
+  assert.doesNotMatch(y, /uses: actions\/cache@/, 'the combined action saves only when the whole job succeeds');
+  const build = step(/vite build/), key = s => /key: (.*)/.exec(s)[1];
+  for (const [path, install] of [['~/.npm', /run: \|\n\s+npm ci --no-audit/], ['~/.cache/ms-playwright', /run: npx playwright install chromium/]]) {
+    const find = kind => steps.findIndex(s => s.includes(`uses: actions/cache/${kind}@`) && s.includes(`path: ${path}\n`));
+    const [r, s, i] = [find('restore'), find('save'), step(install)];
+    assert.ok(r >= 0 && s >= 0 && i >= 0, `${path}: restore, save and install steps must all exist`);
+    assert.ok(r < i && i < s && s < build, `${path}: restore, then install, then save, all before the build`);
+    for (const n of [r, s]) assert.match(steps[n], /if: .*steps\.sel\.outputs\.n != '0'/, `${path}: gated on the selection`);
+    assert.match(steps[s], new RegExp(`steps\\.${/id: (\S+)/.exec(steps[r])[1]}\\.outputs\\.cache-hit != 'true'`), `${path}: saves only on a primary-key miss`);
+    assert.equal(key(steps[r]), key(steps[s]));
+    assert.match(key(steps[r]), /hashFiles\('package-lock\.json'\)/);
+  }
+});
+test('artifact names carry the run attempt, so re-running failed jobs cannot collide', () =>
+  assert.match(y, /name: fast-e2e-\$\{\{ github\.sha \}\}-\$\{\{ matrix\.part \}\}-\$\{\{ github\.run_attempt \}\}/));
+test('only the real repository runs it, and not for a deleted branch; the verdict follows', () => {
+  const guard = "github\\.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github\\.event\\.deleted != true";
+  assert.match(e2e.slice(0, e2e.indexOf('steps:')), new RegExp(`^ {4}if: ${guard}$`, 'm'));
+  assert.match(y.slice(y.search(/^ {2}verdict:/m)), new RegExp(`if: \\$\\{\\{ !cancelled\\(\\) && ${guard} \\}\\}`));
+});
 
 test('the matrix is static and as wide as the --of every part passes to affected.mjs', () => {
   const parts = /part: \[([\d, ]+)\]/.exec(y)[1].split(',').map(Number);

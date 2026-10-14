@@ -20,7 +20,7 @@ const skip = !tools || (await Promise.all([5189, 5186, 5391].map(busy))).some(Bo
 function scratch(checks) {
   const t = slash(mkdtempSync(`${slash(tmpdir())}/rp-`)), put = (p, s) => { mkdirSync(`${t}/${p.replace(/\/[^/]*$/, '')}`, { recursive: true }); writeFileSync(`${t}/${p}`, s); };
   spawnSync('git', ['init', '-q'], { cwd: t });
-  put('scripts/ci/check-map.json', JSON.stringify({ checks: Object.fromEntries(Object.entries(checks).map(([c, v]) => [c, { runner: v.runner }])) }));
+  put('scripts/ci/check-map.json', JSON.stringify({ checks: Object.fromEntries(Object.entries(checks).filter(([, v]) => v.runner).map(([c, v]) => [c, { runner: v.runner }])) }));
   put('scripts/ci/stack.sh', 'echo "$1" >> "$(dirname "$0")/../../stack-calls.txt"; mkdir -p "$2"\n');
   put('node_modules/vite/bin/vite.js', `const a = process.argv.slice(2), e = process.env;
 require('fs').appendFileSync(__dirname + '/../../../vite-calls.jsonl', JSON.stringify({ args: a, coaching: e.VITE_COACHING_DEV ?? null, byoc: e.VITE_BYOC_DEV ?? null, cp: e.RABBIT_HOLE_DEV_CP ?? null }) + '\\n');
@@ -85,11 +85,12 @@ test('a harness-only part never starts the stack', { skip }, () => {
   assert.deepEqual(s.calls().map(c => c.up), [200]);
 });
 
-test('a server that never starts fails its checks without running them; a runner the tier cannot run is a stop', { skip }, () => {
-  const s = scratch({ 'dark-ink-check.mjs': { runner: 'harness', port: 5189 }, 'x-check.mjs': { runner: 'windows-only' } });
+test('a server that never starts fails its checks without running them; a runner the tier cannot run, or a check the map lacks, is a stop with its fix', { skip }, () => {
+  const s = scratch({ 'dark-ink-check.mjs': { runner: 'harness', port: 5189 }, 'x-check.mjs': { runner: 'windows-only' }, 'y-check.mjs': {} });
   const r = s.run({ FAKE_VITE_FAIL: '1' });
   assert.equal(r.status, 1);
   assert.match(r.stdout, /dark-ink exit 97 {2}server on port 5189 did not start/);
   assert.match(r.stdout, /x-check\.mjs: runner 'windows-only' cannot run in the fast tier/);
+  assert.match(r.stdout, /y-check\.mjs: not in scripts\/ci\/check-map\.json; add it there with runner fork or harness/);
   assert.deepEqual(s.calls(), []);
 });
