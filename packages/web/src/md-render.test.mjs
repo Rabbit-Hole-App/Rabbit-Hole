@@ -11,9 +11,15 @@ import * as esbuild from 'esbuild';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const dir = mkdtempSync(join(tmpdir(), 'md-render-')), outfile = join(dir, 'md.cjs');
+// ChatMessages reaches pdf.js through the Chat workspace (chat-context.js, context-docs.js, learn-paper-figures.js) and a Vite
+// ?url import, which node has no use for: it becomes an empty string (as next-steps-wiring-ui.test.mjs does).
+const viteUrl = { name: 'vite-url', setup(build) {
+  build.onResolve({ filter: /\?url$/ }, args => ({ path: args.path, namespace: 'vite-url' }));
+  build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
+} };
 await esbuild.build({
   stdin: { contents: "export * from './Md.jsx'; export { ChatMessages } from './ChatMessages.jsx'; export { atEnd } from './chat-scroll.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
-  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
+  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
@@ -21,11 +27,14 @@ const md = (text, props = {}) => B.renderToStaticMarkup(B.createElement(B.Md, { 
 // What a reader sees as text: KaTeX keeps the TeX source in a MathML annotation for screen readers, never on screen.
 const visible = html => html.replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/g, '').replace(/<[^>]+>/g, '');
 
-test('headings have a visible hierarchy: h1, h2 and h3 each a different size', () => {
-  const html = md('# Title\n\n## Section\n\n### Part\n\nBody.');
-  const size = tag => html.match(new RegExp(`<${tag} class="[^"]*\\b(text-(?:xl|lg|base|sm))\\b`))?.[1];
+test('headings have a visible hierarchy in a chat answer (doc): h1, h2 and h3 each a different size; elsewhere they stay body-sized', () => {
+  const html = md('# Title\n\n## Section\n\n### Part\n\nBody.', { doc: true });
+  const size = (tag, from = html) => from.match(new RegExp(`<${tag} class="[^"]*\\b(text-(?:xl|lg|base|sm))\\b`))?.[1];
   assert.deepEqual([size('h1'), size('h2'), size('h3')], ['text-xl', 'text-lg', 'text-base']);
   assert.match(html, /<p class="my-1">Body\.<\/p>/);
+  // Canvas cards, lesson readers and sheets share Md: their headings keep the body size, so a small card is not dwarfed.
+  const card = md('# Title\n\n## Section\n\n### Part');
+  assert.deepEqual([size('h1', card), size('h2', card), size('h3', card)], [undefined, undefined, undefined]);
 });
 
 test('a short answer stays short: one paragraph, no heading, rule or list', () => {
@@ -117,4 +126,12 @@ test('Jump to latest: shown when scrolled up while a reply streams or a new mess
   assert.doesNotMatch(ask, /boxRef\.current\.scrollTop = boxRef\.current\.scrollHeight/);
   assert.match(ask, /const follow = useFollowLatest\(boxRef, \[msgs\]\);/);
   assert.match(ask, /<ChatMessages [^\n]*follow=\{follow\}/);
+});
+
+test('a Learn chat answer is a document (sized headings) and Jump to latest sits after the messages, stuck to the bottom of the scroll box', () => {
+  const msgs = [{ role: 'user', content: 'Why?' }, { role: 'assistant', messageId: '9', status: 'done', content: '## Why\n\nBecause.' }];
+  const html = B.renderToStaticMarkup(B.createElement(B.ChatMessages, { msgs, learnChat: true, busy: true, follow: { atBottom: false, jump() {} }, setMsgs() {}, setFilePeek() {}, setRunPeek() {} }));
+  assert.match(html, /<h2 class="[^"]*\btext-lg\b/);
+  assert.ok(html.indexOf('data-jump-latest') > html.indexOf('data-answer-body'), 'after the messages');
+  assert.match(html, /<div class="pointer-events-none sticky bottom-2 z-10 flex h-0 justify-center"><button type="button" data-jump-latest/);
 });
