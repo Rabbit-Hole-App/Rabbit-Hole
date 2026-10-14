@@ -114,3 +114,19 @@ test('what the validator reads is compact, and what generation gets comes from t
   assert.equal(generationPrompt(pick('the light reactions', { slash: 'diagram' })), 'the light reactions');
   assert.equal(generationPrompt(pick('  why does this happen? ')), 'why does this happen?');
 });
+
+// Real run 2026-10-13 (lane I): "make it one sentence" on a created note was asked to clarify, because the check did not
+// know a result was being refined. A refine names the output it revises; the check validates the words for that output.
+test('a refine keeps its output: the check fixes the route it revises; an unknown one is malformed', () => {
+  const base = { kind: 'creation', mode: 'explain', anchor: { x: 0, y: 0 }, region: '', prompt: 'make it one sentence', context: {} };
+  assert.deepEqual(fixedRoute({ ...base, revising: 'note' }, ['note', 'shapes']), { capability: 'note', revising: true });
+  assert.deepEqual(fixedRoute({ ...base, revising: 'shapes' }, ['note', 'shapes']), { capability: 'shapes', revising: true });
+  // The check asked what "it" means: for a refine that is the result shown, so it proceeds; other questions still ask.
+  const fixed = fixedRoute({ ...base, revising: 'note' }, ['note', 'shapes']);
+  assert.equal(settle(fixed, { decision: 'clarify', missing: ['target'] }, ['note', 'shapes']).decision, 'proceed');
+  assert.equal(settle(fixed, { decision: 'clarify', missing: ['data'] }, ['note', 'shapes']).decision, 'clarify');
+  assert.equal(settle(fixed, { decision: 'blocked' }, ['note', 'shapes']).decision, 'blocked', 'a refine is never let past a block');
+  assert.equal(fixedRoute({ ...base, revising: 'code' }, ['note', 'shapes']).decision, 'unsupported');
+  assert.deepEqual(checkRequest({ ...base, revising: 'nonsense' }), { error: 'Invalid inline request' });
+  assert.equal(fixedRoute({ ...base, prompt: 'make it one sentence' }, ['note', 'shapes']), null, 'without revising, the words are routed as written');
+});

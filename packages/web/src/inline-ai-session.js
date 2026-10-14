@@ -211,7 +211,8 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       // One check per request (owner brief 2026-10-13, validation; docs/features/inline-ai-validation.md): the server's
       // /decide routes and validates in one call - Edit, a plain Explain, a / command, a creation and each refine alike -
       // and only its signed proceed lets /generate run. The request it decides is the exact one generation gets.
-      const wire = { ...snapshot.request, mode, prompt: String(prompt) };
+      // A refine says which output it revises, so the check reads "make it shorter" as about the result shown.
+      const wire = { ...snapshot.request, mode, prompt: String(prompt), ...(previous ? { revising: previous.route } : {}) };
       // The free checks first, here as on the worker: an empty request is answered without a call.
       const local = checkRequest(wire);
       if (local && !local.error) {

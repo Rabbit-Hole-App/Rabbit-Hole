@@ -885,3 +885,49 @@ Ctrl/Cmd+Shift+F are the polish lane's.
 - **Stale.** The context is rebuilt at submit. At Accept, if the material around the anchor changed meaningfully (its
   words, its links), the result is marked outdated, with Regenerate. A pan or a zoom never does that. A taken spot is
   placed again and shown.
+
+### Verification (creation section 10, the validation brief), real calls, local real stack, 2026-10-13
+
+Driver: packages/web/e2e/inline-create-real.mjs, through the app on the local real stack, reserved and settled in the
+shared ledger. Lane I spent $0.59 in all (46 ledger entries), within the $2.50 cap, including reruns after stack
+crashes. The machine was heavily loaded, so times vary.
+
+- **Creation.**
+  - Blank canvas, "What is photosynthesis?": a note at the anchor, with no connector; one Undo removes it.
+  - Empty space on a populated canvas: a note grounded in the nearby code (the TypeError of `s += p` on a string).
+  - `/code` with nothing selected: a code card. "Plot y = x squared from -3 to 3" with no command: routed to a graph.
+  - A video request: unsupported here; video and Motion are not enabled on this stack. No proposal, no job.
+  - A crowded grid: the note overlaps none of the 60 cells.
+  - "Draw a diagram of the water cycle" beside the tree on a canvas titled Linked List: a native diagram (8 shapes,
+    11 connectors). Accept added it; one Undo removed all of it.
+  - Refine "make it one sentence": revised in place. Stop on a new request kept the earlier preview and dropped the late
+    output. Reject left nothing on the canvas.
+- **The check** (JEV).
+
+  | prompt type | decision | generated? |
+  |---|---|---|
+  | valid short | proceed | yes |
+  | multilingual | proceed (answered in Spanish) | yes |
+  | code | proceed | yes |
+  | sensitive educational | proceed | yes |
+  | gibberish | invalid | no |
+  | email this to my teacher | unsupported | no |
+  | prohibited | blocked | no |
+
+  - No false rejection among the proceed cases. Every non-proceed kept the prompt and added nothing.
+  - The check took 0.40-1.02 s inside the worker (about 0.5 s typical); the round trip from the editor was 0.65-1.6 s.
+    Context preparation: 0.2-7.5 ms.
+  - Canvas responsiveness: up to 7 long tasks (max 605 ms) per request on the loaded machine, the largest on the
+    preview render.
+- **Found and fixed in the run.**
+  - A creation's "this" did not count the material around the anchor (clarify). The criterion and JEV's state now do.
+  - A refine's "make it one sentence" was asked to clarify, because the check did not know a result was being refined.
+    The request now names the output it revises (`revising`); the check validates the words for that output, and a
+    question about what "it" means passes.
+- **Open, reported.**
+  - A native diagram of the existing tree ("how this tree would look after inserting 5") failed three times. The
+    model's tool input carried wrapper keys ($0, dialog, $FUNCTION_NAME) and canvas ids, and the server's diagram check
+    refused it. Nothing was added. The new-topic diagram works.
+  - "make it" with a node selected was routed to a diagram instead of a clarify.
+  - The sensitive-educational request was routed to an explanation card, whose handler then refused a body over 2,000
+    characters (an error, nothing added, $0.12).

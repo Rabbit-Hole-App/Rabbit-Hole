@@ -182,7 +182,7 @@ test('refine: the instruction, the previous output and the original request go t
   });
   await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() });
   await session.submit({ mode: 'explain', prompt: 'make it much shorter', prepare: snapshot() });
-  assert.equal(routes, 1, 'each refine\'s new words are checked once (owner brief 2026-10-13, validation)');
+  assert.equal(routes, 0, 'a refine is checked with its output fixed (the request says what it revises); no route is chosen again');
   assert.deepEqual([seen[1].route, seen[1].prompt, seen[1].revise], ['note', 'make it much shorter', { prompt: 'Explain this node', result: 'Node 23 is a child of node 4.' }]);
   assert.equal(session.state.preview.text, 'Child of 4.', 'the candidate on screen is the revision');
   // A second refine revises the newest candidate, with the original request still as context.
@@ -193,15 +193,12 @@ test('refine: the instruction, the previous output and the original request go t
   assert.equal(seen[3].revise, undefined);
 });
 
-test('refine: words the check routes to another output make a new request, never a revision of a different kind', async () => {
-  const seen = [];
-  const session = make({
-    route: async () => ({ choice: 'diagram', confidence: 0.9, probability: 0.9, ranked: ['diagram'] }),
-    generate: async input => { seen.push(input); return { result: { kind: 'note', text: `n${seen.length}` } }; },
-  });
+test('refine: the check is told what is being refined, so "make it shorter" is about the result shown', async () => {
+  const asked = [];
+  const session = make({ decide: async ({ request, requestId }) => { asked.push(request); return { decision: 'proceed', route: { capability: 'note', outcome: 'text' }, paid: false, token: `t-${requestId}`, meta: { validator: 'jev' } }; }, generate: async () => ({ result: { kind: 'note', text: 'n' } }) });
   await session.submit({ mode: 'explain', prompt: 'Explain this node', prepare: snapshot() });
-  await session.submit({ mode: 'explain', prompt: 'now draw it as a diagram', prepare: snapshot() });
-  assert.deepEqual([seen[1].route, seen[1].revise], ['shapes', undefined]);
+  await session.submit({ mode: 'explain', prompt: 'make it shorter', prepare: snapshot() });
+  assert.deepEqual([asked[0].revising, asked[1].revising], [undefined, 'note']);
 });
 
 test('refine: a card is revised by its own handler, with the card and the original request in its context', async () => {

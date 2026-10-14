@@ -34,7 +34,7 @@ export const paidOf = capability => capability === 'motion' || (SLASH.find(entry
 // The decision words, shared by every validator so each is judged on the same definitions.
 export const DECISION_CRITERIA = Object.freeze({
   proceed: 'The editor can act on it: in any language, however short or misspelled, with code, equations, identifiers, unfamiliar terms or profanity, including legitimate educational, medical, historical, artistic or scientific discussion of sensitive subjects (anatomy, sex education, drugs, violence in history). "Explain this", "fix this" or "make it clearer" with selected material is actionable.',
-  clarify: 'Meaningful, but one essential piece is missing and a guess would probably be wrong: "this" or "it" with nothing selected, a chart with no topic or data, or several quite different meanings.',
+  clarify: 'Meaningful, but one essential piece is missing and a guess would probably be wrong: "this" or "it" with nothing selected and nothing in the material it could mean, a chart with no topic or data, or several quite different meanings.',
   invalid: 'No interpretable request: random characters, keyboard mashing, or words that ask for nothing.',
   unsupported: 'Meaningful, but none of the available outputs can do it: audio, sending a message, browsing the web, booking something; in edit mode, anything beyond changing the selected material\'s words and text style (adding, moving, deleting or connecting objects).',
   blocked: 'Asks for content the content policy prohibits whatever the framing: sexual content involving minors, sexually explicit material, serious help toward weapons capable of mass casualties, malware, or harassment of or incitement against real people. Learning about or discussing a sensitive subject is not blocked.',
@@ -61,6 +61,8 @@ export const commandOf = request => (request.slash ? { name: request.slash.toLow
 export function checkRequest(request) {
   const bad = { error: 'Invalid inline request' };
   if (!request || typeof request !== 'object' || typeof request.prompt !== 'string' || !['edit', 'explain'].includes(request.mode)) return bad;
+  // A refine names the output it revises (the session's previous route): only a known one.
+  if (request.revising != null && !(request.revising === 'edit' || CAPABILITIES[request.revising])) return bad;
   if (request.slash != null && (typeof request.slash !== 'string' || !/^[\w-]{1,40}$/.test(request.slash))) return bad;
   if (request.context != null && typeof request.context !== 'object') return bad;
   if (request.kind === 'selection') {
@@ -85,6 +87,8 @@ export function checkRequest(request) {
 export function fixedRoute(request, enabled = DEFAULT_ENABLED) {
   const command = commandOf(request);
   const stop = (decision, message, extra = {}) => ({ decision, message, paid: false, ...extra });
+  // A refine keeps its output: the check validates the new words for it ("make it shorter" means the result shown).
+  if (request.revising && request.mode === 'explain' && !command) return enabled.includes(request.revising) || request.revising === 'note' ? { capability: request.revising, revising: true } : stop('unsupported', unavailableText(request.revising).text);
   if (request.mode === 'edit') return command ? stop('unsupported', `/${command.name} adds something new. Switch to Explain to use it, or describe the change you want.`) : { capability: 'edit' };
   if (command) {
     if (NOTE_COMMANDS[command.name]) return { capability: 'note' };
@@ -122,7 +126,9 @@ export function settle(fixed, verdict, enabled = DEFAULT_ENABLED) {
   const missing = (verdict.missing || []).filter(id => MISSING.includes(id));
   if (verdict.decision === 'blocked') return { decision: 'blocked', message: MESSAGES.blocked, paid: false };
   if (verdict.decision === 'invalid') return { decision: 'invalid', message: MESSAGES.invalid, paid: false };
-  if (verdict.decision === 'clarify') return { decision: 'clarify', message: verdict.message || clarifyText(missing), missing: missing.length ? missing : ['subject'], paid: false };
+  // A refine's "it" is the result shown: a question about what "it" means, or what it is about, is already answered.
+  const refined = fixed?.revising && verdict.decision === 'clarify' && missing.every(id => id === 'target' || id === 'subject');
+  if (verdict.decision === 'clarify' && !refined) return { decision: 'clarify', message: verdict.message || clarifyText(missing), missing: missing.length ? missing : ['subject'], paid: false };
   if (verdict.decision === 'unsupported') return { decision: 'unsupported', message: verdict.message || MESSAGES.unsupported, paid: false };
   if (capability === 'several') return { decision: 'clarify', message: MESSAGES.several, missing: ['format'], paid: false };
   if (capability !== 'edit' && !CAPABILITIES[capability]) return { decision: 'unsupported', message: verdict.message || MESSAGES.unsupported, paid: false };

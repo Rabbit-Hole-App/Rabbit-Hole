@@ -38,8 +38,8 @@ export function jevDecideRequest(request, fixed, model) {
     model,
     state: {
       mode: seen.mode === 'edit' ? 'edit: changes only the selected material\'s words and text style' : 'explain: adds new material to the canvas',
-      selected: seen.selected ? 'yes' : 'no, nothing is selected', request: seen.request,
-      ...(seen.output ? { output: `${seen.output} (chosen by the learner's command)` } : {}), material: seen.material,
+      selected: seen.selected ? 'yes' : 'no, nothing is selected: the material is what is around the place the learner chose to add to', request: seen.request,
+      ...(seen.output ? { output: `${seen.output} (${request.revising ? 'the result shown, which the learner is refining: "it" and "this" mean that result' : 'chosen by the command the learner typed'})` } : {}), material: seen.material,
     },
     questions: {
       decision: { type: 'choice', instructions: `May the inline editor act on this request? ${GUARD} When the meaning is uncertain, clarify.`, criteria: DECISION_CRITERIA },
