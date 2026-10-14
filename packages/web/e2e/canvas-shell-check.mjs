@@ -8,7 +8,7 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const BASE = 'http://127.0.0.1:8788';
+const BASE = process.env.BASE || 'http://127.0.0.1:8788';
 const OUT = process.argv[2] || 'canvas-shell-shots';
 mkdirSync(OUT, { recursive: true });
 // Sessions are minted on the control plane's own origin (the app origin's P0-B barrier refuses /test/session):
