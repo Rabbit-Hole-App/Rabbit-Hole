@@ -295,8 +295,10 @@ export function threadMessages(rows){
     if(turn)shown.add(turnOf(row));
     const {id,role,content,graph_json,meta_json,alternative_of,rating,reason}=turn?turn.at(-1):row,meta=parsed(meta_json),feedback=rating?{rating,reason:reason??null}:null;
     const message={messageId:String(id),role,content,status:'done',...(graph_json?{graph:JSON.parse(graph_json)}:{})};
-    if(role==='user'&&meta)messages.push({...message,...(CHAT_MODES.includes(meta.mode)?{mode:meta.mode}:{}),command:meta.command??null,contextRefs:Array.isArray(meta.contextRefs)?meta.contextRefs:[]});
-    else if(role==='assistant'&&meta){const {kind,status,...rest}=meta;messages.push({...message,status:status==='stopped'?'stopped':'done',...(kind?{kind}:{}),meta:{...rest,alternativeOf:alternative_of==null?null:String(alternative_of),alternatives:turn.map(r=>String(r.id)),feedback}});}
+    // clientId: the idempotency key a saved exchange was stored with (POST /api/learn/chat/threads/<id>/messages), when it has one.
+    const clientId=typeof meta?.clientId==='string'?{clientId:meta.clientId}:{};
+    if(role==='user'&&meta)messages.push({...message,...clientId,...(CHAT_MODES.includes(meta.mode)?{mode:meta.mode}:{}),command:meta.command??null,contextRefs:Array.isArray(meta.contextRefs)?meta.contextRefs:[]});
+    else if(role==='assistant'&&meta){const {kind,status,clientId:_,...rest}=meta;messages.push({...message,...clientId,status:['stopped','interrupted'].includes(status)?status:'done',...(kind?{kind}:{}),meta:{...rest,alternativeOf:alternative_of==null?null:String(alternative_of),alternatives:turn.map(r=>String(r.id)),feedback}});}
     else messages.push(role==='assistant'&&feedback?{...message,meta:{feedback}}:message);
   }
   return messages;
