@@ -47,6 +47,7 @@ with the API's error. A pages column would bound it.
 |---|---|
 | `GET /api/learn/context?app=` | the canvas's documents: id, name, kind, size, attached, created_at |
 | `POST /api/learn/context` (multipart `app`, `file`) | stores one document, switched on if fewer than 10 are on and it fits the budget |
+| `GET /api/learn/context/<id>?app=` | the document's bytes (PDF or UTF-8 text, `nosniff`, `Cache-Control: private`), owner only, else 404; the Chat's Sources reader |
 | `PATCH /api/learn/context/<id>` `{ app, attached }` | toggles it; switching on an eleventh, or one past the budget, is refused (409) |
 | `DELETE /api/learn/context/<id>?app=` | removes the row and the bytes |
 

@@ -1,0 +1,153 @@
+// The Chat workspace's one context collection (chat-context.js, contract A2/A5) and its two views: the chips under the
+// composer (ContextChips.jsx) and the Sources pane (SourcesPane.jsx). Bundled once with esbuild, as context-docs.test.mjs
+// does, because the module imports the JSX component kit.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
+
+const dir = mkdtempSync(join(tmpdir(), 'chat-context-')), outfile = join(dir, 'chat-context.cjs');
+await esbuild.build({
+  stdin: { contents: [
+    "export * from './chat-context.js';",
+    "export { default as ContextChips } from './ContextChips.jsx';",
+    "export { default as SourcesPane } from './SourcesPane.jsx';",
+    "export { ChatWorkspaceProvider } from './chat-workspace.jsx';",
+    "export { createElement } from 'react';",
+    "export { renderToStaticMarkup } from 'react-dom/server';",
+  ].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
+  external: ['./learn-paper-figures.js'], // the PDF page counter, dynamically imported on upload only
+});
+const C = createRequire(import.meta.url)(outfile);
+rmSync(dir, { recursive: true, force: true });
+
+const doc = { id: 'ctx:0123456789ab', name: 'Attention.pdf', kind: 'pdf', size: 2048, attached: false, created_at: '2026-10-13 22:00:00' };
+const card = { sourceId: 'card:shape:a', kind: 'card', name: 'Softmax', version: 'h1', range: null };
+const page3 = { sourceId: 'doc:ctx:0123456789ab', kind: 'doc', name: 'Attention.pdf', version: '2026-10-13 22:00:00', range: { page: 3, quote: 'scaled dot' } };
+
+test('a context doc becomes a doc:<id> ref whose version is its created_at', () => {
+  assert.deepEqual(C.docRef(doc), { sourceId: 'doc:ctx:0123456789ab', kind: 'doc', name: 'Attention.pdf', version: '2026-10-13 22:00:00', range: null });
+});
+
+test('sameRef: the same source and range, whatever the key order; another range is another ref', () => {
+  assert.ok(C.sameRef(page3, { ...page3, range: { quote: 'scaled dot', page: 3 } }));
+  assert.ok(!C.sameRef(page3, { ...page3, range: { page: 4, quote: 'scaled dot' } }));
+  assert.ok(!C.sameRef(page3, C.docRef(doc)));
+  assert.ok(C.sameRef(card, { ...card, range: undefined }));
+  assert.equal(C.refKey(page3), C.refKey({ ...page3, range: { quote: 'scaled dot', page: 3 } }));
+});
+
+test('attached: restore replaces, New chat restores none, attach de-duplicates and stops at 20, detach removes one ref', () => {
+  const restored = C.attachedReducer([card], { type: 'restore', refs: [page3, null, { name: 'no id' }] });
+  assert.deepEqual(restored, [page3]);
+  assert.deepEqual(C.attachedReducer(restored, { type: 'restore', refs: [] }), []);
+  assert.deepEqual(C.attachedReducer(restored, { type: 'restore', refs: undefined }), []);
+  const twice = C.attachedReducer(C.attachedReducer([], { type: 'attach', ref: card }), { type: 'attach', ref: { ...card } });
+  assert.deepEqual(twice, [card]);
+  const both = C.attachedReducer([page3], { type: 'attach', ref: C.docRef(doc) });
+  assert.equal(both.length, 2, 'a page of a doc and the whole doc are two refs');
+  assert.deepEqual(C.attachedReducer(both, { type: 'detach', ref: page3 }), [C.docRef(doc)]);
+  const full = Array.from({ length: C.MAX_REFS }, (_, i) => ({ ...card, sourceId: `card:shape:${i}` }));
+  assert.equal(C.attachedReducer(full, { type: 'attach', ref: card }), full);
+});
+
+test('New chat starts from the canvas docs switched on, each offered once; a restored thread keeps its own refs', () => {
+  const on = { ...doc, attached: true }, off = { ...doc, id: 'ctx:ffffffffffff', name: 'off.md', kind: 'text', attached: false };
+  const offered = new Set();
+  // New chat: the previous thread's card and passage are gone, the switched-on doc arrives, the switched-off one does not.
+  let refs = C.attachedReducer([card, page3], { type: 'restore', refs: [] });
+  const seed = docs => { for (const ref of C.canvasDocRefs(docs, offered)) { offered.add(ref.sourceId); refs = C.attachedReducer(refs, { type: 'attach', ref }); } };
+  seed([on, off]);
+  assert.deepEqual(refs, [C.docRef(on)]);
+  // Detached for this conversation, it stays detached when the list re-reads.
+  refs = C.attachedReducer(refs, { type: 'detach', ref: C.docRef(on) });
+  seed([on, off]);
+  assert.deepEqual(refs, []);
+  // A doc switched on in the Files panel during the new chat still arrives.
+  seed([on, { ...off, attached: true }]);
+  assert.deepEqual(refs.map(ref => ref.sourceId), ['doc:ctx:ffffffffffff']);
+  // A restored thread: exactly its own refs, whatever the canvas has switched on.
+  assert.deepEqual(C.attachedReducer(refs, { type: 'restore', refs: [card] }), [card]);
+  assert.deepEqual(C.canvasDocRefs([on], new Set(['doc:ctx:0123456789ab'])), []);
+});
+
+test('docUrl reads one context doc of this canvas', () => {
+  assert.equal(C.docUrl('canvas-0123abcd', 'ctx:0123456789ab'), '/api/learn/context/ctx%3A0123456789ab?app=canvas-0123abcd');
+});
+
+test('the collection: uploads first, then the canvas docs, then every other attached ref, each once', () => {
+  const upload = { id: 'upload:1', ref: { sourceId: 'upload:1', kind: 'doc', name: 'notes.md', version: '', range: null }, state: 'uploading' };
+  const items = C.contextItems([doc], [card, C.docRef(doc), page3, { ...card }], [upload]);
+  assert.deepEqual(items.map(item => [item.ref.sourceId, item.state, item.attached]), [
+    ['upload:1', 'uploading', false],
+    ['doc:ctx:0123456789ab', 'ready', true],
+    ['card:shape:a', 'ready', true],
+    ['doc:ctx:0123456789ab', 'ready', true],
+  ]);
+  assert.equal(items[1].doc, doc, 'a doc ref carries its row, so the reader knows PDF from text');
+  assert.equal(items[3].doc, doc, 'so does a passage of it');
+  assert.equal(items[2].doc, undefined);
+  const notAttached = C.contextItems([doc], []);
+  assert.equal(notAttached[0].attached, false, 'the canvas-level switch on a doc is not the conversation attaching it');
+});
+
+test('range labels', () => {
+  assert.equal(C.rangeLabel(null), '');
+  assert.equal(C.rangeLabel({ page: 3, quote: 'x' }), 'p. 3');
+  assert.equal(C.rangeLabel({ path: 'src/x.py', start: 10, end: 42 }), 'L10-42');
+  assert.equal(C.rangeLabel({ path: 'src/x.py', start: 7, end: 7 }), 'L7');
+  assert.equal(C.rangeLabel({ startSec: 12, endSec: 40 }), '0:12-0:40');
+  assert.equal(C.rangeLabel({ startSec: 65 }), '1:05');
+  assert.equal(C.rangeLabel({ cardIds: ['shape:a', 'shape:b', 'shape:c'] }), '3 cards');
+  assert.equal(C.rangeLabel({ cardIds: ['shape:a'] }), '1 card');
+  assert.equal(C.rangeLabel({ quote: 'short' }), '“short”');
+  assert.equal(C.rangeLabel({ quote: 'a passage that runs well past the label' }), '“a passage that runs well…”');
+});
+
+test('Open externally: wiki, arXiv and GitHub addresses; nothing for uploads and canvas objects', () => {
+  assert.equal(C.externalUrl({ sourceId: 'wiki:Neural network', range: null }), 'https://en.wikipedia.org/wiki/Neural%20network');
+  assert.equal(C.externalUrl({ sourceId: 'paper:1706.03762', range: { page: 3 } }), 'https://arxiv.org/abs/1706.03762#page=3');
+  assert.equal(C.externalUrl({ sourceId: 'paper:upload:abc', range: null }), null);
+  assert.equal(C.externalUrl({ sourceId: 'code:acme/repo@0a1b2c:src/x.py', range: { path: 'src/x.py', start: 10, end: 42 } }), 'https://github.com/acme/repo/blob/0a1b2c/src/x.py#L10-L42');
+  assert.equal(C.externalUrl(page3), null);
+  assert.equal(C.externalUrl(card), null);
+});
+
+test('Sources sections: the active source opens on its own item, else on its source, else first and unattached', () => {
+  const items = C.contextItems([doc], [card]);
+  assert.ok(C.paneSections(items, null).every(section => !section.active));
+  const onCard = C.paneSections(items, { ...card });
+  assert.deepEqual(onCard.map(section => section.active), [false, true]);
+  const onPage = C.paneSections(items, page3);
+  assert.equal(onPage.length, 2);
+  assert.equal(onPage[0].active, true);
+  assert.equal(onPage[0].ref, page3, 'the doc section reads at the cited page');
+  const cited = { sourceId: 'paper:1706.03762', kind: 'web', name: 'Attention Is All You Need', version: 'v7', range: null };
+  const onPaper = C.paneSections(items, cited);
+  assert.equal(onPaper.length, 3);
+  assert.deepEqual([onPaper[0].active, onPaper[0].item.attached], [true, false], 'viewing never attaches');
+  assert.equal(new Set(onPaper.map(section => section.key)).size, 3);
+});
+
+test('Ask about this adds the range to the chat and nothing else', () => {
+  const calls = [];
+  C.askAboutThis({ addToChat: ref => calls.push(ref) }, page3);
+  assert.deepEqual(calls, [page3]);
+});
+
+const text = html => html.replace(/<!-- -->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+test('chips and pane: nothing outside a Learn canvas; This canvas first; an empty Sources pane says how to add one', () => {
+  assert.equal(C.renderToStaticMarkup(C.createElement(C.ContextChips)), '');
+  assert.equal(C.renderToStaticMarkup(C.createElement(C.SourcesPane)), '');
+  const inCanvas = node => C.renderToStaticMarkup(C.createElement(C.ChatWorkspaceProvider, { canvas: 'canvas-0123abcd' }, C.createElement(node)));
+  assert.match(inCanvas(C.ContextChips), /^<div data-context-chips="true"><ul aria-label="Context for this chat"[^>]*><li data-canvas-context="true"/);
+  assert.equal(text(inCanvas(C.ContextChips)), 'This canvas');
+  const pane = text(inCanvas(C.SourcesPane));
+  assert.match(pane, /^Sources /);
+  assert.match(pane, /No sources yet/);
+});

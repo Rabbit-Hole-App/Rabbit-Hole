@@ -8,7 +8,7 @@ import { toast } from './ui.jsx';
 export const ATTACHED_LIMIT = 10; // the server's (learn-context-docs.js), pinned by context-docs.test.mjs
 export const CONTEXT_ACCEPT = '.pdf,.txt,.md,.markdown,application/pdf,text/plain,text/markdown';
 export const isContextCanvas = app => /^canvas-[a-f0-9]{8}$/.test(String(app || ''));
-const EVENT = 'small:context-docs';
+export const EVENT = 'small:context-docs'; // a change on one canvas: every list of it re-reads
 
 async function request(method, path, body) {
   const response = await fetch(path, { method, credentials: 'same-origin', headers: { ...wsHeaders(), ...(body && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}) });
@@ -21,6 +21,22 @@ async function request(method, path, body) {
 async function pdfPages(file) {
   const { getDocument } = await import('./learn-paper-figures.js');
   return (await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise).numPages;
+}
+
+// Upload one file to a canvas's context: the stored document, or an Error with the reason (the page check's or the
+// server's). Every list of that canvas re-reads. The hook's upload toasts the outcome; the Chat's chips show it instead.
+export async function uploadContextDoc(app, file) {
+  if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+    let pages;
+    try { pages = await pdfPages(file); } catch { throw new Error('That file could not be read as a PDF.'); }
+    if (pages > 100) throw new Error(`That PDF has ${pages} pages. The agent can read up to 100.`);
+  }
+  const body = new FormData();
+  body.append('app', app);
+  body.append('file', file, file.name);
+  const data = await request('POST', '/api/learn/context', body);
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+  return data.document;
 }
 
 export function useContextDocs(app) {
@@ -45,15 +61,9 @@ export function useContextDocs(app) {
   };
   const upload = async file => {
     if (!file) return;
-    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
-      let pages;
-      try { pages = await pdfPages(file); } catch { return toast('✗ That file could not be read as a PDF.'); }
-      if (pages > 100) return toast(`✗ That PDF has ${pages} pages. The agent can read up to 100.`);
-    }
-    const body = new FormData();
-    body.append('app', app);
-    body.append('file', file, file.name);
-    await run(() => request('POST', '/api/learn/context', body), `Added ${file.name} to context`);
+    setBusy(true);
+    try { await uploadContextDoc(app, file); toast(`Added ${file.name} to context`); } catch (error) { toast(`✗ ${error.message}`); }
+    setBusy(false);
   };
   const toggle = (id, attached) => run(() => request('PATCH', `/api/learn/context/${encodeURIComponent(id)}`, { app, attached }));
   const remove = (id) => run(() => request('DELETE', `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`), 'Removed from context');
