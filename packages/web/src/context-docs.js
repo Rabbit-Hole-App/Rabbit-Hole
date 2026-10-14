@@ -3,7 +3,8 @@
 // use the hook; a change in one is announced so the other re-reads.
 import { useCallback, useEffect, useState } from 'react';
 import { wsHeaders } from './api.js';
-import { toast } from './ui.jsx';
+// ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
+const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 
 export const ATTACHED_LIMIT = 10; // the server's (learn-context-docs.js), pinned by context-docs.test.mjs
 export const CONTEXT_ACCEPT = '.pdf,.txt,.md,.markdown,application/pdf,text/plain,text/markdown';
