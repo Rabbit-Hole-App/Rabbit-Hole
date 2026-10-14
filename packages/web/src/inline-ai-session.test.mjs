@@ -204,3 +204,31 @@ test('the wire: SSE split at any byte boundary parses the same; an error event o
   await readSse(new Response('data: {"a":1}\n\ndata: not json\n\n').body, message => messages.push(message));
   assert.deepEqual(messages.map(message => message.event), ['message', 'error']);
 });
+
+// Owner 2026-10-13, point 7: an answer depends on its supporting context too. Changing the words around the selection
+// (here, the far note the code's explanation relied on) is a new request; a move is not; and editing the canvas never
+// calls the model by itself.
+test('point 7: a change to supporting text is a new request, a move reuses the answer, and an edit alone calls nothing', async () => {
+  const { buildContext, createContextCache, freezeTarget } = await import('./inline-ai-context.js');
+  const { CONTEXT_CASES, withBoxes } = await import('./inline-ai-fixtures.js');
+  const cache = createContextCache();
+  const prepareFor = board => () => {
+    const frozen = freezeTarget(board, ['code']);
+    const context = buildContext(board, frozen, { cache, boardKey: 'board-a', request: 'Explain what this function does' });
+    return { context, summary: 'code', frozen: { ...frozen, prints: context.prints }, prints: context.prints, selectionOnly: false };
+  };
+  let generations = 0;
+  const transport = { generate: async () => { generations += 1; return { result: { kind: 'note', text: `answer ${generations}` } }; } };
+  const { session } = make(transport);
+  const board = withBoxes(CONTEXT_CASES.code.board());
+  await session.submit({ mode: 'explain', prompt: 'Explain what this function does', prepare: prepareFor(board) });
+  session.reject();
+  const moved = withBoxes({ ...board, items: board.items.map(item => ({ ...item, x: item.x + 40, y: item.y + 25 })) });
+  assert.equal(await session.submit({ mode: 'explain', prompt: 'Explain what this function does', prepare: prepareFor(moved) }), 'reused', 'everything moved, nothing changed: the answer stands');
+  session.reject();
+  assert.equal(generations, 1);
+  const cents = withBoxes({ ...board, items: board.items.map(item => (item.id === 'spec' ? { ...item, text: 'total() adds up the cart prices before tax. prices is a list of whole numbers in cents.' } : item)) });
+  assert.equal(await session.submit({ mode: 'explain', prompt: 'Explain what this function does', prepare: prepareFor(cents) }), 'preview', 'the note it relied on changed: a new answer');
+  assert.equal(generations, 2);
+  assert.equal(session.state.preview.text, 'answer 2');
+});

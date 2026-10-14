@@ -154,3 +154,19 @@ test('stale checks: content change and deletion are stale, a move is not, a dist
   assert.deepEqual(check({ ...board, items: shift(board.items, 'clutter', { text: 'Buy bread' }) }), { gone: [], content: false, relations: false });
   assert.equal(check({ ...board, links: [...board.links, { id: 'new', from: 'n23', fromSide: 'bottom', to: 'n7', toSide: 'top' }] }).relations, true);
 });
+
+// Owner 2026-10-13, point 7: fresh and fast. The build at submit reuses the snapshot made while the learner wrote when
+// nothing changed; any change to a list (a typed word, a moved box) reads the board again.
+test('point 7: the semantic snapshot is reused until the board changes, then read again', () => {
+  const board = withBoxes(treeBoard());
+  const cache = createContextCache(), target = freezeTarget(board, ['n23']);
+  buildContext(board, target, { cache, boardKey: 'b1' });
+  buildContext({ ...board }, target, { cache, boardKey: 'b1', request: 'Explain this' });
+  assert.deepEqual([cache.stats.snapshots, cache.stats.snapshotHits], [1, 1], 'same lists, same boxes: one read');
+  const typed = { ...board, items: board.items.map(item => (item.id === 'label23' ? { ...item, text: 'bottom row, leaves' } : item)) };
+  const context = buildContext(typed, target, { cache, boardKey: 'b1' });
+  assert.equal(cache.stats.snapshots, 2, 'a changed list is read again');
+  assert.equal(context.related.find(entry => entry.id === 'label23').text, 'bottom row, leaves', 'and the context has the new words');
+  buildContext(typed, target, { cache, boardKey: 'b2' });
+  assert.equal(cache.stats.snapshots, 3, 'another board never reuses this one');
+});

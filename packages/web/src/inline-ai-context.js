@@ -57,11 +57,22 @@ function describe(entity, list, describeCard) {
 export function createContextCache() {
   let key = null, lists = {}, entities = new Map(), byEnd = new Map(), links = new Map(), members = new Map();
   const records = new Map();
-  const stats = { hits: 0, misses: 0, resets: 0 };
-  const reset = () => { key = null; lists = {}; entities = new Map(); byEnd = new Map(); links = new Map(); members = new Map(); records.clear(); stats.resets += 1; };
+  const stats = { hits: 0, misses: 0, resets: 0, snapshots: 0, snapshotHits: 0 };
+  let semanticBasis = null, semanticValue = null;
+  const reset = () => { key = null; lists = {}; entities = new Map(); byEnd = new Map(); links = new Map(); members = new Map(); records.clear(); semanticBasis = null; semanticValue = null; stats.resets += 1; };
   return {
     stats,
     reset,
+    // The board's semantic snapshot (point 7): read again only when a list or a measured box changed since the last
+    // build - so the build at submit reuses the one made while the learner wrote, unless the board changed meanwhile.
+    semantic(board) {
+      const basis = { lists: ['shapes', 'items', 'links', 'blocks', 'groups', 'exchanges'].map(list => board[list]), boxes: JSON.stringify(board.boxes || {}) };
+      if (semanticValue && basis.boxes === semanticBasis.boxes && basis.lists.every((list, i) => list === semanticBasis.lists[i])) { stats.snapshotHits += 1; return semanticValue; }
+      stats.snapshots += 1;
+      semanticBasis = basis;
+      semanticValue = semanticSnapshot(board, { budget: { objects: Infinity, chars: Infinity } });
+      return semanticValue;
+    },
     lookups(board, boardKey, describeCard = null) {
       if (boardKey !== key) { reset(); key = boardKey; }
       const owned = ['shapes', 'items', 'blocks', 'exchanges'];
@@ -339,7 +350,7 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
   // 7. Everything else that helps explain the selection, by relevance (canvas-semantics.js gives the board's structure):
   // the diagram it is part of, labels on it, its heading or section, the text read before and after it, discussion of it,
   // and anything that shares its terms or the request's - however far away. Closeness alone never qualifies.
-  const snapshot = selectionOnly ? null : semanticSnapshot(board, { budget: { objects: Infinity, chars: Infinity } });
+  const snapshot = selectionOnly ? null : cache.semantic(board);
   const relations = [];
   if (snapshot) {
     const picked = relevant(snapshot, board, look, present, { request, boxes, limits });

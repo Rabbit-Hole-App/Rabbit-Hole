@@ -753,3 +753,13 @@ example only; nothing here is written around trees.
   relation in its direction and does not by itself make a parent, a cause or an owner. An uncertain relation is
   qualified in a few words, or asked about in one short question.
 - Edit: the selection's objects are the only ones that may change. The rest of the context is read-only background.
+
+### Fresh and fast
+
+- The context is prepared while the learner writes and built again at submit, after any open text editor is saved
+  (A1, as before), now with the request's words. The board's semantic snapshot is kept in the context cache and read
+  again only when a list or a measured box changed. The build at submit costs about 3.5 ms on a 1,200-object board, and
+  the first build when the editor opens about 30 ms there (under 1 ms on 100 objects).
+- The result cache key holds the supporting context's fingerprint (prints.context). That is the supporting objects'
+  words and reasons, their relations, the target's connections and the metadata, never positions. New words around the
+  selection make a new request; a move reuses the answer. Nothing calls the model on a canvas edit.
