@@ -42,15 +42,25 @@ await context.addCookies([{ name: 'small_session', value: session, url: BASE }])
 await context.addInitScript(([key, blocks]) => localStorage.setItem(key, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks })), [KEY, blocks]);
 const page = await context.newPage(), errors = [], calls = [], results = [];
 page.on('pageerror', error => errors.push(error.message));
-let plan = null, artifactError = false;
+let plan = null, artifactError = false, turns = 0;
+const THREAD = `answer-routing-thread-${Date.now().toString(36)}`;
 await page.route('**/api/learn/**', async route => {
   const req = route.request(), path = new URL(req.url()).pathname;
   if (req.method() !== 'POST') return route.continue();
   calls.push({ path, body: req.postDataJSON() });
-  if (path === '/api/learn/tutor/plan') {
-    assert.ok(plan, 'every planner request is scripted');
+  // The Chat pane posts every turn to /api/learn/ask (contract A4); the reply is the contract's SSE order: chunk, then answer_meta,
+  // then done (contract B2). Auto on a journey canvas goes to the Tutor planner instead, so both are scripted with the same answer.
+  if (path === '/api/learn/ask' || path === '/api/learn/tutor/plan') {
+    assert.ok(plan, 'every chat request is scripted');
     if (plan.error) return route.fulfill({ status: 503, json: { error: 'Routing test unavailable' } });
-    return route.fulfill({ json: { strategy: 'none', constraints_add: [], ...plan } });
+    if (path === '/api/learn/tutor/plan') return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: plan.text }], ...(plan.kind === 'clarify' ? { clarification_requested: true } : {}) } });
+    const turn = ++turns, messageId = String(turn * 2), event = (name, data) => `event: ${name}
+data: ${JSON.stringify(data)}
+
+`;
+    return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: event('chunk', { text: plan.text })
+      + event('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: plan.kind || 'answer' })
+      + event('done', { threadId: THREAD, userMessageId: String(turn * 2 - 1), messageId }) });
   }
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (path === '/api/learn/artifact') return route.fulfill(artifactError
@@ -63,8 +73,8 @@ const shot = name => page.screenshot({ path: `${OUT}/${name}.png` });
 const pane = page.locator('[data-chat-pane]');
 const cards = () => page.locator('[data-chat-block]').count();
 const input = pane.locator('[data-chat-composer] input:not([type="file"]), [data-chat-composer] textarea').first();
-const send = async (text, response) => { plan = response; await input.fill(text); await input.press('Enter'); await page.waitForTimeout(900); };
-const say = text => ({ actions: [{ type: 'respond_text', text }] });
+const send = async (text, response) => { plan = response; await input.fill(text); if (text.startsWith('/')) await page.waitForTimeout(150); await input.press('Enter'); await page.waitForTimeout(900); };
+const say = text => ({ text });
 const pick = async id => {
   await input.blur(); await page.keyboard.press('Shift+Digit1'); await page.waitForTimeout(400);
   await page.locator(`[data-block-id="${id}"] [data-drag-zone]`).last().click();
@@ -72,7 +82,8 @@ const pick = async id => {
 };
 // An answer in the Chat transcript (ChatMessages: data-answer; its footer's data-add-to-canvas button is Add as card).
 const answer = text => pane.locator('[data-answer]').filter({ hasText: text });
-const plans = () => calls.filter(c => c.path === '/api/learn/tutor/plan').length;
+const CHAT = ['/api/learn/ask', '/api/learn/tutor/plan'];
+const plans = () => calls.filter(c => CHAT.includes(c.path)).length;
 const conversationUi = () => page.evaluate(() => document.querySelectorAll('[data-card-conversation],[data-panel-tab="conversation"],[aria-label="Card conversation"]').length);
 const panelTabs = () => page.locator('[data-panel-tab]').evaluateAll(tabs => tabs.map(tab => tab.dataset.panelTab));
 try {
@@ -101,7 +112,7 @@ try {
   await answer('Selected-card answer.').waitFor();
   check('selected-card discussion answers in the Chat transcript: no new card, no card conversation', await cards() === 1 && await conversationUi() === 0);
   check('the right panel has no Card conversation tab, only its own tabs, Chat among them', await page.getByRole('tab', { name: 'Card conversation' }).count() === 0 && (await panelTabs()).includes('chat') && (await panelTabs()).every(id => ['chat', 'find', 'toc', 'comments', 'files'].includes(id)));
-  check('the question is still scoped to the selected card', String(calls.filter(c => c.path === '/api/learn/tutor/plan').at(-1)?.body?.context?.target?.description).includes('Card 0 explains a different idea.'));
+  check('the question is still scoped to the selected card', JSON.stringify(calls.filter(c => CHAT.includes(c.path)).at(-1)?.body?.canvas_target ?? calls.filter(c => CHAT.includes(c.path)).at(-1)?.body?.context?.target ?? null).includes('Card 0 explains a different idea.'));
   check('selected-card answer has one visible copy', await page.getByText('Selected-card answer.', { exact: true }).count() === 1);
   check('the answer leaves the right panel as it was', await resizer.count() === panelWas);
   await send('And the next part?', say('Follow-up answer.'));
@@ -115,23 +126,23 @@ try {
   await pick('seed-0');
   check('reselecting a card opens no conversation and makes no model request', await conversationUi() === 0 && plans() === plansBeforeReturn);
   check('each answer is in the transcript once, and the canvas holds only the added card', await cards() === 1 && (await Promise.all(['Selected-card answer.', 'Follow-up answer.', 'Other-card answer.'].map(text => answer(text).count()))).every(count => count === 1));
-  await send('Which one?', { ...say('Do you mean the left curve or the right curve?'), clarification_requested: true });
+  await send('Which one?', { text: 'Do you mean the left curve or the right curve?', kind: 'clarify' });
   await pane.getByText('Do you mean the left curve or the right curve?', { exact: true }).waitFor();
   check('clarification appears in the Chat transcript, with no card or panel duplicate', await cards() === 1 && await conversationUi() === 0 && await page.getByText('Do you mean the left curve or the right curve?', { exact: true }).count() === 1);
   await send('Try again', { error: true });
   await pane.getByRole('alert').first().waitFor();
   check('planner errors appear in the Chat transcript without a card', await cards() === 1);
   await shot('clarification-error');
-  await send('Create teaching material', { inferred_intent: 'teach', actions: [{ type: 'respond_text', text: 'Duplicate planner explanation.' }, { type: 'create_material', command: 'explain', request: 'A probability curve' }] });
+  // Material is made by a / command (learn-slash.js -> /api/learn/artifact), never by a chat answer: no chat request, no chat card.
+  const chatBeforeMaterial = plans();
+  await send('/explain A probability curve', null);
   await page.locator('[data-block-id]').filter({ hasText: 'Created teaching card' }).first().waitFor();
-  check('material creation runs once and adds no chat card', calls.filter(c => c.path === '/api/learn/artifact').length === 1 && await cards() === 1);
-  // ponytail: at most one copy, since the Chat transcript may show the turn's text; tighten to an exact count once a gate run shows it.
-  check('planner explanation is not duplicated in another surface', await page.getByText('Duplicate planner explanation.', { exact: true }).count() <= 1);
+  check('material creation runs once, sends no chat request and adds no chat card', calls.filter(c => c.path === '/api/learn/artifact').length === 1 && plans() === chatBeforeMaterial && await cards() === 1);
   await shot('material-only');
   artifactError = true;
-  await send('Create another teaching card', { actions: [{ type: 'respond_text', text: 'Another duplicate.' }, { type: 'create_material', command: 'explain', request: 'Another probability curve' }] });
-  await pane.getByText(/could not be made|Material unavailable/).first().waitFor();
-  check('failed material creation is visible and makes no duplicate', await cards() === 1 && await page.getByText('Another duplicate.', { exact: true }).count() <= 1);
+  await send('/explain Another probability curve', null);
+  await page.getByText(/could not be made|Material unavailable/).first().waitFor();
+  check('failed material creation is visible and makes no card', calls.filter(c => c.path === '/api/learn/artifact').length === 2 && plans() === chatBeforeMaterial && await cards() === 1);
   check('no browser runtime errors', errors.length === 0);
   await page.setViewportSize({ width: 390, height: 844 }); await shot('phone');
   const tripwireResponse = await fetchWithTimeout(`${BASE}/__provider-tripwire`);

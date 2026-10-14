@@ -100,6 +100,10 @@ test('the chat workspace template drives the Chat pane and asserts answers stay 
   assert.match(text, /check\('no canvas card is created by itself for an answer', await cards\(\) === 0\)/);
   assert.match(text, /locator\('\[data-add-to-canvas\]'\)\.click\(\)/);
   assert.match(text, /a click on Added locates the card and adds no duplicate/);
+  // Gate 38576690012: Chat pane turns post to /api/learn/ask; the template answers it in the contract's SSE order (B2).
+  assert.match(text, /path === '\/api\/learn\/ask' \|\| path === '\/api\/learn\/tutor\/plan'/);
+  assert.ok(text.indexOf("event('chunk'") < text.indexOf("event('answer_meta'") && text.indexOf("event('answer_meta'") < text.indexOf("event('done'"), 'chunk, answer_meta, done');
+  assert.match(text, /throw Error\(`Unscripted model-capable request: \$\{path\}`\)/, 'everything else stays a tripwire');
   assert.ok(text.match(/^  check\(/gm).length >= 15);
   assert.ok(text.includes("check('provider tripwire remains empty'"));
 });
