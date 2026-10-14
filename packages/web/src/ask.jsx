@@ -28,6 +28,7 @@ import { composerKey } from './composer-keys.js';
 import { holdsLine, parseSlash, releaseLine } from './learn-slash.js';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
+import { tutorTurn } from './chat-route.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -504,8 +505,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done' } : {}) }, reply]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
-    // The Learn Chat answers through /api/learn/ask in every mode (never tutor.ask), so its turn begins here like any chat's.
-    if (!tutor || codeTurn || isDemo || chat) begin();
+    // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
+    // A Tutor turn begins in its own branch below; every other turn begins here.
+    const viaTutor = tutorTurn({ tutor, codeTurn, chat, mode: chat?.thread.mode });
+    if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
@@ -526,9 +529,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
       // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
-      // The Learn Chat (chat, owner brief section 5) never hands a turn to tutor.ask: every mode posts to /api/learn/ask with
-      // its mode, and the server picks Ask, the Tutor syllabus or a clarification (contract B6). Other surfaces keep the Tutor.
-      if (tutor && !codeTurn && !chat) {
+      // In the Learn Chat, Ask and Tutor modes post to /api/learn/ask with their mode (contract B6); Auto keeps the active
+      // Tutor's workflow on a journey or Tutor canvas (owner brief section 5).
+      if (viaTutor) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
         const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
