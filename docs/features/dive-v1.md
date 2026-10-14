@@ -73,8 +73,8 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   none, it asks "What do you want to go deeper into?" and never makes an empty "Dive" card.
 - **The anchor lives on the parent.** It does not persist the child: an abandoned child leaves the
   anchor with no outline, and the child's first object gives the anchor the green hole outline.
-- **Ctrl+K without a card**, and Ctrl+K outside Learn, is the global Search, unchanged
-  (`Search.jsx`).
+- **Ctrl+K without a card** stays on the canvas as Quick Edit, and Ctrl+K outside Learn does nothing: Search is Ctrl/Cmd+Shift+F
+  since 2026-10-13 (selection-action-bar.md, `shortcut-owner.js`; `Search.jsx`).
 - **Stabilization (2026-09-30):**
   - **Pending lifetime.** An empty hole lives in this tab only while the learner is inside it.
     Leaving it while it is still empty, back up to its parent included, discards it, so an empty

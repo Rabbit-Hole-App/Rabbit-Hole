@@ -217,7 +217,7 @@ await actions.getByRole('menuitem', { name: 'Group', exact: true }).click();
 await page.waitForTimeout(300);
 ok('marquee then Group gives the set a name chip', (await page.locator('[data-group-chip]').count()) === 1);
 ok('the group draws its outline', (await page.locator('[data-group-box]').count()) === 1);
-ok('the group has its own Ask, like a card', (await page.locator('[data-group-ask]').count()) === 1);
+ok('the group has its own selection actions (Add to chat), one bar, like a card', (await page.locator('[data-selection-bar]').count()) === 1);
 // deselect, then a plain click on one member picks the whole group
 await page.mouse.click(box.x + 40, box.y + 700);
 await page.waitForTimeout(200);

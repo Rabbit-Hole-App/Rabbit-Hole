@@ -43,7 +43,9 @@ reserved in a spend ledger first); A3 benchmark and report from the telemetry ro
 
 Defaults taken within the spec:
 - Ctrl/Cmd+K on an eligible canvas selection opens the inline editor. Dive's Ctrl+K stands down there; /dive and Start
-  Rabbit Hole stay the ways down. With no eligible selection the page's Ctrl+K (Search) is unchanged.
+  Rabbit Hole stay the ways down. Since 2026-10-13 (owner brief, selection-action-bar.md) the chord is the canvas's wherever it has the
+  focus, with no eligible selection too (the "Select something" hint, never Search): Search moved to Ctrl/Cmd+Shift+F, and
+  `shortcut-owner.js` decides who takes each chord.
 - Explain adds explanatory output, so /quiz, /practice and /flashcards are not inline (they stay direct commands);
   /simplify, /example and /deeper are the direct note path inline, never a chat message.
 - A paid result (Motion, maths animation, video, 3D) is accepted as its existing card, already confirmed: the job runs

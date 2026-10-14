@@ -188,7 +188,7 @@ diagram connector ends in the open arrow it always had.
   dialog keeps the canvas selection).
 - Tool keys: V select, H hand, R rectangle, O ellipse, A arrow, L line, P pen, T text, E eraser, N sticky note. They
   stand down while typing, in the composer, notebooks, equations, dialogs and menus, while presenting (L stays the
-  laser), and on view-only boards. C stays Comment, and Ctrl/Cmd+K belongs to the inline AI editor lane. Tooltips name
+  laser), and on view-only boards. C stays Comment, Ctrl/Cmd+K is Quick Edit (the inline AI editor) and Ctrl/Cmd+L adds the selection to the chat (selection-action-bar.md). Tooltips name
   the keys, and the shortcut sheet lists them all. A pointer press no longer leaves a tool button focused, so Space after
   a click pans.
 - Picking a drawing tool (pen, highlighter, eraser, text, equation, sticky note or any shape), by its button or its key,

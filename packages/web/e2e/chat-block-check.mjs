@@ -205,7 +205,7 @@ await check('flashcards flip and navigate', async () => {
 // linked conversation node below it
 await check('ask about selected quiz links a node', async () => {
   await canvas.getByText('what is the derivative', { exact: false }).first().click();
-  await page.getByRole('button', { name: 'Ask in chat' }).click();
+  await page.getByRole('button', { name: 'Add to chat', exact: true }).click(); // Add to chat (owner 2026-10-13) replaced the Ask in chat pill
   await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
   const linksBefore = await canvas.locator('[data-connection]').count();
   await dock.fill('why is the derivative maximal at zero?');
@@ -513,7 +513,7 @@ await check('walkthrough reset and ask in chat carry the step', async () => {
   if (await node.locator('[data-scene-ask]').count()) throw new Error('the in-block ask button is still there');
   const handle = await node.locator('[data-drag-handle]').boundingBox();
   await page.mouse.click(handle.x + handle.width / 2, handle.y + handle.height / 2);
-  const pill = page.getByRole('button', { name: 'Ask in chat' });
+  const pill = page.getByRole('button', { name: 'Add to chat', exact: true });
   const pillBox = await pill.boundingBox();
   await page.mouse.click(pillBox.x + pillBox.width / 2, pillBox.y + pillBox.height / 2);
   await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });

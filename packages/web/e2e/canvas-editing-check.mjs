@@ -340,7 +340,8 @@ await run('open in notebook', async () => {
 });
 
 // Owner, 2026-10-13: "code card should have a small icon next to Open or Ask in chat which says Open in notebook". On a Code
-// sample (block type snippet) a small icon-only button named Open in notebook sits right beside Ask in chat, and makes the
+// sample (block type snippet) a small icon-only button named Open in notebook sits right beside the selection actions (Add to
+// chat replaced Ask in chat the same day, owner: "rename Ask in chat to Add to chat"), and makes the
 // notebook from the sample's code; for a JavaScript sample it is off, with the reason. A fresh page: the camera is where
 // it started, so both cards are on screen.
 await run('open in notebook: code sample icon', async () => {
@@ -352,10 +353,10 @@ await run('open in notebook: code sample icon', async () => {
   await card('jsnip').getByText('Next in JS').click();
   check('a JavaScript Code sample shows the icon off, with the reason', (await button('jsnip').isDisabled()) && (await button('jsnip').getAttribute('title')) === 'Notebooks run Python only');
   await card('cs').getByText('Sample', { exact: true }).click();
-  const icon = button('cs'), ask = card('cs').getByRole('button', { name: 'Ask in chat', exact: true });
-  const [iconBox, askBox] = [await icon.boundingBox(), await ask.boundingBox()];
+  const icon = button('cs'), actions = card('cs').locator('[data-selection-bar]');
+  const [iconBox, askBox] = [await icon.boundingBox(), await actions.boundingBox()];
   check('a Code sample shows a small Open in notebook icon button, named Open in notebook, with a tooltip', !!iconBox && (await icon.isVisible()) && (await icon.getAttribute('title')) === 'Open in notebook' && (await icon.innerText()).trim() === '' && (await icon.locator('svg').count()) === 1 && iconBox.y >= 0 && iconBox.width <= 40 && iconBox.height <= 40, JSON.stringify(iconBox));
-  check('and it sits right beside Ask in chat, on the same row', !!iconBox && !!askBox && iconBox.x >= askBox.x + askBox.width - 1 && iconBox.x - (askBox.x + askBox.width) <= 16 && Math.abs((iconBox.y + iconBox.height / 2) - (askBox.y + askBox.height / 2)) <= 4, JSON.stringify({ iconBox, askBox }));
+  check('and it sits right beside the selection actions (Add to chat), on the same row', !!iconBox && !!askBox && askBox.x >= iconBox.x + iconBox.width - 1 && askBox.x - (iconBox.x + iconBox.width) <= 16 && Math.abs((iconBox.y + iconBox.height / 2) - (askBox.y + askBox.height / 2)) <= 4, JSON.stringify({ iconBox, askBox }));
   await icon.click();
   const board = await saved();
   const made = board.blocks.filter(block => block.type === 'notebook');
@@ -736,17 +737,17 @@ await run('selection', async () => {
   await context.close();
 });
 
-// selected-pill-check's rule: a selected text box's Ask in chat sits above its top right. Text | Code takes its own
-// line above the ladder rather than pushing the pill past the right edge.
+// selected-pill-check's rule: a selected text box's selection actions (Add to chat; they replaced the Ask in chat pill, owner
+// 2026-10-13) sit above its top right. Text | Code takes its own line above the ladder rather than pushing the actions past the right edge.
 await run('ask pill edge', async () => {
   const { page, context } = await open('ask-pill-edge', { items: [textItem('t1', 100, 200, { text: 'the mask hides the future' })] });
   const box = page.locator('[data-item-id="t1"]');
   const at = await box.boundingBox();
   await page.mouse.click(at.x + 10, at.y + at.height / 2);
-  const pill = await page.locator('[data-ask-pill] button').boundingBox();
+  const pill = await page.locator('[data-selection-bar]').boundingBox();
   const mode = await page.locator('[data-item-id="t1"] [aria-label="Text or code"]').boundingBox();
-  check('Ask in chat stays at the selected text box\'s right edge', Math.abs(pill.x + pill.width - (at.x + at.width)) < 12 && pill.y + pill.height <= at.y + 2, JSON.stringify([pill, at]));
-  check('Text | Code is still on the selected text box, above the pill row', !!mode && mode.y + mode.height <= pill.y + 1, JSON.stringify(mode));
+  check('the selection actions stay at the selected text box\'s right edge', Math.abs(pill.x + pill.width - (at.x + at.width)) < 12 && pill.y + pill.height <= at.y + 2, JSON.stringify([pill, at]));
+  check('Text | Code is still on the selected text box, above the actions row', !!mode && mode.y + mode.height <= pill.y + 1, JSON.stringify(mode));
   await context.close();
 });
 
@@ -1111,11 +1112,11 @@ await run('review regressions', async () => {
   await note.page.mouse.click(nb.x + nb.width / 2, nb.y + nb.height - 20);
   await note.page.keyboard.type('X');
   check('a click in the blank part of a note keeps editing, caret at the end', (await editorText(note.page)) === 'topX');
-  // 11: Ask in chat shows a hidden composer.
+  // 11: Add to chat (its ask-focus event, with no question) shows a hidden composer.
   await note.page.keyboard.press('Escape');
   await note.page.getByRole('button', { name: 'Hide chat composer' }).click();
-  await note.page.evaluate(() => window.dispatchEvent(new CustomEvent('small:ask-focus', { detail: { text: 'Explain this' } })));
-  check('Ask in chat brings a hidden composer back', !(await note.page.locator('[data-canvas-composer][data-composer-hidden]').count()));
+  await note.page.evaluate(() => window.dispatchEvent(new CustomEvent('small:ask-focus', { detail: {} })));
+  check('Add to chat brings a hidden composer back', !(await note.page.locator('[data-canvas-composer][data-composer-hidden]').count()));
   await note.context.close();
 });
 

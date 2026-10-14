@@ -184,14 +184,15 @@ await check('owner: selecting another card moves the one pill to it', async () =
   await blank(page);
 });
 
-// ---- Ask in chat on a dropped image, a text box and a sticky note (r35, owner: "For Image or Text box, should we have a
-// "Ask in Chat"?"): the cards' pill above the top right, a ready question in the composer, nothing sent, and the comment
-// pin left of the pill (canvas-card-selection.md "Ask in chat on an image, a text box and a sticky note").
-const askPill = () => page.locator('[data-ask-pill] button:visible');
+// ---- Add to chat on a dropped image, a text box and a sticky note (r35 gave them Ask in chat; owner 2026-10-13: "rename Ask in chat
+// to Add to chat (ctrl + L) or Quick Edit (ctrl + k )"): the selection actions above the top right, the object as the composer's
+// context chip, NO question written, nothing sent, and the comment pin left of the actions (canvas-card-selection.md).
+const askBar = () => page.locator('[data-selection-bar]:visible');
+const askPill = () => page.locator('[data-selection-bar] [data-add-to-chat]:visible');
 const ASKS = [
-  { kind: KINDS.find(kind => kind.id === 'k-file'), question: 'What does this image show?' },
-  { kind: KINDS.find(kind => kind.id === 'k-text'), question: 'Explain this' },
-  { kind: KINDS.find(kind => kind.id === 'k-note'), question: 'Explain this' },
+  { kind: KINDS.find(kind => kind.id === 'k-file') },
+  { kind: KINDS.find(kind => kind.id === 'k-text') },
+  { kind: KINDS.find(kind => kind.id === 'k-note') },
 ];
 // Two comment threads, on the dropped image and on the text box (canvas-comments.md), made only now so their pins never
 // sit over the cards pressed above; the pins must sit left of the new pill.
@@ -209,13 +210,13 @@ await node(page, KINDS[0]).waitFor({ timeout: 60000 });
 await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 2, null, { timeout: 15000 });
 // At 100%, where a pin (a constant screen size) stays on the pill row instead of over the object's top edge.
 const actual = async page => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Shift+Digit0'); await page.waitForTimeout(700); };
-for (const { kind, question } of ASKS) {
-  await check(`owner, ${kind.label}: Ask in chat above its top right arms the strip and writes "${question}"; nothing is sent; its comment pin sits left of the pill`, async () => {
+for (const { kind } of ASKS) {
+  await check(`owner, ${kind.label}: Add to chat above its top right arms the strip and writes no question; nothing is sent; its comment pin sits left of the actions`, async () => {
     await actual(page);
     await press(page, kind, true);
     await askPill().waitFor({ timeout: 5000 });
-    assert.equal(await askPill().count(), 1, 'one pill');
-    const [pillBox, box] = [await askPill().boundingBox(), await node(page, kind).boundingBox()];
+    assert.equal(await askBar().count(), 1, 'one bar');
+    const [pillBox, box] = [await askBar().boundingBox(), await node(page, kind).boundingBox()];
     assert.ok(pillBox.y + pillBox.height <= box.y + 2, `above it: ${JSON.stringify([pillBox, box])}`);
     assert.ok(Math.abs(pillBox.x + pillBox.width - (box.x + box.width)) < 12, `at its right edge: ${JSON.stringify([pillBox, box])}`);
     if (THREADS[kind.id]) {
@@ -231,19 +232,19 @@ for (const { kind, question } of ASKS) {
     await page.waitForTimeout(500);
     assert.equal(await pill(page).getAttribute('data-selected-card'), kind.id, 'the strip is the object');
     assert.equal(await page.locator('[data-canvas-target]').count(), 1, 'one strip');
-    assert.equal(await composer.inputValue(), question, 'the ready question, waiting');
+    assert.equal(await composer.inputValue(), '', 'no question is written');
     assert.equal(asks.length + plans.length, sent, 'nothing sent');
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-armed.png` });
     await composer.fill('');
     await blank(page);
-    assert.equal(await askPill().count(), 0, 'gone with the selection');
+    assert.equal(await askBar().count(), 0, 'gone with the selection');
   });
 }
-await check('owner, an empty text box: selected, no Ask in chat', async () => {
+await check('owner, an empty text box: selected, no selection actions', async () => {
   await fit(page);
   await press(page, EMPTY);
   await page.waitForTimeout(300);
-  assert.equal(await askPill().count(), 0);
+  assert.equal(await askBar().count(), 0);
   await blank(page);
 });
 await page.context().close();
@@ -264,8 +265,8 @@ for (const kind of KINDS) {
     await sharedPill.waitFor({ timeout: 5000 }).catch(async error => { await page.screenshot({ path: `${SHOTS}/shared-failed-${kind.id}.png` }); console.log('debug', await page.evaluate(() => [document.querySelector('[data-view-selection]')?.dataset.viewSelection, document.activeElement?.outerHTML.slice(0, 120), document.querySelector('[data-canvas-surface]')?.className])); throw error; });
     assert.equal(await sharedPill.getAttribute('data-selected-card'), kind.id);
     assert.equal(await page.locator('[data-shared-ask] [data-canvas-target]').count(), 1);
-    // A view-only board has no Ask in chat on the object (the cards' rule): the shared composer is the way to ask.
-    assert.equal(await page.locator('[data-ask-pill]').count(), 0, 'no Ask in chat on a view-only board');
+    // A view-only board has no selection actions on the object (the cards' rule): the shared composer is the way to ask.
+    assert.equal(await page.locator('[data-selection-bar]').count(), 0, 'no selection actions on a view-only board');
     if (kind === KINDS[0]) await page.screenshot({ path: `${SHOTS}/shared-${kind.id}.png` });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(250);

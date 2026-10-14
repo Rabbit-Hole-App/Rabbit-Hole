@@ -125,7 +125,7 @@ console.log('I04: typed coordinates + drag live');
 if (await page.locator('[data-scene-ask]').count()) throw new Error('a card still renders Ask about this');
 if (await canvas.getByText('Ask about this').count()) throw new Error('Ask about this text still present');
 await card(i01).click({ position: { x: 20, y: 8 } });
-await page.getByRole('button', { name: 'Ask in chat' }).click();
+await page.getByRole('button', { name: 'Add to chat', exact: true }).click(); // Add to chat (owner 2026-10-13) replaced the Ask in chat pill
 await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
 const composer = page.locator('[data-chat-composer] input:visible').first();
 await composer.fill('why does the mask change the output?');

@@ -86,18 +86,18 @@ await shot(page, 'sheet-added');
 await sheet.getByRole('button', { name: 'Collapse chat' }).click();
 check('Collapse hides the sheet', !(await sheet.isVisible()));
 await page.locator('[data-block-id="seed-1"]').click({ position: { x: 30, y: 12 } });
-await page.locator('[data-block-id="seed-1"]').getByRole('button', { name: 'Ask in chat' }).click();
+await page.locator('[data-block-id="seed-1"]').getByRole('button', { name: 'Add to chat', exact: true }).click();
 await page.waitForTimeout(200);
-// Owner, 2026-10-08: Ask in chat writes a ready question about the card; only Send asks.
-check('Ask in chat writes a ready question about the card and sends nothing', /^Can you explain ".+"\?$/.test(await composer.inputValue()) && asks.length === 2, await composer.inputValue());
+// Owner, 2026-10-13: Add to chat (it replaced Ask in chat) adds the card as the context chip and writes no question; only Send asks.
+check('Add to chat arms the card, writes no question and sends nothing', (await composer.inputValue()) === '' && asks.length === 2 && (await page.locator('[data-selected-card="seed-1"]').count()) === 1, await composer.inputValue());
 await say('explain this card');
 await page.locator('[data-chat-block]').filter({ hasText: 'Answer 3.' }).waitFor({ timeout: 15000 });
 await page.waitForTimeout(800);
 const links = await page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}').links || [], KEY);
-check('Ask in chat on a card still answers as a linked card', links.some(link => link.from === 'seed-1') && await chatCards() === 2);
+check('Add to chat on a card still answers as a linked card', links.some(link => link.from === 'seed-1') && await chatCards() === 2);
 check('that card question stays out of the sheet', !(await sheet.getByText('explain this card').count()) && !(await sheet.getByText('Answer 3.').count()));
 check('the card question is its own thread', !asks[2].thread_id, `thread ${asks[2].thread_id || 'none'}`);
-check('Ask in chat sends the typed question as message and the card as canvas_target', asks[2].message === 'explain this card' && asks[2].canvas_target?.id === 'seed-1' && !!asks[2].canvas_target?.text, `message ${JSON.stringify(asks[2].message)}, target ${asks[2].canvas_target?.id || 'none'}`);
+check('Add to chat sends the typed question as message and the card as canvas_target', asks[2].message === 'explain this card' && asks[2].canvas_target?.id === 'seed-1' && !!asks[2].canvas_target?.text, `message ${JSON.stringify(asks[2].message)}, target ${asks[2].canvas_target?.id || 'none'}`);
 
 // 5. the sheet's thread survives the card question
 await say('back to chat');

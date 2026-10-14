@@ -96,7 +96,7 @@ await ask('panned right', 'one more');
 // 4. asking about a selected card: the answer parks under it, in view
 await page.getByRole('button', { name: 'Collapse chat' }).click();
 await page.locator('[data-block-id="seed-1"]').click({ position: { x: 30, y: 12 } });
-await page.locator('[data-block-id="seed-1"]').getByRole('button', { name: 'Ask in chat' }).click();
+await page.locator('[data-block-id="seed-1"]').getByRole('button', { name: 'Add to chat', exact: true }).click(); // Add to chat (owner 2026-10-13) replaced the Ask in chat pill
 await ask('asked about a card', 'explain this card', { addToCanvas: false });
 const linked = await page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}').links || [], KEY);
 check('asked about a card: the answer is linked to it', linked.some(link => link.from === 'seed-1'), `${linked.length} link(s)`);

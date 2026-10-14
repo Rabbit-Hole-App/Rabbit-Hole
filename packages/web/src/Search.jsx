@@ -5,6 +5,7 @@ import { kindLabel, titleOf } from './agent/catalog.js';
 import { loadApps } from './app-data.js';
 import { aiFindAllowed, learnPreview } from './flags.js';
 import { cn, KindIcon } from './ui.jsx';
+import { claimChord } from './shortcut-owner.js';
 
 // Plain text out of a BlockNote JSON string - no parse, just the "text" values.
 const runbookText = (rb) => [...rb.matchAll(/"text":"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join(' ');
@@ -13,7 +14,8 @@ const runbookText = (rb) => [...rb.matchAll(/"text":"((?:[^"\\]|\\.)*)"/g)].map(
 // no "gmail-com / Apps"); the classic app keeps name and org.
 const label = (a) => (learnPreview ? titleOf(a) : a.name);
 
-// ⌘K search modal. Self-contained: opens on Ctrl/⌘K or a 'small:search' event.
+// Search modal. Self-contained: opens on Ctrl/Cmd+Shift+F or a 'small:search' event. It was Ctrl/Cmd+K until 2026-10-13, when
+// that became the canvas's Quick Edit (owner brief); shortcut-owner.js decides who takes each chord, so one key never opens two.
 export default function SearchModal() {
   const [open, setOpen] = useState(false);
   // the sidebar's search icon highlights while the modal is up
@@ -24,7 +26,6 @@ export default function SearchModal() {
 
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
         e.preventDefault();
         // The preview's Mothership replaces New chat, so the shortcut focuses it (AgentBar.jsx).
@@ -34,11 +35,13 @@ export default function SearchModal() {
       if (e.key === 'Escape') close();
     };
     const onOpen = () => setOpen(true);
+    // Inside a text input, a code editor or a dialog the chord keeps its normal meaning.
+    const release = claimChord('search', 'search', 10, (event, field) => { if (field) return false; setOpen(true); return true; });
     const onClose = () => close(); // the notifications bell closes us (one surface at a time)
     window.addEventListener('keydown', onKey);
     window.addEventListener('small:search', onOpen);
     window.addEventListener('small:search-close', onClose);
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('small:search', onOpen); window.removeEventListener('small:search-close', onClose); };
+    return () => { release(); window.removeEventListener('keydown', onKey); window.removeEventListener('small:search', onOpen); window.removeEventListener('small:search-close', onClose); };
   }, []);
 
   useEffect(() => {
