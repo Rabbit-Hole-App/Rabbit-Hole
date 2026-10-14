@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const ask = read('ask.jsx'), page = read('LearnPage.jsx'), shared = read('SharedBoardPage.jsx'), canvas = read('AdaptiveCanvas.jsx');
+const ask = read('ask.jsx'), page = read('LearnPage.jsx'), shared = read('SharedBoardPage.jsx'), canvas = read('AdaptiveCanvas.jsx'), chat = read('ChatMessages.jsx');
 
 const dir = mkdtempSync(join(tmpdir(), 'next-steps-wiring-')), outfile = join(dir, 'card.cjs');
 // ask.jsx reaches pdf.js through a Vite ?url import, which node has no use for: it becomes an empty string.
@@ -80,7 +80,7 @@ test('ask.jsx sendStep: Voice on is say with the step, else one askStep turn dra
   const body = ask.slice(ask.indexOf('const sendStep = async'), ask.indexOf('if (nextStepRef) nextStepRef.current = sendStep;'));
   assert.doesNotMatch(body, /setInput|send\(|exchange|onExchange|tutor\.ask\(/, 'never the composer, the Learn chat or a canvas card');
   // The chip is a choice, not the learner's bubble.
-  assert.match(ask, /\{m\.role === 'step' \? \([\s\S]*?<div data-step-chip title="A next step you chose"/);
+  assert.match(chat, /\{m\.role === 'step' \? \([\s\S]*?<div data-step-chip title="A next step you chose"/);
 });
 
 test('ask.jsx: a hook carried into a new hole opens it once, keyed by opening.key, through sendStep (never typed)', () => {
