@@ -1,10 +1,11 @@
 // The sharded gate's collect job: the shard records and the units record (the two UNIT_STAGES lines) merged into the
 // one gate.log (shards.mjs mergeShards), judged by the candidate's own gateVerdict plus run.mjs's routing/project-menu
 // receipts, exactly as the unsharded gate phase judges its record; the passed Dive checkpoint stays its prerequisite.
-// A failed matrix job, a failed or missing shard or units record, a missing or duplicated stage, or a rejected record
-// fails it.
+// A part is judged by its newest attempt (attempts.mjs), so a failed-only rerun reads each passed part from the attempt it
+// passed in. A part whose newest attempt did not succeed, a failed or missing shard or units record, a missing or
+// duplicated stage, or a rejected record fails it.
 //   node scripts/r36-gate/collect.mjs <downloaded artifacts dir>
-// Env: APP_ROOT TESTED_SHA TESTED_TREE HARNESS_SHA GATE_GRANT_ID ARTIFACT_ROOT GITHUB_RUN_ATTEMPT MATRIX_RESULT
+// Env: APP_ROOT TESTED_SHA TESTED_TREE HARNESS_SHA GATE_GRANT_ID ARTIFACT_ROOT GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_REPOSITORY GH_TOKEN
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -13,19 +14,31 @@ import { SHARDS, UNIT_STAGES, mergeShards } from './shards.mjs';
 import { prerequisite } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
 import { awaitVerify } from './verify-check.mjs';
+import { pickAttempts, runJobs } from './attempts.mjs';
 
 const APP_SHA = process.env.TESTED_SHA, APP_TREE = process.env.TESTED_TREE;
 if (!/^[a-f0-9]{40}$/.test(APP_SHA || '') || !/^[a-f0-9]{40}$/.test(APP_TREE || '')) throw Error('Explicit exact TESTED_SHA and TESTED_TREE are required');
-for (const name of ['APP_ROOT', 'HARNESS_SHA', 'GATE_GRANT_ID', 'ARTIFACT_ROOT', 'GITHUB_RUN_ATTEMPT']) if (!process.env[name]) throw Error(`Missing ${name}`);
+for (const name of ['APP_ROOT', 'HARNESS_SHA', 'GATE_GRANT_ID', 'ARTIFACT_ROOT', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT']) if (!process.env[name]) throw Error(`Missing ${name}`);
 const app = resolve(process.env.APP_ROOT), out = resolve(process.env.ARTIFACT_ROOT), input = resolve(process.argv[2] || '');
 const identity = { applicationSha: APP_SHA, applicationTree: APP_TREE, harnessSha: process.env.HARNESS_SHA, grant: process.env.GATE_GRANT_ID };
 const started = new Date().toISOString();
 mkdirSync(out, { recursive: true });
 const inTree = p => { try { execFileSync('git', ['cat-file', '-e', `${APP_SHA}:${p}`], { cwd: app, stdio: 'ignore' }); return true; } catch { return false; } };
-const dir = part => join(input, `r36-windows-${part}-${APP_SHA}-${process.env.GITHUB_RUN_ATTEMPT}`, 'r36', 'artifacts');
 const json = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
 const failures = [];
-if (process.env.MATRIX_RESULT !== 'success') failures.push(`matrix jobs: ${process.env.MATRIX_RESULT || 'unknown'}`);
+// Each part's newest attempt decides it: a part not rerun keeps the attempt it ran in (a rerun's jobs list carries it
+// with its own run_attempt), a rerun part uses the newer one, and a newer failure is never replaced by an older pass.
+// A jobs query that fails leaves no attempts and fails the gate.
+const PARTS = ['units', 'checkpoints', ...SHARDS.map((_, k) => `shard-${k + 1}`)];
+let attempts = {};
+try { const picked = pickAttempts(runJobs(), PARTS); attempts = picked.attempts; failures.push(...picked.errors); }
+catch (error) { failures.push(`attempts: gh jobs query failed: ${error.message.split('\n')[0]}`); }
+// The checkpoints job uploads its Dive receipt as 'dive'. A part with no known attempt falls back to this run's attempt
+// (its missing job is already a failure). A receipt carries the grant of the attempt that wrote it, so each part is
+// judged against its own attempt's grant, not collect's.
+const attemptOf = part => attempts[part === 'dive' ? 'checkpoints' : part] ?? process.env.GITHUB_RUN_ATTEMPT;
+const identityOf = part => ({ ...identity, grant: `r36-windows-${process.env.GITHUB_RUN_ID}-${attemptOf(part)}` });
+const dir = part => join(input, `r36-windows-${part}-${APP_SHA}-${attemptOf(part)}`, 'r36', 'artifacts');
 // The same-sha canonical verify.yml must have succeeded for the harness and the application (each run job used to wait for it).
 // A verify that is merely still running is polled for up to 10 min (awaitVerify; both shas at once); a missing, failed or
 // unreadable one fails at once, and one still running at the deadline fails closed. The accepted runs go in receipt.json.
@@ -36,13 +49,13 @@ verifyResults.forEach((r, i) => r.verdict ? failures.push(`verify: ${r.verdict}`
 
 // The Dive checkpoint (after its preflight) is the complete gate's prerequisite, as in run.mjs's gate phase.
 const diveFile = join(dir('dive'), 'dive-receipt.json');
-const diveError = prerequisite('gate', json(diveFile), identity);
+const diveError = prerequisite('gate', json(diveFile), identityOf('dive'));
 if (diveError) failures.push(`checkpoint: ${diveError}`);
 
 // A part's receipt must pass with this run's identity and its gate-shard.log must exist; the units part is read like a shard.
 const read = part => {
   const d = dir(part), receiptFile = join(d, `${part}-receipt.json`), receipt = json(receiptFile);
-  const wrong = Object.keys(identity).filter(key => receipt?.[key] !== identity[key]);
+  const wanted = identityOf(part), wrong = Object.keys(wanted).filter(key => receipt?.[key] !== wanted[key]);
   if (!receipt?.pass || !receipt.ended || receipt.cleanupFailure || wrong.length) failures.push(`${part}: ${receipt?.failure || receipt?.cleanupFailure || (wrong.length ? `identity mismatch: ${wrong.join(', ')}` : 'receipt missing or not passed')}`);
   const logFile = join(d, 'gate-shard.log'), log = existsSync(logFile) ? readFileSync(logFile, 'utf8') : null;
   if (log === null) failures.push(`${part}: gate-shard.log missing`);
@@ -68,9 +81,10 @@ if ([units, ...shards].every(s => s.log !== null)) {
   } catch (error) { verdict = `not computed: ${error.message}`; failures.push(`merge: ${error.message}`); }
 }
 const pass = failures.length === 0;
-const sharded = { units: { part: 'units', stages: UNIT_STAGES, pass: units.pass }, shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), matrix: process.env.MATRIX_RESULT, failures };
-writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, sharded }, null, 2));
-writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version,
+const sharded = { units: { part: 'units', stages: UNIT_STAGES, pass: units.pass }, shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), failures };
+// attempts: the run attempt each part was judged from, so the gate note shows a rerun's mix of attempts.
+writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, attempts, sharded }, null, 2));
+writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version, attempts,
   prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, units: (({ log, ...u }) => u)(units), shards: shards.map(({ log, ...s }) => s), verify: verified, failures, pass }, null, 2));
 console.log(JSON.stringify({ applicationSha: APP_SHA, harnessSha: identity.harnessSha, gateVerdict: verdict, extraPassed, pass, failures }));
 if (!pass) process.exitCode = 1;

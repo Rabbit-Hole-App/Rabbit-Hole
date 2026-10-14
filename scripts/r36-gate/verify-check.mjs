@@ -21,5 +21,5 @@ export async function awaitVerify(sha, { fetch = verifyRuns, sleep = ms => new P
   }
 }
 export function verifyRuns(sha) {
-  return JSON.parse(execFileSync('gh', ['run', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--workflow', 'verify.yml', '--commit', sha, '--limit', '20', '--json', 'databaseId,status,conclusion,headSha'], { encoding: 'utf8' }));
+  return JSON.parse(execFileSync('gh', ['run', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--workflow', 'verify.yml', '--commit', sha, '--limit', '20', '--json', 'databaseId,status,conclusion,headSha'], { encoding: 'utf8', timeout: 60000 }));
 }
