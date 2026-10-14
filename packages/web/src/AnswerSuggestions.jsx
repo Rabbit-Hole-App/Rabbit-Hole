@@ -12,7 +12,10 @@ export default function AnswerSuggestions({ message, latest, threadId, prepare, 
   const key = `${threadId}:${message?.messageId}`;
   const [openKey, setOpenKey] = useState(null);
   if (message?.role !== 'assistant' || message.status !== 'done' || !message.meta) return null;
-  const actions = message.meta.actions || [], followUps = message.meta.followUps || [];
+  // Only records that can be drawn and run: a malformed one (an object label, no subject, no code) is skipped, never thrown.
+  const text = value => typeof value === 'string' && value.trim() !== '';
+  const actions = (Array.isArray(message.meta.actions) ? message.meta.actions : []).filter(a => a && text(a.label) && (a.generationRequired ? text(a.args?.subject) : Array.isArray(a.args?.code?.cells)));
+  const followUps = (Array.isArray(message.meta.followUps) ? message.meta.followUps : []).filter(f => f && text(f.text));
   if (!actions.length && !followUps.length) return null;
   const open = latest || openKey === key;
   if (!open) return (

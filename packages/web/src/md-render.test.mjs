@@ -18,7 +18,7 @@ const viteUrl = { name: 'vite-url', setup(build) {
   build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
 } };
 await esbuild.build({
-  stdin: { contents: "export * from './Md.jsx'; export { ChatMessages } from './ChatMessages.jsx'; export { atEnd } from './chat-scroll.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export * from './Md.jsx'; export { ChatMessages, AnswerBoundary } from './ChatMessages.jsx'; export { atEnd } from './chat-scroll.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -134,4 +134,18 @@ test('a Learn chat answer is a document (sized headings) and Jump to latest sits
   assert.match(html, /<h2 class="[^"]*\btext-lg\b/);
   assert.ok(html.indexOf('data-jump-latest') > html.indexOf('data-answer-body'), 'after the messages');
   assert.match(html, /<div class="pointer-events-none sticky bottom-2 z-10 flex h-0 justify-center"><button type="button" data-jump-latest/);
+});
+
+// Chat crash 2026-10-14: main.jsx swaps the whole page for its crash screen on any uncaught render error. A Learn answer whose
+// extras throw falls back to its plain text instead, and malformed meta never throws in the first place.
+test('a malformed answer_meta never takes the page down: bad records are skipped, and a throwing answer falls back to its text', () => {
+  const answer = meta => B.renderToStaticMarkup(B.createElement(B.ChatMessages, { msgs: [{ role: 'user', content: 'Q' }, { role: 'assistant', messageId: '9', status: 'done', content: 'An answer.', ...meta }], learnChat: true, setMsgs() {}, setFilePeek() {}, setRunPeek() {}, setInput() {} }));
+  const html = answer({ kind: 'syllabus', meta: { syllabus: { title: 'no topics' }, actions: [{ id: 'a', capabilityId: 'diagram', label: { text: 'x' } }], followUps: [{ id: 'f', text: { q: 1 } }, 'bare'] } });
+  assert.match(html, /data-answer-footer/, 'the answer and its footer still draw');
+  assert.doesNotMatch(html, /data-answer-suggestions|data-syllabus/);
+  const boundary = new B.AnswerBoundary({ text: 'Plain **answer**', children: 'drawn' });
+  assert.equal(boundary.render(), 'drawn');
+  boundary.state = B.AnswerBoundary.getDerivedStateFromError(new Error('boom'));
+  assert.equal(B.renderToStaticMarkup(boundary.render()), '<div data-answer="true" class="min-w-0 whitespace-pre-wrap text-sm">Plain **answer**</div>');
+  assert.match(read('ChatMessages.jsx'), /<AnswerBoundary key=\{m\.messageId \?\? i\} text=\{m\.content\}>\n\s*<div data-answer className="group\/answer min-w-0">/);
 });
