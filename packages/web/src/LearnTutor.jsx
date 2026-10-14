@@ -98,9 +98,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // journey, a hole's read parent journey, then a registered course by its repository, board or a hole's root.
   // The live title (Task 10 fix round 3): the server title of this level on the dives path (dives.js level(), reloaded by
   // Dive on a rename; a pending hole's renamed title in session), app.title last. A rename never changes app.title or a
-  // hole record's creation-time title, so neither is read for a title while the path has one; no copied name cache.
+  // hole record's creation-time title, so neither is read for a title while the path has one; no copied name cache. It is
+  // never the canvas domain's goal (topic restriction, owner 2026-10-14): a hole's dive_context and the hook opening read it.
   const liveTitle = dive.tree?.path?.at(-1)?.title ?? app.title ?? null;
-  const where = { app: courseCanvas ? app : null, board, root, parentJourney, record, title: liveTitle };
+  const where = { app: courseCanvas ? app : null, board, root, parentJourney, record };
   // Ruling F4, amended by Task 11b: typed and voice turns need capabilities.tutor (plain canvases have it since 11b); a hook
   // turn (askStep), a carried opening and its paid proposals also run where only capabilities.hook_turns holds.
   const context = tutorContext({ ...where, journey }), capabilities = context?.capabilities;

@@ -27,14 +27,15 @@ export function goalOf({ context = null, record = null, title = '', liveTitle = 
   const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
   const plain = context?.source === 'canvas' && !record;
   const goal = context?.source === 'journey' ? domain.context?.goal || title
-    // A canvas-domain hole (fix round 2): the goal tutorContext built from the live title (its learning_goal first), so a
-    // rename reaches the input and the basis. An uninformative title (blank, Untitled, an auto name) is no goal.
+    // A canvas-domain hole (fix round 2): its learning_goal (the domain's subject), else its live title, so a rename reaches
+    // the input and the basis. An uninformative title (blank, Untitled, an auto name) is no goal. The Tutor's own domain never
+    // takes a title as its goal (topic restriction, owner 2026-10-14); a hook goal here is a suggestion's focus, not a limit.
     : plain ? ''
-    : context?.source === 'canvas' ? informativeTitle(domain.subject || title)
+    : context?.source === 'canvas' ? informativeTitle(domain.subject || holeTitle || title)
     : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(holeTitle, 80)}` : holeTitle)
     : domain?.subject || title;
   // An uninformative title is no background either: a blank canvas then gets distinct starter hooks.
-  return { goal, parentGoal, background: plain ? informativeTitle(domain.subject || title) : '' };
+  return { goal, parentGoal, background: plain ? informativeTitle(domain.subject || holeTitle || title) : '' };
 }
 
 // Owner task 2: the canvas's native content, from the shared snapshot (canvas-semantics.js semanticSnapshot, already

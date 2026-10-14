@@ -361,7 +361,7 @@ test('A + I: on a plain canvas with no journey, a natural typed question is an A
   assert.equal(tutor.active, true);
   assert.equal(out, 'A step that is too large jumps past the lowest point.');
   const context = planOf(calls);
-  assert.deepEqual([context.learner_intent.kind, context.learner_intent.raw_user_message, context.canvas_context.goal, 'journey_context' in context], ['question', 'Why does gradient descent overshoot?', 'Gradient notes', false]);
+  assert.deepEqual([context.learner_intent.kind, context.learner_intent.raw_user_message, context.canvas_context.goal, 'journey_context' in context], ['question', 'Why does gradient descent overshoot?', null, false], 'the canvas title (Gradient notes) is never the goal');
   assert.deepEqual(context.available_materials, materialCommands(), 'the same materialCommands source hook turns use');
   assert.ok(context.allowed_actions.includes('create_material'));
   assert.deepEqual(calls.map(c => c.path), ['/api/learn/tutor/plan'], 'no claims on a plain canvas: no evaluate call, no evidence');

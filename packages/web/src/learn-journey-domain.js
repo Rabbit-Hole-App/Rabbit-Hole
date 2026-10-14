@@ -89,7 +89,7 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
 
 // A canvas with no journey and no registered course (Professor Next Steps Task 10; Task 11b): typed, voice and hook turns run
 // the Tutor here, with no claims in scope (route off_slice: words, plus create_material when materials are offered), and
-// nothing it says is evidence. goal: the canvas title, or a hole's learning_goal or title; origin: the shared canvas a hole was started from.
+// nothing it says is evidence. goal: a hole's learning_goal, never a canvas title (tutorContext); origin: the shared canvas a hole was started from.
 // context travels as context.canvas_context (contextKey), which picks the canvas planner prompt. Pure.
 // cards (Task 11b fix B2): the grounding a plain canvas has - up to six of its newest blocks other than the selected one (the
 // turn's target), in canvas order, as nextStepsInput shows blocks: a chat card by its question only, never its answer.
