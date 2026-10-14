@@ -850,3 +850,38 @@ The worker side is docs/features/inline-ai-validation.md (lane R). In the editor
   Off-screen, the camera goes to where it will land.
 - Cards come from /generate. /image stays a photo search staged in the editor, and /motion stays a paid proposal with
   Generate, both after a proceed.
+
+## A11. Ctrl/Cmd+K with nothing selected: creation (owner brief, 2026-10-13, sections 1-4 and 8-9)
+
+Owner brief, verbatim in agent-coordination/tasks/2026-10-13-inline-create-OWNER.md. Routing, validation, native
+diagrams and placement are A10 and docs/features/inline-ai-validation.md. The central shortcut owner and Search on
+Ctrl/Cmd+Shift+F are the polish lane's.
+
+- **Opening.** With the canvas focused and nothing selected, Ctrl/Cmd+K opens the same composer in Explain, to add.
+  It never falls through to Search, never opens from a field, a dialog or a menu, and never on a view-only canvas.
+  - An empty selection on a populated canvas is not a blank canvas.
+  - The placeholder reads "What would you like to add or understand?".
+  - Edit is disabled in the mode menu, which says "Select something to edit."
+  - The canvas API's inlineAi(mode) opens it the same way.
+- **The request.** It is a creation: `{ kind: 'creation', anchor, region, context }`, with no target ids and no dummy
+  object. Edit's checks are never widened.
+- **The insertion anchor.** It is the last deliberate click on empty canvas while that point is still in view, else
+  the middle of the view. It is kept in world units and shown as a small purple ring while the composer is open.
+  Opening saves nothing. Pointer movement is never read as intent.
+- **Context** (inline-ai-context.js `buildCreationContext`). It is the same builder and relevance, seeded by the region
+  around the anchor (within 250 world units, the nearer the stronger).
+  - It takes in the diagrams that region belongs to (along links and drawn arrows), the heading or section above the
+    anchor, and anything that shares the request's terms, however far.
+  - Subject and style travel apart: `context.style` is the region's look (inline-placement.js regionStyle), used to match
+    shapes, colours, fonts and arrows, never as subject.
+  - The canvas title stays metadata, and the request's own topic wins.
+  - On a blank canvas the context is empty and the default look applies.
+  - The check gets only `region`, a summary of at most 1,500 characters (`regionSummary`).
+- **Placement.** A note, a diagram or a card is placed in free space near the anchor (placeResult; placeNote's rings
+  when the middle is taken). It never lands under the composer or the room it may grow into, and nothing on the board
+  moves. A creation note has no connector.
+- **Preview, Accept, Undo.** As for a selection: a pale ghost, one transaction, one Undo. Reject, Esc and close discard
+  it. A refine revises it. Stop cancels, and late output is dropped. Paid media keep their proposal and Generate.
+- **Stale.** The context is rebuilt at submit. At Accept, if the material around the anchor changed meaningfully (its
+  words, its links), the result is marked outdated, with Regenerate. A pan or a zoom never does that. A taken spot is
+  placed again and shown.

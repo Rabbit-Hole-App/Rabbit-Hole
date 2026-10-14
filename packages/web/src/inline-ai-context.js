@@ -118,7 +118,9 @@ export const unionBox = boxes => {
 const round = box => box && { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.w), h: Math.round(box.h) };
 
 // The kinds of supporting material, in the order the context indicator lists them.
-export const RELATIONS = ['connected', 'sibling', 'diagram', 'inferred', 'group', 'heading', 'label', 'flow', 'discussion', 'mentions', 'annotation'];
+export const RELATIONS = ['connected', 'sibling', 'region', 'diagram', 'inferred', 'group', 'heading', 'label', 'flow', 'discussion', 'mentions', 'annotation'];
+// A creation's region (creation §4): what is drawn within this many world units of the insertion anchor.
+const REGION = 250;
 const HOP = [1, 0.7, 0.5];
 const STOP = new Set(('the a an and or of to in on for is are be was were this that these those it its with as at by from what does do how why '
   + 'explain explains show tell me about here there which who can will would should could please make into than then them they their your you '
@@ -133,10 +135,11 @@ const HEADING = new Set(['h1', 'h2', 'h3']);
 // limits.relevant, best first (nearest first among equals). Pure: the snapshot, the board's own entities and boxes.
 // ponytail: fixed weights and plain term overlap (no stemming beyond a plural s, no synonyms); tune the weights or add a
 // small embedding when the canvas fixtures show a miss.
-export function relevant(snapshot, board, look, present, { request = '', boxes = {}, limits = LIMITS } = {}) {
+// anchor: a creation's insertion point (world), when nothing is selected: the region around it seeds the same relevance.
+export function relevant(snapshot, board, look, present, { request = '', boxes = {}, limits = LIMITS, anchor = null } = {}) {
   const entries = new Map([...snapshot.cards, ...snapshot.objects].map(entry => [entry.id, entry]));
   const boxOf = id => boxes[id] || entries.get(id)?.box || null;
-  const targetBox = unionBox(present.map(boxOf));
+  const targetBox = present.length ? unionBox(present.map(boxOf)) : anchor ? { x: anchor.x - 1, y: anchor.y - 1, w: 2, h: 2 } : null;
   const best = new Map();
   const offer = (id, relation, score, extra = {}) => {
     const entry = entries.get(id), found = look.entities.get(id);
@@ -153,6 +156,19 @@ export function relevant(snapshot, board, look, present, { request = '', boxes =
   }
   let frontier = present.map(id => ({ id, score: 1 }));
   const reached = new Set(present);
+  // A creation: what is drawn near the anchor is its subject (the closer, the stronger), and the diagrams it is part of.
+  if (!present.length && targetBox) {
+    for (const entry of entries.values()) {
+      const box = boxOf(entry.id), found = look.entities.get(entry.id);
+      if (!box || (found?.list === 'shapes' && LINEAR.has(found.entity.kind))) continue;
+      const gap = gapBetween(targetBox, box);
+      if (gap > REGION) continue;
+      const score = 0.2 + 0.55 * (1 - gap / REGION);
+      offer(entry.id, 'region', score, { gap: Math.round(gap) });
+      // Only what is near enough to count seeds the diagram walk; anything further can still come in through it.
+      if (score >= limits.relevant) { frontier.push({ id: entry.id, score }); reached.add(entry.id); }
+    }
+  }
   for (let hop = 0; hop < Math.min(limits.hops, HOP.length) && frontier.length; hop += 1) {
     const step = [];
     for (const from of frontier) for (const edge of next.get(from.id) || []) {
@@ -169,6 +185,11 @@ export function relevant(snapshot, board, look, present, { request = '', boxes =
   for (const entry of snapshot.objects) if (present.includes(entry.labelOf)) offer(entry.id, 'label', 0.95, { labelOf: entry.labelOf });
   // Its section: the column heading above it, and the section's other material when the section is small.
   const sections = new Set(present.map(id => entries.get(id)?.sectionId).filter(Boolean));
+  // A creation's section: the column heading whose card sits last above the anchor.
+  if (!present.length && targetBox) {
+    const above = snapshot.cards.filter(card => card.type === 'heading' && boxOf(card.id) && boxOf(card.id).y <= targetBox.y).sort((a, b) => boxOf(b.id).y - boxOf(a.id).y)[0];
+    if (above) sections.add(above.id);
+  }
   for (const section of sections) {
     offer(section, 'heading', 0.9);
     const members = [...entries.values()].filter(entry => entry.sectionId === section && entry.id !== section);
@@ -403,3 +424,50 @@ export const clippedOf = context => context.target.ids.filter(id => !context.tar
 // The compact, content-free shape of a context for telemetry (A3/A5): counts only.
 export const contextShape = context => ({ objects: context.size.objects, chars: context.size.chars, counts: context.counts,
   omitted: Object.values(context.omitted).reduce((sum, n) => sum + n, 0), selectionOnly: context.selectionOnly });
+
+// The context of a creation (owner brief 2026-10-13, creation §4): no target, an insertion anchor. The same builder and
+// the same relevance, seeded from the region around the anchor instead of a selection: what is drawn there and the
+// diagram it belongs to, the heading or section the anchor sits under, and anything that shares the request's terms,
+// however far. Subject only: the region's look (style) travels apart, from the editor (inline-placement.js regionStyle).
+// The canvas title stays metadata, and the request decides the topic: on a blank canvas the context is the request.
+export function buildCreationContext(board, anchor, { cache, boardKey, describeCard = null, request = '', extras = {}, style = null, limits = LIMITS } = {}) {
+  const look = cache.lookups(board, boardKey, describeCard);
+  const boxes = board.boxes || {};
+  const snapshot = cache.semantic(board);
+  const omitted = { ...Object.fromEntries(RELATIONS.map(relation => [relation, 0])), truncated: 0, connections: 0 };
+  let chars = 0, objects = 0;
+  const related = [];
+  for (const { id, relation, score, extra } of relevant(snapshot, board, look, [], { request, boxes, limits, anchor })) {
+    const entity = look.entities.get(id);
+    if (!entity) continue;
+    const record = entity.list === 'blocks' ? { ...look.record(id), text: cardText(entity.entity) } : look.record(id);
+    if (!record) continue;
+    if (objects >= limits.objects || chars >= limits.total) { omitted[relation] = (omitted[relation] || 0) + 1; continue; }
+    const words = clip(record.text, Math.min(limits.chars, limits.total - chars));
+    if (words.truncated) omitted.truncated += 1;
+    objects += 1; chars += words.text.length;
+    related.push({ ...record, text: words.text, ...(words.truncated ? { truncated: true } : {}), relation, score: Math.round(score * 100) / 100, at: round(boxes[id]), ...extra });
+  }
+  const included = new Set(related.map(entry => entry.id));
+  const relations = snapshot.relations.filter(relation => included.has(relation.from) && included.has(relation.to)).map(relation => ({
+    from: relation.from, to: relation.to, ...(relation.label ? { label: relation.label.slice(0, limits.chars) } : {}), directed: relation.directed, source: relation.source,
+    ...(relation.source === 'inferred' ? { confidence: relation.confidence, ...(relation.confidence < 0.7 ? { uncertain: true } : {}) } : {}),
+  }));
+  const metadata = { ...(extras.title ? { canvasTitle: String(extras.title).slice(0, 200) } : {}), ...(extras.goal ? { learningGoal: String(extras.goal).slice(0, 300) } : {}) };
+  const counts = { target: 0, ...Object.fromEntries(RELATIONS.map(relation => [relation, related.filter(entry => entry.relation === relation).length])) };
+  const context = {
+    version: CONTEXT_VERSION, creation: true, anchor: { x: Math.round(anchor.x), y: Math.round(anchor.y) },
+    target: { ids: [], gone: [], objects: [] }, connections: [], related, relations, complete: {}, metadata,
+    ...(style ? { style } : {}),
+    selectionOnly: false, omitted, counts, considered: snapshot.cards.length + snapshot.objects.length, size: { objects, chars },
+  };
+  return { ...context, prints: { target: hash(JSON.stringify(['creation', context.anchor])), relations: hash('[]'), context: supportPrint(context) } };
+}
+
+// The validator's compact view of a creation (inline-ai-decide.js summaryOf reads `region`): the subject material around
+// the anchor, then its look - never the context package itself. At most 1,500 characters.
+export function regionSummary(context) {
+  const subject = context.related.slice(0, 12).map(entry => `${entry.type}${entry.kind ? `:${entry.kind}` : ''} "${String(entry.text).replace(/\s+/g, ' ').slice(0, 80)}"`).join('; ');
+  const look = context.style ? `style: ${['kind', 'color', 'fill', 'font', 'fontSize', 'route'].map(key => `${key} ${context.style[key] ?? 'none'}`).join(', ')}` : '';
+  return [subject ? `near the insertion point: ${subject}` : 'the insertion point is on empty canvas', context.metadata.canvasTitle ? `canvas title (may be outdated): ${context.metadata.canvasTitle}` : '', look].filter(Boolean).join(' | ').slice(0, 1500);
+}

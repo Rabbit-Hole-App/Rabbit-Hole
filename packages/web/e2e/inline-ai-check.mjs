@@ -541,7 +541,10 @@ await run('Escape closes the innermost first; shortcut scope; IME; no selection 
   await page.keyboard.press('Escape');
   await ctrlK(page);
   await page.waitForTimeout(100);
-  check('no selection: a small hint, no editor, never the whole canvas', (await page.locator('[data-inline-hint]').innerText()) === 'Select something to edit or explain' && (await popover(page).count()) === 0);
+  // Owner brief 2026-10-13, creation §1: with nothing selected Ctrl/Cmd+K opens the same editor to add, never Search.
+  await page.locator('[data-inline-prompt]').waitFor({ timeout: 5000 });
+  check('no selection: the editor opens to add (Explain), with its own placeholder', (await page.locator('[data-inline-prompt]').getAttribute('placeholder')) === 'What would you like to add or understand?' && (await page.locator('[data-inline-mode-toggle]').getAttribute('data-inline-mode-current')) === 'explain');
+  await page.keyboard.press('Escape');
   await clickShape(page, 'n3');
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, isComposing: true, bubbles: true })));
   await page.waitForTimeout(100);
@@ -1298,6 +1301,88 @@ await run('The check: invalid, unsupported and blocked show one short message, k
   check('no generation, no card, no job: only the checks ran', (await calls(page, 'generate')).length === 0 && (await calls(page, 'artifact')).length === 0 && (await calls(page, 'decide')).length === 3);
   await page.keyboard.press('Escape');
   check('the canvas is unchanged', JSON.stringify(await saved()) === before);
+  await context.close();
+});
+
+// ---- Owner brief 2026-10-13, creation: Ctrl/Cmd+K with nothing selected adds, at an insertion anchor. ----
+const worldOfScreen = (page, x, y) => page.evaluate(([px, py]) => {
+  const surface = document.querySelector('[data-canvas-surface]'), world = [...surface.querySelectorAll('div')].find(d => /scale\(/.test(d.style.transform));
+  const [tx, ty, z] = world.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([-\d.]+)\)/).slice(1).map(Number), at = surface.getBoundingClientRect();
+  return { x: (px - at.left - tx) / z, y: (py - at.top - ty) / z };
+}, [x, y]);
+await run('Creation: nothing selected, Ctrl+K adds at the last empty-canvas click; Edit is off; a note and a native diagram land at the anchor, one Undo each', async () => {
+  const { page, context, saved } = await open('create');
+  const n23 = await shapeCenter(page, 'n23');
+  const click = { x: n23.x + 260, y: n23.y };
+  await page.mouse.click(click.x, click.y);
+  const before = JSON.stringify(await saved());
+  await ctrlK(page);
+  await page.locator('[data-inline-prompt]').waitFor({ timeout: 5000 });
+  check('nothing selected: the editor opens to add, in Explain, with its own placeholder', (await page.locator('[data-inline-prompt]').getAttribute('placeholder')) === 'What would you like to add or understand?' && (await modeOf(page)) === 'explain');
+  const marker = await page.locator('[data-inline-anchor]').boundingBox();
+  check('a subtle marker sits at the last deliberate click on empty canvas', Math.abs(marker.x + marker.width / 2 - click.x) <= 2 && Math.abs(marker.y + marker.height / 2 - click.y) <= 2, JSON.stringify({ marker, click }));
+  await page.locator('[data-inline-mode-toggle]').click();
+  check('Edit is off, and says why', await page.locator('[data-inline-mode="edit"]').isDisabled() && (await page.locator('[data-inline-edit-disabled]').innerText()) === 'Select something to edit.');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-inline-context]').click();
+  check('Context: adding at the insertion point, the region read as support, the look to match, no Selection only', /^Adding at the insertion point/.test(await page.locator('[data-inline-context-target]').innerText())
+    && (await page.locator('[data-inline-context-entry="supporting"]').count()) > 0 && (await page.locator('[data-inline-context-style]').count()) === 1 && (await page.locator('[data-inline-selection-only]').count()) === 0);
+  await page.keyboard.press('Escape');
+  check('opening saved nothing', JSON.stringify(await saved()) === before);
+  await submitPrompt(page, 'Explain photosynthesis');
+  await waitStatus(page, ['preview']);
+  const asked = (await calls(page, 'decide')).at(-1).request;
+  const anchor = await worldOfScreen(page, click.x, click.y);
+  check('one check, for a creation request: no target ids, the anchor in world units, a compact region summary', asked.kind === 'creation' && !asked.targetIds && Math.abs(asked.anchor.x - anchor.x) <= 2 && Math.abs(asked.anchor.y - anchor.y) <= 2 && asked.region.length <= 1500 && /near the insertion point/.test(asked.region));
+  const ghost = await page.locator('[data-ghost-kind="note"]').boundingBox(), shell = await page.locator('[data-inline-ai]').boundingBox();
+  check('the note ghost shows where it lands, never under the composer', !!ghost && !(ghost.x < shell.x + shell.width && ghost.x + ghost.width > shell.x && ghost.y < shell.y + shell.height && ghost.y + ghost.height > shell.y), JSON.stringify({ ghost, shell }));
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  let board = await saved();
+  const notes = inlineShapes(board);
+  check('Accept adds one note at its ghost, with no connector (nothing was selected)', notes.length === 1 && !board.links.some(link => link.kind === 'annotation') && near(await screenOf(page, notes[0]), ghost, 3));
+  await page.mouse.click(click.x, click.y);
+  await page.keyboard.press('Control+z');
+  check('one Undo removes it', inlineShapes(await saved()).length === 0);
+  // A native diagram from words, at the anchor.
+  await page.mouse.click(click.x, click.y);
+  await ctrlK(page);
+  await submitPrompt(page, 'draw a diagram of the water cycle');
+  await waitStatus(page, ['preview']);
+  check('a diagram request makes a native diagram ghost near the anchor', (await page.locator('[data-ghost-kind="diagram"]').count()) === 1 && (await calls(page, 'generate')).at(-1).route === 'shapes');
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  board = await saved();
+  const shapes = board.shapes.filter(shape => shape.id.startsWith('inline-')), links = board.links.filter(link => link.id.startsWith('inline-'));
+  check('Accept adds its shapes and connectors in one go; nothing on the board moved', shapes.length === 3 && links.length === 2 && JSON.stringify(board.shapes.filter(shape => !shape.id.startsWith('inline-'))) === JSON.stringify(JSON.parse(before).shapes));
+  await page.mouse.click(click.x, click.y);
+  await page.keyboard.press('Control+z');
+  board = await saved();
+  check('one Undo removes the whole diagram', !board.shapes.some(shape => shape.id.startsWith('inline-')) && !board.links.some(link => link.id.startsWith('inline-')));
+  await context.close();
+});
+
+await run('Creation: a blank canvas reads only the request; a changed region during generation makes the result outdated, never silently placed', async () => {
+  const blank = await open('create-blank', { shapes: [], items: [], links: [], blocks: [], groups: [], exchanges: [] });
+  await blank.page.mouse.click(700, 400);
+  await ctrlK(blank.page);
+  await blank.page.locator('[data-inline-prompt]').waitFor({ timeout: 5000 });
+  await blank.page.locator('[data-inline-context]').click();
+  check('blank canvas: the context says so - no supporting material, the default look', /Empty canvas here/.test(await blank.page.locator('[data-inline-context-popover]').innerText()) && (await blank.page.locator('[data-inline-context-entry="supporting"]').count()) === 0);
+  await blank.context.close();
+  const { page, context, saved } = await open('create-stale');
+  const n23 = await shapeCenter(page, 'n23');
+  await page.mouse.click(n23.x + 200, n23.y);
+  await ctrlK(page);
+  await hold(page);
+  await submitPrompt(page, 'Explain what this part shows');
+  await waitStatus(page, ['generating', 'streaming']);
+  await typeWords(page, 'label23', ' and leaves');
+  await release(page);
+  await waitStatus(page, ['preview']);
+  await page.locator('[data-inline-accept]').click();
+  await page.locator('[data-inline-stale]').waitFor({ timeout: 5000 });
+  check('words around the anchor changed while it was made: Accept says it is outdated and offers Regenerate; nothing added', /changed while this was being made/.test(await page.locator('[data-inline-stale]').innerText()) && inlineShapes(await saved()).length === 0);
   await context.close();
 });
 await browser.close();

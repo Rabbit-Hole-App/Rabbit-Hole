@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
-import { buildContext, clippedOf, contextShape, staleness, unionBox } from './inline-ai-context.js';
+import { buildContext, buildCreationContext, clippedOf, contextShape, regionSummary, staleness, unionBox } from './inline-ai-context.js';
 import { cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
@@ -27,6 +27,7 @@ const busy = status => status === 'routing' || status === 'generating' || status
 
 // What the target indicator says: the selected words, one object by its words, or how many.
 export function targetLabel(target, board) {
+  if (target.creation) return 'New content at the insertion point';
   if (target.range) return `“${short(target.range.text, 40)}”`;
   if (target.ids.length > 1) return target.wholeGroup ? `Group · ${target.ids.length} objects` : `${target.ids.length} objects`;
   const id = target.ids[0];
@@ -49,7 +50,8 @@ const selectionKind = (target, board) => {
 // initialMode: 'edit' | 'explain' from the opener (the selection action bar's Quick Edit); else Edit for selected words,
 // Explain for objects.
 export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
-  const [mode, setMode] = useState(['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
+  // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
+  const [mode, setMode] = useState(target.creation ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
   const [selectionOnly, setSelectionOnly] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
@@ -101,7 +103,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // request: the learner's words, at submit - what the context is chosen for, with the selection (owner 2026-10-13).
   const prepare = (only = selectionOnly, request = '') => {
     const started = performance.now(), misses = canvas.cache.stats.misses;
-    const context = buildContext({ ...board(), boxes: canvas.layout() }, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
+    const live = { ...board(), boxes: canvas.layout() };
+    // A creation reads the region around its anchor; its look (style) travels apart from its subject (creation §4).
+    const context = target.creation
+      ? buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request, extras: config.extras?.() || {}, style: regionStyle(live, target.anchor) })
+      : buildContext(live, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -150,9 +156,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const made = prepare(selectionOnly, text);
         setPrepared(made);
         // The request the check decides and generation gets: the selection's ids or its exact words, and the context.
-        const request = target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
+        const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
+          : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { request, context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context) }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { request, context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
     });
   };
@@ -168,10 +175,20 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const reserved = () => noteSize('word '.repeat(80), canvas.measureNote);
   // One placement: the one placer (placeNote) over every kind of object on the board, beside the target; the camera
   // pans to it when the only free spot is off-screen.
+  // A creation's composer stands at its anchor, where the result wants to go: there the composer, with all the room it may
+  // grow into, is in the way too, so the result never lands under it where its ghost could not be seen. A selection's
+  // composer is placed clear of the selection already, and the result goes beside the selection.
+  const obstaclesNow = ids => [...canvas.obstacles(ids), ...(target.creation ? [{ x: (place.left - view.x) / view.z, y: (place.top - view.y) / view.z, w: place.width / view.z, h: height / view.z }] : [])];
   const placeFor = size => {
+    // A creation: the whole result near the anchor (inline-placement.js placeResult), never beside a selection it lacks.
+    if (target.creation) {
+      const spot = placeResult({ x: 0, y: 0, ...size }, target.anchor, obstaclesNow([]), canvas.visibleWorld());
+      if (spot.offscreen) canvas.reveal?.({ x: spot.x, y: spot.y, ...size });
+      return { x: spot.x, y: spot.y, side: spot.side, offscreen: spot.offscreen, size, target: { x: target.anchor.x - 1, y: target.anchor.y - 1, w: 2, h: 2 } };
+    }
     const targetBox = unionBox(target.ids.map(boxOfTarget));
     if (!targetBox) return null;
-    const spot = placeNote(targetBox, size, canvas.obstacles(target.ids), canvas.visibleWorld());
+    const spot = placeNote(targetBox, size, obstaclesNow(target.ids), canvas.visibleWorld());
     if (spot.offscreen) canvas.reveal?.({ x: spot.x, y: spot.y, ...size });
     return { ...spot, size, target: targetBox };
   };
@@ -182,7 +199,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     const at = anchorPoint();
     if (!at) return null;
     const style = regionStyle(board(), at), layout = layoutDiagram(spec, style);
-    const spot = placeResult(layout.bounds, at, canvas.obstacles(target.ids), canvas.visibleWorld());
+    const spot = placeResult(layout.bounds, at, obstaclesNow(target.ids), canvas.visibleWorld());
     if (spot.offscreen) canvas.reveal?.({ x: spot.x, y: spot.y, w: layout.bounds.w, h: layout.bounds.h });
     return { kind: 'diagram', style, layout, x: spot.x, y: spot.y, dx: spot.dx, dy: spot.dy, offscreen: spot.offscreen, size: { w: layout.bounds.w, h: layout.bounds.h }, final: true };
   };
@@ -252,10 +269,18 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       canvas.flushEdits?.();
       const now = board();
       const frozen = preview.frozen;
-      const check = staleness(frozen, now, canvas.cache, canvas.boardKey, canvas.describe);
+      // A creation has no selection to go stale; what it read around its anchor is checked below instead.
+      const check = target.creation ? { gone: [], content: false, relations: false } : staleness(frozen, now, canvas.cache, canvas.boardKey, canvas.describe);
       if (check.gone.length) return { stale: { gone: check.gone, text: 'The selection was deleted while this was being made.' } };
       if (check.content) return { stale: { content: true, text: 'The selection changed while this was being made.' } };
       if (check.relations && preview.kind !== 'edit') return { stale: { relations: true, text: 'Its connections changed since this was written.' } };
+      // A creation read what was around its anchor: when that changed (words, links, the region's material), the result
+      // may be outdated - say so and offer to regenerate; a pan or a zoom never does (creation §9).
+      if (target.creation) {
+        const live = { ...now, boxes: canvas.layout() };
+        const fresh = buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request: frozen.words || '', extras: config.extras?.() || {} });
+        if (fresh.prints.context !== frozen.prints?.context) return { stale: { content: true, text: 'What is around it changed while this was being made.' } };
+      }
       let tx;
       if (preview.kind === 'note') {
         const spot = placements[preview.requestId];
@@ -307,7 +332,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // Where the popover goes: beside the target, never over it, inside the canvas surface (§10).
   const surface = canvas.surfaceSize();
   const targetScreen = (() => {
-    const world = unionBox(target.ids.map(boxOfTarget));
+    // A creation is placed by its insertion anchor, as a selection is by its box.
+    const world = target.creation ? { x: target.anchor.x - 1, y: target.anchor.y - 1, w: 2, h: 2 } : unionBox(target.ids.map(boxOfTarget));
     if (!world) return null;
     return { x: world.x * view.z + view.x, y: world.y * view.z + view.y, w: world.w * view.z, h: world.h * view.z };
   })();
@@ -357,6 +383,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             every other selection stays blue. */}
         <style data-inline-target-color>{`${[...target.ids.flatMap(id => ['shape-id', 'item-id', 'block-id', 'link-for'].map(key => `[data-${key}="${CSS.escape(id)}"]`)),
           ...(target.groupId && target.wholeGroup ? [`[data-group-box="${CSS.escape(target.groupId)}"]`] : [])].join(',')}{--color-select:var(--color-ai)}`}</style>
+        {/* A creation's insertion anchor: a subtle mark where the result will go near (creation §3); never saved. */}
+        {target.creation && <div data-inline-anchor className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ai bg-white/80 dark:bg-[#202020]/80"
+          style={{ left: target.anchor.x * z + view.x, top: target.anchor.y * z + view.y }} />}
         {target.ids.map(id => canvas.boxOf(id)).filter(Boolean).map((world, index) => (
           <div key={index} data-inline-target className="absolute rounded-md outline-2 outline-offset-4 outline-dashed outline-ai"
             style={{ left: world.x * z + view.x, top: world.y * z + view.y, width: world.w * z, height: world.h * z }} />
@@ -370,7 +399,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           if (!g?.size || !text) return null;
           const left = g.x * z + view.x, top = g.y * z + view.y, w = g.size.w * z, h = g.size.h * z;
           const port = (box, side) => ({ x: side === 'left' ? box.x : side === 'right' ? box.x + box.w : box.x + box.w / 2, y: side === 'top' ? box.y : side === 'bottom' ? box.y + box.h : box.y + box.h / 2 });
-          const [fromSide, toSide] = FACING[g.side];
+          const [fromSide, toSide] = FACING[g.side] || FACING.right;
           const from = port({ x: left, y: top, w, h }, fromSide);
           const t = g.target, to = port({ x: t.x * z + view.x, y: t.y * z + view.y, w: t.w * z, h: t.h * z }, toSide);
           return (
@@ -391,7 +420,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           if (!g?.size || !['preview', 'proposal'].includes(status)) return null;
           const left = g.x * z + view.x, top = g.y * z + view.y, w = g.size.w * z, h = g.size.h * z;
           const port = (box, side) => ({ x: side === 'left' ? box.x : side === 'right' ? box.x + box.w : box.x + box.w / 2, y: side === 'top' ? box.y : side === 'bottom' ? box.y + box.h : box.y + box.h / 2 });
-          const [fromSide, toSide] = FACING[g.side];
+          const [fromSide, toSide] = FACING[g.side] || FACING.right;
           const from = port({ x: left, y: top, w, h }, fromSide), t = g.target, to = port({ x: t.x * z + view.x, y: t.y * z + view.y, w: t.w * z, h: t.h * z }, toSide);
           return (
             <>
@@ -459,7 +488,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-md text-ink-3 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai"><X size={14} /></button>
         <textarea ref={field} rows={2} value={prompt} onChange={event => setPrompt(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
           aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
-          placeholder={mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
+          placeholder={target.creation ? 'What would you like to add or understand?' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
           disabled={readOnly} style={{ maxHeight: PROMPT_H }}
           className="min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 pr-7 text-sm leading-5 outline-none placeholder:text-ink-3" />
         {readOnly && <p data-inline-readonly className="mt-1 text-xs text-ink-2">This canvas is view-only, so Edit and Explain can't add to it.</p>}
@@ -471,7 +500,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           // While words stream in, the box keeps one height and scrolls: the composer never grows per chunk.
           <div data-inline-preview="note" data-scroll className={`mt-2 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-sm leading-5 whitespace-pre-wrap ${status === 'streaming' ? 'h-40' : 'max-h-40'}`}>
             {status === 'streaming' || !preview ? streamText : preview.text}
-            <p className="mt-1 text-[11px] text-ink-3">{status === 'streaming' ? 'Writing… (not on the canvas until you accept)' : `Adds an editable note${target.ids.length === 1 ? ' with an arrow' : ''} beside the selection.`}</p>
+            <p className="mt-1 text-[11px] text-ink-3">{status === 'streaming' ? 'Writing… (not on the canvas until you accept)' : target.creation ? 'Adds an editable note at the insertion point.' : `Adds an editable note${target.ids.length === 1 ? ' with an arrow' : ''} beside the selection.`}</p>
           </div>
         ) : null}
         {(state.stream?.edits && busy(status)) && (
@@ -554,11 +583,13 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
               <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
                 {MODES.map(([value, label]) => (
                   <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
+                    disabled={target.creation && value === 'edit'} title={target.creation && value === 'edit' ? 'Select something to edit.' : undefined}
                     onClick={() => { setMode(value); setModeOpen(false); field.current?.focus({ preventScroll: true }); }}
-                    className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover">
+                    className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">
                     <span className="flex w-3.5 justify-center">{mode === value && <Check size={13} className="text-ai" />}</span>{label}
                   </button>
                 ))}
+                {target.creation && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">Select something to edit.</p>}
               </div>
             )}
             {busy(status) ? (
@@ -578,19 +609,21 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             className={`absolute left-0 z-50 max-h-64 w-80 max-w-full overflow-y-auto rounded-xl border border-line bg-white p-2 text-xs text-ink-2 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
             {!prepared ? <p>Preparing context…</p> : (
               <ul data-inline-context-list className="space-y-0.5">
-                <li data-inline-context-target className="font-medium text-ai">Selected{mode === 'edit' ? ' · the only thing an edit changes' : ''}</li>
+                <li data-inline-context-target className="font-medium text-ai">{target.creation ? 'Adding at the insertion point' : `Selected${mode === 'edit' ? ' · the only thing an edit changes' : ''}`}</li>
+                {target.creation && <li data-inline-context-entry="anchor" className="pl-2">{prepared.context.related.length ? 'Nothing selected; read with what is around it.' : 'Empty canvas here: your words and the default look.'}</li>}
                 {prepared.context.target.objects.map(entry => <li key={entry.id} data-inline-context-entry="selected" className="truncate pl-2">{LABEL[entry.type] || entry.type}{entry.flattened ? ' (flattened image)' : ''} · {short(target.range && target.range.id === entry.id ? target.range.text : entry.text)}</li>)}
                 {!selectionOnly && <li data-inline-context-group="supporting" className="pt-1 font-medium text-ink">Supporting · read-only{prepared.context.related.length ? '' : ': none found'}</li>}
                 {prepared.context.related.map(entry => <li key={entry.id} data-inline-context-entry="supporting" className="truncate pl-2">{RELATION[entry.relation] || entry.relation} · {LABEL[entry.type] || entry.type} · {short(entry.text)}</li>)}
                 {prepared.context.target.group && <li className="truncate pl-2">group “{short(prepared.context.target.group.label || 'untitled', 30)}”</li>}
                 {prepared.context.metadata.canvasTitle && <li className="truncate pl-2">canvas title “{short(prepared.context.metadata.canvasTitle, 40)}” (background only)</li>}
+                {prepared.context.style && <li data-inline-context-style className="truncate pl-2">look to match: {prepared.context.style.from ? `${prepared.context.style.kind} shapes, ${prepared.context.style.route} arrows` : 'the default (nothing drawn nearby)'}</li>}
                 <li data-inline-context-group="limits" className="pt-1 font-medium text-ink">Limits</li>
                 {selectionOnly ? <li className="pl-2">Surroundings left out (selection only).</li>
                   : <li data-inline-context-scope className="pl-2">{considered > 0 ? `Chosen by relevance from ${considered} other object${considered === 1 ? '' : 's'} on the canvas. The rest were not sent.` : 'Nothing else is on the canvas.'}</li>}
                 {omittedTotal > 0 && <li className="pl-2">{omittedTotal} more relevant left out by the limits.</li>}
               </ul>
             )}
-            <label className="mt-2 flex items-center gap-1.5 border-t border-line pt-2 text-ink"><input type="checkbox" data-inline-selection-only checked={selectionOnly} disabled={busy(status) || !!preview} title={preview ? 'This preview was made with this scope. Reject it to change the scope.' : undefined} onChange={event => setSelectionOnly(event.target.checked)} className="h-3 w-3 accent-[var(--color-ai)]" />Selection only</label>
+            {!target.creation && <label className="mt-2 flex items-center gap-1.5 border-t border-line pt-2 text-ink"><input type="checkbox" data-inline-selection-only checked={selectionOnly} disabled={busy(status) || !!preview} title={preview ? 'This preview was made with this scope. Reject it to change the scope.' : undefined} onChange={event => setSelectionOnly(event.target.checked)} className="h-3 w-3 accent-[var(--color-ai)]" />Selection only</label>}
           </div>
         )}
       </div>

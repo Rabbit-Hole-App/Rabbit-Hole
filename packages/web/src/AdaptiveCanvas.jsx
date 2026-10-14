@@ -2614,6 +2614,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // What Ctrl/Cmd+K would act on now: the words selected in the open text editor (precedence 1), that editor's object, or
   // the canvas selection - frozen (§2). null: nothing eligible, or the focus is somewhere that is not the canvas's.
   // fromKey: only the keyboard path asks where the focus is (a menu row's own focus is the menu's).
+  // Creation (owner brief 2026-10-13 §1-§3): with nothing selected and the canvas focused, the editor opens to add, at an
+  // insertion anchor in world units - the last deliberate click on empty canvas when it is still in view, else the middle
+  // of the view. Nothing is saved by opening.
+  const lastEmptyClick = useRef(null);
+  const insertionAnchor = () => {
+    const area = visibleArea(), v = viewRef.current;
+    const seen = { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z };
+    const click = lastEmptyClick.current;
+    if (click && click.x >= seen.x && click.x <= seen.x + seen.w && click.y >= seen.y && click.y <= seen.y + seen.h) return { x: Math.round(click.x), y: Math.round(click.y), from: 'click' };
+    return { x: Math.round(seen.x + seen.w / 2), y: Math.round(seen.y + seen.h / 2), from: 'view' };
+  };
   const inlineTarget = (fromKey = false) => {
     if (!inlineAiRef.current || presentingRef.current !== null) return null;
     const board = inlineBoard();
@@ -2630,7 +2641,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const held = document.activeElement;
     if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
     const target = freezeTarget(board, selectedRef.current);
-    return target && { target };
+    if (target) return { target };
+    // Nothing selected (a populated canvas is not a blank one): the same editor, to add. From the keyboard only while the
+    // canvas has the focus - never from a field, a dialog or a menu (checked above) or another part of the page.
+    if (selectedRef.current.length || readOnly || (fromKey && held && held !== document.body && !shell.current?.contains(held))) return null;
+    return { target: { ids: [], range: null, groupId: null, creation: true, anchor: insertionAnchor() } };
   };
   // mode: the editor's first mode, 'edit' | 'explain' (the selection action bar's Quick Edit passes 'edit'); null keeps
   // the editor's own default.
@@ -3739,6 +3754,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (tool === 'hand') { pan(event); return; }
     if (event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) return;
     if (drawGesture(event, canvasStore)) return;
+    // A deliberate click on empty canvas is where Ctrl/Cmd+K with nothing selected adds (owner brief 2026-10-13,
+    // creation §3). Pointer movement alone never is.
+    if (tool === 'select' && !event.shiftKey) lastEmptyClick.current = local(event);
     if (tool === 'select') { startMarquee(event, event.shiftKey); return; }
     setSelected(null);
     pan(event);
