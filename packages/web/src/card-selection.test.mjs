@@ -135,8 +135,28 @@ test('Ask in chat on a dropped image, a text box and a sticky note: the cards\' 
   assert.match(canvas, /\{ask && sticky && askPill\}/);
   assert.match(canvas, /style=\{sticky \? \{ left: item\.x \+ \(item\.w \|\| 160\), top: item\.y - 40 \} : null\}/, 'on the cards\' pill row, right-aligned to the note');
   // The pin slot reserves the pill for an image (a block) and a text box or note (an item): PILL.ask (comments.test.mjs).
-  // A Code exercise's row also holds Open in Notebook (canvas-notebook.md).
-  assert.match(canvas, /if \(block\) return PILL\.ask \+ \(block\.type === 'whiteboard' \|\| block\.type === 'paper' \? PILL\.gap \+ PILL\.select : 0\) \+ \(block\.type === 'code' \? PILL\.gap \+ PILL\.notebook : 0\);\n\s+if \(exchanges\.some\(entry => entry\.id === id\)\) return PILL\.explain \+ PILL\.gap \+ PILL\.more;\n\s+return PILL\.ask;/);
+  // A Code exercise's and a Code sample's row also hold the Open in notebook icon (canvas-notebook.md).
+  assert.match(canvas, /if \(block\) return PILL\.ask \+ \(block\.type === 'whiteboard' \|\| block\.type === 'paper' \? PILL\.gap \+ PILL\.select : 0\) \+ \(block\.type === 'code' \|\| block\.type === 'snippet' \? PILL\.gap \+ PILL\.notebook : 0\);\n\s+if \(exchanges\.some\(entry => entry\.id === id\)\) return PILL\.explain \+ PILL\.gap \+ PILL\.more;\n\s+return PILL\.ask;/);
+});
+
+// Owner, 2026-10-13: "code card should have a small icon next to Open or Ask in chat which says Open in notebook": one
+// icon-only button named Open in notebook, never the old text button, in one casing.
+test('Open in notebook is a compact icon button on every code card, named Open in notebook', () => {
+  const canvas = read('./AdaptiveCanvas.jsx');
+  const button = canvas.slice(canvas.indexOf('function NotebookButton('), canvas.indexOf('function ModePill('));
+  assert.match(button, /aria-label="Open in notebook"/);
+  assert.match(button, /title=\{made\.disabled \|\| 'Open in notebook'\}/);
+  assert.match(button, /<NotebookPen size=\{13\} aria-hidden="true" \/>\n\s+<\/button>/, 'the icon alone, no text beside it');
+  assert.doesNotMatch(canvas, /Open in Notebook/);
+});
+
+// Owner, 2026-10-13: "Edit or explain" -> "Quick Edit". The Ctrl+K action is named Quick Edit in the canvas right-click menu
+// and the page's Edit menu, and asks the editor to open in Edit selection mode (the inline editor's open path takes the mode).
+test('the Ctrl+K menu rows read Quick Edit and open in Edit mode', () => {
+  const canvas = read('./AdaptiveCanvas.jsx'), page = read('./LearnPage.jsx');
+  assert.match(canvas, /data-menu-inline-ai hint="Ctrl K" disabled=\{!selection\.length\} onClick=\{act\(\(\) => openInline\(performance\.now\(\), false, 'edit'\)\)\}>Quick Edit<\/MenuRow>/);
+  assert.match(page, /\{ label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState\.selected \|\| !inlineAi, onSelect: \(\) => canvas\(\)\?\.inlineAi\?\.\('edit'\) \}/);
+  assert.doesNotMatch(canvas + page, /Edit or explain/);
 });
 
 // Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc... each options should have an icon next to it".

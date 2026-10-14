@@ -339,6 +339,70 @@ await run('open in notebook', async () => {
   await context.close();
 });
 
+// Owner, 2026-10-13: "code card should have a small icon next to Open or Ask in chat which says Open in notebook". On a Code
+// sample (block type snippet) a small icon-only button named Open in notebook sits right beside Ask in chat, and makes the
+// notebook from the sample's code; for a JavaScript sample it is off, with the reason. A fresh page: the camera is where
+// it started, so both cards are on screen.
+await run('open in notebook: code sample icon', async () => {
+  const sample = { id: 'cs', type: 'snippet', dx: 0, dy: 80, title: 'Sample', brief: 'A Python sample.', code: 'x = 1\nprint(x)', output: '1' };
+  const js = { id: 'jsnip', type: 'snippet', dx: 0, dy: 0, title: 'Next in JS', brief: 'A JavaScript sample.', language: 'javascript', code: 'let a = 1', output: '' };
+  const { page, context, saved } = await open('open-notebook-sample', { blocks: [sample, js] });
+  const card = id => page.locator(`[data-block-id="${id}"]`);
+  const button = id => card(id).getByRole('button', { name: 'Open in notebook', exact: true });
+  await card('jsnip').getByText('Next in JS').click();
+  check('a JavaScript Code sample shows the icon off, with the reason', (await button('jsnip').isDisabled()) && (await button('jsnip').getAttribute('title')) === 'Notebooks run Python only');
+  await card('cs').getByText('Sample', { exact: true }).click();
+  const icon = button('cs'), ask = card('cs').getByRole('button', { name: 'Ask in chat', exact: true });
+  const [iconBox, askBox] = [await icon.boundingBox(), await ask.boundingBox()];
+  check('a Code sample shows a small Open in notebook icon button, named Open in notebook, with a tooltip', !!iconBox && (await icon.isVisible()) && (await icon.getAttribute('title')) === 'Open in notebook' && (await icon.innerText()).trim() === '' && (await icon.locator('svg').count()) === 1 && iconBox.y >= 0 && iconBox.width <= 40 && iconBox.height <= 40, JSON.stringify(iconBox));
+  check('and it sits right beside Ask in chat, on the same row', !!iconBox && !!askBox && iconBox.x >= askBox.x + askBox.width - 1 && iconBox.x - (askBox.x + askBox.width) <= 16 && Math.abs((iconBox.y + iconBox.height / 2) - (askBox.y + askBox.height / 2)) <= 4, JSON.stringify({ iconBox, askBox }));
+  await icon.click();
+  const board = await saved();
+  const made = board.blocks.filter(block => block.type === 'notebook');
+  check('clicking it makes one notebook, holding the sample code verbatim in one cell', made.length === 1 && JSON.stringify(made[0].ipynb.cells.map(cell => cell.source)) === JSON.stringify([sample.code]), JSON.stringify(made.map(block => block.ipynb.cells.map(cell => cell.source))));
+  const kept = board.blocks.find(block => block.id === 'cs');
+  check('the Code sample is still there, unchanged', kept && ['title', 'brief', 'code', 'output'].every(key => kept[key] === sample[key]), JSON.stringify(kept));
+  await context.close();
+});
+
+// Ctrl/Cmd+click on a lesson card picks that one card, in a group or not, as it does for a shape or a text box (the inline
+// agent's find, 2026-10-13). A group's box is painted over its cards, so the press used to land on the box and start a
+// Ctrl-marquee that selected nothing. A Ctrl-drag from empty canvas still box-selects.
+await run('ctrl-click a card in a group', async () => {
+  const card = (id, title, extra = {}) => ({ id, type: 'explanation', dx: 0, dy: 0, title, body: 'Words of the card.', ...extra });
+  const { page, context } = await open('ctrl-card-group', {
+    blocks: [card('b1', 'One', { groupId: 'g1' }), card('b2', 'Two', { groupId: 'g1' }), card('b3', 'Three')],
+    groups: [{ id: 'g1', label: 'pair' }],
+  });
+  const picked = () => page.evaluate(() => [...document.querySelectorAll('[data-block-id][aria-current="true"]')].map(node => node.dataset.blockId).sort());
+  const onCard = async id => { const box = await page.locator(`[data-block-id="${id}"]`).boundingBox(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
+  const press = async (id, modifier) => { const at = await onCard(id); await page.keyboard.down(modifier); await page.mouse.click(at.x, at.y); await page.keyboard.up(modifier); };
+  const at1 = await onCard('b1');
+  await page.mouse.click(at1.x, at1.y);
+  check('a plain click on a grouped card picks the whole group', JSON.stringify(await picked()) === JSON.stringify(['b1', 'b2']), JSON.stringify(await picked()));
+  await press('b1', 'Control');
+  check('Ctrl+click on a grouped card picks only that card', JSON.stringify(await picked()) === JSON.stringify(['b1']), JSON.stringify(await picked()));
+  await press('b2', 'Control');
+  check('Ctrl+click on the other grouped card picks only that one', JSON.stringify(await picked()) === JSON.stringify(['b2']), JSON.stringify(await picked()));
+  await press('b1', 'Meta');
+  check('Cmd+click picks one grouped card too', JSON.stringify(await picked()) === JSON.stringify(['b1']), JSON.stringify(await picked()));
+  await press('b3', 'Control');
+  check('Ctrl+click on a card outside a group picks it, as before', JSON.stringify(await picked()) === JSON.stringify(['b3']), JSON.stringify(await picked()));
+  // A Ctrl-drag that starts on empty canvas (left of the column) still draws the box and selects what it touches.
+  await page.keyboard.press('Escape');
+  await page.keyboard.down('Control');
+  await page.mouse.move(150, 500);
+  await page.mouse.down();
+  await page.mouse.move(800, 100, { steps: 8 });
+  const drawn = await page.locator('rect[fill="rgba(35, 131, 226, 0.08)"]').count();
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  const swept = await picked();
+  check('a Ctrl-drag from empty canvas still draws the selection box', drawn === 1, `rects ${drawn}`);
+  check('and selects the cards it touches', ['b1', 'b2', 'b3'].every(id => swept.includes(id)), JSON.stringify(swept));
+  await context.close();
+});
+
 
 const shapeOf = async (saved, id) => (await saved()).shapes.find(shape => shape.id === id);
 const near = (a, b, tolerance = 0.6) => Math.abs(a - b) <= tolerance;
@@ -821,6 +885,11 @@ await run('composer and suggestions', async () => {
   const selectedBefore = await page.locator('[data-item-id].ring-2').count();
   await page.locator('[data-chat-composer]').fill('my unsent draft');
   const tall = await strip();
+  // Owner, 2026-10-13: the hide icon "should be better placed and not hanging above": one more icon button in the composer's own
+  // row, fully inside its surface and clear of the text area (the stand-in's row stands for the composer's form).
+  const [hideBox, rowBox, fieldBox] = [await page.locator('[data-composer-hide]').boundingBox(), await page.locator('[data-composer-standin]').boundingBox(), await page.locator('[data-chat-composer]').boundingBox()];
+  check('the hide button lies fully inside the composer, never hanging over its border', !!hideBox && !!rowBox && hideBox.x >= rowBox.x && hideBox.y >= rowBox.y && hideBox.x + hideBox.width <= rowBox.x + rowBox.width && hideBox.y + hideBox.height <= rowBox.y + rowBox.height, JSON.stringify({ hideBox, rowBox }));
+  check('and clear of the text area', !!hideBox && !!fieldBox && hideBox.x >= fieldBox.x + fieldBox.width - 1, JSON.stringify({ hideBox, fieldBox }));
   await page.getByRole('button', { name: 'Hide chat composer' }).click();
   check('Hide chat composer removes it from view and frees its room', (await strip()) === 0 && tall > 0 && await page.getByRole('button', { name: 'Show chat composer' }).isVisible());
   check('hiding keeps the viewport and the selection', (await viewOf(page)) === view && (await page.locator('[data-item-id].ring-2').count()) === selectedBefore);

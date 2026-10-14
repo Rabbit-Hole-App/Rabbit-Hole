@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, MessagesSquare, ChevronDown, ChevronUp, FolderTree, MessageCircle, Pin, Search, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, FolderTree, MessageCircle, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): three icon tabs grouped
@@ -17,10 +17,9 @@ export const PANEL_TABS = [
 const OFF_TITLE = 'Comments are on saved canvases';
 
 // commentsUnread: threads with news for you; the Comments tab carries a dot while there are any.
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, filesOn = false, conversationOn = false }) {
+export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, filesOn = false }) {
   const off = id => id === 'comments' && !commentsOn;
   const TABS = PANEL_TABS.filter(entry => entry.id !== 'files' || filesOn);
-  if (conversationOn) TABS.push({ id: 'conversation', label: 'Card conversation', Icon: MessagesSquare });
   const ENABLED = TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
   const arrow = event => {

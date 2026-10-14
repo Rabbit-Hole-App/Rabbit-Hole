@@ -29,13 +29,17 @@ test('a card shown on the canvas is material; a Show chip is not', () => {
 test('a question the Tutor asks stays beside its material: the next turn answers it', () => {
   const asked = { type: 'ask_question', text: 'Which part feels unclear?', claim: 'c' };
   assert.deepEqual(destinationOf(result([say('It squashes.'), make(), asked])), { material: true, to: 'tray', text: 'Which part feels unclear?' });
-  assert.deepEqual(destinationOf(result([make(), asked]), selected), { material: true, to: 'conversation', text: 'Which part feels unclear?' });
+  // A selected card changes nothing here (owner 2026-10-13: no Card Conversation panel): the same place as with no selection.
+  assert.deepEqual(destinationOf(result([make(), asked]), selected), { material: true, to: 'tray', text: 'Which part feels unclear?' });
+  assert.deepEqual(destinationOf(result([make(), asked])), { material: true, to: 'tray', text: 'Which part feels unclear?' });
 });
 
-test('words only: a card with no selection, the panel for selected-card discussion, a linked card for a region', () => {
+test('words only: a card, with or without a selected card, and a linked card for a region', () => {
   assert.deepEqual(destinationOf(result([say('A curve.')])), { material: false, to: 'card', text: 'A curve.' });
-  assert.deepEqual(destinationOf(result([say('A curve.')]), selected), { material: false, to: 'conversation', text: 'A curve.' });
-  assert.deepEqual(destinationOf(result([say('A curve.')]), { ...selected, asked: true }), { material: false, to: 'conversation', text: 'A curve.' });
+  // Owner 2026-10-13: "we do not need Card Conversation in right side panel". A question about a selected card is answered
+  // where an ordinary chat answer goes, a card; the selection only scopes the question.
+  assert.deepEqual(destinationOf(result([say('A curve.')]), selected), { material: false, to: 'card', text: 'A curve.' });
+  assert.deepEqual(destinationOf(result([say('A curve.')]), { ...selected, asked: true }), { material: false, to: 'card', text: 'A curve.' });
   assert.deepEqual(destinationOf(result([say('A curve.')]), { id: 'area:1', kind: 'area', title: 'Area' }), { material: false, to: 'card', text: 'A curve.' });
 });
 
@@ -63,9 +67,15 @@ test('no words: chips alone draw nothing here; a turn with no action says so abo
   assert.deepEqual(destinationOf(null), { material: false, to: 'tray', text: 'Nothing to add here yet.' });
 });
 
-test('option B: unselected answers create one card; selected-card discussion stays in the panel even after Ask in chat', () => {
+test('option B: an answer creates one card, selected or not, even after Ask in chat; no answer ever routes to a card conversation', () => {
   assert.equal(destinationOf(result([say('A curve.')])).to, 'card');
-  assert.equal(destinationOf(result([say('A curve.')]), { ...selected, asked: true }).to, 'conversation');
+  assert.equal(destinationOf(result([say('A curve.')]), { ...selected, asked: true }).to, 'card');
+  // The old destination is gone for every kind of turn (owner 2026-10-13).
+  for (const target of [null, selected, { ...selected, asked: true }]) {
+    for (const reply of [result([say('A curve.')]), result([make(), { type: 'ask_question', text: 'Which part?', claim: 'c' }]), { ...result([say('Here.'), make()]), sourceAnswer: 'From the source.' }]) {
+      assert.notEqual(destinationOf(reply, target).to, 'conversation');
+    }
+  }
 });
 
 test('a planner-declared teaching request creates a card, without matching English keywords', () => {
@@ -82,7 +92,7 @@ test('failed or refused source retrieval is clarification/error above chat, neve
 
 test('material suppresses planner narration but preserves a distinct retrieved source answer', () => {
   const reply = { ...result([say('Here is the lesson.'), make(), { type: 'handoff' }]), sourceAnswer: 'The source calls normalize first.', bench: { handoff: { outcome: 'ok' } } };
-  assert.deepEqual(destinationOf(reply, selected), { material: true, to: 'conversation', text: reply.sourceAnswer });
+  assert.deepEqual(destinationOf(reply, selected), { material: true, to: 'card', text: reply.sourceAnswer });
   assert.deepEqual(destinationOf(reply), { material: true, to: 'card', text: reply.sourceAnswer });
 });
 
@@ -97,7 +107,7 @@ test('automatic hole openings stay above chat instead of keeping an empty hole w
   assert.equal(destinationOf({ ...opening, turn: { raw_user_message: 'Explain attention' } }).to, 'card');
 });
 
-test('a proposed learning path is setup before a journey exists: no canvas card or selected-card conversation', () => {
+test('a proposed learning path is setup before a journey exists: no canvas card', () => {
   const proposal = result([say('Let us build a learning path.'), { type: 'suggest_journey', request: 'logistic regression' }], {
     raw: 'I want to learn logistic regression',
   });

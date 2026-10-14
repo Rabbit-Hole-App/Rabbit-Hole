@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -14,7 +14,7 @@ import { isLearnResource } from './library-filter.js';
 import { recentLaunch } from './sidebar-nav.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
-import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 import { isInternalPrincipal, personLabel, saveProfile, useProfile, useSessionDisplay, useShownIdentity } from './session-display.js';
 import { fieldHandle } from '../../control-plane/src/handle.js';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
@@ -1381,7 +1381,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             onClick={() => navigate('/chat')}
             className={cn('flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-line px-4 text-sm shadow-sm hover:bg-hover', path === '/chat' ? 'bg-active' : 'bg-white')}
           >
-            <AppIcon size={16} className="h-4 w-4 shrink-0" />
+            <MessageSquarePlus size={16} strokeWidth={1.5} className="shrink-0" />
             New chat
             <span className="ml-auto shrink-0 text-xs text-ink-3">Ctrl + O</span>
           </button>
@@ -1394,7 +1394,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
               <Plus size={16} strokeWidth={1.5} />
             </button>
             <Menu open={newMenu} onClose={() => setNewMenu(false)} className="bottom-11 right-0 w-40">
-              <MenuItem icon={AppIcon} onClick={() => { setNewMenu(false); navigate('/chat'); }}>Chat</MenuItem>
+              <MenuItem icon={MessageSquare} onClick={() => { setNewMenu(false); navigate('/chat'); }}>Chat</MenuItem>
               <MenuItem icon={FolderPlus} onClick={() => { setNewMenu(false); setNewFolder(''); }}>Folder</MenuItem>
               <MenuItem icon={Plus} onClick={() => { setNewMenu(false); setNewApp(true); }}>App</MenuItem>
             </Menu>

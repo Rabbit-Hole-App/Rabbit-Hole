@@ -37,6 +37,18 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');
 });
 
+// Owner, 2026-10-13: "the icon to hide the main chat composer, should be better placed and not hanging above". It is the composer's
+// own icon button in its own row (ChatComposer.jsx, through the canvas's ComposerHide context), not a pill the canvas positions
+// from outside over the composer's top border. e2e/canvas-shell-check.mjs measures that it lies inside the composer.
+test('Hide chat composer is a button in the composer row, before Send, not a pill hanging over its border', () => {
+  const composer = read('ChatComposer.jsx');
+  assert.match(composer, /export const ComposerHide = createContext\(null\);/);
+  assert.match(composer, /data-composer-hide aria-label="Hide chat composer" title="Hide chat composer - your draft stays" onClick=\{hide\} className=\{COMPOSER_ADD\}><ChevronDown size=\{14\} strokeWidth=\{1\.5\} \/>/);
+  assert.match(composer, /\{trailing\}\n\s+\{dock && <ComposerHideButton \/>\}\n\s+\{voice \? null/, 'in the row, after the field and before Send');
+  assert.match(canvas, /<ComposerHide\.Provider value=\{hideComposer\}>\{composer\}<\/ComposerHide\.Provider>/);
+  assert.doesNotMatch(canvas, /data-composer-hide|absolute -top-2\.5 right-4/, 'the canvas no longer positions the button over the composer');
+});
+
 // Owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much". The canvas runs to the
 // bottom and the strip floats over it; chrome may float over the canvas but never hides what the learner cannot reach.
 test('the bottom strip floats: the canvas runs to the bottom, the strip lets the pointer through, only its controls take it', () => {

@@ -1,4 +1,5 @@
-import { ArrowUp, Loader2, Square } from 'lucide-react';
+import { createContext, useContext } from 'react';
+import { ArrowUp, ChevronDown, Loader2, Square } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 
 // Every agent uses the same input, focus treatment, send control and sizing.
@@ -18,6 +19,13 @@ import { composerKey } from './composer-keys.js';
 export const COMPOSER_ADD = 'inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-line text-ink-2 hover:bg-hover hover:text-ink max-md:w-8';
 export const COMPOSER_PILL = 'h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5';
 export const DOCK_WIDTH = 'mx-auto w-full max-w-[780px]';
+// The canvas provides a hide function around its composer (AdaptiveCanvas, owner 2026-10-13: the hide icon "should be better placed and
+// not hanging above"): the dock composer then shows Hide chat composer as one more icon button in its own row, before Send.
+export const ComposerHide = createContext(null);
+export function ComposerHideButton() {
+  const hide = useContext(ComposerHide);
+  return hide ? <button type="button" data-composer-hide aria-label="Hide chat composer" title="Hide chat composer - your draft stays" onClick={hide} className={COMPOSER_ADD}><ChevronDown size={14} strokeWidth={1.5} /></button> : null;
+}
 // The strip under the dock; env() adds the phone's safe area and is 0 elsewhere.
 export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-md:px-3 max-md:pt-2 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]';
 
@@ -38,6 +46,7 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     {leading}
     {voice || field}
     {trailing}
+    {dock && <ComposerHideButton />}
     {voice ? null : busy && onStop ? (
       <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white ${dock ? 'h-9 w-9' : 'h-6 w-6'}`}>
         <Square size={dock ? 13 : 10} fill="currentColor" />

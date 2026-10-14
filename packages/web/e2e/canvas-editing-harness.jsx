@@ -7,6 +7,7 @@
 import { useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import AdaptiveCanvas from '../src/AdaptiveCanvas.jsx';
+import { ComposerHideButton } from '../src/ChatComposer.jsx';
 import { NextStepsCard } from '../src/ask.jsx';
 import { nextStepsController } from '../src/learn-next-steps.js';
 import '../src/index.css';
@@ -47,7 +48,7 @@ function Harness() {
         onAdd={list => setExchanges(previous => [...previous, ...list])} onRestore={setExchanges} onDelete={id => setExchanges(list => list.filter(entry => entry.id !== id))}
         apiRef={api} storageKey={readOnly ? null : KEY} boardState={state} readOnly={readOnly}
         hooks={params.get('hooks') === '1' ? <Hooks /> : null}
-        composer={<textarea data-chat-composer aria-label="Composer stand-in" placeholder="Composer" className="h-10 w-full rounded border border-line px-2 text-sm" />} />
+        composer={<div data-composer-standin className="flex items-center gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-2"><textarea data-chat-composer aria-label="Composer stand-in" placeholder="Composer" className="h-10 min-w-0 flex-1 rounded border border-line px-2 text-sm" /><ComposerHideButton /></div>} />
     </div>
   );
 }

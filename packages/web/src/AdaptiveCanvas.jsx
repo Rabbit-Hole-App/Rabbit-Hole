@@ -1,8 +1,8 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
 import { Md } from './ask.jsx';
-import { AppIcon, IconBtn, MenuItem, toast } from './ui.jsx';
+import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
@@ -29,7 +29,7 @@ import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock, notebookFromCode } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
-import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
@@ -804,7 +804,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
             className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
             <MessageCircle size={13} />Ask in chat
           </button>
-          <NotebookButton entry={block} onNotebook={onNotebook} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink shadow-md hover:bg-hover" />
+          <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
@@ -834,16 +834,16 @@ function LevelPill({ level, onLevel, className = '', style = null, levels = TEXT
   );
 }
 
-// Open in Notebook (docs/features/canvas-notebook.md) on a code card's own row: off, with its reason, for code a notebook
-// cannot run.
+// Open in notebook (docs/features/canvas-notebook.md) on a code card's own row, a small icon beside Ask in chat: off, with
+// its reason, for code a notebook cannot run.
 function NotebookButton({ entry, onNotebook, className = '' }) {
   const made = notebookFromCode(entry);
   if (!made || !onNotebook) return null;
   return (
-    <button type="button" data-open-notebook disabled={!!made.disabled} title={made.disabled || 'Open this code in a new notebook card'}
+    <button type="button" data-open-notebook aria-label="Open in notebook" disabled={!!made.disabled} title={made.disabled || 'Open in notebook'}
       onPointerDown={event => event.stopPropagation()} onClick={() => onNotebook(entry.id)}
-      className={`flex items-center gap-1.5 whitespace-nowrap disabled:cursor-default disabled:text-ink-3 ${className}`}>
-      <NotebookPen size={13} />Open in Notebook
+      className={`flex items-center justify-center disabled:cursor-default disabled:text-ink-3 ${className}`}>
+      <NotebookPen size={13} aria-hidden="true" />
     </button>
   );
 }
@@ -991,10 +991,10 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
           its own line above them; the ladder and pill keep their row. */}
       {(ladder || (ask && !sticky)) && (
         <div className="absolute bottom-full left-0 z-20 mb-2.5 flex min-w-full flex-col items-start gap-1.5">
-          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded px-1.5 py-0.5 text-[11px] text-ink-2 hover:bg-hover hover:text-ink" />} />}
+          {modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
           <div className="flex items-center gap-2 self-stretch">
             {ladder && !code && <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} />}
-            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded px-1.5 py-0.5 text-[11px] text-ink-2 hover:bg-hover hover:text-ink" />} />}
+            {ladder && onMode && !modeAbove && <ModePill mode={item.mode} onMode={value => onMode(item.id, value)} lang={lang} onLang={onLang && (value => onLang(item.id, value))} notebook={<NotebookButton entry={item} onNotebook={onNotebook} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink" />} />}
             {ask && !sticky && askPill}
           </div>
         </div>
@@ -1405,6 +1405,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
   const [composerHidden, setComposerHidden] = useState(false);
+  const hideComposer = useCallback(() => setComposerHidden(true), []);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
   useEffect(() => {
     if (!composerHidden) return undefined;
@@ -3262,10 +3263,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // pill. In world units: where the reserved row starts (`right`), its top and height. A dropped image, a text box and a
   // sticky note have the same Ask in chat (r35); a shape keeps the slot it would take. PILL: the pills' rendered widths,
   // with a little room.
-  const PILL = { ask: 112, select: 124, explain: 144, more: 138, notebook: 150, gap: 6 };
+  const PILL = { ask: 112, select: 124, explain: 144, more: 138, notebook: 30, gap: 6 };
   const pillRow = id => {
     const block = blocks.find(entry => entry.id === id);
-    if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0) + (block.type === 'code' ? PILL.gap + PILL.notebook : 0);
+    if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0) + (block.type === 'code' || block.type === 'snippet' ? PILL.gap + PILL.notebook : 0);
     if (exchanges.some(entry => entry.id === id)) return PILL.explain + PILL.gap + PILL.more;
     return PILL.ask;
   };
@@ -3743,6 +3744,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setInsertOpen(false); setMenuAt(null);
     if ((event.ctrlKey || event.metaKey) && tool === 'select' && (event.button === 0 || event.button === 2)
       && !event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) {
+      // A group's box is painted over its cards, so a Ctrl/Cmd press on a grouped card lands on the box, not the card.
+      // It picks that one card, as select does for any card (Shift toggles); only a press on empty canvas starts a marquee.
+      // ponytail: the press only selects; a Ctrl-drag from a grouped card does not move it (a card outside a group does).
+      const card = event.button === 0 && document.elementsFromPoint(event.clientX, event.clientY).find(node => node.matches('[data-block-id]'));
+      if (card) { select(card.dataset.blockId, event); return; }
       startMarquee(event, event.shiftKey);
       return;
     }
@@ -3936,7 +3942,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (slot) setSlots(previous => fillSlot(previous, into, block.id));
     return revealAfter(block.id, slot?.moves);
   };
-  // Open in Notebook: a new notebook card from one code card, beside it in free space - placeNote and its obstacles
+  // Open in notebook: a new notebook card from one code card, beside it in free space - placeNote and its obstacles
   // (inlineCanvas.obstacles: obstaclesOf), the inline editor's, so nothing else moves - selected, and panned to when the
   // spot is off-screen, as the editor's ghost is; one undo step. The code card is left as it is.
   const openInNotebook = id => {
@@ -4595,12 +4601,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             </MenuRow>
           );
           const typed = [];
-          // Open in Notebook, for exactly one selected code card (canvas-notebook.md); off with its reason otherwise.
+          // Open in notebook, for exactly one selected code card (canvas-notebook.md); off with its reason otherwise.
           const codeCard = selection.length === 1 && selection[0] === menuAt.id ? block || items.find(entry => entry.id === menuAt.id) : null;
           const fromCode = notebookFromCode(codeCard);
           if (fromCode) {
             typed.push(<MenuRow key="nb" icon={NotebookPen} data-menu-open-notebook disabled={!!fromCode.disabled} title={fromCode.disabled} className={fromCode.disabled ? 'h-auto py-1' : undefined}
-              onClick={act(() => openInNotebook(codeCard.id))}>Open in Notebook{fromCode.disabled && <span className="block text-xs text-ink-3">{fromCode.disabled}</span>}</MenuRow>);
+              onClick={act(() => openInNotebook(codeCard.id))}>Open in notebook{fromCode.disabled && <span className="block text-xs text-ink-3">{fromCode.disabled}</span>}</MenuRow>);
           }
           if (block?.type === 'wiki') {
             typed.push(<MenuRow key="wr" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('wiki-reader', { title: block.title, section: block.section || 0 }))}>Open in reader</MenuRow>);
@@ -4658,7 +4664,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {addComment && commentOn && <MenuRow icon={MessageCircle} data-menu-add-comment aria-keyshortcuts="C" hint="C" onClick={act(addComment)}>Add comment</MenuRow>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
-              {inlineAi && <MenuRow icon={AppIcon} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline())}>Edit or explain with AI</MenuRow>}
+              {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline(performance.now(), false, 'edit'))}>Quick Edit</MenuRow>}
               {described && <MenuRow icon={CircleHelp} onClick={act(() => askBlock(block))}>Ask about this</MenuRow>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
@@ -4847,10 +4853,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
         {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
-          <button type="button" data-composer-hide aria-label="Hide chat composer" title="Hide chat composer - your draft stays"
-            onClick={() => setComposerHidden(true)}
-            className="absolute -top-2.5 right-4 z-10 flex h-5 w-7 items-center justify-center rounded-full border border-line bg-white text-ink-3 shadow-sm hover:text-ink"><ChevronDown size={13} /></button>
-          {composer}
+          <ComposerHide.Provider value={hideComposer}>{composer}</ComposerHide.Provider>
         </div>}
         {composer && composerHidden && <div data-composer-show-slot className="flex justify-center max-md:order-2">
           <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"

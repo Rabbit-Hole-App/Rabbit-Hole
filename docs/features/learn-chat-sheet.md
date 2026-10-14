@@ -11,17 +11,16 @@ The resolved Tutor plan determines the destination after Send:
 - Clear teaching requests create a card directly. A generated or shown material
   card is the answer; its planner narration does not become another card or a
   second explanation above chat.
-- Discussion about a selected card opens Conversation in the existing resizable
-  right panel, including Ask in chat. The request retains the selection captured
-  at Send. Selecting a previously discussed card reopens its stored conversation.
+- Discussion about a selected card is an ordinary chat answer: a canvas card, linked to the selected card, like an
+  answer with no selection. The request retains the selection captured at Send, so the card still scopes the
+  question; Ask in chat behaves the same. There is no right-panel Card conversation (owner, 2026-10-13: "we do not
+  need Card Conversation in right side panel ... remove it"; the r36 tab and its per-card history are gone).
 - Clarification, setup and errors stay in the window above chat. Failed or refused
   source handoffs do not become permanent answer cards.
 - A substantive answer without a selected card becomes a canvas card. A distinct
   retrieved source answer survives material narration suppression, using the same
   destination rules. Questions accompanying material remain visible.
-- ponytail: right-panel conversation history is local React state for the current
-  app and board; reload clears it. Changing app or board clears it too. This change
-  does not add server persistence or alter model providers, prompts or evaluators.
+- This change does not add server persistence or alter model providers, prompts or evaluators.
 
 The rules below describe the existing sheet controls and legacy non-Tutor chat.
 The Tutor dock uses the destinations above instead of duplicating its answers in
@@ -82,7 +81,7 @@ still while the answer streams. Cards inserted any other way (Insert menu,
 ## Option B verification
 
 - `src/answer-destination.test.mjs`: material suppression, teaching intent,
-  selected-card conversation, clarification, setup, source failures and distinct
+  selected-card answers as cards (never a conversation panel), clarification, setup, source failures and distinct
   source answers.
 - `src/learn-tutor-handoff.test.mjs` and `src/learn-tutor-auto.test.mjs`: preserve
   the source answer and the legacy string return contract.
