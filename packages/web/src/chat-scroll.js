@@ -9,14 +9,23 @@ export function useFollowLatest(scrollRef, deps) {
   const [atBottom, setAtBottom] = useState(true);
   const follow = useRef(true), bound = useRef(null);
   const [onScroll] = useState(() => () => { follow.current = atEnd(bound.current); setAtBottom(follow.current); });
+  // Content that grows with no new message (answer_meta's actions and Explore next settling, math fonts loading) is followed
+  // too: a following reader is kept at the true bottom, and this hook's own scroll then reads as at the end.
+  const [sized] = useState(() => typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+    if (follow.current && bound.current) bound.current.scrollTop = bound.current.scrollHeight;
+  }));
   // The box can mount after the panel does (views switch), so bind whichever element the ref holds after each render.
   useEffect(() => {
-    if (scrollRef.current === bound.current) return;
-    bound.current?.removeEventListener('scroll', onScroll);
-    bound.current = scrollRef.current;
-    bound.current?.addEventListener('scroll', onScroll, { passive: true });
+    if (scrollRef.current !== bound.current) {
+      bound.current?.removeEventListener('scroll', onScroll);
+      sized?.disconnect();
+      bound.current = scrollRef.current;
+      bound.current?.addEventListener('scroll', onScroll, { passive: true });
+    }
+    // Observing an element already observed is a no-op, so new message blocks join as they render.
+    if (bound.current && sized) [bound.current, ...bound.current.children].forEach(el => sized.observe(el));
   });
-  useEffect(() => () => bound.current?.removeEventListener('scroll', onScroll), [onScroll]);
+  useEffect(() => () => { bound.current?.removeEventListener('scroll', onScroll); sized?.disconnect(); }, [onScroll, sized]);
   useEffect(() => {
     if (follow.current && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps
