@@ -1653,6 +1653,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.route('**/api/learn/ask', () => {}); // held: never answered, never sent on (no model call)
     const question = 'Where should I start reading?';
     await chatInput(page).fill(question);
+    // Ask mode: Auto sends a question with nothing selected to /api/learn/tutor/plan, which the held route never sees (send6).
+    await chatPane(page).getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.locator('[data-chat-mode-option="ask"]').click();
     await chatPane(page).locator('[data-chat-composer] button[aria-label="Send"]').click();
     await chatPane(page).getByText(question).first().waitFor({ timeout: 10000 });
     must(await page.locator('[data-companion]').getByText(question).count() === 0, 'the question landed in the Graph view');
