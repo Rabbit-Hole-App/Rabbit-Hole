@@ -10,14 +10,20 @@
 // the nanoGPT repository stubbed from nanogpt-repository-fixture.mjs, and every /api/learn/ask a check does not route
 // itself aborted, so nothing reaches a model. It reads no .env and prints no secret. From packages/web:
 //   LOCAL=1 BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 ONLY=bar-page,wp6-map node e2e/rabbit-hole-check.mjs
+// The stubbed project lives only in the browser, so for the WP6 areas (which create canvases in it) LOCAL=1 also seeds its
+// repository_apps row in the stack's local D1 and removes it after them (project-menu-check.mjs does the same):
+//   PERSIST   the stack's wrangler --persist-to directory (default .small/fork-local), relative to the repository root
+//   D1_CONFIG the wrangler config that binds rabbit-hole-learn-dev (default packages/web/wrangler.dev.jsonc), same root
 // STATUS (2026-09-30): signed-in execution is pending P0-B Phase 2B. /test/session is gone from live
 // small-cp (P0-A containment) and the isolated Rabbit Hole dev environment is not ready yet; never
 // work around that through production. Read-only mocked checks: e2e/mvp-surface-shots.mjs.
 import { chromium, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
 import { DEV_CP } from './dev-cp.mjs';
-import { repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { COMMIT, REPO, repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
 
 const LOCAL = process.env.LOCAL === '1';
 const base = (LOCAL ? process.env.BASE : process.env.SMALL_BASE) || '';
@@ -50,9 +56,20 @@ const localGuard = async (context) => {
   await routeRepository(context);
   await context.route('**/api/learn/ask', (route) => route.abort());
 };
+// LOCAL only: the stubbed project's row in local D1, so POST /api/canvases with project REPO finds it (canvases.js). A canvas
+// create needs only repository_apps (no learn_boards main board). Delete first, so a rerun on the same persist works; it is
+// removed again after the WP6 areas, since the browser's /api/apps would list the project twice (the stub adds its own row).
+const seedProject = (on) => {
+  if (!LOCAL) return;
+  const where = `org='${data.org}' AND name='${REPO}' AND owner_email='${data.email}'`;
+  const sql = [`DELETE FROM repository_apps WHERE ${where}`, ...(on ? [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${data.org}','${REPO}','${data.email}','karpathy/nanoGPT','master','${COMMIT}','ready')`] : [])].join('; ');
+  const PERSIST = process.env.PERSIST || '.small/fork-local', D1_CONFIG = process.env.D1_CONFIG || 'packages/web/wrangler.dev.jsonc';
+  execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd: fileURLToPath(new URL('../../../', import.meta.url)), shell: true, stdio: 'ignore' });
+};
 const catalogResponse = await fetch(`${base}/api/apps`, { headers: { ...UA, Cookie: `small_session=${session}` } });
 if (!catalogResponse.ok) throw new Error(`/api/apps: HTTP ${catalogResponse.status}`);
 const data = await catalogResponse.json(); // { org, orgName, email, apps }
+seedProject(false); // a row left by a crashed run would list the project twice
 const apps = [...(LOCAL ? [repoRow(data)] : []), ...(data.apps || [])]; // locally, the stubbed project as every context sees it
 // nanoGPT is the journeys' project; a newer test repository (octocat/Hello-World) must not displace it.
 const repo = apps.find((a) => a.kind === 'repository' && /^karpathy\/nanogpt$/i.test(a.repo || '')) || apps.find((a) => a.kind === 'repository');
@@ -803,7 +820,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 }
 
 {
-  await check('G2-branch: the repository worker says whether the default branch is real', async () => {
+  if (LOCAL) console.log('note: G2-branch is gate-only; the local stack has no repository worker (503)');
+  else await check('G2-branch: the repository worker says whether the default branch is real', async () => {
     const r = await fetch(`${base}/api/repositories/branches?url=${encodeURIComponent('https://github.com/karpathy/nanoGPT')}`, { headers: { ...UA, Cookie: `small_session=${session}` } });
     must(r.ok, `HTTP ${r.status}`);
     const meta = await r.json();
@@ -1688,8 +1706,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   }, [path, method, body]);
   const canvas6 = async (page, body) => { const r = await api6(page, '/api/canvases', 'POST', body); must(r.status === 201, `create canvas: HTTP ${r.status} ${JSON.stringify(r.data)}`); return r.data; };
   const drop6 = async (page, name) => { const r = await api6(page, `/api/apps/${name}`, 'DELETE'); must(r.status < 300, `delete ${name}: HTTP ${r.status}; remove it from small-learn-dev by hand`); };
-  // Non-GET /api/ calls, except RepositorySource's read (POST .../file) and Learn asks aborted in the browser.
-  const writes6 = (page) => { const w = []; page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && p.startsWith('/api/') && !/\/file$|^\/api\/learn\/ask$/.test(p)) w.push(`${r.method()} ${p}`); }); return w; };
+  // Non-GET /api/ calls, except RepositorySource's read (POST .../file), Learn asks aborted in the browser, and Curious's own
+  // hook request a canvas posts at rest (professor-next-steps.md 1.2; project-canvases-check.mjs exempts it the same way).
+  const writes6 = (page) => { const w = []; page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && p.startsWith('/api/') && !/\/file$|^\/api\/learn\/ask$|^\/api\/learn\/tutor\/next-steps$/.test(p)) w.push(`${r.method()} ${p}`); }); return w; };
   const noAsks = (page) => page.route('**/api/learn/ask', (r) => r.abort());
   const isSelected = async (loc) => (await loc.getAttribute('aria-selected')) === 'true';
   const composers = (page) => page.locator('[data-chat-composer]').count();
@@ -1724,6 +1743,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await graph6(page).locator('[data-node-details] h3', { hasText: label }).waitFor({ timeout: 10000 });
     await chat6(page).locator('[data-code-selection]', { hasText: label }).waitFor({ timeout: 10000 });
   };
+  seedProject(true); // LOCAL: the stubbed project gets its D1 row for the canvases these areas create in it
   console.log(`wp6: project ${ready?.repo || 'none'} · job ${job?.name || 'none'}${job?.lastRun ? ' (ran)' : ''} · server ${server?.name || 'none'}`);
   if (job) await check('wp6-app-d7: on the preview a job changes nothing live - the D7 line shows; rename, description, Schedule, Duplicate, Trash and Run are off; the run peek and run page have no chat; only GETs reach /api', async () => {
     const page = await open(), writes = writes6(page);
@@ -2416,6 +2436,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 
   // Checks from Tasks 1-11 go here, in task order.
+  seedProject(false);
 }
 
 {
