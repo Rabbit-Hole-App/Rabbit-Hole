@@ -63,3 +63,15 @@ test('Reload and keep my document keeps the server document it replaces under :r
   assert.equal(emptyServer.offer, null, 'an empty server sheet is nothing to offer');
   assert.equal(emptyServer.replaced, null);
 });
+
+// Lead 12:03 AM PT (owner decision A1, Toolbar canvas-doc-persist-check decision 3): Restore my unsaved document set the
+// canvas's document but the open editor kept showing the server text - CanvasDoc reads its blocks once, when the editor is
+// made, so a replaced document needs a new editor. And a reload within the save pause (500 ms + 400 ms) must not drop the
+// last words typed: the page's pagehide writes them to this browser's copy first.
+test('a replaced document remounts its editor; leaving the page writes pending words first', async () => {
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /replaceDoc: next => \{[^\n]*setDocEpoch\(epoch => epoch \+ 1\);[^\n]*\}/, 'replaceDoc gives the editor a new key');
+  assert.match(canvas, /<CanvasDoc key=\{docEpoch\} blocks=\{doc\.blocks\}/, 'the editor is keyed by that epoch');
+  assert.match(canvas, /window\.addEventListener\('pagehide', flushDoc\)/, 'leaving the page flushes the pending document');
+});

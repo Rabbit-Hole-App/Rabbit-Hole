@@ -1660,7 +1660,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     onSaveRef.current?.(state);
     return true;
   };
-  useEffect(() => () => { flushDoc(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A reload or a closed tab runs no unmount: pagehide writes the pending words too (owner decision A1 - after a 409 this
+  // browser's copy is the only place they live until Reload and keep my document or Restore my unsaved document).
+  useEffect(() => {
+    window.addEventListener('pagehide', flushDoc);
+    return () => { window.removeEventListener('pagehide', flushDoc); flushDoc(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   // Where an asked-about area is now: on its host card when it has one, else where it was drawn.
@@ -1829,7 +1834,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The document (blocknote-canvas.md): its box, framing its start, and a whole replacement (Restore my unsaved document).
       goToDoc: () => goToDoc(),
       flushDoc: () => flushDoc(),
-      replaceDoc: next => { docLive.current = next?.blocks || null; setDoc(next && typeof next === 'object' ? next : null); },
+      // The editor reads its blocks once, when it is made (CanvasDoc), so a replaced document gets a new editor (docEpoch).
+      replaceDoc: next => { clearTimeout(docTimer.current); docTimer.current = null; docLive.current = next?.blocks || null; setDoc(next && typeof next === 'object' ? next : null); setDocEpoch(epoch => epoch + 1); },
       selection: () => selectedRef.current,
       updateBlock: (id, change) => {
         const current = blocksRef.current.find(block => block.id === id);
@@ -4269,6 +4275,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => { if (!docDropHint) return undefined; const timer = setTimeout(() => setDocDropHint(0), 3500); return () => clearTimeout(timer); }, [docDropHint]);
   const paperRef = useRef(null);
   const [docMounted, setDocMounted] = useState(false);
+  const [docEpoch, setDocEpoch] = useState(0);
   // [+] pushes everything below the line down; [-] pulls it up, stopping short
   // of closing the gap. Cards, chat cards, shapes, notes and ink all move.
   const nudgeGap = (gap, delta) => {
@@ -4685,7 +4692,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {unknownDocBlock(doc.blocks)
                 ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
                 : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document…</p>}>
-                  <CanvasDoc blocks={doc.blocks} editable={!readOnly} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
+                  <CanvasDoc key={docEpoch} blocks={doc.blocks} editable={!readOnly} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
                 </Suspense>}
             </div>
           </div>
