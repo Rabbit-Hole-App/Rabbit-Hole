@@ -1,6 +1,6 @@
 // Verifies the Graph-first app page on the dev deployment: tab row replaces
 // the breadcrumb, Graph is the default tab, non-graphified apps get a blank
-// canvas beside the Graph Agent. Run: node e2e/app-tabs-check.mjs
+// canvas beside the Graph Agent; a repository opens on its canvas. Run: node e2e/app-tabs-check.mjs
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
@@ -27,14 +27,22 @@ page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
 const failures = [];
 const check = async (label, fn) => { try { await fn(); console.log(`ok: ${label}`); } catch (e) { failures.push(label); console.log(`FAIL: ${label} — ${e.message.split('\n')[0]}`); } };
 
+// A repository opens on its canvas (repo-canvas-graph.md, owner 2026-10-15): no Files | Graph | Learn page, no repository
+// heading or Graph Agent beside it. An old ?tab=code link opens the canvas with Files beside Chat, once.
 if (repo) {
   await page.goto(`${base}/apps/${repo.name}?tab=code`);
-  await page.getByRole('tab', { name: 'Graph', exact: true }).waitFor({ timeout: 20000 });
-  await check('repo: Graph tab active', async () => { if (await page.getByRole('tab', { name: 'Graph', exact: true }).getAttribute('data-state') !== 'active') throw new Error('not active'); });
-  await check('repo: Learn tab present', () => page.getByRole('tab', { name: 'Learn', exact: true }).waitFor({ timeout: 5000 }));
-  await check('repo: repo name heading', () => page.getByRole('heading', { name: repo.repo }).waitFor({ timeout: 5000 }));
+  const companion = page.locator('aside[data-companion]');
+  await check('repo: ?tab=code opens the canvas with Files beside Chat', async () => {
+    await page.locator('[data-learn-files]').waitFor({ timeout: 20000 });
+    if (await companion.locator('[data-companion-view="files"]').getAttribute('aria-pressed') !== 'true') throw new Error('Files not the open viewer');
+  });
+  await check('repo: no repository page tabs', async () => { if (await page.locator('[data-project-tabs]').count()) throw new Error('tab row found'); });
+  await check('repo: the link becomes the plain canvas URL', async () => { await page.waitForURL((u) => !u.searchParams.has('tab'), { timeout: 5000 }); });
+  await check('repo: badge opens GitHub', async () => {
+    const href = await page.locator('[data-repo-badge]').getAttribute('href', { timeout: 10000 });
+    if (href !== `https://github.com/${repo.repo}`) throw new Error(`badge href ${href}`);
+  });
   await check('repo: breadcrumb gone', async () => { if (await page.getByText(`Apps/${repo.repo}`).count()) throw new Error('crumb found'); });
-  await check('repo: Graph Agent panel', () => page.getByRole('heading', { name: 'Graph Agent' }).waitFor({ timeout: 10000 }));
   await page.screenshot({ path: 'e2e/shots/tabs-repo.png', fullPage: false });
 }
 

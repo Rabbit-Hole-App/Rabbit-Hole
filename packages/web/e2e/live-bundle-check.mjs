@@ -5,10 +5,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 // DIST=dist-dev node e2e/live-bundle-check.mjs must FAIL: it proves every marker below is real, not vacuous.
 const dir = new URL(`../${process.env.DIST || 'dist'}/static/`, import.meta.url);
-const PREVIEW_CHUNKS = /^(AgentBar|ConfirmCard|StartHost|Home|RepositoryPage|CanvasPage|review-fixtures-data|map-memory-data)-/;
+const PREVIEW_CHUNKS = /^(AgentBar|ConfirmCard|StartHost|Home|RepositoryPage|CanvasPage|GraphPanel|review-fixtures-data|map-memory-data)-/;
 // 'stops running on a schedule.' is agent/commands.js top-level code (its COMMANDS table): a side-effectful module that
 // preview UI imports stays in the live index even when that UI folds away.
-const MARKERS = ['data-agent-bar', 'data-result-sheet', 'nanoGPT from First Principles', 'data-app-ops', 'stops running on a schedule.', 'Questions about this app go through the bar below', 'data-canvas-gate', 'data-project-tabs', 'data-map-panel', 'Learn this in a canvas', 'data-map-layers', 'Which decisions shaped this codebase?', 'Attention internals walkthrough'];
+// The repository page's data-project-tabs and data-map-panel are gone (repo-canvas-graph.md): the canvas's Graph view and
+// repository badge are the preview's repository markers now.
+const MARKERS = ['data-agent-bar', 'data-result-sheet', 'nanoGPT from First Principles', 'data-app-ops', 'stops running on a schedule.', 'Questions about this app go through the bar below', 'data-canvas-gate', 'data-graph-panel', 'data-repo-badge', 'Learn this in a canvas', 'data-map-layers', 'Which decisions shaped this codebase?', 'Attention internals walkthrough'];
 const failures = [];
 for (const name of readdirSync(dir)) {
   if (PREVIEW_CHUNKS.test(name)) failures.push(`${name}: a preview-only chunk`);

@@ -50,6 +50,8 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   assert.match(loader, /\}, \[root, commit, reload\]\);/);
   // #4 closing the column on a wide layout, or leaving the canvas, clears the temporary selection; pinned chips stay.
   assert.match(learn, /useEffect\(\(\) => \{ if \(!viewerShown && window\.matchMedia\('\(min-width: 64rem\)'\)\.matches\) clearSelection\(heldRepository\.current\); \}, \[viewerShown\]\);/);
+  assert.match(learn, /const viewerShown = companion\.open, heldRepository/, 'Hide right panel hides Chat too and restores both: it keeps the selection');
+  assert.match(wired, /import\('\.\/GraphPanel\.jsx'\)\.catch\(/, 'a stale chunk shows a reload in the column');
   assert.match(learn, /useEffect\(\(\) => \(\) => clearSelection\(heldRepository\.current\), \[\]\);/);
   // #5 an answer's Show on graph opens the Graph view with that answer's graph.
   assert.match(wired, /onGraph: view => \{ repository\.setAnswerView\(\{ \.\.\.view, requestId: crypto\.randomUUID\(\) \}\); window\.dispatchEvent\(new CustomEvent\('small:open-graph'\)\); \},/);
@@ -64,6 +66,8 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   assert.match(read('RepositoryGraph.jsx'), /\.setPointerCapture\(e\.pointerId\);target\?\.focus\(\{preventScroll:true\}\);/);
   assert.match(read('ResizableSidePanel.jsx'), /<aside \{\.\.\.props\} ref=\{panel\} inert=\{collapsed \|\| undefined\}/);
   assert.match(wired, /const failed = status === 'failed' \|\| \(status === 'ready' && !!error\);/);
+  // The canvas header beside the companion and Chat: wraps, centred only while it fits, starting after the Back button.
+  assert.match(learn, /<div data-canvas-header className="relative flex shrink-0 flex-wrap items-center justify-center-safe [^"]*pl-12/);
   // #12 an ordinary open forces no viewer.
   assert.match(app, /a\.kind === 'repository' \? navigate\(`\/apps\/\$\{a\.name\}`\)/);
 });

@@ -162,10 +162,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   if (panelOpen && companion.open) shown.current.add(companionView);
   const backTo = companionViews.find(entry => entry.id === companion.previous);
   useEffect(() => { if (openViewer) companion.show(openViewer); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // An invisible selection never rides a later question (brief section 6): closing the column (or hiding the right side) on a
-  // wide layout, or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
+  // An invisible selection never rides a later question (brief section 6): closing the column on a wide layout (not Hide
+  // right panel, which hides Chat too and restores both), or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
   // their thread. Below lg, Back to chat swaps the column for Chat with the chips in view, so the selection stays for the ask.
-  const viewerShown = panelOpen && companion.open, heldRepository = useRef(repository);
+  const viewerShown = companion.open, heldRepository = useRef(repository);
   heldRepository.current = repository;
   useEffect(() => { if (!viewerShown && window.matchMedia('(min-width: 64rem)').matches) clearSelection(heldRepository.current); }, [viewerShown]);
   useEffect(() => () => clearSelection(heldRepository.current), []);
@@ -1715,9 +1715,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {/* One centered strip is all the chrome the canvas gets: an editable
             title, the menubar, and the three one-press actions. No page
             heading, no rule underneath - the canvas has no boundary. */}
-        {/* On a phone the row wraps (menubar compact) instead of clipping its
-            start; not a scroller, which would clip the menus' dropdowns. */}
-        {!canvasState.presenting && <div className={`relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1 max-md:flex-wrap max-md:gap-y-0.5 max-md:px-2 max-md:pt-2 ${!courseView && learningView === 'lesson' ? '' : 'pl-12'}`}>
+        {/* A row narrower than its content (the canvas beside the companion column and Chat) wraps instead of clipping its
+            start; not a scroller, which would clip the menus' dropdowns. Centred only while it fits (safe), and it starts
+            after the absolute Back button, so the crumbs never run under it or off screen. */}
+        {!canvasState.presenting && <div data-canvas-header className="relative flex shrink-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5 pt-3 pr-3 pb-1 pl-12 max-md:px-2 max-md:pt-2">
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
