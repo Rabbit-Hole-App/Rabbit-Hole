@@ -59,6 +59,11 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   // #11 Ask in chat's Code card stays on the Main canvas (code cards elsewhere are Release 2).
   assert.match(wired, /if \(codeCards\) codeCard\(range\);/);
   assert.match(page, /useRepositoryCanvas\(app,\{codeCards:!picked\}\)/);
+  // Lane E findings: a pressed node takes focus (Escape reaches the graph), a retracted column is inert, and a ready repository
+  // whose snapshot read failed shows Retry rather than Loading forever.
+  assert.match(read('RepositoryGraph.jsx'), /\.setPointerCapture\(e\.pointerId\);target\?\.focus\(\{preventScroll:true\}\);/);
+  assert.match(read('ResizableSidePanel.jsx'), /<aside \{\.\.\.props\} ref=\{panel\} inert=\{collapsed \|\| undefined\}/);
+  assert.match(wired, /const failed = status === 'failed' \|\| \(status === 'ready' && !!error\);/);
   // #12 an ordinary open forces no viewer.
   assert.match(app, /a\.kind === 'repository' \? navigate\(`\/apps\/\$\{a\.name\}`\)/);
 });

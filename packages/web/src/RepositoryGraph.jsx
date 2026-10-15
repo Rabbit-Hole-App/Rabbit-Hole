@@ -129,7 +129,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
       onPointerDown={e=>{
         if(e.button!==0)return;e.preventDefault();suppressClick.current=false;
         const target=e.target.closest('[data-graph-node]');
-        (target||e.currentTarget).setPointerCapture(e.pointerId);
+        (target||e.currentTarget).setPointerCapture(e.pointerId);target?.focus({preventScroll:true}); // the press keeps focus off the node (preventDefault): give it, so Escape reaches the graph
         if(target){
           const node=simulation.current.nodes().find(n=>n.id===target.dataset.graphNode),p=point(e);
           node.fx=node.x;node.fy=node.y;
