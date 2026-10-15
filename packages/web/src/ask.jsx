@@ -531,7 +531,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     };
     // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
     // A Tutor turn begins in its own branch below; every other turn begins here.
-    const viaTutor = tutorTurn({ tutor, codeTurn, chat, mode: chat?.thread.mode });
+    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: !!(target?.paper || target?.docPage), chat, mode: chat?.thread.mode });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();

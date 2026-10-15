@@ -466,13 +466,17 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       pdf = await readPdf(await file.arrayBuffer());
       if (pdf.numPages > 100) { toast(`That PDF has ${pdf.numPages} pages. The tutor can read up to 100.`); return; }
     } catch { toast('That file could not be read as a PDF.'); return; }
+    let stored = null; // uploaded once: Add again after a failed draw reuses it
     await askPdf({ name: file.name, total: pdf.numPages, place: async (choice, progress) => {
-      progress('Uploading…');
-      const body = new FormData();
-      body.append('file', file, file.name);
-      const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
-      const stored = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(stored?.error || 'That PDF could not be uploaded.');
+      if (!stored) {
+        progress('Uploading…');
+        const body = new FormData();
+        body.append('file', file, file.name);
+        const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
+        const reply = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(reply?.error || 'That PDF could not be uploaded.');
+        stored = reply;
+      }
       // The card is the canvas-resident copy and survives a reload because the bytes are a board asset and the block keeps
       // only the key (pdf:<paper id>, pdf-source.js).
       await placePdf({ pdf, file, source: `pdf:${stored.id}`, label: stored.title }, choice, progress);

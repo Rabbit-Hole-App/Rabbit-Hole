@@ -17,3 +17,8 @@ test('outside the Chat pane the Tutor answers as before, except a question about
   assert.equal(tutorTurn({ tutor, chat, mode: 'auto', codeTurn: true }), false);
   assert.equal(tutorTurn({ tutor: null }), false);
 });
+
+test('a question about a selected PDF page posts to /api/learn/ask, the route that sends the page (pdf-to-canvas.md)', () => {
+  assert.equal(tutorTurn({ tutor, chat, mode: 'auto', pageTurn: true }), false);
+  assert.equal(tutorTurn({ tutor, pageTurn: true }), false);
+});
