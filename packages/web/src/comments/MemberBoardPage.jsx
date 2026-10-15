@@ -8,7 +8,6 @@ import { PRODUCT } from '../flags.js';
 import CommentsPanel from './CommentsPanel.jsx';
 import { useCanvasComments } from './useCanvasComments.js';
 import { displayName, memberBase } from './comments-api.js';
-import { navigate } from '../api.js';
 import { useCanvasLinks } from '../LinksPanel.jsx';
 
 const AdaptiveCanvas = lazy(() => import('../AdaptiveCanvas.jsx'));
@@ -28,7 +27,8 @@ export default function MemberBoardPage({ boardId }) {
   // Canvas references, read-only here (C:/s/spec/references-plan.md, lead answer C): chips resolved by the server's
   // filtered links, no Remove and no Link to canvas; this page has no panel tabs, so no Links tab.
   const links = useCanvasLinks({ boardId, shown: false });
-  const refLinks = useMemo(() => ({ resolve: links.resolve, go: navigate }), [links.resolve]);
+  // A full load: Root picks this page once from the path, so a pushState to another board would keep showing this one.
+  const refLinks = useMemo(() => ({ resolve: links.resolve, go: href => window.location.assign(href) }), [links.resolve]);
   const openComments = useCallback(() => setCommentsOpen(true), []);
   useEffect(() => {
     const fileUrl = key => `${base}/assets/${encodeURIComponent(key)}`;

@@ -797,7 +797,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // navigation saves first. A save that changed the links refreshes them (the server indexes the saved board).
   const [refPick, setRefPick] = useState(null);
   const links = useCanvasLinks({ boardId: commentBoard, shown: panelOpen && panelTab === 'links' });
-  const refLinks = useMemo(() => ({ resolve: links.resolve, go: href => { canvasApi.current?.persist?.(); navigate(href); }, onRemove: (blockId, refId) => canvasApi.current?.removeRef?.(blockId, refId) }), [links.resolve]);
+  // A /c/ href is a member page, outside AppRoot: a full load, after the save.
+  const refLinks = useMemo(() => ({ resolve: links.resolve, go: async href => { const saving = canvasApi.current?.persist?.(); if (!href.startsWith('/c/')) return navigate(href); await saving; window.location.assign(href); }, onRemove: (blockId, refId) => canvasApi.current?.removeRef?.(blockId, refId) }), [links.resolve]);
   const savedRefs = useRef(null);
   // The course interview (Edit course) still lives under the Table of contents tab, so starting one brings that tab forward.
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
