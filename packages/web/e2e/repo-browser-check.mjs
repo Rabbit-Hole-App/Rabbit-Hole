@@ -91,22 +91,33 @@ const codeRefs = (sent) => (sent.context_refs || []).filter((r) => String(r.sour
 const open = async (path = `/apps/${REPO}`) => { await page.goto(`${BASE}${path}`); await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 }); await page.locator('[data-chat-pane]').first().waitFor({ timeout: 30000 }); await page.waitForTimeout(800); };
 // Files and Graph are the companion column's views (lane A): its view switch when the column is open; else Files by the page
 // event (LearnPage small:open-files, as a code reference does) and Graph by the composer's Explore codebase.
+// A closed column keeps its views mounted (inert, zero width), so open means the column's own width.
+const columnOpen = async () => ((await companion.boundingBox().catch(() => null))?.width ?? 0) > 300;
 const files = async () => {
   const button = companion.locator('[data-companion-view="files"]');
-  if (await button.isVisible().catch(() => false)) { if (await view() !== 'files') await button.click(); }
+  if (await columnOpen()) { if (await view() !== 'files') await button.click(); }
   else await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:open-files')));
   await tree.waitFor();
 };
 const graph = async () => {
   const button = companion.locator('[data-companion-view="graph"]');
-  if (await button.isVisible().catch(() => false)) { if (await view() !== 'graph') await button.click(); }
+  if (await columnOpen()) { if (await view() !== 'graph') await button.click(); }
   else await page.locator('button[aria-label="Explore codebase"]').click();
   await graphPanel.locator('[data-graph-node]').first().waitFor({ timeout: 30000 }); await page.waitForTimeout(400);
 };
 // Enter on a focused node selects it (lane B), as a click would.
 const graphNode = async (id) => { await graphPanel.locator(`[data-graph-node="${id}"]`).focus(); await page.keyboard.press('Enter'); await graphPanel.locator('[data-node-details]').waitFor(); };
 // Each stubbed answer is numbered, so a send waits for its own answer, never an earlier one.
+// Auto sends a question with no selection to the Tutor (a planner turn); these are Ask turns, on the stubbed /api/learn/ask.
+const askMode = async () => {
+  const pane = page.locator('[data-chat-pane]').first();
+  if (await pane.locator('[data-chat-mode]').getAttribute('data-chat-mode') === 'ask') return;
+  await pane.getByRole('button', { name: 'Mode', exact: true }).click();
+  await page.locator('[data-chat-mode-option="ask"]').click();
+  await page.waitForTimeout(200);
+};
 const send = async (text) => {
+  await askMode();
   const n = asks.length; await field().fill(text); await field().press('Enter');
   await page.locator('[data-chat-pane]').getByText(`${ANSWER} #${n + 1}`).first().waitFor({ timeout: 10000 }); assert.equal(asks.length, n + 1, 'one stubbed ask');
   return asks.at(-1);
@@ -115,10 +126,12 @@ const inView = (n) => line(n).evaluate((row) => { const r = row.getBoundingClien
 // A real mouse drag over the text of lines a..b, as a learner selects code (never a scripted selection).
 const drag = async (a, b) => {
   await page.evaluate(() => window.getSelection().removeAllRanges()); // as a click elsewhere would: a press inside a selection drags it
-  await line(Math.round((a + b) / 2)).evaluate((n) => n.scrollIntoView({ block: 'center' }));
+  // The companion's reader is narrow: keep the code scrolled to its left edge and the drag inside the reader's visible box.
+  await line(Math.round((a + b) / 2)).evaluate((n) => { n.scrollIntoView({ block: 'center' }); n.closest('.overflow-auto').scrollLeft = 0; });
+  const view = await line(a).evaluate((n) => { const r = n.closest('.overflow-auto').getBoundingClientRect(); return { left: r.left, right: r.right }; });
   const from = await line(a).locator('[data-source-text]').boundingBox(), to = await line(b).locator('[data-source-text]').boundingBox();
-  await page.mouse.move(from.x + 1, from.y + from.height / 2); await page.mouse.down();
-  await page.mouse.move(to.x + to.width - 1, to.y + to.height / 2, { steps: 8 }); await page.mouse.up();
+  await page.mouse.move(Math.max(from.x + 1, view.left + 2), from.y + from.height / 2); await page.mouse.down();
+  await page.mouse.move(Math.min(to.x + to.width - 1, view.right - 4), to.y + to.height / 2, { steps: 8 }); await page.mouse.up();
   await page.waitForTimeout(200);
 };
 const selected = () => page.evaluate(() => window.getSelection().toString());
@@ -127,7 +140,7 @@ await open();
 await check('13 §1: no repository page - /apps/<repo> is the canvas with Chat, no Files · Graph · Learn tabs, no viewer forced open; an old ?tab= link opens its viewer once and leaves the plain address', async () => {
   assert.equal(await page.locator('[data-project-tabs]').count(), 0, 'no Files · Graph · Learn tabs');
   assert.equal(await page.locator('[data-learn-map]').count(), 0, 'no Map button');
-  assert.equal(await companion.isVisible().catch(() => false), false, 'no viewer forced open');
+  assert.equal(await columnOpen(), false, 'no viewer forced open');
   for (const [tab, want] of [['code', 'files'], ['map', 'graph'], ['overview', 'graph'], ['graph', 'graph']]) {
     await open(`/apps/${REPO}?tab=${tab}`);
     await shows(want);
