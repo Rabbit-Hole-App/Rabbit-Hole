@@ -67,3 +67,17 @@ test('the canvas wires the card: lazy renderer, its own keys, and a reveal-or-in
   for (const marker of ['data-graph-add-to-canvas', 'data-graph-add-selection', 'data-graph-add-code', 'data-graph-node-menu']) assert.ok(panel.includes(marker), marker);
   assert.doesNotMatch(panel.slice(panel.indexOf('const addGraph')), /sendMessage|\/api\/learn\/ask/, 'Add to canvas never sends');
 });
+
+// Home's cards check case 5: Add selection as graph took the page down. The card-source reply carries `skipped`, the hook
+// dropped it, and the card read source.skipped.length on a ready graph. The hook keeps it, the card tolerates its absence,
+// and a card that throws while drawing shows its own failed state instead of the page's crash screen.
+test('a ready graph card never throws on a reply without skipped, and a render error stays inside the card', () => {
+  const hook = readFileSync(new URL('./use-card-source.js', import.meta.url), 'utf8');
+  assert.match(hook, /graph: cardGraph\(data\.graph, [^)]*\)[^;]*, skipped: data\.skipped \|\| \[\] \}\)/);
+  const card = readFileSync(new URL('./GraphCard.jsx', import.meta.url), 'utf8');
+  assert.match(card, /source\.skipped\?\.length > 0/);
+  assert.doesNotMatch(card, /source\.skipped\.length > 0/);
+  assert.match(card, /class GraphCardBoundary extends Component \{[\s\S]*static getDerivedStateFromError\(\)/);
+  assert.match(card, /export default function GraphCard\(\{ block \}\) \{ return <GraphCardBoundary block=\{block\} \/>; \}/);
+  assert.match(card, /data-graph-card-state="failed"[\s\S]*data-graph-card-retry/);
+});

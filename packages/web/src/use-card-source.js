@@ -24,7 +24,7 @@ const load = (request, block) => {
   return once(request.key, () => uploadText(block.source.assetKey));
 };
 
-// useCardSource(block) -> { status: 'loading' | 'ready' | 'unavailable' | 'failed', text, lines, totalLines, graph, retry }.
+// useCardSource(block) -> { status: 'loading' | 'ready' | 'unavailable' | 'failed', text, lines, totalLines, graph, skipped, retry }.
 // Code cards get text and numbered lines (their range, else the file); graph cards get their graph (the subgraph for
 // nodeIds, else the whole). A redacted card, or one without a readable source, is unavailable at once.
 export function useCardSource(block) {
@@ -40,7 +40,7 @@ export function useCardSource(block) {
     setState({ status: 'loading' });
     load(request, block).then(data => {
       if (!active) return;
-      if (request.kind === 'graph') setState({ status: 'ready', graph: cardGraph(data.graph, nodes ? nodes.split('\n') : []) });
+      if (request.kind === 'graph') setState({ status: 'ready', graph: cardGraph(data.graph, nodes ? nodes.split('\n') : []), skipped: data.skipped || [] });
       else setState({ status: 'ready', ...cardLines(data.content, start, end) });
     }, error => { if (active) setState({ status: failureStatus(error) }); });
     return () => { active = false; };
