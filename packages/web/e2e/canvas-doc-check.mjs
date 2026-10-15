@@ -191,12 +191,14 @@ const inkOf = name => page.evaluate(key => { try { return JSON.parse(localStorag
 // Every canvas object that is not the document: ids and places. What keys inside the editor must never change.
 const objectsOf = async name => { const ink = await inkOf(name) || {}; return JSON.stringify(['blocks', 'items', 'shapes', 'links', 'groups', 'areas', 'strokes'].map(k => (ink[k] || []).map(o => [o.id, o.x, o.y, o.x1, o.y1, o.dx, o.dy]))); };
 const pressedTool = () => page.locator('button[aria-keyshortcuts][aria-pressed="true"]').evaluateAll(list => list.map(b => b.getAttribute('aria-keyshortcuts')).join(','));
-const caretBox = () => page.evaluate(() => { const s = getSelection(); if (!s.rangeCount) return null; const r = s.getRangeAt(0).getClientRects()[0] || s.getRangeAt(0).getBoundingClientRect(); return r ? { x: r.x, y: r.y, h: r.height, inEditor: !!s.anchorNode?.parentElement?.closest('[data-canvas-doc-editor]') } : null; });
+const caretBox = () => page.evaluate(() => { const s = getSelection(); if (!s.rangeCount) return null; let r = s.getRangeAt(0).getClientRects()[0] || s.getRangeAt(0).getBoundingClientRect();
+  if (r && !r.height) { const el = s.anchorNode?.nodeType === 1 ? s.anchorNode : s.anchorNode?.parentElement; r = (el?.closest('.bn-inline-content') || el)?.getBoundingClientRect() || r; } // an empty block has no client rects
+  return r ? { x: r.x, y: r.y, h: r.height, inEditor: !!s.anchorNode?.parentElement?.closest('[data-canvas-doc-editor]') } : null; });
 const scrolls = () => page.evaluate(() => [document.scrollingElement.scrollTop, document.scrollingElement.scrollLeft, ...[...document.querySelectorAll('main, [data-canvas-surface], [data-canvas-doc], [data-canvas-doc] *')].filter(el => el.scrollTop || el.scrollLeft).map(el => `${el.tagName}.${el.className}`.slice(0, 60) + `:${el.scrollTop},${el.scrollLeft}`)]);
 // A menu is usable: on screen, inside the canvas room (not under the panel), and on top at its middle (not behind the paper).
 const assertUsable = async (selector, what) => {
   const menu = page.locator(selector).first();
-  await menu.waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error(`${what} (${selector}) did not open`); });
+  await menu.waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error(`${what} (${selector}) did not open${selector === '.bn-side-menu' ? ` (hover ${JSON.stringify(lastHover)})` : ''}`); });
   await page.waitForTimeout(200);
   const b = await menu.boundingBox(), room = await available(), vp = page.viewportSize();
   assert.ok(b, `${what} (${selector}) closed again within 200 ms of opening`);
@@ -205,6 +207,14 @@ const assertUsable = async (selector, what) => {
   const hit = await page.evaluate(([sel, x, y]) => { const el = document.elementFromPoint(x, y); return el?.closest(sel) ? null : `${el?.tagName}.${String(el?.className || '').slice(0, 60)}`; }, [selector, b.x + Math.min(b.width / 2, 40), b.y + Math.min(b.height / 2, 14)]);
   assert.ok(!hit, `${what} is covered at its own top-left by ${hit}`);
   return b;
+};
+let lastHover = null;
+const hoverBlock = async id => { // the block's middle, kept inside the visible canvas room, reached by a few real moves
+  const o = await page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${id}"]`).first().boundingBox(), t = await page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${id}"] .bn-inline-content`).first().boundingBox(), room = await available();
+  const x = Math.max(room.left + 40, Math.min(o.x + o.width / 2, room.right - 40)), y = t.y + t.height / 2;
+  await page.mouse.move(x - 30, y); await page.mouse.move(x, y, { steps: 5 }); await page.waitForTimeout(150);
+  lastHover = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return { x: Math.round(x), y: Math.round(y), hit: `${el?.tagName}.${String(el?.className || "").slice(0, 50)}`, inEditor: !!el?.closest(".bn-editor"), menus: document.querySelectorAll(".bn-side-menu").length, editors: [...document.querySelectorAll(".bn-editor")].map(e => { const r = e.querySelector(".bn-block-group")?.getBoundingClientRect(); return r ? [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), !!e.closest("[data-canvas-doc]")] : null; }) }; }, [x, y]);
+  return t;
 };
 const clickBlock = async (id, where = 'end') => {
   const el = page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${id}"] .bn-inline-content`).first();
@@ -463,17 +473,18 @@ await check('scenario 7: native block reorder (Shift+Ctrl+ArrowUp and the side-m
   const after = await blockIds();
   assert.equal(after.indexOf(ids.at(-1)), ids.length - 2, `the last block did not move up one place (${after.join(',')})`);
   // Drag the second block above the first by its side-menu handle.
-  const second = page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${after[1]}"]`).first(), top = await page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${after[0]}"]`).first().boundingBox();
-  await second.hover();
+  await hoverBlock(after[1]);
   const handle = page.locator('.bn-side-menu [data-test="dragHandle"]').first();
-  await handle.waitFor({ state: 'visible', timeout: 4000 });
+  await handle.waitFor({ state: 'visible', timeout: 4000 }).catch(() => { throw Error(`the side-menu drag handle did not appear on hover: ${JSON.stringify(lastHover)}`); });
   // What the pointer meets at the handle (the side menu can fade in with pointer-events off); the drag below is the test.
   const h = await handle.boundingBox();
   facts.side_menu_at_handle = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y), menu = document.querySelector('.bn-side-menu'); return { hit: `${el?.tagName}.${String(el?.className || '').slice(0, 50)}`, onHandle: !!el?.closest('[data-test="dragHandle"]'), menu: menu && { pointerEvents: getComputedStyle(menu).pointerEvents, opacity: getComputedStyle(menu).opacity } }; }, [h.x + h.width / 2, h.y + h.height / 2]);
   await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
   await page.mouse.down();
   // Real stepped pointer moves with pauses: a few pixels to start the drag, then on to the first block's top edge.
-  const from = { x: h.x + h.width / 2, y: h.y + h.height / 2 }, to = { x: top.x + 40, y: top.y + 3 };
+  // The target is measured after the hover, and the release lands on the left of its text, near its top edge.
+  const top = await page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${after[0]}"] .bn-inline-content`).first().boundingBox();
+  const from = { x: h.x + h.width / 2, y: h.y + h.height / 2 }, to = { x: top.x + 12, y: top.y + 3 };
   for (let i = 1; i <= 3; i++) { await page.mouse.move(from.x, from.y - i * 2); await page.waitForTimeout(30); }
   await page.waitForTimeout(150);
   for (let i = 1; i <= 15; i++) { await page.mouse.move(from.x + (to.x - from.x) * i / 15, from.y - 6 + (to.y - from.y + 6) * i / 15); await page.waitForTimeout(30); }
@@ -485,6 +496,7 @@ await check('scenario 7: native block reorder (Shift+Ctrl+ArrowUp and the side-m
   assert.equal(dragged[0], after[1], `the dragged block is not first: ${JSON.stringify(await firstThree())}`);
   assert.equal(dragged.length, after.length, 'a block was lost or duplicated by the drag');
   assert.equal(await objectsOf(A), before, 'the block drag created or moved a canvas object');
+  await page.keyboard.press('Escape'); // BlockNote's drag-handle menu opens on pointerdown and takes Ctrl+Z (upstream)
   await page.keyboard.press('Control+z'); // the drag
   await page.keyboard.press('Control+z'); // the keyboard move
   await waitFor(async () => (await blockIds()).join() === ids.join(), 3000, 'Undo did not restore the block order');
@@ -512,10 +524,11 @@ await check('brief 9: Escape closes the slash menu first and keeps Editor and th
 await check('brief 9: with the Hand tool a drag over the paper pans the camera; with Select a click puts the caret back', async () => {
   await page.locator('button[aria-keyshortcuts="H"]').first().click();
   assert.equal(await pressedTool(), 'H', 'the Hand tool is not the pressed tool');
-  const b = await paper().boundingBox(), c0 = await camera();
-  await page.mouse.move(b.x + b.width / 2, b.y + 80);
+  const b = await paper().boundingBox(), c0 = await camera(), room = await available();
+  const sx = Math.min(b.x + b.width / 2, room.right - 120), sy = Math.max(b.y + 80, room.top + 80);
+  await page.mouse.move(sx, sy);
   await page.mouse.down();
-  await page.mouse.move(b.x + b.width / 2 + 60, b.y + 140, { steps: 8 });
+  await page.mouse.move(sx + 60, sy + 60, { steps: 8 });
   await page.mouse.up();
   const c1 = await camera();
   assert.ok(Math.abs(c1.x - c0.x - 60) < 4 && Math.abs(c1.y - c0.y - 60) < 4, `the Hand drag over the paper did not pan 60,60 (${Math.round(c1.x - c0.x)},${Math.round(c1.y - c0.y)})`);
@@ -653,7 +666,7 @@ for (const target of [64, 156]) {
     await page.keyboard.press('Control+Shift+ArrowLeft');
     await assertUsable('.bn-formatting-toolbar', `the formatting toolbar at ${target}%`);
     await page.keyboard.press('ArrowRight');
-    await page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${ids[0]}"]`).first().hover();
+    await hoverBlock(ids[0]);
     await assertUsable('.bn-side-menu', `the side menu at ${target}%`);
   });
 }
