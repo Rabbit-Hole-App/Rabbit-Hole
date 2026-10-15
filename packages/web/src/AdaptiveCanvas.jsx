@@ -2346,26 +2346,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A side panel opening, closing or resized beside the canvas changes only the surface's width (canvas-clipping.md). When
   // it has settled (the same width two frames running, after the panel's slide), the one selected card that was whole in
   // the canvas before is brought back into view at the learner's zoom (showBox, one glide) - so Add to chat opening Chat, or
-  // a panel dragged wider, never leaves it cut. A card the learner had panned away, or a camera move during the resize,
-  // is left alone; nothing moves while the width holds (typing, panning).
+  // a panel dragged wider, never leaves it cut. A card the learner had panned away, a camera move during the resize, or a
+  // window resize (the canvas narrowed by the browser, not a panel) is left alone; nothing moves while the width holds.
   const keepRef = useRef(null);
   keepRef.current = id => showBox(boundsRef.current[id], true);
   useEffect(() => {
     const element = surface.current;
     if (!element) return undefined;
-    let width = element.clientWidth, start = null, frame = 0;
+    let width = element.clientWidth, start = null, frame = 0, windowWidth = window.innerWidth;
     const sole = () => (selectedRef.current.length === 1 ? selectedRef.current[0] : null);
     const settled = () => {
       const was = start;
       start = null;
-      if (was?.whole && element.clientWidth < was.width && manualMoves.current === was.moves && sole() === was.id) keepRef.current(was.id);
+      if (was?.whole && element.clientWidth < was.width && window.innerWidth === was.windowWidth && manualMoves.current === was.moves && sole() === was.id) keepRef.current(was.id);
     };
     const observer = new ResizeObserver(() => {
       if (!start) {
         const id = sole(), box = id && boundsRef.current[id], v = viewRef.current;
         const left = box ? v.x + box.x * v.z : -1, right = box ? left + box.w * v.z : Infinity;
-        start = { width, id, whole: left >= 0 && right <= width, moves: manualMoves.current };
+        start = { width, id, whole: left >= 0 && right <= width, moves: manualMoves.current, windowWidth };
       }
+      windowWidth = window.innerWidth;
       width = element.clientWidth;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => { frame = requestAnimationFrame(settled); });
