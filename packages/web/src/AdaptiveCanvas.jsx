@@ -40,6 +40,7 @@ import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
+import { pageRef, pdfSource } from './pdf-source.js';
 import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
@@ -465,7 +466,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div data-slide={block.number} className="px-1 pb-1">
-        {url ? <img src={url} alt={`${block.label || 'Slide'} ${block.number}`} className="w-full rounded border border-line" draggable={false} />
+        {url ? <img src={url} alt={`${block.label || 'PDF'}, page ${block.number}`} className="w-full rounded border border-line" draggable={false} />
           : <p className="p-4 text-sm text-ink-2">This slide is not in this browser.</p>}
       </div>
     </CanvasNode>
@@ -1816,15 +1817,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         snapshot();
         insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label });
       },
-      // A PDF added as slides: one block per page, in order, where the learner is looking.
-      // `pdf` names the upload, so Files and the reader context follow the pages.
+      // A PDF's pages (pdf-to-canvas.md): one block per page, in order, where the learner is looking, as one undo.
+      // `pages` is [{ assetKey, number }], number the PDF's own page; `pdf` the source key (pdf-source.js), so Files, the
+      // reader and the AI context follow each page to its own page of its own source.
       insertSlides: ({ pages, label, pdf }) => {
         if (!pages.length) return;
         snapshot();
-        // A divider block between consecutive pages, so a separator can be deleted on its own.
-        const slides = pages.flatMap((assetKey, index) => [
-          ...(index ? [{ id: crypto.randomUUID(), type: 'divider', dx: 0, dy: 0, label: `Slide ${index + 1}`, pdf }] : []),
-          { id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number: index + 1, pdf },
+        // A divider block names each page, so a separator can be deleted on its own; page 1 opening the set needs none.
+        const slides = pages.flatMap(({ assetKey, number }, index) => [
+          ...(index || number !== 1 ? [{ id: crypto.randomUUID(), type: 'divider', dx: 0, dy: 0, label: `Page ${number}`, pdf }] : []),
+          { id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number, pdf },
         ]);
         const index = flowIndexAtView();
         setBlocks(previous => [...previous.slice(0, index), ...slides, ...previous.slice(index)]);
@@ -3027,10 +3029,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     armedId.current = block.id;
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
     const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material } };
-    // A slide sends the slide itself: its page of the uploaded PDF, read by the model as the
-    // reader's pages are (paper_context). The thumbnail only shows on the chip.
+    // A page sends the page itself, of its own source (pdf-source.js): an uploaded paper's page as paper_context, read by
+    // the model as the reader's pages are; a context document's page as its doc ref at that page. The thumbnail only shows on the chip.
     if (block.type === 'slide') {
-      const target = { id: block.id, ...described, ...card, paper: { id: String(block.pdf || '').slice('pdf:'.length), page: block.number } };
+      const source = pdfSource(block.pdf);
+      const target = { id: block.id, ...described, ...card, ...(source?.kind === 'paper' ? { paper: { id: source.id, page: block.number } } : {}), ...(pageRef(block) ? { docPage: pageRef(block) } : {}) };
       onAskTargetRef.current?.(target);
       loadAsset(block.assetKey).then(blob => {
         if (!blob || armedId.current !== block.id) return;
@@ -3091,6 +3094,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!ids.length) return false;
     const object = ids.length === 1 ? objectById(ids[0]) : null;
     if (chatWorkspace) {
+      // A page of a context document is that document at that page: the ref a question about it sends (pdf-to-canvas.md).
+      if (object?.type === 'slide' && pageRef(object)) { chatWorkspace.addToChat(pageRef(object)); return true; }
       const described = object && describeObject(object);
       const read = () => (described ? liveAskText(object.id, described)() : groupTargetText(ids.map(askEntryOf).filter(Boolean)));
       const group = ids.length > 1 && groups.find(entry => ids.every(id => groupOf(id) === entry.id) && membersOf(entry.id).length === ids.length);
@@ -4702,8 +4707,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             typed.push(<MenuRow key="pp" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('paper-reader', { id: block.paper.id, title: block.title, page: block.paper.page || 1 }))}>Open in reader</MenuRow>);
             typed.push(attachRow(`paper:${block.paper.id}`, 'paper'));
           }
-          if (block?.type === 'pdf' && block.assetKey?.startsWith('pdf:')) {
-            typed.push(<MenuRow key="pr" icon={BookOpen} onClick={act(() => onCardActionRef.current?.('pdf-reader', { id: block.assetKey.slice(4), title: block.label }))}>Open in reader</MenuRow>);
+          // A PDF card or page opens its own source in the reader, a page at its own page (card-open.js).
+          const reader = (block?.type === 'pdf' || block?.type === 'slide') && openTarget(block, { readers: true });
+          if (reader?.kind === 'reader') {
+            typed.push(<MenuRow key="pr" icon={BookOpen} onClick={act(() => onCardActionRef.current?.(reader.action, reader.payload))}>Open in reader</MenuRow>);
           }
           if (block?.type === 'file' && block.kind === 'image' && block.mediaId) {
             typed.push(<MenuRow key="ia" icon={Eye} onClick={act(() => onCardActionRef.current?.('image-attach', { blockId: block.id, mediaId: block.mediaId, label: block.label }))}>Show the tutor this image</MenuRow>);

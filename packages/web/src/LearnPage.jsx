@@ -28,6 +28,8 @@ import ShortcutsSheet from './ShortcutsSheet.jsx';
 const SlashCommandsSheet = lazy(() => import('./SlashCommandsSheet.jsx'));
 import FilesPanel from './FilesPanel.jsx';
 import FileImportDialog from './FileImportDialog.jsx';
+import PdfAddDialog from './PdfAddDialog.jsx';
+import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
 import { checkImport, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
 import { copiedCode, languageOf } from './map-files.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
@@ -402,67 +404,117 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // triggered from the Sources menu, so there is no dialog to dismiss.
   // The Files menu's Upload: same router as a drop, one picker for all kinds.
   const filePicker = useRef(null);
-  // An upload asks once whether the card shows the PDF or its pages as slides; Cancel adds nothing.
-  const [pdfChoice, setPdfChoice] = useState(null);
+  // Add to canvas for a PDF (docs/features/pdf-to-canvas.md), one flow for an upload or drop (takePdf) and for a PDF already in
+  // Sources (small:pdf-to-canvas): the dialog's one PDF card, or chosen pages drawn as page images. `place(choice, progress)`
+  // does the road's own work; Cancel or Escape (also while drawing) adds nothing, and a second press is never taken.
+  const [pdfAdd, setPdfAdd] = useState(null); // { name, total, busy, progress, error }
+  const pdfJob = useRef(null); // { place, done, running }
+  const askPdf = job => new Promise(done => { pdfJob.current = { place: job.place, done }; setPdfAdd({ name: job.name, total: job.total, busy: job.total == null, progress: null, error: null }); });
+  const closePdf = () => { const job = pdfJob.current; pdfJob.current = null; setPdfAdd(null); job?.done(); };
+  const confirmPdf = async choice => {
+    const job = pdfJob.current;
+    if (!job?.place || job.running) return;
+    job.running = true;
+    setPdfAdd(current => current && { ...current, busy: true, progress: null, error: null });
+    try {
+      await job.place(choice, progress => {
+        if (pdfJob.current !== job) throw new Error('cancelled');
+        setPdfAdd(current => current && { ...current, progress });
+      });
+      if (pdfJob.current === job) closePdf();
+    } catch (error) {
+      job.running = false;
+      if (pdfJob.current === job) setPdfAdd(current => current && { ...current, busy: false, progress: null, error: error.message || 'That PDF could not be added.' });
+    }
+  };
+  // The chosen pages, each drawn once to an image at the slides' width and kept as a board asset (never a blob URL), in order.
+  const drawPages = async (pdf, from, to, progress) => {
+    const pages = [], sheet = document.createElement('canvas');
+    for (let number = from; number <= to; number++) {
+      progress(`Drawing page ${number - from + 1} of ${to - from + 1}…`);
+      try {
+        const page = await pdf.getPage(number);
+        const viewport = page.getViewport({ scale: 1120 / page.getViewport({ scale: 1 }).width });
+        sheet.width = viewport.width; sheet.height = viewport.height;
+        await page.render({ canvasContext: sheet.getContext('2d'), viewport }).promise;
+        const blob = await new Promise(resolve => sheet.toBlob(resolve, 'image/png'));
+        const key = `slide:${crypto.randomUUID()}`;
+        await cacheAsset(key, blob);
+        pages.push({ assetKey: key, number });
+      } catch { throw new Error(`Page ${number} could not be drawn.`); }
+    }
+    return pages;
+  };
+  // One PDF card (its bytes under the source key) or the drawn pages, as one undoable insert. `source` is pdf-source.js's key.
+  const placePdf = async ({ pdf, file, source, label }, { mode, from, to }, progress) => {
+    if (mode === 'pdf') { await cacheAsset(source, file); canvas()?.insertPdf({ assetKey: source, label }); return; }
+    const pages = await drawPages(pdf, from, to, progress);
+    progress(`Adding ${pages.length} page${pages.length === 1 ? '' : 's'}…`);
+    canvas()?.insertSlides({ pages, label, pdf: source });
+  };
+  const readPdf = async bytes => {
+    const { getDocument } = await import('./learn-paper-figures.js');
+    return getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise;
+  };
   const takePdf = async file => {
     if (!file) return;
-    const mode = await new Promise(resolve => setPdfChoice({ name: file.name, resolve }));
-    setPdfChoice(null);
-    if (!mode) return;
     // The reader can only take the learner to a page the model will also read,
     // and paper_context refuses anything past 100. Say so before the upload
     // rather than failing on every question afterwards.
     let pdf;
     try {
-      const { getDocument } = await import('./learn-paper-figures.js');
-      pdf = await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
+      pdf = await readPdf(await file.arrayBuffer());
       if (pdf.numPages > 100) { toast(`That PDF has ${pdf.numPages} pages. The tutor can read up to 100.`); return; }
     } catch { toast('That file could not be read as a PDF.'); return; }
-    const body = new FormData();
-    body.append('file', file, file.name);
-    let stored;
-    try {
+    await askPdf({ name: file.name, total: pdf.numPages, place: async (choice, progress) => {
+      progress('Uploading…');
+      const body = new FormData();
+      body.append('file', file, file.name);
       const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
-      stored = await response.json();
-      if (!response.ok) throw new Error(stored?.error || 'Upload failed');
-    } catch (error) { toast(error.message || 'That PDF could not be uploaded.'); return; }
-    // The card is the canvas-resident copy - the browser's own viewer, every
-    // page, native scrolling - and it survives a reload because the bytes are
-    // in this browser's asset store and the block keeps only the key.
-    const assetKey = `pdf:${stored.id}`;
-    if (mode === 'slides') {
-      // Slides: every page drawn once to an image and placed on the canvas itself, in order.
-      const pages = [];
-      try {
-        const sheet = document.createElement('canvas');
-        for (let number = 1; number <= pdf.numPages; number++) {
-          const page = await pdf.getPage(number);
-          const viewport = page.getViewport({ scale: 1120 / page.getViewport({ scale: 1 }).width });
-          sheet.width = viewport.width; sheet.height = viewport.height;
-          await page.render({ canvasContext: sheet.getContext('2d'), viewport }).promise;
-          const blob = await new Promise(resolve => sheet.toBlob(resolve, 'image/png'));
-          const key = `slide:${crypto.randomUUID()}`;
-          await cacheAsset(key, blob);
-          pages.push(key);
-        }
-      } catch { toast('The slides could not be drawn.'); return; }
-      canvas()?.insertSlides({ pages, label: stored.title, pdf: assetKey });
-    } else {
-      await cacheAsset(assetKey, file);
-      canvas()?.insertPdf({ assetKey, label: stored.title });
-    }
-    // Opening it in the reader is what makes the tutor page-aware: boardContext
-    // carries paperContext, and ask.jsx turns that into paper_context with the
-    // page the learner is actually on. The card cannot do that job - an iframe
-    // never says which page is on screen.
-    pauseLesson();
-    if (chatWorkspace.current) chatWorkspace.current.openSource(paperRef({ id: stored.id, title: stored.title, page: 1 })); else {
-    setPaperContext({ ...stored, pdfUrl: null, page: 1 });
-    setWikiContext(null); setWikiOpen(false);
-    setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
-    }
-    registerSource({ id: stored.id, kind: 'pdf', label: stored.title });
+      const stored = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(stored?.error || 'That PDF could not be uploaded.');
+      // The card is the canvas-resident copy and survives a reload because the bytes are a board asset and the block keeps
+      // only the key (pdf:<paper id>, pdf-source.js).
+      await placePdf({ pdf, file, source: `pdf:${stored.id}`, label: stored.title }, choice, progress);
+      // Opening it in the reader, at the first page added, is what makes the tutor page-aware: boardContext carries
+      // paperContext, and ask.jsx turns that into paper_context with the page the learner is actually on. The card cannot do
+      // that job - an iframe never says which page is on screen.
+      const page = choice.mode === 'pages' ? choice.from : 1;
+      pauseLesson();
+      if (chatWorkspace.current) chatWorkspace.current.openSource(paperRef({ id: stored.id, title: stored.title, page })); else {
+      setPaperContext({ ...stored, pdfUrl: null, page });
+      setWikiContext(null); setWikiOpen(false);
+      setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
+      }
+      registerSource({ id: stored.id, kind: 'pdf', label: stored.title });
+    } });
   };
+  // Add to canvas from the Sources pane (SourcesPane.jsx): the PDF already stored there - a context document or an uploaded
+  // paper - read once from its own route (pdfBytesUrl). Nothing is uploaded or created, and its attachment is left as it is.
+  useEffect(() => {
+    const add = async event => {
+      const { sourceId, kind, name } = event.detail || {};
+      const source = pdfKeyOfRef({ sourceId, kind });
+      if (!source || pdfJob.current) return;
+      const label = name || 'PDF';
+      const opened = askPdf({ name: label, total: null, place: null });
+      const job = pdfJob.current;
+      try {
+        const response = await fetch(pdfBytesUrl(app.name, source), { headers: wsHeaders() });
+        if (!response.ok || !/pdf/.test(response.headers.get('content-type') || '')) throw new Error();
+        const file = await response.blob();
+        const pdf = await readPdf(await file.arrayBuffer());
+        if (pdfJob.current !== job) return;
+        job.place = (choice, progress) => placePdf({ pdf, file, source, label }, choice, progress);
+        setPdfAdd(current => current && { ...current, total: pdf.numPages, busy: false });
+      } catch {
+        if (pdfJob.current === job) setPdfAdd(current => current && { ...current, busy: false, error: 'That PDF could not be read.' });
+      }
+      await opened;
+    };
+    window.addEventListener('small:pdf-to-canvas', add);
+    return () => window.removeEventListener('small:pdf-to-canvas', add);
+  }, [app.name]); // eslint-disable-line react-hooks/exhaustive-deps
   // Files dropped straight onto the canvas. Each kind takes its own road: a
   // PDF rides the existing paper pipeline; a static image also gets a server
   // copy so a question can put it in front of the tutor; GIFs and clips stay
@@ -561,7 +613,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // the action, this page owns the readers, sources, and contexts involved.
   const cardAction = (action, payload) => {
     if (action === 'wiki-reader') openWiki({ title: payload.title, section: payload.section || 0 });
-    else if (action === 'pdf-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: null, page: 1 });
+    else if (action === 'pdf-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: null, page: payload.page || 1 });
+    // A context document (pdf-to-canvas.md) opens in Sources, at the page's own page.
+    else if (action === 'doc-reader') chatWorkspace.current?.openSource({ sourceId: `doc:${payload.id}`, kind: 'doc', name: payload.title || 'Document', version: '', range: { page: payload.page || 1 } });
     else if (action === 'paper-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: `https://arxiv.org/pdf/${payload.id}`, page: payload.page || 1 });
     else if (action === 'attach-toggle') setSources(previous => toggleSource(previous, payload.sourceId));
     else if (action === 'image-attach') {
@@ -1543,7 +1597,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
       <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
-        {pdfChoice && <ConfirmDialog title="Add this PDF as" body={`Add ${pdfChoice.name} as one PDF, or as slides with a divider between every page.`} altLabel="PDF" onAlt={() => pdfChoice.resolve('pdf')} confirmLabel="Slides" confirmVariant="primary" onConfirm={() => pdfChoice.resolve('slides')} onCancel={() => pdfChoice.resolve(null)} />}
+        {pdfAdd && <PdfAddDialog key={pdfAdd.total ?? 'reading'} name={pdfAdd.name} total={pdfAdd.total} busy={pdfAdd.busy} progress={pdfAdd.progress} error={pdfAdd.error} onCancel={closePdf} onConfirm={confirmPdf} />}
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
         {/* One centered strip is all the chrome the canvas gets: an editable
             title, the menubar, and the three one-press actions. No page

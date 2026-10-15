@@ -3,6 +3,7 @@ import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { refsForSend } from './chat-draft.js';
+import { MAX_REFS, sameRef } from './chat-context.js';
 import { chatHistory, refIds } from './chat-canvas-context.js';
 import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
@@ -146,6 +147,8 @@ export function MaterialIcon({ type }) {
 // lands); any other status draws nothing. A click validates through select() and hands the step on once: the clicked hook
 // shows a spinner and no second click goes through. The step itself is never read or shown here.
 // r29 (owner 2026-10-08): the next-section hook names where it goes; when this section's evidence is not met it skips it.
+// A selected page of a context document rides as that document's ref at its page (pdf-to-canvas.md): first, once, within the limit.
+const withPage = (refs, page) => (page && !refs.some(ref => sameRef(ref, page)) ? [page, ...refs].slice(0, MAX_REFS) : refs);
 const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
 // HOOK_ROW: one option's height, two lines of hook text, so the skeleton and the three hooks are the same size.
 const HOOK_ROW = 'min-h-14 rounded-lg border border-line';
@@ -607,7 +610,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
-        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(chat.context.attached) } : {}),
+        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(chat.context.attached, target?.docPage)) } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -1016,7 +1019,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
         {canvasTarget && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
           {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
-          {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
+          {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.docPage && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
           {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
           {canvasTarget.card && !canvasTarget.preview && <MaterialIcon type={canvasTarget.context?.material_type} />}
           {!canvasTarget.card && !String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}

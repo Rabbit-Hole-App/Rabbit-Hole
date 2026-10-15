@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronRight, CircleAlert, ExternalLink, List, Loader2, MoreHorizontal, Paperclip, RotateCw, Unlink, Upload, X } from 'lucide-react';
+import { ArrowLeft, ChevronRight, CircleAlert, ExternalLink, List, Loader2, MoreHorizontal, Paperclip, RotateCw, SquarePlus, Unlink, Upload, X } from 'lucide-react';
 import { Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { externalUrl, paneSections, rangeLabel } from './chat-context.js';
 import { CONTEXT_ACCEPT } from './context-docs.js';
 import { RefIcon } from './ContextChips.jsx';
 import SourceReader from './SourceReader.jsx';
+import { pdfKeyOfRef } from './pdf-source.js';
 
 // Sub-lane A4a owns this file: the Sources pane left of Chat (brief section 6). A1 mounts it, unpadded, as the
 // Sources ResizableSidePanel's child. A compact header (the active source's icon and title, Back, All sources, an
@@ -27,6 +28,11 @@ export default function SourcesPane() {
   const sections = paneSections(context.items, active);
   const url = active && externalUrl(active);
   const allSources = () => { setFolded(active); body.current?.scrollTo({ top: 0 }); };
+  // Add to canvas (docs/features/pdf-to-canvas.md): an uploaded PDF open here - a PDF context document or an uploaded paper.
+  // LearnPage owns the canvas and the dialog; the PDF's own bytes are read there, never uploaded again.
+  const activeDoc = active && sections.find(section => section.active)?.item.doc;
+  const canAdd = !!active && !!pdfKeyOfRef(active) && (active.kind !== 'doc' || activeDoc?.kind === 'pdf');
+  const addToCanvas = () => window.dispatchEvent(new CustomEvent('small:pdf-to-canvas', { detail: { sourceId: active.sourceId, kind: active.kind, name: active.name } }));
   return (
     <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
       <div data-sources-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
@@ -36,6 +42,8 @@ export default function SourcesPane() {
           <h2 className="min-w-0 truncate text-sm font-medium text-ink" title={active?.name}>{active ? active.name : 'Sources'}</h2>
           {active && rangeLabel(active.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(active.range)}</span>}
         </div>
+        {canAdd && <button type="button" data-source-add-canvas onClick={addToCanvas} title="Add to canvas"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"><SquarePlus size={14} aria-hidden /> Add to canvas</button>}
         {active && <button type="button" onClick={allSources} aria-label="All sources" title="All sources" className={ICON_BUTTON}><List size={16} aria-hidden /></button>}
         {active && (
           <span className="relative">

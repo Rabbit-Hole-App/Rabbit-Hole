@@ -2,6 +2,7 @@
 // selects; double-click, Enter and the selected card's Open pill open it: its reader when it has one,
 // otherwise its Rabbit Hole, made first when it has none. Pure, so the rules are tested without a canvas.
 import { resolveTarget } from './learn-target.js';
+import { pdfSource } from './pdf-source.js';
 
 // What opening this block does. portal: its Rabbit Hole, if one exists; dive: Rabbit Holes are available
 // here; readers: the page can open the side readers. null: nothing to open (a chat card never opens).
@@ -9,7 +10,9 @@ export function openTarget(block, { portal = null, dive = false, readers = false
   if (!block) return null;
   if (readers && block.type === 'wiki' && block.title) return { kind: 'reader', label: 'Open in reader', action: 'wiki-reader', payload: { title: block.title, section: block.section || 0 } };
   if (readers && block.type === 'paper' && block.paper?.id) return { kind: 'reader', label: 'Open in reader', action: 'paper-reader', payload: { id: block.paper.id, title: block.title, page: block.paper.page || 1 } };
-  if (readers && block.type === 'pdf' && block.assetKey?.startsWith('pdf:')) return { kind: 'reader', label: 'Open in reader', action: 'pdf-reader', payload: { id: block.assetKey.slice(4), title: block.label } };
+  // A PDF card or page (pdf-to-canvas.md): its own source, an uploaded paper or a context document, a page at its own page.
+  const pdf = readers && (block.type === 'pdf' || block.type === 'slide') && pdfSource(block.type === 'slide' ? block.pdf : block.assetKey);
+  if (pdf) return { kind: 'reader', label: 'Open in reader', action: pdf.kind === 'doc' ? 'doc-reader' : 'pdf-reader', payload: { id: pdf.id, title: block.label, page: block.type === 'slide' ? block.number : 1 } };
   // A YouTube moment has no reader panel (its embed is the card); its viewer is YouTube, at the moment.
   if (block.type === 'video' && block.videoId) return { kind: 'external', label: 'Open on YouTube', url: `https://www.youtube.com/watch?v=${block.videoId}${block.start ? `&t=${Math.floor(block.start)}s` : ''}` };
   if (portal) return { kind: 'enter', label: `Enter the Rabbit Hole: ${portal.title}`, name: portal.name };

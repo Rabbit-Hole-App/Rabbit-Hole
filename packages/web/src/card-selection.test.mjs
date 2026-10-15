@@ -14,6 +14,11 @@ test('Open is the card\'s reader when it has one', () => {
   assert.deepEqual(openTarget({ id: 'w', type: 'wiki', title: 'Softmax', section: 2 }, everything), { kind: 'reader', label: 'Open in reader', action: 'wiki-reader', payload: { title: 'Softmax', section: 2 } });
   assert.deepEqual(openTarget({ id: 'p', type: 'paper', title: 'Attention', paper: { id: '1706.03762', page: 3 } }, everything).payload, { id: '1706.03762', title: 'Attention', page: 3 });
   assert.equal(openTarget({ id: 'f', type: 'pdf', assetKey: 'pdf:upload:abc', label: 'Notes' }, everything).action, 'pdf-reader');
+  // PDF to canvas (pdf-to-canvas.md): a context document opens in Sources, never by the paper route; a page at its own page.
+  assert.deepEqual(openTarget({ id: 'd', type: 'pdf', assetKey: 'doc:ctx:0123456789ab', label: 'Notes' }, everything).payload, { id: 'ctx:0123456789ab', title: 'Notes', page: 1 });
+  assert.equal(openTarget({ id: 'd', type: 'pdf', assetKey: 'doc:ctx:0123456789ab', label: 'Notes' }, everything).action, 'doc-reader');
+  assert.deepEqual(openTarget({ id: 's', type: 'slide', assetKey: 'slide:x', pdf: 'doc:ctx:0123456789ab', number: 12, label: 'Notes' }, everything), { kind: 'reader', label: 'Open in reader', action: 'doc-reader', payload: { id: 'ctx:0123456789ab', title: 'Notes', page: 12 } });
+  assert.deepEqual(openTarget({ id: 's', type: 'slide', assetKey: 'slide:x', pdf: 'pdf:upload:0123456789ab', number: 12, label: 'Notes' }, everything).payload, { id: 'upload:0123456789ab', title: 'Notes', page: 12 });
   assert.deepEqual(openTarget({ id: 'v', type: 'video', videoId: 'abc123', start: 42.7 }, everything), { kind: 'external', label: 'Open on YouTube', url: 'https://www.youtube.com/watch?v=abc123&t=42s' });
 });
 
