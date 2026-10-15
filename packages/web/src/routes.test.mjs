@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getSurface, patchSurface, setSurface } from './agent/surface.js';
 import { canvasRoute } from '../../control-plane/src/canvases.js';
-import { baseSurfaceFor, canonicalPath, immersiveAt, pageFor, previewWriteAllowed, projectTab, sectionActive, sectionHref, takeWs } from './routes.js';
+import { baseSurfaceFor, canonicalPath, immersiveAt, pageFor, previewWriteAllowed, repositoryView, sectionActive, sectionHref, takeWs } from './routes.js';
 
 test('the live build routes exactly as today (main.jsx:57-70)', () => {
   for (const p of ['/apps', '/dash', '/members', '/chat', '/apps/counter', '/apps/counter/runs/r-1']) assert.equal(canonicalPath(p, false), null);
@@ -50,8 +50,8 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/library?type=canvases'), ['library', false]);
   assert.deepEqual(at('/apps?s=shared'), ['library', false]);
   assert.deepEqual(at('/explore'), ['explore', false]);
-  assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt'), ['project', false]); // a project opens on its Map (owner, 2026-10-04)
-  assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=map'), ['project', false]);
+  assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt'), ['learn', true]); // a repository opens on its canvas (owner, 2026-10-15)
+  assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=map'), ['learn', true]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), ['learn', true]);
   assert.deepEqual(at('/apps/counter'), ['app', false]); // WP6: app pages show the bar
   assert.deepEqual(at('/apps/counter?tab=learn'), ['app', false]); // D7: an app's ?tab=learn lands on Runbook, with the bar
@@ -66,8 +66,8 @@ test('Learn and canvas routes are immersive, with no persistent sidebar or icon 
   assert.equal(on('/apps/canvas-1a2b3c4d'), true);
   assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), true);
   assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=learn&canvas=canvas-1a2b3c4d'), true);
-  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt'), false); // a project opens on its Map
-  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=map'), false);
+  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt'), true); // a repository opens on its canvas (owner, 2026-10-15)
+  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=map'), true);
   assert.equal(on('/apps/counter?tab=learn'), false); // D7: an app lands on Runbook, never Learn
   assert.equal(on('/apps/canvas-1a2b3c4d/runs/r-1'), false);
   for (const url of ['/apps', '/dash', '/library', '/explore', '/apps/counter', '/members', '/chat']) assert.equal(on(url), false, url);
@@ -91,7 +91,7 @@ test('Root inputs: a split path and getSurface(); a chip click keeps who is look
   setSurface({ place: 'project', resource: { kind: 'project', slug: 'repo-x', title: 'x' }, selected: { id: 'n1' }, resultsHost: 'panel', handlers: { onGraph() {} } });
   setSurface(baseSurfaceFor(...rootInputs('/library?type=canvases&s=private')));
   assert.deepEqual(getSurface(), { ...identity, place: 'library', resource: null, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} });
-  for (const [path, place, hidden] of [['/apps?s=shared', 'library', false], ['/apps/counter?tab=learn', 'app', false], ['/apps/canvas-1a2b3c4d', 'canvas', true], ['/apps/repo-1a2b3c4d-nanogpt?tab=map', 'project', false]]) {
+  for (const [path, place, hidden] of [['/apps?s=shared', 'library', false], ['/apps/counter?tab=learn', 'app', false], ['/apps/canvas-1a2b3c4d', 'canvas', true], ['/apps/repo-1a2b3c4d-nanogpt?tab=map', 'learn', true]]) {
     setSurface(baseSurfaceFor(...rootInputs(path)));
     assert.deepEqual([getSurface().place, getSurface().barHidden, getSurface().org], [place, hidden, 'gmail-com'], path);
   }
@@ -104,10 +104,10 @@ test('a workspace switch travels in the URL and applies only on the page it load
   assert.equal(takeWs(''), null);
 });
 
-test('a project opens on its Map (owner, 2026-10-04: no Overview; a project has a Map and a canvas); learn is Learn (T02 §1)', () => {
-  for (const s of ['', '?tab=overview', '?tab=sources', '?canvas=canvas-1a2b3c4d']) assert.equal(projectTab(s), 'map', s);
-  assert.equal(projectTab('?tab=learn&canvas=canvas-1a2b3c4d'), 'learn');
-  for (const t of ['map', 'code', 'graph', 'agent']) assert.equal(projectTab(`tab=${t}`), 'map', t);
+test('a repository opens on its canvas; an old ?tab= link only picks the viewer beside Chat (owner, 2026-10-15)', () => {
+  for (const s of ['', '?tab=learn', '?tab=learn&canvas=canvas-1a2b3c4d', '?canvas=canvas-1a2b3c4d', '?tab=runbook']) assert.equal(repositoryView(s), null, s);
+  for (const t of ['map', 'graph', 'agent', 'overview', 'sources']) assert.equal(repositoryView(`tab=${t}`), 'graph', t);
+  assert.equal(repositoryView('?tab=code'), 'files'); // an old Files/code link opens Files, never the graph
 });
 
 test('D7 (WP7): the preview sends only the writes the dev worker serves itself; anything else would reach live small-cp', () => {

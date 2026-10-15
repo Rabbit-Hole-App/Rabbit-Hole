@@ -72,19 +72,24 @@ export function baseSurfaceFor(pathname, search, from = {}) {
   const place = at.page !== 'app' ? at.page
     : at.runId ? 'run'
     : at.slug.startsWith('canvas-') ? 'canvas'
-    : at.slug.startsWith('repo-') && projectTab(search) === 'learn' ? 'learn' // a project opens on Learn; an app's ?tab=learn is its Runbook (D7)
-    : at.slug.startsWith('repo-') ? 'project' : 'app';
+    : at.slug.startsWith('repo-') ? 'learn' // a repository opens on its canvas (repo-canvas-graph.md); an app's ?tab=learn is its Runbook (D7)
+    : 'app';
   const identity = Object.fromEntries(IDENTITY.filter((k) => from[k] !== undefined).map((k) => [k, from[k]]));
   return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run'].includes(place), resultsHost: 'sheet', handlers: {} };
 }
 
-// Project tabs (T02 §1 aliases): a project is Map or Learn (owner, 2026-10-04: no Overview). A project has both a
-// Map and a canvas, so it opens on the Map (owner, 2026-10-04); ?tab=learn is Learn, anything else (map, the legacy
-// code, graph and agent, an old ?tab=overview or sources) is the Map.
-export const projectTab = (search) => (new URLSearchParams(search).get('tab') === 'learn' ? 'learn' : 'map');
-// Learn is immersive (WP6 closeout): Shell shows no sidebar or icon rail on a canvas or a project's Learn tab.
+// A repository opens on its canvas, always (owner, 2026-10-15, repo-canvas-graph.md correction to decision 2: no repository
+// page, file browser or graph landing). An old ?tab= link only says which viewer opens once beside Chat: Graph for map, graph
+// and the old Map aliases (agent, overview, sources); Files for code - the owner's "an old Files/code link opens the canvas
+// with Files visible" (before 2026-09-29 ?tab=code was the code page, which started on its Graph view). learn, a bare URL and
+// anything else open no viewer.
+export const repositoryView = (search) => {
+  const tab = new URLSearchParams(search).get('tab');
+  return tab === 'code' ? 'files' : ['map', 'graph', 'agent', 'overview', 'sources'].includes(tab) ? 'graph' : null;
+};
+// Learn is immersive (WP6 closeout): Shell shows no sidebar or icon rail on a canvas or a repository's canvas.
 // An app's ?tab=learn lands on Runbook (D7), so it keeps the sidebar.
 export const immersiveAt = (pathname, search) => {
   const at = pageFor(pathname, search, true);
-  return at.page === 'app' && !at.runId && (at.slug.startsWith('canvas-') || (at.slug.startsWith('repo-') && projectTab(search) === 'learn'));
+  return at.page === 'app' && !at.runId && (at.slug.startsWith('canvas-') || at.slug.startsWith('repo-'));
 };

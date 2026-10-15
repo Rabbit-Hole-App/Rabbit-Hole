@@ -1,5 +1,5 @@
 import { cloneElement, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network, Wand } from 'lucide-react';
+import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
 import { canvasHref } from './project-canvases.js';
@@ -37,6 +37,7 @@ import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
+import { RepositoryBadge } from './repository-canvas.jsx';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
@@ -97,7 +98,9 @@ export default function LearnPage(props) {
 
 // `switcher`: a project's canvas switcher (RepositoryPage, docs/features/project-canvases.md), beside the title.
 // `project`: the open project (RepositoryPage), so the title reads [project] › [canvas] (owner r35).
-function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onMap = null, files = null, hole = null, switcher = null, project = null, projectMenu = null }) {
+// repository (repository-canvas.jsx): the canvas's attached repository, for its header badge; openViewer: 'files' | 'graph'
+// opens that viewer once on mount (an old ?tab= link, routes.js repositoryView).
+function LearnSurface({ app, onBack, repository = null, openViewer = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onMap = null, files = null, hole = null, switcher = null, project = null, projectMenu = null }) {
   const isRepository = app.kind === 'repository';
   // A canvas (smart-home's catalog) holds only what was put on it: never the
   // sample course, its lesson header, outline or progress.
@@ -1768,12 +1771,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
           <div className="flex items-center gap-0.5">
-            {/* A project's way to its code (owner, 2026-10-04): one icon, no Overview/Learn/Map pill on the canvas. Where the
-                canvas has the repository's files (the Main canvas), it opens them in the right panel, which links on to the
-                Map (owner, 2026-10-08); elsewhere it goes to the Map. */}
-            {onMap && <button type="button" data-learn-map title={files ? "Files: read this repository's code and ask about it" : "Map: this repository's code graph"} aria-label={files ? 'Repository files' : 'Map'}
-              onClick={files ? () => { setPanelOpen(true); setPanelTab('files'); } : onMap}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Network size={15} strokeWidth={1.8} /></button>}
+            {/* The repository's badge, status and details (owner, 2026-10-15): there is no repository page any more, so what it
+                showed lives here; its Files and Graph open beside Chat (PanelHeader, the composer's Explore codebase). */}
+            {repository && <RepositoryBadge repository={repository} />}
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
             <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
               onClick={() => setSearchOpen(true)}

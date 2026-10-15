@@ -6,7 +6,7 @@ const BOTH = ['canvas', 'repository'], CANVAS = ['canvas'], PROJECT = ['reposito
 export const CARD_MENU = [
   { id: 'open', label: 'Open', icon: 'ArrowUpRight', types: BOTH },
   { id: 'learn', label: 'Learn', icon: 'BookOpen', types: PROJECT },
-  { id: 'map', label: 'Map', icon: 'Network', types: PROJECT },
+  { id: 'map', label: 'Explore codebase', icon: 'Network', types: PROJECT }, // the canvas with its Graph beside Chat (routes.js repositoryView)
   { id: 'pin', label: 'Pin', icon: 'Pin', alt: { label: 'Unpin', icon: 'PinOff' }, types: PROJECT },
   { id: 'rename', label: 'Rename', icon: 'PenLine', types: BOTH, owner: true },
   { id: 'describe', label: 'Edit description', icon: 'AlignLeft', types: CANVAS, owner: true },

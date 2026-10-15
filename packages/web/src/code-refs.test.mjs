@@ -32,18 +32,18 @@ test('inside a repository context only a file of its snapshot is a link; outside
 });
 
 test('a reference is a real button with that name, guarded in prose, Sources lines and the Sources list; a click opens the reader, asking nothing', () => {
-  const md = read('Md.jsx'), page = read('RepositoryPage.jsx'), source = read('RepositorySource.jsx'), learn = read('LearnPage.jsx');
+  const md = read('Md.jsx'), source = read('RepositorySource.jsx'), learn = read('LearnPage.jsx');
   assert.match(md, /if\(linkable\(reference,has\)\)return <EvidencePill key=\{i\} type="button" data-code-ref=\{`[^`]+`\} aria-label=\{referenceLabel\(reference\)\}/);
   assert.match(md, /file = found && \(!has \|\| has\(found\[1\]\)\) \? found : null;/);
   assert.match(md, /const cited = onFile \? citedSources\(text\)\.filter\(c => linkable\(c, has\)\) : \[\];/);
   assert.match(md, /const onFile = given && refs \? refs\.open : given, has = given && refs \? refs\.has : null;/);
-  // The page: the snapshot's paths, and open = the file in its reader with the range picked (no ask, no fetch).
-  assert.match(page, /return \{has:p=>paths\.has\(p\),open:\(\.\.\.a\)=>openRef\.current\(\.\.\.a\)\};\},\[snapshot\]\);/);
-  const open = page.slice(page.indexOf('openRef.current=(path,start,end)=>{'), page.indexOf('const codeRefs='));
-  assert.match(open, /setOpened\(path\);setJump\(\{path,start,end,at:Date\.now\(\)\}\);/);
-  assert.match(open, /if\(tab==='learn'&&!picked\)window\.dispatchEvent\(new CustomEvent\('small:open-files'\)\);else\{setMode\('files'\);if\(tab==='learn'\)go\('map'\);\}/);
+  // The repository canvas: the snapshot's paths, and open = the file in its reader beside Chat with the range picked (no ask, no fetch).
+  const wired = read('repository-canvas.jsx');
+  assert.match(wired, /const codeRefs = snapshot \? \{ has: p => paths\.has\(p\), open: \(path, start, end\) => \{ if \(paths\.has\(path\)\) showFile\(path, start, end\); \} \} : null;/);
+  const open = wired.slice(wired.indexOf('const showFile = (path, start, end) => {'), wired.indexOf('// A code reference in an answer'));
+  assert.match(open, /files\.setOpen\(path\);\n\s+if \(start\) files\.setJump\(\{ path, start, end: end \|\| start, at: Date\.now\(\) \}\);\n\s+window\.dispatchEvent\(new CustomEvent\('small:open-files'\)\);/);
   assert.doesNotMatch(open, /fetch\(|api\(|askDraft|learnAction/);
-  assert.match(page, /pick=\{jump\}/);
+  assert.match(wired, /pick=\{files\.jump\}/);
   assert.match(learn, /const show = \(\) => \{ setPanelOpen\(true\); setPanelTab\('files'\); \};\n\s+window\.addEventListener\('small:open-files', show\);/);
   // The reader selects the range as a drag does (the selection Ask in chat and Copy act on), and scrolls it into view.
   assert.match(source, /select\(pick\.start,Math\.min\(pick\.end,last\)\);/);
