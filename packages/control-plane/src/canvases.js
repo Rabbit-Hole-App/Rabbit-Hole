@@ -1,4 +1,4 @@
-import { CHAT_MODES, PROJECT_FIELDS, projectAccess, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
+import { CHAT_MODES, PROJECT_FIELDS, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
@@ -121,12 +121,16 @@ export async function ownerCanvases(env, user, archived = false) {
 
 // Exactly the slugs canvasesFetch creates, so a live app that merely starts with canvas- stays live.
 const isCanvas = name => typeof name === 'string' && /^canvas-[a-f0-9]{8}$/.test(name);
+// A repository's Main canvas is a chat home too (repo-canvas-graph.md: the canvas is the repository workspace): its Chat
+// keeps its threads, History and active thread through the same routes, owner-only like a canvas.
+const isRepository = name => typeof name === 'string' && /^repo-[a-z0-9-]{1,80}$/.test(name);
+const isChatApp = name => isCanvas(name) || isRepository(name);
 // Which dev requests are canvas traffic. dev-worker.js cannot be imported under node, so the rule lives here, tested.
 // History lists only for Learn's scope (spec 8.2), so the legacy Agent panels never resume a canvas chat.
 export function canvasRoute(url) {
   const path = url.pathname;
-  return path === '/api/canvases' || /^\/api\/canvases\/dives(?:\/canvas-[a-f0-9]{8})?$/.test(path) || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
-    || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref'))) || CHAT_STATE.test(path)
+  return path === '/api/canvases' || /^\/api\/canvases\/dives(?:\/canvas-[a-f0-9]{8})?$/.test(path) || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/(?:canvaschat|repochat)-/.test(path)
+    || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isChatApp(url.searchParams.get('ref'))) || CHAT_STATE.test(path)
     || CHAT_MESSAGES.test(path) || path === CHAT_ACTIVE;
 }
 // Saving a chat exchange the client already shows (a Tutor reply in Auto, owner brief 2026-10-14 chat persistence): no model
@@ -134,7 +138,7 @@ export function canvasRoute(url) {
 // through to another route.
 const CHAT_MESSAGES = /^\/api\/learn\/chat\/threads\/([^/]+)\/messages$/;
 const CHAT_ACTIVE = '/api/learn/chat/active';
-const CHAT_ID = /^canvaschat-[0-9a-f-]{36}$/, CLIENT_ID = /^[A-Za-z0-9_-]{1,80}$/, CONTENT = 100000;
+const CHAT_ID = /^(?:canvaschat|repochat)-[0-9a-f-]{36}$/, CLIENT_ID = /^[A-Za-z0-9_-]{1,80}$/, CONTENT = 100000;
 const noChatTables = error => /no such table/i.test(error?.message || '');
 const unavailable = () => json({ error: 'Saving chat is not available here yet' }, 503);
 async function jsonObject(req) {
@@ -144,10 +148,19 @@ async function jsonObject(req) {
 }
 // The canvas a chat write names must be the caller's own, or a pending hole of theirs (the state route's fallback): null, or
 // the refusal (another person's canvas).
+// The caller's own repository (repository_apps), as ownedCanvas answers for a canvas: 404 unknown, 403 another person's.
+async function ownedRepository(env, user, name) {
+  const row = await env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org, name).first();
+  if (!row) return json({ error: 'Repository not found in this workspace' }, 404);
+  if (row.owner_email !== user.email) return json({ error: 'This repository is private to its owner' }, 403);
+  return repositoryApp(row, user);
+}
+const ownedChatApp = (env, user, name) => (isRepository(name) ? ownedRepository(env, user, name) : ownedCanvas(env, user, name));
 async function canvasRefusal(env, user, app) {
-  if (!isCanvas(app)) throw Error('Send app as a canvas name');
-  const owned = await ownedCanvas(env, user, app);
-  return owned instanceof Response && owned.status !== 404 ? owned : null;
+  if (!isChatApp(app)) throw Error('Send app as a canvas name');
+  const owned = await ownedChatApp(env, user, app);
+  // An unknown canvas name may be a pending Rabbit Hole (no row yet); an unknown repository is just unknown.
+  return owned instanceof Response && (owned.status !== 404 || isRepository(app)) ? owned : null;
 }
 // null when no thread has this id yet; 404 for another person's (never revealed), 409 for the caller's own on another canvas,
 // so a late reply never lands in a different canvas's thread; else the row.
@@ -162,7 +175,7 @@ async function canvasThread(db, user, id, app) {
 async function saveChatMessage(req, env, user, id) {
   const db = env.LEARN_DB, body = await jsonObject(req);
   const { app, client_id: clientId, role, content, title } = body, status = body.status ?? 'done', mode = body.mode ?? 'auto';
-  if (!CHAT_ID.test(id)) throw Error('Chat id must be canvaschat- and a UUID');
+  if (!CHAT_ID.test(id)) throw Error('Chat id must be canvaschat- or repochat- and a UUID');
   if (typeof clientId !== 'string' || !CLIENT_ID.test(clientId)) throw Error('client_id must be 1-80 letters, digits, _ or -');
   if (!['user', 'assistant'].includes(role)) throw Error('role must be user or assistant');
   if (role === 'user' && body.status !== undefined) throw Error('Only an assistant message has a status');
@@ -229,7 +242,7 @@ async function activeChat(req, env, user, url) {
 }
 // A Chat thread's saved state (chat-workspace-CONTRACT.md A3): its mode, attached ContextRefs (A2) and draft, upserted into
 // chat_thread_state by PUT /api/learn/chat/threads/<id>/state. last_activity_at is the turn's (apiAsk), never touched here.
-const CHAT_STATE = /^\/api\/learn\/chat\/threads\/(canvaschat-[a-f0-9-]+)\/(state)$/;
+const CHAT_STATE = /^\/api\/learn\/chat\/threads\/((?:canvaschat|repochat)-[a-f0-9-]+)\/(state)$/;
 const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'] };
 const short = (value, limit) => typeof value === 'string' && value.length <= limit;
 // null, or exactly one of the A2 range shapes.
@@ -336,13 +349,14 @@ export async function canvasesFetch(req, env) {
     if (saving) return req.method === 'POST' ? await saveChatMessage(req, env, user, saving[1]) : json({ error: 'POST required' }, 405);
     if (path === CHAT_ACTIVE) return await activeChat(req, env, user, url);
     // Learn's chat keeps its /api/ask/threads calls (ask.jsx:388,401,601,622); canvas history lives in LEARN_DB.
-    const thread = path.match(/^\/api\/ask\/threads(?:\/(canvaschat-[a-f0-9-]+)(?:\/(delete|rename))?)?$/) || path.match(CHAT_STATE);
+    const thread = path.match(/^\/api\/ask\/threads(?:\/((?:canvaschat|repochat)-[a-f0-9-]+)(?:\/(delete|rename))?)?$/) || path.match(CHAT_STATE);
     if (thread) {
       const [, id, action] = thread;
       if (action === 'state' ? req.method !== 'PUT' : action && req.method !== 'POST') return json({ error: `${action === 'state' ? 'PUT' : 'POST'} required` }, 405);
       const ref = id ? (await db.prepare('SELECT scope_ref FROM threads WHERE id=? AND org=? AND user=?').bind(id, user.org, user.email).first())?.scope_ref : url.searchParams.get('ref');
       if (!ref) return json({ error: 'Chat not found' }, 404);
-      let app = await ownedCanvas(env, user, ref);
+      if (!isChatApp(ref)) return json({ error: 'Chat not found' }, 404);
+      let app = await ownedChatApp(env, user, ref);
       // A pending hole has no row yet; its history is still only this user's own threads for that name.
       if (app instanceof Response && app.status === 404 && isCanvas(ref)) app = canvasApp({ id: null, org: user.org, name: ref, owner_email: user.email, title: '' }, user);
       if (app instanceof Response) return app;

@@ -90,7 +90,7 @@ test('malformed message bodies are 400, the wrong method is 405, and nothing is 
   const f = fixture(t);
   const before = counts(f);
   const ok = { client_id: 'u-1', role: 'user', content: 'hi' };
-  for (const bad of [{ ...ok, app: 'repo-x' }, { ...ok, client_id: '' }, { ...ok, client_id: 'x'.repeat(81) }, { ...ok, client_id: 'a b' }, { ...ok, role: 'system' },
+  for (const bad of [{ ...ok, app: 'counter' }, { ...ok, client_id: '' }, { ...ok, client_id: 'x'.repeat(81) }, { ...ok, client_id: 'a b' }, { ...ok, role: 'system' },
     { ...ok, status: 'done' }, { ...ok, role: 'assistant', status: 'stopped' }, { ...ok, mode: 'course' }, { ...ok, content: '' }, { ...ok, role: 'assistant', content: ' ' },
     { ...ok, content: 'x'.repeat(100001) }, { ...ok, content: 7 }, { ...ok, title: 5 }]) {
     const res = await f.post(A, bad);
@@ -161,5 +161,48 @@ test('canvasRoute sends the new chat paths to canvasesFetch and nothing near the
   for (const path of [`/api/learn/chat/threads/${A}/messages`, '/api/learn/chat/threads/canvaschat-a/messages', '/api/learn/chat/active', `/api/learn/chat/active?app=${CANVAS}`])
     assert.ok(canvasRoute(new URL(`https://dev.test${path}`)), path);
   for (const path of ['/api/learn/chat/activex', `/api/learn/chat/threads/${A}/messages/1`, '/api/learn/chat/messages/12', '/api/learn/chat/threads//messages'])
+    assert.equal(canvasRoute(new URL(`https://dev.test${path}`)), false, path);
+});
+
+// A repository's Main canvas is its workspace (repo-canvas-graph.md): its Chat keeps an active thread, History, open, rename
+// and delete through the same routes, owner-only. Its threads are repochat- (repositoryAsk) or canvaschat- (an Auto save).
+test('a repository Main canvas: active GET/PUT, History, open, rename and delete for its owner; refused for another person and across apps', async t => {
+  const f = fixture(t);
+  const REPO = 'repo-1a2b3c4d-nanogpt', THEIR_REPO = 'repo-9f9f9f9f-theirs', R = 'repochat-00000000-0000-4000-8000-000000000101';
+  f.sqlite.exec(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('team','${REPO}','owner@test','karpathy/nanoGPT','master','abc','ready'),('team','${THEIR_REPO}','other@test','x/y','main','def','ready');
+    INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES('${R}','team','owner@test','${REPO}','abc','How does attention work?');
+    INSERT INTO messages(thread_id,role,content) VALUES('${R}','user','How does attention work?'),('${R}','assistant','By weighting earlier tokens.');`);
+  // Before any PUT the active thread is none (not a 400), and History lists the repository's own thread only.
+  assert.deepEqual(await (await f.send('GET', `/api/learn/chat/active?app=${REPO}`)).json(), { threadId: null });
+  assert.deepEqual((await (await f.send('GET', `/api/ask/threads?scope=learn&ref=${REPO}`)).json()).threads.map(row => row.id), [R]);
+  assert.deepEqual((await (await f.send('GET', `/api/ask/threads?scope=learn&ref=${CANVAS}`)).json()).threads.map(row => row.id).includes(R), false);
+  // Remember, read back, open.
+  assert.equal((await f.send('PUT', '/api/learn/chat/active', { app: REPO, thread_id: R })).status, 200);
+  assert.deepEqual(await (await f.send('GET', `/api/learn/chat/active?app=${REPO}`)).json(), { threadId: R });
+  const opened = await (await f.send('GET', `/api/ask/threads/${R}`)).json();
+  assert.deepEqual([opened.id, opened.messages.length], [R, 2]);
+  // A canvas's thread is not this repository's, and the reverse.
+  assert.equal((await f.send('PUT', '/api/learn/chat/active', { app: REPO, thread_id: ELSEWHERE })).status, 409);
+  assert.equal((await f.send('PUT', '/api/learn/chat/active', { app: CANVAS, thread_id: R })).status, 409);
+  // Another person's repository, and an unknown one, are refused.
+  assert.equal((await f.send('GET', `/api/learn/chat/active?app=${THEIR_REPO}`)).status, 403);
+  assert.equal((await f.send('PUT', '/api/learn/chat/active', { app: THEIR_REPO, thread_id: null })).status, 403);
+  assert.equal((await f.send('GET', `/api/ask/threads?scope=learn&ref=${THEIR_REPO}`)).status, 403);
+  assert.equal((await f.send('GET', '/api/learn/chat/active?app=repo-00000000-gone')).status, 404);
+  // Rename, then delete.
+  assert.equal((await f.send('POST', `/api/ask/threads/${R}/rename`, { title: 'Attention' })).status, 200);
+  assert.equal(f.sqlite.prepare('SELECT title FROM threads WHERE id=?').get(R).title, 'Attention');
+  assert.equal((await f.send('POST', `/api/ask/threads/${R}/delete`)).status, 200);
+  assert.equal(f.count('threads', `id='${R}'`), 0);
+  assert.deepEqual(await (await f.send('GET', `/api/learn/chat/active?app=${REPO}`)).json(), { threadId: null });
+  // An Auto save on the repository canvas makes its thread there.
+  assert.equal((await f.post(A, { app: REPO, client_id: 'u-9', role: 'user', content: 'Where is the loss?' })).status, 201);
+  assert.equal(f.sqlite.prepare('SELECT scope_ref FROM threads WHERE id=?').get(A).scope_ref, REPO);
+});
+
+test('canvasRoute sends repository chat paths to canvasesFetch, and leaves other apps alone', () => {
+  for (const path of ['/api/ask/threads?scope=learn&ref=repo-1a2b3c4d-nanogpt', '/api/ask/threads/repochat-00000000-0000-4000-8000-000000000101', '/api/ask/threads/repochat-00000000-0000-4000-8000-000000000101/rename', '/api/learn/chat/threads/repochat-00000000-0000-4000-8000-000000000101/state'])
+    assert.ok(canvasRoute(new URL(`https://dev.test${path}`)), path);
+  for (const path of ['/api/ask/threads?scope=learn&ref=counter', '/api/ask/threads?scope=org', '/api/ask/threads/t-123'])
     assert.equal(canvasRoute(new URL(`https://dev.test${path}`)), false, path);
 });

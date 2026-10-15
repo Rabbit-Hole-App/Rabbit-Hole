@@ -91,7 +91,9 @@ test('canvas chat history lists, reads, renames and deletes only the owner canva
   assert.deepEqual((await (await f.send('GET', '/api/ask/threads/canvaschat-a')).json()).messages.map(m => m.content), ['Hi', 'Hello']);
   assert.equal((await f.send('GET', `/api/ask/threads?scope=learn&ref=${name}`, null, colleague)).status, 403);
   assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-a', null, colleague)).status, 404);
-  assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-b')).status, 404);
+  // A thread on the owner's repository Main canvas opens under that repository (repo-canvas-graph.md), never in this canvas's list.
+  assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-b')).status, 200);
+  assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-b', null, colleague)).status, 404);
   assert.equal((await f.send('POST', '/api/ask/threads/canvaschat-a/rename', { title: 'Renamed' })).status, 200);
   assert.equal(f.sqlite.prepare("SELECT title FROM threads WHERE id='canvaschat-a'").get().title, 'Renamed');
   assert.equal((await f.send('POST', '/api/ask/threads/canvaschat-a/delete')).status, 200);
