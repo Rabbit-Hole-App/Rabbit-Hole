@@ -35,6 +35,12 @@ phase except `all` stops the sign-in probe stack and proves 8878/8879/9318/9319 
 Dispatch: `gh workflow run gate-sharded.yml -R Rabbit-Hole-App/Rabbit-Hole --ref parallel/gate-chat-workspace -f app_sha=<full sha> -f app_tree=<tree>`, only after verify.yml (push) and fast-e2e.yml (push or dispatch) have both passed on that exact commit:
 its Linux `preflight` job (`dispatch-preflight.mjs`, owner 2026-10-14) refuses otherwise, or for a wrong tree, before any Windows runner starts.
 
+Before dispatch, rehearse on the candidate checkout: `node scripts/r36-gate/rehearse.mjs <app root>` (seconds, no runner). It
+exits 1 when a fixture adapter refuses a candidate check (run 38790698635 refused every shard on a rewritten repo-browser-check)
+or when a check reads a gate-local variable (PERSIST, D1_CONFIG, WRANGLER_BIN, LOCAL_CP_VARS) that its int35.sh invocation
+does not pass (run 38792322071: rh-local's seed fell back to a developer default and exited 1 before any area). Fix the check
+or the invocation, never the adapter's guard.
+
 The same checks on nine clean Windows runners at once: `units`, `checkpoints` (preflight then Dive,
 uploaded as today) and `shard-1`..`shard-7` (packed by measured duration, "Shard packing" below). `units` runs `make test-unit` and the fixture regression, the two stages
 no shard runs (`UNIT_STAGES` in `shards.mjs`); it writes them to its `gate-shard.log` in int35.sh's line format. Each
