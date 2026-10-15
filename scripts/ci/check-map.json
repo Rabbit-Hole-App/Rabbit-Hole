@@ -225,8 +225,6 @@
   ],
   "defaultReason": "An unmapped executable path runs this conservative set (the app shell, navigation, selection, naming and the home ask, about 4 min of checks) and the run reports the missing mapping. It is neither the full broad set nor a failure.",
   "mapped": {
-    "packages/web/src/PdfAddDialog.jsx": ["pdf-to-canvas-check.mjs", "materials-rows-check.mjs"],
-    "packages/web/src/pdf-source.js": ["pdf-to-canvas-check.mjs", "materials-rows-check.mjs"],
     "packages/web/src/inline-diagram.js": ["inline-ai-check.mjs","dive-check.mjs"],
     "packages/web/src/inline-placement.js": ["inline-ai-check.mjs","dive-check.mjs"],
     "packages/web/src/InlineAiEditor.jsx": ["inline-ai-check.mjs","canvas-skeleton-check.mjs","chat-block-check.mjs","cross-device-check.mjs","dive-check.mjs","explain-back-sketch-check.mjs","journey-check.mjs","manim-render-check.mjs","practice-card-check.mjs","wiki-check.mjs"],

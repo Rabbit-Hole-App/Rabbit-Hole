@@ -143,13 +143,22 @@ const frames = () => page.evaluate(() => new Promise(resolve => requestAnimation
 // ---------------------------------------------------------------- Materials rows
 const pane = () => page.locator('[data-chat-pane]');
 const sourcesPane = () => page.locator('[data-sources-pane]');
-const sourcesPanel = () => page.locator('[aria-label="Sources"]');
+// The side panel holding Sources (labelled Sources, or Context once it is a navigation tab); the composer's own Sources button
+// shares the label, so the panel is the one that holds the pane.
+const sourcesPanel = () => page.locator(':is([aria-label="Sources"],[aria-label="Context"]):has([data-sources-pane])');
 const row = doc => page.locator(`[data-material-row][data-source-id="doc:${doc.id}"]`);
 const action = (doc, name) => row(doc).locator(`[data-material-action="${name}"]`);
 const expander = doc => row(doc).locator('button[aria-expanded]').first();
 const pressed = async (doc, name) => (await action(doc, name).getAttribute('aria-pressed')) === 'true';
+// A new chat may start with the canvas's switched-on documents attached, so a chat-attach scenario starts from its own state.
+const clearChat = async (...docs) => {
+  for (const doc of docs) if (await pressed(doc, 'chat')) {
+    await press(doc, 'chat');
+    await waitFor(async () => !(await pressed(doc, 'chat')), 5000, 'a chat attachment did not clear');
+  }
+};
 const readerTitle = async () => (await page.locator('[data-sources-header] h2').innerText().catch(() => '')).trim();
-const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-sources-pane]')?.closest('[aria-label="Sources"]')?.getBoundingClientRect().width || 0) > 50);
+const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-sources-pane]')?.closest('[aria-label="Sources"],[aria-label="Context"]')?.getBoundingClientRect().width || 0) > 50);
 const openSources = async () => {
   if (!(await sourcesOpen())) await page.locator('[data-chat-sources]:visible').first().click({ timeout: 5000 });
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
@@ -285,6 +294,7 @@ await check('two PDFs: canvas context and chat attachment on one row change only
   await press(A, 'context');
   await flagBecomes(A, before.a);
   // Chat attachment on B only.
+  await clearChat(A, B);
   await press(B, 'chat');
   await waitFor(async () => pressed(B, 'chat'), 5000, 'B did not show attached to this chat');
   assert.equal(await pressed(A, 'chat'), false, 'A is not attached to this chat');
@@ -336,6 +346,7 @@ await check('two documents both named same-name.pdf stay distinct: each row acts
   assert.equal((await serverDoc(C1)).attached, c1, 'the other same-name document is unchanged');
   await press(C2, 'context');
   await flagBecomes(C2, c2);
+  await clearChat(C1, C2);
   await press(C1, 'chat');
   await waitFor(async () => pressed(C1, 'chat'), 5000, 'C1 did not show attached to this chat');
   assert.equal(await pressed(C2, 'chat'), false, 'C2 is not attached to this chat');
@@ -360,6 +371,7 @@ await check('canvas context and chat attachment are independent: toggling one le
   await newChat();
   await openSources();
   const flag = (await serverDoc(A)).attached, context = await pressed(A, 'context');
+  await clearChat(A);
   await press(A, 'chat');
   await waitFor(async () => pressed(A, 'chat'), 5000, 'A did not show attached to this chat');
   await page.waitForTimeout(800);
@@ -390,6 +402,7 @@ await check('Remove from Materials: R\'s pages are on the canvas and R is attach
   await page.waitForTimeout(1500);
   rPages = (await inkBlocks()).filter(b => b.type === 'slide' && b.pdf === `doc:${R.id}`);
   assert.deepEqual(rPages.map(b => b.number), [1, 2, 3], 'R\'s three pages landed');
+  await clearChat(R);
   await press(R, 'chat');
   await waitFor(async () => pressed(R, 'chat'), 5000, 'R did not show attached to this chat');
 });
