@@ -132,3 +132,16 @@ test('only a drag that carries files is a file drop', async () => {
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /onDrop=\{event => \{ if \(!onDropFiles \|\| !isFileDrag\(event\.dataTransfer\)\) return;/);
 });
+
+// Lead 1:02 AM PT, Home scenario 5: on an empty line the DOM caret sits beside the line's <br> and has no client rect, so
+// docCaret was never told about it and the camera did not follow new empty lines (only ProseMirror's own reveal, which
+// knows nothing of the composer and chrome over the canvas). The empty line's own box stands in for the caret.
+test('caretRect: the range rect when there is one, else the empty line box', async () => {
+  const { caretRect } = await import('./canvas-doc.js');
+  const zero = { x: 0, y: 0, width: 0, height: 0 }, line = { x: 40, y: 700, width: 600, height: 24 }, text = { x: 90, y: 300, width: 1, height: 21 };
+  assert.deepEqual(caretRect({ getClientRects: () => [text], getBoundingClientRect: () => text, startContainer: { nodeType: 3, parentElement: { getBoundingClientRect: () => line } } }), text);
+  assert.deepEqual(caretRect({ getClientRects: () => [], getBoundingClientRect: () => zero, startContainer: { nodeType: 1, getBoundingClientRect: () => line } }), line, 'an empty paragraph');
+  assert.equal(caretRect(null), null);
+  const { readFileSync } = await import('node:fs');
+  assert.match(readFileSync(new URL('./CanvasDoc.jsx', import.meta.url), 'utf8'), /const box = caretRect\(range\);/);
+});
