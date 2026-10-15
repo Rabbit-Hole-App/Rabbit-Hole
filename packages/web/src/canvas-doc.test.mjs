@@ -93,3 +93,14 @@ test('a press on the document editor\'s own menus keeps its focus; a press outsi
   const { readFileSync } = await import('node:fs');
   assert.match(readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), /if \(editable && !active\.contains\(event\.target\) && !pressKeepsDocFocus\(active, event\.target\) && /, 'the shell uses it');
 });
+
+// Home canvas-doc-check bug 1 (lead 12:08 AM PT): Ctrl+End in a long document scrolled the overflow-hidden canvas surface
+// (ProseMirror's scrollRectIntoView and the browser's caret reveal scroll any ancestor), sliding the world under a camera
+// that never moved. Any scroll of the surface becomes a camera move, committed at once (flushSync) so docCaret measures
+// after it, and the surface goes back to 0. The browser check is C:/s/bn/ctrlend.mjs (scrollTop 6979 before the fix).
+test('a scroll of the canvas surface becomes a camera move and the surface returns to 0', async () => {
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /const dx = element\.scrollLeft, dy = element\.scrollTop;\s+if \(!dx && !dy\) return;\s+element\.scrollLeft = 0; element\.scrollTop = 0;\s+flushSync\(\(\) => setView\(v => \(autoView\.current = \{ \.\.\.v, x: v\.x - dx, y: v\.y - dy \}\)\)\);/);
+  assert.match(canvas, /element\.addEventListener\('scroll', scrolled\);/);
+});

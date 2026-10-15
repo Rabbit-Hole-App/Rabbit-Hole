@@ -2714,6 +2714,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rail?.addEventListener('wheel', railWheel, { passive: false });
     return () => { element.removeEventListener('wheel', wheel); rail?.removeEventListener('wheel', railWheel); };
   }, [presenting === null]);
+  // The surface clips (overflow hidden) but focus, the caret's reveal (the browser's and ProseMirror's scrollRectIntoView) and
+  // scrollIntoView still scroll it, sliding the world under a camera that never moved. Any such scroll becomes a camera move
+  // and the surface goes back to 0, so the camera follows the document's caret (blocknote-canvas.md section 6). flushSync:
+  // docCaret measures in the next frame, after the move, so it never pans a second time.
+  useEffect(() => {
+    const element = surface.current;
+    const scrolled = () => {
+      const dx = element.scrollLeft, dy = element.scrollTop;
+      if (!dx && !dy) return;
+      element.scrollLeft = 0; element.scrollTop = 0;
+      flushSync(() => setView(v => (autoView.current = { ...v, x: v.x - dx, y: v.y - dy })));
+    };
+    element.addEventListener('scroll', scrolled);
+    return () => element.removeEventListener('scroll', scrolled);
+  }, []);
   // The canvas's own width decides whether the overview opens by default: on a
   // wide canvas it sits beside the tools, anywhere narrower it starts collapsed.
   useEffect(() => {
