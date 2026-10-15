@@ -157,9 +157,11 @@ if git cat-file -e "$INT35_EXPECTED_TREE:packages/web/e2e/canvas-toolbar-check.m
   echo "canvas-toolbar exit $rc  $sc"
 fi
 # #73: rabbit-hole-check Map/project cases in LOCAL=1 mode (nanoGPT fixture, every unrouted ask aborted, no .env).
+# It gets the stack's D1 (PERSIST, D1_CONFIG, WRANGLER_BIN, as $E gives the other checks): since the repository canvas release
+# (repo-graph R1) it seeds the stubbed project's repository_apps row, without which Chat on that canvas is not served.
 # wp6-learn: and wp6-mobile are NOT RUN (stale, left unchanged; clone run not authorised).
 memcheck rh-local
-RHL="LOCAL=1 BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 ONLY=bar-page,wp6-map,wp6-learn-this,wp6-show-on-graph,wp6-kg-,wp6-project,wp6-overview"
+RHL="LOCAL=1 PERSIST=$F/local D1_CONFIG=$W/packages/control-plane/integ-local.jsonc WRANGLER_BIN=$W/node_modules/wrangler/bin/wrangler.js BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 ONLY=bar-page,wp6-map,wp6-learn-this,wp6-show-on-graph,wp6-kg-,wp6-project,wp6-overview"
 alive || { echo "rh-local: stack down before the check, restarting"; bash $F/stack.sh restart | tail -1; }
 : > $F/stage-start
 (cd $W/packages/web && env $RHL timeout 1500 node e2e/rabbit-hole-check.mjs > $F/rh-local-r35.log 2>&1); rc=$?

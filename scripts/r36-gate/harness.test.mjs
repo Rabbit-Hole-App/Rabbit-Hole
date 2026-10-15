@@ -20,6 +20,7 @@ test('portable preparation preserves the ordered baseline checks and adds routin
     const normalized=stages(generated).filter(l=>!l.includes('answer-routing')).map(line=>Object.keys(FIXTURE_ADAPTERS).reduce((text,name)=>text.replace(`r36-${name}`,name),line));
     assert.deepEqual(normalized,stages(baseline));
     assert.match(generated,/E="WRANGLER_BIN=\$W\/node_modules\/wrangler\/bin\/wrangler.js BASE=/);
+    assert.match(generated,/^RHL="LOCAL=1 PERSIST=\$F\/local D1_CONFIG=\$W\/packages\/control-plane\/integ-local\.jsonc WRANGLER_BIN=\$W\/node_modules\/wrangler\/bin\/wrangler\.js /m);
     for (const name of Object.keys(FIXTURE_ADAPTERS)) {
       assert.equal(readFileSync(join(app,'packages/web/e2e',name),'utf8'),readFileSync(join(process.env.R36_FIXTURE_SOURCE_ROOT,'packages/web/e2e',name),'utf8'));
       assert.ok(existsSync(join(app,'packages/web/e2e',`r36-${name}`)));
