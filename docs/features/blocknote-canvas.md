@@ -200,8 +200,11 @@ Do not interpret dropping a Rabbit Hole card onto the writing surface as:
 - Creating a reference.
 - Deleting it from the canvas.
 
-If such a drop would leave the card obscured beneath the document, reject
-the drop and preserve its previous position, with a short explanatory hint.
+Cards always render and take input above the paper (layers follow-up,
+2026-10-15): the paper is the world layer's first child with no z-index,
+so a card dropped on the page stays where it was dropped, above the text,
+and Send to back never moves a card behind the paper. The drop is not
+refused.
 
 A card can pass across the page during a drag to another canvas position.
 
@@ -210,8 +213,13 @@ Dragging an editor block outside it must not silently delete it or create
 a canvas card.
 
 The paper is an overlay in canvas space, not an automatic layout manager.
-Document growth must not move surrounding objects. Any objects it later
-covers remain intact and accessible in Canvas view.
+Document growth must not move surrounding objects. Objects it later
+covers stay above it, intact and accessible in both views.
+
+In Editor view the minimap draws the page's footprint (saved x/y/w plus
+the measured height, at least the empty-page height) as a light sheet
+under the card markers, and counts it in the minimap's extent. The same
+box feeds the chat canvas context.
 
 Cards do not automatically stay attached to particular paragraphs as
 text is inserted above them. Paragraph anchoring is deferred.
