@@ -65,7 +65,8 @@ function Chip({ cardId, reference, refs, listed = false }) {
 }
 
 // The row under a card's content: two chips, then "+N more" opening the rest. It reports its height so the card
-// grows by it (CanvasNode adds it like a practice row), never overlaying the content.
+// grows by it (CanvasNode adds it like a practice row), never overlaying the content. pointer-events-auto: the chips stay
+// clickable while the column is pointer-events-none (the hand tool, which view-only pages start in), as portal labels do.
 export default function CanvasRefChips({ id, onHeight }) {
   const refs = useContext(CanvasRefs);
   const list = refs?.refsOf(id) || EMPTY;
@@ -83,7 +84,7 @@ export default function CanvasRefChips({ id, onHeight }) {
   if (!has) return null;
   const rest = list.slice(2);
   return (
-    <div ref={row} data-ref-chips className="flex shrink-0 flex-wrap items-center gap-1 border-t border-line px-3 py-2">
+    <div ref={row} data-ref-chips className="pointer-events-auto flex shrink-0 flex-wrap items-center gap-1 border-t border-line px-3 py-2">
       {list.slice(0, 2).map(reference => <Chip key={reference.id} cardId={id} reference={reference} refs={refs} />)}
       {rest.length > 0 && <span ref={moreBox} className="relative" onPointerDown={stop} onDoubleClick={stop}>
         <button type="button" data-ref-more aria-expanded={more} onClick={() => setMore(!more)}
