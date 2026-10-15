@@ -61,7 +61,8 @@ const localGuard = async (context) => {
 // removed again after the WP6 areas, since the browser's /api/apps would list the project twice (the stub adds its own row).
 const seedProject = (on) => {
   if (!LOCAL) return;
-  const where = `org='${data.org}' AND name='${REPO}' AND owner_email='${data.email}'`;
+  // By org and name only: the fixture's name is reserved, and a killed run leaves its row under another run's email.
+  const where = `org='${data.org}' AND name='${REPO}'`;
   const sql = [`DELETE FROM repository_apps WHERE ${where}`, ...(on ? [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${data.org}','${REPO}','${data.email}','karpathy/nanoGPT','master','${COMMIT}','ready')`] : [])].join('; ');
   const PERSIST = process.env.PERSIST || '.small/fork-local', D1_CONFIG = process.env.D1_CONFIG || 'packages/web/wrangler.dev.jsonc';
   execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd: fileURLToPath(new URL('../../../', import.meta.url)), shell: true, stdio: 'ignore' });
