@@ -2,7 +2,7 @@
 // bytes and places the card. Nothing here runs code, installs anything or calls the network; a notebook card opens its
 // cells in the notebook runtime and runs them only from its own Run all.
 import { newNotebookBlock, trimOutputs } from './learn-notebook.js';
-import { codeLanguage } from './code-card-stubs.js';
+import { codeLanguage } from './code-language.js';
 
 const MB = 1024 * 1024;
 // A File attachment is a board file: the board's server copy takes files up to 25 MB (LearnPage syncAssets).
@@ -18,7 +18,7 @@ export const IMPORT_CHOICES = {
   // Code pasted onto the canvas (docs/features/repository-browser.md "Files in Learn"): the same dialog, these two choices only.
   paste: [['code', 'Code card'], ['notebook', 'Jupyter notebook']],
 };
-export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : codeLanguage(name) ? 'code' : null);
+export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : codeLanguage(name) !== 'text' ? 'code' : null);
 const mb = (n) => `${(n / MB).toFixed(1)} MB`;
 // A file name as the notebook workspace keeps it: one file at its top level.
 const fileName = (name) => String(name || 'file').replace(/[/\\]/g, '_');

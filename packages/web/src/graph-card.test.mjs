@@ -62,7 +62,7 @@ test('the canvas wires the card: lazy renderer, its own keys, and a reveal-or-in
   assert.match(canvas, /block\.type === 'repo-graph'/);
   assert.match(canvas, /closest\?\.\('\[data-companion\],\[data-graph-card\]'\)/, 'Delete on a focused node never deletes the card');
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
-  assert.match(page, /insertCard: \(block, \{ same = null \} = \{\}\) =>/);
+  assert.match(page, /insertCard: \(block, \{ same = null, at = null \} = \{\}\) =>/);
   const panel = readFileSync(new URL('./GraphPanel.jsx', import.meta.url), 'utf8');
   for (const marker of ['data-graph-add-to-canvas', 'data-graph-add-selection', 'data-graph-add-code', 'data-graph-node-menu']) assert.ok(panel.includes(marker), marker);
   assert.doesNotMatch(panel.slice(panel.indexOf('const addGraph')), /sendMessage|\/api\/learn\/ask/, 'Add to canvas never sends');

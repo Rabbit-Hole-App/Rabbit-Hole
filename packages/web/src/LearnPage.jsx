@@ -31,7 +31,7 @@ import FileImportDialog from './FileImportDialog.jsx';
 import PdfAddDialog from './PdfAddDialog.jsx';
 import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
 import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
-import { insertCodeCard } from './code-card-stubs.js';
+import { insertCodeCard } from './code-card.js';
 import { copiedCode, languageOf } from './map-files.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
@@ -369,10 +369,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
     // revealed, never added twice by a double-click or a retry; otherwise inserted where the learner looks, one undo step.
     // Returns { id, existed }.
-    insertCard: (block, { same = null } = {}) => {
+    // `at` (a drop point): the card lands there in one undo step (insertImported); without it, where the learner is looking.
+    insertCard: (block, { same = null, at = null } = {}) => {
       const existing = same && canvasApi.current?.blocks?.().find(same);
       if (existing) { canvasApi.current.focusBlock(existing.id); return { id: existing.id, existed: true }; }
-      return { id: canvasApi.current?.insertBlock(block) ?? null, existed: false };
+      const id = at ? canvasApi.current?.insertImported({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 }, at) : canvasApi.current?.insertBlock(block);
+      return { id: id ?? null, existed: false };
     },
     insertNotebook: (cells, language = 'python') => {
       const block = newNotebookBlock(), [cell] = block.ipynb.cells;
@@ -601,7 +603,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       }
       for (const { file, assetKey, block } of made) {
         await cacheAsset(assetKey, file);
-        if (block.type === 'repo-code') insertCodeCard(canvas(), block, at); else canvas()?.insertImported(block, at);
+        if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
       }
       nextImport();
     } catch (problem) { setImportState({ error: problem.message, busy: false }); }
