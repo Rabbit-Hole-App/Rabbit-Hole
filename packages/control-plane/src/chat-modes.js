@@ -82,6 +82,8 @@ export function chatFields(body) {
 
 // The context documents a turn may send: the ids its doc refs name, or null (no refs sent: every switched-on one).
 export const docIds = refs => (refs ? new Set(refs.filter(r => r.kind === 'doc').map(r => r.sourceId.slice(4))) : null);
+// The doc ids a ref names at one page: a document removed from the canvas context still rides for those (materials-remove.md).
+export const pageDocIds = refs => new Set((refs || []).filter(r => r.kind === 'doc' && Number.isInteger(r.range?.page)).map(r => r.sourceId.slice(4)));
 
 // ---------- Auto: explicit course intent, phrase-level, no model call ----------
 // Only an explicit request to build a course, syllabus, curriculum or learning path enters Tutor. The words are intent

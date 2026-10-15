@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { repositoryUrl } from './card-sources.js';
-import { uploadContextDoc, useContextDocs } from './context-docs.js';
+import { removeContextDoc, uploadContextDoc, useContextDocs } from './context-docs.js';
 // ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
 const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 
@@ -9,7 +9,8 @@ const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { d
 //   { items: [{ ref: ContextRef, state: 'uploading' | 'processing' | 'ready' | 'failed', error?, retry?, dismiss?, doc?, attached }]
 //       (everything this canvas offers: its context docs as doc:<id> refs, every ref this conversation attached, uploads in
 //        flight; doc is the context-docs row { id, name, kind: 'pdf' | 'text', size, created_at } behind a doc:<id> ref),
-//     attached: ContextRef[] (this conversation's; sent as context_refs), attach(ref), detach(ref), isAttached(ref), upload(file) }
+//     attached: ContextRef[] (this conversation's; sent as context_refs), attach(ref), detach(ref), isAttached(ref), upload(file),
+//     remove(doc) (Remove from canvas context, materials-remove.md: throws the server's reason) }
 // One store: the canvas context documents behind /api/learn/context (context-docs.js). attached is per conversation:
 // a restored thread keeps its own thread.restore.contextRefs; a New chat (thread id null) starts from the docs switched on
 // in the Files panel, the current canvas context (lead, 2026-10-14), and nothing else of the previous thread. Detaching
@@ -35,6 +36,9 @@ export function attachedReducer(refs, action) {
 
 // What a new conversation gains from the canvas: its switched-on docs, each offered once per conversation (offered: the
 // sourceIds already offered), so a doc the user detached stays detached and one switched on later still arrives.
+// A whole-document chip of a document removed from the canvas context (materials-remove.md) would keep sending it: drop it.
+// A ref at one page of it stays (a PDF page on the canvas still asks about that page).
+export const staleRef = (ref, removed) => ref.kind === 'doc' && !ref.range && removed.includes(ref.sourceId.slice('doc:'.length));
 export const canvasDocRefs = (docs, offered) => docs.filter(doc => doc.attached && !offered.has(`doc:${doc.id}`)).map(docRef);
 
 // The one collection both panes show: uploads in flight first, then the canvas's docs, then any other attached ref
@@ -86,7 +90,7 @@ export function externalUrl(ref) {
 export const askAboutThis = (chat, ref) => chat.addToChat(ref);
 
 export function useChatContext(canvas, thread) {
-  const { docs } = useContextDocs(canvas);
+  const { docs, removed } = useContextDocs(canvas);
   const restore = thread?.restore;
   const [attached, dispatch] = useReducer(attachedReducer, restore?.contextRefs, validRefs);
   const key = useRef(restore?.key);
@@ -110,9 +114,14 @@ export function useChatContext(canvas, thread) {
     if (!fresh) return;
     for (const ref of canvasDocRefs(docs, offered.current)) { offered.current.add(ref.sourceId); dispatch({ type: 'attach', ref }); }
   }, [fresh, docs, restore?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Any conversation, open now or restored later, lets go of its stale chips (saved as a change, never a message rewrite).
+  useEffect(() => {
+    for (const ref of attached) if (staleRef(ref, removed)) dispatch({ type: 'detach', ref });
+  }, [removed, attached]);
   const [uploads, setUploads] = useState([]);
   const attach = useCallback(ref => dispatch({ type: 'attach', ref }), []);
   const detach = useCallback(ref => dispatch({ type: 'detach', ref }), []);
+  const remove = useCallback(async doc => { await removeContextDoc(canvas, doc.id); dispatch({ type: 'detach', ref: docRef(doc) }); }, [canvas]);
   const send = useCallback(async (file, id) => {
     const startedIn = key.current;
     const patch = change => setUploads(previous => previous.map(item => (item.id === id ? { ...item, ...change } : item)));
@@ -133,8 +142,8 @@ export function useChatContext(canvas, thread) {
     await send(file, id);
   }, [send]);
   return useMemo(() => ({
-    items: contextItems(docs, attached, uploads), attached, detach, upload,
+    items: contextItems(docs, attached, uploads), attached, detach, upload, remove,
     attach: ref => { if (attached.length >= MAX_REFS && !attached.some(item => sameRef(item, ref))) toast(`✗ A chat holds up to ${MAX_REFS} attachments. Remove one first.`); else attach(ref); },
     isAttached: ref => attached.some(item => sameRef(item, ref)),
-  }), [docs, attached, uploads, attach, detach, upload]);
+  }), [docs, attached, uploads, attach, detach, upload, remove]);
 }

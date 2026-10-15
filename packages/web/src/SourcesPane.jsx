@@ -7,6 +7,9 @@ import { CONTEXT_ACCEPT } from './context-docs.js';
 import { RefIcon } from './ContextChips.jsx';
 import SourceReader from './SourceReader.jsx';
 import { pdfKeyOfRef } from './pdf-source.js';
+// Remove from canvas context (materials-remove.md), on a line of its own so the header's imports stay as they are.
+import { Trash2 } from 'lucide-react';
+import { ConfirmDialog } from './ui.jsx';
 
 // Sub-lane A4a owns this file: the Sources pane left of Chat (brief section 6). A1 mounts it, unpadded, as the
 // Sources ResizableSidePanel's child. A compact header (the active source's icon and title, Back, All sources, an
@@ -23,6 +26,9 @@ export default function SourcesPane() {
   useEffect(() => setFolded(null), [active]);
   const [menu, setMenu] = useState(false);
   const picker = useRef(null), body = useRef(null);
+  // Remove from canvas context: the row waiting on its confirmation, and per row (sourceId) true while removing or the error.
+  const [removing, setRemoving] = useState(null);
+  const [removal, setRemoval] = useState({});
   if (!chat) return null;
   const { context, sources, panels } = chat;
   const sections = paneSections(context.items, active);
@@ -33,6 +39,13 @@ export default function SourcesPane() {
   const activeDoc = active && sections.find(section => section.active)?.item.doc;
   const canAdd = !!active && !!pdfKeyOfRef(active) && (active.kind !== 'doc' || activeDoc?.kind === 'pdf');
   const addToCanvas = () => window.dispatchEvent(new CustomEvent('small:pdf-to-canvas', { detail: { sourceId: active.sourceId, kind: active.kind, name: active.name } }));
+  const remove = async item => {
+    const key = item.ref.sourceId;
+    setRemoving(null);
+    setRemoval(state => ({ ...state, [key]: true }));
+    try { await context.remove(item.doc); setRemoval(({ [key]: _, ...rest }) => rest); }
+    catch (error) { setRemoval(state => ({ ...state, [key]: `Could not remove ${item.ref.name}: ${error.message}` })); }
+  };
   return (
     <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
       <div data-sources-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
@@ -86,12 +99,17 @@ export default function SourcesPane() {
                       className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-accent hover:bg-white"><Paperclip size={13} aria-hidden /> Detach</button>
                   : <button type="button" onClick={() => context.attach(item.ref)} aria-label={`Attach ${item.ref.name} to this chat`} title="Attach to this chat"
                       className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-ink-2 hover:bg-white hover:text-ink"><Paperclip size={13} aria-hidden /> Attach</button>)}
+                {ready && item.doc && <button type="button" data-source-remove onClick={() => setRemoving(item)} disabled={removal[ref.sourceId] === true}
+                  aria-label="Remove from canvas context" title="Remove from canvas context"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-white hover:text-ink disabled:opacity-40">
+                  {removal[ref.sourceId] === true ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>}
                 {item.state === 'failed' && <>
                   <button type="button" onClick={item.retry} aria-label={`Retry uploading ${ref.name}`} title="Retry" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-white hover:text-ink"><RotateCw size={14} aria-hidden /></button>
                   <button type="button" onClick={item.dismiss} aria-label={`Dismiss ${ref.name}`} title="Dismiss" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-white hover:text-ink"><X size={14} aria-hidden /></button>
                 </>}
               </div>
               {item.state === 'failed' && <p role="alert" className="px-7 pb-1 text-xs text-red-700">{item.error}</p>}
+              {typeof removal[ref.sourceId] === 'string' && <p role="alert" data-source-remove-error className="px-7 pb-1 text-xs text-red-700">{removal[ref.sourceId]}</p>}
               {open && (
                 <div data-source-reader className="flex min-h-0 flex-1 flex-col pt-1">
                   <SourceReader key={ref.sourceId} sourceRef={ref} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
@@ -101,6 +119,9 @@ export default function SourcesPane() {
           );
         })}
       </div>
+      {removing && <ConfirmDialog title="Remove from canvas context?" confirmLabel="Remove"
+        body={`${removing.ref.name} leaves this canvas's Materials and future AI requests. Cards and pages made from it stay on the canvas, and earlier messages are unchanged.`}
+        onConfirm={() => remove(removing)} onCancel={() => setRemoving(null)} />}
     </div>
   );
 }

@@ -23,7 +23,8 @@ await esbuild.build({
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
   external: ['./learn-paper-figures.js'], // the PDF page counter, dynamically imported on upload only
 });
-const C = createRequire(import.meta.url)(outfile);
+const require = createRequire(import.meta.url);
+const C = require(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const doc = { id: 'ctx:0123456789ab', name: 'Attention.pdf', kind: 'pdf', size: 2048, attached: false, created_at: '2026-10-13 22:00:00' };
@@ -150,4 +151,30 @@ test('chips and pane: nothing outside a Learn canvas; This canvas first; an empt
   const pane = text(inCanvas(C.SourcesPane));
   assert.match(pane, /^Sources /);
   assert.match(pane, /No sources yet/);
+});
+
+// materials-remove.md: Remove from canvas context. A whole-document chip of a removed document is stale (it would keep
+// sending it); a ref at one of its pages is not (a PDF page on the canvas still asks about that page); nothing else is touched.
+test('a removed context document: its whole-document chip is stale, a page of it and everything else stay', () => {
+  const removed = [doc.id];
+  assert.equal(C.staleRef(C.docRef(doc), removed), true);
+  assert.equal(C.staleRef(page3, removed), false, 'a page ref stays');
+  assert.equal(C.staleRef(card, removed), false);
+  assert.equal(C.staleRef(C.docRef({ ...doc, id: 'ctx:ffffffffffff' }), removed), false, 'another document stays');
+  assert.equal(C.staleRef(C.docRef(doc), []), false);
+  // Every conversation, open or restored, lets go of its stale chips; the removal itself drops the open chat's chip at once.
+  const { readFileSync } = require('node:fs');
+  const hook = readFileSync(new URL('./chat-context.js', import.meta.url), 'utf8');
+  assert.match(hook, /for \(const ref of attached\) if \(staleRef\(ref, removed\)\) dispatch\(\{ type: 'detach', ref \}\);\r?\n  \}, \[removed, attached\]\);/);
+  assert.match(hook, /const remove = useCallback\(async doc => \{ await removeContextDoc\(canvas, doc\.id\); dispatch\(\{ type: 'detach', ref: docRef\(doc\) \}\); \}, \[canvas\]\);/);
+});
+
+test('each Materials file row has its own Remove from canvas context control, confirmed first, its error kept on the row', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
+  assert.match(source, /\{ready && item\.doc && <button type="button" data-source-remove onClick=\{\(\) => setRemoving\(item\)\}/, 'only a ready context document row, and the press only asks');
+  assert.match(source, /aria-label="Remove from canvas context" title="Remove from canvas context"/);
+  assert.match(source, /<ConfirmDialog title="Remove from canvas context\?"[^]*onConfirm=\{\(\) => remove\(removing\)\} onCancel=\{\(\) => setRemoving\(null\)\}/);
+  assert.match(source, /catch \(error\) \{ setRemoval\(state => \(\{ \.\.\.state, \[key\]: `Could not remove/, 'a failure keeps the row and names why');
+  assert.match(source, /data-sources-close onClick=\{panels\.closeSources\}/, 'the top-right X only closes');
 });

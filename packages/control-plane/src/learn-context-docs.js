@@ -57,15 +57,19 @@ export function readUpload(name, bytes) {
   return { kind: 'text', bytes };
 }
 
-const list = async (db, who) => (await db.prepare('SELECT id, name, kind, size, attached, created_at FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? ORDER BY created_at DESC, rowid DESC')
+// attached: 1 on, 0 off, -1 removed from the canvas context (materials-remove.md): the row and bytes stay for cards and pages
+// that name it, but it is listed nowhere and rides no turn as a whole document.
+const list = async (db, who) => (await db.prepare('SELECT id, name, kind, size, attached, created_at FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? AND attached >= 0 ORDER BY created_at DESC, rowid DESC')
   .bind(who.org, who.email, who.app).all()).results.map(row => ({ ...row, attached: !!row.attached }));
+const removedIds = async (db, who) => (await db.prepare('SELECT id FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? AND attached < 0')
+  .bind(who.org, who.email, who.app).all()).results.map(row => row.id);
 // A PDF card or page copied to another canvas (a Duplicate or a fork: pdf-to-canvas.md) still names its
 // document by id. Read on that copy, the id is this learner's own document of that id on whichever of their canvases holds
 // it - never anyone else's: the lookup is the session's org and email, as every storage key here is. Someone who forked a
 // shared canvas has no such row, so a copied page never opens its owner's whole PDF. `home` is the canvas that holds it.
 const ownDocument = async (db, who, id) => {
   const row = await db.prepare('SELECT app AS home, id, name, kind, size, attached FROM canvas_context_documents WHERE org=? AND owner_email=? AND id=? LIMIT 1').bind(who.org, who.email, id).first();
-  return row && { ...row, attached: !!row.attached };
+  return row && { ...row, attached: row.attached > 0, removed: row.attached < 0 };
 };
 const homeOf = (who, doc) => (doc.home ? { ...who, app: doc.home } : who);
 
@@ -90,7 +94,7 @@ export async function contextDocsFetch(req, env, deps = {}) {
   const who = owner(app);
 
   if (url.pathname === '/api/learn/context') {
-    if (req.method === 'GET') return json({ documents: await list(db, who) });
+    if (req.method === 'GET') return json({ documents: await list(db, who), removed: await removedIds(db, who) });
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     const file = form.get('file');
     if (!file || typeof file.arrayBuffer !== 'function') return json({ error: 'Choose a file' }, 400);
@@ -129,10 +133,11 @@ export async function contextDocsFetch(req, env, deps = {}) {
     await db.prepare('UPDATE canvas_context_documents SET attached=? WHERE org=? AND owner_email=? AND app=? AND id=?').bind(body.attached ? 1 : 0, who.org, who.email, who.app, id).run();
     return json({ documents: await list(db, who) });
   }
+  // Remove from canvas context: never the file itself, which cards and pages on this or a copied canvas may still read.
+  // ponytail: removed bytes are never reclaimed; a sweep of removed rows no board block names reclaims them.
   if (req.method === 'DELETE') {
-    await db.prepare('DELETE FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? AND id=?').bind(who.org, who.email, who.app, id).run();
-    await learnMedia(env).delete(await objectKey(who, id));
-    return json({ documents: await list(db, who) });
+    await db.prepare('UPDATE canvas_context_documents SET attached=-1 WHERE org=? AND owner_email=? AND app=? AND id=?').bind(who.org, who.email, who.app, id).run();
+    return json({ documents: await list(db, who), removed: await removedIds(db, who) });
   }
   return json({ error: 'Method not allowed' }, 405);
 }
@@ -143,14 +148,21 @@ export async function contextDocsFetch(req, env, deps = {}) {
 // closing text block tells the model which, and one log line records it.
 // ids: a Chat turn's doc refs (chat-modes.js docIds) name exactly the documents that ride; null keeps the switched-on ones.
 // also: with ids null, documents that ride beside the switched-on ones (a Tutor turn's page, learn-tutor-routes.js pageBlocks).
-export async function contextDocumentBlocks(env, app, ids = null, { also = [] } = {}) {
+// pages: the ids among `ids` that a ref names at a page (chat-modes.js pageDocIds). A document removed from the canvas context
+// rides only that way (or through `also`); a whole-document ref to it, a stale chip, sends nothing.
+export async function contextDocumentBlocks(env, app, ids = null, { also = [], pages = new Set() } = {}) {
   if (!env?.LEARN_DB || !app?.name || !CANVAS.test(app.name) || !app.email) return [];
   const who = owner(app);
   const on = [], skipped = [], unavailable = [];
   const here = await list(env.LEARN_DB, who);
   // A ref to a document not on this canvas: a copied page's, read from this learner's own canvas that holds it (ownDocument).
   const elsewhere = [];
-  for (const id of ids || also) if (!here.some(d => d.id === id)) { const doc = await ownDocument(env.LEARN_DB, who, id); if (doc) elsewhere.push(doc); else unavailable.push(id); }
+  for (const id of ids || also) {
+    if (here.some(d => d.id === id)) continue;
+    const doc = await ownDocument(env.LEARN_DB, who, id);
+    if (!doc) unavailable.push(id);
+    else if (!doc.removed || !ids || pages.has(id)) elsewhere.push(doc);
+  }
   for (const doc of [...here.filter(d => (ids ? ids.has(d.id) : d.attached || also.includes(d.id))), ...elsewhere]) (on.length < ATTACHED_LIMIT && !budgetRefusal(on, doc) ? on : skipped).push(doc);
   const blocks = [];
   for (const doc of on) {
