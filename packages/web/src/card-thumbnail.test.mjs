@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHROME, COVER_LIMIT, THUMBNAIL, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
+import { CHROME, COVER_LIMIT, REPOSITORY_CARDS, THUMBNAIL, redactRepositoryCards, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -134,6 +134,19 @@ test('the picture leaves out every piece of chrome by the canvas\'s own attribut
   const draw = read('./card-thumbnail.js');
   assert.match(read('./api.js'), /document\.documentElement\.classList\.toggle\('dark', dark\)/);
   assert.ok(draw.includes("doc.documentElement.className = document.documentElement.className.replace(/\\bdark\\b/g, '')"), 'the frame drops .dark');
-  assert.match(draw, /for \(const el of copy\.querySelectorAll\(CHROME\)\) el\.remove\(\);\n {2}const frame = await lightFrame\(\);/, 'stripped before the copy is attached, so a copied iframe never loads');
+  assert.match(draw, /for \(const el of copy\.querySelectorAll\(CHROME\)\) el\.remove\(\);\n {2}redactRepositoryCards\(copy\);\n {2}const frame = await lightFrame\(\);/, 'stripped and redacted before the copy is attached, so a copied iframe never loads');
   assert.doesNotMatch(read('./AdaptiveCanvas.jsx'), /drawThumbnail\([^)]*backgroundColor/, 'never the page\'s own (dark) background');
+});
+
+// repo-graph Release 2: the picture is drawn from the owner's view and shown to anyone a published canvas reaches, so a
+// repository card keeps its box and shows only "Repository content": no title, path, code or node label.
+test('a repository code or graph card shows only Repository content in the picture', () => {
+  assert.equal(REPOSITORY_CARDS, '[data-code-card], [data-graph-card]');
+  const card = () => ({ children: ['model.py', 'class GPT(nn.Module):'], ownerDocument: { createTextNode: text => text }, replaceChildren(...kids) { this.children = kids; } });
+  const code = card(), graph = card();
+  const root = { querySelectorAll: selector => (selector === REPOSITORY_CARDS ? [code, graph] : []) };
+  assert.equal(redactRepositoryCards(root), root);
+  assert.deepEqual([code.children, graph.children], [['Repository content'], ['Repository content']]);
+  assert.match(read('./CodeCard.jsx'), /data-code-card[\s>]/, 'the code card root carries the attribute');
+  assert.match(read('./GraphCard.jsx'), /data-graph-card[\s>]/, 'the graph card root carries the attribute');
 });
