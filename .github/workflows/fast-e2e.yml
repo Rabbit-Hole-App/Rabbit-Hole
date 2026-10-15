@@ -1,6 +1,6 @@
 # Routine-push browser checks (CI speed spec 2026-10-13). A development signal, never release evidence: deploy-dev still
-# requires the complete gate's note. Static matrix of six parts, nothing between them: each part selects for itself and
-# builds for itself, so no job waits on another job's setup. A part whose share of the selection is empty ends after selection.
+# requires the complete gate's note. A plan job selects all six parts first, before any install: an unregistered check fails
+# there, and only non-empty parts get a runner, each selecting and building for itself; 0 checks (docs only) runs no part.
 # Servers and ports per check: scripts/ci/run-part.sh. Static rules for this file: scripts/ci/fast-e2e.test.mjs.
 name: fast-e2e
 on:
@@ -19,14 +19,43 @@ concurrency:
   group: fast-e2e-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  e2e:
+  # Run 38667324551: part 1 installed and built for 70 s before run-part.sh found an unregistered check, and parts 2-6 each
+  # started a runner (billed a minute) to select nothing. The plan fails or skips those before any runner installs anything.
+  plan:
     if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github.event.deleted != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      READINESS: ${{ inputs.readiness }}
+    outputs:
+      parts: ${{ steps.plan.outputs.parts }}
+      checks: ${{ steps.plan.outputs.checks }}
+      notCovered: ${{ steps.plan.outputs.notCovered }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Select every part (an unregistered check exits 1 here)
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do node scripts/ci/affected.mjs --part $i --of 6 > "$RUNNER_TEMP/part-$i.json"; done
+          node -e 'const s=process.argv.slice(1).map(f=>JSON.parse(require("fs").readFileSync(f,"utf8")));console.log("parts="+JSON.stringify(s.filter(p=>p.checks.length).map(p=>p.part)));console.log("checks="+s.reduce((n,p)=>n+p.checks.length,0));console.log("notCovered="+s[0].notCovered.join(", "))' "$RUNNER_TEMP"/part-*.json | tee -a "$GITHUB_OUTPUT"
+  e2e:
+    needs: plan
+    if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github.event.deleted != true && needs.plan.outputs.parts != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.readiness == '1' && 45 || 20 }}
     strategy:
       fail-fast: false
       matrix:
-        part: [1, 2, 3, 4, 5, 6]
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
     env:
       ANTHROPIC_API_KEY: ''
       OPENAI_API_KEY: ''
@@ -117,12 +146,22 @@ jobs:
             ${{ runner.temp }}/fast/**
             !${{ runner.temp }}/fast/stack/local/**
           retention-days: 7
+  # Passes when the plan passed and the parts passed, or when the plan selected 0 checks and so no part ran.
   verdict:
-    needs: e2e
+    needs: [plan, e2e]
     if: ${{ !cancelled() && github.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github.event.deleted != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - run: |
-          echo "e2e: ${{ needs.e2e.result }}" >> "$GITHUB_STEP_SUMMARY"
-          [ "${{ needs.e2e.result }}" = success ]
+      - env:
+          PLAN: ${{ needs.plan.result }}
+          E2E: ${{ needs.e2e.result }}
+          CHECKS: ${{ needs.plan.outputs.checks }}
+          NOT_COVERED: ${{ needs.plan.outputs.notCovered }}
+        run: |
+          echo "plan: $PLAN, e2e: $E2E" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$PLAN" = success ] && [ "$E2E" = skipped ] && [ "$CHECKS" = 0 ]; then
+            echo "No browser checks were selected (for example a documentation-only change). Not covered in this tier (release gate only): ${NOT_COVERED:-none}" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [ "$PLAN" = success ] && [ "$E2E" = success ]

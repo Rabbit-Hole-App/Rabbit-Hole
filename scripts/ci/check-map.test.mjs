@@ -10,9 +10,11 @@ test('every tracked executable file has a class (a new file is classified in the
   const unclassified = files.filter(f => classify(f, map) === 'unmapped');
   assert.deepEqual(unclassified, []);
 });
+// Every packages/web/e2e/*-check.mjs is a key of checks (fast-e2e run 38667324551 built both bundles before run-part.sh found
+// pdf-to-canvas-check.mjs missing; affected.mjs now also refuses a selected unknown check before any install).
 test('every e2e check has a runner and a duration', () => {
-  const checks = readdirSync('packages/web/e2e').filter(f => f.endsWith('-check.mjs'));
-  assert.deepEqual(checks.filter(c => !map.checks[c]), []);
+  const checks = readdirSync(new URL('../../packages/web/e2e/', import.meta.url)).filter(f => f.endsWith('-check.mjs'));
+  assert.deepEqual(checks.filter(c => !map.checks[c]), [], 'add each to scripts/ci/check-map.json checks with runner fork, harness or windows-only');
 });
 test('every mapped glob names checks that exist, and every windows-only check says why', () => {
   const unknown = Object.entries(map.mapped).flatMap(([g, v]) => v.filter(c => !map.checks[c]).map(c => `${g} -> ${c}`));

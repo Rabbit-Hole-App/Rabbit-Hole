@@ -65,11 +65,15 @@ export function partArgs(argv) {
   const part = get('--part'), of = get('--of');
   return part >= 1 && of >= 1 && part <= of ? { part, of } : null;
 }
-// The CLI contract: JSON on stdout; exit 2 only for bad arguments. An unmapped path is a warning, not a failure.
+// The CLI contract: JSON on stdout; exit 2 for bad arguments; exit 1 when a selected check (in any part) has no entry in
+// check-map.json checks, so the selection fails before any install or build (run 38667324551 built for 70 s, then stopped in
+// run-part.sh). An unmapped path is a warning, not a failure.
 export function plan({ part, of, changes, map, baseline: base, force }) {
   const s = select(changes, map, force);
   const out = { part, checks: parts(s.checks, map, of)[part - 1], reasons: s.reasons, notCovered: s.notCovered, baseline: base, unmapped: s.unmapped };
-  return s.unmapped.length ? { code: 0, out, warning: `no mapping for ${s.unmapped.join(', ')}: ran the default set (${map.defaultChecks.length} checks); add it to scripts/ci/check-map.json` } : { code: 0, out };
+  const r = s.unmapped.length ? { code: 0, out, warning: `no mapping for ${s.unmapped.join(', ')}: ran the default set (${map.defaultChecks.length} checks); add it to scripts/ci/check-map.json` } : { code: 0, out };
+  const unknown = s.checks.filter(c => !map.checks[c]);
+  return unknown.length ? { ...r, code: 1, err: unknown.map(c => `${c}: not in scripts/ci/check-map.json; add it there with runner fork, harness or windows-only`).join('\n') } : r;
 }
 if (process.argv[1] && basename(process.argv[1]) === 'affected.mjs') {
   const args = partArgs(process.argv);

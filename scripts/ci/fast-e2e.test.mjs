@@ -2,9 +2,11 @@
 // no network). The first real run happens in GitHub Actions; these tests pin what can be pinned before it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 const read = p => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const y = read('../../.github/workflows/fast-e2e.yml');
 const sh = read('./run-part.sh');
@@ -13,11 +15,17 @@ const map = JSON.parse(read('./check-map.json'));
 const e2e = y.slice(y.search(/^ {2}e2e:/m), y.search(/^ {2}verdict:/m));
 const steps = e2e.split(/\n {6}- /).slice(1);
 const step = re => steps.findIndex(s => re.test(s));
+const plan = y.slice(y.search(/^ {2}plan:/m), y.search(/^ {2}e2e:/m)), verdict = y.slice(y.search(/^ {2}verdict:/m));
+// The first `run: |` block of a job, unindented, so bash can run it.
+const script = job => /run: \|\n((?: {10}.*(?:\n|$))+)/.exec(job)[1].replace(/^ {10}/gm, '');
+const posix = p => p.replaceAll('\\', '/');
 
 test('superseded runs on the same branch are cancelled', () => assert.match(y, /group: fast-e2e-\$\{\{ github\.ref \}\}\s+cancel-in-progress: true/));
-test('the e2e parts need nothing; only verdict needs them', () => {
-  assert.doesNotMatch(y.slice(0, y.search(/^ {2}verdict:/m)), /needs:/);
-  assert.match(y, /^ {2}verdict:[\s\S]*needs: e2e/m);
+test('plan needs nothing and comes first; the parts need the plan; verdict needs both', () => {
+  assert.ok(y.search(/^ {2}plan:/m) > 0 && y.search(/^ {2}plan:/m) < y.search(/^ {2}e2e:/m), 'the plan job exists, before e2e');
+  assert.doesNotMatch(plan, /needs:/);
+  assert.match(e2e.slice(0, e2e.indexOf('steps:')), /^ {4}needs: plan$/m);
+  assert.match(verdict, /^ {4}needs: \[plan, e2e\]$/m);
 });
 test('install never depends on a cache hit', () => {
   assert.match(y, /npm ci --no-audit --no-fund/);
@@ -28,6 +36,7 @@ test('install never depends on a cache hit', () => {
 test('history is fetched so the baseline can be found, and the checkout keeps no credentials', () => {
   assert.match(y, /fetch-depth: 0/);
   assert.match(steps[step(/actions\/checkout/)], /persist-credentials: false/);
+  assert.match(plan, /fetch-depth: 0\n {10}persist-credentials: false/, 'the plan job too');
 });
 test('npm and Playwright caches are restored and saved by hand: saved right after install on a miss, never for an empty part', () => {
   assert.doesNotMatch(y, /cache: npm/, 'setup-node runs before selection: an empty part would save an empty ~/.npm under the real key');
@@ -48,14 +57,57 @@ test('artifact names carry the run attempt, so re-running failed jobs cannot col
   assert.match(y, /name: fast-e2e-\$\{\{ github\.sha \}\}-\$\{\{ matrix\.part \}\}-\$\{\{ github\.run_attempt \}\}/));
 test('only the real repository runs it, and not for a deleted branch; the verdict follows', () => {
   const guard = "github\\.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github\\.event\\.deleted != true";
-  assert.match(e2e.slice(0, e2e.indexOf('steps:')), new RegExp(`^ {4}if: ${guard}$`, 'm'));
+  assert.match(plan.slice(0, plan.indexOf('steps:')), new RegExp(`^ {4}if: ${guard}$`, 'm'));
+  assert.match(e2e.slice(0, e2e.indexOf('steps:')), new RegExp(`^ {4}if: ${guard} && needs\\.plan\\.outputs\\.parts != '\\[\\]'$`, 'm'));
   assert.match(y.slice(y.search(/^ {2}verdict:/m)), new RegExp(`if: \\$\\{\\{ !cancelled\\(\\) && ${guard} \\}\\}`));
 });
 
-test('the matrix is static and as wide as the --of every part passes to affected.mjs', () => {
-  const parts = /part: \[([\d, ]+)\]/.exec(y)[1].split(',').map(Number);
+test('the matrix comes from the plan, which selects parts 1..N with the --of N each part passes to affected.mjs', () => {
+  assert.match(e2e, /^ {8}part: \$\{\{ fromJSON\(needs\.plan\.outputs\.parts\) \}\}$/m);
+  const [, list, of] = /for i in ([\d ]+); do node scripts\/ci\/affected\.mjs --part \$i --of (\d+) /.exec(script(plan));
+  const parts = list.trim().split(' ').map(Number);
   assert.deepEqual(parts, parts.map((_, i) => i + 1));
-  assert.match(y, new RegExp(`affected\\.mjs --part \\$\\{\\{ matrix\\.part \\}\\} --of ${parts.length}\\b`));
+  assert.equal(Number(of), parts.length);
+  assert.match(e2e, new RegExp(`affected\\.mjs --part \\$\\{\\{ matrix\\.part \\}\\} --of ${parts.length}\\b`));
+});
+test('the plan runs before any install or build, fails when affected.mjs exits non-zero, and reads readiness from env only', () => {
+  assert.doesNotMatch(plan, /npm ci|npm install|playwright|vite|actions\/cache|run-part|stack\.sh/);
+  const sel = script(plan);
+  assert.match(sel, /^set -euo pipefail$/m);
+  assert.doesNotMatch(sel, /\|\| (true|:)|inputs\./);
+  assert.match(plan, /^ {4}env:\n {6}READINESS: \$\{\{ inputs\.readiness \}\}$/m);
+  assert.doesNotMatch(plan.slice(0, plan.indexOf('steps:')), /GH_TOKEN/, 'the token reaches the selection step only');
+});
+test('the plan outputs the non-empty parts as a JSON list, the total count and what the tier does not cover', () => {
+  const out = parts => {
+    const dir = mkdtempSync(join(tmpdir(), 'fe2e-plan-'));
+    try {
+      parts.forEach((checks, i) => writeFileSync(join(dir, `part-${i + 1}.json`), JSON.stringify({ part: i + 1, checks, notCovered: ['journey-check.mjs', 'voice-check.mjs'] })));
+      const line = script(plan).split('\n').find(l => l.startsWith('node -e'));
+      const r = spawnSync('bash', ['-c', line], { env: { ...process.env, RUNNER_TEMP: posix(dir), GITHUB_OUTPUT: posix(join(dir, 'out')) }, encoding: 'utf8' });
+      assert.equal(r.status, 0, r.stderr);
+      return readFileSync(join(dir, 'out'), 'utf8');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  assert.equal(out([['a', 'b'], [], ['c'], [], [], []]), 'parts=[1,3]\nchecks=3\nnotCovered=journey-check.mjs, voice-check.mjs\n');
+  assert.equal(out([[], [], [], [], [], []]), 'parts=[]\nchecks=0\nnotCovered=journey-check.mjs, voice-check.mjs\n');
+});
+test('verdict passes when plan and parts pass, or when the plan selected 0 checks and so the parts were skipped; nothing else', () => {
+  for (const [k, v] of [['PLAN', 'plan.result'], ['E2E', 'e2e.result'], ['CHECKS', 'plan.outputs.checks'], ['NOT_COVERED', 'plan.outputs.notCovered']])
+    assert.ok(verdict.includes(`\n          ${k}: \${{ needs.${v} }}\n`), `verdict env ${k}`);
+  const run = (PLAN, E2E, CHECKS) => {
+    const dir = mkdtempSync(join(tmpdir(), 'fe2e-verdict-'));
+    try {
+      const r = spawnSync('bash', ['-c', script(verdict)], { env: { ...process.env, PLAN, E2E, CHECKS, NOT_COVERED: 'journey-check.mjs', GITHUB_STEP_SUMMARY: posix(join(dir, 's')) }, encoding: 'utf8' });
+      return { status: r.status, summary: readFileSync(join(dir, 's'), 'utf8') };
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  assert.equal(run('success', 'success', '4').status, 0);
+  const none = run('success', 'skipped', '0');
+  assert.equal(none.status, 0);
+  assert.match(none.summary, /No browser checks were selected \(for example a documentation-only change\)\. Not covered in this tier \(release gate only\): journey-check\.mjs/);
+  for (const [p, e, c] of [['success', 'skipped', '3'], ['failure', 'skipped', '0'], ['failure', 'skipped', ''], ['success', 'failure', '4'], ['success', 'cancelled', '4'], ['skipped', 'skipped', '']])
+    assert.notEqual(run(p, e, c).status, 0, `plan ${p}, e2e ${e}, checks ${c}`);
 });
 test('both bundles are built: dist for the control-plane assets, dist-dev with the review flags', () => {
   const build = steps[step(/vite build/)];

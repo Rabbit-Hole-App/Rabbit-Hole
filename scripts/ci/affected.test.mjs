@@ -98,6 +98,16 @@ test('plan: an unmapped path exits 0, runs the default set and warns with the mi
   assert.equal(ok.warning, undefined);
   assert.deepEqual(ok.out, { part: 1, checks: ['dive-check.mjs'], reasons: ['dive-check.mjs: packages/web/src/Dive.jsx'], notCovered: [], baseline: 'b', unmapped: [] });
 });
+test('plan: a selected check missing from check-map.json fails every part with exit 1 and one fix line per check', () => {
+  const changes = [{ status: 'A', path: 'packages/web/e2e/new-check.mjs' }, { status: 'A', path: 'packages/web/e2e/other-check.mjs' }, { status: 'M', path: 'packages/web/src/Dive.jsx' }];
+  for (const part of [1, 2, 3]) {
+    const r = aff.plan({ part, of: 3, changes, map, baseline: 'b' });
+    assert.equal(r.code, 1, `part ${part}`);
+    assert.equal(r.err, ['new-check.mjs', 'other-check.mjs'].map(c => `${c}: not in scripts/ci/check-map.json; add it there with runner fork, harness or windows-only`).join('\n'));
+  }
+  assert.equal(aff.plan({ part: 1, of: 1, changes: [{ status: 'M', path: 'packages/web/e2e/dive-check.mjs' }], map, baseline: 'b' }).code, 0, 'a registered check passes');
+  assert.equal(aff.plan({ part: 1, of: 1, changes: [{ status: 'M', path: 'packages/web/e2e/journey-check.mjs' }], map, baseline: 'b' }).code, 0, 'a registered windows-only check passes (listed as not covered)');
+});
 test('the CLI refuses a missing, non-numeric or out-of-range --part/--of with exit 2 and a usage line, before any git or gh call', () => {
   const cli = fileURLToPath(new URL('./affected.mjs', import.meta.url));
   for (const args of [[], ['--part', '1'], ['--of', '6'], ['--part', 'x', '--of', '6'], ['--part', '0', '--of', '6'], ['--part', '7', '--of', '6']]) {
