@@ -102,7 +102,7 @@ const check = async (label, fn) => {
   catch (error) {
     const message = String(error?.message || error).split('\n')[0].slice(0, 400);
     results.push({ label, ok: false, error: message });
-    console.log(`FAIL ${label} - ${message}`);
+    console.log(`FAIL ${label} - ${message}${String(error?.stack || '').split(String.fromCharCode(10)).filter(line => line.includes('pdf-to-canvas-check.mjs')).slice(0, 3).map(line => ` @${line.trim().replace(/.*check\.mjs:/, '')}`).join('')}`);
     if (page) await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
   }
 };
@@ -170,15 +170,23 @@ const dialogRoot = () => page.locator('[data-pdf-add-dialog]');
 const dialog = () => page.locator('[data-pdf-add-dialog] [role="dialog"]');
 const confirmButton = () => dialog().locator('button').last();
 const cancelButton = () => dialog().getByRole('button', { name: 'Cancel', exact: true });
+// A closed Sources panel collapses to width 0 (ResizableSidePanel) but keeps its children, which Playwright still calls visible.
+const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-sources-pane]')?.closest('[aria-label="Sources"]')?.getBoundingClientRect().width || 0) > 50);
 const openSources = async () => {
-  if (!(await sourcesPane().isVisible().catch(() => false))) await page.locator('[data-chat-sources]:visible').first().click({ timeout: 5000 }).catch(() => page.locator('[data-context-chip]:visible').filter({ hasText: DOC_NAME }).first().click({ timeout: 5000 }));
-  await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
-  if (!(await addButton().isVisible().catch(() => false))) {
-    await sourcesPane().locator('section button[aria-expanded]').filter({ hasText: DOC_NAME }).first().click();
+  // The composer's chip for the document opens Sources on it (ContextChips: chat.openSource), the way a learner reaches it.
+  if (!(await sourcesOpen()) || !(await addButton().isVisible().catch(() => false))) {
+    const chip = page.locator(`[data-context-chip] button[title="Open ${DOC_NAME}"]:visible`).first();
+    if (await chip.count()) await chip.click({ timeout: 5000 });
+    else {
+      await page.locator('[data-chat-sources]:visible').first().click({ timeout: 5000 });
+      await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
+      await sourcesPane().locator('section button[aria-expanded]').filter({ hasText: DOC_NAME }).first().click({ timeout: 5000 });
+    }
   }
+  await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
   await addButton().waitFor({ state: 'visible', timeout: 10000 }).catch(() => { throw Error('the active PDF source shows no [data-source-add-canvas] in the Sources header'); });
 };
-const closeSources = async () => { if (await sourcesPane().isVisible().catch(() => false)) { await page.locator('[data-sources-close]').click(); await page.waitForTimeout(300); } };
+const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-sources-close]').click(); await page.waitForTimeout(300); } };
 const openDialog = async () => {
   await openSources();
   await addButton().click();
