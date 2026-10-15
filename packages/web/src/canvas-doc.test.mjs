@@ -128,6 +128,13 @@ test('only a drag that carries files is a file drop', async () => {
   assert.equal(isFileDrag({ types: ['blocknote/html', 'text/html', 'text/plain'] }), false, 'a block drag');
   assert.equal(isFileDrag({ types: ['Files'] }), true);
   assert.equal(isFileDrag(null), false);
+  // Repository graph Release 2 (lane DROP): a drag that began on this page - a card's image, a Files row - is never a file
+  // drop, Files entry or not; once it ends, a file from outside drops again.
+  const { notePageDrag } = await import('./canvas-doc.js');
+  notePageDrag(true);
+  assert.equal(isFileDrag({ types: ['text/uri-list', 'text/html', 'Files'] }), false, 'an image dragged from a card');
+  notePageDrag(false);
+  assert.equal(isFileDrag({ types: ['Files'] }), true);
   const { readFileSync } = await import('node:fs');
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /onDrop=\{event => \{ if \(!onDropFiles \|\| !isFileDrag\(event\.dataTransfer\)\) return;/);

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CARD_LIMIT, IMPORT_CHOICES, IMPORT_LIMIT, checkImport, importBlock, importKind, parseNotebook, pyNotebook, safeOutputs } from './learn-file-import.js';
+import { CARD_LIMIT, IMPORT_CHOICES, IMPORT_LIMIT, checkImport, codeBlock, importBlock, importKind, importSummary, parseNotebook, pyNotebook, safeOutputs } from './learn-file-import.js';
 import { assetKeysOf } from './learn-board-assets.js';
 
 // Dropping or uploading a .ipynb or .py (owner, 2026-10-08; docs/features/canvas-file-drop.md).
@@ -19,17 +19,21 @@ const NOTEBOOK = {
   ],
 };
 
-test('only .ipynb and .py are imports, any case; the choices are the owner\'s', () => {
+test('.ipynb, .py and common code files are imports, any case; the choices are the owner\'s', () => {
   assert.deepEqual(['a.ipynb', 'B.IPYNB', 'x.py', 'X.PY', 'x.pyc', 'notes.txt', 'py', ''].map(importKind), ['ipynb', 'ipynb', 'py', 'py', null, null, null, null]);
+  // Repository graph Release 2 (lane DROP): other source and config files are code; images, PDFs and archives are not.
+  assert.deepEqual(['app.js', 'Main.TS', 'lib.rs', 'ci.yml', 'Dockerfile', 'a.png', 'a.pdf', 'a.zip'].map(importKind), ['code', 'code', 'code', 'code', 'code', null, null, null]);
   assert.deepEqual(IMPORT_CHOICES.ipynb.map(([, label]) => label), ['Notebook', 'File attachment']);
   assert.deepEqual(IMPORT_CHOICES.py.map(([, label]) => label), ['Code card', 'Notebook', 'File attachment']);
+  assert.deepEqual(IMPORT_CHOICES.code.map(([, label]) => label), ['Code card', 'File attachment'], 'a code file is never a notebook');
 });
 
 test('empty and oversized files are refused with a line that names the file and the limit', () => {
   assert.deepEqual(checkImport(file('a.ipynb')), { kind: 'ipynb' });
   assert.equal(checkImport(file('a.ipynb', 0)).error, 'a.ipynb: the file is empty');
   assert.equal(checkImport(file('big.py', IMPORT_LIMIT + 1)).error, 'big.py is 25.0 MB; files up to 25 MB can be added to a canvas');
-  assert.match(checkImport(file('page.html')).error, /^page\.html: add a \.ipynb notebook or a \.py file$/);
+  assert.match(checkImport(file('page.bin')).error, /^page\.bin: add a \.ipynb notebook, a \.py file or another code file$/);
+  assert.deepEqual(checkImport(file('big.js', IMPORT_LIMIT)), { kind: 'code' }, 'a code file takes the same 25 MB limit');
 });
 
 test('a notebook keeps its cells and Markdown; saved outputs keep text and images, anything else becomes a visible line', () => {
@@ -94,8 +98,9 @@ test('importing touches no network: no fetch, no ask, no media upload', () => {
   // The page's import step: read, validate, cache the bytes in this browser, place the card. No upload, no ask.
   const page = read('./LearnPage.jsx'), add = page.slice(page.indexOf('const addImport = async'), page.indexOf('const takeDrop = async'));
   assert.doesNotMatch(add, /fetch\(|api\(|\/ask|learnAction|\/api\/learn\/media/);
-  // A pasted code block (kind 'paste', repository-browser.md "Files in Learn") takes the same steps through pasteBlock.
-  assert.match(add, /const block = kind === 'paste' \? pasteBlock\(\{ text: await file\.text\(\), copy, choice, assetKey, language: languageOf\(copy\?\.path\) \}\)\n\s+: importBlock\(\{ name: file\.name, kind, choice, text: choice === 'attachment' \? '' : await file\.text\(\), assetKey, size: file\.size \}\);\n\s+await cacheAsset\(assetKey, file\);\n\s+canvas\(\)\?\.insertImported\(block, at\);/);
+  // A pasted code block (kind 'paste', repository-browser.md "Files in Learn") takes the same steps through pasteBlock; a
+  // dropped file's Code card through codeBlock and insertCodeCard. Every file of a drop is read before any card is placed.
+  assert.match(add, /const block = kind === 'paste' \? pasteBlock\(\{ text: await file\.text\(\), copy, choice: chosen, assetKey, language: languageOf\(copy\?\.path\) \}\)\n\s+: chosen === 'code' \? codeBlock\(\{ name: file\.name, text: await file\.text\(\), assetKey, size: file\.size \}\)\n\s+: importBlock\(\{ name: file\.name, kind, choice: chosen, text: chosen === 'attachment' \? '' : await file\.text\(\), assetKey, size: file\.size \}\);\n\s+made\.push\(\{ file, assetKey, block \}\);\n\s+\}\n\s+for \(const \{ file, assetKey, block \} of made\) \{\n\s+await cacheAsset\(assetKey, file\);\n\s+if \(block\.type === 'repo-code'\) insertCodeCard\(canvas\(\), block, at\); else canvas\(\)\?\.insertImported\(block, at\);/);
 });
 
 test('every drop and every upload of a .ipynb or .py opens the one Add to canvas dialog, at the drop point', () => {
@@ -108,4 +113,28 @@ test('every drop and every upload of a .ipynb or .py opens the one Add to canvas
   assert.match(canvas, /insertImported: \(block, at = null\) => \{/);
   assert.match(dialog, /<ConfirmDialog title="Add to canvas" confirmLabel=\{busy \? 'Adding…' : 'Add to canvas'\} confirmVariant="primary" onCancel=\{onCancel\}/);
   assert.match(dialog, /<span data-import-file[^>]*>\{file\.name\}<\/span>/);
+});
+
+// Repository graph Release 2, lane DROP (C:/s/spec/repo-graph-r2-plan.md): a dropped code file's Code card is a repo-code
+// card whose text stays in its asset - the file's own bytes, saved with the board - never in the board itself.
+test('a dropped code file becomes a repo-code card that keeps its name, language and bytes as an upload source', () => {
+  const block = codeBlock({ name: 'src/app.ts', text: 'const a = 1;\n\tindented  \n', assetKey: 'import:9', size: 26 });
+  assert.deepEqual({ ...block, id: 'x' }, { id: 'x', type: 'repo-code', dx: 0, dy: 0, title: 'src_app.ts', language: 'typescript', source: { kind: 'upload', assetKey: 'import:9', name: 'src_app.ts', size: 26 } });
+  assert.doesNotMatch(JSON.stringify(block), /const a = 1/, 'no source text in the board');
+  assert.equal(codeBlock({ name: 'train.py', text: 'x = 1', assetKey: 'k', size: 5 }).language, 'python');
+  assert.deepEqual(assetKeysOf({ blocks: [block, { type: 'repo-code', source: { kind: 'repository', path: 'a.py' } }] }), ['import:9'], 'the upload is a board file; a repository card has none');
+  assert.throws(() => codeBlock({ name: 'blob.js', text: 'MZ\u0000\u0000', assetKey: 'k', size: 4 }),
+    /^Error: blob\.js looks like a binary file, not code\. Add it as a File attachment to keep it as it is\.$/);
+});
+
+test('a drop of several files is one dialog that says what it will create before anything is placed', () => {
+  assert.equal(importSummary(['code']), '1 code card');
+  assert.equal(importSummary(['code', 'code', 'notebook']), '2 code cards and 1 notebook');
+  assert.equal(importSummary(['attachment', 'code', 'notebook', 'attachment']), '1 code card, 1 notebook and 2 file attachments');
+  const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const page = read('./LearnPage.jsx'), dialog = read('./FileImportDialog.jsx');
+  assert.match(page, /if \(asked\.length > 1\) setImports\(queue => \[\.\.\.queue, \{ id: crypto\.randomUUID\(\), kind: 'batch', files: asked, at \}\]\);/);
+  assert.match(dialog, /if \(kind === 'batch'\) return <BatchImport files=\{files\}/);
+  assert.match(dialog, /<span data-import-summary[^>]*>Adds \{importSummary\(choices\)\}\.<\/span>/);
+  assert.match(dialog, /onConfirm=\{\(\) => \{ if \(!busy\) onConfirm\(choices\); \}\}/, 'one Add to canvas for the whole drop');
 });

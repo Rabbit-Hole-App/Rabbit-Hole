@@ -47,8 +47,19 @@ export const pressKeepsDocFocus = (active, target) => !!active?.closest?.('[data
 // editor's unsaved words included (liveBoard().doc); otherwise the push that carries them, already on its way, says Saved.
 export const docSaved = (sent, shown) => JSON.stringify(sent ?? null) === JSON.stringify(shown ?? null);
 
-// A drag the canvas's file drop must leave alone: anything without files (BlockNote's block drag carries blocknote/html).
-export const isFileDrag = dataTransfer => !!dataTransfer?.types && [...dataTransfer.types].includes('Files');
+// A drag the canvas's file drop must leave alone: anything without files (BlockNote's block drag carries blocknote/html),
+// and any drag that began on this page - an image or link inside a card, a Files row - even when the browser adds a Files
+// entry to it (Chromium does for a dragged <img>). Only a file from outside the page is a drop.
+let pageDrag = false;
+export const notePageDrag = on => { pageDrag = on; };
+if (typeof document !== 'undefined') {
+  document.addEventListener('dragstart', () => notePageDrag(true), true);
+  // dragend misses a drag whose source left the page mid-drag, so a drop ends it too, after the drop handlers have run.
+  // ponytail: a page drag cancelled with a detached source stays marked until the next drop or page drag.
+  document.addEventListener('dragend', () => notePageDrag(false), true);
+  document.addEventListener('drop', () => notePageDrag(false));
+}
+export const isFileDrag = dataTransfer => !pageDrag && !!dataTransfer?.types && [...dataTransfer.types].includes('Files');
 
 // Where the document's caret is on screen (CanvasDoc, for the camera's caret follow): the range's own rect, or - on an
 // empty line, where the caret sits beside the line's <br> and has no rect - the line's box.

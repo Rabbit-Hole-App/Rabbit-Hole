@@ -27,6 +27,7 @@ export function assetKeysOf(state) {
   for (const block of state?.blocks || []) {
     if (block.assetKey) keys.add(block.assetKey);
     if (block.source_asset) keys.add(block.source_asset);
+    if (block.source?.kind === 'upload' && block.source.assetKey) keys.add(block.source.assetKey); // a dropped code file's repo-code card
     for (const variant of block.variants || []) if (variant.cacheKey) keys.add(variant.cacheKey);
   }
   return [...keys];
