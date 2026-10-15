@@ -56,7 +56,7 @@ const count = n => `${n} reference${n === 1 ? '' : 's'}`;
 const cardTitle = ref => ref.objectTitle?.trim() || 'Untitled card';
 
 function Group({ group, children, go, from }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const n = group.refs?.length || 0;
   return (
     <li data-links-group={from ? group.target : group.source} className="rounded-lg border border-line">

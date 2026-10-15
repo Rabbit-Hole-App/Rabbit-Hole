@@ -13,7 +13,7 @@ export default function CanvasRefCard({ block }) {
   const target = !refs || !reference ? { unavailable: true } : refs.resolve(reference.target);
   return (
     <div data-canvas-ref-card data-target={reference?.target} {...(target?.unavailable ? { 'data-unavailable': '' } : {})}
-      className="flex min-w-0 items-center gap-3 px-4 pt-1 pb-4">
+      className="flex min-w-0 flex-1 items-center gap-3 px-4 pb-2">
       <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-hover text-ink-2"><Shapes size={20} strokeWidth={1.7} /></span>
       <span className="flex min-w-0 flex-1 flex-col" onPointerDown={event => { if (event.target.closest('a')) stop(event); }} onContextMenu={event => { if (event.target.closest('a')) stop(event); }}>
         <span className="flex min-w-0 text-sm font-semibold text-ink"><RefTitle target={target} go={refs?.go} /></span>

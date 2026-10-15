@@ -8,7 +8,7 @@ import { Button } from './ui.jsx';
 // this canvas excluded), by title with the path telling equal titles apart. Up/Down choose, Enter adds, Escape closes
 // without a change and gives focus back. No AI, no URLs, no new canvas.
 // linked: the targets the card already references (shown "Already linked", never added twice).
-// onPick(canvas) -> { ok } | { ok: false, reason: 'exists' | 'unsupported' }; ok closes the picker.
+// onPick(canvas) -> { ok } | { ok: false, reason: 'exists' | 'unsupported' | 'limit' }; ok closes the picker.
 export default function CanvasRefPicker({ exclude, linked = [], onPick, onClose, returnFocus = null }) {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState({ state: 'loading', canvases: [], more: false });
@@ -24,6 +24,12 @@ export default function CanvasRefPicker({ exclude, linked = [], onPick, onClose,
     input.current?.focus();
     return () => { const back = returnFocus?.() || opener.current; if (back?.isConnected) back.focus(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Escape closes from anywhere while the picker is open, wherever focus went.
+  useEffect(() => {
+    const escape = event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); } };
+    document.addEventListener('keydown', escape, true);
+    return () => document.removeEventListener('keydown', escape, true);
+  }, [onClose]);
   useEffect(() => {
     const control = new AbortController();
     setResult(previous => ({ ...previous, state: 'loading' }));
@@ -48,7 +54,7 @@ export default function CanvasRefPicker({ exclude, linked = [], onPick, onClose,
       const answer = await onPick(chosen);
       if (answer?.ok) { onClose(); return; }
       if (answer?.reason === 'exists') setTaken(previous => new Set([...previous, chosen.id]));
-      else setNote(answer?.reason === 'unsupported' ? 'This kind of card cannot hold a link yet.' : "Couldn't add the link. Try again.");
+      else setNote(answer?.reason === 'unsupported' ? 'This kind of card cannot hold a link yet.' : answer?.reason === 'limit' ? 'This card already has the most links it can hold (20).' : "Couldn't add the link. Try again.");
     } catch { setNote("Couldn't add the link. Try again."); }
     setBusy(false);
   };
@@ -60,8 +66,7 @@ export default function CanvasRefPicker({ exclude, linked = [], onPick, onClose,
     document.getElementById(`${listId}-${next.id}`)?.scrollIntoView({ block: 'nearest' });
   };
   const keys = event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
-    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); move(event.key === 'ArrowDown' ? 1 : -1); }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); move(event.key === 'ArrowDown' ? 1 : -1); }
     else if (event.key === 'Enter' && event.target === input.current) { event.preventDefault(); add(); }
   };
   return (
@@ -84,7 +89,7 @@ export default function CanvasRefPicker({ exclude, linked = [], onPick, onClose,
               const already = taken.has(canvas.id), selected = chosen?.id === canvas.id;
               return (
                 <li key={canvas.id} id={`${listId}-${canvas.id}`} role="option" aria-selected={selected} data-picker-option={canvas.id}
-                  onClick={() => setChosen(canvas)}
+                  onMouseDown={event => event.preventDefault()} onClick={() => setChosen(canvas)}
                   className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-2 ${selected ? 'bg-hover ring-1 ring-line-strong' : 'hover:bg-hover'}`}>
                   <Shapes size={16} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-3" />
                   <span className="flex min-w-0 flex-1 flex-col">
