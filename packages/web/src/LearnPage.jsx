@@ -162,10 +162,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   if (panelOpen && companion.open) shown.current.add(companionView);
   const backTo = companionViews.find(entry => entry.id === companion.previous);
   useEffect(() => { if (openViewer) companion.show(openViewer); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // An invisible selection never rides a later question (brief section 6): closing the column (or hiding the right side) on a
-  // wide layout, or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
+  // An invisible selection never rides a later question (brief section 6): closing the column on a wide layout (not Hide
+  // right panel, which hides Chat too and restores both), or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
   // their thread. Below lg, Back to chat swaps the column for Chat with the chips in view, so the selection stays for the ask.
-  const viewerShown = panelOpen && companion.open, heldRepository = useRef(repository);
+  const viewerShown = companion.open, heldRepository = useRef(repository);
   heldRepository.current = repository;
   useEffect(() => { if (!viewerShown && window.matchMedia('(min-width: 64rem)').matches) clearSelection(heldRepository.current); }, [viewerShown]);
   useEffect(() => () => clearSelection(heldRepository.current), []);
