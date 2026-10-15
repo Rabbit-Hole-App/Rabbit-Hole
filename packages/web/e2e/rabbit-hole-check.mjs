@@ -18,7 +18,6 @@ import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { DEV_CP } from './dev-cp.mjs';
 import { repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
-import { OVERVIEW_TAB } from '../src/inspector.js';
 
 const LOCAL = process.env.LOCAL === '1';
 const base = (LOCAL ? process.env.BASE : process.env.SMALL_BASE) || '';
@@ -339,7 +338,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.waitForTimeout(100); // Menu attaches its outside-click listener on the next tick (ui.jsx)
     await page.mouse.click(26, 500); // the rail's empty middle closes the menu
     await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ state: 'detached', timeout: 5000 });
-    const app = plain || repo;
+    const app = plain; // a repository opens immersive on its canvas (routes.js immersiveAt): no sidebar to restore there
     if (app) {
       await loaded(page, `/apps/${app.name}`);
       must(await aside.locator('nav[aria-label="Main"] [aria-current]').count() === 0, 'a global destination is current on an app page');
@@ -389,12 +388,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.keyboard.press('Control+Backslash');
     if (repo) {
       await page.evaluate(([k, v]) => localStorage.setItem(k, v), [`small.pinned:${data.org}:${email}`, JSON.stringify([repo.name])]);
-      await loaded(page, `/apps/${repo.name}?tab=map`);
+      await loaded(page, `/apps/${repo.name}?tab=map`); // the project canvas with its Graph beside Chat (repo-canvas-graph.md)
       const pinnedRow = aside.getByRole('region', { name: 'Pinned' }).locator('[aria-current="page"]');
-      await pinnedRow.waitFor({ timeout: 10000 });
+      await pinnedRow.waitFor({ state: 'attached', timeout: 10000 }); // the canvas is immersive: the sidebar is mounted, hidden
       must(await aside.locator('[aria-current="page"]').count() === 1, 'a Project page marks more than its pinned row');
-      await leak(page, 'the Project Map');
-      for (const [where, path] of [['the Project Overview', `/apps/${repo.name}`], ['project Learn', `/apps/${repo.name}?tab=learn`], ...(plain ? [['an app page', `/apps/${plain.name}`]] : [])]) {
+      await leak(page, 'the project Graph');
+      for (const [where, path] of [['the project canvas', `/apps/${repo.name}`], ['project Learn', `/apps/${repo.name}?tab=learn`], ...(plain ? [['an app page', `/apps/${plain.name}`]] : [])]) {
         await loaded(page, path);
         await page.waitForTimeout(1500);
         must(await aside.locator('[aria-current="page"]').count() <= 1, `${where} marks more than one location`);
@@ -554,7 +553,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (repo) await check('library: Projects is a card grid; the card opens the project; its menu offers Learn and Map', async () => {
+  if (repo) await check('library: Projects is a card grid; the card opens the project; its menu offers Learn and Explore codebase', async () => {
     const page = await open();
     await loaded(page, '/library?type=projects');
     const card = page.locator('[data-library-card="project"]').filter({ hasText: repo.repo });
@@ -562,7 +561,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.locator('table').count() === 0, 'Projects renders a table');
     for (const ops of ['Deployed', 'Last run', 'Watch']) must(!(await card.innerText()).includes(ops), `${ops} on a project card`);
     await card.getByTitle('More').click();
-    for (const name of ['Learn', 'Map']) await page.getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
+    for (const name of ['Learn', 'Explore codebase']) await page.getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
     await page.keyboard.press('Escape');
     await card.locator('[data-card-title]').click();
     await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });
@@ -1591,168 +1590,81 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 }
 
 {
-  // ── agent-ui on the project page (WP4 slice of Task 47): project scope, and the Map
-  // with one composer. Every ask is held, aborted or stubbed: no LLM call. ──
+  // ── agent-ui on a project (WP4 slice of Task 47). Since Release 1 (repo-canvas-graph.md) a project opens on its canvas,
+  // where the Agent Bar is hidden and Chat's composer is the one input; Graph and Files open beside Chat. Every ask is held
+  // or aborted: no LLM call. ──
   const ready = apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha);
-  const barOpen = async (path) => {
+  const chatPane = (page) => page.locator('[data-chat-pane]');
+  const chatInput = (page) => chatPane(page).locator('[data-chat-composer] textarea');
+  const canvasAt = async (path) => {
     const page = await open();
     await page.goto(`${base}${path}`);
-    await barOf(page).waitFor({ timeout: 20000 });
+    await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
+    await chatInput(page).waitFor({ timeout: 30000 });
     return page;
   };
-  const chip = (page) => barOf(page).locator('[data-scope-chip="resource"]');
   console.log(`agent-ui bar-page: project ${ready?.repo || 'none, project checks skipped'}`);
 
-  if (ready) await check('bar-page: a project names itself in the chip and the placeholder, and the chip does not stick on the Library', async () => {
-    const page = await barOpen(`/apps/${ready.name}`);
-    await chip(page).getByText(ready.repo, { exact: true }).waitFor({ timeout: 15000 });
-    must(await barInput(page).getAttribute('placeholder') === `Ask about ${ready.repo}…`, 'the placeholder does not name the ready project');
+  if (ready) await check('bar-page: a project canvas names its repository in Chat\'s placeholder and shows no Agent Bar; back on the Library the bar carries no project chip', async () => {
+    const page = await canvasAt(`/apps/${ready.name}`);
+    must(await chatInput(page).getAttribute('placeholder') === `Ask about ${ready.repo}…`, 'Chat\'s placeholder does not name the ready project');
+    must(await barOf(page).count() === 0, 'the Agent Bar shows on the project canvas');
     await spa(page, '/library');
     await barOf(page).waitFor({ timeout: 10000 });
     must(await barOf(page).locator('[data-scope-chip]').count() === 0, 'a stale chip on the Library');
     await page.context().close();
   });
 
-  // Since the dock (workspace-dock.md, project-map-learn.md "The Map's side panel"), a Map answer opens in the bar's window as
-  // everywhere else, never in the inspector; minimized, the chat icon beside + names it (data-result-open, no result line).
-  if (ready) await check('bar-page: the Map has one composer, the bar; a Map ask opens in the answer window, never the inspector, names its scope while streaming across navigation, and Stop ends it', async () => {
-    const page = await barOpen(`/apps/${ready.name}?tab=map`);
-    await chip(page).waitFor({ timeout: 15000 }); // project scope (LEARN_DB) is proven before anything is sent
-    must(await page.locator('[data-chat-composer]').count() === 1, 'a second composer on the Map');
+  // The Map's answer window and inspector went with the repository page: beside the Graph, Chat is the one composer, and its
+  // composer turns Send into Stop while an answer streams. (The bar's own Send/Stop check folded in here.)
+  if (ready) await check('bar-page: beside the Graph the project canvas has one composer, Chat\'s; a question asked there shows in Chat, never in the Graph view; Send becomes Stop while it streams, and Stop brings Send back', async () => {
+    const page = await canvasAt(`/apps/${ready.name}?tab=map`);
+    await page.locator('[data-learn-graph] [data-graph-panel]').waitFor({ timeout: 20000 });
+    must(await page.locator('[data-chat-composer]').count() === 1, 'a second composer beside the Graph');
     must(await page.getByRole('heading', { name: 'Graph Agent' }).count() === 0, 'the Graph Agent is still shown');
     await page.route('**/api/learn/ask', () => {}); // held: never answered, never sent on (no model call)
     const question = 'Where should I start reading?';
-    await barInput(page).fill(question);
-    await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText(question).waitFor({ timeout: 10000 });
-    must(await page.locator('[data-map-panel]').getByText(question).count() === 0, 'the Map ask landed in the inspector');
-    const status = barOf(page).getByText(/^Answering in /);
-    await status.waitFor({ timeout: 10000 });
-    await spa(page, '/library');
-    if (await status.count()) {
-      await barOf(page).getByRole('button', { name: 'Stop' }).click();
-      await status.waitFor({ state: 'detached', timeout: 5000 });
-    }
-    if (await page.locator('[data-result-sheet]').count()) await barOf(page).getByRole('button', { name: 'Collapse results' }).click();
-    const line = await barOf(page).locator('[data-result-open]').getAttribute('title');
-    must(line.startsWith(`${ready.repo} · `), `the collapsed window ${line} does not name the project`);
-    await page.context().close();
-  });
-
-  // The window over the bar is just a window (owner, 2026-10-04, project-map-learn.md "The composers"): its label, a clear
-  // icon and minimize, no History or New chat; closed or minimized, the chat icon beside + reopens it.
-  if (ready) await check('bar-page: the answer window has its label, clear and minimize, and no History or New chat; minimized, the chat icon beside + reopens it; clear empties the conversation and closes it, leaving nothing to reopen', async () => {
-    const page = await barOpen(`/apps/${ready.name}`);
-    await chip(page).waitFor({ timeout: 15000 });
-    const sse = [['chunk', { text: 'model.py defines the model.' }], ['done', {}]].map(([t, d]) => `event: ${t}\ndata: ${JSON.stringify(d)}\n\n`).join('');
-    await page.route('**/api/learn/ask', (r) => r.fulfill({ status: 200, contentType: 'text/event-stream', body: sse })); // stubbed: no model call
-    await barInput(page).fill('Which file defines the model?');
-    await barInput(page).press('Enter');
-    const sheet = page.locator('[data-result-sheet]');
-    await sheet.getByText('model.py defines the model.').waitFor({ timeout: 10000 }).catch(() => { throw new Error('no answer in the window after the ask'); });
-    await page.screenshot({ path: 'e2e/shots/agent-bar-sheet.png' });
-    must(await sheet.getByText(ready.repo, { exact: true }).count() === 1, 'the window does not name the project');
-    for (const name of ['History', 'New chat']) must(await sheet.getByRole('button', { name }).count() === 0, `the window offers ${name}`);
-    const minimize = sheet.getByRole('button', { name: 'Collapse results' });
-    must(await sheet.locator('[data-result-clear]').count() === 1 && await minimize.count() === 1, 'the window lacks clear or minimize');
-    await minimize.click();
-    await sheet.waitFor({ state: 'detached', timeout: 5000 });
-    await barOf(page).locator('[data-result-open]').click();
-    await sheet.getByText('Which file defines the model?').waitFor({ timeout: 5000 });
-    await sheet.locator('[data-result-clear]').click();
-    await sheet.waitFor({ state: 'detached', timeout: 5000 });
-    must(await barOf(page).locator('[data-result-open]').count() === 0, 'clear left a conversation to reopen');
-    await page.context().close();
-  });
-
-  if (ready) await check('bar-page: a Map question naming an unconnected repository is asked, and Connect is offered in the answer window', async () => {
-    const page = await barOpen(`/apps/${ready.name}?tab=map`);
-    await chip(page).waitFor({ timeout: 15000 });
-    let asks = 0;
-    // Counted and aborted in the browser: no model call, the check only needs to see the ask go out.
-    await page.route('**/api/learn/ask', (route) => { asks++; return route.abort(); });
-    await barInput(page).fill('How does this compare to https://github.com/rabbit-hole-e2e/demo?');
-    await barInput(page).press('Enter');
-    const sheet = page.locator('[data-result-sheet]');
-    await sheet.getByRole('button', { name: 'Connect rabbit-hole-e2e/demo' }).waitFor({ timeout: 10000 });
-    await page.waitForTimeout(1000);
-    must(asks === 1, `${asks} asks sent for the question`);
-    await page.context().close();
-  });
-
-  if (ready) await check('bar-page: the scope chips sit on the dock, directly above the composer', async () => {
-    const page = await barOpen(`/apps/${ready.name}`);
-    await chip(page).waitFor({ timeout: 15000 });
-    const chips = await barOf(page).locator('[data-scope-chips]').boundingBox();
-    const composer = await barOf(page).locator('[data-chat-composer]').boundingBox();
-    const gap = composer.y - (chips.y + chips.height);
-    must(gap >= 0 && gap <= 8, `chips sit ${gap}px from the composer`);
-    await page.context().close();
-  });
-
-  if (ready) await check('bar-page: Send becomes Stop while an answer streams; Stop ends it and Send returns', async () => {
-    const page = await barOpen(`/apps/${ready.name}`);
-    await chip(page).waitFor({ timeout: 15000 });
-    await page.route('**/api/learn/ask', () => {}); // held: never answered, never sent on
-    await barInput(page).fill('Which file defines the model?');
-    await barInput(page).press('Enter');
-    const stop = barOf(page).getByRole('button', { name: 'Stop', exact: true });
+    await chatInput(page).fill(question);
+    await chatPane(page).locator('[data-chat-composer] button[aria-label="Send"]').click();
+    await chatPane(page).getByText(question).first().waitFor({ timeout: 10000 });
+    must(await page.locator('[data-companion]').getByText(question).count() === 0, 'the question landed in the Graph view');
+    const stop = chatPane(page).locator('[data-chat-composer] button[aria-label="Stop"]');
     await stop.waitFor({ timeout: 10000 });
-    must(await barOf(page).getByRole('button', { name: 'Send', exact: true }).count() === 0, 'Send and Stop both show');
+    must(await chatPane(page).locator('[data-chat-composer] button[aria-label="Send"]').count() === 0, 'Send and Stop both show');
     await stop.click();
-    await page.locator('[data-result-sheet]').getByText('Stopped.').waitFor({ timeout: 5000 });
-    await barOf(page).getByRole('button', { name: 'Send', exact: true }).waitFor({ timeout: 5000 });
+    await chatPane(page).locator('[data-chat-composer] button[aria-label="Send"]').waitFor({ timeout: 5000 });
     await page.context().close();
   });
 
-  if (ready) await check('bar-page: × on the project chip widens to the workspace and takes the draft along', async () => {
-    const page = await barOpen(`/apps/${ready.name}`);
-    await chip(page).waitFor({ timeout: 15000 });
-    await barInput(page).fill('carry me');
-    await chip(page).getByRole('button').click();
-    must(await barOf(page).locator('[data-scope-chip]').count() === 0, 'the chip is still shown');
-    must(await barInput(page).inputValue() === 'carry me', 'the draft did not move with ×');
-    must(await barInput(page).getAttribute('placeholder') === 'Start, open, ask, or paste a link…', 'not the workspace scope');
-    await page.context().close();
-  });
+  // retired: the answer window's label, clear and minimize - the Agent Bar is hidden on a project canvas, and Chat is its own pane.
+  // retired: Connect for an unconnected repository in the answer window - that offer is the Agent Bar's router; Home covers it.
+  // retired: the scope chips on the dock - code chips ride in Chat's composer, checked in wp6-map.
+  // retired: × on the project chip widening to the workspace - a project canvas has no bar and no project chip.
+  // retired: /teach opening project Learn once - a project opens on its canvas, and Learn this is checked in wp6-learn-this.
 
-  if (ready) await check('bar-page: /teach on a project opens Learn once, sends nothing while learnHandoff is false, and keeps the prompt', async () => {
-    const page = await barOpen(`/apps/${ready.name}`);
-    await chip(page).waitFor({ timeout: 15000 });
-    const before = await page.evaluate(() => history.length);
-    await barInput(page).fill('/teach why does attention scale by sqrt(dk)?');
-    await barInput(page).press('Enter');
-    await page.getByText("Opened Learn. Your prompt wasn't transferred; it's kept here.").waitFor({ timeout: 10000 });
-    must(new URL(page.url()).searchParams.get('tab') === 'learn', 'not on Learn');
-    must(await page.evaluate(() => history.length) === before + 1, 'Learn was opened more than once'); // learnAction navigates; the bar never does
-    must(await page.evaluate(() => sessionStorage.getItem('small.learn.request')) === null, 'a Learn request was written');
-    await spa(page, `/apps/${ready.name}`);
-    await barOf(page).waitFor({ timeout: 10000 });
-    must(await barInput(page).inputValue() === '/teach why does attention scale by sqrt(dk)?', 'the prompt was not kept');
-    await page.context().close();
-  });
-
-  // WP7 (user, 2026-09-29): a mode is transient. A new page or resource starts in Auto; project tabs, a node pick and drafts keep theirs.
-  if (ready) await check('bar-mode: Teach picked on Project A is Auto on Library, Home and Project B; a typed draft stays', async () => {
-    const page = await barOpen(`/apps/${ready.name}`);
+  // WP7 (user, 2026-09-29): a mode is transient. A new page or resource starts in Auto; drafts keep theirs. The bar is hidden on
+  // a project canvas since Release 1, so Teach is picked where the bar lives.
+  await check('bar-mode: Teach picked on the Library is Auto on Home and an app page; a typed draft stays', async () => {
+    const page = await open();
+    await page.goto(`${base}/library`);
     const bar = barOf(page);
-    const other = apps.find((a) => a.kind === 'repository' && a.name !== ready.name) || plain; // Project B, else another resource
+    await bar.waitFor({ timeout: 20000 });
     const teach = async (text = '') => {
-      await spa(page, `/apps/${ready.name}`);
-      await chip(page).getByText(ready.repo, { exact: true }).waitFor({ timeout: 15000 });
+      await spa(page, '/library');
+      await bar.waitFor({ timeout: 10000 });
       await barInput(page).fill('/te');
       await barInput(page).press('Enter');
       await bar.getByRole('button', { name: 'Back to Auto' }).waitFor({ timeout: 3000 });
       if (text) await barInput(page).fill(text);
     };
-    for (const to of ['/library', '/apps', ...(other ? [`/apps/${other.name}`] : [])]) {
+    for (const to of ['/apps', ...(plain ? [`/apps/${plain.name}`] : [])]) {
       await teach();
       await spa(page, to);
       await bar.getByRole('button', { name: 'Auto', exact: true }).waitFor({ timeout: 5000 });
       must(await bar.getByRole('button', { name: 'Back to Auto' }).count() === 0, `Teach carried to ${to}`);
     }
     await teach('keep me');
-    await spa(page, '/library');
+    await spa(page, '/apps');
     await bar.getByRole('button', { name: 'Auto', exact: true }).waitFor({ timeout: 5000 });
     must(await barInput(page).inputValue() === 'keep me', 'the reset dropped the held draft');
     await page.context().close();
@@ -1779,15 +1691,38 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // Non-GET /api/ calls, except RepositorySource's read (POST .../file) and Learn asks aborted in the browser.
   const writes6 = (page) => { const w = []; page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && p.startsWith('/api/') && !/\/file$|^\/api\/learn\/ask$/.test(p)) w.push(`${r.method()} ${p}`); }); return w; };
   const noAsks = (page) => page.route('**/api/learn/ask', (r) => r.abort());
-  const ptab = (page, name) => page.locator('[data-project-tabs]').getByRole('tab', { name, exact: true });
   const isSelected = async (loc) => (await loc.getAttribute('aria-selected')) === 'true';
   const composers = (page) => page.locator('[data-chat-composer]').count();
   const ownComposers = (page) => page.locator('[data-chat-composer]:not([data-agent-bar] [data-chat-composer])').count();
-  const pickNode = async (page, label = 'CausalSelfAttention') => { // the WP5 naming shots' mapNode
-    await page.getByRole('textbox', { name: 'Search repository' }).fill(label);
+  // A project opens on its canvas (repo-canvas-graph.md, Release 1): Graph and Files are views of the companion column
+  // beside Chat, and Chat's composer is the one input.
+  const chat6 = (page) => page.locator('[data-chat-pane]');
+  const chatInput6 = (page) => chat6(page).locator('[data-chat-composer] textarea');
+  const send6 = (page) => chat6(page).locator('[data-chat-composer] button[aria-label="Send"]').click();
+  const graph6 = (page) => page.locator('[data-learn-graph]');
+  const projectAt = async (page, path) => {
+    await loaded(page, path);
+    await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
+    await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the canvas
+  };
+  // A closed companion is inert and zero width (ResizableSidePanel), or not rendered below lg: open is judged by its width.
+  const viewerWidth = async (page) => (await page.locator('[data-companion]').boundingBox({ timeout: 2000 }).catch(() => null))?.width ?? 0;
+  const viewerShows = async (page, view) => {
+    await page.locator(`[data-companion] [data-companion-view="${view}"][aria-pressed="true"]`).waitFor({ timeout: 20000 });
+    await page.waitForFunction(() => (document.querySelector('[data-companion]')?.getBoundingClientRect().width || 0) > 0, null, { timeout: 5000 });
+  };
+  const graphAt = async (page, fixtures = false) => {
+    await projectAt(page, `/apps/${ready.name}?tab=graph${fixtures ? '&fixtures=1' : ''}`);
+    await viewerShows(page, 'graph');
+    await graph6(page).locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
+  };
+  // A node is picked on its dot, not its group's centre (the label sits under the dot); it rides as a temporary code chip.
+  const pickNode = async (page, label = 'CausalSelfAttention') => {
+    await graph6(page).getByRole('textbox', { name: 'Search repository' }).fill(label);
     await page.waitForTimeout(800);
-    await page.getByText(label, { exact: true }).first().click({ timeout: 10000 });
-    await barOf(page).locator('[data-scope-chip="selected"]').waitFor({ timeout: 10000 });
+    await graph6(page).locator(`[data-graph-node][aria-label="${label}"] :is(circle, rect)`).first().click({ timeout: 10000 });
+    await graph6(page).locator('[data-node-details] h3', { hasText: label }).waitFor({ timeout: 10000 });
+    await chat6(page).locator('[data-code-selection]', { hasText: label }).waitFor({ timeout: 10000 });
   };
   console.log(`wp6: project ${ready?.repo || 'none'} · job ${job?.name || 'none'}${job?.lastRun ? ' (ran)' : ''} · server ${server?.name || 'none'}`);
   if (job) await check('wp6-app-d7: on the preview a job changes nothing live - the D7 line shows; rename, description, Schedule, Duplicate, Trash and Run are off; the run peek and run page have no chat; only GETs reach /api', async () => {
@@ -1887,34 +1822,31 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     } finally { for (const c of [solo, owned, away].filter(Boolean)) await drop6(page, c.name); await page.context().close(); }
   });
 
-  // No Overview (owner, 2026-10-04, project-map-learn.md Layout): a project is Map or Learn. /apps/<repo>, its old aliases and
-  // an old ?tab=overview link land on the Map; only ?tab=learn opens Learn, which has no project pill, and its Map icon goes back.
-  if (ready) await check('wp6-project: bare /apps/<project> is the Graph, under one Files | Graph | Learn navigation (repository-browser.md) and no Overview; map, code, graph, agent and an old ?tab=overview open the Graph; Learn has one composer and no project tabs, its Map icon returns to the Map, and on a phone ?tab=learn opens Learn below the top strip', async () => {
+  // No repository page (owner, 2026-10-15, repo-canvas-graph.md correction to decision 2): /apps/<project> is its Main canvas.
+  // An old ?tab= link opens one viewer beside Chat once (routes.js repositoryView) and leaves the plain URL behind; Explore
+  // codebase in Chat's composer opens the Graph, as the old Map icon did.
+  if (ready) await check('wp6-project: bare /apps/<project> is its canvas with one composer, no project tabs, no Agent Bar and no viewer open; map, graph, agent, overview and sources open the Graph beside Chat and code opens Files, once, leaving the plain URL; ?tab=learn is just the canvas; Explore codebase opens the Graph; on a phone ?tab=learn opens the canvas below the top strip', async () => {
     const page = await open();
-    await loaded(page, `/apps/${ready.name}`);
-    await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
-    const tabs = (await page.locator('[data-project-tabs]').getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
-    must(tabs === 'Files | Graph | Learn' && await isSelected(ptab(page, 'Graph')), `bare /apps/<project> shows ${tabs}, not the Graph of Files | Graph | Learn`);
-    for (const t of ['map', 'code', 'graph', 'agent', 'overview']) {
-      await spa(page, `/apps/${ready.name}?tab=${t}`);
-      await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
-      must(await isSelected(ptab(page, 'Graph')), `?tab=${t} is not the Graph`);
+    await noAsks(page);
+    await projectAt(page, `/apps/${ready.name}`);
+    must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'not the project canvas with one composer');
+    must(await viewerWidth(page) === 0, 'a bare project link opened a viewer');
+    for (const [t, view] of [['map', 'graph'], ['graph', 'graph'], ['agent', 'graph'], ['overview', 'graph'], ['sources', 'graph'], ['code', 'files']]) {
+      await projectAt(page, `/apps/${ready.name}?tab=${t}`);
+      await viewerShows(page, view);
+      await page.waitForURL((u) => u.pathname === `/apps/${ready.name}` && u.search === '', { timeout: 5000 }).catch(() => { throw new Error(`?tab=${t} stayed in the address: ${page.url()}`); });
     }
-    await ptab(page, 'Learn').click();
-    await page.waitForURL(/[?]tab=learn$/);
-    await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-    must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'Learn shows project tabs, or has two composers');
-    // On the Main canvas the Map icon opens the repository's Files in the panel, which links on to the Map (owner, 2026-10-08).
-    await page.locator('[data-learn-map]').click();
-    await page.locator('[data-learn-files] [data-file-tree]').waitFor({ timeout: 10000 });
-    await page.locator('[data-learn-open-map]').click();
-    await page.waitForURL(/[?]tab=map$/);
+    await projectAt(page, `/apps/${ready.name}?tab=learn`);
+    await page.waitForTimeout(800);
+    must(await viewerWidth(page) === 0 && await page.locator('[data-project-tabs]').count() === 0, '?tab=learn opened a viewer or project tabs');
+    await page.locator('button[aria-label="Explore codebase"]').click();
+    await viewerShows(page, 'graph');
     await page.context().close();
     const phone = await open({ width: 390, height: 844 });
-    await loaded(phone, `/apps/${ready.name}?tab=learn`);
-    await phone.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-    must(await phone.locator('[data-project-tabs]').count() === 0, '?tab=learn did not open Learn');
-    must((await phone.locator('[data-learn-map]').boundingBox()).y >= 40, 'Learn starts under the phone top strip');
+    await noAsks(phone);
+    await projectAt(phone, `/apps/${ready.name}?tab=learn`);
+    must(await phone.locator('[data-project-tabs]').count() === 0, '?tab=learn did not open the canvas');
+    must((await phone.locator('[data-project-crumb]').boundingBox()).y >= 40, 'the canvas starts under the phone top strip');
     await phone.context().close();
   });
 
@@ -1940,102 +1872,86 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         await page.waitForURL(new RegExp(`[?]tab=learn&canvas=${c.name}$`));
         await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
         await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the canvas
-        must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await page.locator('[data-learn-map]').count() === 1, `${c.title} left the project frame`);
+        must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await page.locator('[data-canvas-switcher]').count() === 1, `${c.title} left the project frame`);
       }
     } finally { await drop6(page, owned.name); await drop6(page, away.name); await page.context().close(); }
   });
 
-  // Since the dock (inspector.md, workspace-dock.md, project-map-learn.md): a project opens on the Map (no Overview); the side
-  // panel is the Inspector, closed until something is selected; answers open in the bar's window, which sits over the
-  // workspace beside an open inspector, and the inspector keeps the conversation about its object.
-  if (ready) await check('wp6-map: a project opens on the Map; its side panel is the Inspector, closed until a selection, with no input; a Map ask opens in the answer window, never the inspector; a node opens the inspector on Overview | Source | Chat with path:line, in context; its ask streams into the node\'s Chat tab, which Send opens and counts, and only its error reaches the window (owner, 2026-10-08); one composer', async () => {
-    const page = await open(), writes = writes6(page);
-    let asks = 0;
-    await page.route('**/api/learn/ask', (r) => { asks++; return r.abort(); }); // no model call, no LEARN_DB thread
-    await loaded(page, `/apps/${ready.name}`);
-    await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 20000 }); // the project scope is registered before anything is sent
-    must(await isSelected(ptab(page, 'Graph')), 'the project does not open on the Graph');
-    const panel = page.locator('[data-map-panel]'), sheet = page.locator('[data-result-sheet]');
-    must(await panel.getAttribute('aria-label') === 'Inspector', 'the panel is not the Inspector');
-    await page.locator('[data-map-panel-open]').waitFor({ timeout: 10000 }); // closed until something is selected
-    await barInput(page).fill('Which file defines the model?');
-    await barInput(page).press('Enter');
-    await sheet.getByText('Which file defines the model?').waitFor({ timeout: 10000 });
-    must(await panel.getByText('Which file defines the model?').count() === 0, 'a Map ask landed in the inspector');
-    must(await panel.locator('input, textarea, [contenteditable="true"]').count() === 0 && await composers(page) === 1, 'a second input');
-    // The draft comes back only when the abort lands (AgentBar.jsx keepDraft); cleared before that, it would return after the clear.
-    await expect(barInput(page)).toHaveValue('Which file defines the model?', { timeout: 10000 });
-    await barInput(page).fill(''); // the aborted ask kept its draft, and a waiting draft would offer Use selection instead of retargeting
+  // Release 1 (repo-canvas-graph.md sections 3-8): the Map is the Graph view beside Chat. Its inspector went: a node's details sit
+  // under the graph, its selection rides as a temporary code chip in Chat's composer, and every question is Chat's, carrying
+  // the selection as a code ref in context_refs and the repository as { commit } only.
+  if (ready) await check('wp6-map: ?tab=map opens the canvas with the Graph beside Chat and no node details until a selection; the Graph has no text input but its search; a node shows its path:line and rides as a code chip in Chat\'s composer, writing and asking nothing; a question asked beside it lands in Chat, never the Graph view, with the node as a code ref and repository_context {commit}; one composer', async () => {
+    const page = await open();
+    const asks = [];
+    await page.route('**/api/learn/ask', (r) => { asks.push(r.request().postDataJSON()); return r.abort(); }); // no model call
+    await projectAt(page, `/apps/${ready.name}?tab=map`);
+    await viewerShows(page, 'graph');
+    await graph6(page).locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
+    const writes = writes6(page); // from here on: browsing the graph writes nothing
+    must(await graph6(page).locator('[data-node-details]').count() === 0, 'node details show before a selection');
+    must(await graph6(page).locator('input, textarea, [contenteditable="true"]').count() === 1, 'the Graph view has an input besides its search');
     await pickNode(page);
-    await panel.locator('[data-inspector-header]').getByText(/^model\.py:\d+$/).waitFor({ timeout: 10000 });
-    const tabs = (await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
-    // Overview is hidden for now (src/inspector.js OVERVIEW_TAB): a node opens Source | Chat on Chat.
-    const first = OVERVIEW_TAB ? 'Overview' : 'Chat', want = OVERVIEW_TAB ? 'Overview | Source | Chat' : 'Source | Chat';
-    must(tabs === want && await isSelected(panel.getByRole('tab', { name: first, exact: true })), `a node opens ${tabs}, not ${want} on ${first}`);
-    must(await panel.locator('[data-in-context]').count() === 1, 'the node is not in context');
-    must(await barInput(page).getAttribute('placeholder') === 'Ask about CausalSelfAttention…', 'the bar is not scoped to the node');
-    await barInput(page).fill('Why does this exist?');
-    await barInput(page).press('Enter');
-    const chatTab = panel.locator('[data-inspector-chat-tab]');
-    await panel.locator('[data-inspector-chat]').getByText('Why does this exist?').waitFor({ timeout: 10000 });
-    must(await isSelected(chatTab), 'Send did not open the Chat tab');
-    await chatTab.getByText('2').waitFor({ timeout: 10000 }); // Chat 2: the question and its (aborted) answer
-    // The aborted ask's error is the window's; the question itself never is.
-    await sheet.getByText("Couldn't reach the server.", { exact: false }).first().waitFor({ timeout: 10000 });
-    must(await sheet.getByText('Why does this exist?').count() === 0, 'the node question landed in the window');
-    const win = await page.locator('[data-result-sheet] > div').boundingBox(), side = await panel.boundingBox();
-    must(win.x + win.width <= side.x + 1, `the window covers the inspector: ${win.x + win.width} > ${side.x}`);
+    const where = await graph6(page).locator('[data-node-details] p').first().innerText();
+    must(/^model\.py:\d+ · /.test(where), `the node details read ${where}, not model.py:<line>`);
+    const chip = chat6(page).locator('[data-code-selection]', { hasText: 'CausalSelfAttention' });
+    const key = (await chip.getAttribute('data-ref-key')).split('|')[0];
+    must(key.startsWith(`code:${ready.repo}@`) && key.includes(':model.py#'), `the chip is not the node's code ref: ${key}`);
+    await page.waitForTimeout(800);
+    must(!asks.length && !writes.length, `selecting asked ${asks.length} times; writes: ${writes.join(', ')}`);
+    await chatInput6(page).fill('Why does this exist?');
+    await send6(page);
+    await chat6(page).getByText('Why does this exist?').first().waitFor({ timeout: 10000 });
+    must(await page.locator('[data-companion]').getByText('Why does this exist?').count() === 0, 'the question landed in the Graph view');
     await page.waitForTimeout(1000);
-    must(asks === 2 && !writes.length, `${asks} asks; writes: ${writes.join(', ')}`);
+    must(asks.length === 1, `${asks.length} asks for one question`);
+    must((asks[0].context_refs || []).some((ref) => ref.sourceId === key), `the node is not a code ref: ${JSON.stringify(asks[0].context_refs)}`);
+    must(asks[0].repository_context?.commit && JSON.stringify(Object.keys(asks[0].repository_context)) === '["commit"]', `repository_context is not {commit}: ${JSON.stringify(asks[0].repository_context)}`);
+    must(await composers(page) === 1, 'a second composer');
     await page.context().close();
   });
 
-  // A project is Map or Learn, and Learn has no project pill; its strip's Map icon goes back (project-map-learn.md).
-  if (ready) await check('wp6-learn-this: Learn this and /teach this open the project Learn carrying the node and send nothing; Learn shows no project tabs, and its Map icon returns to the Map with the node still in context', async () => {
+  // Learn this writes its prompt into Chat (GraphPanel NodeDetails): the learner sends it. Switching views keeps the selection.
+  if (ready) await check('wp6-learn-this: Learn this on a graph node writes Teach me <node> into Chat\'s composer and sends nothing, staying on the canvas; Files and back to Graph keeps the node selected', async () => {
     const page = await open();
     let asks = 0;
     page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/learn/ask') asks++; });
-    await loaded(page, `/apps/${ready.name}?tab=map`);
+    await noAsks(page);
+    await graphAt(page);
     await pickNode(page);
-    await page.locator('[data-map-panel]').getByRole('button', { name: 'Learn this' }).click();
-    await page.waitForURL(/[?]tab=learn$/);
-    await page.getByText(/^Asking about: CausalSelfAttention/).first().waitFor({ timeout: 30000 }); // Learn's own pill: it shows only what Learn sends (LearnPage.jsx:310,897)
-    await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the frame
-    must(await page.locator('[data-learn-context]').count() === 0, 'a second context label beside Learn');
-    must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'not the project Learn frame');
-    await page.locator('[data-learn-map]').click();
-    await page.locator('[data-learn-open-map]').click(); // the icon opens Files in the panel; it links on to the Map (owner, 2026-10-08)
-    await page.waitForURL(/[?]tab=map$/);
-    await barOf(page).locator('[data-scope-chip="selected"]', { hasText: 'CausalSelfAttention' }).waitFor({ timeout: 10000 });
-    await barInput(page).fill('/teach this');
-    await barInput(page).press('Enter');
-    await page.waitForURL(/[?]tab=learn$/);
-    await page.getByText(/^Asking about: CausalSelfAttention/).first().waitFor({ timeout: 30000 });
+    await graph6(page).locator('[data-node-learn]').click();
+    await expect(chatInput6(page)).toHaveValue('Teach me CausalSelfAttention', { timeout: 5000 });
+    must(new URL(page.url()).pathname === `/apps/${ready.name}` && new URL(page.url()).search === '', `Learn this moved to ${page.url()}`);
+    await page.locator('[data-companion] [data-companion-view="files"]').click();
+    await page.locator('[data-learn-files] [data-file-tree]').waitFor({ timeout: 10000 });
+    await page.locator('[data-companion] [data-companion-view="graph"]').click();
+    await graph6(page).locator('[data-graph-node][data-selected][aria-label="CausalSelfAttention"]').waitFor({ timeout: 10000 });
+    await page.waitForTimeout(800);
     must(await page.evaluate(() => sessionStorage.getItem('small.learn.request')) === null && asks === 0, 'a Learn request or ask was sent');
     await page.context().close();
   });
 
-  // No Overview (owner, 2026-10-04, project-map-learn.md Layout): an old ?tab=overview link lands on the Map, which names the
-  // repository and keeps its details behind one info icon. Overview's Continue learning, canvas list and recent activity went
-  // with it; the project's canvases are Learn's picker (wp6-learn).
-  if (ready) await check('wp6-overview: an old ?tab=overview link lands on the Map, which names the repository; its GitHub source, branch, commit and status sit behind one info icon, with no operational clutter at rest; nothing written', async () => {
+  // No repository page: what its header showed lives in the canvas header (repository-canvas.jsx RepositoryBadge) - an icon
+  // link to GitHub, and the repository, branch, commit and status behind one info icon.
+  if (ready) await check('wp6-overview: an old ?tab=overview link opens the canvas with the Graph; the header names the project and links the repository on GitHub with an icon; repository, branch, commit and status sit behind one info icon, with no operational clutter at rest; nothing written', async () => {
     const page = await open();
     await noAsks(page);
-    const writes = writes6(page);
-    await loaded(page, `/apps/${ready.name}?tab=overview`);
-    await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
-    must(await isSelected(ptab(page, 'Graph')), '?tab=overview is not the Graph');
-    await page.getByRole('heading', { level: 1, name: ready.repo, exact: true }).waitFor({ timeout: 10000 });
-    for (const clutter of ['Refresh branch', 'Last run']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on the Map at rest`);
+    await projectAt(page, `/apps/${ready.name}?tab=overview`);
+    await viewerShows(page, 'graph');
+    const writes = writes6(page); // from here on: reading the header and its details writes nothing
+    await page.locator('[data-project-crumb]').waitFor({ timeout: 10000 });
+    const badge = page.locator('a[data-repo-badge]');
+    must((await badge.getAttribute('aria-label')) === `Open ${ready.repo} on GitHub`, `the badge reads ${await badge.getAttribute('aria-label')}`);
+    must((await badge.getAttribute('href') || '').toLowerCase().startsWith(`https://github.com/${ready.repo}`.toLowerCase()) && await badge.getAttribute('target') === '_blank', 'the badge does not open the repository on GitHub in a new tab');
+    must((await badge.innerText()).trim() === '', 'the badge shows text');
+    for (const clutter of ['Refresh branch', 'Last run']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on the canvas at rest`);
     must(await page.locator('[data-repo-details]').count() === 0, 'the repository details show before the info icon');
     await page.locator('[data-repo-info]').click();
     const details = page.locator('[data-repo-details]');
     await details.waitFor({ timeout: 5000 });
-    must(await details.locator('a[data-source-link]').getAttribute('href') === `https://github.com/${ready.repo}`, 'no GitHub source link');
     const text = await details.innerText();
-    for (const want of [ready.branch, `Commit ${ready.commit_sha.slice(0, 7)}`, `Status: ${ready.status}`]) must(text.includes(want), `the details lack ${want}: ${text}`);
+    for (const want of [ready.repo, ready.branch, `Commit ${ready.commit_sha.slice(0, 7)}`, `Status: ${ready.status}`]) must(text.includes(want), `the details lack ${want}: ${text}`);
     await page.keyboard.press('Escape');
-    must(!writes.length, `the Map wrote: ${writes.join(', ')}`);
+    must(!writes.length, `the canvas wrote: ${writes.join(', ')}`);
     await page.context().close();
   });
 
@@ -2059,7 +1975,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (plain && repo && /^karpathy\/nanogpt$/i.test(repo.repo || '')) await check('wp6-built-from: Built from shows only with ?fixtures=1, labelled Fixture · UI preview, and opens the project Overview; never inferred from the app repository', async () => {
+  if (plain && repo && /^karpathy\/nanogpt$/i.test(repo.repo || '')) await check('wp6-built-from: Built from shows only with ?fixtures=1, labelled Fixture · UI preview, and opens the project canvas; never inferred from the app repository', async () => {
     const page = await open();
     await loaded(page, `/apps/${plain.name}`);
     await page.locator('[data-app-ops]').waitFor({ timeout: 20000 });
@@ -2069,17 +1985,17 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await from.getByText('Fixture · UI preview').waitFor({ timeout: 20000 });
     await from.getByRole('button', { name: `Built from ${repo.repo} →` }).click();
     await page.waitForURL(`**/apps/${repo.name}`);
-    await ptab(page, 'Overview').waitFor({ timeout: 20000 });
+    await page.locator('[data-project-crumb]').waitFor({ timeout: 30000 }); // a project opens on its canvas (no Overview since 2026-10-04)
     await page.context().close();
   });
 
-  await check('wp6-mobile: at 390px Overview, Map, project Learn, a canvas and an app page scroll only vertically and start below the top strip', async () => {
+  await check('wp6-mobile: at 390px the project canvas (bare, with the Graph, and ?tab=learn), a canvas and an app page scroll only vertically and start below the top strip', async () => {
     const page = await open({ width: 390, height: 844 });
     await noAsks(page);
     await loaded(page, '/library');
     const c = await canvas6(page, { title: 'wp6 phone', ...(ready ? { project: ready.name } : {}) });
     try {
-      const stops = [...(ready ? ['', '?tab=map', '?tab=learn'].map((q) => [`/apps/${ready.name}${q}`, '[data-project-tabs]']) : []), [`/apps/${c.name}`, '[data-canvas-parent]'], ...(plain ? [[`/apps/${plain.name}`, 'main h1']] : [])];
+      const stops = [...(ready ? ['', '?tab=map', '?tab=learn'].map((q) => [`/apps/${ready.name}${q}`, '[data-project-crumb]']) : []), [`/apps/${c.name}`, '[data-canvas-parent]'], ...(plain ? [[`/apps/${plain.name}`, 'main h1']] : [])];
       for (const [path, top] of stops) {
         await loaded(page, path);
         await page.locator(top).first().waitFor({ timeout: 30000 });
@@ -2116,31 +2032,32 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  // No Overview (project-map-learn.md): a project opens on the Map, so a graph answer shows on the graph it was asked beside,
-  // and stays in the bar's window, never the inspector (inspector.md §6).
-  if (ready) await check('wp6-show-on-graph: a graph answer on the Map opens in the answer window and shows its nodes on the graph; once a search moves the graph on, Show on graph brings the answer back; the answer never lands in the inspector', async () => {
+  // A graph answer in Chat offers Show on graph (ChatMessages), which opens the Graph beside Chat on the answer's nodes
+  // (repository-canvas.jsx onGraph). The answer stays Chat's; the Graph view only draws it.
+  if (ready) await check('wp6-show-on-graph: a graph answer in Chat offers Show on graph, which opens the Graph beside Chat showing only its nodes; once a search moves the graph on, Show on graph brings the answer back; the answer never lands in the Graph view', async () => {
     const page = await open();
-    await loaded(page, `/apps/${ready.name}`);
-    await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 20000 });
+    await projectAt(page, `/apps/${ready.name}`);
     const snap = (await api6(page, `/api/repositories/${ready.name}/snapshot`)).data;
     const node = snap.graph.nodes.find((n) => n.label === 'CausalSelfAttention') || snap.graph.nodes[0];
     const view = { id: 'g-wp6', commit: snap.commit, kind: 'explain_symbol', title: node.label, nodes: [{ ...node, commit: snap.commit }], edges: [] };
     const sse = [['chunk', { text: 'It is defined in model.py.' }], ['graph', view], ['done', {}]].map(([t, d]) => `event: ${t}\ndata: ${JSON.stringify(d)}\n\n`).join('');
     await page.route('**/api/learn/ask', (r) => r.fulfill({ status: 200, contentType: 'text/event-stream', body: sse })); // no model call
-    await barInput(page).fill('Where is attention defined?');
-    await barInput(page).press('Enter');
-    const sheet = page.locator('[data-result-sheet]');
-    await sheet.getByText('It is defined in model.py.').waitFor({ timeout: 10000 });
-    const shown = () => page.locator('[data-graph-node]').evaluateAll((all) => all.map((n) => n.dataset.graphNode).join());
-    await page.locator(`[data-graph-node="${node.id}"]`).waitFor({ timeout: 10000 });
+    await chatInput6(page).fill('Where is attention defined?');
+    await send6(page);
+    await chat6(page).getByText('It is defined in model.py.').first().waitFor({ timeout: 10000 });
+    const show = chat6(page).getByRole('button', { name: 'Show on graph' }).last();
+    await show.click();
+    await viewerShows(page, 'graph');
+    const shown = () => graph6(page).locator('[data-graph-node]').evaluateAll((all) => all.map((n) => n.dataset.graphNode).join());
+    await graph6(page).locator(`[data-graph-node="${node.id}"]`).waitFor({ timeout: 10000 });
     must(await shown() === node.id, `the graph shows ${await shown()}, not the answer's ${node.id}`);
-    await page.getByRole('textbox', { name: 'Search repository' }).fill('train');
+    await graph6(page).getByRole('textbox', { name: 'Search repository' }).fill('train');
     await page.waitForTimeout(500);
     must(await shown() !== node.id, 'the search did not move the graph on');
-    await sheet.getByRole('button', { name: 'Show on graph' }).click();
+    await show.click();
     await page.waitForTimeout(500);
     must(await shown() === node.id, `Show on graph shows ${await shown()}, not the answer's ${node.id}`);
-    must(await page.locator('[data-map-panel]').getByText('It is defined in model.py.').count() === 0, 'the answer landed in the inspector');
+    must(await page.locator('[data-companion]').getByText('It is defined in model.py.').count() === 0, 'the answer landed in the Graph view');
     await page.context().close();
   });
 
@@ -2279,146 +2196,104 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     } finally { for (const c of made) await drop6(page, c.name); await page.context().close(); }
   });
 
-  // WP6 checkpoint 2: the Map's work-memory layers. Real behaviour without fixtures; labelled nanoGPT fixtures with ?fixtures=1.
+  // WP6 checkpoint 2: the work-memory layers, in the Graph view since Release 1 (GraphPanel: Layers only with review fixtures).
+  // Real behaviour without fixtures; labelled nanoGPT fixtures with ?fixtures=1.
   const nano = ready && /^karpathy\/nanogpt$/i.test(ready.repo || '');
   const FX = 'Fixture · UI preview';
   const held = (page) => { const asks = []; page.route('**/api/learn/ask', (r) => { asks.push(r.request().postDataJSON()); }); return asks; }; // never answered: no model call
-  const mapAt = async (page, fixtures = false) => {
-    await loaded(page, `/apps/${ready.name}?tab=map${fixtures ? '&fixtures=1' : ''}`);
-    await page.locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
-  };
-  // The layers sit behind one button (project-map-learn.md) and open beside the graph; open them before each use.
-  const openLayers = async (page) => { if (!(await page.locator('[data-map-layers]').count())) await page.locator('[data-map-layers-open]').click(); };
-  // Layers is a popover of node-type checkboxes since repository-browser.md (owner brief §3).
-  const layer = (page, name) => page.locator('[data-map-layers]').getByRole('checkbox', { name: new RegExp(`^${name}`) });
+  // The layers sit behind one button and open under the search (aside#graph-layers); open them before each use.
+  const openLayers = async (page) => { if (!(await page.locator('aside#graph-layers').count())) await page.locator('[data-map-layers-open]').click(); };
+  const layer = (page, name) => page.locator('aside#graph-layers').getByRole('checkbox', { name: new RegExp(`^${name}`) });
 
-  if (ready) await check('wp6-kg-layers: the Map shows Code only; behind the layers icon, without fixtures Decisions, Questions and Sessions are off as none recorded and nothing says Fixture; with ?fixtures=1 on nanoGPT, Decisions adds its 6 decision nodes, recorded links solid and inferred dashed, and the layer row says Fixture · UI preview', async () => {
+  if (ready) await check('wp6-kg-layers: the Graph shows Code only; without fixtures it offers no Layers and nothing says Fixture; with ?fixtures=1 on nanoGPT, Layers > Decisions adds its 6 decision nodes, recorded links solid and inferred dashed, and the layers say Fixture · UI preview', async () => {
     const page = await open();
     await noAsks(page);
-    await mapAt(page);
-    must(await page.locator('[data-memory-node]').count() === 0, 'the default Map shows work-memory nodes');
-    await openLayers(page);
-    for (const name of ['Decisions', 'Questions', 'Sessions']) must(await layer(page, name).isDisabled(), `${name} is on offer with nothing recorded`);
-    must(!(await page.locator('main').innerText()).includes('Fixture'), 'the real Map says Fixture');
+    await graphAt(page);
+    must(await page.locator('[data-memory-node]').count() === 0, 'the default Graph shows work-memory nodes');
+    must(await graph6(page).locator('[data-map-layers-open]').count() === 0, 'Layers is offered without review fixtures');
+    must(!(await graph6(page).innerText()).includes('Fixture'), 'the real Graph says Fixture');
     await page.context().close();
     if (!nano) return;
     const fx = await open();
     await noAsks(fx);
-    await mapAt(fx, true);
+    await graphAt(fx, true);
     await openLayers(fx);
     await layer(fx, 'Decisions').click();
     await fx.locator('[data-memory-node="decision"]').first().waitFor({ timeout: 10000 });
     must(await fx.locator('[data-memory-node="decision"]').count() === 6, `${await fx.locator('[data-memory-node="decision"]').count()} decision nodes, not 6`);
     must(await fx.locator('[data-memory-node="question"], [data-memory-node="session"]').count() === 0, 'questions or sessions show with only Decisions on');
-    must(await fx.locator('[data-map-layers]').getByText(FX).isVisible(), 'the layer row does not say Fixture · UI preview');
+    must(await fx.locator('aside#graph-layers').getByText(FX).isVisible(), 'the layers do not say Fixture · UI preview');
     const lines = await fx.evaluate(() => [...document.querySelectorAll('[data-memory-edge]')].map((l) => [l.dataset.memoryEdge, l.getAttribute('stroke-dasharray')]));
     must(lines.some(([c, d]) => c === 'RECORDED' && !d) && lines.some(([c, d]) => c === 'INFERRED' && d), `recorded solid, inferred dashed: ${JSON.stringify(lines)}`);
     await fx.context().close();
   });
 
-  // The inspector (inspector.md §3, Data gaps): Why it matters says "No explanation yet" with an ask, and lists the code's
-  // fixture decisions on review builds; empty sections are omitted; fixture questions and sessions sit in Conversation.
-  const insp = (page) => page.locator('[data-map-panel]');
-  if (ready) await check('wp6-kg-selected: a selected code node opens the inspector; without fixtures Why it matters says No explanation yet with an ask, and nothing says Fixture; on nanoGPT fixtures CausalSelfAttention lists 2 decisions under Why it matters and 2 questions and 1 session under Conversation, labelled Fixture', async () => {
+  // A selected node's details sit under the graph (GraphPanel NodeDetails): where it lives, its actions and its relationships.
+  if (ready) await check('wp6-kg-selected: a selected code node shows its details under the Graph - Open source, Ask about this, Ask why, Learn this, Explore and its relationships - and nothing says Fixture', async () => {
     const page = await open();
     await noAsks(page);
-    await mapAt(page);
+    await graphAt(page);
     await pickNode(page);
-    if (OVERVIEW_TAB) await insp(page).locator('[data-inspector-section="why"]').getByText('No explanation yet.').waitFor({ timeout: 10000 });
-    else await insp(page).locator('[data-inspector-chat]').waitFor({ timeout: 10000 });
-    must(!(await insp(page).innerText()).includes('Fixture'), 'the real inspector says Fixture');
+    const details = graph6(page).locator('[data-node-details]');
+    for (const part of ['[data-node-open-source]', '[data-node-ask]', '[data-node-why]', '[data-node-learn]', '[data-node-explore]', '[data-node-relationships]']) must(await details.locator(part).count() === 1, `the node details lack ${part}`);
+    must(!(await details.innerText()).includes('Fixture'), 'the real node details say Fixture');
     await page.context().close();
-    if (!nano) return;
-    const fx = await open();
-    await noAsks(fx);
-    await mapAt(fx, true);
-    await pickNode(fx);
-    const why = insp(fx).locator('[data-inspector-section="why"]'), convo = insp(fx).locator('[data-inspector-chat]');
-    if (OVERVIEW_TAB) {
-      await why.getByText(FX).waitFor({ timeout: 10000 });
-      must(await why.locator('button').count() === 2, `${await why.locator('button').count()} decisions under Why it matters, not 2`);
-    }
-    await insp(fx).locator('[data-inspector-chat-tab]').click(); // the node's conversation is its Chat tab (owner, 2026-10-08)
-    const rows = (await convo.locator('button').allInnerTexts()).map((t) => t.trim()).filter((t) => !t.startsWith('Ask about this'));
-    must(rows.length === 3 && rows.filter((t) => t.endsWith('?')).length === 2 && rows.filter((t) => t.startsWith('Attention internals walkthrough')).length === 1, `Conversation should list 2 questions and 1 session: ${rows.join(' | ')}`);
-    must(await convo.getByText(FX).isVisible(), 'the fixture questions and sessions are not labelled');
-    await fx.context().close();
   });
+  // retired: fixture decisions under Why it matters and fixture questions and sessions under Conversation - the Map inspector
+  // that listed them went with the repository page; the Graph shows a fixture record only as a node (wp6-kg-entity).
 
-  if (nano) await check('wp6-kg-entity: with fixtures, a decision node opens its record in the inspector (rationale, alternatives, session, provenance, Fixture label); the bar keeps naming code, never the fixture; its code chip selects the code node, shown at model.py:29', async () => {
+  // A fixture record is looked at, never chat context (repo-context.js MEMORY): only code rides as a code chip.
+  if (nano) await check('wp6-kg-entity: with fixtures, a decision node added to a code selection leaves Chat naming only the code; picked alone it shows its title and Fixture record under the Graph, and Chat holds no code chip', async () => {
     const fx = await open();
     await noAsks(fx);
-    await mapAt(fx, true);
+    await graphAt(fx, true);
     await pickNode(fx, 'LayerNorm');
-    await fx.getByRole('textbox', { name: 'Search repository' }).fill(''); // pickNode's search would filter the decision out
+    await graph6(fx).getByRole('textbox', { name: 'Search repository' }).fill(''); // pickNode's search would filter the decision out
     await openLayers(fx);
     await layer(fx, 'Decisions').click();
-    await fx.locator('[data-graph-node="fx-d-fused-qkv"]').click();
-    const card = insp(fx).locator('[data-memory-entity="decision"]');
-    await card.waitFor({ timeout: 10000 });
-    const text = await card.innerText();
-    for (const want of ['Project Q, K and V with one Linear layer', 'One matmul instead of three', 'Three separate Linear layers', 'Attention internals walkthrough', FX]) must(text.includes(want), `the decision record lacks ${want}`);
-    must((await barOf(fx).locator('[data-scope-chip="selected"]').innerText()).includes('LayerNorm'), 'selecting a fixture moved the bar off the code');
-    await card.getByRole('button', { name: 'CausalSelfAttention', exact: true }).click();
-    await barOf(fx).locator('[data-scope-chip="selected"]', { hasText: 'CausalSelfAttention' }).waitFor({ timeout: 10000 });
-    await insp(fx).locator('[data-inspector-header]').getByText('model.py:29').waitFor({ timeout: 10000 });
+    const decision = graph6(fx).locator('[data-graph-node="fx-d-fused-qkv"] :is(circle, rect)').first();
+    await decision.click({ modifiers: ['Shift'] });
+    await graph6(fx).locator('[data-graph-node="fx-d-fused-qkv"][data-selected]').waitFor({ timeout: 10000 });
+    const chips = chat6(fx).locator('[data-code-selection]');
+    must(await chips.count() === 1 && (await chips.innerText()).includes('LayerNorm'), `selecting a fixture changed the code chips: ${(await chips.allInnerTexts()).join(' | ')}`);
+    await decision.click();
+    const details = graph6(fx).locator('[data-node-details]');
+    await details.getByText('Fixture record').waitFor({ timeout: 10000 });
+    must((await details.innerText()).includes('Project Q, K and V with one Linear layer'), `the details do not name the decision: ${await details.innerText()}`);
+    must(await chips.count() === 0, 'a fixture record rides as a code chip');
     await fx.context().close();
   });
+  // retired: the decision record's rationale, alternatives, session and provenance, and its code chip to model.py:29 - MapMemory's
+  // record card went with the Map inspector; NodeDetails names a fixture record only.
+
+  // retired: wp6-kg-starters - the empty inspector's 5 starter prompts ([data-map-starters]) went with the Map inspector; the
+  // Graph view offers none.
 
   // Owner, 2026-10-08: an Ask writes its question into the composer and focuses it; only Send asks.
-  if (ready) await check('wp6-kg-starters: the empty inspector offers 5 starter prompts; one click writes it into the Mothership\'s composer and sends nothing; no text input appears in the inspector', async () => {
+  if (ready) await check('wp6-kg-why: Ask why on a graph node writes "Why does <node> matter in this codebase?" into Chat\'s composer and sends nothing; with nanoGPT fixtures and every layer on, a private session or question of another user never shows', async () => {
     const page = await open();
     const asks = held(page);
-    await mapAt(page);
-    await page.locator('[data-map-panel-open]').click(); // the inspector starts closed (project-map-learn.md)
-    const starters = page.locator('[data-map-starters] button');
-    must(await starters.count() === 5, `${await starters.count()} starter prompts, not 5`);
-    await starters.filter({ hasText: 'Give me an architecture tour' }).click();
-    await page.waitForTimeout(800);
-    must(await barInput(page).inputValue() === 'Give me an architecture tour', `the composer holds: ${await barInput(page).inputValue()}`);
-    must(asks.length === 0, `a starter sent: ${JSON.stringify(asks)}`);
-    must(await page.locator('[data-map-panel] textarea, [data-map-panel] input[type="text"]').count() === 0, 'the panel grew a text input');
-    await page.context().close();
-  });
-
-  if (ready) await check('wp6-kg-why: Ask why in the inspector writes "Why does <node> matter in this codebase?" into the composer and sends nothing; with nanoGPT fixtures a typed Why does this exist? answers in the answer window with no request, labelled Fixture, evidence in hierarchy order; a prior question in the inspector is written into the composer; a private session of another user never shows', async () => {
-    const page = await open();
-    const asks = held(page);
-    await mapAt(page);
+    await graphAt(page);
     await pickNode(page);
-    // Ask why lives in the Overview, hidden for now (OVERVIEW_TAB).
-    if (OVERVIEW_TAB) {
-      await insp(page).locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
-      await page.waitForTimeout(1200);
-      must(/^Why does .+ matter in this codebase\?$/.test(await barInput(page).inputValue()), `the composer holds: ${await barInput(page).inputValue()}`);
-      must(asks.length === 0, `Ask why sent: ${JSON.stringify(asks)}`);
-    }
+    await graph6(page).locator('[data-node-why]').click();
+    await page.waitForTimeout(1200);
+    must(/^Why does .+ matter in this codebase\?$/.test(await chatInput6(page).inputValue()), `the composer holds: ${await chatInput6(page).inputValue()}`);
+    must(asks.length === 0, `Ask why sent: ${JSON.stringify(asks)}`);
     await page.context().close();
     if (!nano) return;
     const fx = await open();
     const none = held(fx);
-    await mapAt(fx, true);
-    await pickNode(fx);
-    // With fixture decisions, Why it matters lists them instead of an ask, so the learner asks in the bar, the only input.
-    await barInput(fx).fill('Why does this exist?');
-    await barInput(fx).press('Enter');
-    const answer = insp(fx).locator('[data-inspector-chat]'); // a node's answer is its Chat's, never the window's (owner, 2026-10-08)
-    await answer.getByText('2 recorded decisions explain why CausalSelfAttention looks like this.').waitFor({ timeout: 10000 });
-    must(await answer.getByText(FX).first().isVisible(), 'the fixture answer is not labelled');
-    const kinds = await answer.locator('[data-evidence] [data-evidence-kind]').evaluateAll((l) => l.map((n) => n.dataset.evidenceKind));
-    const RANK = ['decision', 'question', 'session', 'code', 'inferred', 'model'];
-    must(kinds.length && kinds[0] === 'decision' && kinds.every((k, i) => !i || RANK.indexOf(kinds[i - 1]) <= RANK.indexOf(k)), `evidence out of order: ${kinds}`);
-    await answer.getByRole('button', { name: /square root of the head size/ }).click();
-    await fx.waitForTimeout(400);
-    must(/square root of the head size/.test(await barInput(fx).inputValue()), 'the prior question is not in the composer');
+    await graphAt(fx, true);
     await openLayers(fx);
     for (const name of ['Decisions', 'Questions', 'Sessions']) if (!(await layer(fx, name).isChecked())) await layer(fx, name).click();
     await fx.waitForTimeout(800);
     const all = await fx.locator('body').innerText();
     must(!/Private debugging session|generate slow down/.test(all), 'a private record of another user shows');
-    must(none.length === 0, `fixture answers made ${none.length} model requests`);
+    must(none.length === 0, `the fixture layers made ${none.length} model requests`);
     await fx.context().close();
   });
+  // retired: the fixture answer to a typed Why does this exist? in the node's Chat tab (evidence order, Fixture label, a prior
+  // question back in the composer) - it was the Map inspector's own chat, answered from fixtures; Chat on the canvas asks the model.
 
   // WP7 (user, 2026-09-29): report a bug or suggest a feature from the bottom of the left strip - Learn's FeedbackButton,
   // app-less. The report is intercepted here (201), so the check stores nothing.
@@ -2455,20 +2330,20 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  // WP7 QA: the Map graph stays usable on a phone and follows the dark theme.
-  if (ready) await check('wp7-map-phone-dark: on a phone the Map graph keeps at least 300px of height; in the dark theme its surface is dark and its labels light, at desktop width', async () => {
+  // WP7 QA: the repository graph (the companion's Graph view since Release 1) stays usable on a phone and follows the dark theme.
+  if (ready) await check('wp7-map-phone-dark: on a phone the Graph keeps at least 300px of height; in the dark theme its surface is dark and its labels light, at desktop width', async () => {
     const phone = await open({ width: 390, height: 844 });
     await noAsks(phone);
-    await loaded(phone, `/apps/${ready.name}?tab=map`);
+    await loaded(phone, `/apps/${ready.name}?tab=graph`);
     const graph = phone.getByRole('img', { name: 'Repository dependency graph' });
     await graph.waitFor({ timeout: 30000 });
     const h = await graph.evaluate((svg) => svg.parentElement.getBoundingClientRect().height); // the visible graph, not the clipped svg
-    must(h >= 300, `the phone Map graph shows ${Math.round(h)}px`);
+    must(h >= 300, `the phone Graph shows ${Math.round(h)}px`);
     await phone.context().close();
     const dark = await open();
     await dark.addInitScript(() => localStorage.setItem('small.theme', 'dark'));
     await noAsks(dark);
-    await loaded(dark, `/apps/${ready.name}?tab=map`);
+    await loaded(dark, `/apps/${ready.name}?tab=graph`);
     await dark.getByRole('img', { name: 'Repository dependency graph' }).waitFor({ timeout: 30000 });
     await dark.waitForTimeout(800);
     const tones = await dark.evaluate(() => {
@@ -2477,7 +2352,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       const label = svg.querySelector('[data-graph-node] text');
       return { dark: document.documentElement.classList.contains('dark'), surface: lum(getComputedStyle(svg.parentElement).backgroundColor), label: lum(getComputedStyle(label).fill) };
     });
-    must(tones.dark && tones.surface < 0.25 && tones.label > 0.5, `dark Map graph: ${JSON.stringify(tones)}`);
+    must(tones.dark && tones.surface < 0.25 && tones.label > 0.5, `dark Graph: ${JSON.stringify(tones)}`);
     await dark.context().close();
   });
 
@@ -2500,17 +2375,26 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 
   // WP7 (user, 2026-09-29): a deploy replaces the hashed chunks, so a tab opened before it gets a 404 on its next lazy chunk.
-  // It reloads once and carries on; if the chunk still fails, it says so instead of going blank, and never loops.
-  if (ready) await check('wp7-stale-chunk: a lazy chunk gone after a deploy reloads the page once and the project opens; a chunk that keeps failing shows an error, not a blank page, and reloads no more', async () => {
+  // It reloads once and carries on; if the chunk still fails, it says so instead of going blank, and never loops (main.jsx
+  // vite:preloadError, chunk-reload.js). Since Release 1 the project's own lazy chunk is the Graph view's (repository-canvas.jsx
+  // GraphPanel), loaded when Explore codebase first shows it. The reload lands on the plain canvas, so Explore codebase is
+  // pressed again; a GraphPanel failure has no error boundary, so the root shows This page couldn't load.
+  if (ready) await check('wp7-stale-chunk: the Graph chunk gone after a deploy reloads the page once and Explore codebase then opens the Graph; a chunk that keeps failing shows an error, not a blank page, and reloads no more', async () => {
     for (const persistent of [false, true]) {
       const page = await open();
+      await noAsks(page);
       let failed = 0, reloads = 0;
-      await page.route('**/static/RepositoryPage-*.js', (r) => (persistent || !failed++ ? r.fulfill({ status: 404, body: 'gone' }) : r.continue()));
-      await loaded(page, '/library');
-      page.on('load', () => reloads++); // full page loads only; framenavigated also fires for the pushState step
-      await spa(page, `/apps/${ready.name}`);
+      await page.route('**/static/GraphPanel-*.js', (r) => (persistent || !failed++ ? r.fulfill({ status: 404, body: 'gone' }) : r.continue()));
+      await projectAt(page, `/apps/${ready.name}`);
+      page.on('load', () => reloads++); // full page loads only
+      const explore = page.locator('button[aria-label="Explore codebase"]');
+      const reloaded = page.waitForEvent('load', { timeout: 30000 });
+      await explore.click();
+      await reloaded;
+      await explore.waitFor({ timeout: 30000 }); // back on the plain canvas: the reload opens no viewer
+      await explore.click();
       if (!persistent) {
-        await page.locator('[data-project-tabs]').waitFor({ timeout: 30000 });
+        await page.locator('[data-learn-graph] [data-graph-panel]').waitFor({ timeout: 30000 });
         must(reloads === 1, `expected one reload, saw ${reloads}`);
       } else {
         await page.getByText("This page couldn't load", { exact: false }).waitFor({ timeout: 30000 });
