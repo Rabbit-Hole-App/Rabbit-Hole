@@ -47,7 +47,9 @@ export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320,
     return () => observer.disconnect();
   }, [wide, collapsed]);
   if (!wide && collapsed) return null;
-  return <aside {...props} ref={panel}
+  // inert while retracted: its content stays mounted for the slide, but a hidden column must take no focus or key (a graph
+  // node in a closed companion stayed tabbable).
+  return <aside {...props} ref={panel} inert={collapsed || undefined}
     style={wide ? { width: collapsed ? 0 : visible, transition: resizing ? 'none' : 'width 320ms cubic-bezier(0.25,1,0.35,1)' } : undefined}
     className={`relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-white ${narrowHidden ? 'max-lg:hidden' : ''} ${collapsed ? '' : resizeEdge === 'right' ? 'border-r border-line' : 'border-l border-line'} ${overlay ? 'max-lg:absolute max-lg:top-0 max-lg:right-0 max-lg:bottom-(--agent-bar-h) max-lg:z-20 max-lg:w-[min(26rem,100%)] max-lg:shadow-pop max-md:top-(--shell-top-h) max-md:w-full max-md:border-l-0' : 'max-lg:h-[45%] max-lg:min-h-64 max-lg:w-full max-lg:border-t max-lg:border-l-0'}`}>
     {!collapsed && <div role="separator" aria-label={resizeLabel} aria-orientation="vertical" aria-valuemin={minWidth} aria-valuemax={max} aria-valuenow={visible} tabIndex={0} title="Drag to resize · double-click to reset"

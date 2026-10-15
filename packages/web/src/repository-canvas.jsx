@@ -62,15 +62,17 @@ export function useRepositoryCanvas(project, { codeCards = false } = {}) {
 // The Files view before a snapshot exists, or when it cannot (brief section 12): what is happening, never an empty pane.
 export function RepositoryState({ repository, what = 'files' }) {
   const { status, error, canEdit, refresh, retry } = repository;
+  // A ready repository whose snapshot read failed says so, with Retry (brief section 12), never Loading forever.
+  const failed = status === 'failed' || (status === 'ready' && !!error);
   const line = status === 'unavailable' ? 'Repository content unavailable.'
-    : status === 'failed' ? `The repository could not be read${error ? `: ${error}` : '.'}`
+    : failed ? `The repository could not be read${error ? `: ${error}` : '.'}`
     : status === 'queued' ? 'Waiting for the indexer…'
     : status === 'indexing' ? `Reading the repository and building its ${what === 'graph' ? 'code graph' : 'file list'}…`
     : 'Loading the repository…';
-  return <div role="status" data-repository-state={status} className="flex flex-col items-start gap-2 p-4 text-sm text-ink-2">
+  return <div role="status" data-repository-state={failed && status === 'ready' ? 'failed' : status} className="flex flex-col items-start gap-2 p-4 text-sm text-ink-2">
     {['queued', 'indexing', 'loading'].includes(status) && <div className="h-1 w-40 overflow-hidden rounded bg-hover"><div className="h-full w-1/2 animate-pulse bg-accent" /></div>}
     <p>{line}</p>
-    {status === 'failed' && <Button size="sm" onClick={() => Promise.resolve(canEdit ? refresh() : retry()).catch(e => toast(e.message, { tone: 'error' }))}><RefreshCw size={13} aria-hidden /> {canEdit ? 'Retry import' : 'Retry'}</Button>}
+    {failed && <Button size="sm" onClick={() => Promise.resolve(status === 'failed' && canEdit ? refresh() : retry()).catch(e => toast(e.message, { tone: 'error' }))}><RefreshCw size={13} aria-hidden /> {status === 'failed' && canEdit ? 'Retry import' : 'Retry'}</Button>}
   </div>;
 }
 
