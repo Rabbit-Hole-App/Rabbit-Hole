@@ -108,6 +108,9 @@ const check = async (label, fn) => {
     results.push({ label, ok: false, error: message });
     console.log(`FAIL ${label} - ${message}${String(error?.stack || '').split('\n').filter(line => line.includes('canvas-doc-check.mjs')).slice(0, 3).map(line => ` @${line.trim().replace(/.*check\.mjs:/, '')}`).join('')}`);
     if (page) await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
+    // A failed step can leave a menu open or a mouse button down; the next check starts clean.
+    if (page) { await page.mouse.up().catch(() => {}); for (let i = 0; i < 2; i++) await page.keyboard.press('Escape').catch(() => {}); }
+    release();
   }
 };
 const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() => {});
@@ -121,6 +124,7 @@ const profile = async ({ view = null, canvas = null } = {}) => {
   if (view && canvas) await context.addInitScript(([key, value]) => { try { if (!localStorage.getItem(key)) localStorage.setItem(key, value); } catch { /* the default */ } }, [`${keyOf(canvas)}:view`, view]);
   await context.route('**/*', router);
   page = await context.newPage();
+  page.setDefaultTimeout(10000); // a missing handle fails in 10 s, not 30
   page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
 };
 const openCanvas = async name => {
