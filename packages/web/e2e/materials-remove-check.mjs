@@ -1,9 +1,9 @@
-// Remove from canvas context (docs/features/materials-remove.md), against the LOCAL stack only: local D1 and a fresh browser
+// Remove from Materials (docs/features/materials-remove.md), against the LOCAL stack only: local D1 and a fresh browser
 // profile. No model is ever called: /api/learn/ask is answered here with canned text and its request bodies CAPTURED; every
 // other model-capable route is aborted and counted, and none may happen.
 // Setup: a canvas and a 3-page PDF (each page "PAGE n" and a blue bar) uploaded as its context document; its pages are added
-// to the canvas through Sources' Add to canvas. Covered: the trash icon on the Materials row (label and tooltip "Remove from
-// canvas context"); Cancel keeps it; a failed removal (the DELETE answered 500) shows the error and keeps the row; Remove takes
+// to the canvas through Sources' Add to canvas. Covered: the trash icon on the Materials row (label and tooltip "Remove <file>
+// from Materials"); Cancel keeps it; a failed removal (the DELETE answered 500) shows the error and keeps the row; Remove takes
 // the row and the chat's chip away; after a reload it is still gone, the page blocks still draw, the page's reader still
 // opens the PDF, and a question about page 2 still sends the doc ref at page 2 (never the whole document).
 // Prints `ok <label>` per check; exits 1 on any failure. Evidence goes to OUT: results.json and *.png.
@@ -102,7 +102,7 @@ const sourcesPane = () => page.locator('[data-sources-pane]');
 const row = () => sourcesPane().locator('section').filter({ has: page.locator(`button[aria-expanded]:has-text("${DOC_NAME}")`) });
 const trash = () => row().locator('[data-source-remove]');
 const chip = () => page.locator(`[data-context-chip] button[title="Open ${DOC_NAME}"]:visible`);
-const confirmDialog = () => page.getByRole('dialog', { name: 'Remove from canvas context?' });
+const confirmDialog = () => page.getByRole('dialog', { name: 'Remove from Materials?' });
 const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-sources-pane]')?.closest('[aria-label="Sources"]')?.getBoundingClientRect().width || 0) > 50);
 const openCanvas = async () => {
   await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -156,10 +156,10 @@ await check('setup: the PDF is in Materials with its chip, and its 3 pages are a
   await shot('01-materials-row');
 });
 
-await check('the row has its own trash icon, labelled and titled "Remove from canvas context", beside Detach', async () => {
+await check('the row has its own trash icon, labelled and titled "Remove remove-me.pdf from Materials", beside Detach', async () => {
   assert.equal(await trash().count(), 1);
-  assert.equal(await trash().getAttribute('aria-label'), 'Remove from canvas context');
-  assert.equal(await trash().getAttribute('title'), 'Remove from canvas context');
+  assert.equal(await trash().getAttribute('aria-label'), `Remove ${DOC_NAME} from Materials`);
+  assert.equal(await trash().getAttribute('title'), `Remove ${DOC_NAME} from Materials`);
   assert.equal(await row().getByRole('button', { name: `Detach ${DOC_NAME} from this chat` }).count(), 1, 'Detach stays beside it');
 });
 

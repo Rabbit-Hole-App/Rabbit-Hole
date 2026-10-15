@@ -153,7 +153,7 @@ test('chips and pane: nothing outside a Learn canvas; This canvas first; an empt
   assert.match(pane, /No sources yet/);
 });
 
-// materials-remove.md: Remove from canvas context. A whole-document chip of a removed document is stale (it would keep
+// materials-remove.md: Remove from Materials. A whole-document chip of a removed document is stale (it would keep
 // sending it); a ref at one of its pages is not (a PDF page on the canvas still asks about that page); nothing else is touched.
 test('a removed context document: its whole-document chip is stale, a page of it and everything else stay', () => {
   const removed = [doc.id];
@@ -169,12 +169,13 @@ test('a removed context document: its whole-document chip is stale, a page of it
   assert.match(hook, /const remove = useCallback\(async doc => \{ await removeContextDoc\(canvas, doc\.id\); dispatch\(\{ type: 'detach', ref: docRef\(doc\) \}\); \}, \[canvas\]\);/);
 });
 
-test('each Materials file row has its own Remove from canvas context control, confirmed first, its error kept on the row', async () => {
+test('each Materials file row has its own Remove from Materials control, confirmed first, its error kept on the row', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
   assert.match(source, /\{ready && item\.doc && <button type="button" data-source-remove onClick=\{\(\) => setRemoving\(item\)\}/, 'only a ready context document row, and the press only asks');
-  assert.match(source, /aria-label="Remove from canvas context" title="Remove from canvas context"/);
-  assert.match(source, /<ConfirmDialog title="Remove from canvas context\?"[^]*onConfirm=\{\(\) => remove\(removing\)\} onCancel=\{\(\) => setRemoving\(null\)\}/);
+  assert.match(source, /aria-label=\{`Remove \$\{ref\.name\} from Materials`\} title=\{`Remove \$\{ref\.name\} from Materials`\}/);
+  assert.match(source, /is removed from Materials and from future AI requests\. Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted\./);
+  assert.match(source, /<ConfirmDialog title="Remove from Materials\?"[^]*onConfirm=\{\(\) => remove\(removing\)\} onCancel=\{\(\) => setRemoving\(null\)\}/);
   assert.match(source, /if \(active\?\.sourceId === key && !active\.range\) sources\.close\(\);/, 'a removed document open in the reader is put down, so it is not listed as the active source');
   assert.match(source, /catch \(error\) \{ setRemoval\(state => \(\{ \.\.\.state, \[key\]: `Could not remove/, 'a failure keeps the row and names why');
   assert.match(source, /data-sources-close onClick=\{panels\.closeSources\}/, 'the top-right X only closes');

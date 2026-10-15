@@ -7,7 +7,7 @@ import { CONTEXT_ACCEPT } from './context-docs.js';
 import { RefIcon } from './ContextChips.jsx';
 import SourceReader from './SourceReader.jsx';
 import { pdfKeyOfRef } from './pdf-source.js';
-// Remove from canvas context (materials-remove.md), on a line of its own so the header's imports stay as they are.
+// Remove from Materials (materials-remove.md), on a line of its own so the header's imports stay as they are.
 import { Trash2 } from 'lucide-react';
 import { ConfirmDialog } from './ui.jsx';
 
@@ -26,7 +26,7 @@ export default function SourcesPane() {
   useEffect(() => setFolded(null), [active]);
   const [menu, setMenu] = useState(false);
   const picker = useRef(null), body = useRef(null);
-  // Remove from canvas context: the row waiting on its confirmation, and per row (sourceId) true while removing or the error.
+  // Remove from Materials: the row waiting on its confirmation, and per row (sourceId) true while removing or the error.
   const [removing, setRemoving] = useState(null);
   const [removal, setRemoval] = useState({});
   if (!chat) return null;
@@ -105,7 +105,7 @@ export default function SourcesPane() {
                   : <button type="button" onClick={() => context.attach(item.ref)} aria-label={`Attach ${item.ref.name} to this chat`} title="Attach to this chat"
                       className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-ink-2 hover:bg-white hover:text-ink"><Paperclip size={13} aria-hidden /> Attach</button>)}
                 {ready && item.doc && <button type="button" data-source-remove onClick={() => setRemoving(item)} disabled={removal[ref.sourceId] === true}
-                  aria-label="Remove from canvas context" title="Remove from canvas context"
+                  aria-label={`Remove ${ref.name} from Materials`} title={`Remove ${ref.name} from Materials`}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-white hover:text-ink disabled:opacity-40">
                   {removal[ref.sourceId] === true ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>}
                 {item.state === 'failed' && <>
@@ -124,8 +124,8 @@ export default function SourcesPane() {
           );
         })}
       </div>
-      {removing && <ConfirmDialog title="Remove from canvas context?" confirmLabel="Remove"
-        body={`${removing.ref.name} leaves this canvas's Materials and future AI requests. Cards and pages made from it stay on the canvas, and earlier messages are unchanged.`}
+      {removing && <ConfirmDialog title="Remove from Materials?" confirmLabel="Remove"
+        body={`${removing.ref.name} is removed from Materials and from future AI requests. Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted.`}
         onConfirm={() => remove(removing)} onCancel={() => setRemoving(null)} />}
     </div>
   );

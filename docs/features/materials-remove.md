@@ -1,11 +1,12 @@
-# Remove from canvas context (Materials)
+# Remove from Materials
 
 Owner request, 2026-10-14: a trash icon on each file row in Materials (the Sources pane), beside Attach/Detach.
 
 ## The three actions
 - Attach / Detach: whether this conversation sends the material (chat-context.js attached refs). Unchanged.
-- Remove from canvas context (trash icon, tooltip and accessible label "Remove from canvas context"): the file leaves this
-  canvas's Materials list and every future AI request. A confirmation comes first.
+- Remove from Materials (trash icon, tooltip and accessible label "Remove <filename> from Materials"): the file leaves this
+  canvas's Materials list and every future AI request. A confirmation comes first and says the scope: canvas cards and pages
+  that use it keep working, earlier messages stay as they are, and the file is not deleted.
 - The panel's top-right × only closes the panel. Unchanged.
 
 ## Design (no D1 migration)
