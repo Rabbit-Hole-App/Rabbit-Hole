@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { docIsEmpty } from './canvas-doc.js';
 import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, Shapes, X } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import ForkButton from './ForkButton.jsx';
@@ -64,6 +65,8 @@ export default function SharedBoardPage({ token }) {
   // On a share link the owner and members (member_board_id) get the members panel; other link viewers see no comments.
   const [commentsInfo, setCommentsInfo] = useState(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // The canvas's document (docs/features/blocknote-canvas.md), read-only here: shown on request, the canvas first.
+  const [docShown, setDocShown] = useState(false);
   const canvasApi = useRef(null);
   const openComments = useCallback(() => setCommentsOpen(true), []);
   const memberBoard = shared?.member_board_id || null;
@@ -139,6 +142,7 @@ export default function SharedBoardPage({ token }) {
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
+        {board.doc && !docIsEmpty(board.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
         <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
         <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
@@ -146,7 +150,7 @@ export default function SharedBoardPage({ token }) {
       <div className="flex min-h-0 flex-1">
       <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
-          <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
+          <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} docView={docShown ? 'editor' : 'canvas'} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
             gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
             hooks={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
             onAskTarget={setTarget} askTargetId={target?.id ?? null}

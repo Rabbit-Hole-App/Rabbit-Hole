@@ -257,12 +257,13 @@ test('AdaptiveCanvas.jsx: insertBlock takes `after` (indexAfter, ignoring the vi
 
 test('AdaptiveCanvas.jsx: persist() saves the board read through refs (canvas-persist.js); the debounced save is unchanged (LP1 Task 15)', () => {
   const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(src, /boardRef\.current = \{ strokes, shapes, items, links, blocks, groups, areas \};/);
+  assert.match(src, /boardRef\.current = \{ strokes, shapes, items, links, blocks, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};/);
   // Final review B-C1: an unmounted canvas saves nothing (its stale board would overwrite the new canvas's copy).
-  assert.match(src, /persist: \(\) => \(alive\.current \? persistBoard\(\{ state: boardRef\.current, storageKey, storage: \(\) => localStorage, onSave: onSaveRef\.current \}\) : Promise\.resolve\(\{ ok: false \}\)\),/);
+  // The canvas document's live words ride too (docs/features/blocknote-canvas.md): the board read through refs plus liveDoc().
+  assert.match(src, /persist: \(\) => \{\n\s+if \(!alive\.current\) return Promise\.resolve\(\{ ok: false \}\);\n\s+const live = liveDoc\(\);[\s\S]{0,300}return persistBoard\(\{ state: \{ \.\.\.boardRef\.current, \.\.\.\(live \? \{ doc: live \} : \{\}\) \}, storageKey, storage: \(\) => localStorage, onSave: onSaveRef\.current \}\);\n\s+\},/);
   // The debounced save: same key, shape, stripping, 400 ms, and onSave only after the first (loaded) run.
   assert.match(src, /const light = lightBlocks\(blocks\);/);
-  assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
+  assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); docWritten\.current = JSON\.stringify\(state\.doc \?\? null\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
 });
 
 test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() - ok or failed for every owned board; the debounced push stays (LP1 Task 15)', () => {

@@ -1,0 +1,49 @@
+// The canvas document's page-side rules (docs/features/blocknote-canvas.md): the view choice, the board size warning, the
+// block types this version edits, and what a newer server copy does to a document this browser still holds.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { BOARD_LIMIT, DOC_BLOCK_TYPES, boardSizeWarning, docIsEmpty, docOnServerCopy, docViewKey, readDocView, unknownDocBlock, writeDocView } from './canvas-doc.js';
+
+const memory = () => { const items = new Map(); return { getItem: key => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)) }; };
+const KEY = 'small.adaptive-canvas:gmail-com:a@gmail.com:canvas-0f9e8d7c';
+const para = text => ({ id: text || 'p', type: 'paragraph', content: text ? [{ type: 'text', text, styles: {} }] : [], children: [] });
+
+test('the view: Canvas until this person picks Editor here; the choice is per canvas key', () => {
+  const storage = memory();
+  assert.equal(docViewKey(KEY), `${KEY}:view`);
+  assert.equal(readDocView(storage, KEY), 'canvas');
+  writeDocView(storage, KEY, 'editor');
+  assert.equal(readDocView(storage, KEY), 'editor');
+  assert.equal(readDocView(storage, `${KEY}x`), 'canvas', 'another canvas keeps its own default');
+  writeDocView(storage, KEY, 'anything');
+  assert.equal(readDocView(storage, KEY), 'canvas');
+  assert.equal(readDocView({ getItem: () => { throw Error('blocked'); } }, KEY), 'canvas', 'blocked storage reads as Canvas');
+});
+
+test('the size warning starts at 85% of the server limit', () => {
+  assert.equal(BOARD_LIMIT, 1_900_000);
+  assert.equal(boardSizeWarning(1_614_999), false);
+  assert.equal(boardSizeWarning(1_615_000), true);
+});
+
+test('block types: text only (no media); an unknown saved type is caught, also when nested', () => {
+  for (const type of ['image', 'video', 'audio', 'file']) assert.equal(DOC_BLOCK_TYPES.includes(type), false, type);
+  assert.equal(unknownDocBlock([para('a'), { ...para('b'), type: 'heading' }]), false);
+  assert.equal(unknownDocBlock([{ ...para('a'), children: [{ ...para('b'), type: 'image' }] }]), true);
+  assert.equal(docIsEmpty({ blocks: [para(''), { ...para(''), type: 'heading' }] }), true);
+  assert.equal(docIsEmpty({ blocks: [para('words')] }), false);
+});
+
+test('a newer server copy: a kept document goes over it and is pushed; a replaced one is offered back; nothing is dropped', () => {
+  const server = { blocks: [], doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('server')] } };
+  const mine = { v: 1, x: 0, y: 0, w: 760, blocks: [para('mine, unsaved')] };
+  const kept = docOnServerCopy(server, { kept: mine, replaced: { doc: mine } });
+  assert.deepEqual(kept.state.doc, mine, 'Reload and keep my document: mine goes over the server copy');
+  assert.equal(kept.push, true, 'and is saved as the newer edit');
+  assert.equal(kept.offer, null);
+  const plain = docOnServerCopy(server, { replaced: { doc: mine } });
+  assert.deepEqual(plain.state, server, 'a plain open shows the server copy');
+  assert.deepEqual(plain.offer, mine, 'and offers mine back');
+  assert.deepEqual(docOnServerCopy(server, { replaced: { doc: server.doc } }), { state: server, push: false, offer: null }, 'the same document is nothing to offer');
+  assert.deepEqual(docOnServerCopy(server, { kept: server.doc }), { state: server, push: false, offer: null }, 'keeping what the server has is no push');
+});

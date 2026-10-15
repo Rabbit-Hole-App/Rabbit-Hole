@@ -39,5 +39,6 @@ export const sharingOf = sharing => (!sharing || sharing.unavailable ? 'unknown'
 // its content keys in one order, a missing key read as empty. The canvas writes every key, a copy saved elsewhere may
 // not (a Rabbit Hole's anchor-only board), and the two must compare equal, or merely opening a board would save it
 // again and move its updated_at.
-const BOARD_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources'];
+// doc: the canvas's one document (docs/features/blocknote-canvas.md), an object; a board without one reads as [] like any key.
+const BOARD_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources', 'doc'];
 export const boardText = state => JSON.stringify(BOARD_KEYS.map(key => state?.[key] ?? []));
