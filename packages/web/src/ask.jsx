@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Library, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -1125,7 +1125,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </div>
           )}
           {/* The Chat toolbar after Plus, in order: Sources, the mode, the / slot, the mic; Send sits at the far right. */}
-          {chat && <button type="button" data-chat-sources aria-label="Sources" title="Open sources" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={() => chat.panels.openSources()} className={COMPOSER_TOOL}><Library size={16} strokeWidth={1.5} /></button>}
+          {chat && <button type="button" data-chat-sources aria-label="Context" title="Open Context" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={() => chat.panels.openSources()} className={COMPOSER_TOOL}><Files size={16} strokeWidth={1.5} /></button>}
           {chat && <ModeSelector disabled={voiceOn} />}
           {(dock || chat) && chatControl}
           {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}

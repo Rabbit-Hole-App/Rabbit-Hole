@@ -81,8 +81,10 @@ test('fit, focus and a new card stop above the floating chrome over their span (
 });
 
 test('the Rabbit Hole navigator coexists: its own right gutter with the tools left, the tools gutter top when they dock right', () => {
-  assert.match(canvas, /gutterTop && toolSide === 'left' && <div data-dive-gutter/);
-  assert.match(canvas, /\{toolSide === 'right' && gutterTop\}/);
+  assert.match(canvas, /gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter/);
+  assert.match(canvas, /\{\(toolSide === 'right' \|\| !mapBeside\) && gutterTop\}/);
+  // canvas-clipping.md: the map's column only while the canvas keeps a card column beside it; narrower it joins the tools.
+  assert.match(canvas, /const mapBeside = !shellWidth \|\| shellWidth - 84 - 92 >= COLUMN \+ 48;/);
   assert.match(page, /gutterTop=\{dive\.tree \? <DiveNavigator \{\.\.\.dive\.navigator\} \/> : null\}/);
 });
 

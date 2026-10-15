@@ -68,7 +68,7 @@ try {
   const panelTabs = () => page.locator('[data-panel-tab]').evaluateAll(tabs => tabs.map(tab => tab.dataset.panelTab));
   await chat('Selected-card answer.').waitFor();
   check('selected-card discussion answers in the ordinary chat: one more card, nothing in the right panel', await cards() === 2 && await conversationUi() === 0);
-  check('the right panel has no Card conversation tab, only its own tabs', await page.getByRole('tab', { name: 'Card conversation' }).count() === 0 && (await panelTabs()).length >= 3 && (await panelTabs()).every(id => ['find', 'toc', 'comments', 'files'].includes(id)));
+  check('the right panel has no Card conversation tab, only its own tabs', await page.getByRole('tab', { name: 'Card conversation' }).count() === 0 && (await panelTabs()).length >= 3 && (await panelTabs()).every(id => ['find', 'toc', 'comments', 'context', 'files'].includes(id)));
   check('the question is still scoped to the selected card', String(calls.filter(c => c.path === '/api/learn/tutor/plan').at(-1)?.body?.context?.target?.description).includes('Card 0 explains a different idea.'));
   check('selected-card answer has one visible copy', await page.getByText('Selected-card answer.', { exact: true }).count() === 1);
   check('the answer leaves the right panel as it was: it no longer opens for a selected card', await resizer.count() === panelWas);

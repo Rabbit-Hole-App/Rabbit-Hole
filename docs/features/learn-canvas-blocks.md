@@ -101,7 +101,9 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
   - **Left:** the tool palette in the tools' gutter (`[data-tool-gutter]`, docked left by default;
     the grip still docks it right).
   - **Top right:** the Rabbit Hole navigator in its own gutter (`[data-dive-gutter]`), or at the
-    top of the tools gutter when the tools dock right.
+    top of the tools gutter when the tools dock right, or when the canvas row is too narrow to keep
+    a card column beside that gutter (side panels open; `mapBeside`, docs/features/canvas-clipping.md),
+    so the canvas runs to the panel with no blank strip.
   - **Lower left** (owner, 2026-10-08): the minimap directly above the zoom row, one group on one left
     edge in the bottom strip's left column (`[data-zoom-stack]` holding `[data-canvas-minimap]` then
     `[data-zoom]`), in the strip's flow. Hidden below `md` and on canvases under

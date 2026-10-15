@@ -55,15 +55,3 @@ export default function ChatPane({ hidden = false, unavailable = null, chatAskPr
     </div>
   );
 }
-
-// The narrow layout's Chat/Sources switch (chat-panels.js layoutFor): it only picks which pane shows; both stay mounted.
-export function PaneSwitch({ view, onView }) {
-  return (
-    <div role="tablist" aria-label="Chat or Sources" data-pane-switch className="mb-2 flex shrink-0 gap-0.5 rounded-lg border border-line bg-hover p-0.5">
-      {[['chat', 'Chat'], ['sources', 'Sources']].map(([id, label]) => (
-        <button key={id} type="button" role="tab" aria-selected={view === id} data-pane-switch-tab={id} onClick={() => onView(id)}
-          className={`h-7 flex-1 rounded-md text-xs ${view === id ? 'bg-white font-medium text-ink shadow-sm' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
-      ))}
-    </div>
-  );
-}

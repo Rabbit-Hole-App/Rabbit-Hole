@@ -38,7 +38,7 @@ import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
-import ChatPane, { PaneSwitch } from './ChatPane.jsx';
+import ChatPane from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
@@ -142,7 +142,6 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // tab (owner brief 2026-10-13 sections 2-3); pinned (the default) keeps the panel open while the learner works.
   const chat = useChatWorkspace(), { panels } = chat;
   const { open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab } = panels;
-  const switched = panels.layout === 'switch';
   // A code reference clicked in an answer (RepositoryPage small:open-files; repository-browser.md "Code references"): the
   // Files tab opens on it, the panel too when it was closed.
   useEffect(() => {
@@ -488,7 +487,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       // that job - an iframe never says which page is on screen.
       const page = choice.mode === 'pages' ? choice.from : 1;
       pauseLesson();
-      if (chatWorkspace.current) chatWorkspace.current.openSource(paperRef({ id: stored.id, title: stored.title, page })); else {
+      // reveal false: the upload and drawing take a while; a panel the learner hid meanwhile stays hidden (hide-right-panel.md).
+      if (chatWorkspace.current) chatWorkspace.current.openSource(paperRef({ id: stored.id, title: stored.title, page }), { reveal: false }); else {
       setPaperContext({ ...stored, pdfUrl: null, page });
       setWikiContext(null); setWikiOpen(false);
       setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
@@ -824,10 +824,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   }, [canvasEpoch, learningView, courseView]);
   // Unpinned, a press on the canvas surface closes the panel. A native listener on the frame, so a card's own
   // pointer handlers cannot swallow the press first; a link that opens a reader stops it in capture and stays open.
-  // Never on the Chat tab: Chat stays usable while canvas objects are selected (owner brief 2026-10-13 13.8).
+  // Never on the Chat tab: Chat stays usable while canvas objects are selected (owner brief 2026-10-13 13.8). Nor on
+  // Context, which was the separate Sources pane this press never closed (pages are picked on the canvas beside it).
   useEffect(() => {
     const frame = canvasFrame.current;
-    if (panelPinned || !panelOpen || panelTab === 'chat' || !frame) return undefined;
+    if (panelPinned || !panelOpen || panelTab === 'chat' || panelTab === 'context' || !frame) return undefined;
     const close = event => { if (event.target.closest?.('[data-canvas-surface]')) setPanelOpen(false); };
     frame.addEventListener('pointerdown', close);
     return () => frame.removeEventListener('pointerdown', close);
@@ -1738,14 +1739,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         }} />
       </div>
     </section>
-    {/* Canvas, then Sources, then Chat (owner brief 2026-10-13 section 2). When both panes leave the canvas under
-        CANVAS_MIN px, or below lg, one shows at a time behind a Chat/Sources switch; the other is hidden, never unmounted. */}
-    <ResizableSidePanel aria-label="Sources" resizeLabel="Resize Sources pane" defaultWidth={400} storageKey="rh.sources.width" collapsed={!panels.sourcesOpen} hidden={switched && panels.view !== 'sources'} onWidth={panels.measure.sources}>
-      {switched && <div className="px-5 pt-3"><PaneSwitch view={panels.view} onView={view => (view === 'chat' ? panels.openChat() : panels.setView(view))} /></div>}
-      <SourcesPane />
-    </ResizableSidePanel>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} hidden={switched && panels.view !== 'chat'} onWidth={panels.measure.chat} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
-      {switched && <PaneSwitch view={panels.view} onView={view => (view === 'chat' ? panels.openChat() : panels.setView(view))} />}
+    {/* Canvas, then the right panel: one open state and one tab (chat-panels.js). Context holds Sources (Materials and the reader); every
+        tab stays mounted while hidden, so the draft, the reader's document and page survive a switch or a hide. */}
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} filesOn={!!files} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
@@ -1755,6 +1751,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
+      {/* Context (docs/features/hide-right-panel.md): Materials and the reader, full bleed as the Sources pane was. */}
+      <div role="tabpanel" aria-label="Context" data-context-panel className={`${panelTab === 'context' ? 'flex' : 'hidden'} -mx-5 -mb-4 min-h-0 flex-1 flex-col`}><SourcesPane /></div>
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${panelTab === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col gap-2`}>
         <div className="flex shrink-0 items-center justify-between gap-2">

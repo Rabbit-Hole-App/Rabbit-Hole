@@ -228,9 +228,9 @@ async function probeEdge(page, card, title, label, side = 'right') {
   // The zoom row floats over the canvas now; the empty strip right of it passes the pointer to the canvas (measured before
   // the scroll to the Chat pane below).
   const through = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-canvas-surface]'), [(g.zoomRow.right + g.surface.right) / 2, g.zoomRow.y + g.zoomRow.h / 2]);
-  // The zoom controls never sit on the composer, now the Chat pane's (on the narrow layout its side of the Chat/Sources
-  // switch, brief section 2): the field's centre reaches the field.
-  const chatTab = page.locator('[data-pane-switch-tab="chat"]').first();
+  // The zoom controls never sit on the composer, now the Chat pane's (the panel's Chat tab, docs/features/hide-right-panel.md):
+  // the field's centre reaches the field.
+  const chatTab = page.locator('[data-panel-tab="chat"]').first();
   if (await chatTab.count() && await chatTab.getAttribute('aria-selected') !== 'true') await chatTab.click();
   const FIELD = '[data-chat-pane] [data-chat-composer] textarea';
   await page.locator(FIELD).scrollIntoViewIfNeeded();
