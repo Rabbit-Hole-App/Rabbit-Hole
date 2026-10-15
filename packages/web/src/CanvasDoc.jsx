@@ -4,7 +4,7 @@ import { useCreateBlockNote } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/shadcn';
 import '@blocknote/shadcn/style.css';
 import { isDark } from './api.js';
-import { DOC_BLOCK_TYPES } from './canvas-doc.js';
+import { DOC_BLOCK_TYPES, caretRect } from './canvas-doc.js';
 
 // The canvas's one document (docs/features/blocknote-canvas.md): BlockNote's own editor, menus and features, text-first.
 // Media, file and embed blocks are configured out of this MVP (section 8), so the slash menu never offers an upload that has
@@ -30,8 +30,8 @@ export default function CanvasDoc({ blocks, editable, onChange, onCaret, onReady
   const editor = useCreateBlockNote({ schema: DOC_SCHEMA, ...(blocks?.length ? { initialContent: blocks } : {}) }, []);
   const caret = () => {
     const range = window.getSelection()?.rangeCount ? window.getSelection().getRangeAt(0) : null;
-    const box = range?.getClientRects?.()[0] || range?.getBoundingClientRect?.();
-    if (box && (box.width || box.height)) onCaret?.(box);
+    const box = caretRect(range);
+    if (box) onCaret?.(box);
   };
   return (
     <BlockNoteView editor={editor} editable={editable} theme={dark ? 'dark' : 'light'}

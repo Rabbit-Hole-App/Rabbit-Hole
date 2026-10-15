@@ -49,3 +49,10 @@ export const docSaved = (sent, shown) => JSON.stringify(sent ?? null) === JSON.s
 
 // A drag the canvas's file drop must leave alone: anything without files (BlockNote's block drag carries blocknote/html).
 export const isFileDrag = dataTransfer => !!dataTransfer?.types && [...dataTransfer.types].includes('Files');
+
+// Where the document's caret is on screen (CanvasDoc, for the camera's caret follow): the range's own rect, or - on an
+// empty line, where the caret sits beside the line's <br> and has no rect - the line's box.
+export const caretRect = range => {
+  const node = range?.startContainer, line = node && (node.nodeType === 1 ? node : node.parentElement);
+  return [range?.getClientRects?.()[0], range?.getBoundingClientRect?.(), line?.getBoundingClientRect?.()].find(box => box && (box.width || box.height)) || null;
+};
