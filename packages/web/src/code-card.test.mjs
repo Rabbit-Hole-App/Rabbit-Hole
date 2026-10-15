@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { cardLines } from './card-source.js';
-import { CODE_DRAG, codeCardRef, dragSource, insertCodeCard, nodeCodeCard, previewOf, provenanceOf, repoCodeCard, sameCodeSource, uploadCodeCard, PREVIEW_LINES } from './code-card.js';
+import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, insertCodeCard, insertCodeCards, nodeCodeCard, previewOf, provenanceOf, repoCodeCard, sameCodeSource, uploadCodeCard, PREVIEW_LINES } from './code-card.js';
 import { codeLanguage, isCodeFile } from './code-language.js';
 import { assetKeysOf } from './learn-board-assets.js';
 import { sameRef } from './chat-context.js';
+import { refCardSpot } from './canvas-refs-model.js';
 import { nodeRef, rangeRef } from './repo-context.js';
 
 const sha = 'a'.repeat(40), other = 'b'.repeat(40);
@@ -104,4 +105,40 @@ test('an uploaded code card reads its text from the board asset (cache, then the
   const card = readFileSync(new URL('./CodeCard.jsx', import.meta.url), 'utf8');
   assert.match(card, /const \{ status, lines \} = useCardSource\(block\);/);
   assert.match(card, /previewOf\(lines, expanded\)/);
+});
+
+test('several code cards go in as one group: one insertCards call with the card size, duplicates collapsed, existing ones skipped', () => {
+  const a = repoCodeCard({ ...repo, path: 'model.py', start: 118 }), b = repoCodeCard({ ...repo, path: 'train.py' }), again = repoCodeCard({ ...repo, path: 'model.py', start: 118 });
+  const calls = [], single = [];
+  const ops = { insertCards: (list, options) => { calls.push({ list, options }); return list.map((_, i) => `n${i}`); }, insertCard: block => { single.push(block); return { id: 'one' }; } };
+  assert.deepEqual(insertCodeCards(ops, [a, b, again, null]), ['n0', 'n1']);
+  assert.equal(calls.length, 1, 'one group, so one undo step');
+  assert.deepEqual(calls[0].list, [a, b]);
+  assert.deepEqual(calls[0].options.size, CODE_CARD);
+  const onCanvas = { id: 'x', type: 'repo-code', source: a.source };
+  assert.equal(calls[0].options.sameAs(a)(onCanvas), true, 'an equivalent card already on the canvas is found');
+  assert.equal(calls[0].options.sameAs(b)(onCanvas), false);
+  insertCodeCards(ops, [b]);
+  assert.deepEqual(single, [b], 'one card keeps insertCodeCard');
+});
+
+test('a group of cards is placed as one box in free space in view, never on a card', () => {
+  const visible = { x: 0, y: 0, w: 1000, h: 900 }, box = { w: 980, h: 660 };
+  const spot = refCardSpot({ x: visible.x, y: visible.y }, [{ x: 0, y: 0, w: 1000, h: 200 }], visible, box);
+  assert.equal(spot.offscreen, false);
+  assert.ok(spot.y >= 200, 'clear of the card at the top');
+  assert.ok(spot.y + box.h <= visible.y + visible.h && spot.x >= visible.x && spot.x + box.w <= visible.x + visible.w, 'inside the view');
+});
+
+test('the canvas places a group as a grid in one undo step and selects it; a card press takes the keyboard from the companion', () => {
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const group = canvas.slice(canvas.indexOf('insertGroup: (list, size) =>'), canvas.indexOf('liveRefs:'));
+  assert.ok(group.includes('refCardSpot({ x: visible.x, y: visible.y }, inlineCanvas.obstacles(), visible, box)'), 'the grid is placed as one box in free space in view');
+  assert.equal(group.split('snapshot()').length - 1, 1, 'one undo step');
+  assert.ok(group.includes('setSelection(added.map(block => block.id))'), 'the new cards are selected');
+  const press = canvas.split('\n').find(line => line.includes('onPointerDownCapture={event => { if (event.timeStamp - lastPress.current'));
+  assert.ok(press?.includes("if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur();"), 'a card press releases a companion focus');
+  const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
+  assert.ok(page.includes('insertCards: (list, { sameAs = null, size } = {}) =>'));
+  assert.ok(readFileSync(new URL('./GraphPanel.jsx', import.meta.url), 'utf8').includes('const addCode = nodes => insertCodeCards(ops, '));
 });

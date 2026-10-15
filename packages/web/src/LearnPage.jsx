@@ -376,6 +376,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const id = at ? canvasApi.current?.insertImported({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 }, at) : canvasApi.current?.insertBlock(block);
       return { id: id ?? null, existed: false };
     },
+    // Several cards as one group (canvas insertGroup: a grid in free space, one undo step). sameAs(block) finds an equivalent
+    // card already on the canvas: those are not added again; the last one found is revealed when nothing new is added.
+    insertCards: (list, { sameAs = null, size } = {}) => {
+      const blocks = canvasApi.current?.blocks?.() || [];
+      const existing = sameAs ? list.map(block => blocks.find(sameAs(block))).filter(Boolean) : [];
+      const fresh = sameAs ? list.filter(block => !blocks.some(sameAs(block))) : list;
+      if (!fresh.length) { if (existing.length) canvasApi.current.focusBlock(existing.at(-1).id); return existing.map(block => block.id); }
+      return canvasApi.current?.insertGroup?.(fresh, size) || [];
+    },
     insertNotebook: (cells, language = 'python') => {
       const block = newNotebookBlock(), [cell] = block.ipynb.cells;
       return canvasApi.current?.insertImported({ ...block, language, ipynb: { ...block.ipynb, cells: cells.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') })) } });
