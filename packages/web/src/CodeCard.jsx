@@ -27,9 +27,9 @@ const lineRuns = runs => {
 
 export default function CodeCard({ block, onChange }) {
   const chat = useChatWorkspace();
-  const { status, text } = useCardSource(block);
+  const { status, lines } = useCardSource(block);
   const expanded = !!block.expanded;
-  const view = status === 'ready' ? previewOf(block, text, expanded) : null;
+  const view = status === 'ready' ? previewOf(lines, expanded) : null;
   const code = view ? view.lines.map(line => line.text).join('\n') : '';
   const [runs, setRuns] = useState(null), [copied, setCopied] = useState(false);
   useEffect(() => {

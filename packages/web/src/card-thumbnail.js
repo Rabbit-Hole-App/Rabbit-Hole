@@ -42,6 +42,14 @@ export function thumbnailRegion(boxes, { aspect = 2, margin = 24, minWidth = 400
 // and audio (cross-origin pixels, and a copy of one would start loading).
 export const CHROME = ['[data-thumbnail-hide]', '[data-card-open]', '[data-port]', '[data-node-tool]', '[data-sketch-chrome]',
   '[data-label-handle]', '[data-comment-pins]', '[data-view-selection]', '[role="toolbar"]', 'iframe', 'video', 'audio'].join(',');
+// Repository cards (repo-graph Release 2): a code card's text and a graph card's labels are readable only by the
+// repository's owner, but this picture is drawn from the owner's view and shown to anyone a published canvas reaches. In the
+// copy each keeps its box and shows only "Repository content" - no title, path, code or node label.
+export const REPOSITORY_CARDS = '[data-code-card], [data-graph-card]';
+export function redactRepositoryCards(root) {
+  for (const card of root.querySelectorAll(REPOSITORY_CARDS)) card.replaceChildren(card.ownerDocument.createTextNode('Repository content'));
+  return root;
+}
 // Selection drawn on the content itself: a selected card's, note's or text's ring, an active sketch's, a group's accent
 // outline. Undone for the picture by the same attributes (Tailwind's ring is these two variables).
 export const UNSELECTED = `[data-block-id], [data-item-id], [data-item-id] *, [data-sketch] { --tw-ring-shadow: 0 0 #0000 !important; --tw-ring-offset-shadow: 0 0 #0000 !important; }
@@ -77,6 +85,7 @@ export async function drawThumbnail(node, region) {
   const live = node.querySelectorAll('canvas');
   copy.querySelectorAll('canvas').forEach((c, i) => { try { c.getContext('2d').drawImage(live[i], 0, 0); } catch { /* left blank */ } });
   for (const el of copy.querySelectorAll(CHROME)) el.remove();
+  redactRepositoryCards(copy);
   const frame = await lightFrame();
   try {
     frame.contentDocument.body.appendChild(copy);
