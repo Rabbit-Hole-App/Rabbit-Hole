@@ -104,3 +104,19 @@ test('a scroll of the canvas surface becomes a camera move and the surface retur
   assert.match(canvas, /const dx = element\.scrollLeft, dy = element\.scrollTop;\s+if \(!dx && !dy\) return;\s+element\.scrollLeft = 0; element\.scrollTop = 0;\s+flushSync\(\(\) => setView\(v => \(autoView\.current = \{ \.\.\.v, x: v\.x - dx, y: v\.y - dy \}\)\)\);/);
   assert.match(canvas, /element\.addEventListener\('scroll', scrolled\);/);
 });
+
+// Home P0 (lead 12:23 AM PT, diagnosis C:/s/bn/saved-stale.md): every PUT answer set Saved, so words typed while a PUT was
+// in flight showed Saved for up to about 900 ms before the push that carries them. Saved only when the PUT carried the
+// document as shown (the editor's unsaved words included).
+test('docSaved: Saved only when the PUT carried the document as shown', async () => {
+  const { docSaved } = await import('./canvas-doc.js');
+  const run = (words, styles = {}) => ({ type: 'text', text: words, styles });
+  const sent = { v: 1, x: 0, y: 0, w: 760, blocks: [{ id: 'p', type: 'paragraph', props: {}, content: [run('Light reactions make ATP')], children: [] }] };
+  const shown = JSON.parse(JSON.stringify(sent));
+  assert.equal(docSaved(sent, shown), true, 'the server has what is shown');
+  shown.blocks[0].content = [run('Light reactions make '), run('ATP', { bold: true })];
+  assert.equal(docSaved(sent, shown), false, 'bold typed during the PUT is not saved yet');
+  assert.equal(docSaved(undefined, null), true, 'no document on either side');
+  const { readFileSync } = await import('node:fs');
+  assert.match(readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8'), /const shown = canvas\(\)\?\.liveBoard\?\.\(\);\s+setSaveState\(!shown \|\| docSaved\(state\.doc, shown\.doc\) \? \{ state: 'saved' \} : \{ state: 'saving' \}\);/);
+});

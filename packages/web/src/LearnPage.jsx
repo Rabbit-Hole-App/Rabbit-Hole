@@ -44,7 +44,7 @@ import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, ArrowUpToLine, RotateCw } from 'lucide-react';
-import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy } from './canvas-doc.js';
+import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase } from './comments/comments-api.js';
@@ -995,7 +995,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     }
     boardUnsynced.current = false;
     boardRefused.current = null;
-    setSaveState({ state: 'saved' });
+    // Saved only when this answer covers the document as shown: words not in the snapshot keep Saving… until the PUT that
+    // carries them answers (the editor's pause always ends in setDoc, the canvas's save, then pushBoard and another saveBoard).
+    const shown = canvas()?.liveBoard?.();
+    setSaveState(!shown || docSaved(state.doc, shown.doc) ? { state: 'saved' } : { state: 'saving' });
     try { localStorage.removeItem(unsavedKey({ ink: boardStorageKey })); } catch { /* the cards read it as unsaved */ }
   };
   // A refused PUT keeps this browser's copy and says why (canvas-persistence.md). No status: offline, so it waits for the
