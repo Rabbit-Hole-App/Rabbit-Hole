@@ -225,6 +225,8 @@
   ],
   "defaultReason": "An unmapped executable path runs this conservative set (the app shell, navigation, selection, naming and the home ask, about 4 min of checks) and the run reports the missing mapping. It is neither the full broad set nor a failure.",
   "mapped": {
+    "packages/web/src/PdfAddDialog.jsx": ["pdf-to-canvas-check.mjs", "materials-rows-check.mjs"],
+    "packages/web/src/pdf-source.js": ["pdf-to-canvas-check.mjs", "materials-rows-check.mjs"],
     "packages/web/src/inline-diagram.js": ["inline-ai-check.mjs","dive-check.mjs"],
     "packages/web/src/inline-placement.js": ["inline-ai-check.mjs","dive-check.mjs"],
     "packages/web/src/InlineAiEditor.jsx": ["inline-ai-check.mjs","canvas-skeleton-check.mjs","chat-block-check.mjs","cross-device-check.mjs","dive-check.mjs","explain-back-sketch-check.mjs","journey-check.mjs","manim-render-check.mjs","practice-card-check.mjs","wiki-check.mjs"],
@@ -565,6 +567,7 @@
     "panel-header-check.mjs": {"runner":"fork","seconds":25},
     "paper-highlight-check.mjs": {"runner":"windows-only","why":"stale stubs: /api/profile is not stubbed, so the page stops at Choose your handle (HandleGate) on Windows too; not in the release gate (run 38501772960)","seconds":120},
     "paper-selection-check.mjs": {"runner":"windows-only","why":"targets the deployed dev worker (SMALL_BASE) with RABBIT_HOLE_DEV_TEST_BYPASS from the repo .env; no local mode","seconds":120},
+    "materials-rows-check.mjs": {"runner":"windows-only","why":"a local-stack fork check (BASE, SMALL_CP, packages/control-plane/.dev.vars) for the Materials row actions (docs/features/pdf-to-canvas.md); new, not yet passed three times on Linux (Task B4) and the release gate does not run it, so it runs by hand on the local stack","seconds":180},
     "pdf-to-canvas-check.mjs": {"runner":"windows-only","why":"a local-stack fork check (BASE, SMALL_CP, packages/control-plane/.dev.vars) added by 491c1af1/c63762a3; 21 of 21 on the local stack against 019cc134; not yet passed three times on Linux (Task B4) and the release gate does not run it, so it runs by hand on the local stack (docs/features/pdf-to-canvas.md)","seconds":120},
     "practice-card-check.mjs": {"runner":"windows-only","why":"journey-stack check (fresh-schema keyless stack, lp1h/jstack.sh); no Linux stack yet, to be proven in Task B4","seconds":120},
     "present-laser-check.mjs": {"runner":"windows-only","why":"hardcoded deployed dev-worker URL plus the .env secret; no local mode","seconds":120},
