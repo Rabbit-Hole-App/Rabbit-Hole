@@ -465,11 +465,11 @@ await check('7 several references: two chips, "+1 more" opens the rest; Links fr
   const more = page.locator('[data-block-id="a3"] [data-ref-more]');
   assert.equal((await more.innerText()).trim(), '+1 more');
   await shot('05-chips-more', blockEl('a3'));
-  await more.click();
   const shown = await chips('a3').allInnerTexts();
   const rest = [C, D, E].find(x => !shown.some(text => text.includes(x.title)));
   assert.ok(rest, 'every target already had a chip');
-  await page.getByText(rest.title, { exact: false }).last().waitFor();
+  await more.click();
+  await page.locator('[data-block-id="a3"] [data-ref-more-list] [data-ref-more-item]').filter({ hasText: rest.title }).waitFor();
   await page.keyboard.press('Escape');
   await linksTab();
   const from = page.locator('[data-links-from]');
