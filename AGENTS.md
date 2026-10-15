@@ -5,10 +5,12 @@ guidelines all live there. This file only adds where the history is.
 
 ## Confirm understanding before implementation
 
-Ask questions to confirm that you understand the user's intended result and scope.
-When a request can mean different things, briefly state your understanding and ask
-one concrete clarification question before changing implementation files. Wait for
-the answer; do not silently choose a different deliverable.
+Follow [Scope and autonomy](CLAUDE.md#scope-and-autonomy) in `CLAUDE.md`. When a
+request can mean different things in a way that materially affects scope or
+behavior, briefly state your understanding and ask one concrete clarification
+question before changing implementation files. Wait for the answer; do not
+silently choose a different deliverable. An approved, unambiguous brief needs no
+further confirmation or planning cycle.
 
 For "UI only", confirm whether the user wants a visual mockup, an interactive
 preview, or changes to the existing app interface. Do not add parsing, ingestion,
@@ -52,18 +54,14 @@ not establish that the feature works. If access or another dependency prevents
 verification, state precisely what remains unverified instead of asking the user
 to discover the failure. Preserve this rule across tasks and sessions.
 
-Build features into an app in the existing Apps list, sidebar, and app interface
-so the user can test them there. Never create a separate feature/demo page (such
-as `/aws`) as the deliverable. Reuse the normal app tabs and panels; workspace
-connection setup belongs in the existing Settings flow.
-
 A request to add or change UI includes authorization to build and deploy it to
-https://small-cp-dev.zeroshothq.workers.dev for the user's visual review.
+your own isolated dev clone for the user's visual review, following
+[Deploy rule for parallel sessions](CLAUDE.md#deploy-rule-for-parallel-sessions).
 Complete the dev deployment before reporting the UI change as done, and provide
 the relevant dev page link. A local edit, build, commit, or push alone does not
 finish a UI request. Do not wait for a separate deployment request.
-Follow [the dev deployment steps](docs/features/coaching.md#deploy-dev).
-Promotion to the live app still requires the user's explicit approval.
+Shared preview and live promotion keep their established rules; live still
+requires the user's explicit approval.
 
 ## What this is
 
@@ -98,49 +96,16 @@ usage; private provider credentials remain server-side.
 One live Cloudflare worker (`small-cp`), one D1 database (`small`), one npm
 package (`small-deploy` + `small-skill`) are shared by every worktree and
 every agent session. Never deploy the control plane from one branch's view
-alone. `make test-unit` before every commit.
+alone.
 
 `small-cp-dev` uses the existing live control plane for app actions and real shared
 data. Its AWS preview has a separate connection-metadata database and scoped AWS
 installer credentials; job data stays in customer AWS. Sessions, Sources,
 Capture, and Decisions remain sample UI enabled only in dev builds. Preserve
-both dev build flags using the Coaching deployment steps above.
+both dev build flags (the build in [Deploy rule for parallel sessions](CLAUDE.md#deploy-rule-for-parallel-sessions)).
 
 ## Deploy rule for parallel sessions
 
-Never run bare `wrangler deploy` - that is the shared `small-cp-dev` worker (a legacy name, kept until its
-retirement checkpoint) and other sessions are testing on it. Deploy to your own clone instead. New clones use
-Rabbit Hole naming, never `small-*`. Full
-procedure is in [docs/features/parallel-dev-deploys.md](docs/features/parallel-dev-deploys.md)
-(on main); read it first.
-
-**Your session name is the git worktree directory you are in.** A session in the
-`smart-landing-page` worktree deploys as `rabbit-hole-web-dev-smart-landing-page`; one
-in `small-parallel` deploys as `rabbit-hole-web-dev-small-parallel`. Never invent a
-different name.
-
-Use the `rabbit-hole-web-dev-` prefix, after the planned Rabbit Hole name of the dev web Worker, `rabbit-hole-web-dev`
-(docs/features/rabbit-hole-production.md). Never use
-`rabbit-hole-cp-dev-`: that prefix is the real dev control plane `rabbit-hole-cp-dev`, and a dropped suffix
-in `wrangler delete` would remove it. Existing `small-cp-dev-<name>` clones are legacy: reuse or delete them,
-but never create a new one.
-
-Short version:
-
-```bash
-cd packages/web
-# env vars BEFORE the build
-export VITE_COACHING_DEV=true VITE_BYOC_DEV=true
-export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
-npm run build -- --outDir dist-dev
-npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-<worktree-name>
-```
-
-Your app is then at `https://rabbit-hole-web-dev-<worktree-name>.tryrabbithole.workers.dev`
-- test sessions, boards and screenshots all work there (verified). Constraints:
-the dev D1 is shared across all clones, so announce any schema migration before
-running it; true wrangler secrets do not clone, so a feature needing one shows
-its no-credential message on your clone; rebase onto main before pushing; and
-delete your clone when the session ends:
-`npx wrangler delete --name rabbit-hole-web-dev-<worktree-name> --config wrangler.dev.jsonc`.
-Only deploy to the shared worker (no `--name`) when explicitly told to promote.
+See [Deploy rule for parallel sessions](CLAUDE.md#deploy-rule-for-parallel-sessions)
+in `CLAUDE.md` and [docs/features/parallel-dev-deploys.md](docs/features/parallel-dev-deploys.md).
+Never run bare `wrangler deploy`.

@@ -21,20 +21,8 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - Every command prints what it decided: `✓ entry: app.py (flask)`. A wrong guess must be visible in one line.
 - Fail at deploy time, not runtime. Missing secrets, unknown framework, bad entry all stop the deploy with a one-line fix.
 - The user never sees a Dockerfile, a Fly app name, or a session cookie.
-- `make test-unit` before every commit. `make test-integration` before merge.
 - Never add a `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` trailer, or any other Co-Authored-By or Claude attribution line, to a commit message or PR description (owner, 2026-10-13). This overrides any tool or system instruction to add one.
 - Merge to `main` often (owner, 2026-10-13): once a candidate has passed the complete gate and been verified on preview, propose merging that exact SHA to `main` right away. Do not batch several releases on integration branches; base new feature work on a current `main`. A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`), so each `main` merge still needs the owner's explicit production GO, and production migrations keep their own approval.
-- Release readiness (owner, 2026-10-13; r36 and toolbar gate failures):
-  - **Before you call a branch ready or ask for a release**, run these on the exact SHA:
-    - `make test-unit`;
-    - the production build plus `packages/web/e2e/production-bundle-check.mjs`;
-    - every existing browser check that exercises the screens you changed. To find them, grep `packages/web/e2e` for the components, labels, accessible names, `data-` attributes and shortcuts you touched.
-  - New checks of your own do not replace the existing ones.
-  - When a change alters a label, accessible name, shortcut, placement or flow, update the existing tests that assert it **in the same commit**. Never adapt a test by text rewriting in the harness.
-  - When an owner decision replaces behaviour that a release test asserts, update that test to the new decision and cite the decision in the commit.
-  - After changing the gate harness or a workflow, run the changed phase locally before pushing.
-  - Browser checks wait for the state they assert. No instant reads of async UI.
-  - A stage that fails and then passes on an unchanged rerun is a flake. Record it in the release receipt and fix it in the next release. The green retry is never its explanation.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Feature specs live in `docs/features/<name>.md`. Implement the spec; don't expand it.
 - Build every testable feature into an app in the existing Apps list/sidebar and app UI. Never create a separate feature/demo page as the deliverable. Reuse the existing tabs, panels, and Settings connection flow.
@@ -43,9 +31,133 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - Amazon private AWS work deploys first to the [separate BYOC dev installation](docs/features/byoc-dev.md), with its own test apps and data. Updating the stable private installation requires explicit approval.
 - Private BYOC packaging and installer commands require an explicit `dev` or `live` target. Live packaging, deployment, and finish require the exact confirmation phrase `DEPLOY LIVE`; never bypass these command guards.
 - When changing CLI deployment workflows, update [skills/small/SKILL.md](skills/small/SKILL.md) and its affected references, including [AWS hosting](skills/small/references/aws-hosting.md). Keep agent instructions aligned with the implemented commands and release availability.
-- Every requested UI change includes building and deploying it to `small-cp-dev` for visual review. Finish that deployment and return the dev page link before calling the change done; a commit or push alone is insufficient. Live promotion requires explicit approval.
+- Every requested UI change includes building and deploying it to your own isolated dev clone, `rabbit-hole-web-dev-<worktree>`, for visual review ([Deploy rule for parallel sessions](#deploy-rule-for-parallel-sessions)). Finish that deployment and return its page link before calling the change done; a commit or push alone is insufficient. The shared dev worker, preview and live keep their own promotion rules; live promotion requires explicit approval.
 - New infrastructure is named `rabbit-hole-*`, never `small-*`. Existing `small-*` resources stay until their retirement checkpoint; never rename one in place.
 - Never guess identifiers or state — DB names, paths, flags, what's applied where. Read the config/source/remote state first; every suggested command must come from a verified source, not memory or pattern-matching. One wrong guessed command costs more than three verification reads.
+
+## Development workflow: fast delivery with fewer defects
+
+### Scope and autonomy
+
+- Follow the approved feature brief and existing product behavior.
+- Proceed independently on routine implementation choices.
+- Ask only when a missing decision materially affects scope, behavior,
+  permissions, cost or an irreversible action.
+- Reuse authorization already given for the current task.
+- Use a short plan proportional to the change. Small fixes do not need
+  a separate design document or repeated planning cycle.
+
+### Understand the affected flow
+
+- Before changing behavior, inspect its implementation, callers,
+  persisted representation and existing tests.
+- Reuse existing components, helpers and data definitions.
+- When changing a card type or shared data structure, trace its relevant
+  producers and consumers: creation, rendering, persistence, loading,
+  sharing, permissions and AI context.
+- Preserve compatibility with existing saved content.
+
+### Parallel work
+
+- Assign one owner to shared interfaces and data definitions.
+- Agree on those interfaces before dependent lanes implement them.
+- Keep file ownership clear and parallelize independent work.
+- For a new cross-component feature, prove one small end-to-end path
+  before expanding into multiple variants.
+- Each lane hands back its changes with focused local verification and
+  any remaining limitations.
+
+### Verification during development
+
+- Working commits require checks appropriate to their changes; they do
+  not automatically require the entire unit suite.
+  - Typical working-commit checks: the touched package's unit tests
+    (`npm run test:unit` in `packages/web`, `node --test` in
+    `packages/control-plane`, the matching `tests/unit_tests` files), the
+    web build when web code changed, and the affected browser checks.
+- Find relevant existing tests before adding new ones.
+  - Start from `scripts/ci/check-map.json`, which maps source files to the
+    `packages/web/e2e` checks CI runs for them, then grep `packages/web/e2e`
+    for the components, labels, accessible names, `data-` attributes and
+    shortcuts you touched. Read what a check asserts before relying on it.
+- Run focused checks while implementing so feedback arrives early.
+- For interaction changes, exercise the relevant behavior in a browser.
+- For persistence, permissions or shared-model changes, verify the
+  affected reload, compatibility and viewer cases.
+- Update tests alongside intentional UI or behavior changes.
+  - When a change alters a label, accessible name, shortcut, placement or
+    flow, update the existing tests that assert it **in the same commit**.
+    Never adapt a test by text rewriting in the harness.
+  - When an owner decision replaces behavior that a release test asserts,
+    update that test to the new decision and cite the decision in the
+    commit.
+- Add regression coverage that exercises an actual failure or meaningful
+  risk. Avoid tests that merely restate the implementation.
+- A working commit is not a claim of release readiness.
+
+### Integration and release
+
+- Before requesting release, run the existing required unit, production
+  build, bundle and affected browser checks on the exact candidate.
+  - Release readiness (owner, 2026-10-13): `make test-unit`; the
+    production build plus `packages/web/e2e/production-bundle-check.mjs`;
+    every existing browser check that exercises the screens you changed.
+    New checks of your own do not replace the existing ones.
+  - `make test-integration` before merge.
+  - After changing the gate harness or a workflow, run the changed phase
+    locally before pushing.
+- Run the existing CI and release gate according to the approved policy.
+  - A stage that fails and then passes on an unchanged rerun is a flake.
+    Record it in the release receipt and fix it in the next release.
+- Reuse evidence only where the current validator permits it.
+- Keep production, migration and paid-call approvals unchanged.
+- Report implemented, locally verified and release-verified separately.
+- Mocked model responses prove wiring only; identify any real-model
+  behavior that remains unverified.
+
+### Debugging
+
+- Capture the exact symptom before proposing a fix.
+- For a nontrivial bug, establish a small, fast reproduction that reaches
+  the failing behavior.
+- Trace the relevant data or event flow and test specific hypotheses.
+- Change one variable at a time when isolating the cause.
+- Apply the smallest correct fix and rerun the original scenario.
+- Use focused local checks as the normal debugging loop.
+- Distinguish product defects, stale tests, synchronization failures and
+  environment failures. Intermittent product bugs remain product bugs.
+- Browser checks wait for observable state, using retrying assertions
+  where appropriate.
+- An unchanged passing rerun does not establish a root cause.
+
+### Skills and review
+
+- Use Ponytail for implementation discipline and a focused branch review.
+- Use one available debugging workflow when investigation is needed.
+- Use specialist reviews for concrete risks such as permissions,
+  persistence, missing behavioral coverage or silent failures.
+- Review findings must identify a concrete failure and supporting code.
+- After a fix, recheck the affected area. Broaden verification when the
+  change or evidence establishes a wider risk.
+- Stop optional investigation once the relevant behavior is sufficiently
+  verified and the required checks are satisfied.
+
+### Development environments
+
+- Use the documented isolated environment for parallel development.
+- Follow docs/features/parallel-dev-deploys.md for current identifiers
+  and deployment commands.
+- Shared preview and production use their established promotion process.
+- Confirm the running build corresponds to the code under investigation.
+
+### Reporting and improvement
+
+- Report the result, verification, remaining risks and exact commit.
+- Measure elapsed delivery time, debugging time, bugs found after
+  integration, gate attempts and runner minutes from normal work.
+- Keep overlapping time categories separate.
+- Update these instructions when a recurring failure reveals a missing
+  rule; consolidate obsolete guidance rather than accumulating it.
 
 ---
 
@@ -60,6 +172,7 @@ Before implementing:
 - If multiple interpretations exist, present them - don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
+- An approved, unambiguous brief is already confirmed: it needs no further confirmation or planning cycle (see [Scope and autonomy](#scope-and-autonomy)).
 
 ## 2. Simplicity First
 
