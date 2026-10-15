@@ -177,7 +177,8 @@ const confirmButton = () => dialog().locator('button').last();
 const cancelButton = () => dialog().getByRole('button', { name: 'Cancel', exact: true });
 // A closed Sources panel collapses to width 0 (ResizableSidePanel) but keeps its children, which Playwright still calls visible.
 // Sources is the right panel's Context tab (docs/features/hide-right-panel.md): hidden on another tab or with the panel hidden.
-const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-context-panel]')?.getBoundingClientRect().width || 0) > 50);
+// Context shows when the companion column is open on it (a collapsed column keeps its content's own width inside).
+const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
 // Chat and Context share the panel: a step that needs the composer or the selection pill shows the Chat tab first.
 const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.getAttribute('aria-selected') !== 'true') await tab.click(); };
 const openSources = async () => {
@@ -194,7 +195,7 @@ const openSources = async () => {
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
   await addButton().waitFor({ state: 'visible', timeout: 10000 }).catch(() => { throw Error('the Materials row of the PDF shows no [data-material-action="canvas"]'); });
 };
-const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-sources-close]').click(); await page.waitForTimeout(300); } };
+const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-companion-close]').click(); await page.waitForTimeout(300); } };
 const openDialog = async () => {
   await openSources();
   await addButton().click();

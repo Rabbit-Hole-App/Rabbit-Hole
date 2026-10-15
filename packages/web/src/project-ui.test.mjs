@@ -36,8 +36,7 @@ test('a project is Files · Graph · Learn: no Overview, one restrained tab row,
   assert.match(learnView, /<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{app\} projectMenu=\{projectMenu\} onMap=\{\(\)=>go\('map'\)\} switcher=\{switcher\}\/>/);
   assert.match(learnView, /<LearnPage app=\{app\} files=\{snapshot&&reader\(\{query:'',stacked:true,place:'panel'\}\)\}/);
   assert.match(learn, /\{onMap && <button type="button" data-learn-map title=\{files \? "Files: read this repository's code and ask about it" : "Map: this repository's code graph"\} aria-label=\{files \? 'Repository files' : 'Map'\}\n\s+onClick=\{files \? \(\) => \{ setPanelOpen\(true\); setPanelTab\('files'\); \} : onMap\}/);
-  assert.match(learn, /<PanelHeader [^\n]*filesOn=\{!!files\}/);
-  assert.match(learn, /\{files && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{panelTab === 'files' \? 'flex' : 'hidden'\}[^\n]*\n[\s\S]{0,200}<button type="button" data-learn-open-map onClick=\{onMap\}[^\n]*>Open the Map →<\/button>[\s\S]{0,40}\{files\}/);
+  assert.match(learn, /\{files && shown\.current\.has\('files'\) && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{companionView === 'files' \? 'flex' : 'hidden'\}[^`]*`\}>\{files\}<\/div>\}/);
   // A repository with no snapshot shows its Map.
   assert.match(page, /tab=asked==='learn'&&!app\.commit_sha\?'map':asked/);
 });

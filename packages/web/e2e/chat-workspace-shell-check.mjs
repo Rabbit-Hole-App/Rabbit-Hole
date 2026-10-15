@@ -86,7 +86,7 @@ await check('a chip opens its source in the Context tab of the same panel, and b
   await settle();
   const sources = page.locator('[data-sources-pane]');
   await sources.waitFor({ state: 'visible', timeout: 10000 });
-  assert.equal(await page.locator('[data-panel-tab="context"]').getAttribute('aria-selected'), 'true', 'Context is the active tab');
+  assert.equal(await page.locator('[data-companion-view="context"]').getAttribute('aria-pressed'), 'true', 'the companion column shows Context');
   assert.equal(await page.locator('[data-pane-switch]').count(), 0, 'no Chat | Sources switch');
   await shot('02-context-tab');
   await page.locator('[data-panel-tab="chat"]').click();

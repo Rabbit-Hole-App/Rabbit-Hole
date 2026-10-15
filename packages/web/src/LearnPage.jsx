@@ -37,7 +37,7 @@ import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
-import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
+import PanelHeader, { CanvasFind, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
@@ -45,7 +45,7 @@ import LinksPanel, { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle, ArrowUpToLine, RotateCw, Link2 } from 'lucide-react';
+import { MessageCircle, ArrowUpToLine, RotateCw, Link2, ArrowLeft } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -97,7 +97,7 @@ export default function LearnPage(props) {
 
 // `switcher`: a project's canvas switcher (RepositoryPage, docs/features/project-canvases.md), beside the title.
 // `project`: the open project (RepositoryPage), so the title reads [project] › [canvas] (owner r35).
-function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onMap = null, files = null, hole = null, switcher = null, project = null, projectMenu = null }) {
+function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onMap = null, files = null, graph = null, openViewer = null, hole = null, switcher = null, project = null, projectMenu = null }) {
   const isRepository = app.kind === 'repository';
   // A canvas (smart-home's catalog) holds only what was put on it: never the
   // sample course, its lesson header, outline or progress.
@@ -146,14 +146,24 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // tab (owner brief 2026-10-13 sections 2-3); pinned (the default) keeps the panel open while the learner works.
   const chat = useChatWorkspace(), { panels } = chat;
   const { open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab } = panels;
-  // A code reference clicked in an answer (RepositoryPage small:open-files; repository-browser.md "Code references"): the
-  // Files tab opens on it, the panel too when it was closed.
+  // The companion column left of Chat (chat-panels.js): Context always, Files and Graph where this canvas has them. A code
+  // reference clicked in an answer (small:open-files; repository-browser.md "Code references") opens Files on it, and
+  // small:open-graph opens Graph, the right side too when it was hidden. openViewer (an old ?tab=code or ?tab=graph link) opens
+  // that view once on arrival. Files and Graph mount on their first show and stay mounted (the graph code loads only then).
+  const { companion } = panels;
+  const companionViews = COMPANION_VIEWS.filter(entry => (entry.id === 'files' ? files : entry.id === 'graph' ? graph : true));
+  const companionView = companionViews.some(entry => entry.id === companion.view) ? companion.view : 'context';
+  const shown = useRef(new Set());
+  if (panelOpen && companion.open) shown.current.add(companionView);
+  const backTo = companionViews.find(entry => entry.id === companion.previous);
+  useEffect(() => { if (openViewer) companion.show(openViewer); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [chatWidth, setChatWidth] = useState(0);
   useEffect(() => {
-    if (!files) return undefined;
-    const show = () => { setPanelOpen(true); setPanelTab('files'); };
-    window.addEventListener('small:open-files', show);
-    return () => window.removeEventListener('small:open-files', show);
-  }, [!!files]); // eslint-disable-line react-hooks/exhaustive-deps
+    const showFiles = () => companion.show('files'), showGraph = () => companion.show('graph');
+    if (files) window.addEventListener('small:open-files', showFiles);
+    if (graph) window.addEventListener('small:open-graph', showGraph);
+    return () => { window.removeEventListener('small:open-files', showFiles); window.removeEventListener('small:open-graph', showGraph); };
+  }, [!!files, !!graph]); // eslint-disable-line react-hooks/exhaustive-deps
   const [panelPinned, setPanelPinned] = useState(() => readPanelPin(() => localStorage));
   const pinPanel = value => { setPanelPinned(value); savePanelPin(() => localStorage, value); };
   const findInput = useRef(null);
@@ -1856,10 +1866,23 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         }} />
       </div>
     </section>
-    {/* Canvas, then the right panel: one open state and one tab (chat-panels.js). Context holds Sources (Materials and the reader); every
-        tab stays mounted while hidden, so the draft, the reader's document and page survive a switch or a hide. */}
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
-      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} filesOn={!!files} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
+    {/* Canvas, then the companion column, then Chat's panel, side by side (owner decision 1A, 2026-10-15; chat-panels.js): one
+        open state for the right side, so Hide right panel hides both columns and reopening restores both. The companion holds
+        Context (Sources: Materials and the reader), Files and Graph, one view at a time; every view and every Chat tab stays
+        mounted while hidden, so the draft, the reader's page and the graph survive a switch or a hide. Below lg one column
+        shows at a time: the companion in Chat's place, with Back to chat. */}
+    <ResizableSidePanel aria-label="Viewer" data-companion resizeLabel="Resize viewer" defaultWidth={440} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onClickCapture={openPaperReference}>
+      <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} />
+      {backTo && <button type="button" data-companion-return onClick={companion.back}
+        className="flex h-8 shrink-0 items-center gap-1 border-b border-line px-3 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink"><ArrowLeft size={13} aria-hidden />Back to {backTo.label.toLowerCase()}</button>}
+      <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane /></div>
+      {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
+      {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
+      {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>{graph}</div>}
+    </ResizableSidePanel>
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
+      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} viewers={companionViews.filter(entry => entry.id !== 'graph')} viewer={panelOpen && companion.open ? companionView : null}
+        onViewer={id => (panelOpen && companion.open && companionView === id ? companion.close() : companion.show(id))} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
         onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
@@ -1868,17 +1891,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
-      {/* Context (docs/features/hide-right-panel.md): Materials and the reader, full bleed as the Sources pane was. */}
-      <div role="tabpanel" aria-label="Context" data-context-panel className={`${panelTab === 'context' ? 'flex' : 'hidden'} -mx-5 -mb-4 min-h-0 flex-1 flex-col`}><SourcesPane /></div>
       <LinksPanel hidden={panelTab !== 'links'} links={links} go={refLinks.go} onFocusCard={id => canvasApi.current?.focusBlock(id)} />
-      {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
-      {files && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${panelTab === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col gap-2`}>
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-ink">Files</h2>
-          <button type="button" data-learn-open-map onClick={onMap} className="text-xs text-ink-2 hover:text-ink hover:underline">Open the Map →</button>
-        </div>
-        {files}
-      </div>}
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
       {/* The table of contents IS the lesson's structure, not a view onto another

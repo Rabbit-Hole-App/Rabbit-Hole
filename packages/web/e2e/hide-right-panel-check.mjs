@@ -1,10 +1,13 @@
-// Hide right panel (docs/features/hide-right-panel.md) and the Context tab, against the LOCAL stack only: local D1 and a fresh
-// browser profile. No model is called: every model-capable request is aborted and counted, and none may happen. Prints no secrets.
-// Covers: one navigation row (Chat, Find, Contents, Comments, Context) and no Chat | Sources switch; hide/reopen from Chat (the
+// Hide right panel (docs/features/hide-right-panel.md) and the companion column's Context view (owner decision 1A, 2026-10-15),
+// against the LOCAL stack only: local D1 and a fresh browser profile. No model is called: every model-capable request is aborted
+// and counted, and none may happen. Prints no secrets.
+// Covers: one navigation row (Chat, Find, Contents, Comments, Links) and no Chat | Sources switch; Context opens in the companion
+// column LEFT of Chat with Chat still visible; hide/reopen from Chat (the
 // draft stays), from Context without a reader and with a PDF open (the same reader, document and page come back), keyboard
 // activation, tooltip and aria-pressed; hiding while an uploaded PDF is still being placed (its completion never reopens the
 // panel); repeated tab switches and hide/show cycles (no stuck panel, no resize handle or overlay left, the canvas reclaims the
-// panel's width and gets it back, saved card positions unchanged).
+// panel's width and gets it back, saved card positions unchanged); below lg one column at a time (the viewer in Chat's place,
+// Back to chat, the draft kept).
 // Usage: BASE=http://127.0.0.1:8921 SMALL_CP=http://127.0.0.1:8923 VARS=<cp .dev.vars> OUT=<dir> node e2e/hide-right-panel-check.mjs
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -103,7 +106,7 @@ const sourcesWidth = () => width('[data-sources-pane]');
 const assertHidden = async () => {
   await waitFor(async () => (await width(PANEL)) < 1, 5000, `the panel is still ${Math.round(await width(PANEL))}px wide`);
   assert.equal(await sourcesWidth() < 1, true, `Sources is still ${Math.round(await sourcesWidth())}px wide on screen`);
-  assert.equal(await page.locator('[role="separator"][aria-label="Resize Learn panel"], [role="separator"][aria-label="Resize Sources pane"]').count(), 0, 'no resize handle left');
+  assert.equal(await page.locator('[role="separator"][aria-label="Resize Learn panel"], [role="separator"][aria-label="Resize viewer"]').count(), 0, 'no resize handle left');
   assert.equal(await toggle().getAttribute('aria-label'), 'Show the right panel');
   assert.equal(await toggle().getAttribute('title'), 'Show the right panel');
   assert.equal(await toggle().getAttribute('aria-pressed'), 'false');
@@ -118,6 +121,17 @@ const reopen = async () => {
   assert.equal(await toggle().getAttribute('aria-pressed'), 'true');
 };
 const activeTab = () => page.evaluate(() => document.querySelector('[data-panel-tab][aria-selected="true"]')?.dataset.panelTab ?? null);
+const activeView = () => page.evaluate(() => document.querySelector('[data-companion-view][aria-pressed="true"]')?.dataset.companionView ?? null);
+// The companion and Chat side by side: both on screen, the companion's right edge at Chat's left edge.
+const besideChat = async () => {
+  const boxes = () => page.evaluate(() => ['aside[data-companion]', 'aside[aria-label="Learn agent chat"]'].map(s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { left: r.left, right: r.right, width: r.width }; }));
+  // The columns slide open over 320 ms: measure once both have settled.
+  await waitFor(async () => (await boxes()).every(box => box?.width > 300), 5000).catch(() => {});
+  const [viewer, chat] = await boxes();
+  assert.ok(viewer?.width > 300 && chat?.width > 300, `both columns show: viewer ${Math.round(viewer?.width)}, Chat ${Math.round(chat?.width)}`);
+  assert.ok(Math.abs(viewer.right - chat.left) < 2, 'the viewer sits immediately LEFT of Chat');
+  assert.ok(await field().isVisible(), 'the Chat composer stays visible');
+};
 // Opens Sources / Context the way the composer does (its data-chat-sources button opens it in both layouts).
 const openContext = async () => {
   await pane().locator('[data-chat-sources]').first().click();
@@ -133,9 +147,9 @@ await frames();
 const stableWidth = async () => { let last = await surfaceWidth(), since = Date.now(); return waitFor(async () => { const now = await surfaceWidth(); if (Math.abs(now - last) > 0.5) { last = now; since = Date.now(); } return Date.now() - since > 600 && last; }, 15000, 'the canvas width kept changing'); };
 let openWidth = await stableWidth();
 
-await check('one navigation row: Chat, Find, Contents, Comments, Context, Links, each named and titled; no Chat | Sources switch', async () => {
+await check('one navigation row: Chat, Find, Contents, Comments, Links, each named and titled; no Chat | Sources switch', async () => {
   const tabs = await page.locator('[data-panel-header] [data-panel-tab]').evaluateAll(list => list.map(b => ({ id: b.dataset.panelTab, label: b.getAttribute('aria-label'), title: b.getAttribute('title') })));
-  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments', 'context', 'links'], 'the tab order');
+  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments', 'links'], 'the tab order');
   assert.ok(tabs.every(t => t.label && t.title), 'every tab has a tooltip and an accessible name');
   assert.equal(tabs.at(-1).label, 'Links');
   assert.equal(await page.locator('[data-panel-header]').count(), 1, 'one navigation row');
@@ -154,12 +168,16 @@ await check('hide and reopen from Chat: the panel goes, the canvas takes its wid
   await waitFor(async () => Math.abs((await surfaceWidth()) - openWidth) < 2, 5000, 'the canvas width did not come back').catch(async e => { throw Error(`${e.message}: ${Math.round(await surfaceWidth())} vs ${Math.round(openWidth)}, panel ${Math.round(await width(PANEL))}`); });
 });
 
-await check('hide and reopen from Context without an open reader: Context comes back, Materials listed', async () => {
+await check('hide and reopen from Context without an open reader: Context opens beside Chat, both come back, Materials listed', async () => {
   await openContext();
+  assert.equal(await activeView(), 'context');
+  assert.equal(await page.locator('[data-panel-viewer="context"]').getAttribute('aria-pressed'), 'true', 'the Context toggle in the Chat header shows it pressed');
+  await besideChat();
   await shot('02-context-materials');
   await hide();
   await reopen();
   await waitFor(async () => (await sourcesWidth()) > 50, 5000, 'Context did not come back');
+  await besideChat();
   assert.ok(await page.locator('[data-sources-pane]').getByText(DOC_NAME).first().isVisible(), 'the Materials list shows the document');
 });
 
@@ -178,10 +196,11 @@ await check('hide and reopen from Context with a PDF open: the same reader, docu
   assert.equal(await page.locator('[data-sources-pane] [data-source-reader][data-hrp-tag="kept"]').count(), 1, 'the same reader node, not a reload');
   assert.equal((await page.locator('[data-sources-header] h2').innerText()).trim(), DOC_NAME, 'the same document');
   await shot('04-reopened-context');
+  await besideChat();
+  assert.equal(await field().inputValue(), 'a draft I have not sent', 'Chat kept its draft beside Context');
+  await page.locator('[data-panel-tab="find"]').click();
   await page.locator('[data-panel-tab="chat"]').click();
-  assert.equal(await field().inputValue(), 'a draft I have not sent', 'Chat kept its draft across Context');
-  await page.locator('[data-panel-tab="context"]').click();
-  assert.equal(await page.locator('[data-sources-pane] [data-source-reader][data-hrp-tag="kept"]').count(), 1, 'Chat to Context keeps the reader');
+  assert.equal(await page.locator('[data-sources-pane] [data-source-reader][data-hrp-tag="kept"]').count(), 1, 'switching Chat tabs keeps the reader');
 });
 
 await check('hiding while a PDF is loading in the Context reader: the late load does not reopen the panel, and reopening shows it', async () => {
@@ -189,7 +208,7 @@ await check('hiding while a PDF is loading in the Context reader: the late load 
   holdLate = new Promise(resolve => { release = resolve; });
   // Settled into a value either way, so a step that fails first never leaves this wait to crash the run.
   const bytes = page.waitForResponse(response => response.url().includes(LATE_HEX) && response.request().method() === 'GET', { timeout: 30000 }).catch(error => error);
-  await page.locator('[data-panel-tab="context"]').click();
+  await page.locator('[data-companion-view="context"]').click();
   await page.locator('[data-sources-pane] section button[aria-expanded]').filter({ hasText: LATE_NAME }).first().click();
   await hide();
   release();
@@ -200,14 +219,17 @@ await check('hiding while a PDF is loading in the Context reader: the late load 
   await assertHidden();
   await shot('05a-still-hidden-after-reader-load');
   await reopen();
-  assert.equal(await activeTab(), 'context', 'reopening restores Context');
+  assert.equal(await activeView(), 'context', 'reopening restores Context');
+  await besideChat();
   await waitFor(async () => (await page.locator('[data-sources-header] h2').innerText()).trim() === LATE_NAME, 8000, 'the late document is not the one shown');
 });
 
 // The upload road's completion (LearnPage openSource with reveal false). Its dialog is modal, so the hide is a programmatic
 // click on the header toggle, standing in for a hide that lands before the upload finishes.
 await check('hiding while an uploaded PDF is still being placed: its completion does not reopen the panel', async () => {
-  await page.locator('[data-panel-tab="chat"]').click();
+  await page.locator('[data-companion-close]').click();
+  await waitFor(async () => (await sourcesWidth()) < 1, 5000, 'Close viewer did not close the column');
+  assert.ok(await field().isVisible(), 'Close viewer leaves Chat open');
   let release;
   holdUpload = new Promise(resolve => { release = resolve; });
   const surface = page.locator('[data-canvas-surface]').first();
@@ -238,6 +260,7 @@ await check('hiding while an uploaded PDF is still being placed: its completion 
   await shot('05-still-hidden-after-upload');
   await reopen();
   assert.equal(await activeTab(), 'chat', 'reopening restores the tab the learner hid, not the late one');
+  assert.ok((await sourcesWidth()) < 1, 'and leaves the viewer closed, as it was hidden');
 });
 
 await check('repeated tab switches and hide/show cycles: no stuck panel, no handle or overlay, the canvas width comes back, cards unmoved', async () => {
@@ -245,9 +268,12 @@ await check('repeated tab switches and hide/show cycles: no stuck panel, no hand
   let savedBefore = await blocksSaved(), since = Date.now();
   await waitFor(async () => { const now = await blocksSaved(); if (now !== savedBefore) { savedBefore = now; since = Date.now(); } return Date.now() - since > 1000; }, 20000, 'the saved board kept changing');
   for (let cycle = 0; cycle < 2; cycle += 1) {
-    for (const tab of ['find', 'toc', 'context', 'links', 'chat', 'context']) {
+    // Context in the companion beside every Chat tab (cycle 1), then with the companion closed (cycle 2): hiding takes both columns.
+    if (cycle === 0) await openContext(); else await page.locator('[data-companion-close]').click();
+    for (const tab of ['find', 'toc', 'links', 'chat']) {
       await page.locator(`[data-panel-tab="${tab}"]`).click();
       assert.equal(await activeTab(), tab);
+      const viewerWas = (await sourcesWidth()) > 50;
       openWidth = await stableWidth();
       await hide();
       // Where the panel was, the canvas (its surface or its own right gutter) answers the pointer: no invisible overlay left over.
@@ -255,20 +281,40 @@ await check('repeated tab switches and hide/show cycles: no stuck panel, no hand
       assert.ok(hit, `after hiding ${tab}, the panel's area is the canvas`);
       await reopen();
       assert.equal(await activeTab(), tab, `reopening restores ${tab}`);
+      await waitFor(async () => ((await sourcesWidth()) > 50) === viewerWas, 5000, `reopening ${viewerWas ? 'did not restore' : 'opened'} the viewer`);
       await waitFor(async () => Math.abs((await surfaceWidth()) - openWidth) < 2, 5000, `the canvas width after ${tab}`).catch(async e => { throw Error(`${e.message}: ${Math.round(await surfaceWidth())} vs ${Math.round(openWidth)}, panel ${Math.round(await width(PANEL))}`); });
     }
   }
   // Arrow keys move along the one row and select as they go.
   const enabled = await page.locator('[data-panel-header] [data-panel-tab]:not([aria-disabled])').evaluateAll(list => list.map(b => b.dataset.panelTab));
-  await page.locator('[data-panel-tab="context"]').focus();
+  await page.locator('[data-panel-tab="links"]').click();
   await page.keyboard.press('ArrowLeft');
-  assert.equal(await activeTab(), enabled[enabled.indexOf('context') - 1], 'ArrowLeft from Context selects the tab before it');
+  assert.equal(await activeTab(), enabled[enabled.indexOf('links') - 1], 'ArrowLeft from Links selects the tab before it');
   const savedAfter = await blocksSaved();
   if (savedAfter !== savedBefore) {
     const a = JSON.parse(savedBefore), b = JSON.parse(savedAfter);
     const moved = b.filter(x => JSON.stringify(x) !== JSON.stringify(a.find(y => y[0] === x[0])));
     throw Error(`saved card positions and sizes changed by the hide/show cycles: ${JSON.stringify(moved.slice(0, 3))} was ${JSON.stringify(moved.slice(0, 3).map(x => a.find(y => y[0] === x[0])))}`);
   }
+});
+
+// Below lg (owner decision 1A): one column at a time. The viewer shows in Chat's place with Back to chat; Chat stays mounted.
+await check('below lg the viewer takes Chat\'s place, Back to chat returns, the draft is kept', async () => {
+  await page.locator('[data-panel-tab="chat"]').click();
+  await page.setViewportSize({ width: 900, height: 900 });
+  await field().waitFor({ state: 'visible', timeout: 5000 });
+  await field().fill('a narrow draft');
+  await openContext();
+  await waitFor(async () => !(await field().isVisible()), 5000, 'Chat still shows beside the viewer below lg');
+  assert.ok(await page.locator('[data-companion-back]').isVisible(), 'Back to chat');
+  assert.equal(await page.locator('[data-companion-close]').isVisible(), false, 'Back to chat stands in for Close');
+  await shot('06-narrow-viewer');
+  await page.locator('[data-companion-back]').click();
+  await field().waitFor({ state: 'visible', timeout: 5000 });
+  assert.equal(await field().inputValue(), 'a narrow draft', 'the draft survives');
+  assert.ok((await sourcesWidth()) < 1, 'the viewer is put away');
+  await shot('07-narrow-back-to-chat');
+  await page.setViewportSize({ width: 1600, height: 900 });
 });
 
 const failed = results.filter(r => !r.ok);

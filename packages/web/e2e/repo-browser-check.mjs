@@ -309,8 +309,8 @@ const COMPOSER = '[data-chat-pane] [data-chat-composer] textarea, [data-chat-pan
 // Ask in chat opens the Chat pane in the right panel (owner brief 2026-10-13 section 5, Add to Chat), so the next range is
 // dragged after going back to the panel's Files tab, at train.py.
 const panelFiles = async () => {
-  const filesTab = page.locator('[data-panel-tab="files"]');
-  if (await filesTab.getAttribute('aria-selected') !== 'true') await filesTab.click();
+  const filesTab = page.locator('[data-companion-view="files"]');
+  if (await filesTab.getAttribute('aria-pressed') !== 'true') await filesTab.click();
   const source = page.locator('[data-learn-files]').getByRole('region', { name: 'Repository source' }).locator('[data-source-line="5"]');
   if (!await source.count()) await page.locator('[data-learn-files] [data-file-row="train.py"]').click();
   await source.waitFor({ timeout: 10000 });
@@ -323,7 +323,7 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
   await page.locator('[data-learn-map]').click();
   const learnFiles = page.locator('[data-learn-files]');
   await learnFiles.locator('[data-file-tree]').waitFor({ timeout: 10000 });
-  assert.equal(await page.locator('[data-panel-tab="files"]').getAttribute('aria-selected'), 'true', 'the panel opens on its Files tab');
+  assert.equal(await page.locator('[data-companion-view="files"]').getAttribute('aria-pressed'), 'true', 'the companion opens on Files');
   await learnFiles.locator('[data-file-row="train.py"]').click();
   await learnFiles.getByRole('region', { name: 'Repository source' }).locator('[data-source-line="5"]').waitFor({ timeout: 10000 });
   await drag(5, 7);
@@ -446,7 +446,7 @@ await check('10d a code reference in an answer opens the Files panel at that ran
   // (the toolbar Ask in chat and Copy act on).
   await link.click();
   await page.locator('[data-learn-files]').waitFor({ timeout: 10000 });
-  assert.equal(await page.locator('[data-panel-tab="files"]').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('[data-companion-view="files"]').getAttribute('aria-pressed'), 'true');
   await page.locator('[data-learn-files] [data-file-row="model.py"][aria-current="true"]').waitFor({ timeout: 10000 });
   await page.waitForFunction(() => [...document.querySelectorAll('[data-learn-files] [data-highlighted]')].map((n) => n.dataset.sourceLine).join() === '177,178,179', null, { timeout: 10000 });
   assert.deepEqual((await page.locator('[data-learn-files] [data-range-actions]').getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
