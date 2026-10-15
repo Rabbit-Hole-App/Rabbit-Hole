@@ -467,7 +467,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
       {selected && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div data-slide={block.number} className="px-1 pb-1">
         {url ? <img src={url} alt={`${block.label || 'PDF'}, page ${block.number}`} className="w-full rounded border border-line" draggable={false} />
-          : <p className="p-4 text-sm text-ink-2">This slide is not in this browser.</p>}
+          : <p className="p-4 text-sm text-ink-2">This page is not in this browser.</p>}
       </div>
     </CanvasNode>
   );
@@ -3095,7 +3095,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const object = ids.length === 1 ? objectById(ids[0]) : null;
     if (chatWorkspace) {
       // A page of a context document is that document at that page: the ref a question about it sends (pdf-to-canvas.md).
-      if (object?.type === 'slide' && pageRef(object)) { chatWorkspace.addToChat(pageRef(object)); return true; }
+      // Its selection chip steps aside, as a card's does below, so the page is one chip.
+      if (object?.type === 'slide' && pageRef(object)) {
+        chatWorkspace.addToChat(pageRef(object));
+        if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
+        return true;
+      }
       const described = object && describeObject(object);
       const read = () => (described ? liveAskText(object.id, described)() : groupTargetText(ids.map(askEntryOf).filter(Boolean)));
       const group = ids.length > 1 && groups.find(entry => ids.every(id => groupOf(id) === entry.id) && membersOf(entry.id).length === ids.length);
