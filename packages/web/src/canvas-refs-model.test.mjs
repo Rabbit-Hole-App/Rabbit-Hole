@@ -61,6 +61,18 @@ test('insertRefCard placement: near the point, never on an obstacle or the point
   }
 });
 
+test('insertRefCard placement: a click hemmed in by a sticky and a card column still lands in view, near the click', () => {
+  // Toolbar's failing board: placeNote's rings put the card left of the click, off-screen, while the view had room below.
+  const visible = { x: 84, y: 60, w: 1200, h: 900 }, point = { x: 140, y: 160 };
+  const obstacles = [{ x: 190, y: 130, w: 160, h: 160 }, ...[70, 262, 455, 645].map(y => ({ x: 510, y, w: 345, h: 175 }))];
+  const spot = refCardSpot(point, obstacles, visible), box = { x: spot.x, y: spot.y, ...REF_CARD };
+  const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  assert.equal(spot.offscreen, false);
+  assert.ok(box.x >= visible.x && box.x + box.w <= visible.x + visible.w, 'inside the view');
+  assert.ok(!obstacles.some(obstacle => overlap(box, obstacle)) && !overlap(box, { ...point, w: 1, h: 1 }), 'free, the point uncovered');
+  assert.ok(Math.hypot(spot.x - point.x, spot.y - point.y) < 260, 'near the click');
+});
+
 test('card= parsing: the id or null, and the address without it', () => {
   assert.equal(cardParam('?card=abc-123'), 'abc-123');
   assert.equal(cardParam('?x=1&card=%20k-exp%20'), 'k-exp');
