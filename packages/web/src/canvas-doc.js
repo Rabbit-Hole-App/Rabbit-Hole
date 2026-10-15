@@ -38,3 +38,7 @@ export function docOnServerCopy(serverState, { kept = null, replaced = null } = 
   const offer = lost?.doc && !docIsEmpty(lost.doc) && !same(lost.doc, state?.doc) ? lost.doc : null;
   return { state, push: keep, offer, replaced: lost || null };
 }
+
+// A press that keeps the document editor's focus (AdaptiveCanvas's shell blurs a focused field when a press lands outside
+// it): BlockNote's slash menu, toolbars and drag handles sit beside its contenteditable, inside the same [data-canvas-doc].
+export const pressKeepsDocFocus = (active, target) => !!active?.closest?.('[data-canvas-doc]')?.contains(target);

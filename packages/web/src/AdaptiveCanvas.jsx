@@ -5,7 +5,7 @@ import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
-import { unknownDocBlock } from './canvas-doc.js';
+import { pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
@@ -4610,7 +4610,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         // data-keep-focus marks controls that act ON the focused text - the
         // level pill - where a press must restyle, never blur. This runs in
         // the capture phase, so the pill's own stopPropagation cannot save it.
-        if (editable && !active.contains(event.target) && !event.target.closest?.('[data-keep-focus]')) active.blur();
+        if (editable && !active.contains(event.target) && !pressKeepsDocFocus(active, event.target) && !event.target.closest?.('[data-keep-focus]')) active.blur();
       }}>
       {/* The canvas and its tools share this row and never overlap: the tools get
           their own gutter (a strip below when too narrow for one), so nothing on
