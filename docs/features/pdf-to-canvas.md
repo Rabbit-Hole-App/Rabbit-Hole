@@ -1,6 +1,8 @@
 # PDF to canvas
 
-Owner brief, 2026-10-15. Status: in development on `feature/pdf-to-canvas`.
+Owner brief, 2026-10-14. Status: **shipped, and the lane is closed.** Production is main 019cc134, released 2026-10-14 at
+6:43 PM PT (deploy-prod run 38667019637, build f3bbec635fd944a4, smoke passed). The open work is listed under Follow-ups
+below.
 
 ## What it does
 
@@ -35,7 +37,12 @@ second press. The upload/drop dialog for a new PDF is the same dialog, with the 
   - Open in reader (it opens at that page);
   - the AI context.
 - **Canvas.** The set lands where the learner is looking (existing flow placement), in page order, at each page's own
-  aspect ratio, as one undoable insert.
+  aspect ratio, as one undoable insert. Known defect: this can land between an existing page label and its page
+  (Follow-up 4).
+- **Auto routing (workaround).** A question about a selected PDF page always posts to `/api/learn/ask`, even in Auto mode on a
+  canvas with an active journey Tutor (`chat-route.js` `tutorTurn`, `pageTurn`). Before this change the Tutor route
+  (`/api/learn/tutor/plan`) silently dropped the page. Keeping the page is correct, but for these turns Auto now bypasses the
+  journey Tutor (Follow-up 5).
 - **Saving.** Page images and the PDF card's bytes are board assets: the browser cache plus the board's server copy, keyed by
   asset key. They survive a reload and open on another device. No blob URL is ever stored.
 - **No side effects on the source.** Adding never attaches, detaches or deletes the context document. Deleting a page or card
@@ -47,17 +54,62 @@ second press. The upload/drop dialog for a new PDF is the same dialog, with the 
 
 - Editable PDF text. Pages stay images, as slides do today.
 - arXiv papers in Sources: they were not uploaded.
-- ponytail: Add to chat on a page of an *uploaded paper* still attaches a card ref (text only), as before. Its selected-card
-  path does send the page (`paper_context`). Give it a paper ref when the Chat server reads paper refs.
+
+## Known limitations (shipped in 019cc134)
+
+- **Add to chat is page-aware only for context-document pages.** A context-document page attaches its doc ref at that page.
+  A page of a directly uploaded PDF (`pdf:<paper id>`) still attaches a text-only card ref. Its selected-page path does send
+  the page (`paper_context`), but only while the page stays selected (Follow-up 3).
+- **Copied and shared canvases.** A PDF card or page made from a context document keeps the source canvas's `doc:<id>` key.
+  On a copy, Open in reader gets 404 and a page question names no document. The page images still show (Follow-up 2).
+- **Placement** can split an existing label/page pair (Follow-up 4).
+- **Auto** bypasses the journey Tutor for page questions (Follow-up 5).
+
+## Follow-ups
+
+Use focused checks for each fix and release it through the existing release process. These stay separate from the CI
+redesign, F1/F2 and Anatomy.
+
+2. **PDF source access on copied or shared canvases.**
+   - A visible PDF card or page keeps its authorized reader and AI context.
+   - Resolve the source relationship for the destination canvas, keeping the original page number.
+   - Respect permissions: never bypass document authorization, and never expose a whole private PDF because one page was
+     shared.
+   - Verify an authorized recipient or copy, and an unauthorized-access case.
+3. **Add to chat for directly uploaded PDFs.**
+   - Add to chat keeps the right PDF and its original page for both origins (`pdf:` and `doc:`).
+   - Verify page 12 through both entry paths, including after the selection is cleared.
+   - Until this is fixed, report it as a limitation. Never call Add to chat page-aware for every imported PDF.
+4. **Insertion between an existing page label and its page.**
+   - Treat each label/page pair as one placement boundary that is never split.
+   - Insert the new set in available space without splitting existing pairs.
+   - Keep page order, original numbering and one Undo for the new set.
+   - Keep this a focused placement fix.
+5. **Page context in the journey Tutor.**
+   - Support the same page context (`paper_context`, or the doc ref at the page) on the Tutor route, so that Auto can route
+     page questions to the journey Tutor again.
+   - Tutor routing is restored only together with the page. Never restore it at the cost of silently dropping the page.
 
 ## Verification
 
 `e2e/pdf-to-canvas-check.mjs` runs on the local stack and makes no model call:
 - one PDF card;
 - all pages, a middle range, and a single-page range;
-- invalid ranges, Cancel and Escape;
+- invalid ranges, Cancel and Escape (also while pages draw);
 - Undo;
-- reload and asset restoration, from a fresh browser profile;
-- a question about imported page 12, which sends page 12 of the right source (doc ref, page 12), never page 1.
+- the server copy, reload, and asset restoration from a fresh browser profile;
+- a question about imported page 12, in Ask and in Auto, sends page 12 of the right source (doc ref, page 12), never page 1;
+- Add to chat on a context-document page;
+- the upload/drop road;
+- the context document is left unchanged.
 
-Unit: `pdf-source.test.mjs` and `card-selection.test.mjs`.
+Release record:
+- Result: 21 of 21 on 2026-10-14, about 6:33 PM PT. Evidence is in `C:/s/pdfc/evidence3` on the operator's machine.
+- Application: 019cc134. The local build was made from the worktree at that application code. Every later commit on the
+  branch changes only the check file.
+- Check script: revision c63762a3, file blob 79ba09aa. It was committed after 019cc134, so it is not in the released
+  application commit, and it goes out with the next release.
+- The same 019cc134 also passed the release gate (run 38664766404), Linux verify and fast-e2e, and the preview deploy and
+  smoke (deploy-dev run 38665869204).
+
+Unit: `pdf-source.test.mjs`, `card-selection.test.mjs` and `chat-route.test.mjs`.
