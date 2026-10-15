@@ -1,7 +1,7 @@
 # Reproducible, unprivileged verification before any deployment (r34 audit, owner 2026-10-09): locked Node and Python
-# dependencies, the unit suites and both page builds, on Linux, with no deployment or model credential in the job.
+# dependencies, the unit suites and both page builds, on Linux, with no deployment or model credential in the job (token: contents: read, plus actions: read to confirm a reused run).
 # It writes its evidence (sha, tree, lockfile digests, run id, verdicts) as a note under refs/notes/verify; the dev
-# deploy refuses a commit whose tree carries no passing note (scripts/dev-deploy-gate.mjs). Gate reuse is unchanged.
+# deploy refuses a commit whose tree carries no passing note (scripts/dev-deploy-gate.mjs). Gate reuse is unchanged. A passing push run of the exact commit is reused.
 name: verify
 on:
   push:

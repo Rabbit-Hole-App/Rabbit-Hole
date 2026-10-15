@@ -9,7 +9,7 @@ import { reuseDecision, VERIFY_PATH } from './verify-reuse.mjs';
 const SHA = 'a'.repeat(40), TREE = 'b'.repeat(40), REPO = 'Rabbit-Hole-App/Rabbit-Hole';
 const locks = { 'package-lock.json': '0123456789abcdef', 'uv.lock': 'fedcba9876543210' };
 const evidence = { sha: SHA, tree: TREE, locks, unit: 'pass', build: 'pass', run: '38647920262.1' };
-const runInfo = { id: 38647920262, run_attempt: 1, path: VERIFY_PATH, head_sha: SHA, status: 'completed', conclusion: 'success',
+const runInfo = { id: 38647920262, run_attempt: 1, path: VERIFY_PATH, head_sha: SHA, event: 'push', status: 'completed', conclusion: 'success',
   html_url: 'https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/38647920262', repository: { full_name: REPO } };
 const decide = (over = {}) => reuseDecision({ note: JSON.stringify(evidence), sha: SHA, tree: TREE, locks, repo: REPO, runInfo, ...over });
 
@@ -39,6 +39,12 @@ test('a run that cannot be confirmed, or fails, or does not match: verify runs',
     [{ runInfo: { ...runInfo, id: 1 } }, /another run or attempt/],
   ];
   for (const [over, why] of cases) { const d = decide(over); assert.equal(d.reuse, false, String(why)); assert.match(d.why, why); }
+});
+
+test('a pull_request run of the same sha tested a merge tree, not this one: verify runs', () => {
+  const d = decide({ runInfo: { ...runInfo, event: 'pull_request' } });
+  assert.equal(d.reuse, false);
+  assert.match(d.why, /was event pull_request, not push/);
 });
 
 test('verify.yml decides before any install or build, skips them only on a reuse, and writes no new note on a reuse', () => {

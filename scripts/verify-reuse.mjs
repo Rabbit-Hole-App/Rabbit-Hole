@@ -1,7 +1,7 @@
 // verify.yml's first decision (owner, 2026-10-14: the same commit was verified again on each branch it was pushed to):
 // reuse a passing verify run of exactly this commit instead of installing and building it again. The note's evidence
 // must pass checkEvidence (exact sha, tree, lockfiles, unit and build passed), and the run it names must be this
-// repository's verify.yml, at this sha, completed successfully. Anything missing, invalid or unconfirmed: verify runs.
+// repository's verify.yml, at this sha, a push event (a pull_request run tests a merge tree), completed successfully. Anything missing, invalid or unconfirmed: verify runs.
 // A reuse writes no new note; the original evidence stays the record.
 //   node scripts/verify-reuse.mjs   (in GitHub Actions: GITHUB_SHA, GITHUB_REPOSITORY, GITHUB_TOKEN, GITHUB_OUTPUT, GITHUB_STEP_SUMMARY)
 import { execFileSync } from 'node:child_process';
@@ -23,6 +23,7 @@ export function reuseDecision({ note, sha, tree, locks, repo, runInfo }) {
   if (runInfo.path !== VERIFY_PATH) return { reuse: false, why: `run ${evidence.run} is ${runInfo.path || 'an unknown workflow'}, not ${VERIFY_PATH}` };
   if (String(runInfo.id) !== id || String(runInfo.run_attempt) !== attempt) return { reuse: false, why: `the API answered for another run or attempt than ${evidence.run}` };
   if (runInfo.head_sha !== sha) return { reuse: false, why: `run ${evidence.run} verified ${String(runInfo.head_sha).slice(0, 8)}, not ${sha.slice(0, 8)}` };
+  if (runInfo.event !== 'push') return { reuse: false, why: `run ${evidence.run} was event ${runInfo.event || 'unknown'}, not push (a pull_request run tests a merge tree)` };
   if (runInfo.status !== 'completed' || runInfo.conclusion !== 'success') return { reuse: false, why: `run ${evidence.run} is ${runInfo.status}/${runInfo.conclusion}, not a completed success` };
   return { reuse: true, run: evidence.run, url: runInfo.html_url };
 }
