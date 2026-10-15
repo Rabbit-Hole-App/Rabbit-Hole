@@ -19,6 +19,12 @@ Never use image for a diagram, plot or animation.
 followUps: 2-3 questions that extend this conversation, kind one of clarify (a hard point), implication, check (test understanding), connect (link concepts), next (a practical step); text at most 140 characters. Never one this conversation already answered, a generic "learn more", or one drawn from the canvas title alone.
 A short or conversational answer ends with <answer_meta>{"actions":[],"followUps":[]}</answer_meta>.`;
 
+// A Chat connected to a code repository (repo-graph Release 1, brief section 11): its follow-ups investigate this codebase,
+// grounded in the code the answer read and the conversation. Curious, not the chat, proposes the deeper concepts.
+export const ANSWER_META_REPOSITORY = `This chat is connected to a code repository. followUps: questions that investigate its implementation, grounded in the code this answer read and in this conversation - follow a real request or call through the code, find the callers of something discussed, see how a state change is stored, compare two implementations, or read a relevant test or failure path - only where the code read supports it; never invent a file, symbol or behaviour. actions stay artifacts to make, never questions.`;
+export const answerMetaSystem = ({ repository = false } = {}) => (repository ? `${ANSWER_META_SYSTEM}
+${ANSWER_META_REPOSITORY}` : ANSWER_META_SYSTEM);
+
 const OPEN = '<answer_meta>', CLOSE = '</answer_meta>';
 
 // { content: the answer without the trailer, raw: the trailer's JSON text or null }. Safe on a partial stream: a trailing
