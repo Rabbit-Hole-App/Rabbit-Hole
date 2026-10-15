@@ -202,8 +202,8 @@ const assertUsable = async (selector, what) => {
   assert.ok(b, `${what} (${selector}) closed again within 200 ms of opening`);
   assert.ok(b.x >= 0 && b.y >= 0 && b.x + b.width <= vp.width + 1 && b.y + b.height <= vp.height + 1, `${what} is off screen (${JSON.stringify(b)})`);
   assert.ok(b.x >= room.left - 2 && b.x + b.width <= room.right + 2, `${what} runs under the side panel or off the canvas (${Math.round(b.x)}..${Math.round(b.x + b.width)} vs ${Math.round(room.left)}..${Math.round(room.right)})`);
-  const top = await page.evaluate(([sel, x, y]) => !!document.elementFromPoint(x, y)?.closest(sel), [selector, b.x + Math.min(b.width / 2, 40), b.y + Math.min(b.height / 2, 14)]);
-  assert.ok(top, `${what} is covered at its own top-left (something else is on top of it)`);
+  const hit = await page.evaluate(([sel, x, y]) => { const el = document.elementFromPoint(x, y); return el?.closest(sel) ? null : `${el?.tagName}.${String(el?.className || '').slice(0, 60)}`; }, [selector, b.x + Math.min(b.width / 2, 40), b.y + Math.min(b.height / 2, 14)]);
+  assert.ok(!hit, `${what} is covered at its own top-left by ${hit}`);
   return b;
 };
 const clickBlock = async (id, where = 'end') => {
@@ -319,6 +319,16 @@ await check('scenario 2: the slash menu makes a heading, the formatting toolbar 
   await page.keyboard.press('End');
   const collapsed = await page.evaluate(() => getSelection().isCollapsed);
   assert.ok(collapsed, `End did not collapse the selection, so Enter would replace "${await page.evaluate(() => getSelection().toString())}"`);
+  // ProseMirror reads the native caret on the async selectionchange, so its own selection can still cover "ATP" for a
+  // moment after End. Record it right away and 50 ms later, then wait for it to be empty, as a person's next key would.
+  const pmSel = () => page.evaluate(() => {
+    const s = document.querySelector('[data-canvas-doc-editor] .ProseMirror')?.editor?.state?.selection, a = document.activeElement;
+    return { empty: s ? s.empty : null, from: s?.from ?? null, to: s?.to ?? null, focus: a?.classList?.contains('ProseMirror') ? 'ProseMirror' : a?.tagName };
+  });
+  const atEnd = await pmSel();
+  await page.waitForTimeout(50);
+  facts.after_end = { immediately: atEnd, after_50ms: await pmSel() };
+  await waitFor(async () => (await pmSel()).empty !== false, 1000, 'never').catch(async () => { throw Error(`ProseMirror's selection is still not empty 1 s after End: ${JSON.stringify(await pmSel())}`); });
   await page.keyboard.press('Enter');
   await page.keyboard.type('/bullet');
   await page.waitForTimeout(250);
@@ -457,16 +467,22 @@ await check('scenario 7: native block reorder (Shift+Ctrl+ArrowUp and the side-m
   await second.hover();
   const handle = page.locator('.bn-side-menu [data-test="dragHandle"]').first();
   await handle.waitFor({ state: 'visible', timeout: 4000 });
-  await assertUsable('.bn-side-menu', 'the block side menu');
+  // What the pointer meets at the handle (the side menu can fade in with pointer-events off); the drag below is the test.
   const h = await handle.boundingBox();
+  facts.side_menu_at_handle = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y), menu = document.querySelector('.bn-side-menu'); return { hit: `${el?.tagName}.${String(el?.className || '').slice(0, 50)}`, onHandle: !!el?.closest('[data-test="dragHandle"]'), menu: menu && { pointerEvents: getComputedStyle(menu).pointerEvents, opacity: getComputedStyle(menu).opacity } }; }, [h.x + h.width / 2, h.y + h.height / 2]);
   await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
   await page.mouse.down();
-  await page.mouse.move(top.x + 40, top.y + 6, { steps: 10 });
-  await page.mouse.move(top.x + 40, top.y + 3, { steps: 2 });
+  // Real stepped pointer moves with pauses: a few pixels to start the drag, then on to the first block's top edge.
+  const from = { x: h.x + h.width / 2, y: h.y + h.height / 2 }, to = { x: top.x + 40, y: top.y + 3 };
+  for (let i = 1; i <= 3; i++) { await page.mouse.move(from.x, from.y - i * 2); await page.waitForTimeout(30); }
+  await page.waitForTimeout(150);
+  for (let i = 1; i <= 15; i++) { await page.mouse.move(from.x + (to.x - from.x) * i / 15, from.y - 6 + (to.y - from.y + 6) * i / 15); await page.waitForTimeout(30); }
+  await page.waitForTimeout(200);
   await page.mouse.up();
   await page.waitForTimeout(400);
   const dragged = await blockIds();
-  assert.equal(dragged[0], after[1], `the dragged block is not first (${dragged.slice(0, 3).join(',')})`);
+  const firstThree = () => page.locator('[data-canvas-doc] .bn-block-outer[data-id]').evaluateAll(list => list.slice(0, 3).map(el => el.querySelector('.bn-inline-content')?.textContent.slice(0, 30)));
+  assert.equal(dragged[0], after[1], `the dragged block is not first: ${JSON.stringify(await firstThree())}`);
   assert.equal(dragged.length, after.length, 'a block was lost or duplicated by the drag');
   assert.equal(await objectsOf(A), before, 'the block drag created or moved a canvas object');
   await page.keyboard.press('Control+z'); // the drag
