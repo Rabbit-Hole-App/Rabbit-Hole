@@ -204,6 +204,47 @@ async function probeEdge(page, card, title, label, side = 'right') {
   await context.close();
 }
 
+// --- repository cards (repo-graph Release 2): a code card and a graph card, pushed past each edge, stay on top of the canvas
+// edge and under no utility. LOCAL only: the canvas and its board are made here. The cards point at a repository this user
+// does not have, so they show their unavailable state at full size; their frames are what this check measures.
+if (local) {
+  const post = async (path, method, body) => (await fetch(`${base}${path}`, { method, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
+  const repoCanvas = await post('/api/canvases', 'POST', { title: 'Toolbar check repository cards' });
+  const repository = { app: 'repo-0badc0de-toolbar-probe', repo: 'acme/toolbar-probe', commit: 'c'.repeat(40) };
+  const blocks = [
+    { id: 'rc1', type: 'repo-code', dx: 0, dy: 0, title: 'toolbar_probe.py', language: 'python', source: { kind: 'repository', ...repository, path: 'toolbar_probe.py' } },
+    { id: 'rg1', type: 'repo-graph', dx: 0, dy: 0, title: 'acme/toolbar-probe graph', repository, scope: 'whole', nodeIds: [], camera: null, w: 560, h: 520 },
+  ];
+  await post(`/api/learn/boards/${repoCanvas.name}/main`, 'PUT', { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks } });
+  const context = await browser.newContext({ viewport: { width: 1720, height: 1100 } });
+  await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
+  const page = await context.newPage();
+  await page.goto(`${base}/apps/${repoCanvas.name}`);
+  const canvas = page.locator('[aria-label="Lesson canvas"]');
+  await canvas.waitFor({ timeout: 30000 });
+  results.repositoryCards = {};
+  for (const [kind, selector, title] of [['code', '[data-code-card]', 'toolbar_probe.py'], ['graph', '[data-graph-card]', 'acme/toolbar-probe']]) {
+    const card = canvas.locator('[data-block-id]').filter({ has: page.locator(selector) }).first();
+    if (!(await card.waitFor({ timeout: 20000 }).then(() => true, () => false))) { fail(`repository cards: no ${kind} card drawn`); continue; }
+    await reveal(page, canvas, card);
+    await pushRight(page, card, 120);
+    let box = await card.boundingBox(), g = await geometry(page);
+    if (!(box.x + box.width > g.surface.right + 60)) fail(`repository cards: the ${kind} card was not panned past the right edge (${JSON.stringify(round(box))})`);
+    if (!disjoint(g.toolbar, g.surface)) fail(`repository cards: the tools overlap the canvas beside the ${kind} card`);
+    const right = await probeEdge(page, card, title, `repository ${kind} card, right edge`);
+    await page.screenshot({ path: `${OUT}/repository-${kind}-card-right-edge.png` });
+    await pushRight(page, card, 120, 'left');
+    box = await card.boundingBox(); g = await geometry(page);
+    if (!(box.x < g.surface.x - 60)) fail(`repository cards: the ${kind} card was not panned past the left edge (${JSON.stringify(round(box))})`);
+    const left = await probeEdge(page, card, title, `repository ${kind} card, left edge`, 'left');
+    await page.screenshot({ path: `${OUT}/repository-${kind}-card-left-edge.png` });
+    if (g.zoom !== '100%') fail(`repository cards: zoom is ${g.zoom} after panning the ${kind} card, not 100%`);
+    results.repositoryCards[kind] = { width: Math.round(box.width), right, left };
+    console.log(`repository ${kind} card (${Math.round(box.width)}px): past both edges, on top at the canvas edge (right ${right.onCard}/${right.probes}, left ${left.onCard}/${left.probes}), zoom ${g.zoom}`);
+  }
+  await context.close();
+}
+
 // --- wide screen: the same shell ---
 {
   const { context, page } = await open({ width: 2200, height: 1200 });
