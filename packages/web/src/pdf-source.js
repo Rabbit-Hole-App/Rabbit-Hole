@@ -39,8 +39,24 @@ export function pageRef(block) {
     : { sourceId: `paper:${source.id}`, kind: 'web', name, version: '', range: { page: block.number }, ...(block.home ? { home: block.home } : {}) };
 }
 
+// The one chat-context identity of a PDF on the canvas (pdf-materials-refinement.md section 6): a page is its pageRef, a whole
+// PDF card its document's ref with no range - the same ref Sources and the canvas-level context attach, so a selection, an Add to
+// chat and the canvas's own attachment of one PDF are one entry. Never the filename or the card: two PDFs of one name stay two.
+// null for anything else (an arXiv paper card, a PDF with no stored source).
+export function pdfRef(block) {
+  if (block?.type === 'slide') return pageRef(block);
+  const source = block?.type === 'pdf' ? pdfSource(block.assetKey) : null;
+  if (!source) return null;
+  const name = String(block.label || (source.kind === 'doc' ? 'Document' : 'PDF')).slice(0, 120);
+  return source.kind === 'doc'
+    ? { sourceId: `doc:${source.id}`, kind: 'doc', name, version: '', range: null }
+    : { sourceId: `paper:${source.id}`, kind: 'web', name, version: '', range: null, ...(block.home ? { home: block.home } : {}) };
+}
+
 // A page chip in the composer: a context document's or an uploaded paper's ref at one page (pageRef).
 const pageChip = ref => Number.isInteger(ref?.range?.page) && (ref.kind === 'doc' || (ref.kind === 'web' && /^paper:upload:/.test(ref.sourceId)));
+// A whole uploaded paper (pdfRef of its card): never read by a turn, as only a page is (turnPaper).
+const wholePaper = ref => ref?.kind === 'web' && !ref.range && /^paper:upload:/.test(ref.sourceId);
 
 // The uploaded-paper page a turn reads (paper_context): the selected page, else the first uploaded-paper page attached in the
 // composer, so a page chip still asks about its page after the selection is cleared. One per turn, as the reader holds one
@@ -51,9 +67,9 @@ export function turnPaper(target, refs = []) {
   return ref ? { id: ref.sourceId.slice('paper:'.length), page: ref.range.page, ...(ref.home ? { home: ref.home } : {}) } : null;
 }
 
-// An uploaded-paper page chip this turn sends as a label only: its PDF is not the one the turn reads (readId, the paper_context
-// id: the selected page's, the open reader's, else turnPaper's). The server tells the model the same (chat-modes.js chatContext).
-export const labelOnlyChip = (ref, readId) => pageChip(ref) && ref.kind === 'web' && ref.sourceId !== `paper:${readId}`;
+// An uploaded-paper chip this turn sends as a label only: its PDF is not the one the turn reads (readId, the paper_context id: the
+// selected page's, the open reader's, else turnPaper's). The server tells the model the same (chat-modes.js chatContext).
+export const labelOnlyChip = (ref, readId) => (pageChip(ref) || wholePaper(ref)) && ref.kind === 'web' && ref.sourceId !== `paper:${readId}`;
 
 // The one page a journey Tutor turn sends (page_context, learn-tutor-routes.js): a turn about exactly one PDF page, the
 // selected page or one page chip. null for none, or for several, which stay on /api/learn/ask, the route that sends them all

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { sameRef } from './chat-context.js';
 
 // Sub-lane A3a (composer and modes) owns this file. Contract: chat-workspace-CONTRACT.md A5, A6.
 // Shape every other sub-lane relies on:
@@ -38,11 +39,13 @@ export function draftSlot(draft, action) {
 
 // context_refs at Send (A4): a card, group, image or media ref carries its text resolved now (a function is read now,
 // the way ask.jsx targetText is), cut to the contract's limits; other kinds never carry text.
+// target: the selected object's own ref (pdf-materials-refinement.md section 6). Attached as well, it rides once: canvas_target
+// carries its text (the deictic grounding reads it there), so the attached copy goes as its name and identity only.
 const TEXT_KINDS = new Set(['card', 'group', 'image', 'media']);
-export function refsForSend(refs = [], { text: perRef = 8000, texts: total = 32000 } = {}) {
+export function refsForSend(refs = [], { text: perRef = 8000, texts: total = 32000, target = null } = {}) {
   let budget = total;
   return refs.map(({ text, ...ref }) => {
-    if (!TEXT_KINDS.has(ref.kind)) return ref;
+    if (!TEXT_KINDS.has(ref.kind) || (target && sameRef(ref, target))) return ref;
     const value = String((typeof text === 'function' ? text() : text) ?? '').slice(0, Math.min(perRef, budget));
     budget -= value.length;
     return value ? { ...ref, text: value } : ref;

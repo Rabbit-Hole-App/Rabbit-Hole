@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { MessageSquarePlus, Wand } from 'lucide-react';
+import { Check, MessageSquarePlus, Wand } from 'lucide-react';
 import { chordLabel, isMac } from './shortcut-owner.js';
 import { placeBar } from './selection-bar-place.js';
 
@@ -15,12 +15,14 @@ import { placeBar } from './selection-bar-place.js';
 // the view and below the selection, is the one bar. Both are the same Actions element, so a press never moves the focus or the selection.
 const Ctx = createContext(null);
 
-export function SelectionActionsProvider({ sole, hidden = false, narrow = false, onAddToChat, onQuickEdit, children }) {
+// added: the one selected object's ref is already in this chat (pdf-materials-refinement.md section 6), so Add to chat reads
+// Added to chat; pressing it again opens the chat and attaches nothing twice.
+export function SelectionActionsProvider({ sole, hidden = false, narrow = false, added = false, onAddToChat, onQuickEdit, children }) {
   const [hosted, setHosted] = useState(0);
   const busy = useCanvasBusy();
   const register = useCallback(() => { setHosted(count => count + 1); return () => setHosted(count => count - 1); }, []);
   const mac = useMemo(isMac, []);
-  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, onAddToChat, onQuickEdit, mac, hosted, register }), [sole, hidden, busy, narrow, onAddToChat, onQuickEdit, mac, hosted, register]);
+  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, added, onAddToChat, onQuickEdit, mac, hosted, register }), [sole, hidden, busy, narrow, added, onAddToChat, onQuickEdit, mac, hosted, register]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -41,7 +43,7 @@ function Actions({ ctx, mode, className = '', style }) {
     <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={style}
       onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}
       className={`pointer-events-auto flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${className}`}>
-      {ctx.onAddToChat && <Action label="Add to chat" chord="add-to-chat" Icon={MessageSquarePlus} mac={ctx.mac} onClick={ctx.onAddToChat} data-add-to-chat />}
+      {ctx.onAddToChat && <Action label={ctx.added ? 'Added to chat' : 'Add to chat'} chord="add-to-chat" Icon={ctx.added ? Check : MessageSquarePlus} mac={ctx.mac} onClick={ctx.onAddToChat} data-add-to-chat data-added={ctx.added || undefined} />}
       {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} onClick={ctx.onQuickEdit} data-quick-edit />}
     </div>
   );

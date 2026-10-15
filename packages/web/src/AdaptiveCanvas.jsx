@@ -40,7 +40,7 @@ import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
-import { pageRef, pdfSource } from './pdf-source.js';
+import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
@@ -3024,12 +3024,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The card the learner explicitly asked about (Ask in chat): its answer lands as a card linked to it, as before.
   // A card only selected rides as context and its answer lands where any question's does (ask.jsx panelAsk).
   const askedId = useRef(null);
+  // The selected object's chat-context identity (pdf-materials-refinement.md section 6): a PDF card or page is its document and
+  // page (pdfRef), anything else the ref Add to chat gives it. The composer shows a selection and an attachment of one ref once.
+  const chatRefOf = object => pdfRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
   const armTarget = block => {
     const described = describeObject(block);
     if (!described) return false;
     armedId.current = block.id;
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
-    const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material } };
+    const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material }, ref: chatRefOf(block), pdf: !!pdfRef(block) };
     // A page sends the page itself, of its own source (pdf-source.js): an uploaded paper's page as paper_context, read by
     // the model as the reader's pages are, from its home canvas when it was copied here; a context document's page as its doc
     // ref at that page. The thumbnail only shows on the chip.
@@ -3097,9 +3100,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const object = ids.length === 1 ? objectById(ids[0]) : null;
     if (chatWorkspace) {
       // A page is its own PDF at that page (pdf-to-canvas.md): a context document's ref, or an uploaded paper's (pageRef), the
-      // chip a question about it sends. Its selection chip steps aside, as a card's does below, so the page is one chip.
-      if (object?.type === 'slide' && pageRef(object)) {
-        chatWorkspace.addToChat(pageRef(object));
+      // chip a question about it sends; a whole PDF card is its document's ref (pdfRef), never a second card chip of one PDF.
+      // Its selection chip steps aside, as a card's does below, so the page is one chip.
+      if (pdfRef(object)) {
+        chatWorkspace.addToChat(pdfRef(object));
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
         return true;
       }
@@ -4412,7 +4416,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // outside the focused field hands focus back to the canvas. Pressing inside
     // the field it belongs to is left alone, so typing still works.
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag }}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} onAddToChat={readOnly ? null : addToChat} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.

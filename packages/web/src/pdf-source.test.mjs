@@ -3,7 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { labelOnlyChip, pageRange, pageRef, paperBytesUrl, pdfBytesUrl, pdfKeyOfRef, pdfSource, turnHasPage, turnPaper } from './pdf-source.js';
+import { docRef, sameRef } from './chat-context.js';
+import { labelOnlyChip, pageRange, pageRef, pdfRef, paperBytesUrl, pdfBytesUrl, pdfKeyOfRef, pdfSource, turnHasPage, turnPaper } from './pdf-source.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -35,6 +36,23 @@ test('a page of either source is its own PDF at its own page: the chip Add to ch
   assert.equal(pageRef({ type: 'note' }), null);
 });
 
+// pdf-materials-refinement.md section 6: one identity per document and page, the one the canvas-level context attaches too.
+test('a PDF card or page has one chat identity: its document and page, never its name or card', () => {
+  const card = pdfRef({ id: 'b1', type: 'pdf', assetKey: 'doc:ctx:0123456789ab', label: 'notes.pdf' });
+  assert.deepEqual(card, { sourceId: 'doc:ctx:0123456789ab', kind: 'doc', name: 'notes.pdf', version: '', range: null });
+  assert.equal(sameRef(card, docRef({ id: 'ctx:0123456789ab', name: 'renamed.pdf', created_at: 5 })), true, 'the canvas-attached document is the same entry');
+  const twin = pdfRef({ id: 'b2', type: 'pdf', assetKey: 'doc:ctx:aaaaaaaaaaaa', label: 'notes.pdf' });
+  assert.equal(sameRef(card, twin), false, 'two PDFs of one name stay two');
+  assert.deepEqual(pdfRef({ id: 'b3', type: 'pdf', assetKey: 'pdf:upload:0123456789ab', label: 'paper.pdf', home: 'canvas-0a1b2c3d' }),
+    { sourceId: 'paper:upload:0123456789ab', kind: 'web', name: 'paper.pdf', version: '', range: null, home: 'canvas-0a1b2c3d' });
+  const page = pdfRef({ type: 'slide', pdf: 'doc:ctx:0123456789ab', number: 3, label: 'notes.pdf' });
+  assert.deepEqual(page.range, { page: 3 });
+  assert.equal(sameRef(page, card), false, 'a page is not its whole document');
+  assert.equal(sameRef(page, pdfRef({ type: 'slide', pdf: 'doc:ctx:0123456789ab', number: 4, label: 'notes.pdf' })), false, 'nor another page');
+  assert.equal(pdfRef({ type: 'pdf', assetKey: 'paper-1706.03762' }), null, 'a PDF with no stored source');
+  assert.equal(pdfRef({ type: 'explanation' }), null);
+});
+
 // One uploaded PDF is read per turn: every other uploaded-paper page chip is marked a label only (the server says the same).
 test('a label-only chip: an uploaded-paper page whose PDF the turn does not read', () => {
   const read = pageRef({ type: 'slide', pdf: 'pdf:upload:0123456789ab', number: 12, label: 'pages.pdf' });
@@ -49,6 +67,10 @@ test('a label-only chip: an uploaded-paper page whose PDF the turn does not read
   assert.equal(labelOnlyChip(read, null), true, 'nothing read: every upload page is a label');
   assert.equal(labelOnlyChip(doc, readId), false, 'a context document page is read in full');
   assert.equal(labelOnlyChip({ sourceId: 'card:b1', kind: 'card', range: null }, readId), false);
+  const whole = pdfRef({ type: 'pdf', assetKey: 'pdf:upload:0123456789ab', label: 'pages.pdf' });
+  assert.equal(labelOnlyChip(whole, null), true, 'a whole uploaded PDF is never read, only a page is');
+  assert.equal(labelOnlyChip(whole, readId), false, 'unless its own page is the one read');
+  assert.equal(labelOnlyChip(pdfRef({ type: 'pdf', assetKey: 'doc:ctx:0123456789ab', label: 'notes.pdf' }), null), false, 'a whole context document is read');
 });
 
 // Follow-up 3: the chip asks about its page after the selection is cleared; follow-up 2: a copied page reads its home canvas.

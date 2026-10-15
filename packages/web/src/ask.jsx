@@ -615,7 +615,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
-        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(chat.context.attached, target?.docPage)) } : {}),
+        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(chat.context.attached, target?.docPage), { target: target?.ref }) } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -816,6 +816,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // live in the Sources pane beside it, so here there is no content panel to hide the transcript or for send() to close.
   if (chat) contentPanel = null;
   else if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
+  // One entry per document and page (pdf-materials-refinement.md section 6): in the Chat pane a selected object whose ref is
+  // attached marks that chip (pinned), and a selected PDF card or page not attached is a chip of its own; neither is also a pill.
+  const pinnedTarget = !!(chat && canvasTarget?.ref && chat.context.isAttached(canvasTarget.ref));
+  const chipTarget = pinnedTarget || !!(chat && canvasTarget?.ref && canvasTarget.pdf);
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
       {/* The Chat pane's own header (ChatPane: title, History, New chat) replaces this row there. */}
@@ -1022,7 +1026,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
         </div>; })()}
         {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
-        {canvasTarget && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+        {canvasTarget && !chipTarget && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
           {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
           {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.docPage && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
           {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
@@ -1044,7 +1048,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} chips={chat ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null} /> : null}
+          stacked={!!chat} chips={chat ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null}
+            selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null} /> : null}
           leading={<>
           <div className="relative shrink-0">
             <button
