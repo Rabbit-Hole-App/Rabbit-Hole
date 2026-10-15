@@ -501,7 +501,7 @@
   "checks": {
     "add-to-chat-check.mjs": {"runner":"windows-only","why":"added by the release candidate 3233d9e4 after the Linux readiness run 38501772960, so not yet passed three times on Linux (Task B4); the release gate does not run it either; a fork check (BASE, SMALL_CP, packages/control-plane/.dev.vars)","seconds":120},
     "analytics-ui-check.mjs": {"runner":"fork","seconds":15},
-    "answer-routing-check.mjs": {"runner":"windows-only","why":"pins the answer-routing review-clone hostname and reads a Windows .env path; the gate runs it from a template","seconds":120},
+    "answer-routing-check.mjs": {"runner":"windows-only","why":"pins the gate loopback stack (BASE 8878, SMALL_CP 8879) and reads LOCAL_CP_VARS, the private control plane vars the gate exports after sketch; the gate runs this file as it is (scripts/r36-gate/prepare.mjs GATE_ENV_MARKER)","seconds":120},
     "app-tabs-check.mjs": {"runner":"windows-only","why":"targets the deployed dev worker (SMALL_BASE) with RABBIT_HOLE_DEV_TEST_BYPASS from the repo .env; no local mode","seconds":120},
     "bar-baseline-check.mjs": {"runner":"windows-only","why":"needs a card-module argument and a Vite server on VITE_PORT; not a standalone check","seconds":120},
     "blank-canvas-hooks-check.mjs": {"runner":"windows-only","why":"journey-stack check (fresh-schema keyless stack, lp1h/jstack.sh); no Linux stack yet, to be proven in Task B4","seconds":120},
