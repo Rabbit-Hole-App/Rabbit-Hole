@@ -74,7 +74,7 @@ test('the canvas wires the card: lazy renderer, its own keys, and a reveal-or-in
 test('a ready graph card never throws on a reply without skipped, and a render error stays inside the card', () => {
   const hook = readFileSync(new URL('./use-card-source.js', import.meta.url), 'utf8');
   assert.match(hook, /graph: cardGraph\(data\.graph, [^)]*\)[^;]*, skipped: data\.skipped \|\| \[\] \}\)/);
-  const card = readFileSync(new URL('./GraphCard.jsx', import.meta.url), 'utf8');
+  const card = readFileSync(new URL('./GraphCard.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(card, /source\.skipped\?\.length > 0/);
   assert.doesNotMatch(card, /source\.skipped\.length > 0/);
   assert.match(card, /class GraphCardBoundary extends Component \{[\s\S]*static getDerivedStateFromError\(\)/);
