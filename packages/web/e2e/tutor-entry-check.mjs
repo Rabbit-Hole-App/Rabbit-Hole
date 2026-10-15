@@ -6,9 +6,10 @@
 // are refused.
 //   PRACTICE_BASE=http://127.0.0.1:8788 SMALL_CP=http://127.0.0.1:8790 node e2e/tutor-entry-check.mjs [outDir]
 // It proves:
-//   1. Opening the project lands on its Map; its Learn composer is the Tutor (mic, a typed turn on /api/learn/tutor),
-//      for the owner and a learner alike; no Overview/Learn/Map pill, Tutor or Practice button on the canvas; the
-//      Map is one icon; a Rabbit Hole keeps the Tutor and climbs back to it.
+//   1. Opening the project lands on its canvas (repo-canvas-graph.md, owner 2026-10-15: no repository page); its composer is
+//      the Tutor (mic, a typed turn on /api/learn/tutor), for the owner and a learner alike; no Overview/Learn/Map pill,
+//      Tutor or Practice button and no Map icon on the canvas, the repository badge instead; a Rabbit Hole keeps the Tutor
+//      and climbs back to it; the code is one click away beside Chat (Explore codebase, Repository files).
 //   2. ?board= stays dead in production: no review board (the Tutor slice's included) opens from a URL.
 //   3. ?voice=fake is ignored: the mic takes the real Voice path (a scribe token request, refused here), no fake.
 //   4. The build is the production one: no review-only code reached the browser.
@@ -24,7 +25,7 @@ const APP = process.env.PRACTICE_APP || 'repo-nanogpt';
 const PEOPLE = [[process.env.PRACTICE_EMAIL || 'owner@example.com', APP], [process.env.LEARNER_EMAIL || 'learner@example.com', process.env.LEARNER_APP || 'repo-nanogpt-learner']];
 const OUT = process.argv[2] || 'tutor-entry-shots';
 mkdirSync(OUT, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 // What only a review build carries (e2e/production-bundle-check.mjs DEV_MARKERS, plus the review-board notice).
 const REVIEW_ONLY = ['No review board is registered', 'Review fixtures are on', 'Insert a sample lesson block', 'Agent workspace', 'Quiz answer key', 'Edit and approve curriculum', '__voiceFake', 'failStt'];
 // Every review board's card titles: none may open from a URL.
@@ -56,24 +57,26 @@ async function personPage(email) {
   return { page, traffic, close: () => context.close() };
 }
 const shot = async (page, name) => { await page.waitForTimeout(400); await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
-const mic = page => page.getByRole('button', { name: 'Voice mode', exact: true });
+// The Tutor's mic. Since r36 (a915cb1d, LearnVoice.jsx LISTENING_PAUSED) new listening sessions are paused, and the mic shows as
+// 'Voice mode is paused': either one proves the composer is the Tutor.
+const mic = page => page.getByRole('button', { name: /^Voice mode( is paused)?$/ });
+const paused = async page => (await mic(page).getAttribute('aria-label')) === 'Voice mode is paused';
 const cardTitles = page => page.locator('[data-block-id]:not([data-chat-block])').allInnerTexts();
 const settle = page => page.waitForSelector('[data-tool-gutter]', { timeout: 30000 }).then(() => page.waitForTimeout(1500));
 const composer = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 
-// 1. The project opens on its Map; its Learn composer is the Tutor: the owner and a learner get the same.
+// 1. The project opens on its canvas; its composer is the Tutor: the owner and a learner get the same.
 for (const [index, [email, app]] of PEOPLE.entries()) {
   const who = index ? 'learner' : 'owner';
   const { page, traffic, close } = await personPage(email);
   await page.goto(`${BASE}/apps/${app}`);
-  await page.locator('[data-project-tabs] [role="tab"][data-state="active"]', { hasText: 'Map' }).waitFor({ timeout: 30000 });
-  await shot(page, `${who}-0-map`);
-  await page.locator('[data-project-tabs] [role="tab"]', { hasText: 'Learn' }).click();
   await settle(page);
+  assert.equal(new URL(page.url()).pathname, `/apps/${app}`, `${who}: the canvas, at the project's own URL`);
   await mic(page).waitFor({ timeout: 15000 });
   assert.equal(await page.locator('[data-project-tabs]').count(), 0, `${who}: no Overview/Learn/Map pill on the canvas`);
   assert.equal(await page.locator('[data-learn-tutor], [data-learn-practice]').count(), 0, `${who}: no Tutor or Practice button`);
-  assert.equal(await page.locator('[data-learn-map]').count(), 1, `${who}: the Map is one icon`);
+  assert.equal(await page.locator('[data-learn-map]').count(), 0, `${who}: no Map icon: there is no Map page`);
+  assert.equal(await page.locator('[data-repo-badge]').count(), 1, `${who}: the repository badge`);
   await shot(page, `${who}-1-learn`);
 
   // A typed turn is a Tutor turn: /api/learn/tutor, for this repository, never /api/learn/ask.
@@ -98,13 +101,16 @@ for (const [index, [email, app]] of PEOPLE.entries()) {
   await settle(page);
   await mic(page).waitFor({ timeout: 15000 });
 
-  // The Map is two clicks away (the icon opens Files in the panel, which links on to the Map; owner, 2026-10-08), Learn one back.
-  await page.locator('[data-learn-map]').click();
-  await page.locator('[data-learn-open-map]').click();
-  await page.waitForURL(url => url.searchParams.get('tab') === 'map');
-  await page.locator('[data-project-tabs] [role="tab"]', { hasText: 'Learn' }).click();
-  await settle(page);
+  // The code is one click away, beside Chat (owner, 2026-10-15): Explore codebase opens the Graph view, Repository files the
+  // Files view, in the companion column; the URL stays and the composer stays the Tutor.
+  const url = page.url();
+  await page.locator('[data-chat-pane] button[aria-label="Explore codebase"]').click();
+  await page.locator('[data-companion] [data-learn-graph] [data-graph-panel]').waitFor({ timeout: 20000 });
+  await page.locator('[data-panel-viewer="files"]').click();
+  await page.locator('[data-companion] [data-learn-files]').waitFor({ state: 'visible', timeout: 10000 });
+  assert.equal(page.url(), url, `${who}: viewing code does not navigate`);
   await mic(page).waitFor({ timeout: 15000 });
+  await shot(page, `${who}-4-code-beside-chat`);
   results[who] = { plans: traffic.plans.length, evaluations: traffic.evaluations.length };
   await close();
 }
@@ -132,6 +138,12 @@ await close();
   const { page, traffic, close } = await personPage(PEOPLE[0][0]);
   await page.goto(`${BASE}/apps/${APP}?tab=learn&voice=fake`);
   await settle(page);
+  // While listening is paused (r36) the mic starts nothing, real or fake: what is left to prove is that no fake exists.
+  if (await paused(page)) {
+    assert.equal(await page.evaluate(() => typeof window.__voiceFake), 'undefined', 'no fake Voice harness in production');
+    results.voiceFakeIgnored = 'listening paused (LISTENING_PAUSED): no fake harness; the real-path probe needs listening on';
+    await close();
+  } else {
   await mic(page).click();
   for (let i = 0; i < 100 && !traffic.refused.some(url => url.includes('/api/learn/voice/scribe-token')); i++) await page.waitForTimeout(100);
   assert.ok(traffic.refused.some(url => url.includes('/api/learn/voice/scribe-token')), `?voice=fake still takes the real Voice path: ${traffic.refused.join(', ')}`);
@@ -139,6 +151,7 @@ await close();
   await shot(page, '5-voice-fake-ignored');
   results.voiceFakeIgnored = true;
   await close();
+  }
 }
 
 // 4. The production build: no review-only code reached the browser.
