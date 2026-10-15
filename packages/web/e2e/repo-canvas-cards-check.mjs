@@ -22,19 +22,21 @@ import { COMMIT, REPO, SNAPSHOT, content, routeRepository } from './nanogpt-repo
 // ---------------------------------------------------------------- names the lanes own (aligned at merge)
 // Labels are the brief's own words (section 1 and "Card contents"); data-* names not fixed by the contract live here only.
 const SELECTORS = {
-  codeCard: '[data-repo-code-card]', // CODE: CodeCard.jsx root, inside the canvas card [data-block-id]
-  graphCard: '[data-repo-graph-card]', // GRAPH: GraphCard.jsx root
-  graphCardScope: '[data-graph-card-scope]', // GRAPH: the header's Whole graph / Subgraph label
+  codeCard: '[data-code-card]', // CODE: CodeCard.jsx root, inside the canvas card [data-block-id]
+  graphCard: '[data-graph-card]', // GRAPH: GraphCard.jsx root
+  graphCardScope: '[data-graph-card-scope]', // GRAPH: the header's scope label; its value is the block's scope
+  filesAddCodeCard: '[data-file-add-card]', // CODE: the Files viewer's Add code card for the open file (CodeReader.jsx)
   unavailable: 'Repository content unavailable', // ACCESS: owner decision 5, verbatim
   openSource: 'Open source', addToChat: 'Add to chat', createCodeCard: 'Create code card', // card controls
-  openInCompanion: /^(Open in (the )?(companion|Graph)|Expand)/i, // GRAPH: the graph card's expand-to-companion control
+  openInCompanion: '[data-graph-card-expand]', // GRAPH: the graph card's Show in the Graph beside Chat
   addToCanvas: 'Add to canvas', // the selection controls' menu button, when the choices sit behind one
+  nodeAddCard: '[data-node-add-card]', // GRAPH: the node details' Add code card
   addCodeCard: 'Add code card', addSelectionAsGraph: 'Add selection as graph', addGraphToCanvas: 'Add graph to canvas',
   // Context: a graph card selected with no node inside it rides as a graph-scope ref (GRAPH).
   graphScopeRef: ref => ref.kind === 'graph' || String(ref.sourceId || '').startsWith('graph:'),
   // ACCESS: the owner-checked source route for a card. Owner reads are served from the fixture here (a keyless stack has no
   // repository files); a viewer's read is never stubbed.
-  cardSource: path => new RegExp(`^/api/repositories/${REPO}/(source|card-source|file)$`).test(path),
+  cardSource: path => path === '/api/repositories/card-source', // ACCESS-3: ?repo&commit[&path], file or snapshot
 };
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8911';
@@ -59,8 +61,13 @@ const catalog = await json('/api/apps');
 // The project's row in local D1 for the whole run: board saves and share links are served only for a repository the server
 // knows (rabbit-hole-check seedProject). Deleted first by org and name, so a killed run's row never blocks this one.
 const seedProject = on => {
-  const where = `org='${catalog.org}' AND name='${REPO}'`;
-  const sql = [`DELETE FROM repository_apps WHERE ${where}`, ...(on ? [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${REPO}','${catalog.email}','karpathy/nanoGPT','master','${COMMIT}','ready')`] : [])].join('; ');
+  // With its indexed version and its confirmed-public visibility (repositories.js readableVersion), as a public GitHub import
+  // has them: a keyless stack never checks GitHub, so the run says so itself.
+  const where = `org='${catalog.org}' AND name='${REPO}'`, app = `SELECT id FROM repository_apps WHERE ${where}`;
+  const sql = [`DELETE FROM repository_visibility WHERE app_id IN (${app})`, `DELETE FROM repository_versions WHERE app_id IN (${app})`, `DELETE FROM repository_apps WHERE ${where}`,
+    ...(on ? [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${REPO}','${catalog.email}','karpathy/nanoGPT','master','${COMMIT}','ready')`,
+      `INSERT INTO repository_versions(app_id,commit_sha,storage_key) ${app.replace('SELECT id', `SELECT id,'${COMMIT}','rcc-fixture'`)}`,
+      `INSERT INTO repository_visibility(app_id,visibility) ${app.replace('SELECT id', "SELECT id,'public'")}`] : [])].join('; ');
   const PERSIST = process.env.PERSIST || '.small/fork-local', D1_CONFIG = process.env.D1_CONFIG || 'packages/web/wrangler.dev.jsonc';
   const cwd = fileURLToPath(new URL('../../../', import.meta.url)), stdio = ['ignore', 'ignore', 'inherit'];
   if (process.env.WRANGLER_BIN) execFileSync(process.execPath, [process.env.WRANGLER_BIN, 'd1', 'execute', 'rabbit-hole-learn-dev', '--local', '--persist-to', PERSIST, '--config', D1_CONFIG, '--command', sql], { cwd, stdio, windowsHide: true });
@@ -77,10 +84,9 @@ const boardKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${REPO}:
 const seed = [boardKey, { strokes: [], shapes: [], links: [], groups: [], areas: [], exchanges: [], items: [], blocks: BLOCKS }];
 const N = { train: 'train', model: 'model', gpt: 'model_gpt', attn: 'model_causalselfattention', sample: 'sample' };
 const line = (path, n) => content[path].split('\n')[n - 1].trim();
-const PRIVATE = ['model.py', 'train.py', 'bench.py', 'model_gpt', 'CausalSelfAttention', line('model.py', 118)]; // never to a viewer
 
 // ---------------------------------------------------------------- routes: capture, scripted answers, refuse the rest
-const captured = [], hooks = [], refused = [], outside = [], errors = [], sourceReads = [];
+const captured = [], hooks = [], refused = [], outside = [], errors = [], sourceReads = [], consoleErrors = [];
 let replies = 0, holdSource = null;
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/(ask|learn-course)$|learn\/(artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/(plan|handoff)|dive|explore))/;
@@ -93,10 +99,10 @@ const router = async route => {
   try { body = JSON.parse(request.postData() || '{}'); } catch { body = {}; }
   if (SELECTORS.cardSource(path)) {
     const ask = { ...Object.fromEntries(url.searchParams), ...body };
-    sourceReads.push({ path: ask.path, commit: ask.commit ?? null });
+    sourceReads.push({ path: ask.path ?? null, commit: ask.commit ?? null });
     if (holdSource) await holdSource;
     if (ask.commit && ask.commit !== COMMIT) return route.fulfill({ status: 404, json: { error: 'Repository content unavailable' } });
-    return route.fulfill({ json: { path: ask.path, commit: COMMIT, content: content[ask.path] ?? '', text: content[ask.path] ?? '' } });
+    return route.fulfill({ json: ask.path ? { path: ask.path, commit: COMMIT, content: content[ask.path] ?? '' } : SNAPSHOT });
   }
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.fallback();
   if (path === '/api/learn/ask') {
@@ -121,10 +127,13 @@ const check = async (label, fn) => {
   try { await fn(); results.push({ label, ok: true }); console.log(`ok ${label}`); }
   catch (error) {
     const lines = String(error?.message || error).split('\n'), why = lines.find(l => /intercepts pointer events|not visible|outside of the viewport|not enabled/.test(l));
-    const message = `${lines[0]}${why ? ` (${why.replace(/\u001b\[[0-9;]*m/g, '').trim().slice(0, 240)})` : ''}`.slice(0, 600);
+    // The crash screen catches render errors (no pageerror): the console says what broke.
+    const crashed = page && await page.getByText('This page couldn\'t load').count().catch(() => 0);
+    const message = `${lines[0]}${why ? ` (${why.replace(/\u001b\[[0-9;]*m/g, '').trim().slice(0, 240)})` : ''}${crashed ? ` [CRASH SCREEN; console: ${consoleErrors.slice(-2).join(' | ')}]` : ''}`.slice(0, 1200);
     results.push({ label, ok: false, error: message });
     console.log(`FAIL ${label} - ${message}`);
     if (page) await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
+    if (crashed) await openCanvas().catch(() => {}); // one crash fails one case, not every case after it
   }
 };
 const openContext = async ({ viewport = { width: 1800, height: 1000 }, as = session, owner = true } = {}) => {
@@ -139,6 +148,7 @@ const openContext = async ({ viewport = { width: 1800, height: 1000 }, as = sess
   page = await context.newPage();
   page.setDefaultTimeout(15000); // an action on a missing control fails in 15 s instead of waiting forever
   page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 400)); });
 };
 const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() => {});
 const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
@@ -195,20 +205,45 @@ const blocks = () => page.evaluate(key => { try { return JSON.parse(localStorage
 const ofType = async type => (await blocks()).filter(b => b.type === type);
 const cardEl = id => canvasFrame().locator(`[data-block-id="${id}"]`).first();
 const waitCount = (type, n, what) => waitFor(async () => (await ofType(type)).length === n, 8000, `${what}: ${type} count is not ${n}`);
-const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-// A new card never covers an existing one and never moves it.
+const overlaps = (a, b) => a.x + 1 < b.x + b.w && b.x + 1 < a.x + a.w && a.y + 1 < b.y + b.h && b.y + 1 < a.y + a.h;
+// A new card never covers an existing one and never moves it. Judged on the rendered cards: a placed block keeps its own
+// offsets and default size, so the board's x/y/w/h are not its screen box.
 const assertPlaced = async (added, what) => {
   const all = await blocks(), ids = new Set(added.map(b => b.id));
   for (const seeded of BLOCKS) {
     const now = all.find(b => b.id === seeded.id);
     assert.deepEqual([now.x, now.y], [seeded.x, seeded.y], `${what}: ${seeded.id} moved`);
   }
-  for (const a of added) for (const b of all) if (!ids.has(b.id) || a.id < b.id) if (a.id !== b.id && overlaps(a, b)) throw Error(`${what}: ${a.id} overlaps ${b.id}`);
+  const rects = await canvasFrame().locator('[data-block-id]').evaluateAll(els => els.filter(e => !e.parentElement.closest('[data-block-id]'))
+    .map(e => { const r = e.getBoundingClientRect(); return { id: e.dataset.blockId, x: r.x, y: r.y, w: r.width, h: r.height }; }));
+  const mine = rects.filter(r => ids.has(r.id));
+  assert.equal(mine.length, added.length, `${what}: every new card renders`);
+  for (const a of mine) for (const b of rects) if (b.id !== a.id && (!ids.has(b.id) || a.id < b.id) && overlaps(a, b)) throw Error(`${what}: ${a.id} overlaps ${b.id}`);
   // Visible in the canvas viewport, not under the companion or Chat.
   const frame = await box(canvasFrame());
-  for (const a of added) {
-    const r = await box(cardEl(a.id));
-    assert.ok(r && r.x >= frame.x - 1 && r.x + Math.min(r.width, 120) <= frame.x + frame.width + 1 && r.y < frame.y + frame.height, `${what}: ${a.id} is not in the visible canvas`);
+  for (const r of mine) assert.ok(r.x >= frame.x - 1 && r.x + Math.min(r.w, 120) <= frame.x + frame.width + 1 && r.y < frame.y + frame.height && r.y + 40 > frame.y, `${what}: ${r.id} is not in the visible canvas`);
+  return mine;
+};
+// A graph card made earlier may sit out of view after later insertions: the same Add selection as graph reveals it.
+const revealGraphCard = async () => {
+  await openGraph();
+  await node(N.train).click();
+  for (const id of [N.model, N.gpt]) await node(id).click({ modifiers: ['Shift'] });
+  await chooseAdd(SELECTORS.addSelectionAsGraph);
+  await page.waitForTimeout(700);
+  await graphPanel().locator('[data-graph-clear]').click().catch(() => {}); // the companion selection, not the card
+  await bringIntoView(cardEl((await ofType('repo-graph'))[0].id));
+};
+// Pan the canvas (wheel, as a learner scrolls it) until the card sits clear of the tool gutter and the canvas edges.
+const bringIntoView = async locator => {
+  for (let i = 0; i < 8; i++) {
+    const f = await box(canvasFrame()), r = await box(locator);
+    const left = f.x + 110, top = f.y + 60, right = f.x + f.width - 20, bottom = f.y + f.height - 20;
+    if (r && r.x >= left && r.y >= top && r.x + Math.min(r.width, right - left) <= right && r.y + Math.min(r.height, bottom - top) <= bottom) return;
+    const p = await emptyCanvasPoint();
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.wheel(r ? (r.x + Math.min(r.width, 600) / 2) - (left + right) / 2 : 0, r ? (r.y + Math.min(r.height, 500) / 2) - (top + bottom) / 2 : 0);
+    await page.waitForTimeout(300);
   }
 };
 // An empty point of the canvas surface, to give the canvas keyboard focus without selecting anything.
@@ -248,13 +283,14 @@ const assertRepositorySource = (block, path, what) => {
 await openContext();
 const draft = `draft ${run} stays`;
 
-await check('1 a node right-click Add code card makes one repo-code card at the commit and symbol, beside the existing cards; it asks, sends and pins nothing', async () => {
+// The node details' Add code card for one node (the right-click menu is case 3b).
+const addFromDetails = async id => { await node(id).click(); await graphPanel().locator(SELECTORS.nodeAddCard).first().click(); };
+await check('1 a node\'s Add code card makes one repo-code card at the commit and symbol, beside the existing cards; it asks, sends and pins nothing', async () => {
   await openCanvas();
   await openGraph();
   await field().fill(draft);
   const before = await quiet();
-  await node(N.gpt).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click();
+  await addFromDetails(N.gpt);
   await waitCount('repo-code', 1, 'Add code card');
   const [card] = await ofType('repo-code');
   assertRepositorySource(card, 'model.py', 'the GPT card');
@@ -296,8 +332,7 @@ await check('2 one Undo removes the card, Redo restores the same card and source
 
 await check('3 an equivalent Add code card reveals the existing card, never a second; Ctrl+D still duplicates on purpose, sharing the source', async () => {
   const [card] = await ofType('repo-code');
-  await node(N.gpt).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click();
+  await addFromDetails(N.gpt);
   await page.waitForTimeout(800);
   assert.equal((await ofType('repo-code')).length, 1, 'no duplicate for the same source and range');
   const el = cardEl(card.id), r = await box(el), f = await box(canvasFrame());
@@ -313,6 +348,17 @@ await check('3 an equivalent Add code card reveals the existing card, never a se
   await waitCount('repo-code', 1, 'Undo of the duplicate');
 });
 
+await check('3b a node right-click opens its menu with Add selection as graph, Add code card and Add to chat; Add code card there reveals the existing card', async () => {
+  await openGraph();
+  await node(N.gpt).click({ button: 'right' });
+  await page.locator('[role="menu"]').filter({ hasText: SELECTORS.addSelectionAsGraph }).waitFor({ timeout: 3000 });
+  for (const name of [SELECTORS.addSelectionAsGraph, SELECTORS.addCodeCard, SELECTORS.addToChat]) assert.equal(await page.getByRole('menuitem', { name, exact: true }).count(), 1, `the menu offers ${name}`);
+  const count = (await ofType('repo-code')).length;
+  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click();
+  await page.waitForTimeout(800);
+  assert.equal((await ofType('repo-code')).length, count, 'no duplicate from the menu');
+});
+
 await check('4 three selected nodes, Add code card: one card per code node as a compact group, no neighbour added, no overlap; one Undo removes all, Redo restores all', async () => {
   await openGraph();
   await node(N.train).click();
@@ -324,10 +370,9 @@ await check('4 three selected nodes, Add code card: one card per code node as a 
   const added = (await ofType('repo-code')).filter(b => !before.includes(b.id));
   assert.deepEqual(added.map(b => b.source.nodeId).sort(), [N.attn, N.sample, N.train].sort(), 'exactly the selected nodes');
   for (const b of added) assert.equal(b.source.commit, COMMIT);
-  await assertPlaced(added, 'the group');
-  const xs = added.map(b => [b.x, b.y, b.x + b.w, b.y + b.h]);
-  const span = Math.max(...xs.map(r => r[2])) - Math.min(...xs.map(r => r[0])) + Math.max(...xs.map(r => r[3])) - Math.min(...xs.map(r => r[1]));
-  assert.ok(span < 4 * (added[0].w + added[0].h), `a compact group, not scattered (${Math.round(span)})`);
+  const placed = await assertPlaced(added, 'the group');
+  const span = Math.max(...placed.map(r => r.x + r.w)) - Math.min(...placed.map(r => r.x)) + Math.max(...placed.map(r => r.y + r.h)) - Math.min(...placed.map(r => r.y));
+  assert.ok(span < 4 * (placed[0].w + placed[0].h), `a compact group, not scattered (${Math.round(span)})`);
   assert.deepEqual({ ...await quiet(), draft: q.draft }, q, 'nothing asked, sent or pinned');
   await shot('02-three-code-cards');
   await undo();
@@ -356,7 +401,7 @@ await check('5 Add selection as graph: one repo-graph subgraph card with exactly
   const header = (await el.innerText()).replace(/\s+/g, ' ');
   assert.match(header, /nanoGPT/, 'the card names the repository');
   assert.ok(header.includes(COMMIT.slice(0, 7)), 'the card shows its revision');
-  assert.match((await el.locator(SELECTORS.graphCardScope).innerText()).trim(), /subgraph|selection|3 nodes/i, 'the card says it is a subgraph');
+  assert.equal(await el.locator(SELECTORS.graphCardScope).getAttribute('data-graph-card-scope'), 'subgraph', 'the card says it is a subgraph');
   facts.c5 = { id: card.id, nodeIds: card.nodeIds, repository: card.repository };
   await shot('03-subgraph-card');
 });
@@ -374,7 +419,7 @@ await check('6 Add graph to canvas: one whole-graph card, every indexed node or 
   await el.locator('[data-graph-node]').first().waitFor({ timeout: 20000 });
   const shown = await el.locator('[data-graph-node]').count(), text = (await el.innerText()).replace(/\s+/g, ' ');
   assert.ok(shown === SNAPSHOT.graph.nodes.length || /of \d+|limit|showing/i.test(text), `all ${SNAPSHOT.graph.nodes.length} nodes or a stated limit (${shown} shown)`);
-  assert.match((await el.locator(SELECTORS.graphCardScope).innerText()).trim(), /whole/i, 'the card says whole graph');
+  assert.equal(await el.locator(SELECTORS.graphCardScope).getAttribute('data-graph-card-scope'), 'whole', 'the card says whole graph');
   await shot('04-whole-graph-card');
   await undo();
   await waitCount('repo-graph', 1, 'Undo of the whole graph');
@@ -384,7 +429,7 @@ await check('7 the Files viewer Add code card and a file dragged from Files make
   await showView('files');
   await companion().locator('[data-file-row="sample.py"]').click();
   const before = (await ofType('repo-code')).map(b => b.id);
-  await companion().getByRole('button', { name: SELECTORS.addCodeCard, exact: true }).first().click();
+  await companion().locator(SELECTORS.filesAddCodeCard).first().click();
   await waitCount('repo-code', before.length + 1, 'Files Add code card');
   const made = (await ofType('repo-code')).find(b => !before.includes(b.id));
   assertRepositorySource(made, 'sample.py', 'the Files card');
@@ -401,6 +446,9 @@ await check('7 the Files viewer Add code card and a file dragged from Files make
 
 await check('8 Open source on a code card opens Files at its revision and range, pins nothing and asks nothing', async () => {
   const card = (await ofType('repo-code')).find(b => b.source?.nodeId === N.gpt);
+  await openGraph();
+  await addFromDetails(N.gpt); // reveals the card, which later insertions may have left out of view
+  await page.waitForTimeout(600);
   const q = await quiet();
   await cardEl(card.id).getByRole('button', { name: SELECTORS.openSource, exact: true }).first().click();
   await waitFor(async () => await view() === 'files', 5000, 'Open source did not show Files');
@@ -414,21 +462,26 @@ await check('8 Open source on a code card opens Files at its revision and range,
 });
 
 await check('9 inside a graph card: click and Shift-click select nodes, background drag pans and wheel zooms the card graph only, the outer canvas and the card stay; Escape clears the inner selection only; keys stay inside', async () => {
+  await revealGraphCard();
   const card = (await ofType('repo-graph'))[0], outer = cardEl(card.id), el = outer.locator(SELECTORS.graphCard);
   const note0 = await box(cardEl('rcc-note')), card0 = await box(outer);
   await node(N.train, el).click();
   await node(N.model, el).click({ modifiers: ['Shift'] });
   await waitFor(async () => (await selectedIn(el)).length === 2, 3000, 'two nodes selected in the card');
-  const svg = await box(el.locator('svg').first());
-  const empty = await page.evaluate(([x0, y0, w, h]) => { for (let y = y0 + 12; y < y0 + h - 12; y += 10) for (let x = x0 + 12; x < x0 + w - 12; x += 10) { const e = document.elementFromPoint(x, y); if (e?.tagName === 'svg') return { x, y }; } return null; }, [svg.x, svg.y, svg.width, svg.height]);
+  const svg = await box(el.locator('svg[aria-label="Repository dependency graph"]').first());
+  const empty = await page.evaluate(([x0, y0, w, h]) => { for (let y = y0 + 12; y < y0 + h - 12; y += 10) for (let x = x0 + 12; x < x0 + w - 12; x += 10) { const e = document.elementFromPoint(x, y); if (e?.closest('svg') && !e.closest('[data-graph-node]') && !e.closest('button')) return { x, y }; } return null; }, [svg.x, svg.y, svg.width, svg.height]);
   assert.ok(empty, 'an empty point of the card graph');
   const cam0 = await cameraOf(el);
   await page.mouse.move(empty.x, empty.y); await page.mouse.down();
   await page.mouse.move(empty.x + 50, empty.y + 30, { steps: 6 }); await page.mouse.up();
+  await page.waitForTimeout(300);
+  assert.notEqual(await cameraOf(el), cam0, 'a background drag did not pan the card graph');
+  assert.deepEqual(await box(cardEl('rcc-note')), note0, 'a background drag in the card graph moved the outer canvas');
+  const cam1 = await cameraOf(el);
   await page.mouse.move(empty.x + 50, empty.y + 30); await page.mouse.wheel(0, -240);
   await page.waitForTimeout(400);
-  assert.notEqual(await cameraOf(el), cam0, 'the card graph panned or zoomed');
-  assert.deepEqual(await box(cardEl('rcc-note')), note0, 'the outer canvas did not move');
+  facts.c9 = { cam0, cam1, cam2: await cameraOf(el), note0, note2: await box(cardEl('rcc-note')) };
+  assert.deepEqual(await box(cardEl('rcc-note')), note0, `a wheel over the card graph moved the outer canvas (card camera ${cam1 === facts.c9.cam2 ? 'unchanged' : 'changed'})`);
   const card1 = await box(outer);
   assert.deepEqual([card1.x, card1.y], [card0.x, card0.y], 'the card did not move');
   assert.equal((await selectedIn(el)).length, 2, 'panning kept the selection');
@@ -446,6 +499,7 @@ await check('9 inside a graph card: click and Shift-click select nodes, backgrou
 });
 
 await check('10 graph-card nodes give the same chips as the companion; Create code card from a card node reuses the existing card; the card opens in the companion Graph', async () => {
+  await revealGraphCard();
   const card = (await ofType('repo-graph'))[0], el = cardEl(card.id).locator(SELECTORS.graphCard);
   await node(N.gpt, el).click();
   await waitFor(async () => (await entries()).some(e => e.temporary && e.key?.startsWith('code:')), 5000, 'no temporary code chip from the card');
@@ -459,7 +513,7 @@ await check('10 graph-card nodes give the same chips as the companion; Create co
   await page.waitForTimeout(800);
   assert.equal((await ofType('repo-code')).length, count, 'the GPT card already exists, so it is revealed, not duplicated');
   await page.keyboard.press('Escape');
-  await cardEl(card.id).getByRole('button', { name: SELECTORS.openInCompanion }).first().click();
+  await cardEl(card.id).locator(SELECTORS.openInCompanion).first().click();
   await waitFor(async () => await companionOpen() && await view() === 'graph', 5000, 'the card did not open in the companion Graph');
 });
 
@@ -484,7 +538,7 @@ await check('11 a selected code card rides as its code ref at its commit and ran
   // A whole-file card of the same file is another range: Add to chat makes a second, distinct entry.
   await showView('files');
   await companion().locator('[data-file-row="model.py"]').click();
-  await companion().getByRole('button', { name: SELECTORS.addCodeCard, exact: true }).first().click();
+  await companion().locator(SELECTORS.filesAddCodeCard).first().click();
   await waitFor(async () => (await ofType('repo-code')).some(b => b.source?.path === 'model.py' && !b.source.nodeId), 5000, 'no whole-file model.py card');
   const file = (await ofType('repo-code')).find(b => b.source?.path === 'model.py' && !b.source.nodeId);
   await cardEl(file.id).getByRole('button', { name: SELECTORS.addToChat, exact: true }).first().click();
@@ -493,8 +547,9 @@ await check('11 a selected code card rides as its code ref at its commit and ran
 });
 
 await check('12 a graph card selected with no node inside rides as its graph scope, not every file', async () => {
-  await page.keyboard.press('Escape');
+  await revealGraphCard();
   const card = (await ofType('repo-graph'))[0];
+  await cardEl(card.id).locator('[data-graph-card-clear]').click().catch(() => {}); // no node chosen inside the card
   await cardEl(card.id).click({ position: { x: 12, y: 8 } }); // the header: the card as a canvas object
   await waitFor(async () => await cardEl(card.id).getAttribute('aria-current') === 'true', 3000, 'the graph card did not select');
   const body = await send('How do these parts fit together?');
@@ -523,28 +578,35 @@ await check('13 reload: every card keeps its source and revision, no ask on relo
 });
 
 let token = null;
-await check('14 a viewer of another organization: the share link shows Repository content unavailable, and neither the board nor the source routes give a path, a node name or code', async () => {
+// Owner ruling (ACCESS-3, relayed by the lead 2026-10-15 ~3:00 PM PT): anyone signed in who can read the canvas reads its
+// public repository's cards at their commit; a signed-out public-link viewer gets the card's fields only, no code.
+await check('14 a public repository card reads for a signed-in viewer of another organization on the share link; signed out, neither the board nor the file route gives code', async () => {
   const state = JSON.parse(await page.evaluate(key => localStorage.getItem(key), boardKey));
   const shared = await json(`/api/learn/boards/${REPO}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state }) });
   token = shared?.sharing?.view;
   assert.ok(token, `a view link: ${JSON.stringify(shared).slice(0, 200)}`);
-  const leaks = text => PRIVATE.filter(s => text.includes(s));
-  const board = await api(`/api/learn/boards/shared/${token}`, {}, viewerSession);
-  facts.c14 = { board: board.status };
-  assert.deepEqual(leaks(board.text), [], `the shared board leaks to the viewer (HTTP ${board.status})`);
-  for (const path of [`/api/repositories/${REPO}/snapshot`, `/api/repositories/${REPO}`]) {
-    const r = await api(path, {}, viewerSession);
-    facts.c14[path] = r.status;
-    assert.ok([401, 403, 404].includes(r.status), `${path} answers the viewer ${r.status}`);
-    assert.deepEqual(leaks(r.text), [], `${path} leaks to the viewer`);
-  }
+  const code = line('model.py', 118);
+  const out = await fetch(`${BASE}/api/learn/boards/shared/${token}`), outText = await out.text();
+  const file = await fetch(`${BASE}/api/repositories/card-source?repo=karpathy%2FnanoGPT&commit=${COMMIT}&path=model.py`);
+  const fileText = await file.text();
+  facts.c14 = { signedOut: { board: out.status, file: file.status } };
+  assert.ok(!outText.includes(code), `signed out: the shared board carries code (HTTP ${out.status})`);
+  assert.ok(!fileText.includes(code), `signed out: the file route gives code (HTTP ${file.status})`);
   await openContext({ as: viewerSession, owner: false });
+  // ponytail: a local stack has no snapshot store, so a read the server lets through (anything but 401/403) is answered from
+  // the fixture; the server's own answer is recorded. A real denial reaches the page as it is.
+  facts.c14.viewer = [];
+  await context.route('**/api/repositories/card-source?*', async route => {
+    const real = await route.fetch(), path = new URL(route.request().url()).searchParams.get('path');
+    facts.c14.viewer.push(`${path || 'graph'} ${real.status()}`);
+    if ([401, 403].includes(real.status())) return route.fulfill({ response: real });
+    return route.fulfill({ json: path ? { path, commit: COMMIT, content: content[path] } : SNAPSHOT });
+  });
   await page.goto(`${BASE}/b/${token}`);
   await canvasFrame().waitFor({ timeout: 60000 });
-  await page.getByText(SELECTORS.unavailable).first().waitFor({ timeout: 20000 });
-  const seen = await canvasFrame().innerText();
-  assert.deepEqual(leaks(seen), [], 'the viewer page shows a path, a name or code');
-  await shot('06-viewer-unavailable');
+  await canvasFrame().locator(SELECTORS.codeCard).getByText(code, { exact: false }).first().waitFor({ timeout: 20000 });
+  assert.ok(!facts.c14.viewer.some(v => / 40[13]$/.test(v)), `the server denied the viewer: ${JSON.stringify(facts.c14.viewer)}`);
+  await shot('06-viewer-reads-public-card');
 });
 
 await check('15 dropping local code files: the dialog offers Code card, Escape and Cancel add nothing, two files are named before anything is made, a binary file is refused; the card keeps exact text, its upload provenance and survives reload; nothing runs', async () => {
@@ -585,7 +647,8 @@ await check('15 dropping local code files: the dialog offers Code card, Escape a
   assert.equal(card.source.repo, undefined, 'no invented repository');
   const el = cardEl(card.id).locator(SELECTORS.codeCard);
   await el.waitFor({ timeout: 15000 });
-  assert.ok([JS, JS.replace(/\n$/, '')].includes(await el.locator('pre').first().evaluate(n => n.textContent)), 'the exact code and whitespace');
+  const shown = await el.locator('[data-code-line] > span:last-child').evaluateAll(all => all.map(n => n.textContent).join('\n'));
+  assert.equal(shown.replace(/\n+$/, ''), JS.replace(/\n+$/, ''), 'the exact code and whitespace');
   // Two files: both named before anything is made.
   await drop([['a.ts', 'export const a = 1;\n'], ['b.go', 'package main\n']], { x: 0.3, y: 0.7 });
   const names = (await dialog.innerText());
@@ -608,22 +671,21 @@ await check('15 dropping local code files: the dialog offers Code card, Escape a
 });
 
 await check('16 a late source answer never fills a deleted card', async () => {
+  // A file no card has read yet (reads are shared per file and commit), so its answer is really late.
   let release;
   holdSource = new Promise(resolve => { release = resolve; });
   await openGraph();
-  await node(N.sample).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click().catch(() => {}); // revealed if it exists
-  await page.keyboard.press('Escape');
-  const card = (await ofType('repo-code')).find(b => b.source?.nodeId === N.sample);
-  if (card) {
-    await cardEl(card.id).click({ position: { x: 12, y: 8 } });
-    await page.keyboard.press('Delete');
-    await waitFor(async () => !(await ofType('repo-code')).some(b => b.id === card.id), 5000, 'the card was not deleted');
-  }
+  await graphPanel().locator('[data-graph-node="configurator"]').focus(); await page.keyboard.press('Enter');
+  await graphPanel().locator(SELECTORS.nodeAddCard).first().click();
+  const card = await waitFor(async () => (await ofType('repo-code')).find(b => b.source?.path === 'configurator.py'), 8000, 'no configurator.py card');
+  await bringIntoView(cardEl(card.id));
+  await cardEl(card.id).locator('[data-code-card-title]').click();
+  await page.keyboard.press('Delete');
+  await waitFor(async () => !(await ofType('repo-code')).some(b => b.id === card.id), 5000, 'the card was not deleted');
   release(); holdSource = null;
   await page.waitForTimeout(1200);
-  assert.ok(card && !(await ofType('repo-code')).some(b => b.id === card.id), 'the late answer did not bring the card back');
-  assert.equal(await canvasFrame().locator(`[data-block-id="${card?.id}"]`).count(), 0);
+  assert.ok(!(await ofType('repo-code')).some(b => b.id === card.id), 'the late answer did not bring the card back');
+  assert.equal(await canvasFrame().locator(`[data-block-id="${card.id}"]`).count(), 0);
 });
 
 await check('17 no model route, no write outside the stack, no page error', async () => {
