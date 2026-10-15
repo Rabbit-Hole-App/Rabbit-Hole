@@ -114,7 +114,8 @@ const check = async (label, fn) => {
   }
 };
 const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() => {});
-const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
+// A poll that throws (a transient 5xx page from the local D1) is not an answer yet.
+const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await Promise.resolve().then(test).catch(() => null); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
 const frames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 const profile = async ({ view = null, canvas = null } = {}) => {
   if (context) await context.close();
@@ -140,8 +141,10 @@ const editorRoot = () => page.locator('[data-canvas-doc-editor]');
 const editable = () => page.locator('[data-canvas-doc-editor] .bn-editor');
 const status = () => page.locator('[data-doc-save-status]');
 const pane = () => page.locator('[data-chat-pane]');
-const viewMenu = () => page.locator('[role="menubar"][aria-label="Canvas menu"]').getByRole('menuitem', { name: 'View', exact: true });
-const viewChoice = () => page.locator('[role="menu"] select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
+// The app's Menu panel has no role, so look inside the menubar it opens in.
+const menubar = () => page.locator('[role="menubar"][aria-label="Canvas menu"]');
+const viewMenu = () => menubar().getByRole('menuitem', { name: 'View', exact: true });
+const viewChoice = () => menubar().locator('select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
 const setView = async value => {
   await viewMenu().click();
   await viewChoice().waitFor({ timeout: 5000 }).catch(() => { throw Error('the View menu has no choice with an "Editor" option'); });
@@ -152,7 +155,7 @@ const setView = async value => {
 };
 const viewValue = async () => { await viewMenu().click(); const value = await viewChoice().evaluate(s => s.selectedOptions[0]?.textContent); await page.keyboard.press('Escape'); await page.waitForTimeout(150); return value; };
 const surfaceSpacePan = () => page.evaluate(() => document.querySelector('[data-canvas-surface]')?.hasAttribute('data-space-pan') || false);
-const goToStart = async () => { await viewMenu().click(); await page.locator('[role="menu"]').getByRole('menuitem', { name: 'Go to document start', exact: true }).click(); await page.waitForTimeout(700); };
+const goToStart = async () => { await viewMenu().click(); await menubar().getByRole('menuitem', { name: 'Go to document start', exact: true }).click(); await page.waitForTimeout(700); };
 // The camera: the world layer's translate/scale (AdaptiveCanvas worldRef), and the surface it sits in.
 const camera = () => page.evaluate(() => {
   const surface = document.querySelector('[data-canvas-surface]'), world = [...surface.children].find(el => /scale\(/.test(el.style.transform));
@@ -300,6 +303,10 @@ await check('scenario 2: the slash menu makes a heading, the formatting toolbar 
   await page.keyboard.type('heading');
   await page.waitForTimeout(250);
   await page.locator('.bn-suggestion-menu-item').first().click();
+  await page.waitForTimeout(200);
+  const focus = await page.evaluate(() => { const a = document.activeElement; return a?.closest('[data-canvas-doc-editor]') ? 'the editor' : `${a?.tagName}${a?.getAttribute('aria-label') ? `[aria-label="${a.getAttribute('aria-label')}"]` : ''}`; });
+  const after = (await docTextNow()).trim();
+  assert.ok(!after.includes('/heading') && focus === 'the editor', `a click on the slash menu's first item did not apply it (the block reads ${JSON.stringify(after.slice(0, 40))}, focus is on ${focus})`);
   await page.keyboard.type(MARK);
   await page.keyboard.press('Enter');
   await page.keyboard.type('Light reactions make ATP');
@@ -725,7 +732,8 @@ await check('scenario 5 + brief 6: Ctrl+End and Ctrl+Home reveal the caret; typi
   const s0 = await scrolls();
   await page.keyboard.press('Control+End');
   await page.waitForTimeout(500);
-  assert.deepEqual(await scrolls(), s0, 'Ctrl+End scrolled the page, the shell or the paper instead of moving the camera');
+  const s1 = await scrolls();
+  assert.deepEqual(s1, s0, `Ctrl+End scrolled the page, the shell or the paper instead of moving the camera: ${JSON.stringify(s0)} -> ${JSON.stringify(s1)}`);
   const room = await available();
   let caret = await caretBox();
   assert.ok(caret?.inEditor && caret.y >= room.top && caret.y + caret.h <= room.bottom, `Ctrl+End left the caret off screen (${JSON.stringify(caret)})`);
