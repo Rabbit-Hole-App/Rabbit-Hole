@@ -205,8 +205,12 @@ await check('contract: the editor is inside the paper; Delete, Space and Ctrl+A 
   const h = await handleOf(page);
   await page.mouse.click(h.x, h.y);
   await page.waitForTimeout(200);
+  const chosen = () => card(page).getAttribute('aria-current');
+  if (await chosen() !== 'true') { const b = await card(page).boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + Math.min(40, b.height / 2)); await page.waitForTimeout(200); }
+  assert.equal(await chosen(), 'true', 'card c1 is selected before the keys (aria-current)');
   const before = await objects(), text = await editorText(page);
   await typeAtEnd(page, '');
+  facts.keys = { card_selected_with_caret_in_editor: await chosen() === 'true' };
   const selectedBefore = await marked();
   await page.keyboard.press('Delete'); // at the end of the document: nothing to delete there
   await page.keyboard.down(' ');
