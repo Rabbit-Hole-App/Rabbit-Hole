@@ -151,6 +151,19 @@ const drag = async (p, from, to) => {
 };
 const centre = box => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
 const handleOf = async p => centre(await card(p).locator('[data-drag-handle]').boundingBox());
+// Editor view frames the paper, which can leave the card off the left edge; wheel the camera (over the canvas) until the
+// whole card sits right of the tools gutter.
+const cardInView = async p => {
+  for (let i = 0; i < 6; i++) {
+    const box = await card(p).boundingBox();
+    if (box && box.x >= 120) return;
+    const at = await p.locator('[aria-label="Lesson canvas"]').boundingBox();
+    await p.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+    await p.mouse.wheel(-((box ? 160 - box.x : 400)), 0);
+    await p.waitForTimeout(250);
+  }
+  throw Error('the card could not be brought into view');
+};
 const cardOf = async name => (await boardOf(name)).state?.blocks?.find(b => b.id === 'c1');
 
 // ================================================================ 1. write, hide, reopen, reload
@@ -161,9 +174,11 @@ await check('decision 1: a canvas opens in Canvas view by default; Editor shows 
   await openCanvas(page, A);
   assert.equal(await paper(page).count(), 0, 'no paper in Canvas view');
   await setView(page, 'Editor');
-  assert.equal(await page.locator('[data-canvas-doc-editor][data-rich-editor]').count(), 1, 'the editor root carries data-rich-editor');
   assert.equal(await page.evaluate(k => localStorage.getItem(k), viewKey(catalog, A)), 'editor', 'the view choice is kept per user and canvas');
   await shot('1-editor-first-open');
+});
+await check('contract: the editor root [data-canvas-doc-editor] also carries data-rich-editor', async () => {
+  assert.equal(await page.locator('[data-canvas-doc-editor][data-rich-editor]').count(), 1, 'the editor root carries data-rich-editor');
 });
 let firstIds = [];
 await check('decision 1: write, then the server holds state.doc = { v: 1, x, y, w, blocks } with the text', async () => {
@@ -222,11 +237,13 @@ const D1 = `Doc edit one ${run}`, D2 = `Doc edit two ${run}`;
 await check('decision 2: document edit, card move, document edit, card move - the server keeps both final edits', async () => {
   const start = await cardOf(A);
   await typeAtEnd(page, ` ${D1}`);
+  await cardInView(page);
   let h = await handleOf(page);
-  await drag(page, h, { x: h.x - 160, y: h.y + 40 });
+  await drag(page, h, { x: h.x, y: h.y + 120 });
   await typeAtEnd(page, ` ${D2}`);
+  await cardInView(page);
   h = await handleOf(page);
-  await drag(page, h, { x: h.x - 60, y: h.y + 80 });
+  await drag(page, h, { x: h.x + 10, y: h.y + 100 });
   const moved = await until(async () => {
     const board = (await boardOf(A)).state;
     const c = board?.blocks?.find(b => b.id === 'c1');
@@ -243,6 +260,7 @@ await check('decision 2: document edit, card move, document edit, card move - th
 // ================================================================ 8. card onto the paper
 await check('scenario 8: dropping the card onto the paper is refused with [data-doc-drop-hint]; the card returns and the document is unchanged', async () => {
   await page.keyboard.press('Escape');
+  await cardInView(page);
   const beforeCard = await cardOf(A), beforeDoc = await docOf(A);
   const beforeBox = await card(page).boundingBox();
   const target = centre(await paper(page).boundingBox());
@@ -366,6 +384,9 @@ await check('scenario 11: the read-only shared view shows the document, not edit
     await viewer.page.goto(`${BASE}/b/${share.sharing.view}`);
     await viewer.page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
     await viewer.page.waitForTimeout(1500);
+    // The shared page shows the document on request (a Show document toggle).
+    const toggle = viewer.page.locator('[data-doc-toggle]');
+    if (!(await paper(viewer.page).count()) && await toggle.count()) await toggle.first().click();
     if (!(await paper(viewer.page).count()) && await viewer.page.getByRole('menubar', { name: 'Canvas menu' }).count()) await setView(viewer.page, 'Editor');
     await ready(viewer.page);
     assert.ok((await editorText(viewer.page)).includes(M1), 'the document is visible');
