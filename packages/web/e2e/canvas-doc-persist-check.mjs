@@ -50,7 +50,12 @@ const seed = async (name, state) => {
   const r = await call(OWNER, `/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...EMPTY, ...state } }) });
   if (r.status !== 200) throw Error(`seeding ${name} failed: ${r.status} ${JSON.stringify(r.body).slice(0, 160)}`);
 };
-const boardOf = (name, session = OWNER) => call(session, `/api/learn/boards/${name}/main`).then(r => r.body);
+// The local D1 now and then answers a read with a 500 (Failed to get session commit token); retry those, never a 4xx.
+const boardOf = async (name, session = OWNER) => {
+  let r;
+  for (let i = 0; i < 4; i++) { r = await call(session, `/api/learn/boards/${name}/main`); if (r.status < 500) break; await new Promise(go => setTimeout(go, 500)); }
+  return r.body;
+};
 const docOf = async (name, session) => (await boardOf(name, session))?.state?.doc;
 const has = (doc, marker) => JSON.stringify(doc?.blocks || []).includes(marker);
 const idsOf = blocks => (blocks || []).flatMap(b => [b.id, ...idsOf(b.children)]);
@@ -164,7 +169,7 @@ const cardInView = async p => {
   }
   throw Error('the card could not be brought into view');
 };
-const cardOf = async name => (await boardOf(name)).state?.blocks?.find(b => b.id === 'c1');
+const cardOf = async name => (await boardOf(name))?.state?.blocks?.find(b => b.id === 'c1');
 
 // ================================================================ 1. write, hide, reopen, reload
 const one = await profile('owner');
@@ -249,7 +254,8 @@ await check('decision 2: document edit, card move, document edit, card move - th
     const c = board?.blocks?.find(b => b.id === 'c1');
     return has(board?.doc, D1) && has(board?.doc, D2) && c && (c.dx !== start.dx || c.dy !== start.dy) && c;
   }, 20000, 'the server never held both document edits and the moved card together');
-  await until(async () => { const c = await cardOf(A); await page.waitForTimeout(2500); const again = await cardOf(A); return c.dx === again.dx && c.dy === again.dy; }, 15000, 'the card position kept changing');
+  // A read the local D1 answers with a 500 (no body) is retried, not taken as a moved card.
+  await until(async () => { const c = await cardOf(A); await page.waitForTimeout(2500); const again = await cardOf(A); return c && again && c.dx === again.dx && c.dy === again.dy; }, 15000, 'the card position kept changing');
   const final = (await boardOf(A)).state;
   assert.ok(has(final.doc, D1) && has(final.doc, D2), 'no later canvas save dropped a document edit');
   const c = final.blocks.find(b => b.id === 'c1');
