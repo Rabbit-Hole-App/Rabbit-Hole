@@ -58,10 +58,11 @@ const localGuard = async (context) => {
 };
 // LOCAL only: the stubbed project's row in local D1, so POST /api/canvases with project REPO finds it (canvases.js). A canvas
 // create needs only repository_apps (no learn_boards main board). Delete first, so a rerun on the same persist works; it is
-// removed again after the WP6 areas, since the browser's /api/apps would list the project twice (the stub adds its own row).
+// removed again when the run ends. The fixture's /api/apps stub drops the seeded row, so the project is listed once.
 const seedProject = (on) => {
   if (!LOCAL) return;
-  const where = `org='${data.org}' AND name='${REPO}' AND owner_email='${data.email}'`;
+  // By org and name only: the fixture's name is reserved, and a killed run leaves its row under another run's email.
+  const where = `org='${data.org}' AND name='${REPO}'`;
   const sql = [`DELETE FROM repository_apps WHERE ${where}`, ...(on ? [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${data.org}','${REPO}','${data.email}','karpathy/nanoGPT','master','${COMMIT}','ready')`] : [])].join('; ');
   const PERSIST = process.env.PERSIST || '.small/fork-local', D1_CONFIG = process.env.D1_CONFIG || 'packages/web/wrangler.dev.jsonc';
   execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd: fileURLToPath(new URL('../../../', import.meta.url)), shell: true, stdio: 'ignore' });
@@ -69,7 +70,9 @@ const seedProject = (on) => {
 const catalogResponse = await fetch(`${base}/api/apps`, { headers: { ...UA, Cookie: `small_session=${session}` } });
 if (!catalogResponse.ok) throw new Error(`/api/apps: HTTP ${catalogResponse.status}`);
 const data = await catalogResponse.json(); // { org, orgName, email, apps }
-seedProject(false); // a row left by a crashed run would list the project twice
+// LOCAL: the stubbed project has its D1 row for the whole run - Chat on its canvas (chat/active, threads) and canvases made
+// in it are served only for a repository the server knows; the fixture lists it once (nanogpt-repository-fixture.mjs).
+seedProject(true);
 const apps = [...(LOCAL ? [repoRow(data)] : []), ...(data.apps || [])]; // locally, the stubbed project as every context sees it
 // nanoGPT is the journeys' project; a newer test repository (octocat/Hello-World) must not displace it.
 const repo = apps.find((a) => a.kind === 'repository' && /^karpathy\/nanogpt$/i.test(a.repo || '')) || apps.find((a) => a.kind === 'repository');
@@ -1717,7 +1720,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // beside Chat, and Chat's composer is the one input.
   const chat6 = (page) => page.locator('[data-chat-pane]');
   const chatInput6 = (page) => chat6(page).locator('[data-chat-composer] textarea');
-  const send6 = (page) => chat6(page).locator('[data-chat-composer] button[aria-label="Send"]').click();
+  // Ask mode first: Auto sends a question with nothing selected to the Tutor (a planner turn), not the routed /api/learn/ask.
+  const send6 = async (page) => {
+    if (await chat6(page).locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'ask') {
+      await chat6(page).getByRole('button', { name: 'Mode', exact: true }).click();
+      await page.locator('[data-chat-mode-option="ask"]').click();
+    }
+    await chat6(page).locator('[data-chat-composer] button[aria-label="Send"]').click();
+  };
   const graph6 = (page) => page.locator('[data-learn-graph]');
   const projectAt = async (page, path) => {
     await loaded(page, path);
@@ -1743,7 +1753,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await graph6(page).locator('[data-node-details] h3', { hasText: label }).waitFor({ timeout: 10000 });
     await chat6(page).locator('[data-code-selection]', { hasText: label }).waitFor({ timeout: 10000 });
   };
-  seedProject(true); // LOCAL: the stubbed project gets its D1 row for the canvases these areas create in it
   console.log(`wp6: project ${ready?.repo || 'none'} · job ${job?.name || 'none'}${job?.lastRun ? ' (ran)' : ''} · server ${server?.name || 'none'}`);
   if (job) await check('wp6-app-d7: on the preview a job changes nothing live - the D7 line shows; rename, description, Schedule, Duplicate, Trash and Run are off; the run peek and run page have no chat; only GETs reach /api', async () => {
     const page = await open(), writes = writes6(page);
@@ -2436,7 +2445,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 
   // Checks from Tasks 1-11 go here, in task order.
-  seedProject(false);
 }
 
 {
@@ -2488,5 +2496,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──
 
 await browser.close();
+seedProject(false);
 if (failures.length) { console.log(`\n${failures.length} FAILURES`); process.exit(1); }
 console.log('\nall checks passed');

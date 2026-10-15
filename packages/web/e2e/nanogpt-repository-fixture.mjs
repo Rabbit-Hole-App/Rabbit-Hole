@@ -65,7 +65,7 @@ export const routeRepository = (context, status = () => 'ready') => {
     if (p === '/api/apps' && route.request().method() === 'GET') {
       const real = await (await route.fetch()).json();
       row = repoRow(real, status());
-      return route.fulfill({ json: { ...real, apps: [row, ...real.apps] } });
+      return route.fulfill({ json: { ...real, apps: [row, ...real.apps.filter((app) => app.name !== REPO)] } }); // once, if a check seeded its D1 row too
     }
     if (p === `/api/apps/${REPO}`) return route.fulfill({ json: { ...row, status: status() } });
     if (p === `/api/repositories/${REPO}`) return route.fulfill({ json: { ...row, status: status() } });
