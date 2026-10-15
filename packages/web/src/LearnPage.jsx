@@ -1,4 +1,4 @@
-import { cloneElement, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { cloneElement, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
@@ -40,10 +40,12 @@ import ResizableSidePanel from './ResizableSidePanel.jsx';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
+import CanvasRefPicker from './CanvasRefPicker.jsx';
+import LinksPanel, { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle, ArrowUpToLine, RotateCw } from 'lucide-react';
+import { MessageCircle, ArrowUpToLine, RotateCw, Link2 } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
@@ -789,6 +791,13 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Canvas references (C:/s/spec/references-plan.md): the board's links feed the Links tab and the cards' chips; the
+  // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
+  // navigation saves first. A save that changed the links refreshes them (the server indexes the saved board).
+  const [refPick, setRefPick] = useState(null);
+  const links = useCanvasLinks({ boardId: commentBoard, shown: panelOpen && panelTab === 'links' });
+  const refLinks = useMemo(() => ({ resolve: links.resolve, go: href => { canvasApi.current?.persist?.(); navigate(href); }, onRemove: (blockId, refId) => canvasApi.current?.removeRef?.(blockId, refId) }), [links.resolve]);
+  const savedRefs = useRef(null);
   // The course interview (Edit course) still lives under the Table of contents tab, so starting one brings that tab forward.
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
   // ?share=1 (the Library's Share / Manage link) opens this canvas's Share panel once; the query is dropped at once.
@@ -849,6 +858,12 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   useEffect(() => { setDocViewState(readDocView(localStorage, canvasKey)); }, [canvasKey]);
   const setDocView = view => { writeDocView(localStorage, canvasKey, view); setDocViewState(view === 'editor' ? 'editor' : 'canvas'); };
   const [saveState, setSaveState] = useState(null);
+  useEffect(() => {
+    if (saveState?.state !== 'saved') return;
+    const now = JSON.stringify(canvasApi.current?.liveRefs?.() || []);
+    if (savedRefs.current !== null && now !== savedRefs.current) links.refresh();
+    savedRefs.current = now;
+  }, [saveState]); // eslint-disable-line react-hooks/exhaustive-deps
   const [boardChars, setBoardChars] = useState(0);
   const [docConflict, setDocConflict] = useState(false);
   const [docRestore, setDocRestore] = useState(null);
@@ -1560,6 +1575,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         { label: 'Notebook', icon: NotebookPen, onSelect: () => canvas()?.insertNotebook() },
         // The one way to add a file besides dropping it on the canvas.
         { label: 'Upload a file', icon: Upload, onSelect: () => filePicker.current?.click() },
+        { divider: true },
+        { label: 'Link to canvas…', icon: Link2, onSelect: () => setRefPick({}) },
       ],
     },
     {
@@ -1781,7 +1798,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
             land as movable blocks. Lesson playback stays parked. */}
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none" style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={null}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock}>{steps => <AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
-          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}<ChatHandle to={chatRef} /></div>
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
+            linked={refPick.blockId ? ((canvasApi.current?.liveRefs?.() || []).find(entry => entry.blockId === refPick.blockId)?.refs || []).map(ref => ref.target) : []}
+            returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
+            onPick={async canvas => {
+              links.remember(canvas);
+              const api = canvasApi.current, answer = refPick.blockId ? await api?.addRef?.(refPick.blockId, canvas.id) : api?.insertRefCard ? await api.insertRefCard(canvas.id, refPick.point) ?? { ok: true } : null;
+              return answer || { ok: false };
+            }} />}<ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -1828,6 +1852,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
       {/* Context (docs/features/hide-right-panel.md): Materials and the reader, full bleed as the Sources pane was. */}
       <div role="tabpanel" aria-label="Context" data-context-panel className={`${panelTab === 'context' ? 'flex' : 'hidden'} -mx-5 -mb-4 min-h-0 flex-1 flex-col`}><SourcesPane /></div>
+      <LinksPanel hidden={panelTab !== 'links'} links={links} go={refLinks.go} onFocusCard={id => canvasApi.current?.focusBlock(id)} />
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${panelTab === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col gap-2`}>
         <div className="flex shrink-0 items-center justify-between gap-2">

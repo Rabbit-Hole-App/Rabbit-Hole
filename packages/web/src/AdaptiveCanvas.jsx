@@ -1,6 +1,6 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -56,6 +56,8 @@ import { createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
+import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
+import CanvasRefCard from './CanvasRefCard.jsx';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
@@ -251,6 +253,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const selectedAtPress = useRef(false), lastPress = useRef(-Infinity);
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
+  const [refsHeight, setRefsHeight] = useState(0); // the canvas-reference chips under the content (CanvasRefChips)
   const card = useRef(null);
   useEffect(() => { if (nodeRef) nodeRef.current = card.current; });
   useEffect(() => {
@@ -294,7 +297,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
+      style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined, maxHeight: size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
       {selected && opens && opener.single === id && (
@@ -311,6 +314,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         <span className="h-1 w-12 rounded-full bg-line" />
       </div>
       {children}
+      <CanvasRefChips id={id} onHeight={setRefsHeight} />
       {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => dive.enter(portal.name)}
         className={`pointer-events-auto absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] shadow-sm ${portal.pending ? 'border-dashed border-hole-pending text-hole hover:bg-hole/10' : 'border-hole/40 text-hole hover:bg-hole/10'}`}>
         <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
@@ -766,6 +770,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={300} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CanvasRefCard block={block} /></CanvasNode>;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
@@ -1388,7 +1393,7 @@ const CARDS_COPIED = 'rabbit-hole:copied-cards';
 // menu's MenuItem, its icon at 16px beside the label. A new row passes only its icon.
 const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -4781,9 +4786,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
-          <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}>
+          <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
             {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} />)}
-          </CardOpen.Provider></SketchHost.Provider>
+          </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
             gap), laid out like a column card - so no card moves, now or at Accept. Pale, untouchable (the editor's overlay
@@ -4997,6 +5002,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {/* Start Rabbit Hole's own mark, as on the shared page's header and the Explore card. */}
               {startHole && <MenuRow icon={ArrowDownToLine} data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)}>Start Rabbit Hole</MenuRow>}
               {addComment && commentOn && <MenuRow icon={MessageCircle} data-menu-add-comment aria-keyshortcuts="C" hint="C" onClick={act(addComment)}>Add comment</MenuRow>}
+              {!readOnly && onLinkCanvas && (block ? block.type !== 'canvas-ref' : !menuAt.id && !menuAt.group) && <MenuRow icon={Link2} data-menu-link-canvas onClick={act(() => onLinkCanvas(block ? { blockId: block.id } : { point: { x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z } }))}>Link to canvas…</MenuRow>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
               {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline(performance.now(), false, 'edit'))}>Quick Edit</MenuRow>}

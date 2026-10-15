@@ -133,11 +133,11 @@ await frames();
 const stableWidth = async () => { let last = await surfaceWidth(), since = Date.now(); return waitFor(async () => { const now = await surfaceWidth(); if (Math.abs(now - last) > 0.5) { last = now; since = Date.now(); } return Date.now() - since > 600 && last; }, 15000, 'the canvas width kept changing'); };
 let openWidth = await stableWidth();
 
-await check('one navigation row: Chat, Find, Contents, Comments, Context, each named and titled; no Chat | Sources switch', async () => {
+await check('one navigation row: Chat, Find, Contents, Comments, Context, Links, each named and titled; no Chat | Sources switch', async () => {
   const tabs = await page.locator('[data-panel-header] [data-panel-tab]').evaluateAll(list => list.map(b => ({ id: b.dataset.panelTab, label: b.getAttribute('aria-label'), title: b.getAttribute('title') })));
-  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments', 'context'], 'the tab order');
+  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments', 'context', 'links'], 'the tab order');
   assert.ok(tabs.every(t => t.label && t.title), 'every tab has a tooltip and an accessible name');
-  assert.equal(tabs.at(-1).label, 'Context');
+  assert.equal(tabs.at(-1).label, 'Links');
   assert.equal(await page.locator('[data-panel-header]').count(), 1, 'one navigation row');
   assert.equal(await page.locator('[data-pane-switch]').count(), 0, 'no Chat | Sources switch');
 });
@@ -245,7 +245,7 @@ await check('repeated tab switches and hide/show cycles: no stuck panel, no hand
   let savedBefore = await blocksSaved(), since = Date.now();
   await waitFor(async () => { const now = await blocksSaved(); if (now !== savedBefore) { savedBefore = now; since = Date.now(); } return Date.now() - since > 1000; }, 20000, 'the saved board kept changing');
   for (let cycle = 0; cycle < 2; cycle += 1) {
-    for (const tab of ['find', 'toc', 'context', 'chat', 'context']) {
+    for (const tab of ['find', 'toc', 'context', 'links', 'chat', 'context']) {
       await page.locator(`[data-panel-tab="${tab}"]`).click();
       assert.equal(await activeTab(), tab);
       openWidth = await stableWidth();

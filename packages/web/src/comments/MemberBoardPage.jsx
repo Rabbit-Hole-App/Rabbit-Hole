@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, FileText, MessageCircle, X } from 'lucide-react';
 import { docIsEmpty } from '../canvas-doc.js';
 import { setRemoteAssets, setWorkspaceStore } from '../learn-board-assets.js';
@@ -7,6 +7,8 @@ import { PRODUCT } from '../flags.js';
 import CommentsPanel from './CommentsPanel.jsx';
 import { useCanvasComments } from './useCanvasComments.js';
 import { displayName, memberBase } from './comments-api.js';
+import { navigate } from '../api.js';
+import { useCanvasLinks } from '../LinksPanel.jsx';
 
 const AdaptiveCanvas = lazy(() => import('../AdaptiveCanvas.jsx'));
 
@@ -22,6 +24,10 @@ export default function MemberBoardPage({ boardId }) {
   const [docShown, setDocShown] = useState(false);
   const [about, setAbout] = useState(null);
   const canvasApi = useRef(null);
+  // Canvas references, read-only here (C:/s/spec/references-plan.md, lead answer C): chips resolved by the server's
+  // filtered links, no Remove and no Link to canvas; this page has no panel tabs, so no Links tab.
+  const links = useCanvasLinks({ boardId, shown: false });
+  const refLinks = useMemo(() => ({ resolve: links.resolve, go: navigate }), [links.resolve]);
   const openComments = useCallback(() => setCommentsOpen(true), []);
   useEffect(() => {
     const fileUrl = key => `${base}/assets/${encodeURIComponent(key)}`;
@@ -60,7 +66,7 @@ export default function MemberBoardPage({ boardId }) {
       <div className="flex min-h-0 flex-1">
         <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
           <Suspense fallback={null}>
-            <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} boardState={state} docView={docShown ? 'editor' : 'canvas'} readOnly />
+            <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} refLinks={refLinks} exchanges={exchanges} onMove={() => {}} boardState={state} docView={docShown ? 'editor' : 'canvas'} readOnly />
           </Suspense>
         </div>
         {comments.active && commentsOpen && (

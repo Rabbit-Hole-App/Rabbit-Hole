@@ -80,14 +80,14 @@ await card('k-exp').waitFor({ timeout: 60000 });
 await page.waitForTimeout(2500); // past the 1200 ms hook debounce
 const hooksAtOpen = hookBases.length;
 
-await check('1 the header is seven icon buttons in the owner\'s order, Chat first, Context fifth, no visible text', async () => {
+await check('1 the header is eight icon buttons in the owner\'s order, Chat first, Context fifth, Links sixth, no visible text', async () => {
   await openPanel();
   const header = page.locator('[data-panel-header]');
   const names = await header.locator('button').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('title')]));
-  assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Context', 'Context'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
+  assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Context', 'Context'], ['Links', 'Links'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
   assert.equal((await header.innerText()).trim(), '', 'icons only');
-  assert.equal(await header.locator('button svg').count(), 7);
-  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 5, 'the five tabs share one group');
+  assert.equal(await header.locator('button svg').count(), 8);
+  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 6, 'the six tabs share one group');
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-pin], [data-panel-header] [role="tablist"] [data-panel-close]').count(), 0, 'Pin and Close sit outside it');
 });
 
@@ -134,6 +134,8 @@ await check('5 arrow keys move between the enabled tabs, Comments included on a 
   assert.deepEqual(await selected(), ['comments']);
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['context'], 'Context is fifth');
+  await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await selected(), ['links'], 'Links is sixth');
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['chat'], 'wraps');
   await page.keyboard.press('ArrowRight');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, Files, FolderTree, MessageCircle, MessageSquareText, Pin, Search, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Files, FolderTree, Link2, MessageCircle, MessageSquareText, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
@@ -15,6 +15,8 @@ export const PANEL_TABS = [
   { id: 'comments', label: 'Comments', Icon: MessageCircle },
   // Context (owner, 2026-10-14): the Sources experience - Materials and the reader - as a tab; it replaced the Chat | Sources switch.
   { id: 'context', label: 'Context', Icon: Files },
+  // Links (canvas references, owner 2026-10-14 Q3): sixth, after Context - links from this canvas and its backlinks.
+  { id: 'links', label: 'Links', Icon: Link2 },
   // A project's Main canvas only (filesOn): the repository's Files, opened by the canvas's Map icon (owner, 2026-10-08).
   { id: 'files', label: 'Repository files', Icon: FolderTree },
 ];
@@ -35,18 +37,19 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
   };
   return (
     <div data-panel-header className="-mx-5 mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-line px-5 pb-2.5">
-      <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex items-center gap-0.5 rounded-lg border border-line bg-hover p-0.5">
+      {/* Too many tabs for a narrow panel: the row scrolls sideways (no bar; a focused tab scrolls into view), never squeezed. */}
+      <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg border border-line bg-hover p-0.5 [scrollbar-width:none]">
         {TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label; return (
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}
-            className={`relative flex h-7 w-8 items-center justify-center rounded-md ${tab === id ? 'bg-[#5b21b6] text-white shadow-sm' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-white hover:text-ink'}`}>
+            className={`relative flex h-7 w-8 shrink-0 items-center justify-center rounded-md ${tab === id ? 'bg-[#5b21b6] text-white shadow-sm' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-white hover:text-ink'}`}>
             {id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot aria-hidden className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent ring-1 ring-white" />}
             <Icon size={15} strokeWidth={1.8} aria-hidden />
           </button>
         ); })}
       </div>
-      <div className="flex items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-0.5">
         <button type="button" data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open" aria-pressed={pinned} onClick={() => onPin(!pinned)}
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${pinned ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
           <Pin size={15} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden /></button>

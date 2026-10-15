@@ -57,6 +57,16 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
   assert.match(page, /if \(!comments\.active && panelTab === 'comments'\) setPanelTab\('chat'\);/, 'and never leaves it selected where it is not');
 });
 
+// Canvas references (owner, 2026-10-14 Q3): Links sixth, after Context and before Files, a link icon, the label as the
+// tooltip and the name. Seven tabs do not fit a 320 px panel, so the tab row scrolls sideways instead of squeezing.
+test('Links sits after Context and before Files, and a narrow panel scrolls the tab row, never squeezing it', () => {
+  assert.match(header, /\{ id: 'context', label: 'Context', Icon: Files \},\n\s+\/\/[^\n]*\n\s+\{ id: 'links', label: 'Links', Icon: Link2 \},\n\s+\/\/[^\n]*\n\s+\{ id: 'files'/);
+  assert.match(header, /role="tablist" aria-label="Panel views" onKeyDown=\{arrow\} className="flex min-w-0 items-center gap-0\.5 overflow-x-auto/);
+  assert.match(header, /className=\{`relative flex h-7 w-8 shrink-0 items-center/, 'every tab keeps its size');
+  assert.match(header, /<div className="flex shrink-0 items-center gap-0\.5">\n\s+<button type="button" data-panel-pin/, 'Pin and Close never shrink');
+  assert.match(page, /<LinksPanel hidden=\{panelTab !== 'links'\}/);
+});
+
 // Owner, 2026-10-08: the Main canvas's Map icon opens the repository's Files in the panel; elsewhere there is no Files tab.
 test('a Files tab only where the canvas has repository files, after Comments', () => {
   assert.match(header, /\{ id: 'files', label: 'Repository files', Icon: FolderTree \},\n\];/);
