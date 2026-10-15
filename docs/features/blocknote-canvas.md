@@ -542,3 +542,21 @@ Use focused checks covering:
 6. Read-only access: document visible but not editable.
 
 Reuse existing checks where possible. Report implementation and verification separately, including any remaining limitations.
+
+## Known limitations (release, 2026-10-15)
+
+- **Side menu on hover at the paper's clipped right edge.** BlockNote 0.54's side menu probes the hovered block a second
+  time at `elementsFromPoint(block.right - 10, y)` (SideMenu.ts:113-122). When the paper's right edge is clipped by the
+  canvas surface (overflow hidden) or sits under the Chat panel - at high zoom, or after panning right - that probe misses,
+  so the side menu (drag handle and +) does not appear on hover. The slash menu and keyboard block moves (Shift+Ctrl+Arrow)
+  still work. Follow-up, not in this release: a one-line upstream fix (`?? referenceBlock`) through patch-package or a
+  BlockNote PR, or a ~20-line CanvasDoc wrapper over `SideMenuView.updateStateFromMousePos`, which relies on ProseMirror's
+  private `pluginViews`. Shipped documented: the fix uses internal APIs and needs its own verification (owner ruling,
+  lead 2026-10-15 1:25 AM PT).
+- **The drag handle's menu opens on press.** BlockNote's shadcn drag handle is a Radix menu that opens on pointerdown, also
+  when a block drag follows; while it is open it takes the keys (Ctrl+Z goes to the menu). Escape closes it. Upstream
+  behaviour, left as is.
+- **Ctrl+Shift+End / Ctrl+Shift+Home** extend the selection with the browser's own move; only Ctrl+End / Ctrl+Home are the
+  editor's (CanvasDoc).
+- **Synthetic keys faster than the browser's selectionchange** (an End and an Enter in the same task) can act on
+  ProseMirror's previous selection. A person cannot type that fast; checks wait for ProseMirror's selection after End.
