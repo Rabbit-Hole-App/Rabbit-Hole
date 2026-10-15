@@ -43,17 +43,17 @@ await page.goto(`${BASE}/apps/${made.name}`);
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 60000 });
 await page.waitForTimeout(3000);
 
-// A real drop event at a point on the canvas, carrying one file.
+// A real drop event at a point on the canvas, carrying one file (or several: `name` and `text` as arrays).
 const drop = async (name, text, at = { x: 0.5, y: 0.5 }) => {
   const box = await surface.boundingBox();
   const target = await surface.elementHandle();
-  await page.evaluate(([element, fileName, body, x, y]) => {
+  await page.evaluate(([element, fileNames, bodies, x, y]) => {
     const transfer = new DataTransfer();
-    transfer.items.add(new File([body], fileName, { type: '' }));
+    fileNames.forEach((fileName, index) => transfer.items.add(new File([bodies[index]], fileName, { type: '' })));
     const init = { bubbles: true, cancelable: true, dataTransfer: transfer, clientX: x, clientY: y };
     element.dispatchEvent(new DragEvent('dragover', init));
     element.dispatchEvent(new DragEvent('drop', init));
-  }, [target, name, text, box.x + box.width * at.x, box.y + box.height * at.y]);
+  }, [target, [name].flat(), [text].flat(), box.x + box.width * at.x, box.y + box.height * at.y]);
   await page.waitForTimeout(500);
 };
 const NOTEBOOK = JSON.stringify({ nbformat: 4, nbformat_minor: 5, metadata: {}, cells: [
@@ -109,6 +109,44 @@ await choice('attachment').click();
 await dialog.getByRole('button', { name: 'Add to canvas' }).click();
 await page.waitForTimeout(600);
 ok('then kept as a File attachment, as it is', await dialog.count() === 0 && await canvas.locator('[data-file-attachment]').filter({ hasText: 'broken.ipynb' }).count() === 1);
+
+// --- Repository graph Release 2, lane DROP: a code file is a Code card or a File attachment, never a notebook ---
+const blocks = () => canvas.locator('[data-block-id]').evaluateAll(list => new Set(list.map(el => el.dataset.blockId)).size);
+await drop('app.ts', 'export const a = 1;\n');
+ok('a dropped .ts offers Code card or File attachment, Code card first', JSON.stringify(await choicesOf()) === JSON.stringify(['Code card', 'File attachment']) && await choice('code').getAttribute('aria-checked') === 'true');
+const beforeCode = await blocks();
+await dialog.getByRole('button', { name: 'Add to canvas' }).click();
+await page.waitForTimeout(800);
+ok('Code card places one card for the .ts', await dialog.count() === 0 && await blocks() === beforeCode + 1, `${beforeCode} -> ${await blocks()}`);
+// Binary content is refused in the dialog, naming the file; nothing is placed.
+await drop('blob.js', 'MZ\u0000\u0000');
+await dialog.getByRole('button', { name: 'Add to canvas' }).click();
+await page.waitForTimeout(400);
+ok('a binary .js is refused in the dialog, naming the file', await dialog.count() === 1 && /^blob\.js looks like a binary file/.test((await dialog.locator('[data-import-error]').innerText()).trim()));
+await dialog.getByRole('button', { name: 'Cancel' }).click();
+// Several files in one drop: one dialog, each file and what it becomes, the sum, then all at once; Cancel adds none.
+const beforeBatch = await blocks();
+await drop(['a.js', 'b.go', 'c.py'], ['let a;\n', 'package b\n', 'c = 1\n']);
+ok('a drop of three files is one dialog listing each', await dialog.count() === 1 && await dialog.locator('[data-import-row]').count() === 3);
+ok('it says what it will create', (await dialog.locator('[data-import-summary]').innerText()).trim() === 'Adds 3 code cards.');
+await dialog.getByRole('combobox', { name: 'Add c.py as' }).selectOption('notebook');
+ok('changing one file changes the sum', (await dialog.locator('[data-import-summary]').innerText()).trim() === 'Adds 2 code cards and 1 notebook.');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+ok('Escape on several adds none of them', await dialog.count() === 0 && await blocks() === beforeBatch);
+await drop(['a.js', 'b.go'], ['let a;\n', 'package b\n']);
+await dialog.getByRole('button', { name: 'Add to canvas' }).click();
+await page.waitForTimeout(1000);
+ok('Add to canvas places every file of the drop', await dialog.count() === 0 && await blocks() === beforeBatch + 2, `${beforeBatch} -> ${await blocks()}`);
+// A drag that began on this page (a card's image, a Files row) is not a file drop, even carrying a file.
+const beforeInPage = await blocks();
+await page.evaluate(() => document.body.dispatchEvent(new DragEvent('dragstart', { bubbles: true })));
+await drop('inpage.js', 'let x;\n');
+ok('a drag that began on the page opens no dialog and adds nothing', await dialog.count() === 0 && await blocks() === beforeInPage);
+await page.evaluate(() => document.body.dispatchEvent(new DragEvent('dragend', { bubbles: true })));
+await drop('outside.js', 'let y;\n');
+ok('after it ends, a file from outside opens the dialog again', await dialog.count() === 1);
+await dialog.getByRole('button', { name: 'Cancel' }).click();
 
 // --- Insert > Upload a file opens the same dialog ---
 await page.locator('input[type="file"][accept*=".ipynb"]').setInputFiles({ name: 'upload.py', mimeType: 'text/x-python', buffer: Buffer.from('x = 1\n') });

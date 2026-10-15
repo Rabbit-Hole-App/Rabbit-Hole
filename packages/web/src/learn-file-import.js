@@ -1,7 +1,8 @@
-// Importing a .ipynb or .py onto the canvas (docs/features/canvas-file-drop.md). Pure: the caller reads the file, caches its
+// Importing a .ipynb, a .py or another code file onto the canvas (docs/features/canvas-file-drop.md). Pure: the caller reads the file, caches its
 // bytes and places the card. Nothing here runs code, installs anything or calls the network; a notebook card opens its
 // cells in the notebook runtime and runs them only from its own Run all.
 import { newNotebookBlock, trimOutputs } from './learn-notebook.js';
+import { codeLanguage } from './code-card-stubs.js';
 
 const MB = 1024 * 1024;
 // A File attachment is a board file: the board's server copy takes files up to 25 MB (LearnPage syncAssets).
@@ -12,10 +13,12 @@ export const CARD_LIMIT = 1_900_000;
 export const IMPORT_CHOICES = {
   ipynb: [['notebook', 'Notebook'], ['attachment', 'File attachment']],
   py: [['code', 'Code card'], ['notebook', 'Notebook'], ['attachment', 'File attachment']],
+  // Any other common source or config file (codeLanguage knows its language): a code card, never a notebook.
+  code: [['code', 'Code card'], ['attachment', 'File attachment']],
   // Code pasted onto the canvas (docs/features/repository-browser.md "Files in Learn"): the same dialog, these two choices only.
   paste: [['code', 'Code card'], ['notebook', 'Jupyter notebook']],
 };
-export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : null);
+export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : codeLanguage(name) ? 'code' : null);
 const mb = (n) => `${(n / MB).toFixed(1)} MB`;
 // A file name as the notebook workspace keeps it: one file at its top level.
 const fileName = (name) => String(name || 'file').replace(/[/\\]/g, '_');
@@ -23,7 +26,7 @@ const fileName = (name) => String(name || 'file').replace(/[/\\]/g, '_');
 // Before anything is read: { kind } or { error }, the error a visible line that names the file.
 export function checkImport(file) {
   const kind = importKind(file.name);
-  if (!kind) return { error: `${file.name || 'That file'}: add a .ipynb notebook or a .py file` };
+  if (!kind) return { error: `${file.name || 'That file'}: add a .ipynb notebook, a .py file or another code file` };
   if (!file.size) return { error: `${file.name}: the file is empty` };
   if (file.size > IMPORT_LIMIT) return { error: `${file.name} is ${mb(file.size)}; files up to 25 MB can be added to a canvas` };
   return { kind };
@@ -93,6 +96,22 @@ export function importBlock({ name: raw, kind, choice, text, assetKey, size }) {
   const length = JSON.stringify(block).length;
   if (length > CARD_LIMIT) throw Error(`${name}: a ${choice === 'code' ? 'code' : 'notebook'} card keeps its content in the canvas, up to 1.90 MB, and this one needs ${(length / 1e6).toFixed(2)} MB. Add it as a File attachment (up to 25 MB) instead.`);
   return block;
+}
+
+// A dropped or uploaded code file's Code card (repo-graph-r2-plan.md): a repo-code card whose text stays in its asset, the
+// file's own bytes, so code, whitespace and name are kept exactly and the board holds no copy. Binary content is refused.
+export function codeBlock({ name: raw, text, assetKey, size }) {
+  const name = fileName(raw);
+  if (text.includes('\u0000')) throw Error(`${name} looks like a binary file, not code. Add it as a File attachment to keep it as it is.`);
+  return { id: crypto.randomUUID(), type: 'repo-code', dx: 0, dy: 0, title: name, language: codeLanguage(name), source: { kind: 'upload', assetKey, name, size } };
+}
+
+// What a drop of several files will create, said before anything is placed: '2 code cards and 1 notebook'.
+const MADE = { code: ['code card', 'code cards'], notebook: ['notebook', 'notebooks'], attachment: ['file attachment', 'file attachments'] };
+export function importSummary(choices) {
+  const parts = Object.entries(MADE).map(([id, [one, many]]) => [choices.filter((choice) => choice === id).length, one, many])
+    .filter(([count]) => count).map(([count, one, many]) => `${count} ${count === 1 ? one : many}`);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] || '';
 }
 
 // Pasted code (docs/features/repository-browser.md "Files in Learn"): the name the dialog shows and the card keeps - a Files copy's own file name, else

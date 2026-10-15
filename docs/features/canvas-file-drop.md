@@ -31,6 +31,28 @@ How should it be added?
 - The name is a repository file's own name when the text was copied from it, else `snippet.py`.
 - The card goes where the learner is looking.
 
+## Code files (repository graph Release 2, lane DROP)
+
+Owner decision 6A, 2026-10-15; contract `C:/s/spec/repo-graph-r2-plan.md`.
+
+- Any other common source or config file (`.js`, `.ts`, `.go`, `.rs`, `.yml`, `.json`, `Dockerfile` and similar) opens the
+  same dialog with **Code card** or **File attachment**. It is never a notebook. `codeLanguage` names the language.
+- A dropped file's **Code card**, `.py` included, is a `repo-code` card with an upload source
+  (`{ kind: 'upload', assetKey, name, size }`, `learn-file-import.js` `codeBlock`). Its text stays in its asset: the
+  file's own bytes, cached and saved with the board (`assetKeysOf`). So code, whitespace and name are kept exactly, and
+  the board holds no copy. It is placed through `insertCodeCard`.
+- Pasted code keeps its `snippet` Code card.
+- Binary content (a NUL byte) is refused in the dialog, naming the file and suggesting File attachment.
+- The 25 MB import limit applies.
+- **Several files in one drop** are one dialog. It lists each file with its own choice and says what it will create
+  (`Adds 2 code cards and 1 notebook.`, `importSummary`). Nothing is placed until every file reads. Cancel or Escape adds
+  none of them.
+- **A drag that began on this page** is never a file drop, even when the browser adds a Files entry to it. Examples are a
+  card's image or a Files row (`canvas-doc.js` `isFileDrag`, `notePageDrag`). Only a file from outside the page drops.
+- Until lane CODE lands, `codeLanguage` and `insertCodeCard` are stand-ins in `code-card-stubs.js`.
+  - `insertCodeCard` places the card through `insertImported`.
+  - A `repo-code` card has no renderer before CODE's `CodeCard.jsx`.
+
 ## Saved outputs
 
 A notebook card renders its saved outputs in the notebook runtime. On import, an output keeps only `text/plain`,

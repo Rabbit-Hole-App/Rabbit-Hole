@@ -30,7 +30,8 @@ import FilesPanel from './FilesPanel.jsx';
 import FileImportDialog from './FileImportDialog.jsx';
 import PdfAddDialog from './PdfAddDialog.jsx';
 import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
-import { checkImport, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
+import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
+import { insertCodeCard } from './code-card-stubs.js';
 import { copiedCode, languageOf } from './map-files.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
@@ -577,21 +578,31 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (paperCardSeen.current !== (paperContext?.id ?? null)) { paperCardSeen.current = null; return; }
     if (canvasState.cards && paperCardSeen.current) { paperCardSeen.current = null; setPaperContext(null); setPaperOpen(false); }
   }, [paperCardId, paperContext?.id, canvasState.cards]);
-  // A .ipynb or .py, dropped (at its drop point) or uploaded (where the learner is looking), waits for the Add to canvas
-  // dialog (docs/features/canvas-file-drop.md); several are asked about one at a time. Importing reads the file and keeps
-  // its bytes in this browser for the board's server copy - no code runs, nothing is installed, no model is asked.
-  const [imports, setImports] = useState([]); // [{ id, file, kind, at }]
+  // A .ipynb, .py or other code file, dropped (at its drop point) or uploaded (where the learner is looking), waits for the
+  // Add to canvas dialog (docs/features/canvas-file-drop.md); several from one drop are one dialog (kind 'batch'), each file
+  // and what it becomes, and nothing is placed until every one of them reads. Importing reads the file and keeps its bytes
+  // in this browser for the board's server copy - no code runs, nothing is installed, no model is asked.
+  const [imports, setImports] = useState([]); // [{ id, file, kind, at }] or [{ id, kind: 'batch', files: [{ file, kind }], at }]
   const [importState, setImportState] = useState({ error: null, busy: false });
   const nextImport = () => { setImportState({ error: null, busy: false }); setImports(queue => queue.slice(1)); };
   const addImport = async choice => {
-    const { file, kind, at, copy } = imports[0];
+    const { at, ...entry } = imports[0];
+    const items = entry.kind === 'batch' ? entry.files : [entry], choices = entry.kind === 'batch' ? choice : [choice];
     setImportState({ error: null, busy: true });
     try {
-      const assetKey = `import:${crypto.randomUUID()}`;
-      const block = kind === 'paste' ? pasteBlock({ text: await file.text(), copy, choice, assetKey, language: languageOf(copy?.path) })
-        : importBlock({ name: file.name, kind, choice, text: choice === 'attachment' ? '' : await file.text(), assetKey, size: file.size });
-      await cacheAsset(assetKey, file);
-      canvas()?.insertImported(block, at);
+      const made = [];
+      for (const [index, { file, kind, copy }] of items.entries()) {
+        const assetKey = `import:${crypto.randomUUID()}`, chosen = choices[index];
+        // A dropped file's Code card is a repo-code card, its text in its asset (codeBlock); a pasted one stays a snippet.
+        const block = kind === 'paste' ? pasteBlock({ text: await file.text(), copy, choice: chosen, assetKey, language: languageOf(copy?.path) })
+          : chosen === 'code' ? codeBlock({ name: file.name, text: await file.text(), assetKey, size: file.size })
+            : importBlock({ name: file.name, kind, choice: chosen, text: chosen === 'attachment' ? '' : await file.text(), assetKey, size: file.size });
+        made.push({ file, assetKey, block });
+      }
+      for (const { file, assetKey, block } of made) {
+        await cacheAsset(assetKey, file);
+        if (block.type === 'repo-code') insertCodeCard(canvas(), block, at); else canvas()?.insertImported(block, at);
+      }
       nextImport();
     } catch (problem) { setImportState({ error: problem.message, busy: false }); }
   };
@@ -652,7 +663,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         registerSource({ id: `image:${blockId}`, kind: 'image', label: stored.title });
       }
     }
-    if (asked.length) setImports(queue => [...queue, ...asked]);
+    if (asked.length > 1) setImports(queue => [...queue, { id: crypto.randomUUID(), kind: 'batch', files: asked, at }]);
+    else if (asked.length) setImports(queue => [...queue, ...asked]);
   };
   // The card context menu's type-specific rows land here: the canvas names
   // the action, this page owns the readers, sources, and contexts involved.
@@ -2014,7 +2026,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     </ResizableSidePanel>
     <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.ipynb,.py" className="hidden"
       onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
-    {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} error={importState.error} busy={importState.busy}
+    {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} files={imports[0].files} error={importState.error} busy={importState.busy}
       onCancel={nextImport} onConfirm={addImport} />}
     {/* With sections on the canvas the rail mirrors the panel's table of
         contents - hover opens it, a click frames that section, and the panel
