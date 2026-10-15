@@ -2343,6 +2343,36 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (edgeInset) overlays.push({ left: frame.width - edgeInset, top: 0, right: frame.width, bottom: frame.height });
     return freeArea({ w: frame.width, h: frame.height }, overlays);
   };
+  // A side panel opening, closing or resized beside the canvas changes only the surface's width (canvas-clipping.md). When
+  // it has settled (the same width two frames running, after the panel's slide), the one selected card that was whole in
+  // the canvas before is brought back into view at the learner's zoom (showBox, one glide) - so Add to chat opening Chat, or
+  // a panel dragged wider, never leaves it cut. A card the learner had panned away, or a camera move during the resize,
+  // is left alone; nothing moves while the width holds (typing, panning).
+  const keepRef = useRef(null);
+  keepRef.current = id => showBox(boundsRef.current[id], true);
+  useEffect(() => {
+    const element = surface.current;
+    if (!element) return undefined;
+    let width = element.clientWidth, start = null, frame = 0;
+    const sole = () => (selectedRef.current.length === 1 ? selectedRef.current[0] : null);
+    const settled = () => {
+      const was = start;
+      start = null;
+      if (was?.whole && element.clientWidth < was.width && manualMoves.current === was.moves && sole() === was.id) keepRef.current(was.id);
+    };
+    const observer = new ResizeObserver(() => {
+      if (!start) {
+        const id = sole(), box = id && boundsRef.current[id], v = viewRef.current;
+        const left = box ? v.x + box.x * v.z : -1, right = box ? left + box.w * v.z : Infinity;
+        start = { width, id, whole: left >= 0 && right <= width, moves: manualMoves.current };
+      }
+      width = element.clientWidth;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { frame = requestAnimationFrame(settled); });
+    });
+    observer.observe(element);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, []);
   // A new card's one correction (revealAfter), once its measured box has been still for SETTLE_MS - an animation
   // card measures its controls a frame or two after mount - or REVEAL_MS after the insert at the latest; never
   // after the learner has moved the camera.
@@ -4373,6 +4403,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   ];
   // The gutter's overview is the phone strip's; from 641px of canvas the minimap sits lower right in the bottom strip.
   const overviewOpen = minimap && shellWidth > 0 && shellWidth < 641 && !!overview;
+  // The Rabbit Holes Map's own column (top right, 92 px of the canvas's full height) only while the canvas keeps room for a
+  // card column (COLUMN and the home view's 24 px each side) beside it and the 84 px tools gutter. Narrower - Chat and
+  // Sources open, or a panel dragged wide - the map moves to the top of the tools' gutter, as when the tools dock right,
+  // and the canvas runs to the panel: no blank strip, no early edge cutting a card (canvas-clipping.md).
+  const mapBeside = !shellWidth || shellWidth - 84 - 92 >= COLUMN + 48;
   const onCanvas = presenting === null ? contentBoxes() : [];
   const gaps = gapsFrom(onCanvas);
   const trackGap = event => {
@@ -4798,7 +4833,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           row under the canvas instead - the toolbar scrolling in it - with the
           overview on the next row. The style panel opens from it. */}
       {/* The Rabbit Hole navigator's own gutter, top right, while the tools dock left (Dive.jsx). */}
-      {presenting === null && gutterTop && toolSide === 'left' && <div data-dive-gutter className="flex w-[92px] shrink-0 flex-col items-end pt-1 pr-4 @max-[640px]:hidden">{gutterTop}</div>}
+      {presenting === null && gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter className="flex w-[92px] shrink-0 flex-col items-end pt-1 pr-4 @max-[640px]:hidden">{gutterTop}</div>}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
@@ -4807,7 +4842,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator when the tools dock right. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
-          {toolSide === 'right' && gutterTop}
+          {(toolSide === 'right' || !mapBeside) && gutterTop}
         </div>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
