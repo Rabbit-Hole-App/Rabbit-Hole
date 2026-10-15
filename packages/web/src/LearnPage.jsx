@@ -45,6 +45,7 @@ import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, ArrowUpToLine, RotateCw } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
+import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase } from './comments/comments-api.js';
@@ -964,6 +965,20 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // board is restored and the canvas has reported (onCanvasState runs after it published canvasApi), never an empty
   // canvas before the restore, which would get a second heading. canvasReady acts once per board.
   useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
+  // card=<objectId>, a backlink's origin card (C:/s/spec/references-plan.md, URLs): once the final board is on the canvas
+  // (as above), that card is shown - in Canvas view, the document kept - or, gone, a toast and nothing selected; the param
+  // is dropped either way.
+  const cardFocus = useRef(cardParam(window.location.search));
+  useEffect(() => {
+    const id = cardFocus.current, api = canvasApi.current;
+    if (!id || restoredBoard !== boardPath || !api) return;
+    cardFocus.current = null;
+    window.history.replaceState(window.history.state, '', withoutCardParam(window.location.href));
+    if (!api.blocks().some(block => block.id === id)) { api.deselect(); toast(CARD_GONE); return; }
+    if (docView !== 'editor') { api.focusBlock(id); return; }
+    setDocView('canvas');
+    requestAnimationFrame(() => requestAnimationFrame(() => canvasApi.current?.focusBlock(id)));
+  }, [restoredBoard, boardPath, canvasState]); // eslint-disable-line react-hooks/exhaustive-deps
   // Card thumbnails (card-thumbnails.md): the main board's picture for its cards, drawn after its saves pause, never by AI.
   // A board with none yet (made before thumbnails, a fork) gets one shortly after it opens.
   const thumbs = useRef(null);
