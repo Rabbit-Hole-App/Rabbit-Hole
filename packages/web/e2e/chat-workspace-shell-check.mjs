@@ -51,7 +51,7 @@ await check('Chat is open by default on the right with one multiline composer, a
   assert.equal(await page.locator('[data-chat-composer] textarea:visible').count(), 1, 'exactly one visible main composer');
   const p = await box(pane), c = await box(page.locator('[data-block-id="c-c"]'));
   assert.ok(p.x > c.x, 'Chat sits to the right of the canvas');
-  for (const name of ['History', 'New chat', 'Mode', 'Commands', 'Sources']) assert.ok(await pane.getByRole('button', { name, exact: true }).count() >= 1, `${name} control`);
+  for (const name of ['History', 'New chat', 'Mode', 'Commands', 'Context']) assert.ok(await pane.getByRole('button', { name, exact: true }).count() >= 1, `${name} control`);
 });
 await shot('01-chat-alone');
 
@@ -81,17 +81,19 @@ await check('Add to chat attaches the card to Chat in Ask, keeps the draft, focu
   assert.equal(sent.length, 0, `nothing was sent: ${sent.join()}`);
 });
 
-await check('the Sources pane opens beside Chat (to its left) and Chat keeps its transcript and draft', async () => {
+await check('a chip opens its source in the Context tab of the same panel, and back on Chat the draft is kept', async () => {
   await pane.locator('[data-context-chip]').last().click();
   await settle();
   const sources = page.locator('[data-sources-pane]');
   await sources.waitFor({ state: 'visible', timeout: 10000 });
-  const s = await box(sources), p = await box(pane);
-  assert.ok(s.x + s.width <= p.x + 2, 'Sources sits immediately left of Chat');
-  assert.ok(await pane.isVisible(), 'Chat stays visible');
+  assert.equal(await page.locator('[data-panel-tab="context"]').getAttribute('aria-selected'), 'true', 'Context is the active tab');
+  assert.equal(await page.locator('[data-pane-switch]').count(), 0, 'no Chat | Sources switch');
+  await shot('02-context-tab');
+  await page.locator('[data-panel-tab="chat"]').click();
+  await settle();
+  assert.ok(await pane.isVisible(), 'Chat is back');
   assert.equal(await field().inputValue(), 'my own words, unsent', 'opening a source keeps the draft');
 });
-await shot('02-chat-beside-source');
 
 await check('History opens a list inside Chat; New chat starts a fresh conversation without deleting the canvas cards', async () => {
   await pane.getByRole('button', { name: 'History', exact: true }).click();
@@ -105,7 +107,7 @@ await check('History opens a list inside Chat; New chat starts a fresh conversat
   assert.equal(await page.locator('[data-block-id="c-c"]').count(), 1, 'the canvas card is still there');
 });
 
-await check('narrow: one pane with a Chat/Sources switch, no page-wide horizontal scroll, the draft survives the switch', async () => {
+await check('narrow: one navigation row, no page-wide horizontal scroll, the draft survives Context and back', async () => {
   await field().fill('narrow draft');
   await page.setViewportSize({ width: 1000, height: 800 });
   await page.waitForTimeout(800);
@@ -113,10 +115,12 @@ await check('narrow: one pane with a Chat/Sources switch, no page-wide horizonta
   await settle();
   const scroll = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(scroll <= 1, `no horizontal page scroll (${scroll}px)`);
-  const tabs = page.locator('[data-pane-switch-tab]');
-  if (await tabs.count()) {
-    await shot('03-narrow-sources');
-    await tabs.filter({ hasText: 'Chat' }).first().click();
+  assert.equal(await page.locator('[data-panel-header]').count(), 1, 'one navigation row');
+  assert.equal(await page.locator('[data-pane-switch]').count(), 0, 'no Chat | Sources switch');
+  const chatTab = page.locator('[data-panel-tab="chat"]');
+  if (await chatTab.getAttribute('aria-selected') !== 'true') {
+    await shot('03-narrow-context');
+    await chatTab.click();
     await settle();
   }
   assert.equal(await field().inputValue(), 'narrow draft', 'the draft survives');

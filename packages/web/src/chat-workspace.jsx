@@ -8,7 +8,7 @@ import { useChatSources } from './chat-sources.js';
 // The right-side Chat workspace on a Learn canvas (owner brief 2026-10-13; contract:
 // agent-coordination/tasks/chat-workspace-CONTRACT.md, Part A). One provider per canvas composes five hooks, one per
 // sub-lane, so each owns its own file:
-//   panels   (chat-panels.js, A1)   Chat and Sources open state, the narrow Chat/Sources switch
+//   panels   (chat-panels.js, A1)   the right panel's one open state and tab (Chat, ..., Context = Sources)
 //   thread   (chat-threads.js, A2)  the open thread, its mode, History, New chat, restore, the late-response key
 //   composer (chat-draft.js, A3a)   draft text and command per thread, prepare(), focus()
 //   context  (chat-context.js, A4a) the one shared context collection: docs, attached refs, upload state
@@ -33,8 +33,9 @@ export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, ch
   const prepareDraft = composer.prepare;
   const prepare = useCallback((options = {}) => { panels.openChat(); if (options.mode) thread.setMode(options.mode); options.contextRefs?.forEach(context.attach); prepareDraft(options); }, [panels, thread, context, prepareDraft]);
   const chatComposer = useMemo(() => ({ ...composer, prepare }), [composer, prepare]);
-  // A ref's reader opens beside Chat; viewing never attaches (contract A5).
-  const openSource = useCallback(ref => { panels.openSources(); sources.open(ref); }, [panels, sources]);
+  // A ref's reader opens in the Context tab; viewing never attaches (contract A5). options.reveal false: a late completion
+  // loads the reader without reopening a panel the learner hid (chat-panels.js openSources).
+  const openSource = useCallback((ref, options) => { panels.openSources(options); sources.open(ref); }, [panels, sources]);
   // Add to Chat (contract A5): open Chat, Ask mode, attach, keep the draft, focus, never send.
   const addToChat = useCallback(ref => { panels.openChat(); thread.setMode('ask'); context.attach(ref); composer.focus(); }, [panels, thread, context, composer]);
   // The Chat's AskPanel registers its send loop (A2); regenerate(messageId) re-sends that turn with regenerate: { messageId }
