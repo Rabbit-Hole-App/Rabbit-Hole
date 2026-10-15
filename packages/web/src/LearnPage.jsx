@@ -447,7 +447,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   };
   // One PDF card (its bytes under the source key) or the drawn pages, as one undoable insert. `source` is pdf-source.js's key.
   const placePdf = async ({ pdf, file, source, label }, { mode, from, to }, progress) => {
-    if (mode === 'pdf') { await cacheAsset(source, file); canvas()?.insertPdf({ assetKey: source, label }); return; }
+    if (mode === 'pdf') { await cacheAsset(source, file); progress('Adding the PDF card…'); canvas()?.insertPdf({ assetKey: source, label }); return; }
     const pages = await drawPages(pdf, from, to, progress);
     progress(`Adding ${pages.length} page${pages.length === 1 ? '' : 's'}…`);
     canvas()?.insertSlides({ pages, label, pdf: source });

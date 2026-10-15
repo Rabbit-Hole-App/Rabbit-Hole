@@ -19,7 +19,7 @@ export default function PdfAddDialog({ name, total, busy, progress, error, onCan
   const [to, setTo] = useState(String(total || 1));
   const ready = total != null;
   const range = !ready ? null : mode === 'pdf' ? { from: 1, to: total } : span === 'all' ? pageRange(1, total, total) : pageRange(from, to, total);
-  const label = busy ? progress || 'Adding…' : !ready ? 'Reading…' : mode === 'pdf' ? 'Add PDF card'
+  const label = !ready ? 'Reading…' : busy ? progress || 'Adding…' : mode === 'pdf' ? 'Add PDF card'
     : range.error ? 'Add pages' : `Add ${range.count} page${range.count === 1 ? '' : 's'}`;
   return createPortal(
     <div data-pdf-add-dialog>
