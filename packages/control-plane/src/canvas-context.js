@@ -126,6 +126,7 @@ export const CANVAS_CONTEXT_RULES = `Canvas context: the turn carries a CANVAS C
 - A whole-board answer (a review, a completeness check, a comparison, a summary, gaps or next steps) accounts for the objects the inventory lists, not only those whose content was included: an object known only by its label is still on the board. When the coverage statement says only part of the board was listed, say so, and never present the answer as covering the whole canvas.
 - Relations: explicit connections are links stored on the canvas; state them as the canvas's own. Inferred relations come from geometry (containment, grouping, nearness, alignment, labels, a drawn arrow matched to objects by its ends) and may be wrong: treat them as likely, and say so when you rely on one.
 - Suggestions, gaps and next steps rest on what the canvas appears to be for, judged from its content. When that purpose is unclear, state the assumption you made, or ask one focused question.
+- An object of type document is the canvas's own written document (its Editor view), part of the canvas whether or not it is showing. When it is partial, only the passages sent were seen: never describe the rest of it.
 - Use as much of the block as the request needs: a question about a selection centres on it and its neighbours, a whole-board question works across the inventory, and a follow-up keeps what earlier turns used.`;
 
 const q = s => JSON.stringify(s);
@@ -152,7 +153,8 @@ export function canvasContextText(pkg) {
     lines.push('Content included:');
     for (const e of pkg.excerpts) {
       const at = e.passages ? `; passages at characters ${e.passages.map(p => `${p.start}-${p.end}`).join(', ')}` : '';
-      lines.push(`- ${e.id} ${e.type} (${e.inclusion === 'full' ? 'in full' : `partial; ${e.omitted_chars} characters not included${at}`}): ${e.text}`);
+      const what = e.type === 'document' ? "the canvas's written document; " : '';
+      lines.push(`- ${e.id} ${e.type} (${what}${e.inclusion === 'full' ? 'in full' : `partial; ${e.omitted_chars} characters not included${at}`}): ${e.text}`);
     }
   }
   lines.push(`Explicit connections (links stored on the canvas): ${pkg.relations.explicit.length ? '' : 'none'}`.trimEnd());
