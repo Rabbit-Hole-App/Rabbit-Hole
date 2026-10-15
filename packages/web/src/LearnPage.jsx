@@ -1818,7 +1818,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
             returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
             onPick={async canvas => {
               links.remember(canvas);
-              const api = canvasApi.current, answer = refPick.blockId ? await api?.addRef?.(refPick.blockId, canvas.id) : api?.insertRefCard ? await api.insertRefCard(canvas.id, refPick.point) ?? { ok: true } : null;
+              const api = canvasApi.current, answer = refPick.blockId ? await api?.addRef?.(refPick.blockId, canvas.id) : api?.insertRefCard ? ((await api.insertRefCard(canvas.id, refPick.point)) ? { ok: true } : null) : null;
               return answer || { ok: false };
             }} />}<ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
