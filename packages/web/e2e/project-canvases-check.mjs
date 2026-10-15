@@ -153,15 +153,16 @@ const card = page.locator('[data-library-card="project"]').filter({ has: page.lo
 await card.locator('[data-canvas-count]').waitFor({ timeout: 60000 });
 check('the Library card says 4 canvases', (await card.locator('[data-canvas-count]').innerText()).trim() === '4 canvases');
 await shot('04-library-card');
-await page.goto(`${BASE}/apps/${REPO}?tab=learn`);
-// On the Main canvas the Map icon opens the repository's Files in the panel (owner, 2026-10-08) - when there are files to
-// show. This project is a seeded row with no indexed snapshot, so there are none and the icon goes straight to the Map,
-// as it did before; repo-browser-check.mjs case 10 covers the Files panel on the nanoGPT fixture.
-await page.locator('[data-learn-map]').click();
-await page.waitForURL(/[?]tab=map$/);
-check('with no repository snapshot there is no Files panel to open', await page.locator('[data-learn-files]').count() === 0);
-await page.locator('[data-project-tabs]').waitFor({ timeout: 30000 });
-check('the Map icon still leaves Learn for the project\'s Files / Graph / Learn tabs', await page.locator('[data-project-tabs]').getByRole('tab').count() === 3);
+// A repository opens on its canvas (repo-canvas-graph.md, correction to decision 2): an old Files link opens Files beside
+// Chat once, then the plain address. This project is a seeded row with no indexed snapshot, so Files says what is happening
+// so Files shows its failed state with Retry; repo-browser-check.mjs covers Files and Graph on the nanoGPT fixture.
+await page.goto(`${BASE}/apps/${REPO}?tab=code`);
+// The row says ready but its snapshot cannot be read: Files says so with Retry (brief section 12), never an endless Loading.
+const state = page.locator('[data-companion] [data-learn-files] [data-repository-state="failed"]');
+await state.waitFor({ timeout: 30000 });
+check('with no readable snapshot Files says it could not be read, offers Retry and shows no file tree',
+  /could not be read/.test(await state.innerText()) && await state.getByRole('button', { name: /Retry/ }).count() === 1 && await page.locator('[data-companion] [data-file-tree]').count() === 0);
+check('no Files / Graph / Learn page: the canvas, with the old link gone from the address', await page.locator('[data-project-tabs]').count() === 0 && new URL(page.url()).search === '');
 
 // ---- Explore: one card per published canvas, naming its project; the label opens Explore filtered to that project ----
 const LABEL = 'acme/project-canvases'; // the repository import confirmed public above (repository_visibility)
