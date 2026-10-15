@@ -936,17 +936,18 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       }
       const { exchanges: chats, sources: list, ...state } = data.state || {};
       try {
-        // ponytail: what the server copy replaces is kept under :replaced (no UI) when it held other content, so content
-        // that never reached the server is recoverable by hand; a restore action is a product choice, not made here.
+        // ponytail: what the server copy replaces is kept under :replaced when it held other content, so content that never
+        // reached the server is recoverable by hand; only its document has a restore action (below), the rest has no UI.
         const replaced = hasLocal && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
-        if (replaced) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(replaced));
-        localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version));
         // The document (blocknote-canvas.md): Reload and keep my document (after a 409) puts this browser's document over
-        // the newer server copy as the newer edit, pushed below; a plain open offers the replaced document back instead.
+        // the newer server copy as the newer edit, pushed below. Whatever document loses - the server's then, this
+        // browser's on a plain open - is kept under :replaced and offered back (docOnServerCopy).
         const kept = JSON.parse(localStorage.getItem(docKeepKey) || 'null');
-        localStorage.removeItem(docKeepKey);
         const next = docOnServerCopy(state, { kept, replaced });
-        if (next.push) { localStorage.setItem(boardStorageKey, JSON.stringify(next.state)); setTimeout(() => pushBoard(), 0); }
+        if (next.replaced) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(next.replaced));
+        localStorage.setItem(boardStorageKey, JSON.stringify(next.state)); localStorage.setItem(versionKey, String(data.version));
+        localStorage.removeItem(docKeepKey);
+        if (next.push) setTimeout(() => pushBoard(), 0);
         if (next.offer) setDocRestore(next.offer);
       } catch { /* keep the local copy */ }
       if (Array.isArray(chats)) setExchanges(chats);
@@ -1718,8 +1719,12 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
           )}
           {docRestore && (
             <span data-doc-restore role="status" className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs text-ink-2">
-              A newer saved copy replaced this browser&apos;s document.
-              <button type="button" onClick={() => { canvas()?.replaceDoc(docRestore); setDocRestore(null); }} className="rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover">Restore my unsaved document</button>
+              Another version of this document was kept aside.
+              {/* Restoring keeps the document it replaces under :replaced in turn, so neither version is ever lost. */}
+              <button type="button" onClick={() => {
+                try { const aside = JSON.parse(localStorage.getItem(`${boardStorageKey}:replaced`) || '{}'); localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify({ ...aside, doc: canvas()?.liveBoard?.().doc ?? null })); } catch { /* the restore still runs */ }
+                canvas()?.replaceDoc(docRestore); setDocRestore(null);
+              }} className="rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover">Restore my unsaved document</button>
             </span>
           )}
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
