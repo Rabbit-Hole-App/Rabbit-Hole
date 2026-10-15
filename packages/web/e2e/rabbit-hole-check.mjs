@@ -64,9 +64,12 @@ const seedProject = (on) => {
   // By org and name only: the fixture's name is reserved, and a killed run leaves its row under another run's email.
   const where = `org='${data.org}' AND name='${REPO}'`;
   const sql = [`DELETE FROM repository_apps WHERE ${where}`, ...(on ? [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${data.org}','${REPO}','${data.email}','karpathy/nanoGPT','master','${COMMIT}','ready')`] : [])].join('; ');
+  // The gate passes its stack's D1 and a locked wrangler (int35.sh RHL); a local run takes the defaults through npx. In CI a
+  // missing one stops here in one line, never falls back to a developer default (gate 38792322071). A failure prints wrangler's
+  // stderr, so the log says why the seed failed.
+  const missing = ['PERSIST', 'D1_CONFIG', 'WRANGLER_BIN'].filter((name) => !process.env[name]);
+  if (process.env.CI && missing.length) throw new Error(`rabbit-hole-check LOCAL seed needs ${missing.join(', ')} from the gate (scripts/r36-gate/templates/int35.sh RHL)`);
   const PERSIST = process.env.PERSIST || '.small/fork-local', D1_CONFIG = process.env.D1_CONFIG || 'packages/web/wrangler.dev.jsonc';
-  // The gate passes its stack's D1 and a locked wrangler (int35.sh RHL); a local run takes the defaults through npx. A failure
-  // prints wrangler's stderr, so the log says why the seed failed.
   const cwd = fileURLToPath(new URL('../../../', import.meta.url)), stdio = ['ignore', 'ignore', 'inherit'];
   if (process.env.WRANGLER_BIN) execFileSync(process.execPath, [process.env.WRANGLER_BIN, 'd1', 'execute', 'rabbit-hole-learn-dev', '--local', '--persist-to', PERSIST, '--config', D1_CONFIG, '--command', sql], { cwd, stdio, windowsHide: true });
   else execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd, shell: true, stdio });
