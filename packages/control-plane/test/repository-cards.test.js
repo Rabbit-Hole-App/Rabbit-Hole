@@ -1,6 +1,8 @@
-// Repository-backed canvas cards (repo-graph Release 2, lane ACCESS; repository-cards.js, repositories.js cardCodeRefs): a
-// card is a reference, never a grant. Only the repository's owner sees its path, commit and nodes or reads its code; a share
-// viewer, a fork and the shared ask get its place and kind only; a save of a redacted copy never erases the full card.
+// Repository-backed canvas cards (repo-graph Release 2, lane ACCESS; repository-cards.js, repositories.js readableVersion and
+// cardCodeRefs). Owner ruling 2026-10-15: whoever can read a canvas may read and ask about its cards - a share viewer, a fork,
+// the shared ask - when the repository is confirmed public (the fixture's default). A repository not confirmed public (private
+// or gone since) stays its importer's: everyone else gets a card's place and kind only, and a save of a redacted copy never
+// erases the full card.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scriptModel, setup, SHA } from './shared-canvas-fixture.js';
@@ -15,8 +17,13 @@ const STATE = { blocks: [{ id: 'h', type: 'heading', text: 'Attention' }, CODE, 
 const SECRETS = ['model.py', 'forward', 'Attention subgraph', 'attn', SHA, 'karpathy/nanoGPT', APP];
 const leaks = text => SECRETS.filter(secret => text.includes(secret));
 
-test('a viewer who does not own the repository gets each repository card as its place and kind only', async t => {
+test('the cards of a public repository are whole for every viewer, signed out too', async t => {
   const f = setup(t);
+  for (const viewer of [{ org: 'ana-ws', email: 'ana@test' }, { org: 'ben-ws', email: 'ben@test' }, null]) assert.deepEqual(await redactRepositoryCards(f.db, STATE, viewer), STATE);
+});
+
+test('a viewer who does not own a repository not confirmed public gets each repository card as its place and kind only', async t => {
+  const f = setup(t, { visibility: null });
   const owner = await redactRepositoryCards(f.db, STATE, { org: 'ana-ws', email: 'ana@test' });
   assert.deepEqual(owner, STATE, 'the owner sees every card in full');
   const other = await redactRepositoryCards(f.db, STATE, { org: 'ben-ws', email: 'ben@test' });
@@ -29,8 +36,21 @@ test('a viewer who does not own the repository gets each repository card as its 
   assert.equal((await redactRepositoryCards(f.db, STATE, { org: 'other-ws', email: 'ana@test' })).blocks[1].redacted, true);
 });
 
-test('a share link and a fork of it show nothing of a repository the viewer does not own', async t => {
+test('a share link and a fork of it keep the cards of a public repository whole, and the fork can read them', async t => {
   const f = setup(t);
+  const { token } = await f.shareProject({ state: STATE });
+  const ben = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' });
+  assert.deepEqual(ben.body.state.blocks.find(b => b.id === 'c1'), CODE);
+  const fork = await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { source: { token } } });
+  assert.equal(fork.status, 201, fork.text);
+  const copy = await f.call('GET', `/api/learn/boards/${fork.body.name}/main`, { as: 'ben' });
+  assert.deepEqual(copy.body.state.blocks.find(b => b.id === 'g1'), GRAPH, 'the fork keeps the card');
+  const [read] = await cardCodeRefs(f.env, { org: 'ben-ws', email: 'ben@test' }, [{ sourceId: `code:karpathy/nanoGPT@${SHA}:model.py`, kind: 'code', name: 'model.py', range: { path: 'model.py', start: 2, end: 3 } }]);
+  assert.equal(read.status, 'read', 'the owner of the fork can ask about it');
+});
+
+test('a share link and a fork of it show nothing of a repository not confirmed public the viewer does not own', async t => {
+  const f = setup(t, { visibility: null });
   const { canvas, token } = await f.shareProject({ state: STATE });
   const ben = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' });
   assert.equal(ben.status, 200);
@@ -67,8 +87,21 @@ test('a save that carries a redacted card keeps the full card, takes its new pla
   assert.deepEqual(restoreRedactedCards(JSON.stringify(STATE), swapped), swapped);
 });
 
-test('the card routes answer only the owner, and a refusal names nothing', async t => {
+test('card-source reads a public repository for any signed-in viewer, by repository and commit', async t => {
   const f = setup(t);
+  const read = (as, query) => repositoriesFetch(new Request(`https://app.test/api/repositories/card-source?${query}`, { headers: { cookie: `small_session=${as}` } }), f.env, {});
+  const file = await read('ben', `repo=karpathy/nanoGPT&commit=${SHA}&path=model.py`);
+  assert.equal(file.status, 200);
+  assert.match((await file.json()).content, /def forward/);
+  assert.equal((await (await read('ben', `repo=karpathy/nanoGPT&commit=${SHA}`)).json()).commit, SHA);
+  for (const query of [`repo=karpathy/nanoGPT&commit=${SHA}&path=nope.py`, `repo=karpathy/nanoGPT&commit=${'b'.repeat(40)}`, `repo=other/repo&commit=${SHA}`, 'repo=x&commit=y']) assert.equal((await read('ben', query)).status, 404, query);
+});
+
+test('the card routes answer only the owner of a repository not confirmed public, and a refusal names nothing', async t => {
+  const f = setup(t, { visibility: null });
+  const source = await repositoriesFetch(new Request(`https://app.test/api/repositories/card-source?repo=karpathy/nanoGPT&commit=${SHA}&path=model.py`, { headers: { cookie: 'small_session=ben' } }), f.env, {});
+  assert.equal(source.status, 404);
+  assert.deepEqual(leaks(await source.text()), []);
   const read = (as, action, init) => repositoriesFetch(new Request(`https://app.test/api/repositories/${APP}/${action}`, { headers: { cookie: `small_session=${as}`, 'Content-Type': 'application/json' }, ...init }), f.env, {});
   const file = { method: 'POST', body: JSON.stringify({ path: 'model.py', commit: SHA }) };
   assert.equal((await read('ana', 'file', file)).status, 200);
@@ -80,8 +113,8 @@ test('the card routes answer only the owner, and a refusal names nothing', async
   }
 });
 
-test('code refs resolve through the owner check at their own commit; anything else is unavailable', async t => {
-  const f = setup(t);
+test('code refs of a repository not confirmed public resolve for its owner only, at their own commit', async t => {
+  const f = setup(t, { visibility: null });
   const ref = (commit, extra = {}) => ({ sourceId: `code:karpathy/nanoGPT@${commit}:model.py`, kind: 'code', name: 'model.py', range: { path: 'model.py', start: 2, end: 3 }, ...extra });
   const [mine] = await cardCodeRefs(f.env, { org: 'ana-ws', email: 'ana@test' }, [ref(SHA)]);
   assert.equal(mine.status, 'read');
@@ -106,8 +139,8 @@ test('lesson blocks named code and graph are never repository cards', async t =>
   assert.deepEqual(restoreRedactedCards(JSON.stringify(lesson), lesson), lesson);
 });
 
-test('the shared ask, shared next steps and a Rabbit Hole from a share see nothing of a repository the viewer does not own', async t => {
-  const f = setup(t);
+test('the shared ask, shared next steps and a Rabbit Hole from a share see nothing of a repository not confirmed public the viewer does not own', async t => {
+  const f = setup(t, { visibility: null });
   const sent = scriptModel(t);
   const { token } = await f.shareProject({ state: STATE });
   await f.ask(token, 'ben', { message: 'What does this canvas show?' });
@@ -123,4 +156,16 @@ test('the shared ask, shared next steps and a Rabbit Hole from a share see nothi
   assert.deepEqual(cardLeaks(hole.body), [], 'the hole is not named after the card');
   const board = await f.call('GET', `/api/learn/boards/${hole.body.name}/main`, { as: 'ben' });
   assert.deepEqual(cardLeaks(board.body), [], 'the hole holds no card field');
+});
+
+test('a code card pinned to an earlier commit is read at that commit beside the current snapshot, and names it', async t => {
+  const f = setup(t);
+  const later = 'c'.repeat(40);
+  f.refresh(later, { 'model.py': 'class Changed:\n    pass' });
+  const current = { repo: 'karpathy/nanoGPT', commit: later, files: { 'model.py': 'class Changed:\n    pass' }, graph: { nodes: [], edges: [] } };
+  const ref = { sourceId: `code:karpathy/nanoGPT@${SHA}:model.py`, kind: 'code', name: 'model.py', range: { path: 'model.py', start: 2, end: 3 } };
+  const [pinned] = await cardCodeRefs(f.env, { org: 'ben-ws', email: 'ben@test' }, [ref], current);
+  assert.equal(pinned.status, 'read');
+  assert.match(pinned.code.content, /def forward/);
+  assert.equal(pinned.commit, SHA, 'the entity names the commit it was read at');
 });

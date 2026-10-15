@@ -17,8 +17,10 @@ export async function uploadText(assetKey, read = loadAsset) {
   return { content: typeof value === 'string' ? value : await value.text() };
 }
 const load = (request, block) => {
-  if (request.kind === 'file') return once(request.key, () => api(`/api/repositories/${encodeURIComponent(request.app)}/file`, { method: 'POST', body: JSON.stringify({ path: request.path, commit: request.commit }) }));
-  if (request.kind === 'graph') return once(request.key, () => api(`/api/repositories/${encodeURIComponent(request.app)}/snapshot?commit=${encodeURIComponent(request.commit)}`));
+  // By repository and commit (control plane /api/repositories/card-source): the same read for the owner, a share viewer and a fork.
+  const at = `repo=${encodeURIComponent(request.repo)}&commit=${encodeURIComponent(request.commit)}`;
+  if (request.kind === 'file') return once(request.key, () => api(`/api/repositories/card-source?${at}&path=${encodeURIComponent(request.path)}`));
+  if (request.kind === 'graph') return once(request.key, () => api(`/api/repositories/card-source?${at}`));
   return once(request.key, () => uploadText(block.source.assetKey));
 };
 
