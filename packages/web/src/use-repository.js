@@ -26,6 +26,8 @@ export function useRepository(name, initial = null) {
   const [selected, setSelected] = useState([]), [camera, setCamera] = useState(null), [inspected, setInspected] = useState(null), [view, setView] = useState('overview');
   // The Files reader's one selection (a file, symbol or line range), as the old page's `context` (agent/scope.js wireContext).
   const [context, setContext] = useState(null);
+  // A graph an answer drew (ask.jsx onGraph, "Show on graph"), shown in the Graph view with its own Back.
+  const [answerView, setAnswerView] = useState(null);
   const root = name ? `/api/repositories/${name}` : null;
   // The row, polled while the indexer works. A late reply for another repository never lands (active).
   useEffect(() => {
@@ -51,7 +53,7 @@ export function useRepository(name, initial = null) {
     let active = true;
     api(`${root}/snapshot`).then(data => { if (active) { setSnapshot(data); setSnapshotError(null); } }, e => { if (active) setSnapshotError(e); });
     return () => { active = false; };
-  }, [root, commit]);
+  }, [root, commit, reload]);
   const refresh = useCallback(async () => {
     if (!root) return;
     setError(null);
@@ -70,7 +72,7 @@ export function useRepository(name, initial = null) {
       refresh, retry, canEdit: !!shown?.canEdit, githubUrl: githubUrl(shown?.repo),
       files: { open: openFile, setOpen: setOpenFile, jump, setJump },
       graph: { selected, setSelected, camera, setCamera, inspected, setInspected, view, setView },
-      context, setContext,
+      context, setContext, answerView, setAnswerView,
     };
-  }, [name, row, error, snapshot, snapshotError, refresh, retry, openFile, jump, selected, camera, inspected, view, context]);
+  }, [name, row, error, snapshot, snapshotError, refresh, retry, openFile, jump, selected, camera, inspected, view, context, answerView]);
 }

@@ -78,3 +78,9 @@ test('a regeneration keeps the stored turn: no second user message, the new answ
   assert.deepEqual(again.events.find(e => e.type === 'answer_meta').data.alternatives, [done.messageId, again.events.find(e => e.type === 'done').data.messageId]);
   assert.equal((await f.ask({ message: 'x', mode: 'ask', thread_id: done.threadId, regenerate: { messageId: '999' } })).status, 404);
 });
+
+test('Regenerate on a repository thread from before this release (no chat meta on its user turn) never throws on its refs', async () => {
+  const { readFileSync } = await import('node:fs');
+  const code = readFileSync(new URL('../src/repository-chat.js', import.meta.url), 'utf8');
+  assert.match(code, /\(asked\.contextRefs \|\| \[\]\)\.filter\(ref => ref\.kind !== 'code'\)/);
+});

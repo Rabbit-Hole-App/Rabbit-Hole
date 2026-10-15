@@ -30,7 +30,7 @@ export async function repositoryChatTurn(db, { chat, turn = null, threadId, hist
   let trailer = null;
   return {
     // Code refs are read from the snapshot by repositoryAsk (selectedEntities), once each: never listed again as attachments.
-    context: chatContext('', asked.contextRefs.filter(ref => ref.kind !== 'code'), memory.long ? memory.summary : null, CAP_CHARS, readPaper),
+    context: chatContext('', (asked.contextRefs || []).filter(ref => ref.kind !== 'code'), memory.long ? memory.summary : null, CAP_CHARS, readPaper),
     system: base => chatSystem(base, answerMetaSystem({ repository: true }), resolved, memory.long),
     research: { onAnswer: text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; }, ...(resolved.mode === 'tutor' ? { tools: [], system: null } : {}) },
     onDone: saveGraph => async (full, stopped = false) => {

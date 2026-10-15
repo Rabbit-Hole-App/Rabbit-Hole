@@ -38,6 +38,7 @@ import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import { RepositoryBadge } from './repository-canvas.jsx';
+import { clearSelection } from './repo-context.js';
 import PanelHeader, { CanvasFind, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
@@ -161,9 +162,20 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   if (panelOpen && companion.open) shown.current.add(companionView);
   const backTo = companionViews.find(entry => entry.id === companion.previous);
   useEffect(() => { if (openViewer) companion.show(openViewer); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [chatWidth, setChatWidth] = useState(0);
+  // An invisible selection never rides a later question (brief section 6): closing the column (or hiding the right side) on a
+  // wide layout, or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
+  // their thread. Below lg, Back to chat swaps the column for Chat with the chips in view, so the selection stays for the ask.
+  const viewerShown = panelOpen && companion.open, heldRepository = useRef(repository);
+  heldRepository.current = repository;
+  useEffect(() => { if (!viewerShown && window.matchMedia('(min-width: 64rem)').matches) clearSelection(heldRepository.current); }, [viewerShown]);
+  useEffect(() => () => clearSelection(heldRepository.current), []);
+  // Each column leaves the other's on-screen width out of its own maximum, so together they keep the canvas its 360 px floor.
+  const [chatWidth, setChatWidth] = useState(0), [companionWidth, setCompanionWidth] = useState(0);
+  // The listeners outlive renders: they read the latest companion, so show() sees the view it replaces (Back to <view>).
+  const companionNow = useRef(companion);
+  companionNow.current = companion;
   useEffect(() => {
-    const showFiles = () => companion.show('files'), showGraph = () => companion.show('graph');
+    const showFiles = () => companionNow.current.show('files'), showGraph = () => companionNow.current.show('graph');
     if (files) window.addEventListener('small:open-files', showFiles);
     if (graph) window.addEventListener('small:open-graph', showGraph);
     return () => { window.removeEventListener('small:open-files', showFiles); window.removeEventListener('small:open-graph', showGraph); };
@@ -1872,16 +1884,16 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         Context (Sources: Materials and the reader), Files and Graph, one view at a time; every view and every Chat tab stays
         mounted while hidden, so the draft, the reader's page and the graph survive a switch or a hide. Below lg one column
         shows at a time: the companion in Chat's place, with Back to chat. */}
-    <ResizableSidePanel aria-label="Viewer" data-companion resizeLabel="Resize viewer" defaultWidth={440} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onClickCapture={openPaperReference}>
+    <ResizableSidePanel aria-label="Viewer" data-companion resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
       <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} />
       {backTo && <button type="button" data-companion-return onClick={companion.back}
         className="flex h-8 shrink-0 items-center gap-1 border-b border-line px-3 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink"><ArrowLeft size={13} aria-hidden />Back to {backTo.label.toLowerCase()}</button>}
       <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane /></div>
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
-      {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>{graph}</div>}
+      {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} viewers={companionViews.filter(entry => entry.id !== 'graph')} viewer={panelOpen && companion.open ? companionView : null}
         onViewer={id => (panelOpen && companion.open && companionView === id ? companion.close() : companion.show(id))} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />

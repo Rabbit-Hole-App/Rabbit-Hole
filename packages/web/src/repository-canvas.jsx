@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { ExternalLink, GitBranch, Info, RefreshCw } from 'lucide-react';
+import { GitBranch, Info, RefreshCw } from 'lucide-react';
 import { Button, IconBtn, Menu, toast } from './ui.jsx';
 import CodeReader from './CodeReader.jsx';
 import { useRepository } from './use-repository.js';
@@ -15,7 +15,9 @@ const GraphPanel = lazy(() => import('./GraphPanel.jsx'));
 // page already has (catalog or route), or null for a canvas with no repository.
 // Returns null, or { repository, codeRefs, canvasProps } where canvasProps go to LearnPage: files and graph (the companion
 // column's Files and Graph views) and the composer's repository context (the Files reader's selection, as before).
-export function useRepositoryCanvas(project) {
+// codeCards: Files' Ask in chat also drops the lines as a Code card - the Main canvas only, as before this release (code cards
+// on other canvases are Release 2).
+export function useRepositoryCanvas(project, { codeCards = false } = {}) {
   const repository = useRepository(project?.kind === 'repository' ? project.name : null, project);
   const app = repository?.app, snapshot = repository?.snapshot;
   return useMemo(() => {
@@ -40,9 +42,9 @@ export function useRepositoryCanvas(project) {
     const filesView = snapshot
       ? <CodeReader app={app} snapshot={snapshot} open={files.open} context={context} query="" pick={files.jump} stacked place="panel"
           onFile={p => attach(fileObject(snapshot.graph, p))} onSymbol={n => attach(objectOf(snapshot.graph, n))}
-          onRange={(kind, range) => { attach(range); if (kind === 'learn') learnThis(range); else { askAbout(range); codeCard(range); } }} />
+          onRange={(kind, range) => { attach(range); if (kind === 'learn') learnThis(range); else { askAbout(range); if (codeCards) codeCard(range); } }} />
       : <RepositoryState repository={repository} what="files" />;
-    const graphView = <Suspense fallback={<p role="status" className="p-4 text-sm text-ink-2">Loading the graph…</p>}><GraphPanel repository={repository} onOpenSource={showFile} /></Suspense>;
+    const graphView = <Suspense fallback={<p role="status" className="p-4 text-sm text-ink-2">Loading the graph…</p>}><GraphPanel repository={repository} onOpenSource={showFile} answerView={repository.answerView} /></Suspense>;
     return {
       repository, codeRefs,
       canvasProps: {
@@ -50,9 +52,11 @@ export function useRepositoryCanvas(project) {
         repositoryContext: context ? wireContext(context) : { commit: repository.commit },
         repositoryExcerpt: context?.kind === 'range' ? context.text : null,
         onClearRepository: context ? () => setContext(null) : null,
+        // "Show on graph" under an answer that drew one: the Graph view beside Chat shows it.
+        onGraph: view => { repository.setAnswerView({ ...view, requestId: crypto.randomUUID() }); window.dispatchEvent(new CustomEvent('small:open-graph')); },
       },
     };
-  }, [repository, app, snapshot]);
+  }, [repository, app, snapshot, codeCards]);
 }
 
 // The Files view before a snapshot exists, or when it cannot (brief section 12): what is happening, never an empty pane.
@@ -80,8 +84,10 @@ export function RepositoryBadge({ repository }) {
   if (status === 'unavailable') return <span data-repo-badge data-state="unavailable" className="flex h-8 shrink-0 items-center px-1.5 text-xs text-ink-3">Repository content unavailable</span>;
   const busy = ['loading', 'queued', 'indexing'].includes(status);
   return <span data-repo-badge-row className="relative flex shrink-0 items-center">
+    {/* Icon only, as its neighbours: beside the companion column and Chat the canvas header has little room (the repo is in the
+        tooltip, the composer's placeholder and the Graph view's own line). */}
     {githubUrl && <a data-repo-badge href={githubUrl} target="_blank" rel="noopener noreferrer" title={`Open ${app.repo} on GitHub`} aria-label={`Open ${app.repo} on GitHub`}
-      className="flex h-8 max-w-52 items-center gap-1 rounded-lg px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"><GitBranch size={14} strokeWidth={1.8} aria-hidden /><span className="truncate">{app.repo}</span><ExternalLink size={12} aria-hidden className="shrink-0 text-ink-3" /></a>}
+      className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><GitBranch size={15} strokeWidth={1.8} aria-hidden /></a>}
     {busy && <span data-repo-status={status} role="status" className="flex h-8 items-center gap-1.5 px-1.5 text-xs text-ink-2"><span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />{status === 'queued' ? 'Waiting to read the repository…' : status === 'indexing' ? 'Reading the repository…' : 'Loading…'}</span>}
     {status === 'failed' && <button type="button" data-repo-status="failed" title={error || 'The repository could not be read'} onClick={() => Promise.resolve(canEdit ? refresh() : retry()).catch(fail)}
       className="flex h-8 items-center gap-1 rounded-lg px-1.5 text-xs text-red-700 hover:bg-hover"><RefreshCw size={12} aria-hidden />{canEdit ? 'Import failed · Retry' : 'Unavailable · Retry'}</button>}
