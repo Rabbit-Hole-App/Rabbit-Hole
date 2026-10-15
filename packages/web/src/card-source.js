@@ -1,19 +1,20 @@
 // What a code or graph card shows, read the way the server allows (repo-graph Release 2, lane contract
 // C:/s/spec/repo-graph-r2-plan.md; control plane repository-cards.js). A repository card stores no code: its source comes
-// from the owner-checked repository routes at the card's own commit, so a viewer who does not own the repository reads
-// nothing, and a card the server sent redacted is unavailable without asking. Pure helpers here; the hook is use-card-source.js.
+// from /api/repositories/card-source at the card's own commit, by repository and commit, for whoever the repository rule
+// allows (repositories.js readableVersion: confirmed public, or the asker's own import) - a fork or a share viewer too. A card
+// the server sent redacted is unavailable without asking. Pure helpers here; the hook is use-card-source.js.
 
 // The read a card needs, or null when there is nothing it may read.
 export function cardRequest(block) {
   if (!block || block.redacted) return null;
   if (block.type === 'repo-code' && block.source?.kind === 'repository') {
-    const { app, commit, path } = block.source;
-    return app && commit && path ? { kind: 'file', key: `file:${app}@${commit}:${path}`, app, commit, path } : null;
+    const { repo, commit, path } = block.source;
+    return repo && commit && path ? { kind: 'file', key: `file:${repo}@${commit}:${path}`, repo, commit, path } : null;
   }
   if (block.type === 'repo-code' && block.source?.kind === 'upload') return block.source.assetKey ? { kind: 'upload', key: `upload:${block.source.assetKey}` } : null;
   if (block.type === 'repo-graph') {
-    const { app, commit } = block.repository || {};
-    return app && commit ? { kind: 'graph', key: `graph:${app}@${commit}`, app, commit } : null;
+    const { repo, commit } = block.repository || {};
+    return repo && commit ? { kind: 'graph', key: `graph:${repo}@${commit}`, repo, commit } : null;
   }
   return null;
 }

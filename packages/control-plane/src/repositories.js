@@ -99,11 +99,21 @@ export async function repositoryAccess(req,env,name) {
   const row=await d1(()=>env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? AND name=? AND owner_email=?').bind(user.org,name,user.email).first());
   return row?repositoryApp(row,user):json({error:'Repository not found in this workspace'},404);
 }
+// Who may read a repository's code at a commit (owner ruling 2026-10-15: whoever can read a canvas may read and ask about its
+// code cards and selections - a fork or a share viewer too, not only the importer). Imports are public GitHub only, so: a
+// snapshot of that repository at that commit whose repository is confirmed public (repository_visibility, set by the
+// anonymous metadata read), from any workspace, or one `user` imported themselves (not in Trash). A repository that went
+// private or gone since is nobody's but its importer's. Returns the repository_apps row ({ id }) to read it by, or null.
+export async function readableVersion(env,user,repo,commit){
+  if(typeof repo!=='string'||!/^[\w.-]+\/[\w.-]+$/.test(repo)||typeof commit!=='string'||!/^[0-9a-f]{40}$/.test(commit))return null;
+  const own=user?.org&&user?.email?[user.org,user.email]:['',''];
+  return d1(()=>env.LEARN_DB.prepare(`SELECT r.id FROM repository_apps r JOIN repository_versions v ON v.app_id=r.id WHERE r.repo=? AND v.commit_sha=? AND (EXISTS(SELECT 1 FROM repository_visibility p WHERE p.app_id=r.id AND p.visibility='public') OR (r.org=? AND r.owner_email=? AND ${NOT_TRASHED('r.org','r.name')})) ORDER BY (r.org=? AND r.owner_email=?) DESC LIMIT 1`).bind(repo,commit,...own,...own).first());
+}
 // Code refs from any surface - graph and Files selections, code cards pinned to their commit (repo-graph Release 2) - read
-// through one owner check: a ref is resolved only against a snapshot of a repository `user` owns in their workspace, at the
-// ref's own commit. `snapshot`: one the caller already loaded (the canvas's project, the Main canvas), used for its refs. A
-// ref to anything else - another person's repository, one in Trash, a commit never indexed - is unavailable and named only
-// by the label the learner's own browser sent. ponytail: at most 3 other snapshots per question; past that, unavailable.
+// under readableVersion at the ref's own commit. `snapshot`: one the caller already loaded (the canvas's project, the Main
+// canvas), used for its refs; a ref read at another commit names that commit. A ref to anything else - a repository neither
+// public nor the asker's, a commit never indexed - is unavailable and named only by the label the learner's own browser
+// sent. ponytail: at most 3 other snapshots per question; past that, unavailable.
 export async function cardCodeRefs(env,user,refs,snapshot=null){
   const code=(refs||[]).filter(ref=>ref?.kind==='code'),groups=new Map();
   for(const ref of code){const at=parseCodeRef(ref),key=at?`${at.repo}@${at.commit}`:'';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(ref);}
@@ -113,11 +123,11 @@ export async function cardCodeRefs(env,user,refs,snapshot=null){
     let found=snapshot&&key===`${snapshot.repo}@${snapshot.commit}`?snapshot:null;
     if(!found&&key&&env.LEARN_DB&&loads<3){
       const at=parseCodeRef(group[0]);
-      const row=await d1(()=>env.LEARN_DB.prepare(`SELECT r.id FROM repository_apps r JOIN repository_versions v ON v.app_id=r.id WHERE r.org=? AND r.owner_email=? AND r.repo=? AND v.commit_sha=? AND ${NOT_TRASHED('r.org','r.name')} LIMIT 1`).bind(user.org,user.email,at.repo,at.commit).first());
+      const row=await readableVersion(env,user,at.repo,at.commit);
       if(row){loads++;try{found=await repositorySnapshot(env,row,at.commit);}catch{found=null;}}
     }
     // No readable snapshot of its own: against the caller's snapshot it is still marked (other_commit, or not this repository).
-    const resolved=found?resolveCodeRefs(found,group):snapshot?resolveCodeRefs(snapshot,group):group.map(denied);
+    const resolved=found?resolveCodeRefs(found,group).map(entity=>(snapshot&&found!==snapshot?{...entity,commit:found.commit}:entity)):snapshot?resolveCodeRefs(snapshot,group):group.map(denied);
     group.forEach((ref,i)=>out.set(ref,resolved[i]));
   }
   return code.map(ref=>out.get(ref));
@@ -214,6 +224,18 @@ export async function repositoriesFetch(req,env,ctx){
       const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first();
       try{await enqueue(env,row,repo,body.branch,head);}catch(error){await db.prepare("UPDATE repository_apps SET status='failed',error=? WHERE id=?").bind(error.message,row.id).run();}
       return json({name},202);
+    }
+    // A code or graph card's content (repo-graph Release 2): by repository and commit, for whoever readableVersion allows -
+    // the card's owner, a share viewer, a fork. ?path= reads one file, without it the graph. 404 names nothing.
+    if(path==='/api/repositories/card-source'){
+      if(req.method!=='GET')return json({error:'Method not allowed'},405);
+      const repo=url.searchParams.get('repo'),commit=url.searchParams.get('commit'),file=url.searchParams.get('path');
+      const row=await readableVersion(env,user,repo,commit);
+      if(!row)return json({error:'Not available'},404);
+      const snapshot=await repositorySnapshot(env,row,commit);
+      if(file==null)return json({repo:snapshot.repo,commit:snapshot.commit,graph:snapshot.graph,skipped:snapshot.skipped});
+      if(!Object.hasOwn(snapshot.files,file))return json({error:'Not available'},404);
+      return json({path:file,content:snapshot.files[file],commit:snapshot.commit});
     }
     const match=path.match(/^\/api\/repositories\/([^/]+)(?:\/(snapshot|refresh|learn-course|file|ask|threads))?(?:\/([^/]+))?$/);
     if(!match)return json({error:'Not found'},404);
@@ -361,7 +383,6 @@ async function repositoryAsk(req,env,user,app){
   if(body.thread_id&&!thread)return json({error:'Chat not found'},404);
   const commit=thread?.commit_sha||body.repository_context?.commit||app.commit_sha;
   if(thread&&(body.repository_context?.nodeId||body.repository_context?.range||body.repository_context?.path)&&body.repository_context?.commit!==commit)return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
-  if(thread&&codeRefs.some(ref=>{const at=parseCodeRef(ref);return at&&at.repo===app.repo&&at.commit!==commit;}))return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
   const snapshot=await repositorySnapshot(env,app,commit);
   const selected=body.repository_context?.nodeId?repositoryTool(snapshot,'get_relationships',{nodeId:body.repository_context.nodeId}):null;
   const selectedCode=body.repository_context?.range?selectedRange(snapshot,body.repository_context.range):null;

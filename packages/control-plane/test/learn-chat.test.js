@@ -812,7 +812,7 @@ test('a project canvas asks with its own project\'s repository, re-checked on ev
 // repo-canvas-graph.md sections 6-8: a project canvas's code refs (graph nodes, Files selections) are read from the project's
 // own snapshot, once each, and are not listed again as named attachments; on a canvas whose project the caller may not read
 // they stay names only, never source.
-test('a project canvas reads its selected code refs from its own snapshot; another person\'s project reads none', async t => {
+test('a canvas reads code refs the asker may read, on any canvas; a repository neither public nor theirs reads none', async t => {
   const env = fixture(t);
   env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
   const sqlite = new DatabaseSync(':memory:');
@@ -832,9 +832,9 @@ test('a project canvas reads its selected code refs from its own snapshot; anoth
     { sourceId: `code:acme/lab@${SHA}:lab.py#run`, kind: 'code', name: 'run()', version: SHA, range: { path: 'lab.py', start: 2, end: 2 } },
     { sourceId: `code:acme/lab@${SHA}:lab.py`, kind: 'code', name: 'lab.py', version: SHA, range: { path: 'lab.py', start: 1, end: 1 } },
   ];
-  const ask = async name => {
+  const ask = async (name, context_refs = refs) => {
     const seam = canvasAskSeam(env, canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name=?').get(name), owner));
-    assert.equal((await handlers.apiAsk(request({ scope: { app: name }, message: 'How do these connect?', mode: 'ask', context_refs: refs }), env, {}, owner, 'learn', seam)).status, 200);
+    assert.equal((await handlers.apiAsk(request({ scope: { app: name }, message: 'How do these connect?', mode: 'ask', context_refs }), env, {}, owner, 'learn', seam)).status, 200);
     return env.answers.at(-1).context;
   };
   const own = await ask('canvas-0a1b2c3d');
@@ -842,8 +842,13 @@ test('a project canvas reads its selected code refs from its own snapshot; anoth
   assert.match(own, /return torch\.ones\(1\)/, 'the symbol is read from stored source');
   assert.equal((own.match(/"status":"read"/g) || []).length, 2);
   assert.doesNotMatch(own, /Attached by the learner/, 'a resolved code ref is not listed a second time');
+  // Owner 2026-10-15: whoever can read a canvas may ask about its code - here the asker's own import, on a canvas whose
+  // project is someone else's. The colleague's repository, not confirmed public, is still read by no one else.
   const borrowed = await ask('canvas-0c0c0c0c');
-  assert.doesNotMatch(borrowed, /selectedEntities|return torch/);
+  assert.match(borrowed, /return torch\.ones\(1\)/);
+  const theirs = await ask('canvas-0c0c0c0c', [{ sourceId: `code:acme/theirs@${SHA}:lab.py`, kind: 'code', name: 'lab.py', version: SHA, range: { path: 'lab.py', start: 1, end: 1 } }]);
+  assert.match(theirs, /"status":"unavailable"/);
+  assert.doesNotMatch(theirs, /return torch/);
 });
 
 // C1: the same canvas turn with the real askStream and findVideoMoments, the video tools called

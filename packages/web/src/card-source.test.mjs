@@ -4,9 +4,9 @@ import { cardGraph, cardLines, cardRequest, failureStatus } from './card-source.
 
 const commit = 'a'.repeat(40);
 
-test('a card reads only what its source names, and a redacted card reads nothing', () => {
-  assert.deepEqual(cardRequest({ type: 'repo-code', source: { kind: 'repository', app: 'repo-1', commit, path: 'm.py', start: 2 } }), { kind: 'file', key: `file:repo-1@${commit}:m.py`, app: 'repo-1', commit, path: 'm.py' });
-  assert.deepEqual(cardRequest({ type: 'repo-graph', repository: { app: 'repo-1', commit }, nodeIds: ['a'] }), { kind: 'graph', key: `graph:repo-1@${commit}`, app: 'repo-1', commit });
+test('a card reads by repository and commit, only what its source names; a redacted card reads nothing', () => {
+  assert.deepEqual(cardRequest({ type: 'repo-code', source: { kind: 'repository', app: 'repo-1', repo: 'acme/lab', commit, path: 'm.py', start: 2 } }), { kind: 'file', key: `file:acme/lab@${commit}:m.py`, repo: 'acme/lab', commit, path: 'm.py' });
+  assert.deepEqual(cardRequest({ type: 'repo-graph', repository: { app: 'repo-1', repo: 'acme/lab', commit }, nodeIds: ['a'] }), { kind: 'graph', key: `graph:acme/lab@${commit}`, repo: 'acme/lab', commit });
   assert.deepEqual(cardRequest({ type: 'repo-code', source: { kind: 'upload', assetKey: 'k' } }), { kind: 'upload', key: 'upload:k' });
   for (const block of [null, { type: 'repo-code', redacted: true, source: { kind: 'repository' } }, { type: 'repo-graph', redacted: true }, { type: 'repo-code', source: { kind: 'repository', app: 'repo-1' } }, { type: 'pdf' }]) assert.equal(cardRequest(block), null);
 });
