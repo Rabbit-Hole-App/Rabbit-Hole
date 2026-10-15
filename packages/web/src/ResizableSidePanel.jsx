@@ -15,8 +15,8 @@ import { useEffect, useRef, useState } from 'react';
 // edgeVar publishes the panel's on-screen width as a root CSS variable (0 when hidden), so the bar's window can sit beside it.
 // onWidth(width, available) reports the on-screen width and the parent's room (0 below lg) for the Chat/Sources layout.
 // reserve: room another panel beside it already takes (Chat, for the companion column), so the two together still leave the
-// canvas its 360 px. narrowHidden hides it below lg without unmounting (Chat while the companion shows in its place).
-export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320, maxWidth = 800, resizeEdge = 'left', resizeLabel = 'Resize panel', collapsed = false, reserve = 0, narrowHidden = false, storageKey = null, overlay = false, edgeVar = null, onWidth = null, className = '', children, ...props }) {
+// canvas its 360 px. phoneHeight: the stacked height below lg. narrowHidden hides it below lg without unmounting (Chat while the companion shows in its place).
+export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320, maxWidth = 800, resizeEdge = 'left', resizeLabel = 'Resize panel', collapsed = false, reserve = 0, narrowHidden = false, phoneHeight = 'max-lg:h-[45%] max-lg:min-h-64', storageKey = null, overlay = false, edgeVar = null, onWidth = null, className = '', children, ...props }) {
   const panel = useRef(null), drag = useRef(null);
   const [width, setWidth] = useState(() => { try { return Number(storageKey && localStorage.getItem(storageKey)) || defaultWidth; } catch { return defaultWidth; } });
   useEffect(() => { try { if (storageKey) localStorage.setItem(storageKey, String(width)); } catch { /* private mode: the width lasts this visit */ } }, [storageKey, width]);
@@ -51,7 +51,7 @@ export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320,
   // node in a closed companion stayed tabbable).
   return <aside {...props} ref={panel} inert={collapsed || undefined}
     style={wide ? { width: collapsed ? 0 : visible, transition: resizing ? 'none' : 'width 320ms cubic-bezier(0.25,1,0.35,1)' } : undefined}
-    className={`relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-white ${narrowHidden ? 'max-lg:hidden' : ''} ${collapsed ? '' : resizeEdge === 'right' ? 'border-r border-line' : 'border-l border-line'} ${overlay ? 'max-lg:absolute max-lg:top-0 max-lg:right-0 max-lg:bottom-(--agent-bar-h) max-lg:z-20 max-lg:w-[min(26rem,100%)] max-lg:shadow-pop max-md:top-(--shell-top-h) max-md:w-full max-md:border-l-0' : 'max-lg:h-[45%] max-lg:min-h-64 max-lg:w-full max-lg:border-t max-lg:border-l-0'}`}>
+    className={`relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-white ${narrowHidden ? 'max-lg:hidden' : ''} ${collapsed ? '' : resizeEdge === 'right' ? 'border-r border-line' : 'border-l border-line'} ${overlay ? 'max-lg:absolute max-lg:top-0 max-lg:right-0 max-lg:bottom-(--agent-bar-h) max-lg:z-20 max-lg:w-[min(26rem,100%)] max-lg:shadow-pop max-md:top-(--shell-top-h) max-md:w-full max-md:border-l-0' : `${phoneHeight} max-lg:w-full max-lg:border-t max-lg:border-l-0`}`}>
     {!collapsed && <div role="separator" aria-label={resizeLabel} aria-orientation="vertical" aria-valuemin={minWidth} aria-valuemax={max} aria-valuenow={visible} tabIndex={0} title="Drag to resize · double-click to reset"
       className={`absolute inset-y-0 ${resizeEdge === 'right' ? '-right-0.5' : '-left-0.5'} z-30 w-1.5 touch-none cursor-col-resize hover:bg-line-strong/70 focus-visible:bg-line max-lg:hidden`}
       onPointerDown={e => { if (e.button !== 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, width: visible }; setResizing(true); }}

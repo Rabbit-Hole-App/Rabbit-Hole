@@ -1885,7 +1885,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         Context (Sources: Materials and the reader), Files and Graph, one view at a time; every view and every Chat tab stays
         mounted while hidden, so the draft, the reader's page and the graph survive a switch or a hide. Below lg one column
         shows at a time: the companion in Chat's place, with Back to chat. */}
-    <ResizableSidePanel aria-label="Viewer" data-companion resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
+    <ResizableSidePanel aria-label="Viewer" data-companion phoneHeight="max-lg:h-[60%] max-lg:min-h-[28rem]" resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
       <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} />
       {backTo && <button type="button" data-companion-return onClick={companion.back}
         className="flex h-8 shrink-0 items-center gap-1 border-b border-line px-3 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink"><ArrowLeft size={13} aria-hidden />Back to {backTo.label.toLowerCase()}</button>}
