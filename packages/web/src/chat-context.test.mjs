@@ -175,6 +175,7 @@ test('each Materials file row has its own Remove from canvas context control, co
   assert.match(source, /\{ready && item\.doc && <button type="button" data-source-remove onClick=\{\(\) => setRemoving\(item\)\}/, 'only a ready context document row, and the press only asks');
   assert.match(source, /aria-label="Remove from canvas context" title="Remove from canvas context"/);
   assert.match(source, /<ConfirmDialog title="Remove from canvas context\?"[^]*onConfirm=\{\(\) => remove\(removing\)\} onCancel=\{\(\) => setRemoving\(null\)\}/);
+  assert.match(source, /if \(active\?\.sourceId === key && !active\.range\) sources\.close\(\);/, 'a removed document open in the reader is put down, so it is not listed as the active source');
   assert.match(source, /catch \(error\) \{ setRemoval\(state => \(\{ \.\.\.state, \[key\]: `Could not remove/, 'a failure keeps the row and names why');
   assert.match(source, /data-sources-close onClick=\{panels\.closeSources\}/, 'the top-right X only closes');
 });

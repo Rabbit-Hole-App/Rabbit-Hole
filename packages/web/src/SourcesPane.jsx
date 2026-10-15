@@ -43,7 +43,12 @@ export default function SourcesPane() {
     const key = item.ref.sourceId;
     setRemoving(null);
     setRemoval(state => ({ ...state, [key]: true }));
-    try { await context.remove(item.doc); setRemoval(({ [key]: _, ...rest }) => rest); }
+    try {
+      await context.remove(item.doc);
+      setRemoval(({ [key]: _, ...rest }) => rest);
+      // Open in the reader as a whole, it would stay listed as the active source (with Attach): put the reader down.
+      if (active?.sourceId === key && !active.range) sources.close();
+    }
     catch (error) { setRemoval(state => ({ ...state, [key]: `Could not remove ${item.ref.name}: ${error.message}` })); }
   };
   return (

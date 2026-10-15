@@ -56,7 +56,8 @@ const listNow = () => api(`/api/learn/context?app=${canvas.name}`);
 const captured = [], refused = [], errors = [];
 let replies = 0, failDelete = false;
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore))/;
+// As pdf-to-canvas-check: Next Steps falls through to the keyless local stack, which answers without a model.
+const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/(handoff|plan|evaluate)|dive|explore))/;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE) return route.abort();
@@ -146,6 +147,7 @@ await check('setup: the PDF is in Materials with its chip, and its 3 pages are a
   await page.locator('[data-source-add-canvas]').click({ timeout: 10000 });
   const dialog = page.locator('[data-pdf-add-dialog] [role="dialog"]');
   await dialog.waitFor({ timeout: 10000 });
+  await waitFor(async () => (await dialog.locator('[data-pdf-total]').innerText().catch(() => '')).trim() === '3 pages', 20000, 'the dialog did not count 3 pages');
   await dialog.locator('[data-pdf-choice="pages"]').click();
   await dialog.locator('[data-pdf-choice="all"]').click();
   await dialog.locator('button').last().click();
