@@ -135,7 +135,8 @@ test('several selected code refs are each read from stored source; foreign, stal
   assert.match(sent,/never describe it as inspected/);
   assert.match(f.sqlite.prepare("SELECT content FROM messages WHERE role='user'").get().content,/Selected: forward\(\), model\.py, README\.md, ghost\(\), other model\.py, newer model\.py \(commit a{40}\)$/);
   const thread=f.sqlite.prepare('SELECT id FROM threads').get();
-  assert.equal((await f.send('ask',{message:'And now?',thread_id:thread.id,context_refs:[context_refs[5]]})).status,409);
+  // A card at another commit on an existing thread is read at its own commit (owner 2026-10-15), never refused.
+  const later=await f.send('ask',{message:'And now?',thread_id:thread.id,context_refs:[context_refs[5]]});assert.equal(later.status,200);await later.text();
   assert.equal((await f.send('ask',{message:'Bad ref',context_refs:[{sourceId:'nope',kind:'code',name:'x',version:'',range:null}]})).status,400);
 });
 test('selected source is bounded per question: past the budget a selection is named, not read',()=>{
