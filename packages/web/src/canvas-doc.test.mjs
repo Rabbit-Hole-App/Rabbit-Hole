@@ -145,3 +145,12 @@ test('caretRect: the range rect when there is one, else the empty line box', asy
   const { readFileSync } = await import('node:fs');
   assert.match(readFileSync(new URL('./CanvasDoc.jsx', import.meta.url), 'utf8'), /const box = caretRect\(range\);/);
 });
+
+// Lead 1:14 AM PT (fast-e2e 38703004485, card-context-menu-check part 4): only the document's own caret reveal pans. A
+// scroll from anywhere else (Playwright's or a focus's scrollIntoView of a card) is left as main had it, or the card moves
+// under the tools gutter on every click retry.
+test('the surface scroll pans the camera only while the document has the focus', async () => {
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /const scrolled = \(\) => \{\s+\/\/[^\n]*\s+if \(!document\.activeElement\?\.closest\?\.\('\[data-canvas-doc\]'\)\) return;\s+const dx = element\.scrollLeft/);
+});

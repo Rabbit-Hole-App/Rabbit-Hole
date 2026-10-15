@@ -2714,13 +2714,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rail?.addEventListener('wheel', railWheel, { passive: false });
     return () => { element.removeEventListener('wheel', wheel); rail?.removeEventListener('wheel', railWheel); };
   }, [presenting === null]);
-  // The surface clips (overflow hidden) but focus, the caret's reveal (the browser's and ProseMirror's scrollRectIntoView) and
-  // scrollIntoView still scroll it, sliding the world under a camera that never moved. Any such scroll becomes a camera move
-  // and the surface goes back to 0, so the camera follows the document's caret (blocknote-canvas.md section 6). flushSync:
+  // The surface clips (overflow hidden) but the document caret's reveal (the browser's and ProseMirror's scrollRectIntoView)
+  // still scrolls it, sliding the world under a camera that never moved. Such a scroll becomes a camera move and the surface
+  // goes back to 0, so the camera follows the document's caret (blocknote-canvas.md section 6). flushSync:
   // docCaret measures in the next frame, after the move, so it never pans a second time.
   useEffect(() => {
     const element = surface.current;
     const scrolled = () => {
+      // Only while the document has the focus (its caret's reveal): any other scroll stays as it always was.
+      if (!document.activeElement?.closest?.('[data-canvas-doc]')) return;
       const dx = element.scrollLeft, dy = element.scrollTop;
       if (!dx && !dy) return;
       element.scrollLeft = 0; element.scrollTop = 0;
