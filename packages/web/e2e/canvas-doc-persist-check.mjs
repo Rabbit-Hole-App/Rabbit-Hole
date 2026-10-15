@@ -46,7 +46,10 @@ const newCanvas = async title => {
 const EMPTY = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] };
 const CARD = { id: 'c1', type: 'explanation', dx: 0, dy: 0, title: 'Tides', body: 'Two bulges of water, one on each side.' };
 const para = (id, text) => ({ id, type: 'paragraph', props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' }, content: [{ type: 'text', text, styles: {} }], children: [] });
-const seed = (name, state) => api(`/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...EMPTY, ...state } }) });
+const seed = async (name, state) => {
+  const r = await call(OWNER, `/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...EMPTY, ...state } }) });
+  if (r.status !== 200) throw Error(`seeding ${name} failed: ${r.status} ${JSON.stringify(r.body).slice(0, 160)}`);
+};
 const boardOf = (name, session = OWNER) => call(session, `/api/learn/boards/${name}/main`).then(r => r.body);
 const docOf = async (name, session) => (await boardOf(name, session))?.state?.doc;
 const has = (doc, marker) => JSON.stringify(doc?.blocks || []).includes(marker);
@@ -64,13 +67,15 @@ if (child?.name !== CHILD) throw Error(`the child Rabbit Hole was not created: $
 const viewKey = (cat, name) => `small.adaptive-canvas:${cat.org}:${cat.email}:${name}:view`;
 
 // ---------------------------------------------------------------- routes: no model, every board save recorded
-const refused = [], outside = [], errors = [], puts = [];
+const refused = [], background = [], outside = [], errors = [], puts = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|tutor|artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|dive|explore))/;
 const BOARD_PUT = /^\/api\/learn\/boards\/(canvas-[a-f0-9]{8})\/main$/;
 const router = who => async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE) { outside.push(url.hostname); return route.abort(); }
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.fallback();
+  // Professor Next Steps asks once when a canvas opens (not a document action): aborted, and counted apart.
+  if (url.pathname === '/api/learn/tutor/next-steps') { background.push(who); return route.abort(); }
   if (MODEL.test(url.pathname)) { refused.push(`${who} ${request.method()} ${url.pathname}`); return route.abort(); }
   const board = request.method() === 'PUT' && url.pathname.match(BOARD_PUT)?.[1];
   if (board) puts.push({ who, board, body: request.postData() || '' });
@@ -117,8 +122,10 @@ const ready = p => p.locator('[data-canvas-doc][data-doc-state="ready"]').waitFo
 const setView = async (p, label) => {
   await p.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^View/ }).click();
   const select = p.locator('[role="menu"] select, [role="menubar"] select').filter({ has: p.locator('option', { hasText: /^Editor$/ }) });
+  const item = p.getByRole('menuitem', { name: label, exact: true });
   if (await select.count()) await select.first().selectOption({ label });
-  else await p.getByRole('menuitem', { name: label, exact: true }).click();
+  else if (await item.count()) await item.click();
+  else { await p.keyboard.press('Escape'); throw Error(`the View menu has no ${label} choice`); }
   if (label === 'Editor') await ready(p);
   else await until(async () => (await paper(p).count()) === 0, 8000, 'the paper is still in the DOM in Canvas view');
 };
@@ -309,6 +316,7 @@ await check('scenario 4: a save of canvas A held until canvas B is open lands on
 const COPY = `Edited on the copy ${run}`;
 await check('decision 4: Duplicate copies the document; editing the copy leaves the original unchanged', async () => {
   const original = await docOf(A);
+  assert.ok(original?.blocks, 'canvas A has a saved document');
   const copy = await post('/api/learn/boards/duplicate', { source: { canvas: A }, key: `dup-${run}` });
   assert.match(String(copy?.name), /^canvas-[a-f0-9]{8}$/, `the Duplicate was made (${JSON.stringify(copy).slice(0, 160)})`);
   facts.duplicate = copy.name;
@@ -328,6 +336,7 @@ await check('decision 4: another person\'s fork of the shared canvas copies the 
   share = await post(`/api/learn/boards/${A}/main/share`, { shared: true, view: true, state });
   assert.ok(share?.sharing?.view, 'the canvas is shared by link');
   const original = await docOf(A);
+  assert.ok(original?.blocks, 'canvas A has a saved document');
   const fork = (await call(OTHER, '/api/learn/boards/fork', { method: 'POST', body: JSON.stringify({ source: { token: share.sharing.view }, key: `fork-${run}` }) })).body;
   assert.match(String(fork?.name), /^canvas-[a-f0-9]{8}$/, `the other person forked it (${JSON.stringify(fork).slice(0, 160)})`);
   facts.fork = fork.name;
@@ -341,6 +350,7 @@ await check('decision 4: another person\'s fork of the shared canvas copies the 
 });
 await check('decision 4: Trash and Restore keep the document', async () => {
   const before = await docOf(A);
+  assert.ok(before?.blocks, 'canvas A has a saved document');
   const trashed = await call(OWNER, `/api/apps/${A}/trash`, { method: 'POST', body: '{}' });
   assert.ok(trashed.status < 300, `trashed (${trashed.status} ${JSON.stringify(trashed.body).slice(0, 120)})`);
   const restored = await call(OWNER, `/api/apps/${A}/untrash`, { method: 'POST', body: '{}' });
@@ -498,6 +508,6 @@ await check('no model call or model-capable request, no page error', async () =>
 await browser.close();
 const failed = results.filter(r => !r.ok);
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ base: BASE, canvases: { A, B, C, BIG, CHILD }, passed: results.length - failed.length, failed: failed.length, checks: results, facts,
-  board_puts: puts.map(p => ({ who: p.who, board: p.board, size: p.body.length })), model_capable_refused: refused, outside_hosts: [...new Set(outside)], page_errors: errors }, null, 2));
+  board_puts: puts.map(p => ({ who: p.who, board: p.board, size: p.body.length })), model_capable_refused: refused, next_steps_on_open: background.length, outside_hosts: [...new Set(outside)], page_errors: errors }, null, 2));
 console.log(failed.length ? `FAIL ${failed.length} of ${results.length} checks (see ${OUT}/results.json)` : `PASS ${results.length} checks`);
 process.exit(failed.length ? 1 : 0);
