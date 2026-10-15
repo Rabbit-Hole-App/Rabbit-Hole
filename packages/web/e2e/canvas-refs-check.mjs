@@ -291,7 +291,11 @@ await check('2 Insert > Link to canvas…: Escape creates nothing; confirming pl
   await addLink().click();
   await picker().waitFor({ state: 'hidden' });
   await waitFor(async () => (await refCards().count()) === before + 1, 5000, 'no reference card appeared');
-  const cardEl = refCards().filter({ hasText: D.title }).first(), box = await cardEl.boundingBox();
+  const cardEl = refCards().filter({ hasText: D.title }).first(), first = await cardEl.boundingBox();
+  // A spot off screen is revealed by moving the camera: measure where the card comes to rest.
+  let box = first;
+  await waitFor(async () => { const now = await cardEl.boundingBox(); const still = now && box && Math.abs(now.x - box.x) < 1 && Math.abs(now.y - box.y) < 1; box = now; return still; }, 4000, 'the inserted card never came to rest');
+  facts.insert_box = { first, rest: box };
   const id = await cardEl.evaluate(el => el.closest('[data-block-id]')?.dataset.blockId);
   assert.ok(await inRoom(box), `the card is not in the visible room (${JSON.stringify(box)})`);
   assert.deepEqual(await selected(), [id], 'the new card is the selection');
@@ -304,8 +308,10 @@ await check('2 Insert > Link to canvas…: Escape creates nothing; confirming pl
   assert.equal(await page.locator('[data-canvas-ref-card]').count(), before + 1, 'linking created more than one card');
   // Clicking its background selects it (not its title, which navigates).
   await canvasKeys();
-  await page.mouse.click(box.x + box.width - 6, box.y + box.height - 6);
-  await waitFor(async () => (await selected()).includes(id), 2000, 'a click on the card background did not select it');
+  const at = await cardEl.boundingBox();
+  facts.insert_click = { at, hit: await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName} ${el.getAttribute('aria-label') || el.className.toString().slice(0, 60)} card=${!!el.closest('[data-canvas-ref-card]')}` : null; }, [at.x + at.width - 6, at.y + at.height - 6]) };
+  await page.mouse.click(at.x + at.width - 6, at.y + at.height - 6);
+  await waitFor(async () => (await selected()).includes(id), 2000, `a click on the card background did not select it (hit ${facts.insert_click.hit})`);
 });
 
 // ================================================================ 3: forward and backlink navigation to the exact card
