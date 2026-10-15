@@ -446,11 +446,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     return pages;
   };
   // One PDF card (its bytes under the source key) or the drawn pages, as one undoable insert. `source` is pdf-source.js's key.
+  // The canvas a PDF card or page names as its home (pdf-to-canvas.md): a project board (repo-*) names none, as only a canvas
+  // can be a home (learn-paper.js paperIdentity).
+  const pdfHome = /^canvas-[a-f0-9]{8}$/.test(app.name) ? app.name : null;
   const placePdf = async ({ pdf, file, source, label }, { mode, from, to }, progress) => {
-    if (mode === 'pdf') { await cacheAsset(source, file); progress('Adding the PDF card…'); canvas()?.insertPdf({ assetKey: source, label, home: app.name }); return; }
+    if (mode === 'pdf') { await cacheAsset(source, file); progress('Adding the PDF card…'); canvas()?.insertPdf({ assetKey: source, label, home: pdfHome }); return; }
     const pages = await drawPages(pdf, from, to, progress);
     progress(`Adding ${pages.length} page${pages.length === 1 ? '' : 's'}…`);
-    canvas()?.insertSlides({ pages, label, pdf: source, home: app.name });
+    canvas()?.insertSlides({ pages, label, pdf: source, home: pdfHome });
   };
   const readPdf = async bytes => {
     const { getDocument } = await import('./learn-paper-figures.js');

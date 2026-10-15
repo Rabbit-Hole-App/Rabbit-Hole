@@ -159,7 +159,7 @@ test('context documents: GET one document streams its bytes to the owner only, p
   assert.equal((await call('GET', `/api/learn/context?app=${canvas.name}`)).body.documents.length, 2, 'the list is unchanged');
 });
 
-// pdf-to-canvas.md follow-up 2: a PDF card or page copied to another canvas (a Duplicate, a fork, a Rabbit Hole) still names
+// pdf-to-canvas.md follow-up 2: a PDF card or page copied to another canvas (a Duplicate or a fork) still names
 // its document by id. Its owner reads it there; anyone else - a person who forked a shared canvas - never does.
 test('a copied page reads its owner\'s own document on the copy, and never another person\'s', async t => {
   const { env, canvas, call, upload } = fixture(t);

@@ -59,7 +59,7 @@ export function readUpload(name, bytes) {
 
 const list = async (db, who) => (await db.prepare('SELECT id, name, kind, size, attached, created_at FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? ORDER BY created_at DESC, rowid DESC')
   .bind(who.org, who.email, who.app).all()).results.map(row => ({ ...row, attached: !!row.attached }));
-// A PDF card or page copied to another canvas (a Duplicate, a fork, a Rabbit Hole: pdf-to-canvas.md) still names its
+// A PDF card or page copied to another canvas (a Duplicate or a fork: pdf-to-canvas.md) still names its
 // document by id. Read on that copy, the id is this learner's own document of that id on whichever of their canvases holds
 // it - never anyone else's: the lookup is the session's org and email, as every storage key here is. Someone who forked a
 // shared canvas has no such row, so a copied page never opens its owner's whole PDF. `home` is the canvas that holds it.

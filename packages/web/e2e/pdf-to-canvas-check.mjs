@@ -7,6 +7,10 @@
 // Cancel and Escape (also while drawing); one Undo per inserted set; the board and its page images on the server, a reload and a
 // fresh browser profile; a question about page 12 and Add to chat (Ctrl+L) on page 12 (the doc ref at page 12, never page 1);
 // the context document unchanged; the upload/drop road (the same dialog, the upload posted only after the choice).
+// Follow-ups 2-4: Add to chat on an uploaded-PDF page 12 (the paper at page 12, read after the selection is cleared); a set added
+// between a page label and its page lands before the label; the owner's Duplicate reads both PDFs and asks page 12 from its home;
+// another person's fork of the shared canvas gets the page pictures and is refused the bytes. Follow-up 5: in Auto the canvas's
+// journey Tutor answers a one-page question and its plan carries the page (page_context); two pages stay on /api/learn/ask.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Evidence goes to OUT: results.json (the captured context_refs and canvas_target, never cookies) and *.png.
 // Usage: BASE=http://127.0.0.1:8881 SMALL_CP=http://127.0.0.1:8883 VARS=<cp .dev.vars> OUT=<dir> node e2e/pdf-to-canvas-check.mjs
@@ -494,14 +498,15 @@ await check('a question about the selected page 12 sends the doc ref at page 12,
   assert.ok(!cap.body.paper_context, 'a context document page sends no paper_context');
 });
 
-await check('in the default Auto mode, a question about the selected page 12 also posts to /api/learn/ask with the page-12 doc ref', async () => {
+// Follow-up 5: in Auto this canvas's journey Tutor answers, and its plan request carries the one page (page_context).
+await check('in the default Auto mode, a question about the selected page 12 keeps the journey Tutor and its plan carries page 12 of the document', async () => {
   await newChat();
   await setMode('auto');
   await selectBlock(page12());
   const cap = await send('What does this page say?');
-  facts.page12_auto = { route: cap.route, context_refs: cap.body.context_refs ?? null };
-  assert.equal(cap.route, 'ask', `Auto posted to ${cap.route === 'plan' ? '/api/learn/tutor/plan' : cap.route}, not /api/learn/ask`);
-  assert.ok((cap.body.context_refs || []).some(r => isPage(r, 12)), 'context_refs holds the page-12 doc ref');
+  facts.page12_auto = { route: cap.route, page_context: cap.body.page_context ?? null, context_refs: cap.body.context_refs ?? null };
+  assert.equal(cap.route, 'plan', `Auto posted to ${cap.route === 'ask' ? '/api/learn/ask' : cap.route}, not the Tutor plan`);
+  assert.deepEqual(cap.body.page_context, { doc: { id: DOC.id, page: 12 } }, 'the plan carries page 12 of the context document, never page 1');
 });
 
 await check('Add to chat (Ctrl+L) on page 12 attaches the same doc page-12 ref', async () => {
@@ -577,6 +582,167 @@ await check('the upload/drop road: a dropped PDF opens the same dialog; the uplo
   assert.equal(papers.length, 1, 'Cancel uploads nothing');
 });
 
+// ================================================================ follow-ups 2-5 (docs/features/pdf-to-canvas.md)
+// The upload/drop road's own page 12: the uploaded paper at page 12, for Add to chat and the copies below.
+const dropPdf = async () => {
+  const surface = page.locator('[aria-label="Lesson canvas"] div.touch-none').first();
+  const box = await surface.boundingBox();
+  await page.evaluate(([element, bytes, name, x, y]) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(bytes)], name, { type: 'application/pdf' }));
+    const init = { bubbles: true, cancelable: true, dataTransfer: transfer, clientX: x, clientY: y };
+    element.dispatchEvent(new DragEvent('dragover', init));
+    element.dispatchEvent(new DragEvent('drop', init));
+  }, [await surface.elementHandle(), [...PDF], DROP_NAME, box.x + box.width * 0.4, box.y + box.height * 0.4]);
+  await dialog().waitFor({ timeout: 15000 });
+  await waitFor(async () => (await dialog().locator('[data-pdf-total]').innerText()).trim() === '20 pages', 15000, 'the dropped PDF shows no "20 pages"');
+};
+let paper12 = null, PAPER_ID = null;
+await check('the upload/drop road: page 12 alone lands as the uploaded paper at page 12, naming its home canvas', async () => {
+  const added = await add({ mode: 'pages', span: 'range', from: 12, to: 12 }, 'Add 1 page', dropPdf);
+  paper12 = added.find(b => b.slide === 12);
+  assert.ok(paper12, 'page 12 landed');
+  assert.match(String(paper12.data?.pdf), /^pdf:upload:[0-9a-f]{12}$/, 'it keeps its paper key');
+  assert.equal(paper12.data.home, canvas.name, 'it names the canvas its upload is stored on');
+  PAPER_ID = paper12.data.pdf.slice('pdf:'.length);
+});
+
+await check('follow-up 3: Add to chat (Ctrl+L) on the uploaded-PDF page 12 attaches that paper at page 12; with the selection cleared the question reads page 12', async () => {
+  await closeSources();
+  await newChat();
+  await setMode('ask');
+  await selectBlock(paper12.id);
+  const chips = pane().locator('[data-context-chip]');
+  const before = await chips.count();
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.keyboard.press('Control+l');
+  await waitFor(async () => (await chips.count()) > before, 5000, `no new chip after Ctrl+L (had ${before})`);
+  await shot('11-add-to-chat-uploaded-page-12');
+  await focusCanvas();
+  await page.keyboard.press('Escape');
+  await waitFor(async () => (await pane().locator('[data-canvas-target]').count()) === 0, 5000, 'the selection pill stayed');
+  const cap = await send('Explain the attached page.');
+  const refs = cap.body.context_refs || [];
+  facts.add_to_chat_uploaded = { context_refs: refs, paper_context: cap.body.paper_context ?? null, canvas_target: cap.body.canvas_target ?? null };
+  assert.ok(refs.some(r => r.sourceId === `paper:${PAPER_ID}` && r.kind === 'web' && r.range?.page === 12), `context_refs holds the paper at page 12 (got ${JSON.stringify(refs.map(r => [r.sourceId, r.kind, r.range]))})`);
+  assert.ok(!refs.some(r => r.kind === 'card'), 'no text-only card ref');
+  assert.deepEqual(cap.body.paper_context, { id: PAPER_ID, page: 12, home: canvas.name }, 'the page is read as paper_context at page 12');
+  assert.ok(!cap.body.canvas_target, 'only the chip carries the page');
+  // Several pages (this chip and a selected page 12 of the document) keep the fallback in Auto: /api/learn/ask sends them all.
+  await setMode('auto');
+  await selectBlock(page12());
+  const both = await send('Compare these two pages.');
+  facts.two_pages_auto = { route: both.route, paper_context: both.body.paper_context ?? null, context_refs: (both.body.context_refs || []).map(r => [r.sourceId, r.range]) };
+  assert.equal(both.route, 'ask', 'two pages post to /api/learn/ask');
+  assert.ok((both.body.context_refs || []).some(r => isPage(r, 12)), 'the document page 12 rides');
+  assert.deepEqual(both.body.paper_context, { id: PAPER_ID, page: 12, home: canvas.name }, 'and the uploaded page 12 rides');
+});
+
+await check('follow-up 4: a set added with the view centre between a page label and its page lands before the label; every pair stays together; one Undo removes only it', async () => {
+  await openSources();
+  const label15 = sets.middle.find(b => b.divider === 'Page 15').id;
+  const divider = page.locator(`[aria-label="Lesson canvas"] [data-block-id="${label15}"]`).first();
+  await reveal(divider);
+  // Pan until the canvas's middle line runs just under the "Page 15" label, above the middle of page 15 itself.
+  for (let i = 0; i < 8; i += 1) {
+    const d = await divider.boundingBox(), s = await page.locator('[aria-label="Lesson canvas"] div.touch-none').first().boundingBox();
+    const delta = d.y + d.height + 12 - (s.y + s.height / 2);
+    if (Math.abs(delta) < 4) break;
+    const at = await barePoint() || { x: 600, y: 400 };
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.wheel(0, Math.round(delta));
+    await frames();
+  }
+  await shot('12-view-between-label-and-page');
+  const added = await add({ mode: 'pages', span: 'range', from: 9, to: 9 }, 'Add 1 page');
+  assertPageSet(added, 9, 9);
+  const order = (await blocksNow()).map(b => ({ id: b.id, key: b.slide ? `slide ${b.slide}` : b.divider ? `divider ${b.divider}` : 'other' }));
+  const at = order.findIndex(b => b.id === added[0].id);
+  assert.deepEqual(order.slice(at, at + 4).map(b => b.key), ['divider Page 9', 'slide 9', 'divider Page 15', 'slide 15'], 'the new set sits in front of the Page 15 label, never between it and page 15');
+  for (let i = 0; i < order.length; i += 1) {
+    const n = Number(order[i].key.match(/^slide (\d+)$/)?.[1]);
+    if (n && n !== 1) assert.equal(order[i - 1]?.key, `divider Page ${n}`, `page ${n} keeps its label right above it`);
+  }
+  const others = order.map(b => b.id).filter(id => !added.some(a => a.id === id));
+  await closeSources();
+  await focusCanvas();
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(800);
+  const now = new Set((await blocksNow()).map(b => b.id));
+  assert.deepEqual(added.filter(b => now.has(b.id)).map(b => b.id), [], 'one undo removes the whole new set');
+  assert.deepEqual(others.filter(id => !now.has(id)), [], 'every other block stays');
+});
+
+// The server board a Duplicate or a fork copies, once it holds page 12 of both sources.
+// Every page picture too: this browser uploads them after the board, and leaving the canvas would stop that.
+const serverHas = ids => waitFor(async () => {
+  const blocks = (await boardOf()).state?.blocks || [], keys = new Set(await serverAssets());
+  return ids.every(id => blocks.some(b => b.id === id)) && blocks.filter(b => b.type === 'slide').every(b => keys.has(b.assetKey)) && blocks;
+}, 60000, 'the server board does not hold the page-12 blocks and every page picture yet');
+await check('follow-up 2: the owner Duplicate keeps the reader and AI context of each page - both PDFs read on the copy, and page 12 there asks from its home', async () => {
+  const doc12 = sets.middle.find(b => b.slide === 12);
+  assert.equal(doc12?.data?.home, canvas.name, 'a context-document page names its canvas too');
+  await serverHas([doc12.id, paper12.id]);
+  const copy = await api('/api/learn/boards/duplicate', { method: 'POST', body: JSON.stringify({ source: { canvas: canvas.name }, key: `dup-${run}` }) });
+  assert.match(String(copy.name), /^canvas-[a-f0-9]{8}$/, `the Duplicate was made (${JSON.stringify(copy).slice(0, 160)})`);
+  facts.duplicate = copy.name;
+  const bytes = async url => { const r = await fetch(`${BASE}${url}`, { headers: { cookie } }); return { status: r.status, same: r.ok && Buffer.from(await r.arrayBuffer()).equals(PDF) }; };
+  assert.deepEqual(await bytes(`/api/learn/context/${encodeURIComponent(DOC.id)}?app=${copy.name}`), { status: 200, same: true }, 'the context document reads on the copy');
+  assert.deepEqual(await bytes(`/api/learn/paper?app=${copy.name}&id=${encodeURIComponent(PAPER_ID)}&home=${canvas.name}`), { status: 200, same: true }, 'the uploaded paper reads on the copy from its home');
+  assert.equal((await bytes(`/api/learn/paper?app=${copy.name}&id=${encodeURIComponent(PAPER_ID)}`)).status, 404, 'without its home the copy has no upload of that id');
+  await page.goto(`${BASE}/apps/${copy.name}`);
+  await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+  await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
+  await page.waitForTimeout(1500);
+  const copyInk = INK.replace(canvas.name, copy.name);
+  const ink = await waitFor(async () => { const blocks = (await page.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }, copyInk))?.blocks || []; return blocks.some(b => b.type === 'slide' && b.number === 12 && b.pdf === `pdf:${PAPER_ID}`) && blocks; }, 30000, 'the copy did not load its pages');
+  const copied = ink.find(b => b.type === 'slide' && b.number === 12 && b.pdf === `pdf:${PAPER_ID}`);
+  assert.equal(copied.home, canvas.name, 'the copied page names its home canvas');
+  await newChat();
+  await setMode('ask');
+  await selectBlock(copied.id);
+  // Open (Enter) opens its reader, which reads the upload from its home.
+  const read = page.waitForResponse(r => r.url().includes('/api/learn/paper?') && r.url().includes(`home=${canvas.name}`), { timeout: 20000 });
+  await page.keyboard.press('Enter');
+  assert.equal((await read).status(), 200, 'the reader on the copy opened the PDF');
+  // It draws page 12 itself: the page text layer reads PAGE 12.
+  await waitFor(async () => /PAGE 12/.test(await page.locator('[aria-label="Paper page text"]').first().innerText().catch(() => '')), 20000, 'the reader on the copy did not draw page 12');
+  await shot('13-duplicate-reader-page-12');
+  await selectBlock(copied.id);
+  const cap = await send('What is on this page?');
+  facts.duplicate_question = { paper_context: cap.body.paper_context ?? null };
+  assert.deepEqual(cap.body.paper_context, { id: PAPER_ID, page: 12, home: canvas.name }, 'the question on the copy reads page 12 from its home');
+});
+
+await check('follow-up 2: another person never reads the PDF - their fork of the shared canvas keeps the page pictures, the bytes are refused, and a page brought no whole PDF', async () => {
+  const state = (await boardOf()).state;
+  const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state }) });
+  assert.ok(shared.sharing?.view, 'the canvas is shared by link');
+  const other = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `p2c-other-${run}@example.com`, secret }) })).json()).session;
+  const as = (path, init = {}) => fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${other}`, 'content-type': 'application/json', ...init.headers } });
+  try {
+    const fork = await (await as('/api/learn/boards/fork', { method: 'POST', body: JSON.stringify({ source: { token: shared.sharing.view }, key: `other-${run}` }) })).json();
+    assert.match(String(fork.name), /^canvas-[a-f0-9]{8}$/, `the other person forked it (${JSON.stringify(fork).slice(0, 160)})`);
+    const blocks = (await (await as(`/api/learn/boards/${fork.name}/main`)).json()).state?.blocks || [];
+    const pages = blocks.filter(b => b.type === 'slide');
+    assert.ok(pages.some(b => b.pdf === `pdf:${PAPER_ID}` && b.number === 12 && b.home === canvas.name), 'the fork holds page 12 of the upload, naming its home');
+    const keys = new Set((await (await as(`/api/learn/boards/${fork.name}/main/assets`)).json()).keys || []);
+    const missing = pages.filter(b => !keys.has(b.assetKey));
+    assert.deepEqual(missing.map(b => b.number), [], `every page picture travelled with the fork (${keys.size} files on the fork)`);
+    const cardKeys = new Set(blocks.filter(b => b.type === 'pdf').map(b => b.assetKey));
+    assert.deepEqual([...keys].filter(k => /^(doc|pdf):/.test(k) && !cardKeys.has(k)), [], 'no whole PDF travelled because a page was shared (only a PDF card the owner placed carries its PDF)');
+    assert.equal(keys.has(`pdf:${PAPER_ID}`), false, 'the uploaded paper of page 12 did not travel');
+    const refused = async url => { const r = await as(url); return { status: r.status, error: r.ok ? 'served' : (await r.json().catch(() => ({}))).error }; };
+    const doc = await refused(`/api/learn/context/${encodeURIComponent(DOC.id)}?app=${fork.name}`);
+    const paper = await refused(`/api/learn/paper?app=${fork.name}&id=${encodeURIComponent(PAPER_ID)}&home=${canvas.name}`);
+    const direct = await refused(`/api/learn/paper?app=${canvas.name}&id=${encodeURIComponent(PAPER_ID)}`);
+    facts.other_person = { fork: fork.name, doc, paper, direct: direct.status };
+    assert.equal(doc.status, 404); assert.match(String(doc.error), /not available to you/);
+    assert.equal(paper.status, 404); assert.match(String(paper.error), /not available to you/);
+    assert.ok([403, 404].includes(direct.status), `the owner canvas itself is refused (${direct.status})`);
+  } finally { await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) }); }
+});
+
 await check('the context document is unchanged: listed once, same attached flag, same size; no new context document', async () => {
   const docs = await docsNow();
   assert.deepEqual(docs.map(d => d.id), [DOC.id], `only the one document (${docs.map(d => d.id).join(', ')})`);
@@ -585,7 +751,7 @@ await check('the context document is unchanged: listed once, same attached flag,
 });
 
 await check('no model call, no other model-capable request, no page error', async () => {
-  assert.equal(captured.length, 3, `only the three questions this check sent (${captured.map(c => c.route).join(', ')})`);
+  assert.equal(captured.length, 6, `only the six questions this check sent (${captured.map(c => c.route).join(', ')})`);
   assert.deepEqual(refused, [], `refused routes: ${refused.join(', ')}`);
   assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
 });

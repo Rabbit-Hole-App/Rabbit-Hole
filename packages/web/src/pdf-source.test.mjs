@@ -66,6 +66,9 @@ test('both roads share one flow, pages keep their numbers, and nothing is upload
   assert.match(canvas, /number, pdf, \.\.\.\(home \? \{ home \} : \{\}\) \}/);
   // Upload and Sources both go through placePdf; Sources reads stored bytes and posts nothing.
   assert.equal(page.match(/placePdf\(/g).length, 2, 'used by takePdf and by Add to canvas from Sources');
+  // Only a canvas is a home: a project board names none, so a page question there never sends a home the server refuses.
+  assert.match(page, /const pdfHome = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(app\.name\) \? app\.name : null;/);
+  assert.equal(page.match(/home: pdfHome/g).length, 2, 'the PDF card and the pages name it');
   const fromSources = page.slice(page.indexOf('// Add to canvas from the Sources pane'), page.indexOf("window.addEventListener('small:pdf-to-canvas'"));
   assert.ok(fromSources.length > 200);
   assert.doesNotMatch(fromSources, /method: 'POST'/);
