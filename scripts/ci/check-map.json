@@ -229,7 +229,8 @@
   "mapped": {
     "packages/web/src/CanvasDoc.jsx": ["canvas-doc-check.mjs"],
     "packages/web/src/canvas-doc.js": ["canvas-doc-check.mjs"],
-    "packages/web/src/canvas-refs-model.js": ["card-context-menu-check.mjs","canvas-editing-check.mjs","canvas-doc-check.mjs"],
+    "packages/web/src/canvas-refs-model.js": ["canvas-refs-check.mjs","card-context-menu-check.mjs","canvas-editing-check.mjs","canvas-doc-check.mjs"],
+    "packages/web/src/canvas-refs.js": ["canvas-refs-check.mjs","canvas-refs-permissions-check.mjs"],
     "packages/web/src/inline-diagram.js": ["inline-ai-check.mjs","dive-check.mjs"],
     "packages/web/src/inline-placement.js": ["inline-ai-check.mjs","dive-check.mjs"],
     "packages/web/src/InlineAiEditor.jsx": ["inline-ai-check.mjs","canvas-skeleton-check.mjs","chat-block-check.mjs","cross-device-check.mjs","dive-check.mjs","explain-back-sketch-check.mjs","journey-check.mjs","manim-render-check.mjs","practice-card-check.mjs","wiki-check.mjs"],
