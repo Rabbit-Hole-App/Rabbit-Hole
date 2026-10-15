@@ -1,5 +1,6 @@
 # PDF Materials controls, chat-context duplication, and panel clipping
-n(Owner brief, 2026-10-14 about 8:35 PM PT, verbatim. It supersedes the earlier scattered PDF row-action requests.)
+
+(Owner brief, 2026-10-14 about 8:35 PM PT, verbatim. It supersedes the earlier scattered PDF row-action requests.)
 
 Implement these as a coordinated refinement of the existing PDF flow.
 This supersedes the earlier scattered instructions about PDF row actions.
