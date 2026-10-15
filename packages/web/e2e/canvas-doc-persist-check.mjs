@@ -50,7 +50,12 @@ const seed = async (name, state) => {
   const r = await call(OWNER, `/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...EMPTY, ...state } }) });
   if (r.status !== 200) throw Error(`seeding ${name} failed: ${r.status} ${JSON.stringify(r.body).slice(0, 160)}`);
 };
-const boardOf = (name, session = OWNER) => call(session, `/api/learn/boards/${name}/main`).then(r => r.body);
+// The local D1 now and then answers a read with a 500 (Failed to get session commit token); retry those, never a 4xx.
+const boardOf = async (name, session = OWNER) => {
+  let r;
+  for (let i = 0; i < 4; i++) { r = await call(session, `/api/learn/boards/${name}/main`); if (r.status < 500) break; await new Promise(go => setTimeout(go, 500)); }
+  return r.body;
+};
 const docOf = async (name, session) => (await boardOf(name, session))?.state?.doc;
 const has = (doc, marker) => JSON.stringify(doc?.blocks || []).includes(marker);
 const idsOf = blocks => (blocks || []).flatMap(b => [b.id, ...idsOf(b.children)]);
@@ -151,7 +156,20 @@ const drag = async (p, from, to) => {
 };
 const centre = box => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
 const handleOf = async p => centre(await card(p).locator('[data-drag-handle]').boundingBox());
-const cardOf = async name => (await boardOf(name)).state?.blocks?.find(b => b.id === 'c1');
+// Editor view frames the paper, which can leave the card off the left edge; wheel the camera (over the canvas) until the
+// whole card sits right of the tools gutter.
+const cardInView = async p => {
+  for (let i = 0; i < 6; i++) {
+    const box = await card(p).boundingBox();
+    if (box && box.x >= 120) return;
+    const at = await p.locator('[aria-label="Lesson canvas"]').boundingBox();
+    await p.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+    await p.mouse.wheel(-((box ? 160 - box.x : 400)), 0);
+    await p.waitForTimeout(250);
+  }
+  throw Error('the card could not be brought into view');
+};
+const cardOf = async name => (await boardOf(name))?.state?.blocks?.find(b => b.id === 'c1');
 
 // ================================================================ 1. write, hide, reopen, reload
 const one = await profile('owner');
@@ -161,7 +179,6 @@ await check('decision 1: a canvas opens in Canvas view by default; Editor shows 
   await openCanvas(page, A);
   assert.equal(await paper(page).count(), 0, 'no paper in Canvas view');
   await setView(page, 'Editor');
-  assert.equal(await page.locator('[data-canvas-doc-editor][data-rich-editor]').count(), 1, 'the editor root carries data-rich-editor');
   assert.equal(await page.evaluate(k => localStorage.getItem(k), viewKey(catalog, A)), 'editor', 'the view choice is kept per user and canvas');
   await shot('1-editor-first-open');
 });
@@ -175,6 +192,41 @@ await check('decision 1: write, then the server holds state.doc = { v: 1, x, y, 
   assert.ok(Array.isArray(doc.blocks) && has(doc, M1), 'blocks hold both lines');
   firstIds = idsOf(doc.blocks);
   facts.first = { x: doc.x, y: doc.y, w: doc.w, ids: firstIds.length };
+});
+// Amended contract (Parallel, 2026-10-15 12:03 AM PT): the editor root does not carry data-rich-editor, since that attribute
+// turns Ctrl+K inline AI on; the editor sits in the paper and canvas keys and Ctrl+K stand down inside it.
+await check('contract: the editor is inside the paper; Delete, Space and Ctrl+A in it leave the cards alone; Ctrl+K opens no inline AI', async () => {
+  assert.equal(await page.locator('[data-canvas-doc] [data-canvas-doc-editor]').count(), 1, 'the editor root is inside the paper');
+  const inkKey = viewKey(catalog, A).replace(/:view$/, ':ink');
+  const objects = () => page.evaluate(key => { let ink = {}; try { ink = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch {} return JSON.stringify(['blocks', 'items', 'shapes', 'links', 'groups', 'areas', 'strokes'].map(k => (ink[k] || []).map(o => [o.id, o.x, o.y, o.dx, o.dy]))); }, inkKey);
+  const marked = () => page.locator('[data-item-id].ring-2, [data-block-id].ring-select, [data-shape-id][data-selected]').count();
+  // A selected card first: once the editor has the caret, Delete must not act on it.
+  await cardInView(page);
+  const h = await handleOf(page);
+  await page.mouse.click(h.x, h.y);
+  await page.waitForTimeout(200);
+  const before = await objects(), text = await editorText(page);
+  await typeAtEnd(page, '');
+  const selectedBefore = await marked();
+  await page.keyboard.press('Delete'); // at the end of the document: nothing to delete there
+  await page.keyboard.down(' ');
+  assert.equal(await page.evaluate(() => document.querySelector('[data-canvas-surface]')?.hasAttribute('data-space-pan') || false), false, 'Space started a canvas pan');
+  await page.keyboard.up(' ');
+  await page.keyboard.press('Backspace'); // the space
+  await page.keyboard.press('Control+a');
+  const sel = await page.evaluate(() => ({ text: getSelection().toString(), inEditor: !!getSelection().anchorNode?.parentElement?.closest('[data-canvas-doc-editor]') }));
+  assert.ok(sel.inEditor && sel.text.trim().length > 0, 'Ctrl+A selected text in the document');
+  assert.equal(await marked(), selectedBefore, 'Ctrl+A selected no canvas objects');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Control+k');
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator('[data-inline-ai]').count(), 0, 'Ctrl+K inside the editor opened no inline AI');
+  assert.equal(await page.locator('[data-inline-hint]').count(), 0, 'Ctrl+K inside the editor showed no Quick Edit hint');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(600);
+  assert.equal(await card(page).count(), 1, 'the card is still on the canvas');
+  assert.equal(await objects(), before, 'no canvas object changed');
+  assert.equal(await editorText(page), text, 'the document text is unchanged');
 });
 await check('decision 1: hide (Canvas) leaves nothing in the DOM; reopen (Editor) shows the same text and block ids', async () => {
   await setView(page, 'Canvas');
@@ -222,17 +274,20 @@ const D1 = `Doc edit one ${run}`, D2 = `Doc edit two ${run}`;
 await check('decision 2: document edit, card move, document edit, card move - the server keeps both final edits', async () => {
   const start = await cardOf(A);
   await typeAtEnd(page, ` ${D1}`);
+  await cardInView(page);
   let h = await handleOf(page);
-  await drag(page, h, { x: h.x - 160, y: h.y + 40 });
+  await drag(page, h, { x: h.x, y: h.y + 120 });
   await typeAtEnd(page, ` ${D2}`);
+  await cardInView(page);
   h = await handleOf(page);
-  await drag(page, h, { x: h.x - 60, y: h.y + 80 });
+  await drag(page, h, { x: h.x + 10, y: h.y + 100 });
   const moved = await until(async () => {
     const board = (await boardOf(A)).state;
     const c = board?.blocks?.find(b => b.id === 'c1');
     return has(board?.doc, D1) && has(board?.doc, D2) && c && (c.dx !== start.dx || c.dy !== start.dy) && c;
   }, 20000, 'the server never held both document edits and the moved card together');
-  await until(async () => { const c = await cardOf(A); await page.waitForTimeout(2500); const again = await cardOf(A); return c.dx === again.dx && c.dy === again.dy; }, 15000, 'the card position kept changing');
+  // A read the local D1 answers with a 500 (no body) is retried, not taken as a moved card.
+  await until(async () => { const c = await cardOf(A); await page.waitForTimeout(2500); const again = await cardOf(A); return c && again && c.dx === again.dx && c.dy === again.dy; }, 15000, 'the card position kept changing');
   const final = (await boardOf(A)).state;
   assert.ok(has(final.doc, D1) && has(final.doc, D2), 'no later canvas save dropped a document edit');
   const c = final.blocks.find(b => b.id === 'c1');
@@ -243,6 +298,7 @@ await check('decision 2: document edit, card move, document edit, card move - th
 // ================================================================ 8. card onto the paper
 await check('scenario 8: dropping the card onto the paper is refused with [data-doc-drop-hint]; the card returns and the document is unchanged', async () => {
   await page.keyboard.press('Escape');
+  await cardInView(page);
   const beforeCard = await cardOf(A), beforeDoc = await docOf(A);
   const beforeBox = await card(page).boundingBox();
   const target = centre(await paper(page).boundingBox());
@@ -366,6 +422,9 @@ await check('scenario 11: the read-only shared view shows the document, not edit
     await viewer.page.goto(`${BASE}/b/${share.sharing.view}`);
     await viewer.page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
     await viewer.page.waitForTimeout(1500);
+    // The shared page shows the document on request (a Show document toggle).
+    const toggle = viewer.page.locator('[data-doc-toggle]');
+    if (!(await paper(viewer.page).count()) && await toggle.count()) await toggle.first().click();
     if (!(await paper(viewer.page).count()) && await viewer.page.getByRole('menubar', { name: 'Canvas menu' }).count()) await setView(viewer.page, 'Editor');
     await ready(viewer.page);
     assert.ok((await editorText(viewer.page)).includes(M1), 'the document is visible');
