@@ -142,3 +142,10 @@ test('the canvas places a group as a grid in one undo step and selects it; a car
   assert.ok(page.includes('insertCards: (list, { sameAs = null, size } = {}) =>'));
   assert.ok(readFileSync(new URL('./GraphPanel.jsx', import.meta.url), 'utf8').includes('const addCode = nodes => insertCodeCards(ops, '));
 });
+
+test('a redacted code card names nothing: no undefined fields in its provenance', () => {
+  assert.equal(provenanceOf({ type: 'repo-code', redacted: true, source: { kind: 'repository' } }), 'Repository content unavailable');
+  assert.equal(provenanceOf({ type: 'repo-code', source: { kind: 'repository' } }), 'Repository content unavailable');
+  assert.doesNotMatch(provenanceOf({ type: 'repo-code', redacted: true, source: { kind: 'repository' } }), /undefined/);
+  assert.match(provenanceOf({ type: 'repo-code', source: { kind: 'repository', repo: 'a/b', path: 'm.py', commit: 'c'.repeat(40) } }), /^a\/b › m\.py · ccccccc$/);
+});

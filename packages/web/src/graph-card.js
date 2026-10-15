@@ -6,6 +6,9 @@ import { sameRef } from './chat-context.js';
 // The block keeps a reference, never the graph: the repository, the pinned commit, the scope and, for a subgraph, its node
 // ids. The card reads the snapshot through the owner-checked route at render time, so a viewer without access sees no labels.
 export const GRAPH_CARD = { w: 560, h: 520 };
+// The most nodes a card draws at once (brief section 11: a limit is stated, never silent). Past it the card says how many it
+// shows, and Open in Graph has the rest.
+export const CARD_NODE_CAP = 200;
 
 // `repository` is use-repository.js's object; the commit is the loaded snapshot's, the code the learner is looking at.
 export function graphCardBlock(repository, nodeIds = []) {
@@ -34,8 +37,10 @@ export const cardRepository = block => ({ app: { repo: block.repository?.repo ||
 // selection, so a reopened card never resurrects one (brief section 8).
 const cards = new Map(), listeners = new Set();
 let refs = [];
+// A canvas-selected graph card with no node chosen inside it: its scope (brief section 6), one ref per card.
+const scopes = new Map();
 const emit = () => {
-  const all = [...cards.values()].flatMap(entry => entry.refs);
+  const all = [...[...cards.values()].flatMap(entry => entry.refs), ...[...scopes].filter(([id]) => !cards.has(id)).map(([, ref]) => ref)];
   refs = all.filter((ref, i) => all.findIndex(other => sameRef(other, ref)) === i);
   listeners.forEach(listener => listener());
 };
@@ -48,10 +53,12 @@ export function setCardSelection(id, nodes, block) {
   emit();
 }
 export const useCardSelection = id => useSyncExternalStore(subscribe, () => cards.get(id)?.ids || NONE);
-export const useCardRefs = () => useSyncExternalStore(subscribe, () => refs);
+export const cardRefs = () => refs;
+export const useCardRefs = () => useSyncExternalStore(subscribe, cardRefs);
 // Removing a chip lets go of the node that put it there (repo-context.js dropRef, for cards).
 export function dropCardRef(ref) {
   let changed = false;
+  for (const [id, own] of scopes) if (sameRef(own, ref)) { scopes.delete(id); changed = true; }
   for (const [id, entry] of cards) {
     const keep = entry.ids.map((nodeId, i) => [nodeId, entry.refs[i]]).filter(([, own]) => !sameRef(own, ref));
     if (keep.length === entry.ids.length) continue;
@@ -60,4 +67,17 @@ export function dropCardRef(ref) {
     else cards.delete(id);
   }
   if (changed) emit();
+}
+
+// The ref a selected graph card adds: which repository, commit and scope (whole, or the subgraph's node ids).
+export const graphScopeRef = block => {
+  const { repo = '', commit = '' } = block.repository || {};
+  const ids = block.scope === 'subgraph' ? `#${(block.nodeIds || []).map(encodeURIComponent).join(',')}` : '';
+  return { sourceId: `graph:${repo}@${commit}${ids}`, kind: 'graph', name: String(block.title || `${repo} graph`).slice(0, 120), version: commit, range: null };
+};
+// selected: the card's canvas selection; false (or an unmount) lets its scope go.
+export function setCardScope(id, block, selected) {
+  if (selected) scopes.set(id, graphScopeRef(block));
+  else if (!scopes.delete(id)) return;
+  emit();
 }

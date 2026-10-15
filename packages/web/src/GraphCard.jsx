@@ -5,7 +5,7 @@ import { Button, IconBtn, Input } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { CodeRefs } from './code-refs.js';
 import { nodeRef } from './repo-context.js';
-import { cardRepository, setCardSelection, subgraph, useCardSelection } from './graph-card.js';
+import { CARD_NODE_CAP, cardRepository, setCardScope, setCardSelection, subgraph, useCardSelection } from './graph-card.js';
 import { insertCodeCard, nodeCodeCard } from './code-card.js';
 import { useCardSource } from './use-card-source.js';
 
@@ -31,7 +31,12 @@ class GraphCardBoundary extends Component {
   }
 }
 
-export default function GraphCard({ block }) { return <GraphCardBoundary block={block} />; }
+export default function GraphCard({ block, selected = false }) {
+  // Selected on the canvas, the card's scope rides as chat context until a node inside it is chosen (graph-card.js).
+  useEffect(() => { setCardScope(block.id, block, selected); }, [block, selected]);
+  useEffect(() => () => setCardScope(block.id, block, false), [block.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <GraphCardBoundary block={block} />;
+}
 
 function GraphCardBody({ block }) {
   const source = useCardSource(block), chat = useChatWorkspace(), companion = useContext(CodeRefs);
@@ -57,6 +62,7 @@ function GraphCardBody({ block }) {
       <span className="min-w-0 truncate font-medium text-ink" title={block.repository?.repo}>{block.repository?.repo || 'Repository'}</span>
       <span className="shrink-0 font-mono" title={`Commit ${block.repository?.commit}`}>{short(block.repository?.commit)}</span>
       <span data-graph-card-scope={block.scope} className="shrink-0 text-ink-3">· {scope}</span>
+      {graph?.nodes.length > CARD_NODE_CAP && <span data-graph-card-limit role="note" className="shrink-0 text-ink-3">· Showing {CARD_NODE_CAP} of {graph.nodes.length} nodes</span>}
       {source.status === 'ready' && source.skipped?.length > 0 && <span className="shrink-0 text-ink-3" title="Files the indexer excluded are not in this graph">· {source.skipped.length} excluded</span>}
     </div>
     {source.status !== 'ready' ? <div role="status" data-graph-card-state={source.stale ? 'stale' : source.status} className="flex flex-1 flex-col items-start gap-2 text-sm text-ink-2">
@@ -70,7 +76,7 @@ function GraphCardBody({ block }) {
         <Input aria-label="Search this graph" placeholder="Search this graph…" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
       </label>
       <div data-graph-card-body className="flex min-h-0 flex-1 flex-col">
-        {graph.nodes.length ? <RepositoryGraph graph={graph} selectedIds={selected} onSelect={choose} query={query} />
+        {graph.nodes.length ? <RepositoryGraph graph={graph} selectedIds={selected} onSelect={choose} query={query} cap={CARD_NODE_CAP} />
           : <p className="text-sm text-ink-2">No nodes of this graph are in the repository at this commit.</p>}
       </div>
       {nodes.length > 0 && <div data-graph-card-selection className="flex shrink-0 items-center gap-1 text-sm">

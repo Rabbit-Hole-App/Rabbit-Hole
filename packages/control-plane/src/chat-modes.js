@@ -14,7 +14,8 @@ const now = () => new Date().toISOString();
 const parse = text => { try { return JSON.parse(text); } catch { return null; } };
 
 export const MODES = ['auto', 'ask', 'tutor'];
-const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web'];
+// graph: a selected repository graph card's scope (graph:<repo>@<commit>, #<node ids> for a subgraph); named, never read.
+const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph'];
 // Content the client resolved at Send for kinds the server cannot read itself (Home, 12:30 AM PT).
 const TEXT_KINDS = new Set(['card', 'group', 'image', 'media']);
 const REFS = 20, REF_BYTES = 2048, REF_TEXT = 8000, REFS_TEXT = 32000;

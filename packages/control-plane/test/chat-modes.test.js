@@ -470,3 +470,12 @@ test('pageDocIds names the documents a ref holds at one page, and the ask route 
   assert.deepEqual([...chatModes.pageDocIds(null)], []);
   assert.match(readFileSync(new URL('../src/index.js', import.meta.url), 'utf8'), /contextDocumentBlocks\(env, scopedApp, docIds\(chat\?\.contextRefs\), \{ pages: pageDocIds\(chat\?\.contextRefs\) \}\)/);
 });
+
+test('a selected graph card rides as a named graph ref: scope only, no range and no text (repo-graph Release 2)', () => {
+  const commit = 'a'.repeat(40);
+  const [ref] = contextRefs([{ sourceId: `graph:karpathy/nanoGPT@${commit}#model,train`, kind: 'graph', name: 'karpathy/nanoGPT subgraph', version: commit, range: null }]);
+  assert.deepEqual(ref, { sourceId: `graph:karpathy/nanoGPT@${commit}#model,train`, kind: 'graph', name: 'karpathy/nanoGPT subgraph', version: commit, range: null });
+  assert.throws(() => contextRefs([{ ...ref, text: 'code' }]), /text rides only/);
+  assert.throws(() => contextRefs([{ ...ref, sourceId: 'code:x@y:z' }]), /must start with graph:/);
+  assert.match(chatContext('', [ref], null, 4000), /\[graph\] "karpathy\/nanoGPT subgraph" sourceId/);
+});

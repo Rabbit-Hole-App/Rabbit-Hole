@@ -86,6 +86,8 @@ export function previewOf(lines, expanded = false) {
 // The card's provenance line: repo › path:lines · commit, or the uploaded file's name.
 export function provenanceOf(block) {
   const source = block?.source;
+  // A redacted card (repository-cards.js) keeps only its place and kind: it names nothing.
+  if (block.redacted || (source?.kind === 'repository' && !(source.repo && source.path && source.commit))) return 'Repository content unavailable';
   if (source?.kind === 'repository') return `${source.repo} › ${source.path}${lines(source.start, source.end)} · ${String(source.commit).slice(0, 7)}`;
   if (source?.kind === 'upload') return `Uploaded file · ${source.name}`;
   return '';
