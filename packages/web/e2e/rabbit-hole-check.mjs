@@ -119,14 +119,14 @@ const stubHomeAsk = async (page) => {
 // T12: the browser must run the bundle just built. A new version serves 15-20 s after
 // wrangler returns, so poll for a minute before calling it stale.
 await check('build: the browser runs the dist-dev entry script', async () => {
-  const built = readFileSync(new URL('../dist-dev/index.html', import.meta.url), 'utf8').match(/[/]static[/]index-[A-Za-z0-9_-]+[.]js/)?.[0];
+  const built = readFileSync(new URL('../dist-dev/index.html', import.meta.url), 'utf8').match(/[/]static[/]app-[A-Za-z0-9_-]+[.]js/)?.[0]; // the entry is named app (vite.config.js input)
   must(built, 'no entry script in dist-dev/index.html; build first');
   const page = await open();
   let served;
   for (let i = 0; i < 12 && served !== built; i++) {
     if (i) await page.waitForTimeout(5000);
     await page.goto(`${base}/apps`);
-    served = await page.evaluate(() => [...document.scripts].map((s) => s.src && new URL(s.src).pathname).find((p) => p?.startsWith('/static/index-')));
+    served = await page.evaluate(() => [...document.scripts].map((s) => s.src && new URL(s.src).pathname).find((p) => p?.startsWith('/static/app-')));
   }
   must(served === built, `built ${built}, the browser loaded ${served}`);
   await page.context().close();
@@ -598,7 +598,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await more.waitFor({ timeout: 20000 });
       must((await opacityOf(more))[0] === 1, 'the canvas card menu is invisible without hover');
       await loaded(page, '/apps');
-      const action = page.locator('[data-recent-card]').first().getByRole('button');
+      const action = page.locator('[data-recent-card]').first().getByRole('button', { name: 'Open', exact: true }); // LearningCard data-card-open, shown on hover only with a fine pointer
       await action.waitFor({ timeout: 20000 });
       must((await opacityOf(action))[0] === 1, 'the Recent card action is invisible without hover');
     } finally {
@@ -2375,11 +2375,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 
   // WP7 (user, 2026-09-29): a deploy replaces the hashed chunks, so a tab opened before it gets a 404 on its next lazy chunk.
-  // It reloads once and carries on; if the chunk still fails, it says so instead of going blank, and never loops (main.jsx
-  // vite:preloadError, chunk-reload.js). Since Release 1 the project's own lazy chunk is the Graph view's (repository-canvas.jsx
-  // GraphPanel), loaded when Explore codebase first shows it. The reload lands on the plain canvas, so Explore codebase is
-  // pressed again; a GraphPanel failure has no error boundary, so the root shows This page couldn't load.
-  if (ready) await check('wp7-stale-chunk: the Graph chunk gone after a deploy reloads the page once and Explore codebase then opens the Graph; a chunk that keeps failing shows an error, not a blank page, and reloads no more', async () => {
+  // Since Release 1 the project's own lazy chunk is the Graph view's, loaded when Explore codebase first shows it. A failed load
+  // is caught in the column (repository-canvas.jsx GraphPanel): The graph could not load, with Reload, never a page-wide failure.
+  // main.jsx may still reload the page once first (vite:preloadError, chunk-reload.js); that reload lands on the plain canvas,
+  // so Explore codebase is pressed again. Either way the page reloads at most once on its own and never loops.
+  if (ready) await check('wp7-stale-chunk: the Graph chunk gone after a deploy recovers after one reload and Explore codebase opens the Graph; a chunk that keeps failing shows The graph could not load with Reload in the column, the canvas stays, and nothing reloads in a loop', async () => {
     for (const persistent of [false, true]) {
       const page = await open();
       await noAsks(page);
@@ -2388,18 +2388,28 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await projectAt(page, `/apps/${ready.name}`);
       page.on('load', () => reloads++); // full page loads only
       const explore = page.locator('button[aria-label="Explore codebase"]');
-      const reloaded = page.waitForEvent('load', { timeout: 30000 });
+      const missing = page.locator('[data-learn-graph] [data-graph-unavailable]', { hasText: 'The graph could not load. A newer version may be out.' });
+      const reloaded = page.waitForEvent('load', { timeout: 30000 }).then(() => 'reload', () => null);
       await explore.click();
-      await reloaded;
-      await explore.waitFor({ timeout: 30000 }); // back on the plain canvas: the reload opens no viewer
-      await explore.click();
+      const first = await Promise.race([reloaded, missing.waitFor({ timeout: 30000 }).then(() => 'column', () => null)]); // the loser settles quietly: the harness crashes on an unhandled rejection
+      if (first === 'reload') { await explore.waitFor({ timeout: 30000 }); await explore.click(); } // back on the plain canvas
       if (!persistent) {
+        if (first === 'column') { // React.lazy keeps the failed result: the column's Reload is the way back
+          const back = page.waitForEvent('load', { timeout: 30000 });
+          await missing.getByRole('button', { name: 'Reload', exact: true }).click();
+          await back;
+          await explore.waitFor({ timeout: 30000 });
+          await explore.click();
+        }
         await page.locator('[data-learn-graph] [data-graph-panel]').waitFor({ timeout: 30000 });
         must(reloads === 1, `expected one reload, saw ${reloads}`);
       } else {
-        await page.getByText("This page couldn't load", { exact: false }).waitFor({ timeout: 30000 });
+        await missing.waitFor({ timeout: 30000 });
+        await missing.getByRole('button', { name: 'Reload', exact: true }).waitFor({ timeout: 5000 });
         await page.waitForTimeout(4000);
-        must(reloads === 1, `expected exactly one reload before the error, saw ${reloads}`);
+        must(await page.getByText("This page couldn't load", { exact: false }).count() === 0, 'a missing Graph chunk failed the whole page');
+        must(await page.getByLabel('Lesson canvas').isVisible(), 'the canvas went with the Graph chunk');
+        must(reloads <= 1, `expected at most one reload, saw ${reloads}`);
       }
       await page.context().close();
     }
