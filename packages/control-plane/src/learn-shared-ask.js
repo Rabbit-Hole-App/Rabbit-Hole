@@ -1,3 +1,4 @@
+import { redactRepositoryCards } from './repository-cards.js';
 import { boardImageContext, imageCard } from './learn-image-context.js';
 // A viewer's question about a shared canvas: POST /api/learn/boards/shared/:token/ask
 // (docs/features/shared-canvas-ask.md). The answer streams back to that viewer only, and nothing of the owner's is
@@ -211,7 +212,7 @@ export async function askShared(env, row, viewer, body, link = null) {
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   const refused = subscriptionOwnerRefusal(env, viewer);
   if (refused) return refused;
-  const db = env.LEARN_DB, state = JSON.parse(row.state_json);
+  const db = env.LEARN_DB, state = await redactRepositoryCards(db, JSON.parse(row.state_json), viewer);
   const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
   const source = link ? link.source : await shareSource(db, row);
   const repository = source?.allowed ? source : null;

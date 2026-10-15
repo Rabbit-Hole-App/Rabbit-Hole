@@ -99,6 +99,29 @@ export async function repositoryAccess(req,env,name) {
   const row=await d1(()=>env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? AND name=? AND owner_email=?').bind(user.org,name,user.email).first());
   return row?repositoryApp(row,user):json({error:'Repository not found in this workspace'},404);
 }
+// Code refs from any surface - graph and Files selections, code cards pinned to their commit (repo-graph Release 2) - read
+// through one owner check: a ref is resolved only against a snapshot of a repository `user` owns in their workspace, at the
+// ref's own commit. `snapshot`: one the caller already loaded (the canvas's project, the Main canvas), used for its refs. A
+// ref to anything else - another person's repository, one in Trash, a commit never indexed - is unavailable and named only
+// by the label the learner's own browser sent. ponytail: at most 3 other snapshots per question; past that, unavailable.
+export async function cardCodeRefs(env,user,refs,snapshot=null){
+  const code=(refs||[]).filter(ref=>ref?.kind==='code'),groups=new Map();
+  for(const ref of code){const at=parseCodeRef(ref),key=at?`${at.repo}@${at.commit}`:'';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(ref);}
+  const denied=ref=>({name:ref.name,status:'unavailable',reason:'This code is not available to you'});
+  const out=new Map();let loads=0;
+  for(const [key,group] of groups){
+    let found=snapshot&&key===`${snapshot.repo}@${snapshot.commit}`?snapshot:null;
+    if(!found&&key&&env.LEARN_DB&&loads<3){
+      const at=parseCodeRef(group[0]);
+      const row=await d1(()=>env.LEARN_DB.prepare(`SELECT r.id FROM repository_apps r JOIN repository_versions v ON v.app_id=r.id WHERE r.org=? AND r.owner_email=? AND r.repo=? AND v.commit_sha=? AND ${NOT_TRASHED('r.org','r.name')} LIMIT 1`).bind(user.org,user.email,at.repo,at.commit).first());
+      if(row){loads++;try{found=await repositorySnapshot(env,row,at.commit);}catch{found=null;}}
+    }
+    // No readable snapshot of its own: against the caller's snapshot it is still marked (other_commit, or not this repository).
+    const resolved=found?resolveCodeRefs(found,group):snapshot?resolveCodeRefs(snapshot,group):group.map(denied);
+    group.forEach((ref,i)=>out.set(ref,resolved[i]));
+  }
+  return code.map(ref=>out.get(ref));
+}
 export async function repositorySnapshot(env,app,commit=app.commit_sha) {
   const row=await d1(()=>env.LEARN_DB.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').bind(app.id,commit).first());
   if(!row) throw Error('This repository version is not indexed yet');
@@ -345,7 +368,7 @@ async function repositoryAsk(req,env,user,app){
   // A whole file in the composer's context (workspace-dock.md): its opening lines and length, never a line selection, so no
   // 'Selected code' suffix is stored with the question; the model reads further with read_source.
   const selectedFile=!selected&&!selectedCode&&typeof body.repository_context?.path==='string'?repositoryTool(snapshot,'read_source',{path:body.repository_context.path}):null;
-  const selectedEntities=codeRefs.length?resolveCodeRefs(snapshot,codeRefs):null;
+  const selectedEntities=codeRefs.length?await cardCodeRefs(env,user,codeRefs,snapshot):null;
   let graphView=null;
   // The video-moment tools ride here too: a repository canvas is the main
   // Learn surface, and the show_video bargain is the same on it - a window

@@ -1192,7 +1192,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // On a project canvas its code refs are read from the repository snapshot (canvases.js projectRepository), once each:
     // they are not listed again as named attachments.
     const code = repository?.selected && chat.contextRefs ? chat.contextRefs.filter(ref => ref.kind === 'code') : [];
-    if (code.length) context = `${context}\n\n${JSON.stringify(repository.selected(code))}`;
+    if (code.length) context = `${context}\n\n${JSON.stringify(await repository.selected(code))}`;
     context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null);
     system = chatSystem(system, answerMetaSystem({ repository: !!repository }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.

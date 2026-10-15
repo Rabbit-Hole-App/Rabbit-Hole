@@ -17,6 +17,7 @@ import { askShared, boardRevision, boardSources, publicationKey, shareKey, share
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
+import { redactRepositoryCards, restoreRedactedCards } from './repository-cards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -182,6 +183,9 @@ export const ownerRow = (env, owner, app, board) => env.LEARN_DB.prepare('SELECT
 // the save was based on, and the first INSERT yields to a first save that won meanwhile, so two saves based on the same
 // version are one write and one 409 - the loser is told the version now stored.
 async function saveOwn(env, owner, app, board, body) {
+  const row = await ownerRow(env, owner, app, board);
+  // A redacted repository card (repository-cards.js) never overwrites the full card this board stores.
+  if (row && body?.state && typeof body.state === 'object') body = { ...body, state: restoreRedactedCards(row.state_json, body.state) };
   const state = stateText(body?.state);
   if (state.error) return json({ error: state.error }, state.status || 400);
   const refs = boardRefs(body.state);
@@ -190,7 +194,6 @@ async function saveOwn(env, owner, app, board, body) {
   const indexed = CANVAS.test(app) && board === 'main';
   const db = env.LEARN_DB;
   const write = async (statement, index) => (index.length ? (await db.batch([statement, ...index]))[0] : await statement.run());
-  const row = await ownerRow(env, owner, app, board);
   const now = new Date().toISOString();
   const stale = async version => json({ error: 'This board changed since you opened it.', version: version ?? (await ownerRow(env, owner, app, board))?.version ?? 0 }, 409);
   if (!row) {
@@ -341,10 +344,11 @@ async function nextStepsAboutShared(req, env, token) {
   if (raw.length > NEXT_STEPS_BODY_CHARS) return json({ error: `the request body must be at most ${NEXT_STEPS_BODY_CHARS} characters` }, 400);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
-  const { row } = found, state = JSON.parse(row.state_json);
+  const { row } = found;
+  const viewer = found.viewer || await repositoryIdentity(req, env);
+  const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer);
   const origin = originOf(body?.origin, state);
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
-  const viewer = found.viewer || await repositoryIdentity(req, env);
   return sharedNextSteps(env, { row, state, title: (await sharedBoard(env, found)).title, key: await shareKey(token), viewer: viewer instanceof Response ? null : viewer, origin, body });
 }
 // A shared board's name as its viewers see it (sharedTitle: a private repository's name withheld), with the canvas row and
@@ -392,7 +396,7 @@ async function forkSource(req, env, user, body) {
     // The fork inherits the share's pinned revision (never the current HEAD); a repository the share may not show
     // stays unnamed in the fork's title and provenance.
     const pinned = await linkSource(env.LEARN_DB, found);
-    return { row, state: JSON.parse(row.state_json), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
+    return { row, state: await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), user), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
       revision: pinned && { id: pinned.id, commit: pinned.commit }, resource: canvas?.name || (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app) };
   }
   if (typeof source?.canvas !== 'string' || !CANVAS.test(source.canvas)) return json({ error: 'Choose a canvas or a share link to fork.' }, 400);
@@ -413,7 +417,7 @@ async function forkSource(req, env, user, body) {
     await emptyBoard(env.LEARN_DB, user.org, user.email, canvas.name).run();
     row = await ownerRow(env, user, canvas.name, 'main');
   }
-  const state = body.state ?? JSON.parse(row.state_json);
+  const state = await redactRepositoryCards(env.LEARN_DB, body.state ?? JSON.parse(row.state_json), user);
   // Your own canvas reads its project at the current commit, or what it inherited as a fork: the fork keeps that.
   const revision = await boardRevision(env.LEARN_DB, { id: row?.id, org: user.org, app: canvas.name, owner_email: user.email });
   return { row, state, org: user.org, canvas: canvas.name, owner: user.email, title: canvas.title, project: canvas.project, share: null, revision, resource: canvas.name };
@@ -549,7 +553,7 @@ async function startRabbitHole(req, env, token, body) {
   if (found instanceof Response) return found;
   const user = found.viewer || await repositoryIdentity(req, env);
   if (user instanceof Response) return user.status === 401 ? json({ error: 'Sign in to start your own Rabbit Hole from this canvas.', signIn: true }, 401) : user;
-  const { row } = found, db = env.LEARN_DB, state = JSON.parse(row.state_json);
+  const { row } = found, db = env.LEARN_DB, state = await redactRepositoryCards(db, JSON.parse(row.state_json), user);
   const blank = body?.blank === true;
   if (body?.blank !== undefined && typeof body.blank !== 'boolean') return json({ error: 'blank must be true or false' }, 400);
   if (blank && (body?.origin != null || body?.selected_next_step != null)) return json({ error: 'A blank canvas starts from the shared canvas itself.' }, 400);
@@ -702,7 +706,7 @@ async function openShared(req, env, token) {
   const viewer = found.viewer || await repositoryIdentity(req, env);
   const source = await linkSource(env.LEARN_DB, found);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
-  const state = JSON.parse(row.state_json);
+  const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer);
   // Who made it (docs/features/user-handles.md): the owner's @handle and display name, read by reference; no handle,
   // no creator. Never the owner's email: a link may be opened by anyone it reaches.
   const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();

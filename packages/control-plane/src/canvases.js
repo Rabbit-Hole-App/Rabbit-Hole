@@ -1,5 +1,5 @@
-import { CHAT_MODES, PROJECT_FIELDS, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
-import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
+import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
+import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
@@ -455,7 +455,8 @@ export async function projectRepository(env, app) {
       context: `SCOPE: canvas ${JSON.stringify(app.title)} in the project ${row.repo} - a learning canvas whose content lives in the learner's browser, about this repository: ${JSON.stringify({ repo: row.repo, commit: row.commit_sha })}`,
       system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input),
       // The learner's code refs (graph and Files selections), read from this snapshot only (repository-context.js).
-      selected: refs => ({ selectedEntities: resolveCodeRefs(snapshot, refs), selectedNote: SELECTED_NOTE }),
+      // A code card pinned to another commit of a repository the learner owns is read at that commit (cardCodeRefs).
+      selected: async refs => ({ selectedEntities: await cardCodeRefs(env, { org: app.org, email: app.email }, refs, snapshot), selectedNote: SELECTED_NOTE }),
     };
   } catch { return null; }
 }
