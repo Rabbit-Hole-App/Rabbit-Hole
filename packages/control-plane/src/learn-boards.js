@@ -12,6 +12,7 @@ import { learnMedia } from './learn-storage.js';
 import { sniffImageType } from './learn-media.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
+import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
 import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
@@ -183,20 +184,28 @@ export const ownerRow = (env, owner, app, board) => env.LEARN_DB.prepare('SELECT
 async function saveOwn(env, owner, app, board, body) {
   const state = stateText(body?.state);
   if (state.error) return json({ error: state.error }, state.status || 400);
+  const refs = boardRefs(body.state);
+  if (!refs) return tooManyRefs();
+  // A canvas's main board keeps its canvas-reference index in the same batch as the write (canvas-refs.js).
+  const indexed = CANVAS.test(app) && board === 'main';
+  const db = env.LEARN_DB;
+  const write = async (statement, index) => (index.length ? (await db.batch([statement, ...index]))[0] : await statement.run());
   const row = await ownerRow(env, owner, app, board);
   const now = new Date().toISOString();
   const stale = async version => json({ error: 'This board changed since you opened it.', version: version ?? (await ownerRow(env, owner, app, board))?.version ?? 0 }, 409);
   if (!row) {
     const id = crypto.randomUUID();
-    const { meta } = await env.LEARN_DB.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT DO NOTHING')
-      .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now).run();
+    const { meta } = await write(db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT DO NOTHING')
+      .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now), indexed && refs.length ? indexStatements(db, id, state.text, 1, refs, owner) : []);
     return meta.changes ? json({ version: 1, board_id: id, sharing: sharingOf(null) }) : stale();
   }
   const checked = Number.isInteger(body.version);
   if (checked && body.version !== row.version) return stale(row.version);
   // Without a version (older pages, API tests) the save is unconditional, as before.
-  const { meta } = await env.LEARN_DB.prepare(`UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?${checked ? ' AND version = ?' : ''}`)
-    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])).run();
+  // The index is rewritten whenever this board has or had references (an unversioned save cannot know what it replaces).
+  const reindex = indexed && (refs.length || !checked || row.state_json.includes('"refs"'));
+  const { meta } = await write(db.prepare(`UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?${checked ? ' AND version = ?' : ''}`)
+    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])), reindex ? indexStatements(db, row.id, state.text, checked ? body.version + 1 : null, refs, owner) : []);
   if (!meta.changes) return stale();
   // A change to a canvas's saved content is a meaningful change (canvas-metadata.md); a save of the same content, or a
   // board's first server copy (a sync of what the browser already had: sharing, publishing; over a canvas's empty
@@ -451,7 +460,11 @@ async function fork(req, env, body, { duplicate = false } = {}) {
     renamed.set(`notebook:${block.notebook_id}`, `notebook:${fresh}`);
     return { ...block, notebook_id: fresh };
   });
-  const id = crypto.randomUUID(), now = new Date().toISOString();
+  // The copy's cards keep their targets under new reference ids; only targets this user can read are indexed.
+  state.blocks = reidRefs(state.blocks);
+  const refs = boardRefs(state);
+  if (!refs) return tooManyRefs();
+  const id = crypto.randomUUID(), now = new Date().toISOString(), text = JSON.stringify(state);
   const forkedFrom = duplicate ? null : { resource_id: source.resource, board: source.row?.board || 'main', board_id: source.row?.id || null, title: sourceTitle, creator: null, share_url: source.share ? source.sharePath : null };
   // Copy first, then publish the canvas, board and lineage atomically. A failed copy cannot become a replayable fork.
   const bucket = learnMedia(env), copiedKeys = [];
@@ -472,7 +485,8 @@ async function fork(req, env, body, { duplicate = false } = {}) {
       db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,NULL)').bind(user.org, name, user.email, title, duplicate ? source.project ?? null : null),
       ...(duplicate ? [db.prepare(`INSERT INTO canvas_metadata (org, canvas, description, updated_at) SELECT ?, ?, description, ${NOW} FROM canvas_metadata WHERE org = ? AND canvas = ? AND description IS NOT NULL`).bind(user.org, name, source.org, source.canvas)] : []),
       db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title, forked_from) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)')
-        .bind(id, user.org, user.email, name, 'main', JSON.stringify(state), user.email, now, title, forkedFrom ? JSON.stringify(forkedFrom) : null),
+        .bind(id, user.org, user.email, name, 'main', text, user.email, now, title, forkedFrom ? JSON.stringify(forkedFrom) : null),
+      ...(refs.length ? indexStatements(db, id, text, 1, refs, user) : []),
       ...(duplicate ? [] : [db.prepare('INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share, forked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .bind(user.org, name, user.email, key, source.canvas ? source.org : null, source.canvas, root[0], root[1], source.owner, sourceTitle, source.share, now)]),
       // The repository revision the source was read at; the fork's share answers from it (docs/features/shared-canvas-ask.md).
@@ -616,7 +630,7 @@ async function boardOwner(req, env, app) {
   const row = await env.LEARN_DB.prepare('SELECT owner_email FROM canvases WHERE org = ? AND name = ?').bind(user.org, app).first();
   if (!row) return json({ error: 'Canvas not found in this workspace' }, 404);
   if (row.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
-  return { org: user.org, email: user.email };
+  return { org: user.org, email: user.email, userId: user.userId ?? null };
 }
 
 // The Rabbit Holes Map on a shared or published canvas (owner, 2026-10-08; dive-v1.md "Shared map"), read-only. A link
