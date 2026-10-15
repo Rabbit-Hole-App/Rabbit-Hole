@@ -1189,7 +1189,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // Tutor plans a syllabus and nothing else (B6): no tool rides, so a Tutor turn cannot open a reader or place a card.
     if (resolved.mode === 'tutor') Object.assign(research, { tools: [], system: null, arxiv: false });
     memory = await threadMemory(db, threadId, history.userMessageId);
-    context = chatContext(context, chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS);
+    context = chatContext(context, chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null);
     system = chatSystem(system, ANSWER_META_SYSTEM, resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { pageRange, pageRef, paperBytesUrl, pdfBytesUrl, pdfKeyOfRef, pdfSource, turnHasPage, turnPaper } from './pdf-source.js';
+import { labelOnlyChip, pageRange, pageRef, paperBytesUrl, pdfBytesUrl, pdfKeyOfRef, pdfSource, turnHasPage, turnPaper } from './pdf-source.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -33,6 +33,22 @@ test('a page of either source is its own PDF at its own page: the chip Add to ch
   assert.deepEqual(pageRef({ type: 'slide', pdf: 'pdf:upload:0123456789ab', number: 12, label: 'notes.pdf', home: 'canvas-0a1b2c3d' }).home, 'canvas-0a1b2c3d', 'a copied page names its home canvas');
   assert.equal(pageRef({ type: 'slide', pdf: 'doc:ctx:0123456789ab', label: 'notes.pdf' }), null);
   assert.equal(pageRef({ type: 'note' }), null);
+});
+
+// One uploaded PDF is read per turn: every other uploaded-paper page chip is marked a label only (the server says the same).
+test('a label-only chip: an uploaded-paper page whose PDF the turn does not read', () => {
+  const read = pageRef({ type: 'slide', pdf: 'pdf:upload:0123456789ab', number: 12, label: 'pages.pdf' });
+  const sameOther = pageRef({ type: 'slide', pdf: 'pdf:upload:0123456789ab', number: 13, label: 'pages.pdf' });
+  const other = pageRef({ type: 'slide', pdf: 'pdf:upload:aaaaaaaaaaaa', number: 4, label: 'other.pdf' });
+  const doc = pageRef({ type: 'slide', pdf: 'doc:ctx:0123456789ab', number: 3, label: 'notes.pdf' });
+  const readId = turnPaper(null, [doc, read, other]).id;
+  assert.equal(labelOnlyChip(read, readId), false, 'the chip whose PDF is read');
+  assert.equal(labelOnlyChip(sameOther, readId), false, 'another page of the PDF that rides');
+  assert.equal(labelOnlyChip(other, readId), true, 'another upload is a label');
+  assert.equal(labelOnlyChip(read, 'upload:ffffffffffff'), true, 'a selected page of another upload is read instead');
+  assert.equal(labelOnlyChip(read, null), true, 'nothing read: every upload page is a label');
+  assert.equal(labelOnlyChip(doc, readId), false, 'a context document page is read in full');
+  assert.equal(labelOnlyChip({ sourceId: 'card:b1', kind: 'card', range: null }, readId), false);
 });
 
 // Follow-up 3: the chip asks about its page after the selection is cleared; follow-up 2: a copied page reads its home canvas.

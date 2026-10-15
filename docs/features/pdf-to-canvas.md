@@ -77,8 +77,11 @@ In production (019cc134) until the next release:
 - **Auto** bypasses the journey Tutor for page questions (Follow-up 5).
 
 After the follow-ups, still:
-- One uploaded-paper page is read per turn (`paper_context`, as the reader holds one paper). Other uploaded-paper page chips in
-  the same question are named to the model but not read. Context-document pages all ride.
+- One uploaded PDF is read per turn (`paper_context`, as the reader holds one paper): the selected page's, else the open
+  reader's, else the first uploaded-page chip's. Every other uploaded-PDF page chip in the same question is a label only: the
+  composer marks it "label only" (its tooltip says why), and the model is told its content was not included and it has not
+  seen it (`chat-modes.js` `chatContext`). The read PDF's own page refs say its PDF is included. Context-document pages all
+  ride. Reading several uploaded PDFs in one question is not supported.
 - A Tutor turn carries one page; a question about two or more pages is answered by `/api/learn/ask`, not the journey Tutor.
 - Someone else's copy of a page (a fork of a shared canvas) shows the page picture, but a question about it is told the PDF
   cannot be read: the picture itself is not sent to the model.

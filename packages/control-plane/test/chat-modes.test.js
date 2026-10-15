@@ -99,6 +99,23 @@ test('chat context: summary and refs ride bounded, selection text as evidence, a
   assert.equal(chatContext('SCOPE', [], null, 10), 'SCOPE');
 });
 
+test('chat context: one uploaded PDF rides per turn; every other uploaded-PDF page ref is named only, never as if read', () => {
+  const page = (hex, n) => ref({ sourceId: `paper:upload:${hex}`, kind: 'web', name: `Paper ${hex}`, range: { page: n } });
+  const refs = [page('aaaaaaaaaaaa', 12), page('aaaaaaaaaaaa', 13), page('bbbbbbbbbbbb', 4), ref({ range: { page: 2 } })];
+  const lineOf = (out, text) => out.split('\n').find(line => line.includes(text));
+  const read = chatContext('SCOPE', refs, null, 100000, 'upload:aaaaaaaaaaaa');
+  // The read paper's pages (its whole PDF rides) say so; the other upload is a label only.
+  assert.match(lineOf(read, '{"page":12}'), / - its PDF is included in this turn$/);
+  assert.match(lineOf(read, '{"page":13}'), / - its PDF is included in this turn$/);
+  assert.match(lineOf(read, 'paper:upload:bbbbbbbbbbbb'), / - named only: its content was not included in this turn, so you have not seen it; say so if the question needs it$/);
+  // A context document page is read in full: no coverage note.
+  assert.doesNotMatch(lineOf(read, 'doc:ctx:'), /named only|included/);
+  // No PDF read (none sent, or an unreadable one): every uploaded page is named only.
+  const none = chatContext('SCOPE', refs, null, 100000, null);
+  assert.equal(none.split('\n').filter(line => line.includes('paper:upload:') && line.endsWith('say so if the question needs it')).length, 3);
+  assert.doesNotMatch(none, /its PDF is included/);
+});
+
 // ---------- apiAsk, end to end with the real askStream ----------
 
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');

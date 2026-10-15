@@ -51,6 +51,10 @@ export function turnPaper(target, refs = []) {
   return ref ? { id: ref.sourceId.slice('paper:'.length), page: ref.range.page, ...(ref.home ? { home: ref.home } : {}) } : null;
 }
 
+// An uploaded-paper page chip this turn sends as a label only: its PDF is not the one the turn reads (readId, the paper_context
+// id: the selected page's, the open reader's, else turnPaper's). The server tells the model the same (chat-modes.js chatContext).
+export const labelOnlyChip = (ref, readId) => pageChip(ref) && ref.kind === 'web' && ref.sourceId !== `paper:${readId}`;
+
 // The one page a journey Tutor turn sends (page_context, learn-tutor-routes.js): a turn about exactly one PDF page, the
 // selected page or one page chip. null for none, or for several, which stay on /api/learn/ask, the route that sends them all
 // (chat-route.js pageTurn).

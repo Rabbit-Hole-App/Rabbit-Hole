@@ -453,6 +453,27 @@ test('an uploaded PDF reaches the model as bytes, with the page the learner is o
   assert.match(JSON.stringify(answer.research), /lecture-notes\.pdf/);
 });
 
+// One uploaded PDF rides per turn: the model is told which page refs carry that PDF and which are labels it has not seen.
+test('a chat turn names the uploaded PDF it read and calls every other uploaded page a label only', async t => {
+  const env = fixture(t);
+  const pdf = new TextEncoder().encode('%PDF-1.4 uploaded');
+  let readable = true;
+  env.RUNS = { async get() { return readable ? { arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'pages.pdf' } } : null; } };
+  const page = (hex, n) => ({ sourceId: `paper:upload:${hex}`, kind: 'web', name: `Paper ${hex}`, version: '', range: { page: n } });
+  const body = { scope: { app: 'counter' }, message: 'Compare these pages', mode: 'ask', paper_context: { id: 'upload:0123456789ab', page: 12 },
+    context_refs: [page('0123456789ab', 12), page('aaaaaaaaaaaa', 3)] };
+  const lineOf = (context, hex) => context.split('\n').find(line => line.includes(`paper:upload:${hex}`));
+  assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 200);
+  assert.match(lineOf(env.answers[0].context, '0123456789ab'), /its PDF is included in this turn$/);
+  assert.match(lineOf(env.answers[0].context, 'aaaaaaaaaaaa'), /named only: its content was not included in this turn, so you have not seen it/);
+  assert.equal(env.answers[0].blocks.filter(block => block.type === 'document').length, 1, 'one PDF rides');
+  // The read PDF could not be read: nothing is called included.
+  readable = false;
+  assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 200);
+  assert.doesNotMatch(env.answers[1].context, /its PDF is included/);
+  assert.match(lineOf(env.answers[1].context, '0123456789ab'), /named only/);
+});
+
 // pdf-to-canvas.md follow-up 2: a page copied to another canvas reads its upload from the canvas it was uploaded to (`home`),
 // under the session's own org and email - so the key is this learner's, and never anyone else's.
 test('a copied page reads its upload from its home canvas, as the session user only', async t => {

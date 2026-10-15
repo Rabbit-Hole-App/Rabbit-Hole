@@ -2,6 +2,7 @@ import { CircleAlert, FileCode2, FileText, Film, Globe, Group, Image, Loader2, R
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { rangeLabel, refKey } from './chat-context.js';
 import { refIds } from './chat-canvas-context.js';
+import { labelOnlyChip } from './pdf-source.js';
 
 // Sub-lane A4a owns this file: attached-context chips under the composer text area (brief section 7). A3a mounts it.
 // First a fixed "This canvas" indicator (the canvas scope the server always reads, contract A5), then this conversation's
@@ -16,7 +17,10 @@ export const RefIcon = ({ kind, size = 14, className = 'shrink-0 text-ink-3' }) 
 const CHIP = 'inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-md border border-line bg-white text-xs text-ink';
 const CHIP_ICON_BUTTON = 'flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-ink-3 hover:bg-hover hover:text-ink';
 
-export default function ContextChips() {
+// readPaper: the uploaded paper id this turn reads (paper_context), or null; every other uploaded-PDF page chip is marked
+// as a label only, the way the server names it to the model (chat-modes.js chatContext).
+const LABEL_ONLY = 'Only one uploaded PDF is read per question; this page is sent as a label only.';
+export default function ContextChips({ readPaper = null }) {
   const chat = useChatWorkspace();
   if (!chat) return null;
   const chips = chat.context.items.filter(item => item.attached || item.state !== 'ready');
@@ -32,15 +36,16 @@ export default function ContextChips() {
           <Shapes size={14} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-3" /> This canvas
         </li>
         {chips.map(item => {
-          const { ref, state } = item, label = rangeLabel(ref.range), busy = state === 'uploading' || state === 'processing';
+          const { ref, state } = item, label = rangeLabel(ref.range), busy = state === 'uploading' || state === 'processing', labelOnly = state === 'ready' && labelOnlyChip(ref, readPaper);
           return (
-            <li key={item.id || refKey(ref)} data-context-chip={state} className={`${CHIP} pr-0.5 ${state === 'failed' ? 'border-red-300' : ''}`}>
-              <button type="button" disabled={state !== 'ready'} onClick={() => chat.openSource(ref)} title={state === 'failed' ? item.error : `Open ${ref.name}`}
+            <li key={item.id || refKey(ref)} data-context-chip={state} data-label-only={labelOnly || undefined} className={`${CHIP} pr-0.5 ${state === 'failed' ? 'border-red-300' : ''}`}>
+              <button type="button" disabled={state !== 'ready'} onClick={() => chat.openSource(ref)} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `Open ${ref.name}`}
                 className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent">
                 {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" />
                   : state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}
                 <span className="max-w-40 truncate">{ref.name}</span>
                 {label && <span className="shrink-0 text-ink-3">{label}</span>}
+                {labelOnly && <span className="shrink-0 text-ink-3">· label only</span>}
                 {busy && <span className="shrink-0 text-ink-3">{state === 'processing' ? 'Processing' : 'Uploading'}</span>}
                 {state === 'failed' && <span className="shrink-0 text-red-700">Failed</span>}
               </button>
