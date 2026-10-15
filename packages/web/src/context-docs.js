@@ -40,13 +40,30 @@ export async function uploadContextDoc(app, file) {
   return data.document;
 }
 
+// Remove from canvas context (materials-remove.md): the document leaves the list and future requests, its file stays for
+// the cards and pages that name it. Throws the server's reason, so the row that asked can show it and offer a retry.
+export async function removeContextDoc(app, id) {
+  const data = await request('DELETE', `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`);
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+  return data;
+}
+
+// A Materials row's canvas context switch (pdf-materials-refinement.md section 1): the canvas-level attached flag of that one
+// document. Throws the server's reason (the ten-on limit, the budget), so the row that asked can show it.
+export async function toggleContextDoc(app, id, attached) {
+  const data = await request('PATCH', `/api/learn/context/${encodeURIComponent(id)}`, { app, attached });
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+  return data;
+}
+
 export function useContextDocs(app) {
   const enabled = isContextCanvas(app);
   const [docs, setDocs] = useState([]);
+  const [removed, setRemoved] = useState([]); // ids removed from this canvas's context: chips naming them are stale
   const [busy, setBusy] = useState(false);
   const read = useCallback(() => {
     if (!enabled) return;
-    request('GET', `/api/learn/context?app=${encodeURIComponent(app)}`).then(data => setDocs(data.documents || [])).catch(() => {});
+    request('GET', `/api/learn/context?app=${encodeURIComponent(app)}`).then(data => { setDocs(data.documents || []); setRemoved(data.removed || []); }).catch(() => {});
   }, [app, enabled]);
   useEffect(() => {
     read();
@@ -68,5 +85,5 @@ export function useContextDocs(app) {
   };
   const toggle = (id, attached) => run(() => request('PATCH', `/api/learn/context/${encodeURIComponent(id)}`, { app, attached }));
   const remove = (id) => run(() => request('DELETE', `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`), 'Removed from context');
-  return { enabled, docs, busy, upload, toggle, remove, on: docs.filter(doc => doc.attached).length };
+  return { enabled, docs, removed, busy, upload, toggle, remove, on: docs.filter(doc => doc.attached).length };
 }

@@ -23,7 +23,8 @@ await esbuild.build({
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
   external: ['./learn-paper-figures.js'], // the PDF page counter, dynamically imported on upload only
 });
-const C = createRequire(import.meta.url)(outfile);
+const require = createRequire(import.meta.url);
+const C = require(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const doc = { id: 'ctx:0123456789ab', name: 'Attention.pdf', kind: 'pdf', size: 2048, attached: false, created_at: '2026-10-13 22:00:00' };
@@ -150,4 +151,76 @@ test('chips and pane: nothing outside a Learn canvas; This canvas first; an empt
   const pane = text(inCanvas(C.SourcesPane));
   assert.match(pane, /^Sources /);
   assert.match(pane, /No sources yet/);
+});
+
+// materials-remove.md: Remove from Materials. A whole-document chip of a removed document is stale (it would keep
+// sending it); a ref at one of its pages is not (a PDF page on the canvas still asks about that page); nothing else is touched.
+test('a removed context document: its whole-document chip is stale, a page of it and everything else stay', () => {
+  const removed = [doc.id];
+  assert.equal(C.staleRef(C.docRef(doc), removed), true);
+  assert.equal(C.staleRef(page3, removed), false, 'a page ref stays');
+  assert.equal(C.staleRef(card, removed), false);
+  assert.equal(C.staleRef(C.docRef({ ...doc, id: 'ctx:ffffffffffff' }), removed), false, 'another document stays');
+  assert.equal(C.staleRef(C.docRef(doc), []), false);
+  // Every conversation, open or restored, lets go of its stale chips; the removal itself drops the open chat's chip at once.
+  const { readFileSync } = require('node:fs');
+  const hook = readFileSync(new URL('./chat-context.js', import.meta.url), 'utf8');
+  assert.match(hook, /for \(const ref of attached\) if \(staleRef\(ref, removed\)\) dispatch\(\{ type: 'detach', ref \}\);\r?\n  \}, \[removed, attached\]\);/);
+  assert.match(hook, /const remove = useCallback\(async doc => \{ await removeContextDoc\(canvas, doc\.id\); dispatch\(\{ type: 'detach', ref: docRef\(doc\) \}\); \}, \[canvas\]\);/);
+});
+
+// pdf-materials-refinement.md sections 1-5: four row actions in order, each naming its own row's document; no document action in
+// the header; Upload always a visible button; Remove from Materials confirmed and scoped; a failure kept on the row.
+test('Materials rows: canvas context, Add to canvas, this chat, then Remove from Materials, each on its own row', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
+  const order = ['context', 'canvas', 'chat', 'remove'].map(action => source.indexOf(`data-material-action="${action}"`));
+  assert.ok(order.every(at => at > 0) && order.every((at, i) => !i || at > order[i - 1]), `the four actions in order (${order})`);
+  assert.match(source, /<div data-material-row data-source-id=\{ref\.sourceId\} className="@container/, 'one row per material, named by its own source id');
+  assert.match(source, /<span data-material-name title=\{name\} className=\{`min-w-0 truncate/, 'a long name truncates, with the full name as its tooltip');
+  assert.match(source, /data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @\[22rem\]:pr-1 @\[22rem\]:pb-0 @\[22rem\]:pl-0"/, 'narrow rows put the actions on a second line');
+  // Canvas context: the canvas-level flag of this row's document, pressed state exposed; never this chat's attachment.
+  assert.match(source, /data-material-action="context" aria-pressed=\{onCanvas\}[^]*?context\.canvasContext\(doc, !onCanvas\)[^]*?aria-label=\{`\$\{onCanvas \? 'Detach' : 'Attach'\} \$\{name\} \$\{onCanvas \? 'from' : 'to'\} canvas context`\}/);
+  // Add to canvas: this row's ref, PDFs only.
+  assert.match(source, /const canAdd = ready && !!pdfKeyOfRef\(ref\) && \(ref\.kind !== 'doc' \|\| doc\?\.kind === 'pdf'\);/);
+  assert.match(source, /data-material-action="canvas" onClick=\{act\(\(\) => addToCanvas\(ref\)\)\}\s+aria-label=\{`Add \$\{name\} to canvas`\}/);
+  assert.match(source, /const addToCanvas = ref => window\.dispatchEvent\(new CustomEvent\('small:pdf-to-canvas', \{ detail: \{ sourceId: ref\.sourceId, kind: ref\.kind, name: ref\.name \} \}\)\);/);
+  // This chat: the conversation's attachment, pressed state exposed.
+  assert.match(source, /data-material-action="chat" aria-pressed=\{!!item\.attached\}\s+onClick=\{act\(\(\) => \(item\.attached \? context\.detach\(item\.ref\) : context\.attach\(item\.ref\)\)\)\}\s+aria-label=\{item\.attached \? `Remove \$\{name\} from this chat` : `Attach \$\{name\} to this chat`\}/);
+  // Remove from Materials: set apart, asks first, scoped, a failure kept on the row.
+  assert.match(source, /<span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" \/>\s+<button type="button" data-material-action="remove" onClick=\{act\(\(\) => setRemoving\(item\)\)\}/);
+  assert.match(source, /aria-label=\{`Remove \$\{name\} from Materials`\} title=\{`Remove \$\{name\} from Materials`\}/);
+  assert.match(source, /<div data-material-remove-confirm className="fixed inset-0 z-50">\s+<ConfirmDialog title="Remove from Materials\?" confirmLabel="Remove from Materials"/);
+  assert.match(source, /is removed from Materials and from future AI requests\. Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted\./);
+  assert.match(source, /onConfirm=\{\(\) => remove\(removing\)\} onCancel=\{\(\) => setRemoving\(null\)\}/);
+  assert.match(source, /if \(active\?\.sourceId === item\.ref\.sourceId && !active\.range\) sources\.close\(\);/, 'a removed document open in the reader is put down');
+  assert.match(source, /catch \(error\) \{ setRows\(state => \(\{ \.\.\.state, \[key\]: \{ error: `Could not/, 'a failure keeps the row and names why');
+  assert.match(source, /\{row\.error && <p role="alert" data-material-error/);
+  // Every row action stops there; the header keeps no document action; Upload is a visible button; X only closes.
+  assert.match(source, /const act = work => event => \{ event\.stopPropagation\(\); work\(\); \};/);
+  assert.equal((source.match(/onClick=\{act\(/g) || []).length, 6, 'context, canvas, chat, remove, retry and dismiss all go through act');
+  assert.doesNotMatch(source, /data-source-add-canvas|Attach to this chat<\/MenuItem>|Detach from this chat/);
+  assert.match(source, /<Button variant="secondary" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\} className="border-\[1px\]">\s+<Upload size=\{14\} aria-hidden \/> Upload/);
+  assert.match(source, /data-sources-close onClick=\{panels\.closeSources\}/);
+});
+
+// pdf-materials-refinement.md section 1: the row's canvas context switch and this chat are separate - switching a document on
+// for the canvas marks it offered first, so a new conversation that follows the canvas's documents does not also attach it.
+test('the canvas context switch never attaches the document to this chat', () => {
+  const { readFileSync } = require('node:fs');
+  const hook = readFileSync(new URL('./chat-context.js', import.meta.url), 'utf8');
+  assert.match(hook, /const canvasContext = useCallback\(async \(doc, on\) => \{ offered\.current\.add\(`doc:\$\{doc\.id\}`\); await toggleContextDoc\(canvas, doc\.id, on\); \}, \[canvas\]\);/);
+  const offered = new Set(['doc:ctx:0123456789ab']);
+  assert.deepEqual(C.canvasDocRefs([{ ...doc, attached: true }], offered), [], 'switched on but already offered: not attached');
+  const docs = readFileSync(new URL('./context-docs.js', import.meta.url), 'utf8');
+  assert.match(docs, /export async function toggleContextDoc\(app, id, attached\) \{\r?\n  const data = await request\('PATCH', `\/api\/learn\/context\/\$\{encodeURIComponent\(id\)\}`, \{ app, attached \}\);/);
+});
+
+// Dark mode re-pins --color-white to white inside any class naming bg-accent (index.css): a resting row action never names it.
+test('a resting Materials row action keeps its dark surface', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
+  const base = source.match(/const ROW_ACTION = '([^']+)'/)[1], rest = source.match(/: '(border-line bg-white[^']+)'/)[1];
+  assert.doesNotMatch(`${base} ${rest}`, /bg-accent/);
+  assert.match(source, /const rowAction = \(pressed = false\) => `\$\{ROW_ACTION\} \$\{pressed \? 'border-accent\/40 bg-accent\/10 text-accent hover:bg-accent\/20' : 'border-line bg-white/);
 });

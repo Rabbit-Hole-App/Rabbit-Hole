@@ -3,7 +3,7 @@ import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { chatContext, chatFields, chatSystem, docIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory } from './chat-modes.js';
+import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory } from './chat-modes.js';
 import { ANSWER_META_SYSTEM, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
 import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
@@ -1159,7 +1159,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   // Canvas context documents (docs/features/canvas-context-docs.md): the switched-on ones ride every
   // Learn ask on their canvas, after any single source above. A Chat turn's doc refs name exactly the ones that ride.
   if (scopedApp && conversation === 'learn') {
-    try { extraBlocks.push(...await contextDocumentBlocks(env, scopedApp, docIds(chat?.contextRefs))); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+    try { extraBlocks.push(...await contextDocumentBlocks(env, scopedApp, docIds(chat?.contextRefs), { pages: pageDocIds(chat?.contextRefs) })); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
   }
   context = appendCanvasTarget(context, canvasTarget);
   // thread per scope and user; follow-ups ride the same thread

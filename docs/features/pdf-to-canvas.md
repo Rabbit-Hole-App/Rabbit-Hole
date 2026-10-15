@@ -6,7 +6,8 @@ evening) and go out with the next release; until then production has the limitat
 
 ## What it does
 
-A PDF open in the right-side Sources panel gets an **Add to canvas** action beside its title. It opens a small dialog with
+Each PDF row in the Sources panel's Materials list has its own **Add to canvas** action (docs/features/materials-remove.md),
+which names that row's PDF even while another one is open in the reader. It opens a small dialog with
 the file name and total pages, and two choices:
 
 1. **PDF card**: the whole PDF as one scrollable card (the existing PDF card).

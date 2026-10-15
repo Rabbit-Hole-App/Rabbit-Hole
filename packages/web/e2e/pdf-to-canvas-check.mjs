@@ -169,7 +169,8 @@ const assertImages = async (p = page, ids = null) => {
 // ---------------------------------------------------------------- Sources, the dialog and the canvas
 const pane = () => page.locator('[data-chat-pane]');
 const sourcesPane = () => page.locator('[data-sources-pane]');
-const addButton = () => page.locator('[data-source-add-canvas]');
+// Add to canvas is on the document's own Materials row (pdf-materials-refinement.md section 1), whatever the reader shows.
+const addButton = () => sourcesPane().locator(`[data-material-row][data-source-id="${DOC_KEY}"] [data-material-action="canvas"]`);
 const dialogRoot = () => page.locator('[data-pdf-add-dialog]');
 const dialog = () => page.locator('[data-pdf-add-dialog] [role="dialog"]');
 const confirmButton = () => dialog().locator('button').last();
@@ -188,7 +189,7 @@ const openSources = async () => {
     }
   }
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
-  await addButton().waitFor({ state: 'visible', timeout: 10000 }).catch(() => { throw Error('the active PDF source shows no [data-source-add-canvas] in the Sources header'); });
+  await addButton().waitFor({ state: 'visible', timeout: 10000 }).catch(() => { throw Error('the Materials row of the PDF shows no [data-material-action="canvas"]'); });
 };
 const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-sources-close]').click(); await page.waitForTimeout(300); } };
 const openDialog = async () => {
@@ -304,9 +305,10 @@ page = A.page;
 await openCanvas(page);
 const sets = {};
 
-await check('Sources lists the PDF context document; with it active the header offers Add to canvas', async () => {
+await check('Sources lists the PDF context document; its own Materials row offers Add to canvas', async () => {
   await openSources();
-  assert.equal((await addButton().innerText()).trim(), 'Add to canvas');
+  assert.equal(await addButton().getAttribute('aria-label'), `Add ${DOC_NAME} to canvas`);
+  assert.equal(await addButton().getAttribute('title'), `Add ${DOC_NAME} to canvas`);
   await shot('01-sources-add-to-canvas');
 });
 

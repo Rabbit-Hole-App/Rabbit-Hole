@@ -62,7 +62,8 @@ test('context documents: upload PDF and text, list, toggle, delete; at most ten 
   assert.equal((await contextDocumentBlocks(env, canvas)).some(b => b.source.media_type === 'application/pdf' && b.source.data.length > 0), true);
   const gone = await call('DELETE', `/api/learn/context/${pdf.body.document.id}?app=${canvas.name}`);
   assert.equal(gone.body.documents.length, 10);
-  assert.equal([...objects.keys()].length, 10, 'deleting removes the bytes too');
+  assert.deepEqual(gone.body.removed, [pdf.body.document.id]);
+  assert.equal([...objects.keys()].length, 11, 'removing from the context keeps the bytes (materials-remove.md)');
   assert.ok([...objects.keys()].every(key => key.startsWith('learn-context/')));
 });
 
@@ -186,4 +187,35 @@ test('a copied page reads its owner\'s own document on the copy, and never anoth
   // Without refs (null) the copy sends only its own switched-on documents, as before.
   assert.deepEqual(await contextDocumentBlocks(env, copy), []);
   assert.equal((await call('GET', `/api/learn/context?app=${canvas.name}`)).body.documents.length, 1, 'the source canvas is unchanged');
+});
+
+// materials-remove.md: Remove from canvas context leaves the Materials list and every whole-document send, never the file,
+// so a PDF card or page that names it keeps its reader and its page-specific AI access.
+test('remove from canvas context: gone from the list and whole-document sends, bytes and page access kept, owner only', async t => {
+  const { env, canvas, deps, call, upload } = fixture(t);
+  const pdf = (await upload('pages.pdf', PDF)).body.document;
+  const other = (await upload('notes.md', new TextEncoder().encode('kept'))).body.document;
+  const stranger = { authorize: async () => Response.json({ error: 'This canvas is private to its owner' }, { status: 403 }) };
+  const refused = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${pdf.id}?app=${canvas.name}`, { method: 'DELETE' }), env, stranger);
+  assert.equal(refused.status, 403, 'only the canvas owner removes');
+  assert.equal((await call('GET', `/api/learn/context?app=${canvas.name}`)).body.documents.length, 2, 'a refused removal changes nothing');
+  const removed = await call('DELETE', `/api/learn/context/${pdf.id}?app=${canvas.name}`);
+  assert.equal(removed.status, 200);
+  assert.deepEqual(removed.body.documents.map(d => d.id), [other.id], 'gone from Materials');
+  const listed = (await call('GET', `/api/learn/context?app=${canvas.name}`)).body;
+  assert.deepEqual([listed.documents.map(d => d.id), listed.removed], [[other.id], [pdf.id]], 'it stays gone after a reload, and the list names it removed');
+  // The card's reader still opens the bytes.
+  const bytes = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${encodeURIComponent(pdf.id)}?app=${canvas.name}`), env, deps);
+  assert.equal(bytes.status, 200);
+  assert.deepEqual(new Uint8Array(await bytes.arrayBuffer()), PDF);
+  // Switched-on sends (null), a stale whole-document chip and a page ref.
+  assert.deepEqual((await contextDocumentBlocks(env, canvas)).map(b => b.title), ['notes.md'], 'no longer sent with the switched-on documents');
+  assert.deepEqual(await contextDocumentBlocks(env, canvas, new Set([pdf.id])), [], 'a whole-document ref to it sends nothing and names nothing');
+  assert.deepEqual((await contextDocumentBlocks(env, canvas, new Set([pdf.id]), { pages: new Set([pdf.id]) })).map(b => [b.title, b.source?.media_type]), [['pages.pdf', 'application/pdf']], 'a page ref still sends it');
+  assert.deepEqual((await contextDocumentBlocks(env, canvas, null, { also: [pdf.id] })).map(b => b.title), ['notes.md', 'pages.pdf'], 'a Tutor turn about its page still reads it');
+  // Toggling and removing again refer to a document no longer on the canvas.
+  assert.equal((await call('PATCH', `/api/learn/context/${pdf.id}`, { body: { app: canvas.name, attached: true } })).status, 404);
+  assert.equal((await call('DELETE', `/api/learn/context/${pdf.id}?app=${canvas.name}`)).status, 404);
+  // A removed document no longer counts toward the 20 per canvas or the ten switched on.
+  for (let i = 0; i < 19; i++) assert.equal((await upload(`n${i}.txt`, new TextEncoder().encode(`n${i}`))).status, 200, `upload ${i + 2}`);
 });

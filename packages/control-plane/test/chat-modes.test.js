@@ -460,3 +460,12 @@ test('an answer written beside a show tool call survives a final turn that holds
   assert.equal(f.rows("SELECT content FROM messages WHERE role = 'assistant'")[0].content, 'A chord is three or more notes sounded together.');
   assert.equal(events.find(e => e.event === 'answer_meta').data.followUps.length, 1, 'the trailer from the final turn is still read');
 });
+
+// materials-remove.md: a document removed from the canvas context still rides for a ref at one page, never for a whole one.
+test('pageDocIds names the documents a ref holds at one page, and the ask route sends them as pages', () => {
+  const refs = [{ sourceId: 'doc:ctx:aaaaaaaaaaaa', kind: 'doc', range: null }, { sourceId: 'doc:ctx:bbbbbbbbbbbb', kind: 'doc', range: { page: 12 } },
+    { sourceId: 'paper:upload:cccccccccccc', kind: 'web', range: { page: 3 } }];
+  assert.deepEqual([...chatModes.pageDocIds(refs)], ['ctx:bbbbbbbbbbbb']);
+  assert.deepEqual([...chatModes.pageDocIds(null)], []);
+  assert.match(readFileSync(new URL('../src/index.js', import.meta.url), 'utf8'), /contextDocumentBlocks\(env, scopedApp, docIds\(chat\?\.contextRefs\), \{ pages: pageDocIds\(chat\?\.contextRefs\) \}\)/);
+});
