@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, MoreHorizontal, Plus, Shapes } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { ConfirmDialog, IconBtn, Input, Menu, MenuItem, toast } from './ui.jsx';
@@ -19,21 +19,25 @@ import { useCardMenu } from './home/CardMenu.jsx';
 // `onCatalog`: reloads the shell's catalog (Shell load), so a canvas made or renamed shows in the switcher.
 export default function RepositoryPage({ app: initial, catalog = [], onCatalog = null }) {
   const [app,setApp]=useState(initial);
-  const [openViewer]=useState(()=>repositoryView(window.location.search));
+  const [openViewer,setOpenViewer]=useState(()=>repositoryView(window.location.search));
   useEffect(()=>{
     if(!openViewer)return;
     const params=new URLSearchParams(window.location.search);params.delete('tab');
-    const canvas=params.get('canvas');
-    window.history.replaceState(window.history.state,'',canvas?canvasHref(app.name,canvas):`/apps/${app.name}`);
+    if(params.has('canvas'))params.set('tab','learn'); // canvasHref's shape; every other parameter (fixtures=1, ...) stays
+    const rest=params.toString();
+    window.history.replaceState(window.history.state,'',`/apps/${app.name}${rest?`?${rest}`:''}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
   },[]); // eslint-disable-line react-hooks/exhaustive-deps
   const root=`/api/repositories/${app.name}`;
-  const wired=useRepositoryCanvas(app),live=wired?.repository.app||app;
-  // The card's ⋮ beside the project's name: a change reloads this project and the shell's catalog.
-  const headerMenu=useCardMenu({org:app.org,email:app.email,apps:catalog,onChanged:()=>{api(root).then(setApp,()=>{});onCatalog?.();}});
-  const projectMenu = <>{headerMenu.onMore(app)&&<IconBtn data-project-more title="More" aria-label="More" onClick={e=>headerMenu.onMore(app)(e)}><MoreHorizontal size={16}/></IconBtn>}{headerMenu.element}</>;
   const asked=new URLSearchParams(window.location.search).get('canvas');
   const picked=asked&&catalog.find(c=>c.kind==='canvas'&&c.project===app.name&&c.name===asked); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Main canvas
+  const wired=useRepositoryCanvas(app,{codeCards:!picked}),live=wired?.repository.app?{...wired.repository.app,title:app.title}:app;
+  // The viewer an old link asked for opens on arrival only: a canvas switched to later opens as it is.
+  const arrived=useRef(picked?.name);
+  useEffect(()=>{if(arrived.current!==picked?.name)setOpenViewer(null);},[picked?.name]);
+  // The card's ⋮ beside the project's name: a change reloads this project and the shell's catalog.
+  const headerMenu=useCardMenu({org:app.org,email:app.email,apps:catalog,onChanged:()=>{api(root).then(setApp,()=>{});wired?.repository.retry();onCatalog?.();}});
+  const projectMenu = <>{headerMenu.onMore(app)&&<IconBtn data-project-more title="More" aria-label="More" onClick={e=>headerMenu.onMore(app)(e)}><MoreHorizontal size={16}/></IconBtn>}{headerMenu.element}</>;
   // The project's canvases in Learn's header (docs/features/project-canvases.md): Main canvas, its canvases, New canvas.
   const switcher=<CanvasSwitcher project={app.name} entries={projectCanvases(app.name,catalog,picked?.name)} onCatalog={onCatalog}/>;
   const props={...wired?.canvasProps,openViewer};

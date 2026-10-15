@@ -2977,6 +2977,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The document's editor (blocknote-canvas.md section 9) owns every key while it has the focus: typing, Space, Ctrl+A,
       // Delete, undo, its formatting and link shortcuts, Esc for its own menus. Never a canvas tool or selection.
       if (document.activeElement?.closest?.('[data-canvas-doc]')) return;
+      // The companion column (Context, Files, Graph; repo-canvas-graph.md) owns its keys: Delete, the arrows and Esc on a focused
+      // graph node act on the graph, never on canvas cards.
+      if (document.activeElement?.closest?.('[data-companion]')) return;
       // A drag in progress owns Esc: it cancels the gesture (startDrag) and nothing else.
       if (gestureLive && event.key === 'Escape') return;
       // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;

@@ -108,7 +108,7 @@ test('the chat chip names the path, the lines and a preview, removable; a questi
 test('Ask in chat in the panel puts the lines on the canvas as one selected Code card, keeping the range context; Learn does not', () => {
   const repo = read('repository-canvas.jsx'), page = read('LearnPage.jsx');
   // Only the reader's Ask in chat places a card; Learn never does.
-  assert.match(repo, /onRange=\{\(kind, range\) => \{ attach\(range\); if \(kind === 'learn'\) learnThis\(range\); else \{ askAbout\(range\); codeCard\(range\); \} \}\}/);
+  assert.match(repo, /onRange=\{\(kind, range\) => \{ attach\(range\); if \(kind === 'learn'\) learnThis\(range\); else \{ askAbout\(range\); if \(codeCards\) codeCard\(range\); \} \}\}/);
   assert.match(repo, /const codeCard = range => window\.dispatchEvent\(new CustomEvent\('small:code-card', \{ detail: \{ text: range\.text, path: range\.path, start: range\.start, end: range\.end, commit: range\.commit, repo: app\.repo \} \}\)\);/);
   const place = page.slice(page.indexOf("const place = async event => {"), page.indexOf("window.addEventListener('small:code-card', place);"));
   // The paste dialog's Code card, with its file, lines and language as its code source, placed in view and selected.

@@ -543,7 +543,7 @@ function AppContent({ data, load }) {
                             <PillButton
                               title="Open in side peek"
                               className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                              onClick={(e) => { e.stopPropagation(); a.kind === 'repository' ? navigate(`/apps/${a.name}?tab=code`) : a.kind === 'canvas' ? navigate(`/apps/${a.name}`) : setPanel({ name: a.name, tab: 'runbook' }); }}
+                              onClick={(e) => { e.stopPropagation(); a.kind === 'repository' ? navigate(`/apps/${a.name}`) : a.kind === 'canvas' ? navigate(`/apps/${a.name}`) : setPanel({ name: a.name, tab: 'runbook' }); }}
                             >
                               <PanelRight size={11} /> Open
                             </PillButton>

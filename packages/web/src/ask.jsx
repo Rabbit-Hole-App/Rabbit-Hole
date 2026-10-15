@@ -608,7 +608,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(!target?.paper && !questionPaper && !imageId && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
         scope: scopeOverride || scope,
         // With a codebase the selection rides as code refs (context_refs below); repository_context then names only the commit.
-        ...(repository && repositoryContext ? { repository_context: { ...(codebase ? {} : repositoryContext), commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
+        ...(repository && repositoryContext ? { repository_context: { ...(codebase ? {} : repositoryContext), commit: sourceRange?.commit || (codebase && (codebase.snapshot?.commit || codebase.commit)) || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         // @-mentioned apps: the server adds each one's context to this chat.
         ...(mentions.length ? { mentions: [...mentions] } : {}),
         // The learner's own words; the card, group or region they asked about rides beside them,

@@ -15,7 +15,9 @@ const GraphPanel = lazy(() => import('./GraphPanel.jsx'));
 // page already has (catalog or route), or null for a canvas with no repository.
 // Returns null, or { repository, codeRefs, canvasProps } where canvasProps go to LearnPage: files and graph (the companion
 // column's Files and Graph views) and the composer's repository context (the Files reader's selection, as before).
-export function useRepositoryCanvas(project) {
+// codeCards: Files' Ask in chat also drops the lines as a Code card - the Main canvas only, as before this release (code cards
+// on other canvases are Release 2).
+export function useRepositoryCanvas(project, { codeCards = false } = {}) {
   const repository = useRepository(project?.kind === 'repository' ? project.name : null, project);
   const app = repository?.app, snapshot = repository?.snapshot;
   return useMemo(() => {
@@ -40,9 +42,9 @@ export function useRepositoryCanvas(project) {
     const filesView = snapshot
       ? <CodeReader app={app} snapshot={snapshot} open={files.open} context={context} query="" pick={files.jump} stacked place="panel"
           onFile={p => attach(fileObject(snapshot.graph, p))} onSymbol={n => attach(objectOf(snapshot.graph, n))}
-          onRange={(kind, range) => { attach(range); if (kind === 'learn') learnThis(range); else { askAbout(range); codeCard(range); } }} />
+          onRange={(kind, range) => { attach(range); if (kind === 'learn') learnThis(range); else { askAbout(range); if (codeCards) codeCard(range); } }} />
       : <RepositoryState repository={repository} what="files" />;
-    const graphView = <Suspense fallback={<p role="status" className="p-4 text-sm text-ink-2">Loading the graph…</p>}><GraphPanel repository={repository} onOpenSource={showFile} /></Suspense>;
+    const graphView = <Suspense fallback={<p role="status" className="p-4 text-sm text-ink-2">Loading the graph…</p>}><GraphPanel repository={repository} onOpenSource={showFile} answerView={repository.answerView} /></Suspense>;
     return {
       repository, codeRefs,
       canvasProps: {
@@ -50,9 +52,11 @@ export function useRepositoryCanvas(project) {
         repositoryContext: context ? wireContext(context) : { commit: repository.commit },
         repositoryExcerpt: context?.kind === 'range' ? context.text : null,
         onClearRepository: context ? () => setContext(null) : null,
+        // "Show on graph" under an answer that drew one: the Graph view beside Chat shows it.
+        onGraph: view => { repository.setAnswerView({ ...view, requestId: crypto.randomUUID() }); window.dispatchEvent(new CustomEvent('small:open-graph')); },
       },
     };
-  }, [repository, app, snapshot]);
+  }, [repository, app, snapshot, codeCards]);
 }
 
 // The Files view before a snapshot exists, or when it cannot (brief section 12): what is happening, never an empty pane.

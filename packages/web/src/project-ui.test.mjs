@@ -20,8 +20,10 @@ test('a repository opens on its canvas: no Files | Graph | Learn page; the badge
   assert.match(page, /\{picked\?<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} canvasProps=\{props\}\/>/);
   assert.match(page, /:<LearnPage app=\{live\} project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} \{\.\.\.props\}\/>\}/);
   // An old ?tab= link opens its viewer once and leaves the plain URL (routes.js repositoryView).
-  assert.match(page, /const \[openViewer\]=useState\(\(\)=>repositoryView\(window\.location\.search\)\);/);
-  assert.match(page, /window\.history\.replaceState\(window\.history\.state,'',canvas\?canvasHref\(app\.name,canvas\):`\/apps\/\$\{app\.name\}`\);/);
+  assert.match(page, /const \[openViewer,setOpenViewer\]=useState\(\(\)=>repositoryView\(window\.location\.search\)\);/);
+  assert.match(page, /params\.delete\('tab'\);\n\s+if\(params\.has\('canvas'\)\)params\.set\('tab','learn'\);[^\n]*\n\s+const rest=params\.toString\(\);\n\s+window\.history\.replaceState\(window\.history\.state,'',`\/apps\/\$\{app\.name\}\$\{rest\?`\?\$\{rest\}`:''\}`\);/);
+  // ...on arrival only: a canvas switched to later opens as it is (review 2026-10-15 #8).
+  assert.match(page, /useEffect\(\(\)=>\{if\(arrived\.current!==picked\?\.name\)setOpenViewer\(null\);\},\[picked\?\.name\]\);/);
   // Beside the title: the switcher, carrying the canvas's Rabbit Holes as a group (owner r35); no switcher, the title's own chevron.
   assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{\/\*[\s\S]*?\*\/\}\s*\{switcher \? cloneElement\(switcher, \{ holes: dive\.titleHoles \}\) : <TitleHoles \{\.\.\.dive\.titleHoles\} \/>\}/);
   // In the switcher, the holes are a group under the current canvas, its own row left out (it is that canvas).
@@ -37,6 +39,28 @@ test('a repository opens on its canvas: no Files | Graph | Learn page; the badge
   assert.match(wired, /<RepositoryState repository=\{repository\} what="files" \/>/);
   // Files opens in the companion column beside Chat (lane A), mounted on its first show.
   assert.match(learn, /\{files && shown\.current\.has\('files'\) && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{companionView === 'files' \? 'flex' : 'hidden'\}[^`]*`\}>\{files\}<\/div>\}/);
+});
+
+// Code review 2026-10-15 (C:/s/spec/repo-graph-review.md): each fix pinned where its rule lives.
+test('repository canvas review fixes: graph keys stay in the column, Retry refetches, Show on graph, one-time viewers, Main-only code cards', () => {
+  const canvas = read('AdaptiveCanvas.jsx'), ask = read('ask.jsx'), app = read('App.jsx');
+  // #1 a focused graph node's Delete, arrows and Esc never act on canvas cards (the canvas listens on window in capture).
+  assert.match(canvas, /if \(document\.activeElement\?\.closest\?\.\('\[data-canvas-doc\]'\)\) return;\n[^\n]*\n[^\n]*\n\s+if \(document\.activeElement\?\.closest\?\.\('\[data-companion\]'\)\) return;/);
+  // #3 Retry after a failed snapshot read reads it again.
+  assert.match(loader, /\}, \[root, commit, reload\]\);/);
+  // #4 closing the column on a wide layout, or leaving the canvas, clears the temporary selection; pinned chips stay.
+  assert.match(learn, /useEffect\(\(\) => \{ if \(!viewerShown && window\.matchMedia\('\(min-width: 64rem\)'\)\.matches\) clearSelection\(heldRepository\.current\); \}, \[viewerShown\]\);/);
+  assert.match(learn, /useEffect\(\(\) => \(\) => clearSelection\(heldRepository\.current\), \[\]\);/);
+  // #5 an answer's Show on graph opens the Graph view with that answer's graph.
+  assert.match(wired, /onGraph: view => \{ repository\.setAnswerView\(\{ \.\.\.view, requestId: crypto\.randomUUID\(\) \}\); window\.dispatchEvent\(new CustomEvent\('small:open-graph'\)\); \},/);
+  assert.match(wired, /<GraphPanel repository=\{repository\} onOpenSource=\{showFile\} answerView=\{repository\.answerView\} \/>/);
+  // #6 a new chat asks at the repository's current commit.
+  assert.match(ask, /commit: sourceRange\?\.commit \|\| \(codebase && \(codebase\.snapshot\?\.commit \|\| codebase\.commit\)\) \|\| repositoryCommit/);
+  // #11 Ask in chat's Code card stays on the Main canvas (code cards elsewhere are Release 2).
+  assert.match(wired, /if \(codeCards\) codeCard\(range\);/);
+  assert.match(page, /useRepositoryCanvas\(app,\{codeCards:!picked\}\)/);
+  // #12 an ordinary open forces no viewer.
+  assert.match(app, /a\.kind === 'repository' \? navigate\(`\/apps\/\$\{a\.name\}`\)/);
 });
 
 test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {
@@ -128,7 +152,7 @@ test('one selection: the Files reader picks and Ask or Learn on a range attach t
   const reader = read('CodeReader.jsx');
   assert.match(wired, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{files\.open\} context=\{context\}[^>]*\n\s*onFile=\{p => attach\(fileObject\(snapshot\.graph, p\)\)\} onSymbol=\{n => attach\(objectOf\(snapshot\.graph, n\)\)\}/);
   // Ask in chat also puts the lines on the canvas as a selected Code card (repository-browser.md "Files in Learn").
-  assert.match(wired, /onRange=\{\(kind, range\) => \{ attach\(range\); if \(kind === 'learn'\) learnThis\(range\); else \{ askAbout\(range\); codeCard\(range\); \} \}\}/);
+  assert.match(wired, /onRange=\{\(kind, range\) => \{ attach\(range\); if \(kind === 'learn'\) learnThis\(range\); else \{ askAbout\(range\); if \(codeCards\) codeCard\(range\); \} \}\}/);
   assert.equal(wired.match(/<CodeReader /g).length, 1, 'one reader');
   assert.match(wired, /repositoryContext: context \? wireContext\(context\) : \{ commit: repository\.commit \},/);
   // Selecting text only offers [Ask] [Learn]; the context changes on a click, never on a selection.

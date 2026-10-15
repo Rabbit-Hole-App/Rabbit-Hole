@@ -38,6 +38,7 @@ import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import { RepositoryBadge } from './repository-canvas.jsx';
+import { clearSelection } from './repo-context.js';
 import PanelHeader, { CanvasFind, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
@@ -161,6 +162,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   if (panelOpen && companion.open) shown.current.add(companionView);
   const backTo = companionViews.find(entry => entry.id === companion.previous);
   useEffect(() => { if (openViewer) companion.show(openViewer); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // An invisible selection never rides a later question (brief section 6): closing the column (or hiding the right side) on a
+  // wide layout, or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
+  // their thread. Below lg, Back to chat swaps the column for Chat with the chips in view, so the selection stays for the ask.
+  const viewerShown = panelOpen && companion.open, heldRepository = useRef(repository);
+  heldRepository.current = repository;
+  useEffect(() => { if (!viewerShown && window.matchMedia('(min-width: 64rem)').matches) clearSelection(heldRepository.current); }, [viewerShown]);
+  useEffect(() => () => clearSelection(heldRepository.current), []);
   const [chatWidth, setChatWidth] = useState(0);
   useEffect(() => {
     const showFiles = () => companion.show('files'), showGraph = () => companion.show('graph');
