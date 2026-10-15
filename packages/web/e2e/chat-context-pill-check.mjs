@@ -137,6 +137,13 @@ const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() =>
 const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
 const frames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 const pane = () => page.locator('[data-chat-pane]');
+// One right panel (right-panel-context-tab.md): opening a source (a dropped PDF opens in Sources) shows the Context tab, which
+// hides Chat; every composer step comes back to the Chat tab first.
+const showChat = async () => {
+  if (await pane().isVisible().catch(() => false)) return;
+  await page.locator('[data-panel-tab="chat"]').first().click();
+  await pane().waitFor({ state: 'visible', timeout: 10000 });
+};
 const openCanvas = async () => {
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
@@ -187,6 +194,7 @@ const deselect = async () => {
 };
 // Select one block: a press on its top strip (a PDF card's frame, a page's image), until the pane names it as selected.
 const select = async id => {
+  await showChat();
   await deselect(); // a selection that stepped aside for Add to chat comes back only on a new selection
   const target = page.locator(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`).first();
   await reveal(target);
@@ -207,8 +215,9 @@ const setMode = async mode => {
   await page.locator(`[data-chat-mode-option="${mode}"]`).click();
   await page.waitForTimeout(200);
 };
-const newChat = async () => { await pane().locator('[data-chat-new]').click(); await page.waitForTimeout(400); };
+const newChat = async () => { await showChat(); await pane().locator('[data-chat-new]').click(); await page.waitForTimeout(400); };
 const send = async text => {
+  await showChat();
   await field().fill(text);
   const n = captured.length;
   await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
@@ -384,6 +393,7 @@ await check('10: a dropped PDF as one card is an uploaded paper: one entry, labe
 });
 
 const openChat = async id => {
+  await showChat();
   if (!(await page.locator('[data-chat-history-search]').isVisible().catch(() => false))) await pane().getByRole('button', { name: 'History', exact: true }).click();
   await page.locator(`[data-chat-history-row="${id}"]`).click();
   await waitFor(async () => !(await page.locator('[data-chat-history-search]').isVisible().catch(() => false)), 10000, 'History did not close on the pick');
