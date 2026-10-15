@@ -22,13 +22,15 @@ import { COMMIT, REPO, SNAPSHOT, content, routeRepository } from './nanogpt-repo
 // ---------------------------------------------------------------- names the lanes own (aligned at merge)
 // Labels are the brief's own words (section 1 and "Card contents"); data-* names not fixed by the contract live here only.
 const SELECTORS = {
-  codeCard: '[data-repo-code-card]', // CODE: CodeCard.jsx root, inside the canvas card [data-block-id]
-  graphCard: '[data-repo-graph-card]', // GRAPH: GraphCard.jsx root
-  graphCardScope: '[data-graph-card-scope]', // GRAPH: the header's Whole graph / Subgraph label
+  codeCard: '[data-code-card]', // CODE: CodeCard.jsx root, inside the canvas card [data-block-id]
+  graphCard: '[data-graph-card]', // GRAPH: GraphCard.jsx root
+  graphCardScope: '[data-graph-card-scope]', // GRAPH: the header's scope label; its value is the block's scope
+  filesAddCodeCard: '[data-file-add-card]', // CODE: the Files viewer's Add code card for the open file (CodeReader.jsx)
   unavailable: 'Repository content unavailable', // ACCESS: owner decision 5, verbatim
   openSource: 'Open source', addToChat: 'Add to chat', createCodeCard: 'Create code card', // card controls
-  openInCompanion: /^(Open in (the )?(companion|Graph)|Expand)/i, // GRAPH: the graph card's expand-to-companion control
+  openInCompanion: '[data-graph-card-expand]', // GRAPH: the graph card's Show in the Graph beside Chat
   addToCanvas: 'Add to canvas', // the selection controls' menu button, when the choices sit behind one
+  nodeAddCard: '[data-node-add-card]', // GRAPH: the node details' Add code card
   addCodeCard: 'Add code card', addSelectionAsGraph: 'Add selection as graph', addGraphToCanvas: 'Add graph to canvas',
   // Context: a graph card selected with no node inside it rides as a graph-scope ref (GRAPH).
   graphScopeRef: ref => ref.kind === 'graph' || String(ref.sourceId || '').startsWith('graph:'),
@@ -248,13 +250,14 @@ const assertRepositorySource = (block, path, what) => {
 await openContext();
 const draft = `draft ${run} stays`;
 
-await check('1 a node right-click Add code card makes one repo-code card at the commit and symbol, beside the existing cards; it asks, sends and pins nothing', async () => {
+// The node details' Add code card for one node (the right-click menu is case 3b).
+const addFromDetails = async id => { await node(id).click(); await graphPanel().locator(SELECTORS.nodeAddCard).first().click(); };
+await check('1 a node\'s Add code card makes one repo-code card at the commit and symbol, beside the existing cards; it asks, sends and pins nothing', async () => {
   await openCanvas();
   await openGraph();
   await field().fill(draft);
   const before = await quiet();
-  await node(N.gpt).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click();
+  await addFromDetails(N.gpt);
   await waitCount('repo-code', 1, 'Add code card');
   const [card] = await ofType('repo-code');
   assertRepositorySource(card, 'model.py', 'the GPT card');
@@ -296,8 +299,7 @@ await check('2 one Undo removes the card, Redo restores the same card and source
 
 await check('3 an equivalent Add code card reveals the existing card, never a second; Ctrl+D still duplicates on purpose, sharing the source', async () => {
   const [card] = await ofType('repo-code');
-  await node(N.gpt).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click();
+  await addFromDetails(N.gpt);
   await page.waitForTimeout(800);
   assert.equal((await ofType('repo-code')).length, 1, 'no duplicate for the same source and range');
   const el = cardEl(card.id), r = await box(el), f = await box(canvasFrame());
@@ -311,6 +313,17 @@ await check('3 an equivalent Add code card reveals the existing card, never a se
   assert.deepEqual(twins[0].source, twins[1].source, 'the duplicate shares the source reference');
   await undo();
   await waitCount('repo-code', 1, 'Undo of the duplicate');
+});
+
+await check('3b a node right-click opens its menu with Add selection as graph, Add code card and Add to chat; Add code card there reveals the existing card', async () => {
+  await openGraph();
+  await node(N.gpt).click({ button: 'right' });
+  await page.locator('[role="menu"]').filter({ hasText: SELECTORS.addSelectionAsGraph }).waitFor({ timeout: 3000 });
+  for (const name of [SELECTORS.addSelectionAsGraph, SELECTORS.addCodeCard, SELECTORS.addToChat]) assert.equal(await page.getByRole('menuitem', { name, exact: true }).count(), 1, `the menu offers ${name}`);
+  const count = (await ofType('repo-code')).length;
+  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click();
+  await page.waitForTimeout(800);
+  assert.equal((await ofType('repo-code')).length, count, 'no duplicate from the menu');
 });
 
 await check('4 three selected nodes, Add code card: one card per code node as a compact group, no neighbour added, no overlap; one Undo removes all, Redo restores all', async () => {
@@ -356,7 +369,7 @@ await check('5 Add selection as graph: one repo-graph subgraph card with exactly
   const header = (await el.innerText()).replace(/\s+/g, ' ');
   assert.match(header, /nanoGPT/, 'the card names the repository');
   assert.ok(header.includes(COMMIT.slice(0, 7)), 'the card shows its revision');
-  assert.match((await el.locator(SELECTORS.graphCardScope).innerText()).trim(), /subgraph|selection|3 nodes/i, 'the card says it is a subgraph');
+  assert.equal(await el.locator(SELECTORS.graphCardScope).getAttribute('data-graph-card-scope'), 'subgraph', 'the card says it is a subgraph');
   facts.c5 = { id: card.id, nodeIds: card.nodeIds, repository: card.repository };
   await shot('03-subgraph-card');
 });
@@ -374,7 +387,7 @@ await check('6 Add graph to canvas: one whole-graph card, every indexed node or 
   await el.locator('[data-graph-node]').first().waitFor({ timeout: 20000 });
   const shown = await el.locator('[data-graph-node]').count(), text = (await el.innerText()).replace(/\s+/g, ' ');
   assert.ok(shown === SNAPSHOT.graph.nodes.length || /of \d+|limit|showing/i.test(text), `all ${SNAPSHOT.graph.nodes.length} nodes or a stated limit (${shown} shown)`);
-  assert.match((await el.locator(SELECTORS.graphCardScope).innerText()).trim(), /whole/i, 'the card says whole graph');
+  assert.equal(await el.locator(SELECTORS.graphCardScope).getAttribute('data-graph-card-scope'), 'whole', 'the card says whole graph');
   await shot('04-whole-graph-card');
   await undo();
   await waitCount('repo-graph', 1, 'Undo of the whole graph');
@@ -384,7 +397,7 @@ await check('7 the Files viewer Add code card and a file dragged from Files make
   await showView('files');
   await companion().locator('[data-file-row="sample.py"]').click();
   const before = (await ofType('repo-code')).map(b => b.id);
-  await companion().getByRole('button', { name: SELECTORS.addCodeCard, exact: true }).first().click();
+  await companion().locator(SELECTORS.filesAddCodeCard).first().click();
   await waitCount('repo-code', before.length + 1, 'Files Add code card');
   const made = (await ofType('repo-code')).find(b => !before.includes(b.id));
   assertRepositorySource(made, 'sample.py', 'the Files card');
@@ -459,7 +472,7 @@ await check('10 graph-card nodes give the same chips as the companion; Create co
   await page.waitForTimeout(800);
   assert.equal((await ofType('repo-code')).length, count, 'the GPT card already exists, so it is revealed, not duplicated');
   await page.keyboard.press('Escape');
-  await cardEl(card.id).getByRole('button', { name: SELECTORS.openInCompanion }).first().click();
+  await cardEl(card.id).locator(SELECTORS.openInCompanion).first().click();
   await waitFor(async () => await companionOpen() && await view() === 'graph', 5000, 'the card did not open in the companion Graph');
 });
 
@@ -484,7 +497,7 @@ await check('11 a selected code card rides as its code ref at its commit and ran
   // A whole-file card of the same file is another range: Add to chat makes a second, distinct entry.
   await showView('files');
   await companion().locator('[data-file-row="model.py"]').click();
-  await companion().getByRole('button', { name: SELECTORS.addCodeCard, exact: true }).first().click();
+  await companion().locator(SELECTORS.filesAddCodeCard).first().click();
   await waitFor(async () => (await ofType('repo-code')).some(b => b.source?.path === 'model.py' && !b.source.nodeId), 5000, 'no whole-file model.py card');
   const file = (await ofType('repo-code')).find(b => b.source?.path === 'model.py' && !b.source.nodeId);
   await cardEl(file.id).getByRole('button', { name: SELECTORS.addToChat, exact: true }).first().click();
@@ -585,7 +598,8 @@ await check('15 dropping local code files: the dialog offers Code card, Escape a
   assert.equal(card.source.repo, undefined, 'no invented repository');
   const el = cardEl(card.id).locator(SELECTORS.codeCard);
   await el.waitFor({ timeout: 15000 });
-  assert.ok([JS, JS.replace(/\n$/, '')].includes(await el.locator('pre').first().evaluate(n => n.textContent)), 'the exact code and whitespace');
+  const shown = await el.locator('[data-code-line] > span:last-child').evaluateAll(all => all.map(n => n.textContent).join('\n'));
+  assert.equal(shown.replace(/\n+$/, ''), JS.replace(/\n+$/, ''), 'the exact code and whitespace');
   // Two files: both named before anything is made.
   await drop([['a.ts', 'export const a = 1;\n'], ['b.go', 'package main\n']], { x: 0.3, y: 0.7 });
   const names = (await dialog.innerText());
@@ -611,8 +625,7 @@ await check('16 a late source answer never fills a deleted card', async () => {
   let release;
   holdSource = new Promise(resolve => { release = resolve; });
   await openGraph();
-  await node(N.sample).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: SELECTORS.addCodeCard, exact: true }).click().catch(() => {}); // revealed if it exists
+  await addFromDetails(N.sample); // revealed if it exists
   await page.keyboard.press('Escape');
   const card = (await ofType('repo-code')).find(b => b.source?.nodeId === N.sample);
   if (card) {
