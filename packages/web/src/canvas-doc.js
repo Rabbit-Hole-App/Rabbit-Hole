@@ -26,11 +26,15 @@ const hasText = block => (Array.isArray(block?.content) ? block.content.some(par
 export const docIsEmpty = doc => !doc || !Array.isArray(doc.blocks) || !doc.blocks.some(hasText);
 
 // A newer server copy on open (LearnPage's board load). kept: this browser's document put aside by Reload and keep my
-// document (a 409): it goes over the server's board as the newer edit - unless it is the server's already. Otherwise a
-// replaced local copy whose document differs is offered back (Restore my unsaved document). Nothing is ever dropped.
+// document (a 409): it goes over the server's board as the newer edit - unless it is the server's already. replaced: this
+// browser's copy the server's replaces. Whatever loses comes back as `replaced`, for the page to keep under :replaced, and
+// its document, when it has words the result lacks, is offered back (Restore my unsaved document): with kept, the losing
+// document is the server's; otherwise it is this browser's. Nothing is ever dropped silently.
 export function docOnServerCopy(serverState, { kept = null, replaced = null } = {}) {
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  if (kept && !same(kept, serverState?.doc)) return { state: { ...serverState, doc: kept }, push: true, offer: null };
-  if (!kept && replaced?.doc && !same(replaced.doc, serverState?.doc)) return { state: serverState, push: false, offer: replaced.doc };
-  return { state: serverState, push: false, offer: null };
+  const keep = !!kept && !same(kept, serverState?.doc);
+  const state = keep ? { ...serverState, doc: kept } : serverState;
+  const lost = keep && !docIsEmpty(serverState?.doc) ? { ...(replaced || {}), doc: serverState.doc } : replaced;
+  const offer = lost?.doc && !docIsEmpty(lost.doc) && !same(lost.doc, state?.doc) ? lost.doc : null;
+  return { state, push: keep, offer, replaced: lost || null };
 }

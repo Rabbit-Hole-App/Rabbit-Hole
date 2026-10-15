@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { Eye, MessageCircle, X } from 'lucide-react';
+import { Eye, FileText, MessageCircle, X } from 'lucide-react';
+import { docIsEmpty } from '../canvas-doc.js';
 import { setRemoteAssets, setWorkspaceStore } from '../learn-board-assets.js';
 import { Button } from '../ui.jsx';
 import { PRODUCT } from '../flags.js';
@@ -17,6 +18,8 @@ export default function MemberBoardPage({ boardId }) {
   const [board, setBoard] = useState(null);
   const [problem, setProblem] = useState(null);
   const [commentsOpen, setCommentsOpen] = useState(true);
+  // The canvas's document (docs/features/blocknote-canvas.md), read-only here as on a share link: shown on request.
+  const [docShown, setDocShown] = useState(false);
   const [about, setAbout] = useState(null);
   const canvasApi = useRef(null);
   const openComments = useCallback(() => setCommentsOpen(true), []);
@@ -51,12 +54,13 @@ export default function MemberBoardPage({ boardId }) {
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />{about?.comments_enabled === false ? 'View only' : 'View and comment'}</span>
         <span data-member-owner className="truncate text-xs text-ink-3">Shared with you by {owner?.name || displayName(owner)}{owner?.name && owner?.handle ? ` · @${owner.handle}` : ''}</span>
         <span className="flex-1" />
+        {state.doc && !docIsEmpty(state.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>
       </header>
       <div className="flex min-h-0 flex-1">
         <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
           <Suspense fallback={null}>
-            <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} boardState={state} readOnly />
+            <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} boardState={state} docView={docShown ? 'editor' : 'canvas'} readOnly />
           </Suspense>
         </div>
         {comments.active && commentsOpen && (
