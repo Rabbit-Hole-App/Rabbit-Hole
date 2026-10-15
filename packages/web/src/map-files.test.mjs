@@ -99,9 +99,10 @@ test('the chat chip names the path, the lines and a preview, removable; a questi
   assert.match(ask, /aria-label="Clear repository selection" onClick=\{onClearRepository\}/);
   // Send: the Tutor turn does not carry Learn's repository context, so a file or lines question takes the Learn chat path,
   // whose request carries the range (repositoryAsk reads it); a symbol context stays with the Tutor.
-  assert.match(ask, /const codeTurn = repository && !!\(repositoryContext\?\.range \|\| repositoryContext\?\.path\);/);
+  // With a codebase (a repository canvas, repo-canvas-graph.md) the selection rides as code refs instead.
+  assert.match(ask, /const codeTurn = codebase \? codeTurnRefs\.refs\.some\(ref => ref\.kind === 'code'\) : repository && !!\(repositoryContext\?\.range \|\| repositoryContext\?\.path\);/);
   assert.match(ask, /if \(viaTutor\) \{/);
-  assert.match(ask, /\.\.\.\(repository && repositoryContext \? \{ repository_context: \{ \.\.\.repositoryContext, commit: /);
+  assert.match(ask, /\.\.\.\(repository && repositoryContext \? \{ repository_context: \{ \.\.\.\(codebase \? \{\} : repositoryContext\), commit: /);
 });
 
 test('Ask in chat in the panel puts the lines on the canvas as one selected Code card, keeping the range context; the Map\'s Ask does not', () => {

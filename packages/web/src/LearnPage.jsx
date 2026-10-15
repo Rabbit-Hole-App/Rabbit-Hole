@@ -37,6 +37,7 @@ import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
+import { codebaseOf } from './repo-context.js';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
 import SourcesPane from './SourcesPane.jsx';
@@ -1862,7 +1863,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} filesOn={!!files} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
-        onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
+        onExploreCodebase={typeof graph !== 'undefined' && graph ? () => chat.panels.companion?.show('graph') : null} codebase={typeof graph !== 'undefined' ? codebaseOf(graph) : null} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
         // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
         // the page past Learn's header strip.
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />

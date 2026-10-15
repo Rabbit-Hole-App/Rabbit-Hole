@@ -165,8 +165,9 @@ test('one selection: Files, Graph, the inspector and Learn read the same context
 test('a click on the graph\'s white space deselects: no node lit, the inspector empty, the context cleared', () => {
   assert.match(page, /const deselect=\(\)=>\{setInspected\(null\);setTrail\(\[\]\);setContext\(null\);\};/);
   assert.match(page, /const choose=node=>\{if\(!node\)return deselect\(\);/);
-  // RepositoryGraph reports a press on empty space as onSelect(null) (an unmoved press with no node).
-  assert.match(read('RepositoryGraph.jsx'), /onPointerUp=\{e=>\{const active=drag\.current;release\(e\);if\(active&&!active\.moved\)onSelect\(active\.node\?scene\.positions\.get\(active\.node\.id\):null\);\}\}/);
+  // RepositoryGraph reports an unmoved press on empty space as onSelect(null) (Shift held: nothing), and on a node as that
+  // node, toggled when Shift is held (repo-canvas-graph.md decision 4).
+  assert.match(read('RepositoryGraph.jsx'), /onPointerUp=\{e=>\{const active=drag\.current;release\(e\);if\(!active\|\|active\.moved\)return;if\(active\.node\)onSelect\(scene\.positions\.get\(active\.node\.id\),\{toggle:e\.shiftKey\}\);else if\(!e\.shiftKey\)onSelect\(null,\{toggle:false\}\);\}\}/);
 });
 
 test('Files: the inspector does not repeat the code the reader shows - no preview, no Source tab; the graph keeps both', () => {

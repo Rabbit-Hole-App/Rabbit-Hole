@@ -1,6 +1,7 @@
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './ChatComposer.jsx';
 import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
+import { dropRef, selectionRefs, turnRefs } from './repo-context.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { refsForSend } from './chat-draft.js';
 import { MAX_REFS, sameRef } from './chat-context.js';
@@ -18,7 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload, Network } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -232,7 +233,7 @@ export function NextStepsCard({ steps, onPick }) {
 // The hole openings this tab has sent, by opening key (openOnce): module-level, not a ref, so a dock remounted while the
 // hole's board lands from the server (LearnPage canvasEpoch) never sends the same opening twice.
 const openedHoles = new Set();
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onExploreCodebase = null, codebase = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -251,6 +252,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // in the chat workspace, so menus, mode changes and resizing never clear them. Every other chat (chat === null) keeps its own state.
   const workspace = useChatWorkspace();
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
+  // A canvas with a repository (codebase: use-repository.js's object, the Main canvas or a project canvas; repo-canvas-graph.md
+  // section 6): what the graph and Files viewers hold now is temporary context beside this chat's pinned refs - one chip and
+  // one sent ref each, pinned first, up to the server's 20 (repo-context.js turnRefs). The Files selection is one of these
+  // chips, so the older "Asking about" box is not shown beside it.
+  const codeTurnRefs = turnRefs(chat?.context.attached || [], chat && codebase ? selectionRefs(codebase) : []);
+  const graphOpen = !!(chat?.panels?.companion?.open && chat.panels.companion.view === 'graph');
 
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
   // tutor.extras move to the left caption.
@@ -512,8 +519,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // A question about a file or lines of the repository (Learn's Files panel or the Map: "Asking about: train.py:5–7") is
     // answered by the repository's own reader on the Learn chat path (repositoryAsk reads that range or file), not the Tutor
     // turn, which does not carry it (repository-browser.md "Files in Learn"). A symbol context stays with the Tutor.
-    const codeTurn = repository && !!(repositoryContext?.range || repositoryContext?.path);
-    const codePassage = codeTurn ? contextPassage(repositoryContext) : null;
+    const codeTurn = codebase ? codeTurnRefs.refs.some(ref => ref.kind === 'code') : repository && !!(repositoryContext?.range || repositoryContext?.path);
+    const codePassage = codeTurn && !codebase ? contextPassage(repositoryContext) : null;
     let begun = false;
     const begin = () => {
       if (begun) return;
@@ -600,7 +607,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // A video card is the quietest context: any open reader outranks it.
         ...(!target?.paper && !questionPaper && !imageId && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
         scope: scopeOverride || scope,
-        ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
+        // With a codebase the selection rides as code refs (context_refs below); repository_context then names only the commit.
+        ...(repository && repositoryContext ? { repository_context: { ...(codebase ? {} : repositoryContext), commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         // @-mentioned apps: the server adds each one's context to this chat.
         ...(mentions.length ? { mentions: [...mentions] } : {}),
         // The learner's own words; the card, group or region they asked about rides beside them,
@@ -615,7 +623,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
-        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(chat.context.attached, target?.docPage), { target: target?.ref }) } : {}),
+        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(codeTurnRefs.refs, target?.docPage), { target: target?.ref }) } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -1020,7 +1028,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         </button>}
         {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
             first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
-        {repository && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
+        {repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
           <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
           {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
           {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
@@ -1049,7 +1057,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} chips={chat ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null}
-            selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null} /> : null}
+            selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null}
+            code={codebase ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: selectionRefs(codebase), onRemove: ref => dropRef(codebase, ref) } : null} /> : null}
           leading={<>
           <div className="relative shrink-0">
             <button
@@ -1079,6 +1088,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
             />
           </div>
+          {/* Explore codebase (repo-canvas-graph.md section 3): opens the graph in the companion column; never sends or asks. */}
+          {onExploreCodebase && <button type="button" data-explore-codebase aria-label="Explore codebase" title="Explore codebase" aria-pressed={graphOpen} disabled={voiceOn}
+            onClick={onExploreCodebase} className={cn(chat ? COMPOSER_TOOL : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', graphOpen && 'bg-active text-ink')}>
+            <Network size={chat ? 16 : 14} strokeWidth={1.5} aria-hidden /></button>}
           {contextDocs.enabled && !chat && (
             <div className="relative shrink-0">
               <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
