@@ -53,6 +53,14 @@ export function insertCodeCard(ops, block, at = null) {
   return ops.insertCard(block, { same: other => other?.type === 'repo-code' && sameCodeSource(other.source, block.source), at });
 }
 
+// Several code cards (Add code card on a graph selection): one group near the view, one Undo step, through canvasOps.insertCards.
+// Equivalent sources collapse to one card, and a card already on the canvas is not added again. One card takes insertCodeCard.
+export function insertCodeCards(ops, blocks) {
+  const list = blocks.filter((block, index) => block?.source && blocks.findIndex(other => other?.source && sameCodeSource(other.source, block.source)) === index);
+  if (list.length <= 1 || !ops?.insertCards) return list.map(block => insertCodeCard(ops, block));
+  return ops.insertCards(list, { sameAs: block => other => other?.type === 'repo-code' && sameCodeSource(other.source, block.source), size: CODE_CARD });
+}
+
 // The card as chat context (repo-context.js identity): a repository card is the code ref the graph and Files use for the
 // same file, symbol or lines, so they dedupe; the server reads it at its commit under its owner check. An upload card is a
 // card ref carrying its text, bounded, as the client resolves card text at Send.

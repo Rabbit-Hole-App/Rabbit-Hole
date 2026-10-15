@@ -295,7 +295,9 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
-      onPointerDownCapture={event => { if (event.timeStamp - lastPress.current > 500) selectedAtPress.current = selected; lastPress.current = event.timeStamp; }}
+      // A press on a card takes the keyboard back from the companion column (its keys stand down while a focus is held
+      // there): otherwise Ctrl+D or Delete on the card just selected would act on nothing (repo-canvas-cards-check case 3).
+      onPointerDownCapture={event => { if (event.timeStamp - lastPress.current > 500) selectedAtPress.current = selected; lastPress.current = event.timeStamp; if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); }}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
       // A single click only selects; a double-click opens - the card's reader, else its Rabbit Hole (made when there is
       // none yet). Never from one of the card's own controls (opensFrom).
@@ -2061,6 +2063,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([added.id]);
         if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...REF_CARD });
         return added.id;
+      },
+      // Several cards at once (Add code card on a graph selection; repo-canvas-graph.md "Multiple nodes and placement"): one
+      // compact grid as wide as the view allows, in the free space in view nearest its top-left (refCardSpot with the grid as one box; the corner it keeps clear is the view's own),
+      // one undo step, the new cards selected, and panned to only when the grid is off-screen. Each joins the end of the
+      // column (gap-5) and is drawn at its cell by its offset from its own flow place, as insertRefCard places one card.
+      // ponytail: flow places assume each card is size.h tall (CanvasNode's fixed height); measure if cards ever autosize.
+      insertGroup: (list, size) => {
+        if (readOnlyRef.current || !list?.length) return [];
+        const visible = inlineCanvas.visibleWorld(), gap = 20;
+        const cols = Math.max(1, Math.min(list.length, Math.floor((visible.w + gap) / (size.w + gap))));
+        const rows = Math.ceil(list.length / cols), box = { w: cols * size.w + (cols - 1) * gap, h: rows * size.h + (rows - 1) * gap };
+        const spot = refCardSpot({ x: visible.x, y: visible.y }, inlineCanvas.obstacles(), visible, box);
+        const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
+        const added = list.map((block, index) => ({ ...block, id: crypto.randomUUID(),
+          dx: Math.round(spot.x + (index % cols) * (size.w + gap) - (COLUMN - size.w) / 2),
+          dy: Math.round(spot.y + Math.floor(index / cols) * (size.h + gap) - (flowY + index * (size.h + 20))) }));
+        snapshot();
+        setBlocks(previous => [...previous, ...added]);
+        setSelection(added.map(block => block.id));
+        if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...box });
+        return added.map(block => block.id);
       },
       // Every card's refs on the live board, unsaved included.
       liveRefs: () => blocksRef.current.filter(block => block.refs?.length).map(block => ({ blockId: block.id, refs: block.refs })),
