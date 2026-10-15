@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { ExternalLink, GitBranch, Info, RefreshCw } from 'lucide-react';
+import { GitBranch, Info, RefreshCw } from 'lucide-react';
 import { Button, IconBtn, Menu, toast } from './ui.jsx';
 import CodeReader from './CodeReader.jsx';
 import { useRepository } from './use-repository.js';
@@ -80,8 +80,10 @@ export function RepositoryBadge({ repository }) {
   if (status === 'unavailable') return <span data-repo-badge data-state="unavailable" className="flex h-8 shrink-0 items-center px-1.5 text-xs text-ink-3">Repository content unavailable</span>;
   const busy = ['loading', 'queued', 'indexing'].includes(status);
   return <span data-repo-badge-row className="relative flex shrink-0 items-center">
+    {/* Icon only, as its neighbours: beside the companion column and Chat the canvas header has little room (the repo is in the
+        tooltip, the composer's placeholder and the Graph view's own line). */}
     {githubUrl && <a data-repo-badge href={githubUrl} target="_blank" rel="noopener noreferrer" title={`Open ${app.repo} on GitHub`} aria-label={`Open ${app.repo} on GitHub`}
-      className="flex h-8 max-w-52 items-center gap-1 rounded-lg px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"><GitBranch size={14} strokeWidth={1.8} aria-hidden /><span className="truncate">{app.repo}</span><ExternalLink size={12} aria-hidden className="shrink-0 text-ink-3" /></a>}
+      className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><GitBranch size={15} strokeWidth={1.8} aria-hidden /></a>}
     {busy && <span data-repo-status={status} role="status" className="flex h-8 items-center gap-1.5 px-1.5 text-xs text-ink-2"><span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />{status === 'queued' ? 'Waiting to read the repository…' : status === 'indexing' ? 'Reading the repository…' : 'Loading…'}</span>}
     {status === 'failed' && <button type="button" data-repo-status="failed" title={error || 'The repository could not be read'} onClick={() => Promise.resolve(canEdit ? refresh() : retry()).catch(fail)}
       className="flex h-8 items-center gap-1 rounded-lg px-1.5 text-xs text-red-700 hover:bg-hover"><RefreshCw size={12} aria-hidden />{canEdit ? 'Import failed · Retry' : 'Unavailable · Retry'}</button>}
