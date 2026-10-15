@@ -22,7 +22,7 @@ test('the page mounts the companion LEFT of Chat, every view mounted while hidde
   const page = read('./LearnPage.jsx');
   const companion = page.indexOf('<ResizableSidePanel aria-label="Viewer" data-companion'), chat = page.indexOf('<ResizableSidePanel aria-label="Learn agent chat"');
   assert.ok(companion > 0 && companion < chat, 'canvas, companion, then Chat: side by side');
-  assert.match(page, /storageKey="rh\.companion\.width" collapsed=\{!panelOpen \|\| !companion\.open\} reserve=\{panelOpen \? chatWidth : 0\}/, 'own width; hidden with the right side; leaves the canvas its room beside Chat');
+  assert.match(page, /defaultWidth=\{360\} storageKey="rh\.companion\.width" collapsed=\{!panelOpen \|\| !companion\.open\} reserve=\{panelOpen \? chatWidth : 0\}/, 'own width; hidden with the right side; leaves the canvas its room beside Chat');
   assert.match(page, /<ResizableSidePanel aria-label="Learn agent chat" [^\n]*collapsed=\{!panelOpen\} narrowHidden=\{companion\.open\}/, 'below lg one column at a time, Chat still mounted');
   assert.match(page, /<div role="tabpanel" aria-label="Context" data-context-panel className=\{`\$\{companionView === 'context' \? 'flex' : 'hidden'\}[^`]*`\}><SourcesPane \/><\/div>/);
   assert.match(page, /\{files && shown\.current\.has\('files'\) && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{companionView === 'files' \? 'flex' : 'hidden'\}/, 'mounted on first show, then kept');
