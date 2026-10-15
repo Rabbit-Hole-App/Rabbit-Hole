@@ -65,7 +65,11 @@ const seedProject = (on) => {
   const where = `org='${data.org}' AND name='${REPO}'`;
   const sql = [`DELETE FROM repository_apps WHERE ${where}`, ...(on ? [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${data.org}','${REPO}','${data.email}','karpathy/nanoGPT','master','${COMMIT}','ready')`] : [])].join('; ');
   const PERSIST = process.env.PERSIST || '.small/fork-local', D1_CONFIG = process.env.D1_CONFIG || 'packages/web/wrangler.dev.jsonc';
-  execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd: fileURLToPath(new URL('../../../', import.meta.url)), shell: true, stdio: 'ignore' });
+  // The gate passes its stack's D1 and a locked wrangler (int35.sh RHL); a local run takes the defaults through npx. A failure
+  // prints wrangler's stderr, so the log says why the seed failed.
+  const cwd = fileURLToPath(new URL('../../../', import.meta.url)), stdio = ['ignore', 'ignore', 'inherit'];
+  if (process.env.WRANGLER_BIN) execFileSync(process.execPath, [process.env.WRANGLER_BIN, 'd1', 'execute', 'rabbit-hole-learn-dev', '--local', '--persist-to', PERSIST, '--config', D1_CONFIG, '--command', sql], { cwd, stdio, windowsHide: true });
+  else execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd, shell: true, stdio });
 };
 const catalogResponse = await fetch(`${base}/api/apps`, { headers: { ...UA, Cookie: `small_session=${session}` } });
 if (!catalogResponse.ok) throw new Error(`/api/apps: HTTP ${catalogResponse.status}`);
