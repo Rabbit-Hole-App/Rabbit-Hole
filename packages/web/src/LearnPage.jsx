@@ -1818,8 +1818,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
             returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
             onPick={async canvas => {
               links.remember(canvas);
-              const api = canvasApi.current, answer = refPick.blockId ? await api?.addRef?.(refPick.blockId, canvas.id) : api?.insertRefCard ? ((await api.insertRefCard(canvas.id, refPick.point)) ? { ok: true } : null) : null;
-              return answer || { ok: false };
+              // addRef answers { ok } or { ok: false, reason }; insertRefCard answers the new card's id.
+              const api = canvasApi.current;
+              if (refPick.blockId) return (await api?.addRef?.(refPick.blockId, canvas.id)) || { ok: false };
+              return (await api?.insertRefCard?.(canvas.id, refPick.point)) ? { ok: true } : { ok: false };
             }} />}<ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>

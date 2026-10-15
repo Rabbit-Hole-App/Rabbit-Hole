@@ -41,13 +41,14 @@ export function NewTabButton({ target, size = 12, className = '' }) {
   );
 }
 
-function Chip({ cardId, reference, refs }) {
+// listed: a reference in the "+N more" list (data-ref-more-item), so only the two shown chips are [data-ref-chip].
+function Chip({ cardId, reference, refs, listed = false }) {
   const [menu, setMenu] = useState(false);
   const box = useRef(null);
   useDismiss(menu, setMenu, box);
   const target = refs.resolve(reference.target);
   return (
-    <span ref={box} data-ref-chip data-target={reference.target} {...(target?.unavailable ? { 'data-unavailable': '' } : {})}
+    <span ref={box} {...(listed ? { 'data-ref-more-item': '' } : { 'data-ref-chip': '' })} data-target={reference.target} {...(target?.unavailable ? { 'data-unavailable': '' } : {})}
       onPointerDown={stop} onContextMenu={stop} onDoubleClick={stop}
       className="relative inline-flex max-w-full min-w-0 items-center gap-1 rounded-md border border-line bg-hover/60 py-0.5 pr-0.5 pl-1.5 text-xs text-ink hover:border-line-strong hover:bg-hover">
       <Shapes size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-3" />
@@ -64,7 +65,8 @@ function Chip({ cardId, reference, refs }) {
 }
 
 // The row under a card's content: two chips, then "+N more" opening the rest. It reports its height so the card
-// grows by it (CanvasNode adds it like a practice row), never overlaying the content.
+// grows by it (CanvasNode adds it like a practice row), never overlaying the content. pointer-events-auto: the chips stay
+// clickable while the column is pointer-events-none (the hand tool, which view-only pages start in), as portal labels do.
 export default function CanvasRefChips({ id, onHeight }) {
   const refs = useContext(CanvasRefs);
   const list = refs?.refsOf(id) || EMPTY;
@@ -82,13 +84,13 @@ export default function CanvasRefChips({ id, onHeight }) {
   if (!has) return null;
   const rest = list.slice(2);
   return (
-    <div ref={row} data-ref-chips className="flex shrink-0 flex-wrap items-center gap-1 border-t border-line px-3 py-2">
+    <div ref={row} data-ref-chips className="pointer-events-auto flex shrink-0 flex-wrap items-center gap-1 border-t border-line px-3 py-2">
       {list.slice(0, 2).map(reference => <Chip key={reference.id} cardId={id} reference={reference} refs={refs} />)}
       {rest.length > 0 && <span ref={moreBox} className="relative" onPointerDown={stop} onDoubleClick={stop}>
         <button type="button" data-ref-more aria-expanded={more} onClick={() => setMore(!more)}
           className="rounded-md px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">+{rest.length} more</button>
         {more && <ul data-ref-more-list aria-label="More references" className="absolute top-full left-0 z-30 mt-1 flex w-64 flex-col gap-1 rounded-md border border-line bg-white p-1.5 shadow-pop">
-          {rest.map(reference => <li key={reference.id} className="flex min-w-0"><Chip cardId={id} reference={reference} refs={refs} /></li>)}
+          {rest.map(reference => <li key={reference.id} className="flex min-w-0"><Chip cardId={id} reference={reference} refs={refs} listed /></li>)}
         </ul>}
       </span>}
     </div>
