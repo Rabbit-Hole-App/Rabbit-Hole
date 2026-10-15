@@ -44,7 +44,7 @@ test('a reference is a real button with that name, guarded in prose, Sources lin
   assert.match(open, /files\.setOpen\(path\);\n\s+if \(start\) files\.setJump\(\{ path, start, end: end \|\| start, at: Date\.now\(\) \}\);\n\s+window\.dispatchEvent\(new CustomEvent\('small:open-files'\)\);/);
   assert.doesNotMatch(open, /fetch\(|api\(|askDraft|learnAction/);
   assert.match(wired, /pick=\{files\.jump\}/);
-  assert.match(learn, /const showFiles = \(\) => companion\.show\('files'\)[^\n]*\n\s+if \(files\) window\.addEventListener\('small:open-files', showFiles\);/);
+  assert.match(learn, /const showFiles = \(\) => companionNow\.current\.show\('files'\)[^\n]*\n\s+if \(files\) window\.addEventListener\('small:open-files', showFiles\);/);
   // The reader selects the range as a drag does (the selection Ask in chat and Copy act on), and scrolls it into view.
   assert.match(source, /select\(pick\.start,Math\.min\(pick\.end,last\)\);/);
   assert.match(source, /querySelector\(`\[data-source-line="\$\{pick\.start\}"\]`\)\?\.scrollIntoView\(\{block:'center'\}\)/);
