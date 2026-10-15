@@ -167,7 +167,7 @@ await details().waitFor();
 await check('inspector §1 §2: an object header - icon, title, path:line and type, Open on GitHub at the pinned commit - and its actions', async () => {
   assert.match(await details().innerText(), /train\.py:1\s*·\s*Python file/);
   assert.equal(await details().locator('[data-node-github]').getAttribute('href'), `https://github.com/karpathy/nanoGPT/blob/${COMMIT}/train.py`);
-  assert.deepEqual((await details().getByRole('button').allInnerTexts()).map((t) => t.trim()).filter(Boolean).slice(0, 5), ['Open source', 'Ask about this', 'Ask why', 'Learn this', 'Explore']);
+  assert.deepEqual((await details().getByRole('button').allInnerTexts()).map((t) => t.trim()).filter(Boolean).slice(0, 6), ['Open source', 'Add code card', 'Ask about this', 'Ask why', 'Learn this', 'Explore']);
 });
 await shot('insp-A-file-details');
 await check('inspector §11 §12: Ask about this and Learn this write a ready question in Chat\'s composer; nothing is sent', async () => {
