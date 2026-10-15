@@ -106,3 +106,9 @@ test('a card draws up to its cap and says when the graph is larger (brief 11: no
   assert.match(graph, /cap \?\? 24\+/);
   assert.match(card, /setCardScope\(block\.id, block, selected\)/);
 });
+
+test('a wheel over a graph card zooms only the card: the canvas wheel handler skips it (brief Clarification 5, cards check case 9)', () => {
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const wheel = canvas.slice(canvas.indexOf('const wheel = event => {'), canvas.indexOf('event.preventDefault();', canvas.indexOf('const wheel = event => {')));
+  assert.match(wheel, /if \(event\.target\.closest\?\.\('\[data-graph-card\]'\)\) return;/);
+});

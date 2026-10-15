@@ -2771,6 +2771,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const wheel = event => {
       // Scrollable card bodies keep native wheel scrolling.
       if (!(event.ctrlKey || event.metaKey) && event.target.closest?.('[data-scroll]')) return;
+      // A graph card zooms its own graph; the wheel never also moves the canvas (repo-canvas-graph.md Clarification 5).
+      if (event.target.closest?.('[data-graph-card]')) return;
       // The document's own menus scroll themselves, and a wide code block or table its own sideways overflow; reading down
       // the page itself moves the canvas camera (one spatial model, blocknote-canvas.md section 6).
       if (!(event.ctrlKey || event.metaKey) && event.target.closest?.('[data-canvas-doc] [role="listbox"],[data-canvas-doc] [role="menu"],[data-canvas-doc] .bn-suggestion-menu,[data-canvas-doc] .bn-grid-suggestion-menu')) return;
