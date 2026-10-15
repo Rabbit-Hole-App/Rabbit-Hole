@@ -54,6 +54,7 @@ import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, 
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
+import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
@@ -2022,6 +2023,37 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
         setSelection(previous => previous.filter(other => other !== id));
       },
+      // Canvas references (C:/s/spec/references-plan.md, Client API; canvas-refs-model.js): each change is one undo step.
+      // addRef: { ok } or { ok: false, reason } - 'unsupported' for anything but a block, or on a view-only board.
+      addRef: (blockId, target) => {
+        const next = readOnlyRef.current ? { reason: 'unsupported' } : withRef(blocksRef.current.find(block => block.id === blockId), target);
+        if (!next.refs) return { ok: false, reason: next.reason };
+        snapshot();
+        setBlocks(previous => previous.map(block => block.id === blockId ? { ...block, refs: next.refs } : block));
+        return { ok: true };
+      },
+      removeRef: (blockId, refId) => {
+        const refs = readOnlyRef.current ? null : withoutRef(blocksRef.current.find(block => block.id === blockId), refId);
+        if (!refs) return false;
+        snapshot();
+        setBlocks(previous => previous.map(block => block.id === blockId ? { ...block, refs } : block));
+        return true;
+      },
+      // A standalone reference card near `point` (world units: (menuAt.x - view.x) / view.z) or the view's centre, in free
+      // space, placed as openInNotebook places (the end of the column, offset to the spot), then selected. Returns its id.
+      insertRefCard: (target, point = null) => {
+        if (readOnlyRef.current || !target) return null;
+        const spot = refCardSpot(point || viewCenter(), inlineCanvas.obstacles(), inlineCanvas.visibleWorld());
+        const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
+        const added = { id: crypto.randomUUID(), type: 'canvas-ref', dx: Math.round(spot.x - (COLUMN - REF_CARD.w) / 2), dy: Math.round(spot.y - flowY), refs: [{ id: crypto.randomUUID(), target }] };
+        snapshot();
+        setBlocks(previous => [...previous, added]);
+        setSelection([added.id]);
+        if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...REF_CARD });
+        return added.id;
+      },
+      // Every card's refs on the live board, unsaved included.
+      liveRefs: () => blocksRef.current.filter(block => block.refs?.length).map(block => ({ blockId: block.id, refs: block.refs })),
       // The block keeps only where to look, never the article: the save path
       // strips an oversized `src` and nothing else, so HTML under any other
       // field would fill the quota and take the learner's ink with it.
@@ -2164,8 +2196,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (members.length >= 2 && (all.length ? all.every(id => picked.includes(id)) : true)) wholeGroups.set(group.id, { id: crypto.randomUUID(), label: group.label || '' });
     }
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
-    // A copied notebook card gets its own workspace, seeded from the copy of its notebook.
-    const copyNode = node => ({ ...node, id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}) });
+    // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
+    const copyNode = node => ({ ...node, id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
     const blocksCopy = pickedBlocks.map(copyNode);
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.

@@ -38,6 +38,7 @@ import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
+import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { inlineDecideFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
@@ -244,6 +245,8 @@ export default {
     // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
     // the exact /api/learn/board route, which generates explanations.
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
+    // Canvas references: the picker and a canvas's links and backlinks (canvas-refs.js).
+    if (canvasRefsRoute(path)) return canvasRefsFetch(req, env);
     // Public creator profiles, Explore's creator row and creator search (docs/features/creator-profile.md).
     if (path.startsWith('/api/learn/creators')) { const creators = await creatorsRoute(path, req, env); if (creators) return creators; }
     if (path === '/api/learn/search') return canvasSearch(req, env);

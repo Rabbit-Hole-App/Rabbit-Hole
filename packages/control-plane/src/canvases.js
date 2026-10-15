@@ -2,6 +2,7 @@ import { CHAT_MODES, PROJECT_FIELDS, projectAccess, repositoryIdentity, reposito
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
+import { dropRefs } from './canvas-refs.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -416,6 +417,7 @@ export async function canvasesFetch(req, env) {
       if (meta.changes) {
         await db.batch([
           db.prepare('DELETE FROM canvas_publications WHERE org = ? AND canvas = ?').bind(user.org, name),
+          dropRefs(db, user.org, user.email, name),
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
         ]);
       }
