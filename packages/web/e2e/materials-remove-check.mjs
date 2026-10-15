@@ -51,6 +51,13 @@ const uploaded = await (await fetch(`${BASE}/api/learn/context`, { method: 'POST
 const DOC = uploaded.document, DOC_KEY = `doc:${DOC?.id}`;
 if (!/^ctx:[0-9a-f]{12}$/.test(DOC?.id || '')) throw Error(`the context document was not stored: ${JSON.stringify(uploaded).slice(0, 200)}`);
 const listNow = () => api(`/api/learn/context?app=${canvas.name}`);
+const listed = async () => (await listNow()).documents.some(d => d.id === DOC.id);
+// A second document with a long name: the rows' truncation and their narrow layout are drawn beside the first.
+const LONG_NAME = 'A deliberately long file name to check that Materials rows truncate and keep their actions visible.pdf';
+const longForm = new FormData();
+longForm.append('app', canvas.name);
+longForm.append('file', new Blob([PDF], { type: 'application/pdf' }), LONG_NAME);
+await fetch(`${BASE}/api/learn/context`, { method: 'POST', body: longForm, headers: { cookie } });
 
 // ---------------------------------------------------------------- routes: capture and canned answers
 const captured = [], refused = [], errors = [];
@@ -99,8 +106,8 @@ const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Dat
 const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() => {});
 const pane = () => page.locator('[data-chat-pane]');
 const sourcesPane = () => page.locator('[data-sources-pane]');
-const row = () => sourcesPane().locator('section').filter({ has: page.locator(`button[aria-expanded]:has-text("${DOC_NAME}")`) });
-const trash = () => row().locator('[data-source-remove]');
+const row = () => sourcesPane().locator(`[data-material-row][data-source-id="${DOC_KEY}"]`);
+const trash = () => row().locator('[data-material-action="remove"]');
 const chip = () => page.locator(`[data-context-chip] button[title="Open ${DOC_NAME}"]:visible`);
 const confirmDialog = () => page.getByRole('dialog', { name: 'Remove from Materials?' });
 const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-sources-pane]')?.closest('[aria-label="Sources"]')?.getBoundingClientRect().width || 0) > 50);
@@ -143,8 +150,7 @@ await check('setup: the PDF is in Materials with its chip, and its 3 pages are a
   await waitFor(async () => (await chip().count()) > 0, 15000, 'the new chat has no chip for the context document');
   await openSources();
   await waitFor(async () => (await row().count()) === 1, 10000, 'Materials has no row for the document');
-  await row().locator('button[aria-expanded]').click();
-  await page.locator('[data-source-add-canvas]').click({ timeout: 10000 });
+  await row().locator('[data-material-action="canvas"]').click({ timeout: 10000 });
   const dialog = page.locator('[data-pdf-add-dialog] [role="dialog"]');
   await dialog.waitFor({ timeout: 10000 });
   await waitFor(async () => (await dialog.locator('[data-pdf-total]').innerText().catch(() => '')).trim() === '3 pages', 20000, 'the dialog did not count 3 pages');
@@ -153,14 +159,49 @@ await check('setup: the PDF is in Materials with its chip, and its 3 pages are a
   await dialog.locator('button').last().click();
   await page.locator('[data-pdf-add-dialog]').waitFor({ state: 'detached', timeout: 90000 });
   await waitFor(async () => (await slides()).filter(b => b.loaded).length === 3, 30000, 'the 3 page blocks did not draw');
+  // The board and its page pictures reach the server before any reload below (a reload sooner can lose the fresh insert).
+  await waitFor(async () => {
+    const blocks = ((await api(`/api/learn/boards/${canvas.name}/main`)).state?.blocks || []).filter(b => b.type === 'slide');
+    const keys = new Set((await api(`/api/learn/boards/${canvas.name}/main/assets`)).keys || []);
+    return blocks.length === 3 && blocks.every(b => keys.has(b.assetKey));
+  }, 60000, 'the server board does not hold the 3 pages and their pictures');
   await shot('01-materials-row');
 });
 
-await check('the row has its own trash icon, labelled and titled "Remove remove-me.pdf from Materials", beside Detach', async () => {
+await check('the row has its own trash icon, labelled and titled "Remove remove-me.pdf from Materials", after the other row actions', async () => {
   assert.equal(await trash().count(), 1);
   assert.equal(await trash().getAttribute('aria-label'), `Remove ${DOC_NAME} from Materials`);
   assert.equal(await trash().getAttribute('title'), `Remove ${DOC_NAME} from Materials`);
-  assert.equal(await row().getByRole('button', { name: `Detach ${DOC_NAME} from this chat` }).count(), 1, 'Detach stays beside it');
+  assert.equal(await row().getByRole('button', { name: `Remove ${DOC_NAME} from this chat` }).getAttribute('aria-pressed'), 'true', 'the chat attachment stays beside it, pressed');
+  assert.equal(await row().getByRole('button', { name: `Detach ${DOC_NAME} from canvas context` }).getAttribute('aria-pressed'), 'true', 'and the canvas context switch, on');
+});
+
+// The normal, non-hovered rows (owner hand-off): light and dark, at the default and the narrowest Sources width.
+await check('the rows at rest: light and dark, default and narrow width, actions visible and the long name truncated', async () => {
+  for (const [theme, width] of [['light', 400], ['dark', 400], ['light', 320], ['dark', 320]]) {
+    await page.evaluate(([t, w]) => { localStorage.setItem('small.theme', t); localStorage.setItem('rh.sources.width', String(w)); }, [theme, width]);
+    await openCanvas();
+    await openSources();
+    await waitFor(async () => (await sourcesPane().locator('[data-material-row]').count()) >= 2, 10000, 'the two rows did not show');
+    await page.mouse.move(5, 500);
+    await page.waitForTimeout(400);
+    const panel = page.locator('[aria-label="Sources"]').first();
+    await panel.screenshot({ path: `${OUT}/rows-${theme}-${width}.png` });
+    const long = sourcesPane().locator('[data-material-row]').filter({ has: page.locator(`[data-material-name][title="${LONG_NAME}"]`) });
+    const name = await long.locator('[data-material-name]').evaluate(el => { const b = el.getBoundingClientRect(); return { clipped: el.scrollWidth > el.clientWidth, right: b.right, bottom: b.bottom, y: b.y }; });
+    assert.ok(name.clipped, `${theme} ${width}: the long name truncates`);
+    const actions = await long.locator('[data-material-action]').evaluateAll(els => els.map(el => { const b = el.getBoundingClientRect(); return { action: el.dataset.materialAction, x: b.x, y: b.y, right: b.right, w: b.width }; }));
+    const pane = await sourcesPane().evaluate(el => el.getBoundingClientRect().right);
+    assert.deepEqual(actions.map(a => a.action), ['context', 'canvas', 'chat', 'remove'], `${theme} ${width}: the four actions in order`);
+    assert.ok(actions.every(a => a.w >= 27 && a.right <= pane), `${theme} ${width}: every action whole and inside the pane`);
+    assert.ok(actions.every(a => a.y === actions[0].y), `${theme} ${width}: the actions share one line`);
+    assert.ok(actions.every(a => a.x >= name.right - 1 || a.y >= name.bottom - 1), `${theme} ${width}: no action over the name`);
+    (facts.rows ||= {})[`${theme}-${width}`] = { second_line: actions[0].y >= name.bottom - 1 };
+  }
+  assert.deepEqual([facts.rows['light-400'].second_line, facts.rows['light-320'].second_line], [false, true], 'one line at 400 px; a second action line at 320 px');
+  await page.evaluate(() => { localStorage.setItem('small.theme', 'light'); localStorage.setItem('rh.sources.width', '400'); });
+  await openCanvas();
+  await openSources();
 });
 
 await check('Cancel in the confirmation keeps the document', async () => {
@@ -170,30 +211,30 @@ await check('Cancel in the confirmation keeps the document', async () => {
   await confirmDialog().getByRole('button', { name: 'Cancel' }).click();
   await page.waitForTimeout(500);
   assert.equal(await row().count(), 1, 'the row stays');
-  assert.equal((await listNow()).documents.length, 1, 'the server list is unchanged');
+  assert.equal(await listed(), true, 'the server list is unchanged');
 });
 
 await check('a failed removal shows the error and keeps the row for a retry', async () => {
   failDelete = true;
   await trash().click();
-  await confirmDialog().getByRole('button', { name: 'Remove' }).click();
-  const error = row().locator('[data-source-remove-error]');
+  await confirmDialog().getByRole('button', { name: 'Remove from Materials', exact: true }).click();
+  const error = row().locator('[data-material-error]');
   await error.waitFor({ timeout: 8000 });
   assert.match(await error.innerText(), /Could not remove remove-me\.pdf: The server is unavailable/);
   assert.equal(await trash().isEnabled(), true, 'the trash icon is there to retry');
-  assert.equal((await listNow()).documents.length, 1, 'nothing changed on the server');
+  assert.equal(await listed(), true, 'nothing changed on the server');
   await shot('03-failed');
   failDelete = false;
 });
 
 await check('Remove takes the row out of Materials and the chip out of the chat', async () => {
   await trash().click();
-  await confirmDialog().getByRole('button', { name: 'Remove' }).click();
+  await confirmDialog().getByRole('button', { name: 'Remove from Materials', exact: true }).click();
   await waitFor(async () => (await row().count()) === 0, 8000, 'the row stayed');
   await waitFor(async () => (await chip().count()) === 0, 8000, 'the chip stayed');
   const list = await listNow();
   facts.after_remove = list;
-  assert.deepEqual([list.documents.length, list.removed], [0, [DOC.id]]);
+  assert.deepEqual([list.documents.some(d => d.id === DOC.id), list.removed], [false, [DOC.id]]);
   await shot('04-removed');
 });
 

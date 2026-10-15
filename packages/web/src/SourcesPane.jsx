@@ -1,22 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronRight, CircleAlert, ExternalLink, List, Loader2, MoreHorizontal, Paperclip, RotateCw, SquarePlus, Unlink, Upload, X } from 'lucide-react';
-import { Menu, MenuItem } from './ui.jsx';
+import { ArrowLeft, ChevronRight, CircleAlert, ExternalLink, List, Loader2, MessageSquareCheck, MessageSquarePlus, MoreHorizontal, Paperclip, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
+import { Button, ConfirmDialog, Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { externalUrl, paneSections, rangeLabel } from './chat-context.js';
 import { CONTEXT_ACCEPT } from './context-docs.js';
 import { RefIcon } from './ContextChips.jsx';
 import SourceReader from './SourceReader.jsx';
 import { pdfKeyOfRef } from './pdf-source.js';
-// Remove from Materials (materials-remove.md), on a line of its own so the header's imports stay as they are.
-import { Trash2 } from 'lucide-react';
-import { ConfirmDialog } from './ui.jsx';
 
 // Sub-lane A4a owns this file: the Sources pane left of Chat (brief section 6). A1 mounts it, unpadded, as the
-// Sources ResizableSidePanel's child. A compact header (the active source's icon and title, Back, All sources, an
-// overflow menu, Close), then the canvas's one context collection (chat-context.js items) as collapsible sections. Only
-// the expanded section mounts its reader (A4b's SourceReader). Viewing never attaches; each row has its own
-// Attach / Detach, and Close never detaches (contract A5).
+// Sources ResizableSidePanel's child. A compact header (the active source's icon and title, Back, All sources, Open
+// externally, Close), then Materials: Upload, and the canvas's one context collection (chat-context.js items) as collapsible
+// rows. Only the expanded row mounts its reader (A4b's SourceReader). Viewing never attaches, and Close never detaches
+// (contract A5). Every document action sits on its own row and names that row's document (pdf-materials-refinement.md
+// sections 1-5), never the one open in the reader: canvas context, Add to canvas, this chat, then Remove from Materials.
 const ICON_BUTTON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent';
+// A row action: a visible surface at rest (border and fill), stronger on hover; a pressed toggle is accent-filled and aria-pressed.
+// The pressed fill is its own class string, never a variant on the resting one: in dark mode index.css re-pins --color-white to
+// white inside any class naming bg-accent, which would turn the resting bg-white surface white.
+const ROW_ACTION = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-40';
+const rowAction = (pressed = false) => `${ROW_ACTION} ${pressed ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20' : 'border-line bg-white text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink'}`;
 
 export default function SourcesPane() {
   const chat = useChatWorkspace();
@@ -26,31 +29,34 @@ export default function SourcesPane() {
   useEffect(() => setFolded(null), [active]);
   const [menu, setMenu] = useState(false);
   const picker = useRef(null), body = useRef(null);
-  // Remove from Materials: the row waiting on its confirmation, and per row (sourceId) true while removing or the error.
+  // Remove from Materials waiting on its confirmation; per row (sourceId) the action running ('context' | 'remove') or its error.
   const [removing, setRemoving] = useState(null);
-  const [removal, setRemoval] = useState({});
+  const [rows, setRows] = useState({});
   if (!chat) return null;
   const { context, sources, panels } = chat;
   const sections = paneSections(context.items, active);
   const url = active && externalUrl(active);
   const allSources = () => { setFolded(active); body.current?.scrollTo({ top: 0 }); };
-  // Add to canvas (docs/features/pdf-to-canvas.md): an uploaded PDF open here - a PDF context document or an uploaded paper.
-  // LearnPage owns the canvas and the dialog; the PDF's own bytes are read there, never uploaded again.
-  const activeDoc = active && sections.find(section => section.active)?.item.doc;
-  const canAdd = !!active && !!pdfKeyOfRef(active) && (active.kind !== 'doc' || activeDoc?.kind === 'pdf');
-  const addToCanvas = () => window.dispatchEvent(new CustomEvent('small:pdf-to-canvas', { detail: { sourceId: active.sourceId, kind: active.kind, name: active.name } }));
-  const remove = async item => {
+  // One row action at a time per row; a failure stays on that row (role=alert) and the row stays for a retry.
+  const run = async (item, action, work) => {
     const key = item.ref.sourceId;
-    setRemoving(null);
-    setRemoval(state => ({ ...state, [key]: true }));
-    try {
-      await context.remove(item.doc);
-      setRemoval(({ [key]: _, ...rest }) => rest);
-      // Open in the reader as a whole, it would stay listed as the active source (with Attach): put the reader down.
-      if (active?.sourceId === key && !active.range) sources.close();
-    }
-    catch (error) { setRemoval(state => ({ ...state, [key]: `Could not remove ${item.ref.name}: ${error.message}` })); }
+    setRows(state => ({ ...state, [key]: { busy: action } }));
+    try { await work(); setRows(({ [key]: _, ...rest }) => rest); }
+    catch (error) { setRows(state => ({ ...state, [key]: { error: `Could not ${action === 'remove' ? 'remove' : 'change'} ${item.ref.name}: ${error.message}` } })); }
   };
+  const remove = item => {
+    setRemoving(null);
+    return run(item, 'remove', async () => {
+      await context.remove(item.doc);
+      // Open in the reader as a whole, it would stay listed as the active source: put the reader down.
+      if (active?.sourceId === item.ref.sourceId && !active.range) sources.close();
+    });
+  };
+  // Add to canvas (docs/features/pdf-to-canvas.md): this row's stored PDF - a PDF context document or an uploaded paper.
+  // LearnPage owns the canvas and the dialog; the PDF's own bytes are read there, never uploaded again.
+  const addToCanvas = ref => window.dispatchEvent(new CustomEvent('small:pdf-to-canvas', { detail: { sourceId: ref.sourceId, kind: ref.kind, name: ref.name } }));
+  // A row action never also expands the row or switches the reader.
+  const act = work => event => { event.stopPropagation(); work(); };
   return (
     <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
       <div data-sources-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
@@ -60,17 +66,12 @@ export default function SourcesPane() {
           <h2 className="min-w-0 truncate text-sm font-medium text-ink" title={active?.name}>{active ? active.name : 'Sources'}</h2>
           {active && rangeLabel(active.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(active.range)}</span>}
         </div>
-        {canAdd && <button type="button" data-source-add-canvas onClick={addToCanvas} title="Add to canvas"
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"><SquarePlus size={14} aria-hidden /> Add to canvas</button>}
         {active && <button type="button" onClick={allSources} aria-label="All sources" title="All sources" className={ICON_BUTTON}><List size={16} aria-hidden /></button>}
-        {active && (
+        {url && (
           <span className="relative">
             <button type="button" onClick={() => setMenu(open => !open)} aria-label="Source actions" title="Source actions" aria-haspopup="menu" aria-expanded={menu} className={ICON_BUTTON}><MoreHorizontal size={16} aria-hidden /></button>
             <Menu open={menu} onClose={() => setMenu(false)} className="top-9 right-0 w-52">
-              {url && <MenuItem icon={ExternalLink} onClick={() => { setMenu(false); window.open(url, '_blank', 'noopener'); }}>Open externally</MenuItem>}
-              {context.isAttached(active)
-                ? <MenuItem icon={Unlink} onClick={() => { setMenu(false); context.detach(active); }}>Detach from this chat</MenuItem>
-                : <MenuItem icon={Paperclip} onClick={() => { setMenu(false); context.attach(active); }}>Attach to this chat</MenuItem>}
+              <MenuItem icon={ExternalLink} onClick={() => { setMenu(false); window.open(url, '_blank', 'noopener'); }}>Open externally</MenuItem>
             </Menu>
           </span>
         )}
@@ -80,41 +81,57 @@ export default function SourcesPane() {
         <div className="flex shrink-0 items-center justify-between gap-2 px-1 pb-1">
           <span className="text-[11px] font-semibold tracking-wider text-ink-3 uppercase">Materials</span>
           <input ref={picker} type="file" accept={CONTEXT_ACCEPT} className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; context.upload(file); }} />
-          <button type="button" onClick={() => picker.current?.click()} className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink">
+          {/* border-[1px]: the secondary variant's border loses to its base border-0 in the built CSS; a local width shows it. */}
+          <Button variant="secondary" size="sm" data-materials-upload onClick={() => picker.current?.click()} className="border-[1px]">
             <Upload size={14} aria-hidden /> Upload
-          </button>
+          </Button>
         </div>
         {!sections.length && <p className="px-1 py-2 text-xs text-ink-3">No sources yet. Upload a PDF, .txt or .md file, or add cards from the canvas to the chat.</p>}
         {sections.map(({ key, item, ref, active: isActive }) => {
           const open = isActive && folded !== active, ready = item.state === 'ready', busy = !ready && item.state !== 'failed';
           const toggle = () => { if (isActive) setFolded(open ? active : null); else chat.openSource(ref); };
+          const name = ref.name, doc = item.doc, row = rows[ref.sourceId] || {};
+          const canAdd = ready && !!pdfKeyOfRef(ref) && (ref.kind !== 'doc' || doc?.kind === 'pdf');
+          const onCanvas = !!doc?.attached;
           return (
             <section key={key} data-source-section={isActive ? 'active' : ''} className={open ? 'flex min-h-80 flex-1 flex-col' : 'shrink-0'}>
-              <div className="flex items-center gap-1 rounded-md hover:bg-hover">
-                <button type="button" aria-expanded={open} disabled={!ready} onClick={toggle} title={item.error || ref.name}
-                  className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 text-left text-sm text-ink disabled:cursor-default">
-                  <ChevronRight size={14} aria-hidden className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-90' : ''} ${ready ? '' : 'invisible'}`} />
-                  {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : item.state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}
-                  <span className={`min-w-0 truncate ${isActive ? 'font-medium' : ''}`}>{ref.name}</span>
-                  {rangeLabel(ref.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(ref.range)}</span>}
-                  {busy && <span className="shrink-0 text-xs text-ink-3">{item.state === 'processing' ? 'Processing' : 'Uploading'}</span>}
-                </button>
-                {ready && (item.attached
-                  ? <button type="button" onClick={() => context.detach(item.ref)} aria-label={`Detach ${item.ref.name} from this chat`} title="Detach from this chat"
-                      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-accent hover:bg-white"><Paperclip size={13} aria-hidden /> Detach</button>
-                  : <button type="button" onClick={() => context.attach(item.ref)} aria-label={`Attach ${item.ref.name} to this chat`} title="Attach to this chat"
-                      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-ink-2 hover:bg-white hover:text-ink"><Paperclip size={13} aria-hidden /> Attach</button>)}
-                {ready && item.doc && <button type="button" data-source-remove onClick={() => setRemoving(item)} disabled={removal[ref.sourceId] === true}
-                  aria-label={`Remove ${ref.name} from Materials`} title={`Remove ${ref.name} from Materials`}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-white hover:text-ink disabled:opacity-40">
-                  {removal[ref.sourceId] === true ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>}
-                {item.state === 'failed' && <>
-                  <button type="button" onClick={item.retry} aria-label={`Retry uploading ${ref.name}`} title="Retry" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-white hover:text-ink"><RotateCw size={14} aria-hidden /></button>
-                  <button type="button" onClick={item.dismiss} aria-label={`Dismiss ${ref.name}`} title="Dismiss" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-white hover:text-ink"><X size={14} aria-hidden /></button>
-                </>}
+              {/* Narrower than 22rem, the actions take a second line of their own under the name, never a random wrap. */}
+              <div data-material-row data-source-id={ref.sourceId} className="@container rounded-md hover:bg-hover">
+                <div className="flex flex-col @[22rem]:flex-row @[22rem]:items-center @[22rem]:gap-1">
+                  <button type="button" aria-expanded={open} disabled={!ready} onClick={toggle} title={item.error || name}
+                    className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 text-left text-sm text-ink disabled:cursor-default">
+                    <ChevronRight size={14} aria-hidden className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-90' : ''} ${ready ? '' : 'invisible'}`} />
+                    {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : item.state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}
+                    <span data-material-name title={name} className={`min-w-0 truncate ${isActive ? 'font-medium' : ''}`}>{name}</span>
+                    {rangeLabel(ref.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(ref.range)}</span>}
+                    {busy && <span className="shrink-0 text-xs text-ink-3">{item.state === 'processing' ? 'Processing' : 'Uploading'}</span>}
+                  </button>
+                  <div data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @[22rem]:pr-1 @[22rem]:pb-0 @[22rem]:pl-0">
+                    {ready && doc && <button type="button" data-material-action="context" aria-pressed={onCanvas} disabled={!!row.busy}
+                      onClick={act(() => run(item, 'context', () => context.canvasContext(doc, !onCanvas)))}
+                      aria-label={`${onCanvas ? 'Detach' : 'Attach'} ${name} ${onCanvas ? 'from' : 'to'} canvas context`} title={`${onCanvas ? 'Detach' : 'Attach'} ${name} ${onCanvas ? 'from' : 'to'} canvas context`}
+                      className={rowAction(onCanvas)}>{row.busy === 'context' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Paperclip size={14} aria-hidden />}</button>}
+                    {canAdd && <button type="button" data-material-action="canvas" onClick={act(() => addToCanvas(ref))}
+                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={rowAction()}><SquarePlus size={14} aria-hidden /></button>}
+                    {ready && <button type="button" data-material-action="chat" aria-pressed={!!item.attached}
+                      onClick={act(() => (item.attached ? context.detach(item.ref) : context.attach(item.ref)))}
+                      aria-label={item.attached ? `Remove ${name} from this chat` : `Attach ${name} to this chat`} title={item.attached ? `Remove ${name} from this chat` : `Attach ${name} to this chat`}
+                      className={rowAction(!!item.attached)}>{item.attached ? <MessageSquareCheck size={14} aria-hidden /> : <MessageSquarePlus size={14} aria-hidden />}</button>}
+                    {ready && doc && <>
+                      <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" />
+                      <button type="button" data-material-action="remove" onClick={act(() => setRemoving(item))} disabled={!!row.busy}
+                        aria-label={`Remove ${name} from Materials`} title={`Remove ${name} from Materials`}
+                        className={rowAction()}>{row.busy === 'remove' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>
+                    </>}
+                    {item.state === 'failed' && <>
+                      <button type="button" onClick={act(item.retry)} aria-label={`Retry uploading ${name}`} title="Retry" className={rowAction()}><RotateCw size={14} aria-hidden /></button>
+                      <button type="button" onClick={act(item.dismiss)} aria-label={`Dismiss ${name}`} title="Dismiss" className={rowAction()}><X size={14} aria-hidden /></button>
+                    </>}
+                  </div>
+                </div>
+                {item.state === 'failed' && <p role="alert" className="px-7 pb-1 text-xs text-red-700">{item.error}</p>}
+                {row.error && <p role="alert" data-material-error className="px-7 pb-1 text-xs text-red-700">{row.error}</p>}
               </div>
-              {item.state === 'failed' && <p role="alert" className="px-7 pb-1 text-xs text-red-700">{item.error}</p>}
-              {typeof removal[ref.sourceId] === 'string' && <p role="alert" data-source-remove-error className="px-7 pb-1 text-xs text-red-700">{removal[ref.sourceId]}</p>}
               {open && (
                 <div data-source-reader className="flex min-h-0 flex-1 flex-col pt-1">
                   <SourceReader key={ref.sourceId} sourceRef={ref} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
@@ -124,9 +141,12 @@ export default function SourcesPane() {
           );
         })}
       </div>
-      {removing && <ConfirmDialog title="Remove from Materials?" confirmLabel="Remove"
-        body={`${removing.ref.name} is removed from Materials and from future AI requests. Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted.`}
-        onConfirm={() => remove(removing)} onCancel={() => setRemoving(null)} />}
+      {/* The wrapper takes the dialog's own overlay box (fixed, full screen), so the confirmation is one visible element. */}
+      {removing && <div data-material-remove-confirm className="fixed inset-0 z-50">
+        <ConfirmDialog title="Remove from Materials?" confirmLabel="Remove from Materials"
+          body={`${removing.ref.name} is removed from Materials and from future AI requests. Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted.`}
+          onConfirm={() => remove(removing)} onCancel={() => setRemoving(null)} />
+      </div>}
     </div>
   );
 }

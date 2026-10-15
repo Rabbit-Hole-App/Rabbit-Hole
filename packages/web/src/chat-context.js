@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { repositoryUrl } from './card-sources.js';
-import { removeContextDoc, uploadContextDoc, useContextDocs } from './context-docs.js';
+import { removeContextDoc, toggleContextDoc, uploadContextDoc, useContextDocs } from './context-docs.js';
 // ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
 const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 
@@ -10,7 +10,8 @@ const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { d
 //       (everything this canvas offers: its context docs as doc:<id> refs, every ref this conversation attached, uploads in
 //        flight; doc is the context-docs row { id, name, kind: 'pdf' | 'text', size, created_at } behind a doc:<id> ref),
 //     attached: ContextRef[] (this conversation's; sent as context_refs), attach(ref), detach(ref), isAttached(ref), upload(file),
-//     remove(doc) (Remove from canvas context, materials-remove.md: throws the server's reason) }
+//     remove(doc) (Remove from Materials, materials-remove.md: throws the server's reason),
+//     canvasContext(doc, on) (the row's canvas-level switch; never attaches to this chat; throws the server's reason) }
 // One store: the canvas context documents behind /api/learn/context (context-docs.js). attached is per conversation:
 // a restored thread keeps its own thread.restore.contextRefs; a New chat (thread id null) starts from the docs switched on
 // in the Files panel, the current canvas context (lead, 2026-10-14), and nothing else of the previous thread. Detaching
@@ -122,6 +123,9 @@ export function useChatContext(canvas, thread) {
   const attach = useCallback(ref => dispatch({ type: 'attach', ref }), []);
   const detach = useCallback(ref => dispatch({ type: 'detach', ref }), []);
   const remove = useCallback(async doc => { await removeContextDoc(canvas, doc.id); dispatch({ type: 'detach', ref: docRef(doc) }); }, [canvas]);
+  // The canvas-level switch never reaches this chat (pdf-materials-refinement.md section 1): marked offered first, a document
+  // switched on from its row does not join a new conversation that follows the canvas's switched-on documents.
+  const canvasContext = useCallback(async (doc, on) => { offered.current.add(`doc:${doc.id}`); await toggleContextDoc(canvas, doc.id, on); }, [canvas]);
   const send = useCallback(async (file, id) => {
     const startedIn = key.current;
     const patch = change => setUploads(previous => previous.map(item => (item.id === id ? { ...item, ...change } : item)));
@@ -142,8 +146,8 @@ export function useChatContext(canvas, thread) {
     await send(file, id);
   }, [send]);
   return useMemo(() => ({
-    items: contextItems(docs, attached, uploads), attached, detach, upload, remove,
+    items: contextItems(docs, attached, uploads), attached, detach, upload, remove, canvasContext,
     attach: ref => { if (attached.length >= MAX_REFS && !attached.some(item => sameRef(item, ref))) toast(`✗ A chat holds up to ${MAX_REFS} attachments. Remove one first.`); else attach(ref); },
     isAttached: ref => attached.some(item => sameRef(item, ref)),
-  }), [docs, attached, uploads, attach, detach, upload, remove]);
+  }), [docs, attached, uploads, attach, detach, upload, remove, canvasContext]);
 }

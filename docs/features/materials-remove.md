@@ -1,4 +1,29 @@
-# Remove from Materials
+# Materials rows and Remove from Materials
+
+The spec is C:/s/spec/pdf-materials-refinement.md, sections 1-5.
+
+## Row actions (sections 1-4)
+- Each row is `[data-material-row][data-source-id=<its ref sourceId>]`. The expander, file icon and truncated name (full name as
+  tooltip) come first. The actions follow in this order, each acting on the row's own document:
+  1. Canvas context: Paperclip, aria-pressed, "Attach/Detach <file> to/from canvas context". It toggles the canvas-level flag
+     through `PATCH /api/learn/context/<id>` (context-docs.js toggleContextDoc). The document is marked offered first, so switching
+     it on never also attaches it to a new chat.
+  2. Add to canvas: SquarePlus, "Add <file> to canvas", PDFs only. It dispatches `small:pdf-to-canvas` with this row's
+     sourceId. LearnPage opens the existing dialog from that id, and a second press while a job is open is ignored.
+  3. This chat: MessageSquarePlus or MessageSquareCheck, aria-pressed, "Attach <file> to this chat" or
+     "Remove <file> from this chat". It calls context.attach or context.detach.
+  4. After a separator, Remove from Materials.
+- Every action calls stopPropagation, so it never expands the row or switches the reader. A failed action stays on its row as
+  role=alert.
+- Narrower than 22rem, the actions move to a second line inside the row (a container query).
+- The header keeps only the reader title, Back, All sources, Open externally and Close. It has no document action.
+- Upload stays at the Materials level as a visible secondary button. Its border needs a local `border-[1px]`, because the shared
+  variant's border loses to its base `border-0`.
+- A pressed toggle carries its own class string. In dark mode, any class naming bg-accent re-pins --color-white, which would
+  turn the resting buttons white.
+- Note: a new chat already attaches the canvas's switched-on documents (chat-context.js, unchanged), so the chat toggle starts
+  pressed for them.
+
 
 Owner request, 2026-10-14: a trash icon on each file row in Materials (the Sources pane), beside Attach/Detach.
 

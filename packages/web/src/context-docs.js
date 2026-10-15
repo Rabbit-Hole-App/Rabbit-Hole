@@ -48,6 +48,14 @@ export async function removeContextDoc(app, id) {
   return data;
 }
 
+// A Materials row's canvas context switch (pdf-materials-refinement.md section 1): the canvas-level attached flag of that one
+// document. Throws the server's reason (the ten-on limit, the budget), so the row that asked can show it.
+export async function toggleContextDoc(app, id, attached) {
+  const data = await request('PATCH', `/api/learn/context/${encodeURIComponent(id)}`, { app, attached });
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+  return data;
+}
+
 export function useContextDocs(app) {
   const enabled = isContextCanvas(app);
   const [docs, setDocs] = useState([]);
