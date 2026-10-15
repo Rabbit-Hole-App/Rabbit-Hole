@@ -9,7 +9,9 @@
 // chat upgrades it in place, and the request holds that page once; 6 deselecting keeps the pinned page and drops a page only
 // selected; 7 x on a pinned page that is also selected removes it and the selection, and it does not come back; 8 A p.2, A p.3
 // and B p.2 stay three entries with their own pages, B never merged into A by name, each ref exact in the request; 9 a page
-// pinned in chat A is not in chat B or a New chat, comes back with chat A, and after a reload.
+// pinned in chat A is not in chat B or a New chat, comes back with chat A, and after a reload; 10 a whole uploaded-paper PDF
+// card (dropped on the canvas) is one entry marked label only, selected and pinned, and its paper ref, never a card ref, in the
+// request; 11 the composer chips in dark mode and with the Chat panel at its 320 px minimum: nothing clipped sideways.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Evidence goes to OUT: results.json (the captured context_refs, canvas_target, paper_context and page_context; never cookies)
 // and *.png. The same run against a build before the change is the before evidence (it fails scenario 5 on the duplicate).
@@ -334,6 +336,53 @@ await check('8: A p.2, A p.3 and B p.2 (same file name) are three entries with t
   assert.equal(refsOf(cap.body, KEY_B, 2).length, 1, 'B p.2, its own document');
 });
 
+// ---------------------------------------------------------------- 10: an uploaded paper (the drop road, pdf-to-canvas.md)
+const DROP = 'dropped-paper.pdf';
+const dialog = () => page.locator('[data-pdf-add-dialog] [role="dialog"]');
+await check('10: a dropped PDF as one card is an uploaded paper: one entry, label only, selected and pinned; its paper ref in the request', async () => {
+  const surface = page.locator('[aria-label="Lesson canvas"] div.touch-none').first();
+  const box = await surface.boundingBox();
+  await page.evaluate(([element, bytes, name, x, y]) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(bytes)], name, { type: 'application/pdf' }));
+    const init = { bubbles: true, cancelable: true, dataTransfer: transfer, clientX: x, clientY: y };
+    element.dispatchEvent(new DragEvent('dragover', init));
+    element.dispatchEvent(new DragEvent('drop', init));
+  }, [await surface.elementHandle(), [...makePdf('P')], DROP, box.x + box.width * 0.4, box.y + box.height * 0.4]);
+  await dialog().waitFor({ timeout: 15000 });
+  await waitFor(async () => (await dialog().locator('[data-pdf-total]').innerText()).trim() === '4 pages', 15000, 'the dropped PDF shows no "4 pages"');
+  await dialog().locator('[data-pdf-choice="pdf"]').click();
+  await dialog().locator('button').last().click();
+  await page.locator('[data-pdf-add-dialog]').waitFor({ state: 'detached', timeout: 90000 });
+  const card = await waitFor(async () => {
+    const ink = await page.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }, INK);
+    return ink?.blocks?.find(block => block.type === 'pdf' && /^pdf:upload:[0-9a-f]{12}$/.test(block.assetKey || ''));
+  }, 15000, 'no uploaded-paper PDF card in the saved ink');
+  const paperKey = `paper:${card.assetKey.slice('pdf:'.length)}`;
+  facts.s10_card = { id: card.id, assetKey: card.assetKey };
+  const one = async () => (await entries()).filter(entry => entry.key === keyOf(paperKey));
+  await select(card.id);
+  await shot('10-selected-uploaded-paper');
+  let found = await one();
+  assert.equal(found.length, 1, `the selected paper shows as ${found.length} entries`);
+  assert.equal(found[0].temporary, true, 'a selection chip');
+  assert.ok(found[0].text.includes('label only'), `marked label only: ${found[0].text}`);
+  await addToChat();
+  await waitFor(async () => (await one()).some(entry => entry.chip === 'ready'), 5000, 'the paper was not pinned');
+  await select(card.id);
+  found = await one();
+  assert.equal(found.length, 1, `pinned and selected again, the paper shows as ${found.length} entries`);
+  assert.ok(found[0].text.includes('label only') && found[0].text.includes('selected'), `pinned, selected, label only: ${found[0].text}`);
+  assert.equal(await barButton().getAttribute('data-added'), 'true', 'Added to chat');
+  await shot('10-pinned-uploaded-paper');
+  await deselect();
+  const cap = await send('What is in the dropped paper?');
+  facts.s10 = { route: cap.route, ...pdfFields(cap.body) };
+  assert.equal(refsOf(cap.body, paperKey).length, 1, 'the paper ref once');
+  assert.equal((cap.body.context_refs || []).filter(ref => ref.sourceId === `card:${card.id}`).length, 0, 'no card ref for the paper card');
+  assert.equal(cap.body.paper_context ?? null, null, 'a whole paper is not read: no paper_context');
+});
+
 const openChat = async id => {
   if (!(await page.locator('[data-chat-history-search]').isVisible().catch(() => false))) await pane().getByRole('button', { name: 'History', exact: true }).click();
   await page.locator(`[data-chat-history-row="${id}"]`).click();
@@ -368,6 +417,30 @@ await check('9: a page pinned in chat A is not in chat B or a New chat, returns 
   const cap = await send('Still attached?');
   facts.s9 = { route: cap.route, ...pdfFields(cap.body) };
   assert.equal(refsOf(cap.body, KEY_A, 3).length, 1, 'the restored page rides');
+});
+
+await check('11: the composer chips in dark mode and at the 320 px Chat panel: every chip inside the composer, nothing clipped sideways', async () => {
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate(t => { localStorage.setItem('small.theme', t); localStorage.setItem('rh.chat.width', '320'); }, theme);
+    await page.reload();
+    await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+    await pane().waitFor({ state: 'visible', timeout: 30000 });
+    await page.waitForTimeout(1500);
+    if ((await entriesFor(KEY_A, 3)).length === 0) await openChat(CHAT_A);
+    await select('a-p2');
+    const width = Math.round((await pane().boundingBox()).width);
+    assert.ok(width <= 340, `the Chat panel is ${width} px wide, not near its 320 px minimum`);
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), theme === 'dark', `${theme} theme`);
+    const fit = await pane().evaluate(() => {
+      const list = document.querySelector('[data-chat-pane] [data-context-chips] ul'), composer = document.querySelector('[data-chat-pane] [data-chat-composer]');
+      const box = composer.getBoundingClientRect();
+      return { overflow: list.scrollWidth - list.clientWidth, outside: [...list.children].filter(li => { const r = li.getBoundingClientRect(); return r.left < box.left - 1 || r.right > box.right + 1; }).length };
+    });
+    assert.deepEqual(fit, { overflow: 0, outside: 0 }, `${theme}: chips overflow the composer`);
+    await pane().screenshot({ path: `${OUT}/11-chips-${theme}-320.png` });
+    await deselect();
+  }
+  await page.evaluate(() => { localStorage.removeItem('small.theme'); localStorage.removeItem('rh.chat.width'); });
 });
 
 // Outside hosts (the canvas's notebook origin) are aborted and recorded in results.json, as pdf-to-canvas-check does.
