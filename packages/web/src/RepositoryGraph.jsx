@@ -15,7 +15,8 @@ const MEMORY=new Set(['decision','question','session']),MEMORY_COLOR={decision:'
 // camera ({ view, focus, positions }) restores a saved camera on mount, so nothing refits; onCamera(camera) reports it on
 // unmount only (a remount restores it). focusRequest ({ id }) explores that node's one-hop neighbourhood, as a double-click does.
 // onNodeMenu(node, { x, y }) opens the caller's menu for a right-clicked node (viewport coordinates).
-export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null, onNodeMenu = null }) {
+// cap: how many nodes the overview draws (default 24, plus decision memory). A graph card passes its own, larger cap and says when it is hit.
+export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null, onNodeMenu = null, cap = null }) {
   const [answer,setAnswer]=useState(null);
   const graph=answer||sourceGraph;
   const chosen=useMemo(()=>new Set(selectedIds??(selected?.id?[selected.id]:[])),[selectedIds,selected?.id]);
@@ -38,8 +39,8 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
       const rank=n=>memory.has(n.id)?2:linked.has(n.id)?1:0;
       nodes=[...graph.nodes].sort((a,b)=>rank(b)-rank(a)||(degrees.get(b.id)||0)-(degrees.get(a.id)||0));
     }
-    return{nodes:nodes.slice(0,answer ? 100 : focus || query ? 45 : 24+nodes.filter(n=>MEMORY.has(n.kind)).length),total:nodes.length};
-  },[graph,focus,query,answer]);
+    return{nodes:nodes.slice(0,answer ? 100 : focus || query ? 45 : cap ?? 24+nodes.filter(n=>MEMORY.has(n.kind)).length),total:nodes.length};
+  },[graph,focus,query,answer,cap]);
   // Files and Graph share one selection (repository-browser.md): a selected node outside the bounded overview joins it, so
   // a symbol picked in Files is lit when the Graph opens. A search, a focus or an answer view stays exactly what it asked for.
   const pinned=useMemo(()=>!focus&&!answer&&!query.trim()?[...chosen].filter(id=>!ranked.nodes.some(n=>n.id===id)).map(id=>graph.nodes.find(n=>n.id===id)).filter(Boolean):[],[chosen,focus,answer,query,ranked,graph]);

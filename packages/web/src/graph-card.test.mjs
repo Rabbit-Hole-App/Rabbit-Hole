@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { dropCardRef, graphCardBlock, sameGraphCard, setCardSelection, subgraph } from './graph-card.js';
+import { CARD_NODE_CAP, cardRefs, dropCardRef, graphCardBlock, graphScopeRef, sameGraphCard, setCardScope, setCardSelection, subgraph } from './graph-card.js';
 import { nodeRef, turnRefs } from './repo-context.js';
 import { sameRef } from './chat-context.js';
 
@@ -78,6 +78,31 @@ test('a ready graph card never throws on a reply without skipped, and a render e
   assert.match(card, /source\.skipped\?\.length > 0/);
   assert.doesNotMatch(card, /source\.skipped\.length > 0/);
   assert.match(card, /class GraphCardBoundary extends Component \{[\s\S]*static getDerivedStateFromError\(\)/);
-  assert.match(card, /export default function GraphCard\(\{ block \}\) \{ return <GraphCardBoundary block=\{block\} \/>; \}/);
+  assert.match(card, /export default function GraphCard\(\{ block, selected = false \}\) \{[\s\S]*?return <GraphCardBoundary block=\{block\} \/>;\n\}/);
   assert.match(card, /data-graph-card-state="failed"[\s\S]*data-graph-card-retry/);
+});
+
+test('a selected graph card names its scope as one graph ref; a node chosen inside it replaces the scope (brief 6)', () => {
+  const whole = { id: 'g1', type: 'repo-graph', title: 'karpathy/nanoGPT graph', repository: { app: 'repo-x', repo: 'karpathy/nanoGPT', commit: 'a'.repeat(40) }, scope: 'whole', nodeIds: [] };
+  assert.deepEqual(graphScopeRef(whole), { sourceId: `graph:karpathy/nanoGPT@${'a'.repeat(40)}`, kind: 'graph', name: 'karpathy/nanoGPT graph', version: 'a'.repeat(40), range: null });
+  assert.equal(graphScopeRef({ ...whole, scope: 'subgraph', nodeIds: ['model', 'model gpt'] }).sourceId, `graph:karpathy/nanoGPT@${'a'.repeat(40)}#model,model%20gpt`);
+  setCardScope('g1', whole, true);
+  assert.deepEqual(cardRefs().map(r => r.kind), ['graph'], 'selected with no node inside: the scope rides');
+  setCardSelection('g1', [{ id: 'model', label: 'model.py', path: 'model.py', line: 1 }], whole);
+  assert.deepEqual(cardRefs().map(r => r.kind), ['code'], 'a node chosen inside replaces the scope');
+  setCardSelection('g1', [], whole);
+  assert.deepEqual(cardRefs().map(r => r.kind), ['graph']);
+  dropCardRef(graphScopeRef(whole));
+  assert.deepEqual(cardRefs(), [], 'removing the chip lets the scope go');
+  setCardScope('g1', whole, true); setCardScope('g1', whole, false);
+  assert.deepEqual(cardRefs(), [], 'deselecting the card lets it go');
+});
+
+test('a card draws up to its cap and says when the graph is larger (brief 11: no silent truncation)', () => {
+  assert.ok(CARD_NODE_CAP >= 58, 'a 58-node repository draws whole');
+  const card = readFileSync(new URL('./GraphCard.jsx', import.meta.url), 'utf8'), graph = readFileSync(new URL('./RepositoryGraph.jsx', import.meta.url), 'utf8');
+  assert.match(card, /cap=\{CARD_NODE_CAP\}/);
+  assert.match(card, /data-graph-card-limit[^>]*>· Showing \{CARD_NODE_CAP\} of \{graph\.nodes\.length\} nodes/);
+  assert.match(graph, /cap \?\? 24\+/);
+  assert.match(card, /setCardScope\(block\.id, block, selected\)/);
 });

@@ -57,7 +57,7 @@ export default function CodeCard({ block, onChange }) {
       <header className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-1 pb-2">
         <FileCode size={16} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-2" />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span data-code-card-title className="truncate text-sm font-semibold text-ink" title={block.title}>{block.title}</span>
+          <span data-code-card-title className="truncate text-sm font-semibold text-ink" title={block.title || 'Code'}>{block.title || 'Code'}</span>
           <span data-code-card-provenance className="truncate text-xs text-ink-3" title={provenanceOf(block)}>{block.language && block.language !== 'text' ? `${block.language} · ` : ''}{provenanceOf(block)}</span>
         </span>
       </header>
