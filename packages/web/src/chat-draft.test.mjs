@@ -59,3 +59,14 @@ test('context_refs at Send: card text resolved now and cut to the limits; other 
   assert.deepEqual(cut.map(ref => ref.text?.length), [6, 6, 2]);
   assert.equal('text' in refsForSend([{ ...big('image'), text: '' }])[0], false);
 });
+
+// pdf-materials-refinement.md section 6: the selected card, attached too, sends its text once (as canvas_target), not twice.
+test('the selected object attached as well rides once: its text goes with canvas_target only', () => {
+  const card = { sourceId: 'card:b1', kind: 'card', name: 'Salt', version: 'v', range: null, text: () => 'Salt lowers the freezing point.' };
+  const other = { sourceId: 'card:b2', kind: 'card', name: 'Ice', version: 'v', range: null, text: 'Ice floats.' };
+  const [sentCard, sentOther] = refsForSend([card, other], { target: { sourceId: 'card:b1', kind: 'card', range: null } });
+  assert.equal('text' in sentCard, false, 'the selected card is named, its text rides in canvas_target');
+  assert.equal(sentCard.sourceId, 'card:b1');
+  assert.equal(sentOther.text, 'Ice floats.', 'every other attachment keeps its text');
+  assert.equal(refsForSend([card], { target: { sourceId: 'card:b1', kind: 'card', range: { quote: 'Salt' } } })[0].text, 'Salt lowers the freezing point.', 'a passage of it is another ref');
+});

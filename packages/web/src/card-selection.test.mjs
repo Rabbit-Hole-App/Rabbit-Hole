@@ -78,7 +78,7 @@ test('selecting one card arms the composer strip; moving off it clears the strip
   assert.match(canvas, /const objectById = id => blocksRef\.current\.find\(entry => entry\.id === id\) \|\| exchangesRef\.current\.find\(entry => entry\.id === id\) \|\| itemsRef\.current\.find\(entry => entry\.id === id\) \|\| null;/);
   assert.match(canvas, /const describeObject = object => describeBlock\(object\) \|\| describeCanvasObject\(object\);/);
   assert.match(effect, /if \(was && askTargetId === was && armedId\.current === was\) \{ armedId\.current = null; onAskTargetRef\.current\?\.\(null\); \}/);
-  assert.match(canvas, /const card = \{ card: true, asked: askedId\.current === block\.id, context: \{ \.\.\.selectedCardContext\(block, described\.title\), material_type: block\.type \|\| described\.material \} \};/, 'Ask in chat arms the same target: one context, one chip');
+  assert.match(canvas, /const card = \{ card: true, asked: askedId\.current === block\.id, context: \{ \.\.\.selectedCardContext\(block, described\.title\), material_type: block\.type \|\| described\.material \}, ref: chatRefOf\(block\), pdf: !!pdfRef\(block\) \};/, 'Ask in chat arms the same target: one context, one chip, with its chat ref (pdf-materials-refinement.md section 6)');
   // Where the answer lands is unchanged: Ask in chat answers as a linked card; a card only selected answers where any question does.
   assert.match(read('./ask.jsx'), /let panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\) \|\| journeySetup\);/);
 });
@@ -142,7 +142,7 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   assert.match(canvas, /\{ask && sticky && askPill\}/);
   // The bar's one provider - the hosts and the floating bar both stand down while the editor is open, presenting or on a view-only
   // board - and the floating bar.
-  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| readOnly\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} onAddToChat=\{readOnly \? null : addToChat\} onQuickEdit=\{inlineAi && !readOnly \? quickEdit : null\}>/);
+  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| readOnly\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} onAddToChat=\{readOnly \? null : addToChat\} added=\{[^}]*isAttached\(chatRefOf\(objectById\(selection\[0\]\)\)\)\)\} onQuickEdit=\{inlineAi && !readOnly \? quickEdit : null\}>/);
   assert.match(canvas, /<SelectionActionBar anchor=\{barAnchor\} box=\{barBox\} \/>/);
   // Add to chat: one object is its card chip, asked (its answer lands as a card linked to it); a dropped image is shown to the tutor
   // too; a group, several objects or a shape are ONE chip with their ids and a text read at send; the draft is untouched, nothing is sent.
