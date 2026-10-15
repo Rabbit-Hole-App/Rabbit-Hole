@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { GitBranch, Info, RefreshCw } from 'lucide-react';
 import { Button, IconBtn, Menu, toast } from './ui.jsx';
 import CodeReader from './CodeReader.jsx';
@@ -21,6 +21,20 @@ const GraphPanel = lazy(() => import('./GraphPanel.jsx').catch(() => ({ default:
 export function useRepositoryCanvas(project, { codeCards = false } = {}) {
   const repository = useRepository(project?.kind === 'repository' ? project.name : null, project);
   const app = repository?.app, snapshot = repository?.snapshot;
+  // A code card's Open source (CodeCard.jsx small:open-code): this canvas's repository at the card's own commit opens in Files
+  // at its lines; any other card is left to the card (GitHub at its commit), never shown against a different revision.
+  useEffect(() => {
+    const open = event => {
+      const { app: name, commit, path, start, end } = event.detail || {};
+      if (!repository || name !== app?.name || commit !== snapshot?.commit || !path) return;
+      event.preventDefault();
+      repository.files.setOpen(path);
+      if (start) repository.files.setJump({ path, start, end: end || start, at: Date.now() });
+      window.dispatchEvent(new CustomEvent('small:open-files'));
+    };
+    window.addEventListener('small:open-code', open);
+    return () => window.removeEventListener('small:open-code', open);
+  }, [repository, app, snapshot]);
   return useMemo(() => {
     if (!repository) return null;
     const { files, context, setContext } = repository;

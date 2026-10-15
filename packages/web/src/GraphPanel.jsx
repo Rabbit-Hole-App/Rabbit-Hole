@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Network, Package, Search, SquarePlus, Waypoints, X } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Network, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input, Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -13,7 +13,7 @@ import { layerGraph, MEMORY_KINDS, visibleMemory } from './map-memory.js';
 import { LayersRow } from './MapMemory.jsx';
 import { getSurface } from './agent/surface.js';
 import { graphCardBlock, sameGraphCard } from './graph-card.js';
-import { insertCodeCard } from './graph-card-stubs.js';
+import { insertCodeCard, nodeCodeCard } from './code-card.js';
 
 // The repository graph in the companion column beside Chat (repo-canvas-graph.md sections 3-6, 12; owner 2026-10-15).
 // Props:
@@ -57,7 +57,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   const indexed = ids => ids.filter(id => snapshot?.graph.nodes.some(n => n.id === id)); // fixture layer records stay out
   const addGraph = (ids = []) => { const block = graphCardBlock(repository, ids); ops.insertCard(block, { same: other => sameGraphCard(other, block) }); };
   const codeNodes = ids => ids.map(id => snapshot?.graph.nodes.find(n => n.id === id)).filter(n => n?.path);
-  const addCode = nodes => nodes.forEach(n => insertCodeCard(ops, { title: n.label, source: { kind: 'repository', app: repository.name, repo: app.repo, commit: snapshot.commit, path: n.path, start: n.line || undefined, end: n.line || undefined, nodeId: n.id } }));
+  const addCode = nodes => nodes.forEach(n => { const card = nodeCodeCard({ app: repository.name, repo: app.repo, commit: snapshot.commit }, n); if (card) insertCodeCard(ops, card); });
   const canCode = !!insertCodeCard && !!ops && codeNodes(selected).length > 0;
   // A right-clicked node outside the selection becomes the selection, so the menu acts on what is lit.
   const openMenu = (node, at) => { if (!selected.includes(node.id)) setSelected([node.id]); setMenu(at); };
@@ -129,6 +129,7 @@ function Body({ repository }) {
 // write a ready question into Chat's composer and never send (agent/scope.js askDraft); the node already rides as context.
 function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
   const { snapshot, app } = repository;
+  const ops = useChatWorkspace()?.canvasOps;
   if (MEMORY_KINDS.includes(node.kind)) return <div data-node-details className="shrink-0 border-t border-line pt-2 text-sm"><p className="font-medium">{node.label}</p><p className="text-xs text-ink-3">Fixture record</p></div>;
   const object = objectOf(snapshot.graph, node), Icon = ICONS[object.kind] || Braces;
   const groups = relationshipGroups(snapshot.graph, object.nodeId || node.id);
@@ -142,6 +143,7 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
     <p className="truncate text-xs text-ink-3" title={object.path || ''}>{object.path ? `${object.path}:${object.line || 1} · ` : ''}{typeOf(object)}</p>
     <div className="flex flex-wrap gap-1">
       <Button size="sm" variant="secondary" data-node-open-source disabled={!object.path} title={object.path ? 'Open in Files at this line' : 'An external dependency has no source here'} onClick={() => onOpenSource?.(object.path, object.line || 1, object.line || 1)}>Open source</Button>
+      {ops?.insertCard && nodeCodeCard({ app: app?.name, repo: app?.repo, commit: snapshot.commit }, object) && <Button size="sm" variant="secondary" data-node-add-card title="Put this code on the canvas as a code card" onClick={() => insertCodeCard(ops, nodeCodeCard({ app: app.name, repo: app.repo, commit: snapshot.commit }, object))}><SquareCode size={13} />Add code card</Button>}
       <Button size="sm" data-node-ask onClick={() => askDraft(askQuestion(object))}>Ask about this</Button>
       <Button size="sm" data-node-why onClick={() => askDraft(whyQuestion(object))}>Ask why</Button>
       <Button size="sm" data-node-learn onClick={() => askDraft(`Teach me ${object.label}`)}>Learn this</Button>

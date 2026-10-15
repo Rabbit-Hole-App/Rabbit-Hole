@@ -130,7 +130,8 @@ test('only a drag that carries files is a file drop', async () => {
   assert.equal(isFileDrag(null), false);
   const { readFileSync } = await import('node:fs');
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /onDrop=\{event => \{ if \(!onDropFiles \|\| !isFileDrag\(event\.dataTransfer\)\) return;/);
+  // A Files-browser code drag (code-card.js) is taken first; any other drop is a file drop only when it carries files.
+  assert.match(canvas, /onDrop=\{event => \{[^\n]*if \(!onDropFiles \|\| !isFileDrag\(event\.dataTransfer\)\) return;/);
 });
 
 // Lead 1:02 AM PT, Home scenario 5: on an empty line the DOM caret sits beside the line's <br> and has no client rect, so

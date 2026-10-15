@@ -6,7 +6,8 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { CodeRefs } from './code-refs.js';
 import { nodeRef } from './repo-context.js';
 import { cardRepository, setCardSelection, subgraph, useCardSelection } from './graph-card.js';
-import { insertCodeCard, useCardSource } from './graph-card-stubs.js';
+import { insertCodeCard, nodeCodeCard } from './code-card.js';
+import { useCardSource } from './use-card-source.js';
 
 // An interactive graph card on the canvas (repo-canvas-graph.md clarification section 4): the indexed graph of one repository
 // at one commit, whole or a selected subgraph - the companion Graph's renderer, not a picture. Its node selection is its own
@@ -60,7 +61,7 @@ export default function GraphCard({ block }) {
         <IconBtn data-graph-card-add-to-chat aria-label="Add to chat" title="Keep the selected code with this chat" disabled={!chat}
           onClick={() => nodes.forEach(n => chat.addToChat(nodeRef(cardRepository(block), n)))}><MessageSquarePlus size={14} /></IconBtn>
         <IconBtn data-graph-card-code aria-label="Create code card" title={insertCodeCard ? 'Create a code card from this node' : 'Code cards are not available yet'} disabled={!insertCodeCard || !one?.path || !chat?.canvasOps}
-          onClick={() => insertCodeCard(chat.canvasOps, { title: one.label, source: { kind: 'repository', app: block.repository.app, repo: block.repository.repo, commit: block.repository.commit, path: one.path, start: one.line || undefined, end: one.line || undefined, nodeId: one.id } })}><FileCode size={14} /></IconBtn>
+          onClick={() => { const card = nodeCodeCard(block.repository, one); if (card) insertCodeCard(chat.canvasOps, card); }}><FileCode size={14} /></IconBtn>
         <Button size="sm" data-graph-card-open-source disabled={!here || !one?.path || !companion.has(one.path)} title={here ? 'Open in Files at this line' : 'Opens beside Chat on this repository\'s canvas at the same commit'}
           onClick={() => companion.open(one.path, one.line || 1, one.line || 1)}>Open source</Button>
         <IconBtn data-graph-card-clear aria-label="Clear selection" title="Clear selection (Escape)" onClick={() => pick([])}><X size={14} /></IconBtn>

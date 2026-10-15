@@ -61,12 +61,14 @@ test('the paste popup offers exactly Code card and Jupyter notebook; a choice ma
   assert.throws(() => pasteBlock({ text: 'a', choice: 'attachment', assetKey: 'k' }), /choose how to add it/);
 });
 
-test('the panel\'s selection offers exactly Ask in chat and Copy; the Map keeps Ask and Learn; Copy answers on the button', () => {
+test('the panel\'s selection offers Ask in chat, Add code card beside a canvas, and Copy; the Map keeps Ask and Learn; Copy answers on the button', () => {
   const reader = read('CodeReader.jsx'), repo = read('repository-canvas.jsx');
   assert.match(repo, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{files\.open\} context=\{context\} query="" pick=\{files\.jump\} stacked place="panel"/, 'the panel is the place that gets the two actions');
   const toolbar = reader.slice(reader.indexOf('{panel ? <>'), reader.indexOf('</div>} />'));
   const [panel, map] = toolbar.split(/<\/> : <>\n/); // the place switch, not the Copied ternary inside it
-  assert.equal(panel.match(/<Button /g).length, 2, 'two actions');
+  assert.equal(panel.match(/<Button /g).length, 3, 'three actions');
+  // Add code card (repo-graph Release 2) shows only where the canvas takes cards, and puts exactly the selected lines on it.
+  assert.match(panel, /\{cards && <Button size="sm" data-range-card onClick=\{\(\) => \{ setPending\(null\); addCard\(r\.path, \{ start: r\.start, end: r\.end \}\); \}\}>/);
   assert.match(panel, /data-range-ask onClick=\{\(\) => act\('ask', r\)\}><MessageSquare size=\{13\} \/>Ask in chat<\/Button>/);
   assert.match(panel, /data-range-copy onClick=\{\(\) => copy\(r\)\}>\{copied === `\$\{r\.path\}:\$\{r\.start\}-\$\{r\.end\}` \? <><Check size=\{13\} \/>Copied<\/> : <><Copy size=\{13\} \/>Copy<\/>\}/);
   assert.doesNotMatch(panel, /Learn/);
