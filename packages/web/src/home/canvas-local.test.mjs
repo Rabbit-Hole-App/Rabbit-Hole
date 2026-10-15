@@ -65,3 +65,11 @@ test("a Fork sends this browser's board with its chat cards, and nothing when th
   assert.deepEqual(localBoard(memory({ ...OPENED, [KEYS.chat]: JSON.stringify(chat) }), KEYS).exchanges, chat, 'chat cards alone are content');
   assert.equal(localBoard(memory({ [KEYS.ink]: '{not json' }), KEYS), null, 'unreadable: let the server copy decide');
 });
+
+// The canvas document (docs/features/blocknote-canvas.md) is an object under :ink: an empty sheet is not content, words are.
+test('an empty document is not local content; a document with words is', () => {
+  const sheet = blocks => ({ [KEYS.ink]: JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [], doc: { v: 1, x: 0, y: 0, w: 760, blocks } }), [KEYS.chat]: '[]' });
+  assert.equal(hasLocalContent(memory(sheet([])), KEYS), false);
+  assert.equal(hasLocalContent(memory(sheet([{ id: 'p', type: 'paragraph', content: [], children: [] }])), KEYS), false);
+  assert.equal(hasLocalContent(memory(sheet([{ id: 'p', type: 'paragraph', content: [{ type: 'text', text: 'Draft', styles: {} }], children: [] }])), KEYS), true);
+});

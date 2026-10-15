@@ -363,6 +363,8 @@ const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'are
 export function forkState(state, canvas = null) {
   const out = {};
   for (const key of CONTENT) if (Array.isArray(state?.[key])) out[key] = state[key];
+  // The canvas's one document (docs/features/blocknote-canvas.md) is an object: the copy gets its own, never a shared one.
+  if (state?.doc && typeof state.doc === 'object' && !Array.isArray(state.doc)) out.doc = structuredClone(state.doc);
   if (out.exchanges) out.exchanges = out.exchanges.map(exchange => ({ ...exchange, status: 'done' }));
   if (canvas && out.blocks) out.blocks = out.blocks.map(block => ((block?.type === 'pdf' || block?.type === 'slide') && !block.home ? { ...block, home: canvas } : block));
   return out;

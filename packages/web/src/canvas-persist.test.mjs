@@ -79,3 +79,13 @@ test('boardText: content keys in one order, a missing key read as empty; a real 
   }
   assert.notEqual(boardText({ ...written, blocks: [{ ...anchor.blocks[0], title: 'Renamed' }] }), boardText(written), 'an edited card');
 });
+
+// The canvas document (docs/features/blocknote-canvas.md) is board content: a document-only edit is a change the server
+// does not have yet, and a board without one compares equal to a copy saved without the key.
+test('boardText counts the document: a doc-only edit differs, a missing doc equals none', () => {
+  const doc = { v: 1, x: 0, y: 0, w: 760, blocks: [{ id: 'a', type: 'paragraph', content: [], children: [] }] };
+  const edited = { ...doc, blocks: [{ ...doc.blocks[0], content: [{ type: 'text', text: 'hello', styles: {} }] }] };
+  assert.notEqual(boardText({ ...state, doc }), boardText({ ...state, doc: edited }));
+  assert.equal(boardText(state), boardText({ ...state, doc: undefined }));
+  assert.notEqual(boardText(state), boardText({ ...state, doc }));
+});

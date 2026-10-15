@@ -1,6 +1,7 @@
 // This browser's canvas content (T02 §8.3, §8.4), read the way Learn writes it. Pure: the
 // storage is passed in. Home, Library, the Project canvases list, the canvas route gate and
 // create_canvas Undo all decide from here, so they cannot disagree.
+import { docIsEmpty } from '../canvas-doc.js';
 
 // LearnPage.jsx:143 builds the base from the app's org, the viewer's email and the slug.
 // Content is under :ink (the AdaptiveCanvas storageKey, :794), questions under :chat (:158),
@@ -25,8 +26,9 @@ function blank(storage, key, isBlank) {
 
 // Learn writes empty arrays as soon as a canvas opens (AdaptiveCanvas.jsx:774, LearnPage.jsx:163),
 // so opened is not touched: content is any stroke, shape, item, link, block or question.
+// The document (docs/features/blocknote-canvas.md, the `doc` key) is an object: a sheet with no words is not content either.
 export const hasLocalContent = (storage, keys) =>
-  !blank(storage, keys.ink, (blob) => Object.values(blob).every(empty)) || !blank(storage, keys.chat, empty);
+  !blank(storage, keys.ink, (blob) => Object.entries(blob).every(([key, value]) => (key === 'doc' ? docIsEmpty(value) : empty(value)))) || !blank(storage, keys.chat, empty);
 
 // The board a Fork sends for your own canvas (docs/features/canvas-forking.md): what Learn saved in this
 // browser - the canvas and its chat cards - or null when this browser holds none of it, so the server
