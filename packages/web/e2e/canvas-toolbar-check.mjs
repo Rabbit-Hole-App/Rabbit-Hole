@@ -89,7 +89,12 @@ async function pushRight(page, card, past, side = 'right') {
     const g = await geometry(page), box = await card.boundingBox();
     const dx = side === 'right' ? box.x + box.width - (g.surface.right + past) : box.x - (g.surface.x - past);
     if (Math.abs(dx) < 4) return;
-    await page.mouse.move(g.surface.x + 40, g.surface.y + g.surface.h / 2);
+    // Wheel over bare canvas: a graph card zooms its own graph and never pans the canvas (repo-graph Release 2), so the
+    // point keeps off the card being pushed.
+    const x = g.surface.x + 40, mid = g.surface.y + g.surface.h / 2;
+    const onCard = x >= box.x && x <= box.x + box.width && mid >= box.y && mid <= box.y + box.height;
+    const y = !onCard ? mid : box.y - 20 > g.surface.y + 10 ? box.y - 20 : Math.min(box.y + box.height + 20, g.surface.y + g.surface.h - 10);
+    await page.mouse.move(x, y);
     await page.mouse.wheel(dx, 0);
     await page.waitForTimeout(80);
   }
