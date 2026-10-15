@@ -26,6 +26,7 @@ export function assetKeysOf(state) {
   const keys = new Set();
   for (const block of state?.blocks || []) {
     if (block.assetKey) keys.add(block.assetKey);
+    if (block.source?.assetKey) keys.add(block.source.assetKey); // an uploaded code card's file (code-card.js)
     if (block.source_asset) keys.add(block.source_asset);
     for (const variant of block.variants || []) if (variant.cacheKey) keys.add(variant.cacheKey);
   }

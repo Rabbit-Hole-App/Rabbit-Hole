@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, Package, Search, Waypoints, X } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, Package, Search, SquareCode, Waypoints, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -12,6 +12,7 @@ import { fixturesOn, useMapMemory } from './home/review-fixtures.js';
 import { layerGraph, MEMORY_KINDS, visibleMemory } from './map-memory.js';
 import { LayersRow } from './MapMemory.jsx';
 import { getSurface } from './agent/surface.js';
+import { insertCodeCard, nodeCodeCard } from './code-card.js';
 
 // The repository graph in the companion column beside Chat (repo-canvas-graph.md sections 3-6, 12; owner 2026-10-15).
 // Props:
@@ -100,6 +101,7 @@ function Body({ repository }) {
 // write a ready question into Chat's composer and never send (agent/scope.js askDraft); the node already rides as context.
 function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
   const { snapshot, app } = repository;
+  const ops = useChatWorkspace()?.canvasOps;
   if (MEMORY_KINDS.includes(node.kind)) return <div data-node-details className="shrink-0 border-t border-line pt-2 text-sm"><p className="font-medium">{node.label}</p><p className="text-xs text-ink-3">Fixture record</p></div>;
   const object = objectOf(snapshot.graph, node), Icon = ICONS[object.kind] || Braces;
   const groups = relationshipGroups(snapshot.graph, object.nodeId || node.id);
@@ -113,6 +115,7 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
     <p className="truncate text-xs text-ink-3" title={object.path || ''}>{object.path ? `${object.path}:${object.line || 1} · ` : ''}{typeOf(object)}</p>
     <div className="flex flex-wrap gap-1">
       <Button size="sm" variant="secondary" data-node-open-source disabled={!object.path} title={object.path ? 'Open in Files at this line' : 'An external dependency has no source here'} onClick={() => onOpenSource?.(object.path, object.line || 1, object.line || 1)}>Open source</Button>
+      {ops?.insertCard && nodeCodeCard({ app: app?.name, repo: app?.repo, commit: snapshot.commit }, object) && <Button size="sm" variant="secondary" data-node-add-card title="Put this code on the canvas as a code card" onClick={() => insertCodeCard(ops, nodeCodeCard({ app: app.name, repo: app.repo, commit: snapshot.commit }, object))}><SquareCode size={13} />Add code card</Button>}
       <Button size="sm" data-node-ask onClick={() => askDraft(askQuestion(object))}>Ask about this</Button>
       <Button size="sm" data-node-why onClick={() => askDraft(whyQuestion(object))}>Ask why</Button>
       <Button size="sm" data-node-learn onClick={() => askDraft(`Teach me ${object.label}`)}>Learn this</Button>

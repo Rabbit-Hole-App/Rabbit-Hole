@@ -1,11 +1,13 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Braces, Check, ChevronRight, Copy, FileCode, Folder, MessageSquare } from 'lucide-react';
+import { Braces, Check, ChevronRight, Copy, FileCode, Folder, MessageSquare, SquareCode } from 'lucide-react';
 import { Button } from './ui.jsx';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
 import { fileTree, searchRepository } from './code-reader.js';
 import { symbolsIn } from './inspector.js';
 import { rangeContext, rangeTitle } from './agent/scope.js';
 import { rememberCodeCopy } from './map-files.js';
+import { useChatWorkspace } from './chat-workspace.jsx';
+import { CODE_DRAG, insertCodeCard, repoCodeCard } from './code-card.js';
 
 // The Files view (owner brief §4, §5, §7, §14; docs/features/repository-browser.md): a lightweight code browser, not an IDE.
 // A tree (the open file lists its symbols), and the reader: breadcrumb, line numbers, highlighting. A click on a file or a
@@ -22,6 +24,12 @@ const indent = (depth) => ({ paddingLeft: `${8 + depth * 14}px` });
 // pick: a code reference opened here ({ path, start, end, at }, RepositoryPage): its range becomes this reader's selection.
 export default function CodeReader({ app, snapshot, open, context, query, onFile, onSymbol, onRange, stacked = false, place = 'map', pick = null }) {
   const panel = place === 'panel';
+  // Code cards (repo-graph Release 2): beside a canvas, Add code card puts the open file, a symbol or the selected lines on it
+  // at this snapshot's commit, and a file or symbol row drags onto the canvas as one (code-card.js; the same creation path).
+  const ops = useChatWorkspace()?.canvasOps, cards = panel && !!ops?.insertCard;
+  const source = (path, extra = {}) => ({ app: app.name, repo: app.repo, commit: snapshot.commit, path, ...extra });
+  const addCard = (path, extra) => { insertCodeCard(ops, repoCodeCard(source(path, extra))); };
+  const drag = (path, extra) => (cards ? { draggable: true, onDragStart: (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData(CODE_DRAG, JSON.stringify(source(path, extra))); } } : {});
   // A selected range waiting for Ask or Learn. Only this reader sees it; another file or Esc drops it.
   const [pending, setPending] = useState(null);
   const [copied, setCopied] = useState(null); // the range just copied: its Copy reads Copied for a moment
@@ -43,8 +51,8 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
   const symbols = useMemo(() => (open ? symbolsIn(snapshot.graph, open) : []), [snapshot, open]);
   const here = context?.path === open ? context : null; // the context, when it points into the open file
   const act = (kind, r) => { setPending(null); window.getSelection()?.removeAllRanges(); onRange(kind, { ...rangeContext(r.path, r.start, r.end, snapshot.commit), text: r.text }); }; // text: the chat chip's preview
-  const fileRow = (path, label, depth) => <button key={path} type="button" data-file-row={path} aria-current={path === open || undefined} title={path} onClick={() => onFile(path)} className={ROW} style={indent(depth)}><FileCode size={14} className="shrink-0 text-ink-3" /><span className="truncate font-mono text-xs">{label}</span></button>;
-  const symbolRow = (n, depth, where) => <button key={n.id} type="button" data-symbol-row={n.id} aria-current={context?.id === n.id || undefined} onClick={() => onSymbol(n)} className={ROW} style={indent(depth)}>
+  const fileRow = (path, label, depth) => <button key={path} type="button" data-file-row={path} {...drag(path)} aria-current={path === open || undefined} title={path} onClick={() => onFile(path)} className={ROW} style={indent(depth)}><FileCode size={14} className="shrink-0 text-ink-3" /><span className="truncate font-mono text-xs">{label}</span></button>;
+  const symbolRow = (n, depth, where) => <button key={n.id} type="button" data-symbol-row={n.id} {...drag(n.path, { start: n.line || null, nodeId: n.id, label: n.label })} aria-current={context?.id === n.id || undefined} onClick={() => onSymbol(n)} className={ROW} style={indent(depth)}>
     <Braces size={13} className="shrink-0 text-ink-3" /><span className="min-w-0 flex-1 truncate">{n.label}</span><span className="shrink-0 font-mono text-[11px] text-ink-3">{where}{n.line}</span></button>;
   const branch = (nodes, depth) => nodes.map((n) => (n.children
     ? <details key={n.path} open={!!open && open.startsWith(`${n.path}/`)} className="group">
@@ -62,6 +70,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
         : branch(tree, 0)}
     </nav>
     <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
+      {open && cards && <div className="flex shrink-0 justify-end pb-1"><Button size="sm" variant="secondary" data-file-add-card title="Put this file on the canvas as a code card" onClick={() => addCard(open)}><SquareCode size={13} />Add code card</Button></div>}
       {open
         ? <SourceSelectionContext.Provider value={{ value: pending, set: setPending }}>
           <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb} pick={pick?.path === open ? pick : null}
@@ -71,6 +80,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
               <span className="px-1.5 font-mono text-[11px] text-ink-2">{rangeTitle(r)}</span>
               {panel ? <>
                 <Button size="sm" data-range-ask onClick={() => act('ask', r)}><MessageSquare size={13} />Ask in chat</Button>
+                {cards && <Button size="sm" data-range-card onClick={() => { setPending(null); addCard(r.path, { start: r.start, end: r.end }); }}><SquareCode size={13} />Add code card</Button>}
                 <Button size="sm" data-range-copy onClick={() => copy(r)}>{copied === `${r.path}:${r.start}-${r.end}` ? <><Check size={13} />Copied</> : <><Copy size={13} />Copy</>}</Button>
               </> : <>
                 <Button size="sm" onClick={() => act('ask', r)}>Ask</Button>
