@@ -41,7 +41,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfSource } from './pdf-source.js';
-import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { looksLikeCode, pasteKind } from './canvas-paste.js';
@@ -1813,20 +1813,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // free items land at its centre, and the camera only moves if the new
       // thing would otherwise be off screen.
       insertHeading: level => revealAfter(insertHeadingAt(level, flowIndexAtView())),
-      insertPdf: ({ assetKey, label }) => {
+      // `home`: the canvas the PDF is stored on (pdf-to-canvas.md), so a copy of the card or page still reads its own upload.
+      insertPdf: ({ assetKey, label, home }) => {
         snapshot();
-        insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label });
+        insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label, ...(home ? { home } : {}) });
       },
       // A PDF's pages (pdf-to-canvas.md): one block per page, in order, where the learner is looking, as one undo.
       // `pages` is [{ assetKey, number }], number the PDF's own page; `pdf` the source key (pdf-source.js), so Files, the
       // reader and the AI context follow each page to its own page of its own source.
-      insertSlides: ({ pages, label, pdf }) => {
+      insertSlides: ({ pages, label, pdf, home }) => {
         if (!pages.length) return;
         snapshot();
         // A divider block names each page, so a separator can be deleted on its own; page 1 opening the set needs none.
         const slides = pages.flatMap(({ assetKey, number }, index) => [
           ...(index || number !== 1 ? [{ id: crypto.randomUUID(), type: 'divider', dx: 0, dy: 0, label: `Page ${number}`, pdf }] : []),
-          { id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number, pdf },
+          { id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number, pdf, ...(home ? { home } : {}) },
         ]);
         const index = flowIndexAtView();
         setBlocks(previous => [...previous.slice(0, index), ...slides, ...previous.slice(index)]);
@@ -3030,10 +3031,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
     const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material } };
     // A page sends the page itself, of its own source (pdf-source.js): an uploaded paper's page as paper_context, read by
-    // the model as the reader's pages are; a context document's page as its doc ref at that page. The thumbnail only shows on the chip.
+    // the model as the reader's pages are, from its home canvas when it was copied here; a context document's page as its doc
+    // ref at that page. The thumbnail only shows on the chip.
     if (block.type === 'slide') {
-      const source = pdfSource(block.pdf);
-      const target = { id: block.id, ...described, ...card, ...(source?.kind === 'paper' ? { paper: { id: source.id, page: block.number } } : {}), ...(pageRef(block) ? { docPage: pageRef(block) } : {}) };
+      const source = pdfSource(block.pdf), ref = pageRef(block);
+      const target = { id: block.id, ...described, ...card, ...(source?.kind === 'paper' ? { paper: { id: source.id, page: block.number, ...(block.home ? { home: block.home } : {}) } } : {}), ...(source?.kind === 'doc' && ref ? { docPage: ref } : {}) };
       onAskTargetRef.current?.(target);
       loadAsset(block.assetKey).then(blob => {
         if (!blob || armedId.current !== block.id) return;
@@ -3094,8 +3096,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!ids.length) return false;
     const object = ids.length === 1 ? objectById(ids[0]) : null;
     if (chatWorkspace) {
-      // A page of a context document is that document at that page: the ref a question about it sends (pdf-to-canvas.md).
-      // Its selection chip steps aside, as a card's does below, so the page is one chip.
+      // A page is its own PDF at that page (pdf-to-canvas.md): a context document's ref, or an uploaded paper's (pageRef), the
+      // chip a question about it sends. Its selection chip steps aside, as a card's does below, so the page is one chip.
       if (object?.type === 'slide' && pageRef(object)) {
         chatWorkspace.addToChat(pageRef(object));
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
@@ -4022,11 +4024,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The column slot nearest the middle of the screen: before the first card
   // whose middle is below the screen's middle.
   const flowIndexAtView = () => flowIndexAt(viewCenter().y);
-  // The column slot at a height in the world (a drop point's), as flowIndexAtView finds the screen's middle.
+  // The column slot at a height in the world (a drop point's), as flowIndexAtView finds the screen's middle. Never between a
+  // PDF page and its label (pairStart).
   const flowIndexAt = y => {
     const list = blocksRef.current;
     const at = list.findIndex(block => { const box = boundsRef.current[block.id]; return box && box.y + box.h / 2 > y; });
-    return at < 0 ? list.length : at;
+    return pairStart(list, at < 0 ? list.length : at);
   };
   // The column as freeSlot reads it, in render order (chat cards, then blocks): each card's flow place, its top
   // margin included, and where it is drawn (its bounds: flow place plus its dragged dx, dy). A card not yet

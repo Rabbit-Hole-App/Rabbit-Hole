@@ -4,7 +4,7 @@
 // repositoryAsk (repositories.js).
 import { arxivId, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
-import { isUploadedPaperId, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
+import { isCanvasName, isUploadedPaperId, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { isUploadedMediaId } from './learn-media.js';
 import { validateOutline, renderOutline } from './learn-context.js';
 import { wikiTitle } from './learn-wiki.js';
@@ -25,6 +25,8 @@ export function validateLearnContext(body, conversation) {
       if (!isUploadedPaperId(body.paper_context?.id)) arxivId(body.paper_context?.id);
       if (conversation !== 'learn' || !Number.isInteger(body.paper_context?.page) || body.paper_context.page < 1 || body.paper_context.page > PAPER_PAGE_LIMIT) throw new Error('Invalid paper');
       if (body.paper_context.selection !== undefined) paperSelectionImage(body.paper_context.selection);
+      // home: the canvas a copied page's upload lives on (pdf-to-canvas.md); only ever this learner's own (paperIdentity).
+      if (body.paper_context.home !== undefined && !isCanvasName(body.paper_context.home)) throw new Error('Invalid home');
     } catch { throw new Error('Invalid Learn paper context'); }
   }
   // An image the learner dropped on the canvas. Only the id travels; the bytes
@@ -102,13 +104,18 @@ export async function readLearnSource(env, body, app, { extraBlocks, papers, art
       // ride along base64 the way a chat attachment does. Everything downstream
       // - the page, the region, the instruction - is identical either way.
       const paper = isUploadedPaperId(body.paper_context.id)
-        ? await read.uploadedPaperAsDocument(env, paperIdentity(app), body.paper_context.id)
+        ? await read.uploadedPaperAsDocument(env, paperIdentity(app, body.paper_context.home), body.paper_context.id)
         : await read.readArxivPaper(body.paper_context.id);
       extraBlocks.push(paper.document || paperDocument(paper));
       if (body.paper_context.selection) extraBlocks.push(paperSelectionImage(body.paper_context.selection));
       papers.push({ id: paper.id, title: paper.title, pdfUrl: paper.pdfUrl ?? null });
       source = { paper: { id: paper.id, title: paper.title, page: body.paper_context.page, ...(body.paper_context.selection ? { selectedRegion: body.paper_context.selection.region } : {}) }, instruction: PAPER_CONTEXT_INSTRUCTION };
-    } catch (error) { throw new Error('Could not read the referenced paper. Try again.'); }
+    } catch (error) {
+      if (!isUploadedPaperId(body.paper_context.id)) throw new Error('Could not read the referenced paper. Try again.');
+      // An upload this account cannot read (removed, or a page copied from another person's canvas: pdf-to-canvas.md) never
+      // fails the question and is never lost silently: the model is told it has not seen that page.
+      extraBlocks.push({ type: 'text', text: `The learner asked about page ${body.paper_context.page} of an uploaded PDF this account cannot read (removed, or another person's). You have not seen it; say so if the question needs it.` });
+    }
   }
   // A dropped image rides the way an uploaded paper does: bytes as a block,
   // a line of context naming it. A paper outranks it - one reader, one thing.

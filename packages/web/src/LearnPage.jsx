@@ -447,10 +447,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   };
   // One PDF card (its bytes under the source key) or the drawn pages, as one undoable insert. `source` is pdf-source.js's key.
   const placePdf = async ({ pdf, file, source, label }, { mode, from, to }, progress) => {
-    if (mode === 'pdf') { await cacheAsset(source, file); progress('Adding the PDF card…'); canvas()?.insertPdf({ assetKey: source, label }); return; }
+    if (mode === 'pdf') { await cacheAsset(source, file); progress('Adding the PDF card…'); canvas()?.insertPdf({ assetKey: source, label, home: app.name }); return; }
     const pages = await drawPages(pdf, from, to, progress);
     progress(`Adding ${pages.length} page${pages.length === 1 ? '' : 's'}…`);
-    canvas()?.insertSlides({ pages, label, pdf: source });
+    canvas()?.insertSlides({ pages, label, pdf: source, home: app.name });
   };
   const readPdf = async bytes => {
     const { getDocument } = await import('./learn-paper-figures.js');
@@ -617,7 +617,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // the action, this page owns the readers, sources, and contexts involved.
   const cardAction = (action, payload) => {
     if (action === 'wiki-reader') openWiki({ title: payload.title, section: payload.section || 0 });
-    else if (action === 'pdf-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: null, page: payload.page || 1 });
+    else if (action === 'pdf-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: null, page: payload.page || 1, ...(payload.home ? { home: payload.home } : {}) });
     // A context document (pdf-to-canvas.md) opens in Sources, at the page's own page.
     else if (action === 'doc-reader') chatWorkspace.current?.openSource({ sourceId: `doc:${payload.id}`, kind: 'doc', name: payload.title || 'Document', version: '', range: { page: payload.page || 1 } });
     else if (action === 'paper-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: `https://arxiv.org/pdf/${payload.id}`, page: payload.page || 1 });

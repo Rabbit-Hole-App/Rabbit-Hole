@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { columnEntries, fillSlot, slotIndex, slotSize, GENERIC_SLOT } from './canvas-slots.js';
+import { columnEntries, fillSlot, pairStart, slotIndex, slotSize, GENERIC_SLOT } from './canvas-slots.js';
 
 const blocks = ['a', 'b', 'c'].map(id => ({ id }));
 const order = entries => entries.map(entry => entry.block?.id ?? entry.slot.id);
@@ -128,4 +128,16 @@ test('a slot never stands under a card drawn over its flow place (a dragged card
   // A chat card drawn over every place: the end, below it.
   const chat = { id: 'c', block: false, flowTop: 0, flowBottom: 200, x: 0, y: 0, w: 560, h: 3000 };
   assert.deepEqual(freeSlot([chat, card('a', 220)], 1, slot), { at: 1, top: 3020 - 760 });
+});
+
+// pdf-to-canvas.md follow-up 4: a page label and its page are one placement boundary.
+test('an insert never lands between a PDF page and its label', () => {
+  const set = [{ id: 'n', type: 'note' }, { id: 'l12', type: 'divider', label: 'Page 12', pdf: 'doc:ctx:0123456789ab' }, { id: 'p12', type: 'slide', number: 12, pdf: 'doc:ctx:0123456789ab' },
+    { id: 'l13', type: 'divider', label: 'Page 13', pdf: 'doc:ctx:0123456789ab' }, { id: 'p13', type: 'slide', number: 13, pdf: 'doc:ctx:0123456789ab' }];
+  assert.equal(pairStart(set, 2), 1, 'before page 12 is before its label');
+  assert.equal(pairStart(set, 4), 3, 'before page 13 is before its label');
+  for (const at of [0, 1, 3, 5]) assert.equal(pairStart(set, at), at, `between pairs (${at}) stays`);
+  const other = [{ id: 'l', type: 'divider', label: 'Page 2', pdf: 'pdf:upload:0123456789ab' }, { id: 'p', type: 'slide', number: 2, pdf: 'doc:ctx:0123456789ab' }];
+  assert.equal(pairStart(other, 1), 1, 'a label of another PDF is not its label');
+  assert.equal(pairStart([{ id: 'h', type: 'divider' }, { id: 'p', type: 'slide', number: 1 }], 1), 1, 'a plain divider is no label');
 });

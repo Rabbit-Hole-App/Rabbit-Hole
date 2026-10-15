@@ -4,6 +4,7 @@ import ContextChips from './ContextChips.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { refsForSend } from './chat-draft.js';
 import { MAX_REFS, sameRef } from './chat-context.js';
+import { turnHasPage, turnPaper, tutorPage } from './pdf-source.js';
 import { chatHistory, refIds } from './chat-canvas-context.js';
 import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
@@ -531,7 +532,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     };
     // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
     // A Tutor turn begins in its own branch below; every other turn begins here.
-    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: !!(target?.paper || target?.docPage), chat, mode: chat?.thread.mode });
+    // A turn about one PDF page keeps the Tutor, which reads that page (tutorPage, page_context); several pages go to /api/learn/ask.
+    const pdfPage = tutorPage(target, chat?.context.attached);
+    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, chat?.context.attached) && !pdfPage, chat, mode: chat?.thread.mode });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
@@ -557,7 +560,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // Tutor's workflow on a journey or Tutor canvas (owner brief section 5).
       if (viaTutor) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
-        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin, ...canvasArgs, inspected: tutorImage && imageObject ? [imageObject] : [] }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, page: pdfPage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin, ...canvasArgs, inspected: tutorImage && imageObject ? [imageObject] : [] }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
         if (sheetMode) {
           const routed = typeof reply === 'string' ? { to: 'tray', text: reply } : destinationOf(reply, target, { setup: journeySetup });
@@ -584,7 +587,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
         ...(questionOutline?.length ? { outline: questionOutline } : {}),
-        ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
+        // The page read: a selected page, else the open reader (its selection included), else an uploaded-paper page chip in the
+        // composer (pdf-to-canvas.md), so the chip asks about its page after the selection is cleared. home: a copied page's canvas.
+        ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.home ? { home: questionPaper.home } : {}), ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : chat && turnPaper(null, chat.context.attached) ? { paper_context: turnPaper(null, chat.context.attached) } : {}),
         // One reader holds one thing, so an open paper is what rides; a detached
         // wiki source arrives here as null and the key is simply absent.
         // A dropped image outranks the article and video cards - it is the

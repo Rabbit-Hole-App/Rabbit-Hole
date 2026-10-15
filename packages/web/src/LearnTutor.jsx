@@ -162,7 +162,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // journey resolver, no learner words (so no evaluate), and a waiting /deeper stays for the next typed turn. selectedAt: the
   // click's time, for the decision trace.
   // history, selection, attachments, inspected (ask.jsx): the chat's side of the turn's canvas_context; a voice or hook turn has none.
-  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null, image = null, history = [], selection = [], attachments = [], inspected = [] }) => {
+  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null, image = null, page = null, history = [], selection = [], attachments = [], inspected = [] }) => {
     const canvas = canvasApi.current;
     // Task 14 C-M1: the hooks on screen as the turn is sent, read before any await (the journey resolver's), so a busy re-render
     // that clears them meanwhile never empties the trace.
@@ -216,7 +216,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       result = await runTurn({
         // The typed command is read in place of the composer's words only where it fixes the move (/deeper or /simplify on a
         // depth ladder); /ask, /teach (fix A3) and a ladderless /deeper or /simplify (fix B5) keep the composer's words.
-        ...common, image: preparedImage.image, canvasContext: canvasPackage, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
+        ...common, image: preparedImage.image, page: nextStep ? null : page, canvasContext: canvasPackage, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
         nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch, repository: reads }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: onScreen, selected_at: selectedAt },
@@ -363,7 +363,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     ...steps,
     // begin (ask.jsx): draws the turn's chat bubbles and exchange, once the turn is the Tutor's. A turn the journey took
     // resolves to { handled: true, failed } and draws nothing.
-    ask: ({ raw, targetId, image = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null, resolved = false, history, selection, attachments, inspected }) => answer({ resolved, raw, targetId, image, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin, history, selection, attachments, inspected }),
+    ask: ({ raw, targetId, image = null, page = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null, resolved = false, history, selection, attachments, inspected }) => answer({ resolved, raw, targetId, image, page, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin, history, selection, attachments, inspected }),
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry. A turn the journey took
     // says nothing: the tray shows where the journey is.

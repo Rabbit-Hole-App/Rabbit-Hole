@@ -30,6 +30,13 @@ export function indexAfter(blocks, id) {
   return at < 0 ? blocks.length : at + 1;
 }
 
+// A PDF page and the label above it (pdf-to-canvas.md: the divider naming that page, made with it) are one place in the
+// column: an index that would land between them moves up, in front of the label, so nothing inserted splits the pair.
+export function pairStart(blocks, at) {
+  const page = blocks[at], label = blocks[at - 1];
+  return page?.type === 'slide' && label?.type === 'divider' && label.pdf && label.pdf === page.pdf ? at - 1 : at;
+}
+
 // The slots once card `cardId` has taken slot `id`: that slot goes, and the slots made before it in front
 // of the same block now stand in front of the new card, so nothing waiting jumps below it.
 export function fillSlot(slots, id, cardId) {

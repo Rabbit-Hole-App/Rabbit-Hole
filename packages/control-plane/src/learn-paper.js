@@ -12,6 +12,9 @@ import { learnMedia } from './learn-storage.js';
 export const PAPER_UPLOAD_LIMIT = 5 * 1024 * 1024;
 // Anthropic reads at most 100 pages, and index.js caps paper_context.page there.
 export const PAPER_PAGE_LIMIT = 100;
+// One answer for a file that is gone and one that belongs to someone else (a copied card or page, pdf-to-canvas.md), so a
+// refusal reveals nothing about it.
+export const NOT_YOURS = 'This file is not available to you. Only the person who uploaded it can open it, and only while it is stored.';
 
 const UPLOAD = /^upload:[0-9a-f]{12}$/;
 
@@ -76,4 +79,9 @@ export async function uploadedPaperAsDocument(env, identity, id) {
 // One derivation, used by the route that stores an upload and by the ask path
 // that reads it. If these two ever disagreed the object would simply 404.
 // `email` is the session user's, set on every app response by index.js.
-export const paperIdentity = app => ({ org: app?.org, name: app?.name, email: app?.email });
+// `home`: reading only, the canvas a copied PDF card or page was uploaded to (its block's home, pdf-to-canvas.md), when it
+// was copied to this one. The org and email stay the session's, so naming another canvas reaches only this learner's own
+// uploads: someone who forked a shared canvas never reads its owner's PDF.
+const CANVAS = /^canvas-[a-f0-9]{8}$/;
+export const paperIdentity = (app, home = null) => ({ org: app?.org, name: CANVAS.test(home ?? '') ? home : app?.name, email: app?.email });
+export const isCanvasName = value => CANVAS.test(value ?? '');

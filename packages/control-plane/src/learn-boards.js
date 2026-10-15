@@ -358,10 +358,13 @@ const FORK_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 // A fork copies the board's content and nothing else a browser saved beside it
 // (selection, view, anything newer); chat cards arrive settled, never mid-answer.
 const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges'];
-export function forkState(state) {
+// `canvas`: the source canvas. A PDF card or page made before blocks named their home canvas (pdf-to-canvas.md) was made on
+// the source, so the copy names it, and the copy's reader and questions still find the learner's own upload there.
+export function forkState(state, canvas = null) {
   const out = {};
   for (const key of CONTENT) if (Array.isArray(state?.[key])) out[key] = state[key];
   if (out.exchanges) out.exchanges = out.exchanges.map(exchange => ({ ...exchange, status: 'done' }));
+  if (canvas && out.blocks) out.blocks = out.blocks.map(block => ((block?.type === 'pdf' || block?.type === 'slide') && !block.home ? { ...block, home: canvas } : block));
   return out;
 }
 
@@ -439,7 +442,7 @@ async function fork(req, env, body, { duplicate = false } = {}) {
   const root = up?.root_canvas_id ? [up.root_org, up.root_canvas_id] : source.canvas ? [source.org, source.canvas] : [null, null];
   const name = `canvas-${crypto.randomUUID().slice(0, 8)}`;
   const renamed = new Map();
-  const state = forkState(source.state);
+  const state = forkState(source.state, source.canvas);
   state.blocks = (state.blocks || []).map(block => {
     if (block.type !== 'notebook' || !block.notebook_id) return block;
     const fresh = crypto.randomUUID();

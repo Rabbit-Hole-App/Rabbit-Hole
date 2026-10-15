@@ -3,7 +3,7 @@
 // a key derived from the session; LEARN_DB canvas_context_documents is the list and the toggle.
 import { sha256, randomHex, base64 } from './token.js';
 import { learnMedia } from './learn-storage.js';
-import { PAPER_UPLOAD_LIMIT } from './learn-paper.js';
+import { NOT_YOURS, PAPER_UPLOAD_LIMIT } from './learn-paper.js';
 
 export const TEXT_LIMIT = 1024 * 1024;
 export const DOCUMENTS_PER_CANVAS = 20;
@@ -59,6 +59,15 @@ export function readUpload(name, bytes) {
 
 const list = async (db, who) => (await db.prepare('SELECT id, name, kind, size, attached, created_at FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? ORDER BY created_at DESC, rowid DESC')
   .bind(who.org, who.email, who.app).all()).results.map(row => ({ ...row, attached: !!row.attached }));
+// A PDF card or page copied to another canvas (a Duplicate, a fork, a Rabbit Hole: pdf-to-canvas.md) still names its
+// document by id. Read on that copy, the id is this learner's own document of that id on whichever of their canvases holds
+// it - never anyone else's: the lookup is the session's org and email, as every storage key here is. Someone who forked a
+// shared canvas has no such row, so a copied page never opens its owner's whole PDF. `home` is the canvas that holds it.
+const ownDocument = async (db, who, id) => {
+  const row = await db.prepare('SELECT app AS home, id, name, kind, size, attached FROM canvas_context_documents WHERE org=? AND owner_email=? AND id=? LIMIT 1').bind(who.org, who.email, id).first();
+  return row && { ...row, attached: !!row.attached };
+};
+const homeOf = (who, doc) => (doc.home ? { ...who, app: doc.home } : who);
 
 // The browser encodes the id's colon (ctx%3A...), so match the decoded path.
 const decodedPath = url => { try { return decodeURIComponent(url.pathname); } catch { return url.pathname; } };
@@ -99,13 +108,14 @@ export async function contextDocsFetch(req, env, deps = {}) {
   }
   if (!ID.test(id)) return json({ error: 'Not found' }, 404);
   const current = await list(db, who);
-  const row = current.find(d => d.id === id);
-  if (!row) return json({ error: 'That document is not on this canvas' }, 404);
+  // Reading follows a copied card or page to this learner's own document (ownDocument); switching and deleting stay on this canvas.
+  const row = current.find(d => d.id === id) ?? (req.method === 'GET' ? await ownDocument(db, who, id) : null);
+  if (!row) return json({ error: req.method === 'GET' ? NOT_YOURS : 'That document is not on this canvas' }, 404);
   // The bytes, for the Chat's Sources reader (web chat-context.js docUrl). Owner only, like PATCH and DELETE; nosniff so
   // an uploaded .txt or .md is never rendered as a page.
   if (req.method === 'GET') {
-    const object = await learnMedia(env).get(await objectKey(who, id));
-    if (!object) return json({ error: 'Not found' }, 404);
+    const object = await learnMedia(env).get(await objectKey(homeOf(who, row), id));
+    if (!object) return json({ error: NOT_YOURS }, 404);
     return new Response(object.body, { headers: { 'Content-Type': row.kind === 'pdf' ? 'application/pdf' : 'text/plain; charset=utf-8', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
   }
   if (req.method === 'PATCH') {
@@ -132,15 +142,20 @@ export async function contextDocsFetch(req, env, deps = {}) {
 // Rows on past the count or the budget (switched on around the route) are not sent, newest first wins: a
 // closing text block tells the model which, and one log line records it.
 // ids: a Chat turn's doc refs (chat-modes.js docIds) name exactly the documents that ride; null keeps the switched-on ones.
-export async function contextDocumentBlocks(env, app, ids = null) {
+// also: with ids null, documents that ride beside the switched-on ones (a Tutor turn's page, learn-tutor-routes.js pageBlocks).
+export async function contextDocumentBlocks(env, app, ids = null, { also = [] } = {}) {
   if (!env?.LEARN_DB || !app?.name || !CANVAS.test(app.name) || !app.email) return [];
   const who = owner(app);
-  const on = [], skipped = [];
-  for (const doc of (await list(env.LEARN_DB, who)).filter(d => (ids ? ids.has(d.id) : d.attached))) (on.length < ATTACHED_LIMIT && !budgetRefusal(on, doc) ? on : skipped).push(doc);
+  const on = [], skipped = [], unavailable = [];
+  const here = await list(env.LEARN_DB, who);
+  // A ref to a document not on this canvas: a copied page's, read from this learner's own canvas that holds it (ownDocument).
+  const elsewhere = [];
+  for (const id of ids || also) if (!here.some(d => d.id === id)) { const doc = await ownDocument(env.LEARN_DB, who, id); if (doc) elsewhere.push(doc); else unavailable.push(id); }
+  for (const doc of [...here.filter(d => (ids ? ids.has(d.id) : d.attached || also.includes(d.id))), ...elsewhere]) (on.length < ATTACHED_LIMIT && !budgetRefusal(on, doc) ? on : skipped).push(doc);
   const blocks = [];
   for (const doc of on) {
-    const object = await learnMedia(env).get(await objectKey(who, doc.id));
-    if (!object) continue;
+    const object = await learnMedia(env).get(await objectKey(homeOf(who, doc), doc.id));
+    if (!object) { unavailable.push(doc.id); continue; }
     const bytes = new Uint8Array(await object.arrayBuffer());
     blocks.push(doc.kind === 'pdf'
       ? { type: 'document', title: doc.name, source: { type: 'base64', media_type: 'application/pdf', data: base64(bytes) } }
@@ -151,5 +166,7 @@ export async function contextDocumentBlocks(env, app, ids = null) {
     console.warn(JSON.stringify({ event: 'learn_context_skipped', app: app.name, sent: on.length, skipped: names }));
     blocks.push({ type: 'text', text: `Context documents switched on but not sent (over the ${ATTACHED_LIMIT}-document, ${mb(ATTACHED_BYTES)} or ${mb(ATTACHED_TEXT_BYTES)}-of-text budget): ${names.join(', ')}.` });
   }
+  // Never a silent loss: a document the learner attached that this account cannot read is named, so the answer can say so.
+  if (unavailable.length) blocks.push({ type: 'text', text: `Attached documents this account cannot read (removed, or another person's): ${unavailable.map(id => `doc:${id}`).join(', ')}. You have not seen them; say so if the question needs them.` });
   return blocks;
 }

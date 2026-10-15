@@ -12,7 +12,8 @@ export function openTarget(block, { portal = null, dive = false, readers = false
   if (readers && block.type === 'paper' && block.paper?.id) return { kind: 'reader', label: 'Open in reader', action: 'paper-reader', payload: { id: block.paper.id, title: block.title, page: block.paper.page || 1 } };
   // A PDF card or page (pdf-to-canvas.md): its own source, an uploaded paper or a context document, a page at its own page.
   const pdf = readers && (block.type === 'pdf' || block.type === 'slide') && pdfSource(block.type === 'slide' ? block.pdf : block.assetKey);
-  if (pdf) return { kind: 'reader', label: 'Open in reader', action: pdf.kind === 'doc' ? 'doc-reader' : 'pdf-reader', payload: { id: pdf.id, title: block.label, page: block.type === 'slide' ? block.number : 1 } };
+  // home: the canvas a copied card or page's upload is stored on (pdf-source.js paperBytesUrl).
+  if (pdf) return { kind: 'reader', label: 'Open in reader', action: pdf.kind === 'doc' ? 'doc-reader' : 'pdf-reader', payload: { id: pdf.id, title: block.label, page: block.type === 'slide' ? block.number : 1, ...(block.home ? { home: block.home } : {}) } };
   // A YouTube moment has no reader panel (its embed is the card); its viewer is YouTube, at the moment.
   if (block.type === 'video' && block.videoId) return { kind: 'external', label: 'Open on YouTube', url: `https://www.youtube.com/watch?v=${block.videoId}${block.start ? `&t=${Math.floor(block.start)}s` : ''}` };
   if (portal) return { kind: 'enter', label: `Enter the Rabbit Hole: ${portal.title}`, name: portal.name };

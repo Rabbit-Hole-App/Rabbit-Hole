@@ -453,6 +453,24 @@ test('an uploaded PDF reaches the model as bytes, with the page the learner is o
   assert.match(JSON.stringify(answer.research), /lecture-notes\.pdf/);
 });
 
+// pdf-to-canvas.md follow-up 2: a page copied to another canvas reads its upload from the canvas it was uploaded to (`home`),
+// under the session's own org and email - so the key is this learner's, and never anyone else's.
+test('a copied page reads its upload from its home canvas, as the session user only', async t => {
+  const env = fixture(t);
+  const pdf = new TextEncoder().encode('%PDF-1.4 uploaded');
+  const keys = [];
+  env.RUNS = { async get(key) { keys.push(key); return { arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'pages.pdf' } }; } };
+  const body = { scope: { app: 'counter' }, message: 'Explain this page', paper_context: { id: 'upload:0123456789ab', page: 12 } };
+  assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 200);
+  assert.equal((await handlers.apiAsk(request({ ...body, paper_context: { ...body.paper_context, home: 'canvas-0a1b2c3d' } }), env, {}, owner, 'learn')).status, 200);
+  assert.notEqual(keys[0], keys[1], 'home names another canvas of the same learner');
+  assert.match(env.answers[1].context, /"page":12/);
+  const app = { org: 'o', name: 'canvas-11112222', email: 'me@example.test' };
+  assert.deepEqual(paperIdentity(app, 'canvas-0a1b2c3d'), { org: 'o', name: 'canvas-0a1b2c3d', email: 'me@example.test' }, 'the email is always the session one');
+  for (const home of [null, '', 'repo-x', '../canvas-0a1b2c3d', 'canvas-0A1B2C3D']) assert.deepEqual(paperIdentity(app, home), app, String(home));
+  assert.equal((await handlers.apiAsk(request({ ...body, paper_context: { ...body.paper_context, home: '../x' } }), env, {}, owner, 'learn')).status, 400, 'a malformed home is refused');
+});
+
 test('a malformed upload id is refused before anything is read', async t => {
   const env = fixture(t);
   env.RUNS = { async get() { throw new Error('should not be reached'); } };

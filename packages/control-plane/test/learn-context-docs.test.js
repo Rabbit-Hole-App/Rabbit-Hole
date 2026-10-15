@@ -158,3 +158,32 @@ test('context documents: GET one document streams its bytes to the owner only, p
   assert.equal((await get(pdf.id)).status, 404, 'missing bytes');
   assert.equal((await call('GET', `/api/learn/context?app=${canvas.name}`)).body.documents.length, 2, 'the list is unchanged');
 });
+
+// pdf-to-canvas.md follow-up 2: a PDF card or page copied to another canvas (a Duplicate, a fork, a Rabbit Hole) still names
+// its document by id. Its owner reads it there; anyone else - a person who forked a shared canvas - never does.
+test('a copied page reads its owner\'s own document on the copy, and never another person\'s', async t => {
+  const { env, canvas, call, upload } = fixture(t);
+  const pdf = (await upload('pages.pdf', PDF)).body.document;
+  const copy = { ...canvas, name: 'canvas-11112222' }, stranger = { ...canvas, name: 'canvas-33334444', email: 'forker@test' };
+  const as = who => ({ authorize: async (req, _env, name) => (name === who.name ? who : Response.json({ error: 'Not your canvas' }, { status: 404 })) });
+  const get = async (who, id) => { const res = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${encodeURIComponent(id)}?app=${who.name}`), env, as(who)); return { status: res.status, body: res.status === 200 ? new Uint8Array(await res.arrayBuffer()) : await res.json() }; };
+  const own = await get(copy, pdf.id);
+  assert.equal(own.status, 200, 'the owner\'s copy opens the document it names');
+  assert.deepEqual(own.body, PDF);
+  const refused = await get(stranger, pdf.id);
+  assert.equal(refused.status, 404, 'a forker of a shared canvas is refused');
+  assert.match(refused.body.error, /not available to you/);
+  assert.equal((await get(copy, 'ctx:ffffffffffff')).body.error, refused.body.error, 'gone and someone else\'s read the same');
+  // Switching and deleting stay on the canvas that holds the document.
+  const patch = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${pdf.id}`, { method: 'PATCH', body: JSON.stringify({ app: copy.name, attached: false }) }), env, as(copy));
+  assert.equal(patch.status, 404);
+  // A question about the page on the copy sends the document it names; the stranger's sends a line saying it could not be read.
+  const blocks = await contextDocumentBlocks(env, copy, new Set([pdf.id]));
+  assert.deepEqual(blocks.map(b => [b.type, b.title, b.source?.media_type]), [['document', 'pages.pdf', 'application/pdf']]);
+  const theirs = await contextDocumentBlocks(env, stranger, new Set([pdf.id]));
+  assert.equal(theirs.some(b => b.type === 'document'), false, 'no bytes for another person');
+  assert.match(theirs.at(-1).text, new RegExp(`cannot read.*doc:${pdf.id}`));
+  // Without refs (null) the copy sends only its own switched-on documents, as before.
+  assert.deepEqual(await contextDocumentBlocks(env, copy), []);
+  assert.equal((await call('GET', `/api/learn/context?app=${canvas.name}`)).body.documents.length, 1, 'the source canvas is unchanged');
+});

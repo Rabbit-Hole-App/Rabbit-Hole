@@ -492,3 +492,11 @@ test('a lost publication acknowledgement replays the committed fork without dele
   assert.deepEqual(f.deleted, [], 'published files are retained');
   assert.equal((await f.fork('ben', { token: links.view }, { key: 'lost-ack' })).body.name, first.body.name);
 });
+
+test('forkState names the source canvas as the home of a PDF card or page made before blocks named one', () => {
+  const blocks = [{ id: 'p', type: 'pdf', assetKey: 'pdf:upload:0123456789ab' }, { id: 's', type: 'slide', pdf: 'pdf:upload:0123456789ab', number: 12 },
+    { id: 'k', type: 'slide', pdf: 'doc:ctx:0123456789ab', number: 3, home: 'canvas-99998888' }, { id: 'n', type: 'note' }];
+  assert.deepEqual(forkState({ blocks }, 'canvas-0a1b2c3d').blocks.map(b => [b.id, b.home]),
+    [['p', 'canvas-0a1b2c3d'], ['s', 'canvas-0a1b2c3d'], ['k', 'canvas-99998888'], ['n', undefined]]);
+  assert.deepEqual(forkState({ blocks }).blocks, blocks, 'a source that is not a canvas names nothing');
+});

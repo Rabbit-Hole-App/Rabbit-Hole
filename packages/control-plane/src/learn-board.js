@@ -1,7 +1,7 @@
 import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
-import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
+import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity, NOT_YOURS, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { isUploadedMediaId, putUploadedMedia, readUploadedMedia } from './learn-media.js';
 import { fetchWikipediaArticle } from './learn-wiki.js';
 import { searchCanvasSource } from './learn-search.js';
@@ -418,10 +418,11 @@ export async function paperFetch(req, env) {
   }
   const raw = url.searchParams.get('id');
   if (isUploadedPaperId(raw)) {
+    // A copied card or page reads from the canvas it was uploaded to (`home`), as this learner only (paperIdentity).
     try {
-      const { bytes } = await readUploadedPaper(env, identity, raw);
+      const { bytes } = await readUploadedPaper(env, paperIdentity(access, url.searchParams.get('home')), raw);
       return new Response(bytes, { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
-    } catch (error) { return Response.json({ error: error.message }, { status: 404 }); }
+    } catch { return Response.json({ error: NOT_YOURS }, { status: 404 }); }
   }
   let id; try { id = arxivId(raw); } catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
   try {

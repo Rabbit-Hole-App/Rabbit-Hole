@@ -99,7 +99,7 @@ function Reader({ sourceRef, position, onPosition, chat }) {
   const body = useMemo(() => {
     if (reader === 'paper') {
       const id = sourceRef.sourceId.slice('paper:'.length);
-      return <PaperReader app={app} id={id} title={sourceRef.name} startPage={here.current.page} quote={range.quote} quotePage={range.page || 1} save={save} />;
+      return <PaperReader app={app} id={id} home={sourceRef.home} title={sourceRef.name} startPage={here.current.page} quote={range.quote} quotePage={range.page || 1} save={save} />;
     }
     if (reader === 'wiki') return <LearnWiki app={app} article={{ title: sourceRef.sourceId.slice('wiki:'.length), section: position?.section || 0 }} onSection={section => save({ section })} />;
     if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} />;
@@ -123,9 +123,9 @@ function Reader({ sourceRef, position, onPosition, chat }) {
 }
 
 // A paper turns its own pages; the page is the reading position. The cited quote is painted on its page.
-function PaperReader({ app, id, src = null, title, startPage, quote, quotePage, save }) {
+function PaperReader({ app, id, home = null, src = null, title, startPage, quote, quotePage, save }) {
   const [page, setPage] = useState(startPage);
-  const paper = useMemo(() => ({ id, title, pdfUrl: src || id.startsWith('upload:') ? null : `https://arxiv.org/pdf/${id}`, page }), [id, src, title, page]);
+  const paper = useMemo(() => ({ id, title, pdfUrl: src || id.startsWith('upload:') ? null : `https://arxiv.org/pdf/${id}`, page, ...(home ? { home } : {}) }), [id, home, src, title, page]);
   const highlights = useMemo(() => (quote ? [{ page: quotePage, exact: quote, prefix: '', suffix: '' }] : null), [quote, quotePage]);
   return <LearnPaper app={app} paper={paper} src={src} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null}
     onPage={next => { setPage(next); save({ page: next }); }} />;

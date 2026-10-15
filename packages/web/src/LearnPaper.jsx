@@ -2,6 +2,7 @@ import { usePerf } from './learn-perf.js';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink, Highlighter, Minus, Plus, Scan, X } from 'lucide-react';
 import { wsHeaders } from './api.js';
+import { paperBytesUrl } from './pdf-source.js';
 import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights } from './learn-wiki-highlights.js';
 
 // `selectButton` off: a card owns its Ask selection pill above the card, so
@@ -47,7 +48,8 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
     let task;
     setDocument(null); setError(''); setZoom(1);
     (async () => {
-      const response = await fetch(src || `/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`, { headers: wsHeaders(), signal: controller.signal });
+      // paper.home: a copied page's own canvas (pdf-to-canvas.md), read as this learner only.
+      const response = await fetch(src || paperBytesUrl(app, paper.id, paper.home), { headers: wsHeaders(), signal: controller.signal });
       if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || 'Could not load this paper.');
       const data = new Uint8Array(await response.arrayBuffer());
       const { getDocument } = await import('./learn-paper-figures.js');
@@ -57,7 +59,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
       if (!controller.signal.aborted) setDocument(pdf);
     })().catch(error => { if (!controller.signal.aborted) setError(error.message); });
     return () => { controller.abort(); task?.destroy(); };
-  }, [app, paper.id, src]);
+  }, [app, paper.id, paper.home, src]);
   useEffect(() => {
     if (!document) return;
     let active = true, render, words, resize;
@@ -149,7 +151,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
         <Highlighter size={14} />
         {mine.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-3.5 rounded-full bg-yellow-400 px-1 text-[9px] leading-3.5 font-semibold text-ink">{mine.length}</span>}
       </button>}
-      <a href={src ? `${src}#page=${paper.page}` : paper.pdfUrl ? `${paper.pdfUrl}#page=${paper.page}` : `/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
+      <a href={src ? `${src}#page=${paper.page}` : paper.pdfUrl ? `${paper.pdfUrl}#page=${paper.page}` : paperBytesUrl(app, paper.id, paper.home)} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
       {onClose && <button type="button" onClick={onClose} title="Close paper" aria-label="Close paper" className="rounded border border-line p-1 hover:bg-hover"><X size={14} /></button>}
     </header>
     {error && <p role="alert" className="p-3 text-sm">{error}</p>}

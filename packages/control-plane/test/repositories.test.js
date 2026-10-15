@@ -315,7 +315,8 @@ test('repository asks read the outline, video window, Wikipedia section and uplo
   assert.equal(tools().includes('read_wikipedia'),false);
   for(const body of [{outline:'x'},{video_context:{videoId:'nope'}},{wiki_context:{title:'',section:0}},{paper_context:{id,page:101}},{image_context:{id:'../x'}}])assert.equal((await f.send('ask',{message:'q',...body})).status,400,JSON.stringify(body));
   const missing=await f.send('ask',{message:'q',paper_context:{id:'upload:0123456789ab',page:1}});
-  assert.equal(missing.status,502);assert.deepEqual(await missing.json(),{error:'Could not read the referenced paper. Try again.'});
+  // An upload this account cannot read never fails the question and is never dropped silently (pdf-to-canvas.md follow-up 2).
+  assert.equal(missing.status,200);await missing.text();assert.match(turn(),/page 1 of an uploaded PDF this account cannot read/);
 });
 // duplication-2, context-7, lifecycle-14: the composer's + attachment (up to 4 MB) works on a repository
 // ask; every JSON request, and the JSON part of the ask, keep the 64 KB cap.

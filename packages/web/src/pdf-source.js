@@ -18,23 +18,56 @@ export function pdfKeyOfRef(ref) {
   return null;
 }
 
-// Where the stored bytes are read: the context route for a document, the paper route for an upload.
-export function pdfBytesUrl(app, key) {
+// Where the stored bytes are read: the context route for a document, the paper route for an upload. `home`, a copied card or
+// page's own canvas (its block's home): the server reads that canvas's upload, as this learner only (learn-paper.js
+// paperIdentity). A context document needs none; the server finds this learner's own document by its id.
+export const paperBytesUrl = (app, id, home = null) => `/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(id)}${home && home !== app ? `&home=${encodeURIComponent(home)}` : ''}`;
+export function pdfBytesUrl(app, key, home = null) {
   const source = pdfSource(key);
   if (!source) return null;
-  const canvas = encodeURIComponent(app);
-  return source.kind === 'doc'
-    ? `/api/learn/context/${encodeURIComponent(source.id)}?app=${canvas}`
-    : `/api/learn/paper?app=${canvas}&id=${encodeURIComponent(source.id)}`;
+  return source.kind === 'doc' ? `/api/learn/context/${encodeURIComponent(source.id)}?app=${encodeURIComponent(app)}` : paperBytesUrl(app, source.id, home);
 }
 
-// The doc ContextRef for one page of a context document: what a question about that page sends (context_refs). null for an
-// uploaded paper, whose page rides as paper_context instead.
+// The chip for one page (Add to chat, and what a question about it sends), of either source: a context document's ref at that
+// page, or an uploaded paper's at that page, with its home canvas when it has one. null for anything that is not a page.
 export function pageRef(block) {
   const source = pdfSource(block?.pdf);
-  if (source?.kind !== 'doc' || !Number.isInteger(block.number)) return null;
-  return { sourceId: `doc:${source.id}`, kind: 'doc', name: String(block.label || 'Document').slice(0, 120), version: '', range: { page: block.number } };
+  if (!source || !Number.isInteger(block.number)) return null;
+  const name = String(block.label || (source.kind === 'doc' ? 'Document' : 'PDF')).slice(0, 120);
+  return source.kind === 'doc'
+    ? { sourceId: `doc:${source.id}`, kind: 'doc', name, version: '', range: { page: block.number } }
+    : { sourceId: `paper:${source.id}`, kind: 'web', name, version: '', range: { page: block.number }, ...(block.home ? { home: block.home } : {}) };
 }
+
+// A page chip in the composer: a context document's or an uploaded paper's ref at one page (pageRef).
+const pageChip = ref => Number.isInteger(ref?.range?.page) && (ref.kind === 'doc' || (ref.kind === 'web' && /^paper:upload:/.test(ref.sourceId)));
+
+// The uploaded-paper page a turn reads (paper_context): the selected page, else the first uploaded-paper page attached in the
+// composer, so a page chip still asks about its page after the selection is cleared. One per turn, as the reader holds one
+// paper; a context document's pages all ride as their refs. null when the turn has none.
+export function turnPaper(target, refs = []) {
+  if (target?.paper) return target.paper;
+  const ref = refs.find(entry => pageChip(entry) && entry.kind === 'web');
+  return ref ? { id: ref.sourceId.slice('paper:'.length), page: ref.range.page, ...(ref.home ? { home: ref.home } : {}) } : null;
+}
+
+// The one page a journey Tutor turn sends (page_context, learn-tutor-routes.js): a turn about exactly one PDF page, the
+// selected page or one page chip. null for none, or for several, which stay on /api/learn/ask, the route that sends them all
+// (chat-route.js pageTurn).
+const pageOf = ref => (ref.kind === 'doc'
+  ? { doc: { id: ref.sourceId.slice('doc:'.length), page: ref.range.page } }
+  : { paper: { id: ref.sourceId.slice('paper:'.length), page: ref.range.page, ...(ref.home ? { home: ref.home } : {}) } });
+export function tutorPage(target, refs = []) {
+  const pages = [];
+  const add = page => { if (!pages.some(seen => JSON.stringify(seen) === JSON.stringify(page))) pages.push(page); };
+  if (target?.paper) add({ paper: target.paper });
+  else if (target?.docPage) add(pageOf(target.docPage));
+  for (const ref of refs) if (pageChip(ref)) add(pageOf(ref));
+  return pages.length === 1 && (pages[0].doc || /^upload:[0-9a-f]{12}$/.test(pages[0].paper.id)) ? pages[0] : null;
+}
+
+// Whether a turn is about a PDF page: a selected page, or a page chip in the composer (pdf-to-canvas.md, chat-route.js).
+export const turnHasPage = (target, refs = []) => !!(target?.paper || target?.docPage || refs.some(pageChip));
 
 // The dialog's From/To: inclusive 1-based page positions, 1 ≤ from ≤ to ≤ total. { from, to, count } or { error }.
 export function pageRange(from, to, total) {

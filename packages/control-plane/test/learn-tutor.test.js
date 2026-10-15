@@ -274,6 +274,32 @@ test('plan: switched-on canvas context documents come first, then the context (c
   assert.match(content.at(-1).text, /^Compose this turn/);
 });
 
+// pdf-to-canvas.md follow-up 5: Auto keeps the journey Tutor for a question about a PDF page only because the plan reads that page.
+test('plan: a PDF page rides as page_context - its PDF and a line naming the page; a context document rides beside the switched-on ones', async t => {
+  const turn = { strategy: 'none', move: 'answer', reason: 'r', actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: {}, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' });
+  const w = world(t);
+  const pdf = { type: 'document', title: 'pages.pdf', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0=' } };
+  const read = [], asked = [];
+  const deps = { documents: async (env, access, ids, options) => { asked.push(options); return []; }, readPaper: async (env, identity, id) => { read.push([identity.name, id]); return { title: 'pages.pdf', document: pdf }; } };
+  const body = { app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'what does this page say?' } } };
+  assert.equal((await w.post('/api/learn/tutor/plan', { ...body, page_context: { paper: { id: 'upload:0123456789ab', page: 12, home: 'canvas-11112222' } } }, deps)).status, 200);
+  assert.deepEqual(read, [['canvas-11112222', 'upload:0123456789ab']], 'a copied page reads its home canvas, as this learner');
+  const content = calls[0].body.messages[0].content;
+  assert.deepEqual(content[0], pdf);
+  assert.match(content[1].text, /page 12 of "pages\.pdf"/);
+  assert.equal((await w.post('/api/learn/tutor/plan', { ...body, page_context: { doc: { id: 'ctx:0123456789ab', page: 3 } } }, deps)).status, 200);
+  assert.deepEqual(asked.at(-1), { also: ['ctx:0123456789ab'] }, 'the page document rides beside the switched-on ones');
+  assert.match(calls[1].body.messages[0].content[0].text, /page 3 of the attached document doc:ctx:0123456789ab/);
+  const unread = { ...deps, readPaper: async () => { throw new Error('That PDF is no longer stored'); } };
+  assert.equal((await w.post('/api/learn/tutor/plan', { ...body, page_context: { paper: { id: 'upload:0123456789ab', page: 12 } } }, unread)).status, 200);
+  assert.match(calls[2].body.messages[0].content[0].text, /page 12 of an uploaded PDF this account cannot read/, 'never dropped silently');
+  for (const bad of [{ paper: { id: '1706.03762', page: 1 } }, { paper: { id: 'upload:0123456789ab', page: 0 } }, { doc: { id: 'ctx:0123456789ab', page: 2, home: 'canvas-11112222' } }, { paper: { id: 'upload:0123456789ab', page: 1, home: '../x' } }, { paper: { id: 'upload:0123456789ab', page: 1 }, doc: { id: 'ctx:0123456789ab', page: 1 } }, 'page 12']) {
+    assert.equal((await w.post('/api/learn/tutor/plan', { ...body, page_context: bad }, deps)).status, 400, JSON.stringify(bad));
+  }
+  assert.equal(calls.length, 3, 'a refused page_context calls no model');
+});
+
 test('plan: no usable tutor_response is a 502 with telemetry outcome invalid; a different served model shows', async t => {
   recordFetch(t, { model: 'claude-opus-5', usage: { input_tokens: 3000, output_tokens: 9 }, content: [{ type: 'text', text: 'hello' }], stop_reason: 'max_tokens' });
   const w = world(t, { TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' });

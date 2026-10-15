@@ -43,7 +43,8 @@ export function readerFor(ref) {
 
 // Refs for the readers LearnPage opens (contract A2). Viewing builds a ref; only Attach or Ask about this sends one.
 const named = text => String(text || '').replace(/_/g, ' ').slice(0, 120);
-export const paperRef = paper => ({ sourceId: `paper:${paper.id}`, kind: 'web', name: named(paper.title || `arXiv ${paper.id}`), version: String(paper.id), range: { page: paper.page || 1 } });
+// home: a copied page's own canvas (pdf-to-canvas.md), so its reader reads its upload there.
+export const paperRef = paper => ({ sourceId: `paper:${paper.id}`, kind: 'web', name: named(paper.title || `arXiv ${paper.id}`), version: String(paper.id), range: { page: paper.page || 1 }, ...(paper.home ? { home: paper.home } : {}) });
 export const wikiRef = ({ title }) => ({ sourceId: `wiki:${title}`, kind: 'web', name: named(title), version: '', range: null });
 export const codeRef = ({ repo = '', commit = '', path, start = 0, end = 0 }) => ({ sourceId: `code:${repo}@${commit}:${path}`, kind: 'code', name: named(path.split('/').pop()), version: commit, range: start ? { path, start, end: Math.max(start, end || start) } : null });
 
