@@ -40,10 +40,26 @@ test('a newer server copy: a kept document goes over it and is pushed; a replace
   const kept = docOnServerCopy(server, { kept: mine, replaced: { doc: mine } });
   assert.deepEqual(kept.state.doc, mine, 'Reload and keep my document: mine goes over the server copy');
   assert.equal(kept.push, true, 'and is saved as the newer edit');
-  assert.equal(kept.offer, null);
+  assert.deepEqual(kept.offer, server.doc, 'the server document it replaced is offered back');
   const plain = docOnServerCopy(server, { replaced: { doc: mine } });
   assert.deepEqual(plain.state, server, 'a plain open shows the server copy');
   assert.deepEqual(plain.offer, mine, 'and offers mine back');
-  assert.deepEqual(docOnServerCopy(server, { replaced: { doc: server.doc } }), { state: server, push: false, offer: null }, 'the same document is nothing to offer');
-  assert.deepEqual(docOnServerCopy(server, { kept: server.doc }), { state: server, push: false, offer: null }, 'keeping what the server has is no push');
+  assert.deepEqual(docOnServerCopy(server, { replaced: { doc: server.doc } }), { state: server, push: false, offer: null, replaced: { doc: server.doc } }, 'the same document is nothing to offer');
+  assert.deepEqual(docOnServerCopy(server, { kept: server.doc }), { state: server, push: false, offer: null, replaced: null }, 'keeping what the server has is no push');
+});
+
+// Lead 11:43 PM PT (owner decision A1): Reload and keep my document never loses the server's copy. On 8a478cab the server's
+// document was overwritten by the push with nothing kept and nothing offered.
+test('Reload and keep my document keeps the server document it replaces under :replaced and offers it back', () => {
+  const server = { blocks: [{ id: 'card' }], doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('written on the laptop')] } };
+  const mine = { v: 1, x: 0, y: 0, w: 760, blocks: [para('written here, refused with 409')] };
+  const local = { blocks: [{ id: 'local card' }], doc: mine };
+  const next = docOnServerCopy(server, { kept: mine, replaced: local });
+  assert.deepEqual(next.state, { ...server, doc: mine }, 'mine wins as the newer edit');
+  assert.equal(next.push, true);
+  assert.deepEqual(next.replaced, { blocks: [{ id: 'local card' }], doc: server.doc }, ':replaced holds every losing piece: this browser other content and the server document');
+  assert.deepEqual(next.offer, server.doc, 'Restore my unsaved document brings the server document back');
+  const emptyServer = docOnServerCopy({ blocks: [], doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('')] } }, { kept: mine });
+  assert.equal(emptyServer.offer, null, 'an empty server sheet is nothing to offer');
+  assert.equal(emptyServer.replaced, null);
 });
