@@ -46,3 +46,6 @@ export const pressKeepsDocFocus = (active, target) => !!active?.closest?.('[data
 // The save status after a PUT (LearnPage saveBoard): Saved only when the document sent is the document as shown, the
 // editor's unsaved words included (liveBoard().doc); otherwise the push that carries them, already on its way, says Saved.
 export const docSaved = (sent, shown) => JSON.stringify(sent ?? null) === JSON.stringify(shown ?? null);
+
+// A drag the canvas's file drop must leave alone: anything without files (BlockNote's block drag carries blocknote/html).
+export const isFileDrag = dataTransfer => !!dataTransfer?.types && [...dataTransfer.types].includes('Files');
