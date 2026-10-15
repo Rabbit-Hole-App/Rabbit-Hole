@@ -182,9 +182,6 @@ await check('decision 1: a canvas opens in Canvas view by default; Editor shows 
   assert.equal(await page.evaluate(k => localStorage.getItem(k), viewKey(catalog, A)), 'editor', 'the view choice is kept per user and canvas');
   await shot('1-editor-first-open');
 });
-await check('contract: the editor root [data-canvas-doc-editor] also carries data-rich-editor', async () => {
-  assert.equal(await page.locator('[data-canvas-doc-editor][data-rich-editor]').count(), 1, 'the editor root carries data-rich-editor');
-});
 let firstIds = [];
 await check('decision 1: write, then the server holds state.doc = { v: 1, x, y, w, blocks } with the text', async () => {
   await typeAtEnd(page, M1);
@@ -195,6 +192,41 @@ await check('decision 1: write, then the server holds state.doc = { v: 1, x, y, 
   assert.ok(Array.isArray(doc.blocks) && has(doc, M1), 'blocks hold both lines');
   firstIds = idsOf(doc.blocks);
   facts.first = { x: doc.x, y: doc.y, w: doc.w, ids: firstIds.length };
+});
+// Amended contract (Parallel, 2026-10-15 12:03 AM PT): the editor root does not carry data-rich-editor, since that attribute
+// turns Ctrl+K inline AI on; the editor sits in the paper and canvas keys and Ctrl+K stand down inside it.
+await check('contract: the editor is inside the paper; Delete, Space and Ctrl+A in it leave the cards alone; Ctrl+K opens no inline AI', async () => {
+  assert.equal(await page.locator('[data-canvas-doc] [data-canvas-doc-editor]').count(), 1, 'the editor root is inside the paper');
+  const inkKey = viewKey(catalog, A).replace(/:view$/, ':ink');
+  const objects = () => page.evaluate(key => { let ink = {}; try { ink = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch {} return JSON.stringify(['blocks', 'items', 'shapes', 'links', 'groups', 'areas', 'strokes'].map(k => (ink[k] || []).map(o => [o.id, o.x, o.y, o.dx, o.dy]))); }, inkKey);
+  const marked = () => page.locator('[data-item-id].ring-2, [data-block-id].ring-select, [data-shape-id][data-selected]').count();
+  // A selected card first: once the editor has the caret, Delete must not act on it.
+  await cardInView(page);
+  const h = await handleOf(page);
+  await page.mouse.click(h.x, h.y);
+  await page.waitForTimeout(200);
+  const before = await objects(), text = await editorText(page);
+  await typeAtEnd(page, '');
+  const selectedBefore = await marked();
+  await page.keyboard.press('Delete'); // at the end of the document: nothing to delete there
+  await page.keyboard.down(' ');
+  assert.equal(await page.evaluate(() => document.querySelector('[data-canvas-surface]')?.hasAttribute('data-space-pan') || false), false, 'Space started a canvas pan');
+  await page.keyboard.up(' ');
+  await page.keyboard.press('Backspace'); // the space
+  await page.keyboard.press('Control+a');
+  const sel = await page.evaluate(() => ({ text: getSelection().toString(), inEditor: !!getSelection().anchorNode?.parentElement?.closest('[data-canvas-doc-editor]') }));
+  assert.ok(sel.inEditor && sel.text.trim().length > 0, 'Ctrl+A selected text in the document');
+  assert.equal(await marked(), selectedBefore, 'Ctrl+A selected no canvas objects');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Control+k');
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator('[data-inline-ai]').count(), 0, 'Ctrl+K inside the editor opened no inline AI');
+  assert.equal(await page.locator('[data-inline-hint]').count(), 0, 'Ctrl+K inside the editor showed no Quick Edit hint');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(600);
+  assert.equal(await card(page).count(), 1, 'the card is still on the canvas');
+  assert.equal(await objects(), before, 'no canvas object changed');
+  assert.equal(await editorText(page), text, 'the document text is unchanged');
 });
 await check('decision 1: hide (Canvas) leaves nothing in the DOM; reopen (Editor) shows the same text and block ids', async () => {
   await setView(page, 'Canvas');
