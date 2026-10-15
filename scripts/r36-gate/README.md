@@ -32,6 +32,9 @@ phase except `all` stops the sign-in probe stack and proves 8878/8879/9318/9319 
 
 ## Sharded gate (workflow gate-sharded.yml, owner GO 2026-10-13)
 
+Dispatch: `gh workflow run gate-sharded.yml -R Rabbit-Hole-App/Rabbit-Hole --ref parallel/gate-chat-workspace -f app_sha=<full sha> -f app_tree=<tree>`, only after verify.yml (push) and fast-e2e.yml (push or dispatch) have both passed on that exact commit:
+its Linux `preflight` job (`dispatch-preflight.mjs`, owner 2026-10-14) refuses otherwise, or for a wrong tree, before any Windows runner starts.
+
 The same checks on nine clean Windows runners at once: `units`, `checkpoints` (preflight then Dive,
 uploaded as today) and `shard-1`..`shard-7` (packed by measured duration, "Shard packing" below). `units` runs `make test-unit` and the fixture regression, the two stages
 no shard runs (`UNIT_STAGES` in `shards.mjs`); it writes them to its `gate-shard.log` in int35.sh's line format. Each

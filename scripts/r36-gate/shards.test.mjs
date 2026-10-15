@@ -164,6 +164,19 @@ test('the workflow matrix runs exactly the parts collect judges, so a passing ex
   const yml = readFileSync(new URL('../../.github/workflows/gate-sharded.yml', import.meta.url), 'utf8');
   assert.deepEqual(yml.match(/^\s*part: \[([^\]]+)\]/m)[1].split(',').map(p => p.trim()), PARTS);
 });
+test('no Windows runner starts before the dispatch preflight, which runs dispatch-preflight.mjs on Linux for every trigger', () => {
+  const yml = readFileSync(new URL('../../.github/workflows/gate-sharded.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const job = name => { const at = yml.search(new RegExp(`^ {2}${name}:$`, 'm')); assert.ok(at >= 0, `job ${name}`); return yml.slice(at).split(/\n {2}(?=\S)/)[0]; };
+  const pre = job('preflight');
+  assert.match(job('run'), /^ {4}needs: preflight$/m);
+  assert.match(job('run'), /^ {4}runs-on: windows-/m);
+  assert.match(job('collect'), /^ {4}needs: run$/m);
+  assert.match(pre, /^ {4}runs-on: ubuntu-latest$/m);
+  assert.doesNotMatch(pre, /needs:|inputs\.|event_name|continue-on-error/, 'it waits for nothing, ignores the inputs and cannot be skipped past');
+  assert.match(pre, /^ {10}sparse-checkout: scripts\/r36-gate\/dispatch-preflight\.mjs$/m);
+  assert.match(pre, /^ {10}GH_TOKEN: \$\{\{ github\.token \}\}\n {8}run: node scripts\/r36-gate\/dispatch-preflight\.mjs$/m);
+  assert.match(yml, /^env:\n {2}APP_SHA: .*\n {2}APP_TREE: /m, 'the script reads the workflow-level APP_SHA and APP_TREE');
+});
 
 test('retriedStages lists the stages a record shows as rerun after a recognized transient, and nothing else', () => {
   const record = ['rh-app: exit 1 (stack alive: no) - retry proxy-keepalive', 'rh-app: retried (proxy-keepalive) - first attempt diagnostics in attempt-1/rh-app', 'rh-app exit 0  9/9 checks passed',
