@@ -60,7 +60,7 @@ test('a slot is the coming card\'s size: exact when the type fixes it, its typic
 test('slots never reach the save, the undo snapshot or the content count', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(source, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas \};/);
+  assert.match(source, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};/);
   assert.match(source, /present\.current = \{ strokes, shapes, items, links, blocks \};/);
   assert.match(source, /content = canvasObjects\(\{ blocks, exchanges, strokes, shapes, items, areas \}\);/);
   assert.match(source, /const \[slots, setSlots\] = useState\(\[\]\);/, 'component state, never read from storage or boardState');

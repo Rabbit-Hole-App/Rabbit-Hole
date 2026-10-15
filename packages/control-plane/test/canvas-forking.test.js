@@ -500,3 +500,15 @@ test('forkState names the source canvas as the home of a PDF card or page made b
     [['p', 'canvas-0a1b2c3d'], ['s', 'canvas-0a1b2c3d'], ['k', 'canvas-99998888'], ['n', undefined]]);
   assert.deepEqual(forkState({ blocks }).blocks, blocks, 'a source that is not a canvas names nothing');
 });
+
+// BlockNote-on-Canvas (docs/features/blocknote-canvas.md): fork and Duplicate share forkState, and the document is an
+// object, not a list - the copy gets its own document, never another view onto the source's.
+test('forkState copies the canvas document as an independent object', () => {
+  const doc = { v: 1, x: 40, y: 60, w: 760, blocks: [{ id: 'p1', type: 'paragraph', content: [{ type: 'text', text: 'Notes', styles: {} }], children: [] }] };
+  const out = forkState({ blocks: [], doc });
+  assert.deepEqual(out.doc, doc, 'the document is copied');
+  out.doc.blocks[0].content[0].text = 'changed in the copy';
+  assert.equal(doc.blocks[0].content[0].text, 'Notes', 'editing the copy never changes the source');
+  assert.equal('doc' in forkState({ blocks: [] }), false, 'a board without a document gets none');
+  assert.equal('doc' in forkState({ doc: [1] }), false, 'a list is not a document');
+});

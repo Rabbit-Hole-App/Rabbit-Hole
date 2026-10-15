@@ -43,7 +43,8 @@ import SourcesPane from './SourcesPane.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, ArrowUpToLine, RotateCw } from 'lucide-react';
+import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy } from './canvas-doc.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase } from './comments/comments-api.js';
@@ -840,6 +841,19 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // based on; the boardText the server holds at boardVersion; an edit not on the server yet (offline, or refused); a 409,
   // which stops pushing until reload; and the last refusal shown, so an over-cap board says so once, not on every edit.
   const boardLoaded = useRef(false), boardSynced = useRef(null), boardUnsynced = useRef(false), boardStopped = useRef(false), boardRefused = useRef(null);
+  // The canvas's document (docs/features/blocknote-canvas.md). Canvas or Editor, this browser's choice for this person and
+  // canvas (owner decision B1); the save status of the board that holds it (Saving / Saved / Couldn't save, the server's
+  // answer, never assumed); its size against the server's 1.9 MB; a 409 (this canvas changed elsewhere) and a document a
+  // newer server copy replaced on open, both kept and offered back, never dropped.
+  const [docView, setDocViewState] = useState(() => readDocView(localStorage, canvasKey));
+  useEffect(() => { setDocViewState(readDocView(localStorage, canvasKey)); }, [canvasKey]);
+  const setDocView = view => { writeDocView(localStorage, canvasKey, view); setDocViewState(view === 'editor' ? 'editor' : 'canvas'); };
+  const [saveState, setSaveState] = useState(null);
+  const [boardChars, setBoardChars] = useState(0);
+  const [docConflict, setDocConflict] = useState(false);
+  const [docRestore, setDocRestore] = useState(null);
+  const docKeepKey = `${boardStorageKey}:doc-keep`;
+  useEffect(() => { setSaveState(null); setBoardChars(0); setDocConflict(false); setDocRestore(null); }, [boardPath]);
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
   const sourcesRef = useRef(sources);
@@ -916,6 +930,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       boardSynced.current = boardText(data.state);
       const mine = Number(localStorage.getItem(versionKey) || 0);
       if (data.version <= mine) {
+        try { localStorage.removeItem(docKeepKey); } catch { /* nothing to keep: this browser's copy is the newest */ }
         if (boardText(boardSnapshot()) !== boardSynced.current) pushBoard();
         return;
       }
@@ -923,8 +938,16 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       try {
         // ponytail: what the server copy replaces is kept under :replaced (no UI) when it held other content, so content
         // that never reached the server is recoverable by hand; a restore action is a product choice, not made here.
-        if (hasLocal && boardText(boardSnapshot()) !== boardSynced.current) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(boardSnapshot()));
+        const replaced = hasLocal && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
+        if (replaced) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(replaced));
         localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version));
+        // The document (blocknote-canvas.md): Reload and keep my document (after a 409) puts this browser's document over
+        // the newer server copy as the newer edit, pushed below; a plain open offers the replaced document back instead.
+        const kept = JSON.parse(localStorage.getItem(docKeepKey) || 'null');
+        localStorage.removeItem(docKeepKey);
+        const next = docOnServerCopy(state, { kept, replaced });
+        if (next.push) { localStorage.setItem(boardStorageKey, JSON.stringify(next.state)); setTimeout(() => pushBoard(), 0); }
+        if (next.offer) setDocRestore(next.offer);
       } catch { /* keep the local copy */ }
       if (Array.isArray(chats)) setExchanges(chats);
       if (!board && Array.isArray(list)) setSources(list);
@@ -959,6 +982,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // this content. The board's first server copy asks the notebook cards for their workspaces, as sharing does.
   const saveBoard = async () => {
     const state = boardSnapshot(), text = boardText(state), first = boardVersion.current == null;
+    setBoardChars(text.length);
     if (text !== boardSynced.current) {
       const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state, version: boardVersion.current ?? 0 }) });
       boardVersion.current = saved.version; setCanvasVersion(saved.version);
@@ -970,6 +994,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     }
     boardUnsynced.current = false;
     boardRefused.current = null;
+    setSaveState({ state: 'saved' });
     try { localStorage.removeItem(unsavedKey({ ink: boardStorageKey })); } catch { /* the cards read it as unsaved */ }
   };
   // A refused PUT keeps this browser's copy and says why (canvas-persistence.md). No status: offline, so it waits for the
@@ -977,6 +1002,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // server's own words, once, and the next edit tries again; Home and the Library keep calling it browser-only (step 8).
   const refused = error => {
     boardUnsynced.current = true;
+    setSaveState({ state: 'error', status: error.status || 0, message: error.status === 413 ? 'Not saved: this canvas is over the 1.9 MB limit. Remove large images or long content, then retry.' : error.status === 409 ? 'Not saved: this canvas changed elsewhere.' : error.status ? error.message : 'Not saved yet: offline. It saves when you are back online.' });
+    if (error.status === 409) setDocConflict(true);
     if (!error.status) return;
     if (error.status === 413) try { localStorage.setItem(unsavedKey({ ink: boardStorageKey }), '1'); } catch { /* not kept */ }
     if (error.status === 409) {
@@ -996,6 +1023,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     if (board && how !== 'shared') return now && how === 'unknown' ? 'failed' : 'skipped';
     if (!boardLoaded.current || boardStopped.current) { boardUnsynced.current = true; return now ? 'failed' : undefined; }
     clearTimeout(pushTimer.current);
+    setSaveState(previous => (previous?.status === 409 ? previous : { state: 'saving' }));
     const put = () => pushQueue(async () => {
       if (boardStopped.current) return 'failed';
       try { await saveBoard(); } catch (error) { refused(error); return 'failed'; }
@@ -1007,6 +1035,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     pushTimer.current = setTimeout(put, 1500);
   }, [boardPath]);
   useEffect(() => { pushBoard(); }, [exchanges, pushBoard]);
+  // Reload and keep my document (a 409, blocknote-canvas.md): this browser's document - its unsaved words written first -
+  // is put aside, the server's newer board loads (the board GET), and the kept document goes over it as the newer edit.
+  const keepMyDoc = () => {
+    canvas()?.flushDoc?.();
+    try { const local = JSON.parse(localStorage.getItem(boardStorageKey) || '{}'); if (local.doc) localStorage.setItem(docKeepKey, JSON.stringify(local.doc)); } catch { /* the doc stays in this browser's copy, kept under :replaced */ }
+    setDocConflict(false);
+    setSaveState(null);
+    setBoardLoad(load => load + 1);
+  };
   // Offline queue: edits keep going to this browser; on reconnect the latest copy goes up through the same queue.
   // ponytail: a board whose GET failed offline waits for its next open (Load, above); re-ask on reconnect if that matters.
   useEffect(() => {
@@ -1579,6 +1616,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
         ...(comments.active ? [{ label: 'Show comments', icon: MessageCircle, checked: comments.showPins, onSelect: comments.togglePins }] : []),
         { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
         { divider: true },
+        // The canvas's document (docs/features/blocknote-canvas.md): Editor shows it on the canvas, Canvas hides it (never
+        // clears it); this browser remembers the choice for this canvas. Go to document start shows it and frames its top.
+        { label: 'Mode', icon: NotebookPen, choice: { value: docView, options: [['canvas', 'Canvas'], ['editor', 'Editor']], onChange: setDocView } },
+        { label: 'Go to document start', icon: ArrowUpToLine, onSelect: () => { setDocView('editor'); requestAnimationFrame(() => requestAnimationFrame(() => canvas()?.goToDoc())); } },
+        { divider: true },
         { label: 'Keyboard shortcuts', icon: Keyboard, hint: '?', onSelect: () => setShortcutsOpen(true) },
         { label: 'Slash commands', icon: SquareSlash, onSelect: () => setSlashHelpOpen(true) },
       ],
@@ -1655,6 +1697,31 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
           {/* A fork names its source (docs/features/canvas-forking.md): the title it had when forked, kept through renames. */}
           {isCanvas && <ForkedFrom m={cardModel(app)} className="max-w-80 items-center pr-1 [&_.line-clamp-3]:line-clamp-2" />}
           <CanvasMenubar menus={canvasMenus} />
+          {/* The document's save status and the board's size (blocknote-canvas.md): Saved only once the server has it. A 409 or
+              a document a newer server copy replaced are offered back here, never dropped. */}
+          {docView === 'editor' && saveState && (
+            <span data-doc-save-status data-state={saveState.state} className={`flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs ${saveState.state === 'error' ? 'text-red-700' : 'text-ink-3'}`} title={saveState.message || undefined}>
+              {saveState.state === 'saving' ? 'Saving…' : saveState.state === 'saved' ? 'Saved' : <>Couldn&apos;t save{saveState.status === 413 ? ' - Not saved: over 1.9 MB' : saveState.status ? '' : ' - offline'}
+                <button type="button" onClick={() => (saveState.status === 409 ? keepMyDoc() : pushBoard(null, { now: true }))} className="ml-1 flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCw size={12} aria-hidden />Retry</button></>}
+            </span>
+          )}
+          {boardSizeWarning(boardChars) && (
+            <span data-board-size-warning role="status" className="flex h-8 shrink-0 items-center rounded-lg px-2 text-xs text-amber-700" title={`${(boardChars / 1e6).toFixed(2)} MB of ${(BOARD_LIMIT / 1e6).toFixed(1)} MB`}>
+              Close to the 1.9 MB limit ({Math.round((boardChars / BOARD_LIMIT) * 100)}%)
+            </span>
+          )}
+          {docConflict && (
+            <span data-doc-conflict role="alert" className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs text-ink-2">
+              This canvas changed elsewhere.
+              <button type="button" onClick={keepMyDoc} className="rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover">Reload and keep my document</button>
+            </span>
+          )}
+          {docRestore && (
+            <span data-doc-restore role="status" className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs text-ink-2">
+              A newer saved copy replaced this browser&apos;s document.
+              <button type="button" onClick={() => { canvas()?.replaceDoc(docRestore); setDocRestore(null); }} className="rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover">Restore my unsaved document</button>
+            </span>
+          )}
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
@@ -1706,7 +1773,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
             land as movable blocks. Lesson playback stays parked. */}
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none" style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={null}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock}>{steps => <AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
-          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}<ChatHandle to={chatRef} /></div>
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}<ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
