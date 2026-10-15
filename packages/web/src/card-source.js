@@ -6,12 +6,12 @@
 // The read a card needs, or null when there is nothing it may read.
 export function cardRequest(block) {
   if (!block || block.redacted) return null;
-  if (block.type === 'code' && block.source?.kind === 'repository') {
+  if (block.type === 'repo-code' && block.source?.kind === 'repository') {
     const { app, commit, path } = block.source;
     return app && commit && path ? { kind: 'file', key: `file:${app}@${commit}:${path}`, app, commit, path } : null;
   }
-  if (block.type === 'code' && block.source?.kind === 'upload') return block.source.assetKey ? { kind: 'upload', key: `upload:${block.source.assetKey}` } : null;
-  if (block.type === 'graph') {
+  if (block.type === 'repo-code' && block.source?.kind === 'upload') return block.source.assetKey ? { kind: 'upload', key: `upload:${block.source.assetKey}` } : null;
+  if (block.type === 'repo-graph') {
     const { app, commit } = block.repository || {};
     return app && commit ? { kind: 'graph', key: `graph:${app}@${commit}`, app, commit } : null;
   }

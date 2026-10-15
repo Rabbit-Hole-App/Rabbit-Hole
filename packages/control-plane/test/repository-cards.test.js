@@ -3,14 +3,14 @@
 // viewer, a fork and the shared ask get its place and kind only; a save of a redacted copy never erases the full card.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setup, SHA } from './shared-canvas-fixture.js';
+import { scriptModel, setup, SHA } from './shared-canvas-fixture.js';
 import { redactRepositoryCards, restoreRedactedCards } from '../src/repository-cards.js';
 import { cardCodeRefs, repositoriesFetch } from '../src/repositories.js';
 
 const APP = 'repo-0a1b2c3d-nanogpt';
-const CODE = { id: 'c1', type: 'code', x: 40, y: 60, w: 480, h: 320, title: 'model.py · forward', language: 'python', source: { kind: 'repository', app: APP, repo: 'karpathy/nanoGPT', commit: SHA, path: 'model.py', start: 2, end: 3 } };
-const GRAPH = { id: 'g1', type: 'graph', x: 600, y: 60, w: 520, h: 400, title: 'Attention subgraph', repository: { app: APP, repo: 'karpathy/nanoGPT', commit: SHA }, scope: 'subgraph', nodeIds: ['attn', 'fwd'], camera: null };
-const UPLOAD = { id: 'u1', type: 'code', x: 0, y: 500, title: 'notes.py', source: { kind: 'upload', assetKey: 'k1', name: 'notes.py', size: 12 } };
+const CODE = { id: 'c1', type: 'repo-code', x: 40, y: 60, w: 480, h: 320, title: 'model.py · forward', language: 'python', source: { kind: 'repository', app: APP, repo: 'karpathy/nanoGPT', commit: SHA, path: 'model.py', start: 2, end: 3 } };
+const GRAPH = { id: 'g1', type: 'repo-graph', x: 600, y: 60, w: 520, h: 400, title: 'Attention subgraph', repository: { app: APP, repo: 'karpathy/nanoGPT', commit: SHA }, scope: 'subgraph', nodeIds: ['attn', 'fwd'], camera: null };
+const UPLOAD = { id: 'u1', type: 'repo-code', x: 0, y: 500, title: 'notes.py', source: { kind: 'upload', assetKey: 'k1', name: 'notes.py', size: 12 } };
 const STATE = { blocks: [{ id: 'h', type: 'heading', text: 'Attention' }, CODE, GRAPH, UPLOAD] };
 const SECRETS = ['model.py', 'forward', 'Attention subgraph', 'attn', SHA, 'karpathy/nanoGPT', APP];
 const leaks = text => SECRETS.filter(secret => text.includes(secret));
@@ -21,8 +21,8 @@ test('a viewer who does not own the repository gets each repository card as its 
   assert.deepEqual(owner, STATE, 'the owner sees every card in full');
   const other = await redactRepositoryCards(f.db, STATE, { org: 'ben-ws', email: 'ben@test' });
   assert.deepEqual(other.blocks.map(b => b.id), ['h', 'c1', 'g1', 'u1']);
-  assert.deepEqual(other.blocks[1], { id: 'c1', type: 'code', x: 40, y: 60, w: 480, h: 320, redacted: true, source: { kind: 'repository' } });
-  assert.deepEqual(other.blocks[2], { id: 'g1', type: 'graph', x: 600, y: 60, w: 520, h: 400, redacted: true });
+  assert.deepEqual(other.blocks[1], { id: 'c1', type: 'repo-code', x: 40, y: 60, w: 480, h: 320, redacted: true, source: { kind: 'repository' } });
+  assert.deepEqual(other.blocks[2], { id: 'g1', type: 'repo-graph', x: 600, y: 60, w: 520, h: 400, redacted: true });
   assert.deepEqual(other.blocks[3], UPLOAD, 'an upload card is the board owner\'s own file: its asset rules apply, not a repository\'s');
   assert.deepEqual(await redactRepositoryCards(f.db, STATE, null), other, 'signed out is no one\'s repository');
   // A same-named repository in another workspace is not this one.
@@ -61,9 +61,9 @@ test('a save that carries a redacted card keeps the full card, takes its new pla
   assert.deepEqual(blocks.find(b => b.id === 'c1'), { ...CODE, x: 999 }, 'the full card again, at its new place');
   assert.equal(blocks.some(b => b.id === 'g1'), false, 'a card removed from the board stays removed');
   // Pure: a redacted card with no full copy stays as it came; a different type never takes another card's fields.
-  const lone = { blocks: [{ id: 'zz', type: 'code', redacted: true, source: { kind: 'repository' } }] };
+  const lone = { blocks: [{ id: 'zz', type: 'repo-code', redacted: true, source: { kind: 'repository' } }] };
   assert.deepEqual(restoreRedactedCards(JSON.stringify(STATE), lone), lone);
-  const swapped = { blocks: [{ id: 'c1', type: 'graph', redacted: true }] };
+  const swapped = { blocks: [{ id: 'c1', type: 'repo-graph', redacted: true }] };
   assert.deepEqual(restoreRedactedCards(JSON.stringify(STATE), swapped), swapped);
 });
 
@@ -97,4 +97,30 @@ test('code refs resolve through the owner check at their own commit; anything el
   assert.match(current.code.content, /class Changed/);
   // Non-code refs are not this function's.
   assert.deepEqual(await cardCodeRefs(f.env, { org: 'ana-ws', email: 'ana@test' }, [{ kind: 'doc', sourceId: 'doc:1' }]), []);
+});
+
+test('lesson blocks named code and graph are never repository cards', async t => {
+  const f = setup(t);
+  const lesson = { blocks: [{ id: 'x1', type: 'code', title: 'Code exercise', starter: 'print(1)' }, { id: 'x2', type: 'graph', title: 'Interactive graph', expression: 'y=x' }] };
+  assert.deepEqual(await redactRepositoryCards(f.db, lesson, null), lesson);
+  assert.deepEqual(restoreRedactedCards(JSON.stringify(lesson), lesson), lesson);
+});
+
+test('the shared ask, shared next steps and a Rabbit Hole from a share see nothing of a repository the viewer does not own', async t => {
+  const f = setup(t);
+  const sent = scriptModel(t);
+  const { token } = await f.shareProject({ state: STATE });
+  await f.ask(token, 'ben', { message: 'What does this canvas show?' });
+  await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as: 'ben', body: { origin: null } });
+  assert.ok(sent.length >= 1, 'the model was asked');
+  // This share is the repository's own project, whose pin passes its repository context to the model on purpose (the same
+  // repository, commit and code reach it with no card on the board); what the cards hold - title, node ids, app - never does.
+  const cardOnly = ['model.py · forward', 'Attention subgraph', '"attn"', APP];
+  const cardLeaks = value => cardOnly.filter(secret => JSON.stringify(value).includes(secret));
+  assert.deepEqual(cardLeaks(sent), [], 'no model request carries a card field');
+  const hole = await f.call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as: 'ben', body: { origin: { block_id: 'c1' } } });
+  assert.equal(hole.status, 201, hole.text);
+  assert.deepEqual(cardLeaks(hole.body), [], 'the hole is not named after the card');
+  const board = await f.call('GET', `/api/learn/boards/${hole.body.name}/main`, { as: 'ben' });
+  assert.deepEqual(cardLeaks(board.body), [], 'the hole holds no card field');
 });
