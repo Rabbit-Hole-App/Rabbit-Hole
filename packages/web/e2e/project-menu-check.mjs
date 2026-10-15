@@ -72,7 +72,7 @@ let canvasMenu, projectMenu, headerMenu;
 await check('1 one menu: the canvas ⋮ and the project ⋮ show the same shared rows in the same order, the type-only rows in their slots', async () => {
   await open(libraryCard('canvas', 'Attention heads')); canvasMenu = await labels(); await shot(page, REVIEW, 'project-menu-01-canvas-menu'); await close();
   await open(libraryCard('repository', `acme/attention-${run}`.split('/')[1])); projectMenu = await labels(); await shot(page, REVIEW, 'project-menu-02-project-menu'); await close();
-  const ONLY = { canvas: ['Edit description', 'Duplicate', 'Archive'], project: ['Learn', 'Map', 'Pin', 'Unpin', 'New canvas in project'] };
+  const ONLY = { canvas: ['Edit description', 'Duplicate', 'Archive'], project: ['Learn', 'Explore codebase', 'Pin', 'Unpin', 'New canvas in project'] };
   const shared = (list, only) => list.filter(l => !only.includes(l));
   assert.deepEqual(shared(canvasMenu, ONLY.canvas), shared(projectMenu, ONLY.project), `${canvasMenu} | ${projectMenu}`);
   assert.deepEqual(shared(canvasMenu, ONLY.canvas), ['Open', 'Rename', 'Visibility', 'Share / Manage link', 'Copy link', 'Change thumbnail', 'Move to Trash']);
@@ -92,21 +92,24 @@ await check('2 Rename from the project card: the card shows the new name, the re
   assert.equal(await libraryCard('repository', NAME).count(), 1, 'kept on reload');
   assert.equal((await row(PUB)).repo, `acme/attention-${run}`);
 });
+// The repository opens on its canvas (repo-canvas-graph.md, correction to decision 2): the project's name is the crumb in the
+// canvas header with the ⋮ beside it, and the repository is the GitHub badge in the same header.
 await check('3 the open project\'s header: its name with the repository beside it, and the same ⋮; Rename there stays on reload', async () => {
   await page.goto(`${BASE}/apps/${PUB}`);
-  await page.locator('[data-project-title]').waitFor({ timeout: 60000 });
-  assert.equal((await page.locator('[data-project-title]').innerText()).trim(), NAME);
-  assert.equal((await page.locator('[data-project-repo]').innerText()).trim(), `acme/attention-${run}`);
+  await page.locator('[data-project-crumb]').waitFor({ timeout: 60000 });
+  assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), NAME);
+  assert.equal(await page.locator('[data-repo-badge]').getAttribute('aria-label'), `Open acme/attention-${run} on GitHub`); // an icon link
   await page.locator('[data-project-more]').click(); await page.locator('[data-menu-item]').first().waitFor();
   headerMenu = await labels();
   assert.deepEqual(headerMenu, projectMenu, 'the card\'s menu');
   await shot(page, REVIEW, 'project-menu-03-header-menu');
   await page.locator('[data-menu-rename]').click();
-  await page.getByRole('textbox', { name: 'Title' }).fill(NAME2); await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await page.locator('[data-project-title]', { hasText: NAME2 }).waitFor({ timeout: 10000 });
-  await page.reload(); await page.locator('[data-project-title]').waitFor({ timeout: 60000 });
-  assert.equal((await page.locator('[data-project-title]').innerText()).trim(), NAME2, 'kept on reload');
-  assert.equal((await page.locator('[data-project-repo]').innerText()).trim(), `acme/attention-${run}`, 'the repository stays');
+  // exact: the canvas header's own Canvas title field is on this page now.
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(NAME2); await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.locator('[data-project-crumb]', { hasText: NAME2 }).waitFor({ timeout: 10000 });
+  await page.reload(); await page.locator('[data-project-crumb]').waitFor({ timeout: 60000 });
+  assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), NAME2, 'kept on reload');
+  assert.equal(await page.locator('[data-repo-badge]').getAttribute('aria-label'), `Open acme/attention-${run} on GitHub`, 'the repository stays');
   await shot(page, REVIEW, 'rename-02-header-renamed');
 });
 await check('12 Main and nested Learn expose the same project menu as Map', async () => {
