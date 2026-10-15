@@ -81,3 +81,17 @@ test('a card with a Rabbit Hole keeps its hole flag so the minimap draws it in t
   assert.equal(layout.boxes[0].hole, true);
   assert.equal('hole' in layout.boxes[1], false);
 });
+
+// The canvas document (blocknote-layers-minimap.md section 2): an empty page still has its footprint - world x, y, width and
+// its minimum height - and it counts toward the minimap's extent, flagged so it draws as a page, not a card mark.
+test('the document footprint is part of the extent and keeps its flag, empty or not', () => {
+  const page = { x: 2000, y: 0, w: 760, h: 960, doc: true }, card = { x: 0, y: 0, w: 560, h: 200 };
+  const layout = minimapLayout([page, card], view, surface, size);
+  const [doc, mark] = layout.boxes;
+  assert.equal(doc.doc, true);
+  assert.equal(mark.doc, undefined);
+  assert.ok(doc.x + doc.w <= size.w + 0.01 && doc.y + doc.h <= size.h + 0.01, 'the page is inside the minimap, not cropped');
+  assert.ok(Math.abs(doc.w / doc.h - 760 / 960) < 0.01, 'the page keeps its world proportions');
+  const panned = minimapLayout([page, card], { x: -500, y: -300, z: 2 }, surface, size);
+  assert.ok(Math.abs(panned.boxes[0].w / panned.scale - 760) < 0.01 && Math.abs(panned.boxes[0].h / panned.scale - 960) < 0.01, 'pan and zoom never change its world size');
+});

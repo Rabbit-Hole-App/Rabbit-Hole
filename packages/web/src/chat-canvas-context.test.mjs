@@ -74,7 +74,7 @@ test('chatHistory: the last six user and assistant messages, oldest first, user 
 
 test('wiring: the canvas API reads live; the page builds through the helper; Ask posts canvas_context; the user bubble keeps its refs', () => {
   const canvas = read('./AdaptiveCanvas.jsx'), page = read('./LearnPage.jsx'), ask = read('./ask.jsx');
-  assert.match(canvas, /liveBoard: \(\) => \{\s+const doc = liveDoc\(\), paper = paperRef\.current;\s+return \{ \.\.\.semanticBoard\(\), strokes: present\.current\.strokes, boxes: \{ \.\.\.inlineCanvas\.layout\(\), [^\n]+ \}, doc \};\s+\},[\s\S]{0,700}?selection: \(\) => selectedRef\.current,/);
+  assert.match(canvas, /liveBoard: \(\) => \{\s+const doc = liveDoc\(\), box = docBoxRef.current;\s+return \{ \.\.\.semanticBoard\(\), strokes: present\.current\.strokes, boxes: \{ \.\.\.inlineCanvas\.layout\(\), [^\n]+ \}, doc \};\s+\},[\s\S]{0,700}?selection: \(\) => selectedRef\.current,/);
   assert.match(page, /const built = canvasContextNow\(\{ api: canvasApi\.current, title: titleNow\.current, \.\.\.options \}\);/);
   assert.match(page, /canvasContext, selection: \(\) => canvasApi\.current\?\.selection\?\.\(\) \|\| \[\],/);
   assert.match(ask, /const canvasContext = canvasOps\?\.canvasContext\?\.\(\{ request: message, \.\.\.canvasArgs, inspected: imageId && imageObject \? \[imageObject\] : \[\] \}\);/);
