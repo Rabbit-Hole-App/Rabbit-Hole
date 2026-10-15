@@ -50,6 +50,8 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   assert.match(loader, /\}, \[root, commit, reload\]\);/);
   // #4 closing the column on a wide layout, or leaving the canvas, clears the temporary selection; pinned chips stay.
   assert.match(learn, /useEffect\(\(\) => \{ if \(!viewerShown && window\.matchMedia\('\(min-width: 64rem\)'\)\.matches\) clearSelection\(heldRepository\.current\); \}, \[viewerShown\]\);/);
+  assert.match(learn, /const viewerShown = companion\.open, heldRepository/, 'Hide right panel hides Chat too and restores both: it keeps the selection');
+  assert.match(wired, /import\('\.\/GraphPanel\.jsx'\)\.catch\(/, 'a stale chunk shows a reload in the column');
   assert.match(learn, /useEffect\(\(\) => \(\) => clearSelection\(heldRepository\.current\), \[\]\);/);
   // #5 an answer's Show on graph opens the Graph view with that answer's graph.
   assert.match(wired, /onGraph: view => \{ repository\.setAnswerView\(\{ \.\.\.view, requestId: crypto\.randomUUID\(\) \}\); window\.dispatchEvent\(new CustomEvent\('small:open-graph'\)\); \},/);
