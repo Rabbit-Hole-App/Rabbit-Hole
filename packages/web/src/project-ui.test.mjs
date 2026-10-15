@@ -1,4 +1,4 @@
-// The project UI pass (owner, 2026-10-04): a project is Map or Learn, the canvas carries no tab pill, Tutor or
+// The project UI pass (owner, 2026-10-04; since 2026-10-15 a repository is only its canvas, repo-canvas-graph.md): a project was Map or Learn, the canvas carries no tab pill, Tutor or
 // Practice buttons (the composer is the Tutor), the Map hides its details, layers and panel until asked, answers
 // list their cited files in a Sources dropdown, and the main composer has a / commands sheet.
 import { test } from 'node:test';
@@ -10,36 +10,31 @@ import { SLASH } from './agent/slash.js';
 import { OVERVIEW_TAB } from './inspector.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const page = read('RepositoryPage.jsx'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx'), renderer = read('Md.jsx');
+const page = read('RepositoryPage.jsx'), wired = read('repository-canvas.jsx'), loader = read('use-repository.js'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx'), renderer = read('Md.jsx');
 
-// repository-browser.md (owner, 2026-10-07): one navigation, Files · Graph · Learn, as restrained underline tabs, replacing
-// both the Map | Learn pill and the Files | Graph buttons. Files and Graph are views of the page; Learn is the canvas.
-test('a project is Files · Graph · Learn: no Overview, one restrained tab row, and the canvas has no Overview/Learn/Map pill', () => {
-  assert.doesNotMatch(page, /Overview|value="overview"/);
-  assert.match(page, /<TabsList data-project-tabs className="border-b-0!">\s*<TabsTrigger value="files">Files<\/TabsTrigger><TabsTrigger value="graph">Graph<\/TabsTrigger><TabsTrigger value="learn" disabled=\{!app\.commit_sha\}>Learn<\/TabsTrigger>/);
-  assert.doesNotMatch(page, /TabsList pill|TabsTrigger pill|aria-pressed=\{mode===value\}|variant=\{mode===value\?'primary'/);
-  // /apps/<repo> (and ?tab=map, ?tab=overview) lands on Graph, as the Map did; Learn keeps whichever view was open.
-  assert.match(page, /\[mode,setMode\]=useState\('graph'\)/);
-  assert.match(page, /<Tabs value=\{tab==='learn'\?'learn':mode\} onValueChange=\{v=>v==='learn'\?go\('learn'\):setMode\(v\)\}>/);
-  // The Learn view renders no tabs: its canvas switcher sits in Learn's own header, on the Main canvas and on every
-  // project canvas alike (docs/features/project-canvases.md).
-  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('  return <CodeRefs.Provider value={codeRefs}><main'));
-  assert.doesNotMatch(learnView, /\{tabs\}|<select/);
-  assert.equal(learnView.match(/switcher=\{switcher\}/g).length, 2);
+// repo-canvas-graph.md (owner, 2026-10-15, correction to decision 2): a repository is its canvas. No Files | Graph | Learn
+// switcher, no Map page, no file browser or graph landing; Files and Graph open beside Chat, the badge goes to GitHub.
+test('a repository opens on its canvas: no Files | Graph | Learn page; the badge, status and details live in the canvas header', () => {
+  assert.doesNotMatch(page, /TabsList|TabsTrigger|data-project-tabs|<RepositoryGraph|<MapInspector|ExpandedPageFrame|Search repository/);
+  // The Main canvas and every project canvas alike: the switcher, the project and the repository's canvas props.
+  assert.match(page, /\{picked\?<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} canvasProps=\{props\}\/>/);
+  assert.match(page, /:<LearnPage app=\{live\} project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} \{\.\.\.props\}\/>\}/);
+  // An old ?tab= link opens its viewer once and leaves the plain URL (routes.js repositoryView).
+  assert.match(page, /const \[openViewer\]=useState\(\(\)=>repositoryView\(window\.location\.search\)\);/);
+  assert.match(page, /window\.history\.replaceState\(window\.history\.state,'',canvas\?canvasHref\(app\.name,canvas\):`\/apps\/\$\{app\.name\}`\);/);
   // Beside the title: the switcher, carrying the canvas's Rabbit Holes as a group (owner r35); no switcher, the title's own chevron.
   assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{\/\*[\s\S]*?\*\/\}\s*\{switcher \? cloneElement\(switcher, \{ holes: dive\.titleHoles \}\) : <TitleHoles \{\.\.\.dive\.titleHoles\} \/>\}/);
   // In the switcher, the holes are a group under the current canvas, its own row left out (it is that canvas).
   assert.match(page, /\{e\.current&&holes\?\.rows\.length>1&&<div data-switcher-holes>[^\n]*<HoleRows rows=\{holes\.rows\.slice\(1\)\} onPick=\{row=>\{setOpen\(false\);holes\.onPick\(row\);\}\}\/>/);
-  // The canvas reaches the code by one icon. On the Main canvas it opens the repository's Files in the right panel, which
-  // links on to the Map (owner, 2026-10-08); a project's other canvases have no repository context, so theirs goes to the Map.
-  assert.match(learnView, /onMap=\{\(\)=>go\('map'\)\}/);
-  assert.match(learnView, /<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{app\} projectMenu=\{projectMenu\} onMap=\{\(\)=>go\('map'\)\} switcher=\{switcher\}\/>/);
-  assert.match(learnView, /<LearnPage app=\{app\} files=\{snapshot&&reader\(\{query:'',stacked:true,place:'panel'\}\)\}/);
-  assert.match(learn, /\{onMap && <button type="button" data-learn-map title=\{files \? "Files: read this repository's code and ask about it" : "Map: this repository's code graph"\} aria-label=\{files \? 'Repository files' : 'Map'\}\n\s+onClick=\{files \? \(\) => \{ setPanelOpen\(true\); setPanelTab\('files'\); \} : onMap\}/);
-  assert.match(learn, /<PanelHeader [^\n]*filesOn=\{!!files\}/);
-  assert.match(learn, /\{files && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{panelTab === 'files' \? 'flex' : 'hidden'\}[^\n]*\n[\s\S]{0,200}<button type="button" data-learn-open-map onClick=\{onMap\}[^\n]*>Open the Map →<\/button>[\s\S]{0,40}\{files\}/);
-  // A repository with no snapshot shows its Map.
-  assert.match(page, /tab=asked==='learn'&&!app\.commit_sha\?'map':asked/);
+  // No Map icon on the canvas any more; the repository badge, its status and details instead.
+  assert.doesNotMatch(learn, /data-learn-map/);
+  assert.match(learn, /\{repository && <RepositoryBadge repository=\{repository\} \/>\}/);
+  assert.match(wired, /<a data-repo-badge href=\{githubUrl\} target="_blank" rel="noopener noreferrer"/);
+  assert.match(wired, /data-repo-info aria-label="Repository details"/);
+  assert.match(wired, /<div data-repo-details[\s\S]*?Refresh branch/);
+  // A repository with no snapshot opens its canvas too: its status shows in the header and its viewers, never a separate page.
+  assert.match(wired, /data-repo-status=\{status\} role="status"/);
+  assert.match(wired, /<RepositoryState repository=\{repository\} what="files" \/>/);
 });
 
 test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {
@@ -57,31 +52,13 @@ test('the canvas has no Tutor or Practice button: the composer is the Tutor on t
   assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
 });
 
-test('the Map: details and layers behind icons; the inspector closed until used, underline tabs only for a source, no outline (owner, 2026-10-06)', () => {
-  assert.match(page, /data-repo-info aria-label="Repository details"/);
-  assert.match(page, /<Menu open=\{infoOpen\}[\s\S]*?<SourceLink m=\{cardModel\(app\)\}\/>[\s\S]*?Refresh branch[\s\S]*?<\/Menu>/);
-  // Layers is a labelled button in Graph (owner brief §3): icon, Layers, chevron; one search field for both views (§2). Its
-  // panel opens beside the graph, which narrows: never a popover over the graph's nodes (repository-browser.md, Layers).
-  assert.match(page, /\{mode==='graph'&&<Button size="sm" data-map-layers-open aria-controls="map-layers" aria-expanded=\{layersOpen\}[\s\S]*?><Layers size=\{15\}\/>Layers<ChevronDown/);
-  assert.match(page, /<RepositoryGraph [^>]*\/>\s*\{layersOpen&&<aside id="map-layers" aria-label="Layers" className="w-60 shrink-0[^"]*"><LayersRow /);
-  assert.doesNotMatch(page, /<Menu open=\{layersOpen\}/);
-  assert.equal(page.match(/aria-label="Search repository"/g).length, 1);
-  assert.match(page, /placeholder="Search files or symbols…"/);
-  assert.equal(page.match(/<LayersRow /g).length, 1, 'the layers row lives only in its menu');
-  assert.match(page, /const \[panelOpen,setPanelOpen\]=useState\(false\)/);
-  assert.match(page, /collapsed=\{!panelOpen\}/);
-  assert.match(inspector, /data-map-panel-close aria-label="Close the inspector"/);
-  assert.match(page, /\{!panelOpen&&<IconBtn data-map-panel-open aria-label="Open the side panel"/);
-  // Overview | Source as underline tabs, only when the object has a source; no pill tabs, no Selected or Conversation tab.
+test('the inspector: underline tabs only for a source, no outline (owner, 2026-10-06)', () => {
   // Overview | Source | Chat (owner, 2026-10-08), the same restrained underline; Source only for code the main pane is not showing.
   // Overview is hidden for now (owner, 2026-10-08: "so we have only chat"): Source | Chat, or Chat alone.
   assert.equal(OVERVIEW_TAB, false);
+  assert.match(inspector, /data-map-panel-close aria-label="Close the inspector"/);
   assert.match(inspector, /\{!record && <TabsList className="-mx-4 mt-2 px-4">\{OVERVIEW_TAB && <TabsTrigger value="overview" className=\{TAB\}>Overview<\/TabsTrigger>\}\{tabs && <TabsTrigger value="source" className=\{TAB\}>Source<\/TabsTrigger>\}<TabsTrigger value="chat" data-inspector-chat-tab className=\{TAB\}>Chat\{chatted > 0 && <span className="ml-1 tabular-nums text-ink-3">\{chatted\}<\/span>\}<\/TabsTrigger><\/TabsList>\}/);
-  assert.doesNotMatch(page + inspector, /TabsList pill className="mb-3|value="selected"|value="conversation"|ring-2 ring-accent/);
-  // A selection or a cited file opens it; answers land in the bar's own window, not here.
-  assert.match(page, /const inspect=\(object,show='overview'\)=>\{.*setPanelOpen\(true\);\};/);
-  assert.match(page, /function onFile\(filePath,line\)\{if\(snapshot\?\.files\.some\(f=>f\.path===filePath\)\)inspect\(fileObject\(snapshot\.graph,filePath,line\|\|1\),'source'\);\}/);
-  assert.doesNotMatch(page, /resultsHost|ResultList/);
+  assert.doesNotMatch(inspector, /TabsList pill className="mb-3|value="selected"|value="conversation"|ring-2 ring-accent/);
 });
 
 test('an answer lists every cited file once, in order, including line lists written one per line', () => {
@@ -106,8 +83,8 @@ test('the main composer: the Auto picker opens a / commands sheet with an exampl
     }
 });
 
-test('the Map node carried into Learn ("Asking about") has an x, as the Map chip does', () => {
-  assert.match(page, /<LearnPage app=\{app\} files=\{[^}]*\}\)\} onGraph=\{showGraph\} onMap=\{\(\)=>go\('map'\)\} onClearRepository=\{context\?\(\)=>setContext\(null\):null\}/);
+test('the Files selection carried into Learn ("Asking about") has an x, as the Map chip did', () => {
+  assert.match(wired, /onClearRepository: context \? \(\) => setContext\(null\) : null,/);
   assert.match(learn, /: repositoryContext\} onClearRepository=\{onClearRepository\} conversation="learn"/);
   assert.match(md, /\{onClearRepository && <button type="button" className="shrink-0 rounded p-0\.5 hover:bg-green-100" aria-label="Clear repository selection"/);
 });
@@ -143,34 +120,21 @@ test('the canvas corner button goes Back: to the previous in-app page, or Home w
   assert.match(learn, /data-learn-home aria-label="Back" title="Back"\s+onClick=\{\(\) => goBack\('\/apps'\)\}/);
 });
 
-// repository-browser.md: one canonical selection. Files, Graph, the inspector, the dock chips and Learn read one context;
-// the code reader's Ask and Learn go through the same attach as a file or a symbol click, and Learn carries the wire shape.
-test('one selection: Files, Graph, the inspector and Learn read the same context; Ask and Learn on a range attach it like any pick', () => {
+// repository-browser.md: one canonical selection. The Files reader's file, symbol and range picks go through one attach, and
+// Learn carries the wire shape (repository-canvas.jsx, the reader beside Chat on every repository-attached canvas).
+test('one selection: the Files reader picks and Ask or Learn on a range attach the same context Learn sends', () => {
   const reader = read('CodeReader.jsx');
-  assert.match(page, /<RepositoryGraph graph=\{shown\} selected=\{lit\}/);
-  assert.match(page, /const lit=inspected\?\.record\?\{id:inspected\.id\}:context&&\(context\.nodeId\|\|context\.path\)\?\{id:context\.nodeId\|\|fileObject\(snapshot\.graph,context\.path\)\.nodeId\}:null;/);
-  assert.match(page, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{opened\} context=\{context\}[^>]*onFile=\{p=>attach\(fileObject\(snapshot\.graph,p\)\)\} onSymbol=\{n=>attach\(objectOf\(snapshot\.graph,n\)\)\}/);
-  // In Learn's panel, Ask in chat also puts the lines on the canvas as a selected Code card (repository-browser.md "Files in Learn").
-  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else\{askAbout\(range\);if\(extra\?\.place==='panel'\)codeCard\(range\);\}\}\} \{\.\.\.extra\}\/>;/);
-  assert.equal(page.match(/<CodeReader /g).length, 1, 'one reader: the Map shows reader(), the Main canvas panel reader({stacked})');
-  assert.match(page, /:reader\(\)\}<\/div>/);
-  assert.match(page, /repositoryContext=\{context\?wireContext\(context\):\{commit:app\.commit_sha\}\}/);
-  assert.match(page, /onLearn=\{\(\)=>learnThis\(inspected\)\}/);
+  assert.match(wired, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{files\.open\} context=\{context\}[^>]*\n\s*onFile=\{p => attach\(fileObject\(snapshot\.graph, p\)\)\} onSymbol=\{n => attach\(objectOf\(snapshot\.graph, n\)\)\}/);
+  // Ask in chat also puts the lines on the canvas as a selected Code card (repository-browser.md "Files in Learn").
+  assert.match(wired, /onRange=\{\(kind, range\) => \{ attach\(range\); if \(kind === 'learn'\) learnThis\(range\); else \{ askAbout\(range\); codeCard\(range\); \} \}\}/);
+  assert.equal(wired.match(/<CodeReader /g).length, 1, 'one reader');
+  assert.match(wired, /repositoryContext: context \? wireContext\(context\) : \{ commit: repository\.commit \},/);
   // Selecting text only offers [Ask] [Learn]; the context changes on a click, never on a selection.
   assert.match(reader, /<SourceSelectionContext\.Provider value=\{\{ value: pending, set: setPending \}\}>/);
   assert.doesNotMatch(reader, /setContext|small:ask-focus|learnAction/);
 });
 
-// Owner, 2026-10-08, from the stable preview (pallets/itsdangerous).
-test('a click on the graph\'s white space deselects: no node lit, the inspector empty, the context cleared', () => {
-  assert.match(page, /const deselect=\(\)=>\{setInspected\(null\);setTrail\(\[\]\);setContext\(null\);\};/);
-  assert.match(page, /const choose=node=>\{if\(!node\)return deselect\(\);/);
-  // RepositoryGraph reports a press on empty space as onSelect(null) (an unmoved press with no node).
-  assert.match(read('RepositoryGraph.jsx'), /onPointerUp=\{e=>\{const active=drag\.current;release\(e\);if\(active&&!active\.moved\)onSelect\(active\.node\?scene\.positions\.get\(active\.node\.id\):null\);\}\}/);
-});
-
-test('Files: the inspector does not repeat the code the reader shows - no preview, no Source tab; the graph keeps both', () => {
-  assert.match(page, /codeInView=\{mode==='files'&&!!inspected\?\.path&&opened===inspected\.path\}/);
+test('Files: the inspector does not repeat the code the reader shows - no preview, no Source tab', () => {
   const inspector = read('MapInspector.jsx');
   assert.match(inspector, /const file = object\.path, source = !record && !!file, tabs = source && !codeInView;/);
   assert.match(inspector, /\{file && !codeInView && <Preview /);
@@ -181,11 +145,9 @@ test('Files: the inspector does not repeat the code the reader shows - no previe
   assert.match(inspector, /const href = source && repositoryUrl\(/, 'Open source on GitHub stays: it is a link, not the code');
 });
 
-test('every inspector Ask writes a ready question and pins its object; nothing sends', () => {
-  assert.match(page, /const askAbout=\(object,question=askQuestion\)=>\{if\(!object\|\|object\.record\)return;setContext\(ground\(object\)\);setTimeout\(\(\)=>askDraft\(question\(object\)\),0\);\};/);
-  assert.match(page, /const askWhy=object=>askAbout\(object,whyQuestion\);/);
-  assert.match(page, /onAsk=\{\(\)=>askAbout\(inspected\)\} onWhy=\{\(\)=>askWhy\(inspected\)\}/);
-  assert.doesNotMatch(page + read('MapMemory.jsx') + read('MapInspector.jsx'), /small:bar-ask/, 'no page action sends through the bar');
+test('every Files Ask writes a ready question and pins its object; nothing sends', () => {
+  assert.match(wired, /const askAbout = object => \{ setContext\(ground\(object\)\); setTimeout\(\(\) => askDraft\(askQuestion\(object\)\), 0\); \};/);
+  assert.doesNotMatch(wired + read('MapMemory.jsx') + read('MapInspector.jsx'), /small:bar-ask/, 'no page action sends through the bar');
   assert.match(read('MapMemory.jsx'), /import \{ askDraft as askBar \} from '\.\/agent\/scope\.js';/, 'starters and prior questions write, never send');
 });
 
@@ -210,30 +172,25 @@ test('the composers write an Ask action\'s question and focus; the learner\'s ow
 
 // Owner decision 3 (2026-10-08): Purpose and Why it matters stay on demand. Opening or selecting an object reads files and
 // the snapshot only; no ask route is called until the learner presses Send (Learn this runs only from its own button).
-test('opening or selecting a node makes no AI request: the select path reads files and the snapshot only', () => {
+test('opening or selecting makes no AI request: the repository loader and readers read the row, snapshot and files only', () => {
   const calls = (code) => [...code.matchAll(/api\(`([^`]*)`/g)].map((m) => m[1]);
   // The inspector reads a file's lines and the object's saved conversation (a GET of stored messages), never an ask route.
   assert.deepEqual(calls(inspector), ['/api/repositories/${app}/file', '/api/repositories/${app.name}/threads?node=${encodeURIComponent(object.id)}&commit=${snapshot.commit}']);
   assert.deepEqual(calls(read('RepositorySource.jsx')), ['/api/repositories/${appName}/file']);
-  assert.deepEqual(calls(page), ['${root}/snapshot', '${root}/refresh']);
-  for (const code of [page, inspector, read('RepositoryGraph.jsx'), read('CodeReader.jsx'), read('inspector.js')]) assert.doesNotMatch(code, /fetch\(|streamAsk|\/ask\b|learn\/ask/);
-  assert.equal(page.match(/learnAction\(/g).length, 1, 'only Learn this, from its button');
-  assert.match(page, /const learnThis=object=>\{setContext\(ground\(object\)\);learnAction\(/);
-  assert.match(page, /const attach=object=>\{inspect\(object\);setContext\(ground\(object\)\);if\(object\.path\)setOpened\(object\.path\);\};/, 'a pick only inspects and grounds');
+  assert.deepEqual(calls(loader), ['${root}/snapshot', '${root}/refresh']);
+  for (const code of [page, wired, loader, inspector, read('RepositoryGraph.jsx'), read('CodeReader.jsx'), read('inspector.js')]) assert.doesNotMatch(code, /fetch\(|streamAsk|\/ask\b|learn\/ask/);
+  assert.equal(wired.match(/learnAction\(/g).length, 1, 'only Learn this, from its button');
+  assert.match(wired, /const attach = object => \{ setContext\(ground\(object\)\); if \(object\.path\) files\.setOpen\(object\.path\); \};/, 'a pick only grounds and opens its file');
 });
 
 // Owner, 2026-10-08: the inspector is the object's conversation surface - Overview | Source | Chat.
 test('a question about a selected object streams into its Chat, bound to the object at Send; errors and status go to the window', () => {
   // The key is taken from the scope frozen at Send, before any await, and every update of that answer uses it.
   assert.match(bar, /const node = nodeKey\(scope\), key = node \|\| resultsKey\(scope\);/);
-  assert.match(bar, /if \(page\.resource\?\.slug === scope\.slug && page\.handlers\?\.onNodeAsk\) return page\.handlers\.onNodeAsk\(scope\.selected\);/);
   assert.match(bar, /text: `The answer about \$\{scope\.selected\.label\} is in its Chat on \$\{nameOf\(scope\)\}\.`/, 'sent from elsewhere: the window says where, never shows it');
   assert.match(bar, /add\(scope, \{ kind: 'user', text \}, key\);\n\s+const id = add\(scope, \{ kind: 'answer', text: '' \}, key\);\n\s+clearDraft\(from, raw\);\n\s+land\(\);/);
   assert.match(bar, /if \(node\) \{ add\(scope, \{ kind: 'note', text: `✗ \$\{failed\}`, error: true \}\); showResults\(scope\); \}/, 'a failure is said in the window too');
   assert.match(bar, /updateTurn\(key, id, \(t\) => applyEvent\(t, type, data\)\);/);
-  // Send opens that object's Chat tab, found again by its id when another object is shown.
-  assert.match(page, /onNodeAsk:s=>nodeAsk\.current\?\.\(s\)/);
-  assert.match(page, /if\(inspected\?\.id===object\.id\)\{setView\('chat'\);setPanelOpen\(true\);\}else inspect\(object,'chat'\);/);
   // The Chat tab reads the object's own key and its saved conversation; Overview no longer carries a Conversation row.
   assert.match(inspector, /const chatKey = object && !object\.record \? nodeTurnsKey\(conversationKey, object\.id\) : null;/);
   assert.match(inspector, /\{!record && <TabsContent value="chat" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">\{chat\}<\/TabsContent>\}/);
@@ -253,8 +210,6 @@ test('the inspector has one action, Learn this, in its header beside the title; 
   assert.equal(inspector.match(/>Learn this</g).length, 1, 'one Learn this');
   const chat = inspector.slice(inspector.indexOf('const chat = '), inspector.indexOf('// Overview hidden'));
   assert.doesNotMatch(chat, /Ask about this/, 'the Chat tab asks through the composer');
-  // The same handler as before: it carries the node into Learn and sends nothing.
-  assert.match(page, /onLearn=\{\(\)=>learnThis\(inspected\)\}/);
 });
 
 // Owner r35: "when we open a project and we create a second canvas, we should still keep the original project name ... like
@@ -267,6 +222,6 @@ test('in a project the title is a one-line breadcrumb: the project (its card tit
   // The Main canvas is named so, the project name being the crumb before it.
   assert.match(learn, /: project \? 'Main canvas' : app\.repo \|\| app\.name\)/);
   // RepositoryPage names the project on the Main canvas and on every project canvas; CanvasPage keeps its own row.
-  assert.match(page, /project=\{app\} projectMenu=\{projectMenu\} switcher=\{switcher\}\/>\}/);
-  assert.match(read('CanvasPage.jsx'), /<LearnPage app=\{app\} onMap=\{onMap\} switcher=\{switcher\} project=\{switcher \? project : null\} projectMenu=\{projectMenu\} \/>/);
+  assert.match(page, /project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} \{\.\.\.props\}\/>\}/);
+  assert.match(read('CanvasPage.jsx'), /<LearnPage app=\{app\} switcher=\{switcher\} project=\{switcher \? project : null\} projectMenu=\{projectMenu\} \{\.\.\.canvasProps\} \/>/);
 });

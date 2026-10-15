@@ -62,8 +62,8 @@ test('the paste popup offers exactly Code card and Jupyter notebook; a choice ma
 });
 
 test('the panel\'s selection offers exactly Ask in chat and Copy; the Map keeps Ask and Learn; Copy answers on the button', () => {
-  const reader = read('CodeReader.jsx'), repo = read('RepositoryPage.jsx');
-  assert.match(repo, /files=\{snapshot&&reader\(\{query:'',stacked:true,place:'panel'\}\)\}/, 'the panel is the place that gets the two actions');
+  const reader = read('CodeReader.jsx'), repo = read('repository-canvas.jsx');
+  assert.match(repo, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{files\.open\} context=\{context\} query="" pick=\{files\.jump\} stacked place="panel"/, 'the panel is the place that gets the two actions');
   const toolbar = reader.slice(reader.indexOf('{panel ? <>'), reader.indexOf('</div>} />'));
   const [panel, map] = toolbar.split(/<\/> : <>\n/); // the place switch, not the Copied ternary inside it
   assert.equal(panel.match(/<Button /g).length, 2, 'two actions');
@@ -74,10 +74,10 @@ test('the panel\'s selection offers exactly Ask in chat and Copy; the Map keeps 
   assert.doesNotMatch(reader, /toast\(/, 'no corner toast for Copy');
   assert.match(reader, /await navigator\.clipboard\.writeText\(r\.text\)/);
   assert.match(reader, /rememberCodeCopy\(\(\) => sessionStorage, \{ text: r\.text, path: r\.path, repo: app\.repo, commit: snapshot\.commit, start: r\.start, end: r\.end \}\)/);
-  // Ask in chat attaches the passage (its text only for the chip) and prefills; it never sends (RepositoryPage askAbout).
+  // Ask in chat attaches the passage (its text only for the chip) and prefills; it never sends (repository-canvas.jsx askAbout).
   assert.match(reader, /onRange\(kind, \{ \.\.\.rangeContext\(r\.path, r\.start, r\.end, snapshot\.commit\), text: r\.text \}\)/);
-  assert.match(repo, /const askAbout=\(object,question=askQuestion\)=>\{if\(!object\|\|object\.record\)return;setContext\(ground\(object\)\);setTimeout\(\(\)=>askDraft\(question\(object\)\),0\);\};/);
-  assert.match(repo, /repositoryExcerpt=\{context\?\.kind==='range'\?context\.text:null\}/);
+  assert.match(repo, /const askAbout = object => \{ setContext\(ground\(object\)\); setTimeout\(\(\) => askDraft\(askQuestion\(object\)\), 0\); \};/);
+  assert.match(repo, /repositoryExcerpt: context\?\.kind === 'range' \? context\.text : null,/);
   assert.doesNotMatch(read('agent/scope.js').match(/export const wireContext[^\n]*/)[0], /\.text|text:/, 'the excerpt is never sent');
 });
 
@@ -104,11 +104,11 @@ test('the chat chip names the path, the lines and a preview, removable; a questi
   assert.match(ask, /\.\.\.\(repository && repositoryContext \? \{ repository_context: \{ \.\.\.repositoryContext, commit: /);
 });
 
-test('Ask in chat in the panel puts the lines on the canvas as one selected Code card, keeping the range context; the Map\'s Ask does not', () => {
-  const repo = read('RepositoryPage.jsx'), page = read('LearnPage.jsx');
-  // Only the panel's Ask in chat places a card; Learn and the Map's own Ask never do.
-  assert.match(repo, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else\{askAbout\(range\);if\(extra\?\.place==='panel'\)codeCard\(range\);\}\}\}/);
-  assert.match(repo, /const codeCard=range=>window\.dispatchEvent\(new CustomEvent\('small:code-card',\{detail:\{text:range\.text,path:range\.path,start:range\.start,end:range\.end,commit:range\.commit,repo:app\.repo\}\}\)\);/);
+test('Ask in chat in the panel puts the lines on the canvas as one selected Code card, keeping the range context; Learn does not', () => {
+  const repo = read('repository-canvas.jsx'), page = read('LearnPage.jsx');
+  // Only the reader's Ask in chat places a card; Learn never does.
+  assert.match(repo, /onRange=\{\(kind, range\) => \{ attach\(range\); if \(kind === 'learn'\) learnThis\(range\); else \{ askAbout\(range\); codeCard\(range\); \} \}\}/);
+  assert.match(repo, /const codeCard = range => window\.dispatchEvent\(new CustomEvent\('small:code-card', \{ detail: \{ text: range\.text, path: range\.path, start: range\.start, end: range\.end, commit: range\.commit, repo: app\.repo \} \}\)\);/);
   const place = page.slice(page.indexOf("const place = async event => {"), page.indexOf("window.addEventListener('small:code-card', place);"));
   // The paste dialog's Code card, with its file, lines and language as its code source, placed in view and selected.
   assert.match(place, /const block = pasteBlock\(\{ text, copy, choice: 'code', assetKey, language: languageOf\(path\) \}\);/);

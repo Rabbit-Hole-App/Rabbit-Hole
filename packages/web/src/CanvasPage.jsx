@@ -7,9 +7,12 @@ import { Button } from './ui.jsx';
 import LearnPage from './LearnPage.jsx';
 import { titleOf } from './agent/catalog.js';
 import { canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-local.js';
+import { CodeRefs } from './code-refs.js';
+import { useRepositoryCanvas } from './repository-canvas.jsx';
 
 // ponytail: T02 §8.3 [New canvas here] and [About local-only storage] are left out; add them when asked.
-export function CanvasLearn({ app, project, onMap = null, switcher = null, projectMenu = null }) { // callers key it by canvas: the decision is made once per mount
+// canvasProps: a repository-attached canvas's Files, Graph and repository context (repository-canvas.jsx), spread into LearnPage.
+export function CanvasLearn({ app, project, switcher = null, projectMenu = null, canvasProps = null }) { // callers key it by canvas: the decision is made once per mount
   // The canvas opens when this browser has its content (or made it), or when the server has its board
   // (docs/features/canvas-persistence.md): NOT_HERE only when neither copy exists. The server is asked only when needed.
   const [here, setHere] = useState(() => opensHere({ storage: localStorage, keys: canvasKeys({ org: app.org, email: app.email || app.owner_email, slug: app.name }), record: app }) || null); // LearnPage.jsx:143's key
@@ -21,7 +24,7 @@ export function CanvasLearn({ app, project, onMap = null, switcher = null, proje
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (here === null) return <main className="min-w-0 flex-1" />;
   // Inside its project (RepositoryPage, which gives the switcher) the title names the project too; CanvasPage has its own row.
-  if (here) return <LearnPage app={app} onMap={onMap} switcher={switcher} project={switcher ? project : null} projectMenu={projectMenu} />;
+  if (here) return <LearnPage app={app} switcher={switcher} project={switcher ? project : null} projectMenu={projectMenu} {...canvasProps} />;
   return <main data-canvas-gate className="min-w-0 flex-1 overflow-auto"><div className="mx-auto max-w-md px-6 pt-[18vh] text-center">
     <h1 className="text-lg font-semibold">{NOT_HERE}</h1>
     <p className="pt-2 text-sm text-ink-2">{NOT_HERE_WHY}</p>
@@ -32,11 +35,13 @@ export function CanvasLearn({ app, project, onMap = null, switcher = null, proje
 // A column, not a Fragment: LearnPage brings its own <main>, which no longer matches index.css's
 // [data-shell-sidebar] ~ main phone padding, so the column restores it. Learn's header names the canvas
 // (feature/parallel-work 07e1f15), so the row only links a parent project: one title (user, WP6 closeout).
+// A canvas in a repository project gets that repository's Files and Graph here too (the association, not the route).
 export default function CanvasPage({ app, project }) {
-  return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">
+  const wired = useRepositoryCanvas(project);
+  return <CodeRefs.Provider value={wired?.codeRefs || null}><div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">
     {project && <div data-canvas-parent className="flex shrink-0 items-center gap-2 pt-5 pr-8 pl-14 text-xs text-ink-2 max-md:px-4 max-md:pt-3">
       <button type="button" className="cursor-pointer hover:text-ink hover:underline" onClick={() => navigate(`/apps/${project.name}`)}>In {titleOf(project)} →</button>
     </div>}
-    <CanvasLearn app={app} project={project} />
-  </div>;
+    <CanvasLearn app={app} project={project} canvasProps={wired?.canvasProps} />
+  </div></CodeRefs.Provider>;
 }
