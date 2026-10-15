@@ -201,8 +201,6 @@
     "packages/web/src/SelectionActions.jsx",
     "packages/web/src/SourceReader.jsx",
     "packages/web/src/SourcesPane.jsx",
-    "packages/web/src/PdfAddDialog.jsx",
-    "packages/web/src/pdf-source.js",
     "packages/web/src/SyllabusMessage.jsx",
     "packages/web/src/canvas-semantics.js",
     "packages/web/src/chat-*.js",
