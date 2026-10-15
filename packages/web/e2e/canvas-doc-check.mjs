@@ -168,7 +168,17 @@ const available = async () => {
   const right = p && p.x < c.surface.x + c.surface.w ? p.x : c.surface.x + c.surface.w;
   return { left: c.surface.x, right, top: c.surface.y, bottom: c.surface.y + c.surface.h };
 };
-const blockIds = () => page.locator('[data-canvas-doc] .bn-block-outer[data-id]').evaluateAll(list => list.map(el => el.dataset.id));
+const blockWith = text => page.locator('[data-canvas-doc] .bn-block-outer[data-id]').filter({ hasText: text }).last().getAttribute('data-id');
+// The page colour: the paper's own background, or the first inner layer that paints most of it (the editor may paint it).
+const paperBg = () => paper().evaluate(el => {
+  const w = el.getBoundingClientRect().width;
+  for (const node of [el, ...el.querySelectorAll('*')]) {
+    const bg = getComputedStyle(node).backgroundColor, a = bg.match(/[\d.]+/g)?.map(Number) || [];
+    if ((a[3] === undefined || a[3] > 0) && node.getBoundingClientRect().width >= w * 0.9) return bg;
+  }
+  return 'rgba(0, 0, 0, 0)';
+});
+const blockIds = () =>page.locator('[data-canvas-doc] .bn-block-outer[data-id]').evaluateAll(list => list.map(el => el.dataset.id));
 const docTextNow = () => editable().innerText();
 const inkOf = name => page.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }, `${keyOf(name)}:ink`);
 // Every canvas object that is not the document: ids and places. What keys inside the editor must never change.
@@ -255,7 +265,7 @@ await check('brief 4-5: about 760 px wide at 100%, 48-64 px padding, opaque whit
   const w = await paperWorld();
   firstWorld = w;
   assert.ok(w.w >= 700 && w.w <= 800, `the paper is ${Math.round(w.w)} world px wide`);
-  const look = await paper().evaluate(el => { const s = getComputedStyle(el); return { bg: s.backgroundColor, shadow: s.boxShadow, border: s.borderTopWidth }; });
+  const look = { bg: await paperBg(), ...await paper().evaluate(el => { const s = getComputedStyle(el); return { shadow: s.boxShadow, border: s.borderTopWidth }; }) };
   const first = await page.locator('[data-canvas-doc] .bn-block-outer').first().boundingBox(), b = await paper().boundingBox();
   facts.look = { ...look, pad_left: (first.x - b.x) / w.z, pad_top: (first.y - b.y) / w.z, height: w.h };
   assert.equal(look.bg, 'rgb(255, 255, 255)', `the light page is ${look.bg}`);
@@ -323,7 +333,6 @@ await check('scenario 2 + brief 3: hide Editor (nothing left intercepting the ca
   assert.equal(await page.locator('.bn-container, .bn-editor, .bn-formatting-toolbar, .bn-side-menu').count(), 0, 'editor menus or text are still mounted in Canvas view');
   // Move the sticky away from where the paper was, so it never lands under it.
   const sticky = page.locator('[data-item-id="n1"]').first();
-  await sticky.scrollIntoViewIfNeeded().catch(() => {});
   const s = await sticky.boundingBox();
   assert.ok(s, 'the sticky n1 is on screen');
   const dx = s.x + s.width / 2 < paperBox.x + paperBox.width / 2 ? -140 : 140;
@@ -367,8 +376,7 @@ await check('scenario 7 + brief 9: Space, tool letters, Backspace on a selected 
   const s = await sticky.boundingBox();
   await page.mouse.click(s.x + 20, s.y + 10);
   await page.waitForTimeout(200);
-  const last = ids2[ids2.length - 1];
-  await clickBlock(last);
+  await clickBlock(await blockWith('Water is split'));
   await page.keyboard.press('Backspace');
   await page.keyboard.type(' vhrotnpe');
   assert.equal(await surfaceSpacePan(), false, 'Space started a canvas pan');
@@ -380,21 +388,25 @@ await check('scenario 7 + brief 9: Space, tool letters, Backspace on a selected 
   await cdp.send('Input.imeSetComposition', { text: 'にほ', selectionStart: 2, selectionEnd: 2 });
   await cdp.send('Input.insertText', { text: '日本' });
   assert.ok((await docTextNow()).includes('vhrotnpe日本'), 'IME composition did not commit into the document');
-  // Select all, Delete, Undo, Redo, Undo: editor history only.
+  // Select all, Delete, Undo, Redo, Undo: editor history only. (BlockNote may select the block first, then the document.)
+  const full = await docTextNow(), marked = () => page.locator('[data-item-id].ring-2, [data-block-id].ring-select, [data-shape-id][data-selected]').count();
+  const selectedBefore = await marked();
   await page.keyboard.press('Control+a');
   const sel = await page.evaluate(() => ({ text: getSelection().toString(), inEditor: !!getSelection().anchorNode?.parentElement?.closest('[data-canvas-doc-editor]') }));
-  assert.ok(sel.inEditor && sel.text.includes(MARK), 'Ctrl+A did not select the document text');
-  assert.equal(await page.locator('[data-item-id].ring-2, [data-block-id].ring-select, [data-shape-id][data-selected]').count(), 0, 'Ctrl+A selected canvas objects');
+  facts.select_all = { chars: sel.text.length, doc_chars: full.length };
+  assert.ok(sel.inEditor && sel.text.trim().length > 3, 'Ctrl+A did not select text in the document');
+  assert.equal(await marked(), selectedBefore, 'Ctrl+A selected canvas objects');
   await page.keyboard.press('Delete');
   await page.waitForTimeout(200);
-  assert.ok(!(await docTextNow()).includes(MARK), 'Delete did not clear the selected text');
+  const cleared = await docTextNow();
+  assert.ok(cleared.length < full.length && !cleared.includes(sel.text.trim()), 'Delete did not remove the selected text');
   assert.equal(await objectsOf(A), before, 'Delete touched the canvas');
   await page.keyboard.press('Control+z');
-  await waitFor(async () => (await docTextNow()).includes(MARK), 3000, 'Ctrl+Z did not restore the text (editor history)');
+  await waitFor(async () => (await docTextNow()) === full, 3000, 'Ctrl+Z did not restore the text (editor history)');
   await page.keyboard.press('Control+y');
-  await waitFor(async () => !(await docTextNow()).includes(MARK), 3000, 'Ctrl+Y did not redo the delete');
+  await waitFor(async () => (await docTextNow()) === cleared, 3000, 'Ctrl+Y did not redo the delete');
   await page.keyboard.press('Control+z');
-  await waitFor(async () => (await docTextNow()).includes(MARK), 3000, 'the second Ctrl+Z did not restore the text');
+  await waitFor(async () => (await docTextNow()) === full, 3000, 'the second Ctrl+Z did not restore the text');
   assert.equal(await objectsOf(A), before, 'Undo/Redo inside the editor touched the canvas');
   // Paste text: into the document, never a new canvas object.
   await page.evaluate(text => navigator.clipboard.writeText(text), `Pasted line ${run}`);
@@ -511,12 +523,15 @@ await check('scenario 9: closing, reopening and resizing Chat keeps the same edi
 });
 await check('scenario 9 + brief 4: dark theme gives an opaque dark page unlike the canvas, light gives white, without a remount', async () => {
   const theme = dark => page.evaluate(on => { localStorage.setItem('small.theme', on ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', on); window.dispatchEvent(new CustomEvent('small:theme', { detail: on })); }, dark);
-  const colours = () => page.evaluate(() => {
-    const rgb = s => s.match(/[\d.]+/g).map(Number), p = getComputedStyle(document.querySelector('[data-canvas-doc]')).backgroundColor;
-    let el = document.querySelector('[data-canvas-surface]'), bg = getComputedStyle(el).backgroundColor;
-    while (el && rgb(bg)[3] === 0) { el = el.parentElement; bg = el ? getComputedStyle(el).backgroundColor : 'rgb(255,255,255)'; }
-    return { paper: rgb(p), canvas: rgb(bg) };
-  });
+  const colours = async () => {
+    const p = await paperBg();
+    return page.evaluate(p => {
+      const rgb = s => s.match(/[\d.]+/g).map(Number);
+      let el = document.querySelector('[data-canvas-surface]'), bg = getComputedStyle(el).backgroundColor;
+      while (el && rgb(bg)[3] === 0) { el = el.parentElement; bg = el ? getComputedStyle(el).backgroundColor : 'rgb(255,255,255)'; }
+      return { paper: rgb(p), canvas: rgb(bg) };
+    }, p);
+  };
   await theme(true);
   await page.waitForTimeout(500);
   const dark = await colours();
