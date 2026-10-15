@@ -45,7 +45,8 @@ test('a repository opens on its canvas: no Files | Graph | Learn page; the badge
 test('repository canvas review fixes: graph keys stay in the column, Retry refetches, Show on graph, one-time viewers, Main-only code cards', () => {
   const canvas = read('AdaptiveCanvas.jsx'), ask = read('ask.jsx'), app = read('App.jsx');
   // #1 a focused graph node's Delete, arrows and Esc never act on canvas cards (the canvas listens on window in capture).
-  assert.match(canvas, /if \(document\.activeElement\?\.closest\?\.\('\[data-canvas-doc\]'\)\) return;\n[^\n]*\n[^\n]*\n\s+if \(document\.activeElement\?\.closest\?\.\('\[data-companion\]'\)\) return;/);
+  // A graph card's own controls are guarded the same way (repo graph R2, graph-card.test.mjs).
+  assert.match(canvas, /if \(document\.activeElement\?\.closest\?\.\('\[data-canvas-doc\]'\)\) return;\n(?:\s*\/\/[^\n]*\n){1,4}\s+if \(document\.activeElement\?\.closest\?\.\('\[data-companion\],\[data-graph-card\]'\)\) return;/);
   // #3 Retry after a failed snapshot read reads it again.
   assert.match(loader, /\}, \[root, commit, reload\]\);/);
   // #4 closing the column on a wide layout, or leaving the canvas, clears the temporary selection; pinned chips stay.

@@ -64,7 +64,8 @@ export function clearSelection(repository) {
 // What a turn sends and what the composer shows agree (brief section 6): pinned refs first, then each temporary ref not
 // already pinned, up to the server's 20; `left` are the temporary refs that do not fit, shown as not sent.
 export function turnRefs(attached = [], temporary = []) {
-  const extra = temporary.filter(ref => !attached.some(pinned => sameRef(pinned, ref)));
+  // unique: the same file selected in the companion and in a graph card is one chip and one sent ref.
+  const extra = unique(temporary).filter(ref => !attached.some(pinned => sameRef(pinned, ref)));
   const room = Math.max(0, MAX_REFS - attached.length);
   return { refs: [...attached, ...extra.slice(0, room)], temporary: extra.slice(0, room), left: extra.slice(room) };
 }

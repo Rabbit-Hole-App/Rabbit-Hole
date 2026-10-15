@@ -17,7 +17,7 @@ import { useChatSources } from './chat-sources.js';
 const ChatWorkspace = createContext(null);
 export const useChatWorkspace = () => useContext(ChatWorkspace);
 
-// canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), hasBlock(id), locate(id),
+// canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), insertCard(block, { same }), hasBlock(id), locate(id),
 // canvasContext(options) - a turn's canvas_context built now (chat-canvas-context.js) - selection() },
 // for Lane B's footer and actions (contract B3, B5). null until the canvas mounts; callers check before use.
 export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, children }) {
