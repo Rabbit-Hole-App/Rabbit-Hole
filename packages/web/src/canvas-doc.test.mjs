@@ -154,3 +154,16 @@ test('the surface scroll pans the camera only while the document has the focus',
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /const scrolled = \(\) => \{\s+\/\/[^\n]*\s+if \(!document\.activeElement\?\.closest\?\.\('\[data-canvas-doc\]'\)\) return;\s+const dx = element\.scrollLeft/);
 });
+
+// Lead 1:28 AM PT: Ctrl+End / Ctrl+Home are the editor's own moves, not the browser's native caret move, which raced
+// ProseMirror (the caret came back to the start in 2 of 3 runs). Ctrl+Shift+End/Home stay native (no range API here).
+test('docEdgeKey: Ctrl/Cmd+End and Ctrl/Cmd+Home only', async () => {
+  const { docEdgeKey } = await import('./canvas-doc.js');
+  assert.equal(docEdgeKey({ key: 'End', ctrlKey: true }), 'end');
+  assert.equal(docEdgeKey({ key: 'Home', metaKey: true }), 'start');
+  assert.equal(docEdgeKey({ key: 'End' }), null, 'End alone is the line end');
+  assert.equal(docEdgeKey({ key: 'End', ctrlKey: true, shiftKey: true }), null, 'extending the selection stays native');
+  assert.equal(docEdgeKey({ key: 'End', ctrlKey: true, altKey: true }), null);
+  const { readFileSync } = await import('node:fs');
+  assert.match(readFileSync(new URL('./CanvasDoc.jsx', import.meta.url), 'utf8'), /const edge = docEdgeKey\(event\);/);
+});

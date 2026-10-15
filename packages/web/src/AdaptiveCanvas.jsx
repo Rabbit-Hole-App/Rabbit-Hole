@@ -4265,6 +4265,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const docCaret = box => {
     const element = surface.current;
     if (!element || !document.activeElement?.closest?.('[data-canvas-doc]')) return;
+    // A reveal scroll of the surface not yet turned into a camera move (its scroll event can come after this frame) is taken
+    // first: the pan keeps the caret where it is on screen, so box still holds, and the late scroll event finds nothing to do.
+    if (element.scrollLeft || element.scrollTop) {
+      const dx = element.scrollLeft, dy = element.scrollTop;
+      element.scrollLeft = 0; element.scrollTop = 0;
+      flushSync(() => setView(v => (autoView.current = { ...v, x: v.x - dx, y: v.y - dy })));
+    }
     const frame = element.getBoundingClientRect(), bottom = Math.min(frame.bottom, frame.top + chromeTop(0, frame.width)) - 48, top = frame.top + 48;
     const by = box.bottom > bottom ? bottom - box.bottom : box.top < top ? top - box.top : 0;
     if (by) setView(v => (autoView.current = { ...v, y: v.y + by }));

@@ -56,3 +56,6 @@ export const caretRect = range => {
   const node = range?.startContainer, line = node && (node.nodeType === 1 ? node : node.parentElement);
   return [range?.getClientRects?.()[0], range?.getBoundingClientRect?.(), line?.getBoundingClientRect?.()].find(box => box && (box.width || box.height)) || null;
 };
+
+// Ctrl/Cmd+End and Ctrl/Cmd+Home in the document: 'end' or 'start', for the editor to move the caret itself (CanvasDoc).
+export const docEdgeKey = ({ key, ctrlKey, metaKey, shiftKey, altKey }) => ((ctrlKey || metaKey) && !shiftKey && !altKey ? ({ End: 'end', Home: 'start' }[key] || null) : null);
