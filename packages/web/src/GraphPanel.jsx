@@ -13,7 +13,7 @@ import { layerGraph, MEMORY_KINDS, visibleMemory } from './map-memory.js';
 import { LayersRow } from './MapMemory.jsx';
 import { getSurface } from './agent/surface.js';
 import { graphCardBlock, sameGraphCard } from './graph-card.js';
-import { insertCodeCard, nodeCodeCard } from './code-card.js';
+import { insertCodeCard, insertCodeCards, nodeCodeCard } from './code-card.js';
 
 // The repository graph in the companion column beside Chat (repo-canvas-graph.md sections 3-6, 12; owner 2026-10-15).
 // Props:
@@ -57,7 +57,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   const indexed = ids => ids.filter(id => snapshot?.graph.nodes.some(n => n.id === id)); // fixture layer records stay out
   const addGraph = (ids = []) => { const block = graphCardBlock(repository, ids); ops.insertCard(block, { same: other => sameGraphCard(other, block) }); };
   const codeNodes = ids => ids.map(id => snapshot?.graph.nodes.find(n => n.id === id)).filter(n => n?.path);
-  const addCode = nodes => nodes.forEach(n => { const card = nodeCodeCard({ app: repository.name, repo: app.repo, commit: snapshot.commit }, n); if (card) insertCodeCard(ops, card); });
+  const addCode = nodes => insertCodeCards(ops, nodes.map(n => nodeCodeCard({ app: repository.name, repo: app.repo, commit: snapshot.commit }, n)));
   const canCode = !!insertCodeCard && !!ops && codeNodes(selected).length > 0;
   // A right-clicked node outside the selection becomes the selection, so the menu acts on what is lit.
   const openMenu = (node, at) => { if (!selected.includes(node.id)) setSelected([node.id]); setMenu(at); };

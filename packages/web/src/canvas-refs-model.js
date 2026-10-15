@@ -33,14 +33,14 @@ export const reIdRefs = refs => refs.map(ref => ({ ...ref, id: crypto.randomUUID
 // when it can be (placeNote, as Open in notebook places). The point itself stays uncovered.
 // Beside the point as placeNote places; when its rings find no free spot in view (a click hemmed in by cards, or near the
 // view's edge), the free spot in view nearest the point, so the card never lands off-screen while the view has room.
-export function refCardSpot(point, obstacles, visible = null) {
-  const at = { x: point.x, y: point.y, w: 0, h: 0 }, near = placeNote(at, REF_CARD, obstacles, visible);
+export function refCardSpot(point, obstacles, visible = null, size = REF_CARD) {
+  const at = { x: point.x, y: point.y, w: 0, h: 0 }, near = placeNote(at, size, obstacles, visible);
   if (!near.offscreen || !visible) return near;
   // ponytail: a 28-unit grid over the view, a few thousand boxes for one click; a spatial index if views get huge.
   let best = null, bestD = Infinity;
-  for (let x = visible.x; x + REF_CARD.w <= visible.x + visible.w; x += 28) for (let y = visible.y; y + REF_CARD.h <= visible.y + visible.h; y += 28) {
-    const d = Math.hypot(x + REF_CARD.w / 2 - point.x, y + REF_CARD.h / 2 - point.y);
-    if (d < bestD && freeSpot({ x, y, ...REF_CARD }, obstacles, at)) { best = { x, y }; bestD = d; }
+  for (let x = visible.x; x + size.w <= visible.x + visible.w; x += 28) for (let y = visible.y; y + size.h <= visible.y + visible.h; y += 28) {
+    const d = Math.hypot(x + size.w / 2 - point.x, y + size.h / 2 - point.y);
+    if (d < bestD && freeSpot({ x, y, ...size }, obstacles, at)) { best = { x, y }; bestD = d; }
   }
   return best ? { side: 'near', ...best, offscreen: false } : near;
 }
