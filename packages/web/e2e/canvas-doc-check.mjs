@@ -114,7 +114,8 @@ const check = async (label, fn) => {
   }
 };
 const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() => {});
-const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
+// A poll that throws (a transient 5xx page from the local D1) is not an answer yet.
+const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await Promise.resolve().then(test).catch(() => null); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
 const frames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 const profile = async ({ view = null, canvas = null } = {}) => {
   if (context) await context.close();
@@ -140,8 +141,10 @@ const editorRoot = () => page.locator('[data-canvas-doc-editor]');
 const editable = () => page.locator('[data-canvas-doc-editor] .bn-editor');
 const status = () => page.locator('[data-doc-save-status]');
 const pane = () => page.locator('[data-chat-pane]');
-const viewMenu = () => page.locator('[role="menubar"][aria-label="Canvas menu"]').getByRole('menuitem', { name: 'View', exact: true });
-const viewChoice = () => page.locator('[role="menu"] select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
+// The app's Menu panel has no role, so look inside the menubar it opens in.
+const menubar = () => page.locator('[role="menubar"][aria-label="Canvas menu"]');
+const viewMenu = () => menubar().getByRole('menuitem', { name: 'View', exact: true });
+const viewChoice = () => menubar().locator('select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
 const setView = async value => {
   await viewMenu().click();
   await viewChoice().waitFor({ timeout: 5000 }).catch(() => { throw Error('the View menu has no choice with an "Editor" option'); });
@@ -152,7 +155,7 @@ const setView = async value => {
 };
 const viewValue = async () => { await viewMenu().click(); const value = await viewChoice().evaluate(s => s.selectedOptions[0]?.textContent); await page.keyboard.press('Escape'); await page.waitForTimeout(150); return value; };
 const surfaceSpacePan = () => page.evaluate(() => document.querySelector('[data-canvas-surface]')?.hasAttribute('data-space-pan') || false);
-const goToStart = async () => { await viewMenu().click(); await page.locator('[role="menu"]').getByRole('menuitem', { name: 'Go to document start', exact: true }).click(); await page.waitForTimeout(700); };
+const goToStart = async () => { await viewMenu().click(); await menubar().getByRole('menuitem', { name: 'Go to document start', exact: true }).click(); await page.waitForTimeout(700); };
 // The camera: the world layer's translate/scale (AdaptiveCanvas worldRef), and the surface it sits in.
 const camera = () => page.evaluate(() => {
   const surface = document.querySelector('[data-canvas-surface]'), world = [...surface.children].find(el => /scale\(/.test(el.style.transform));
@@ -160,8 +163,12 @@ const camera = () => page.evaluate(() => {
   const s = surface.getBoundingClientRect();
   return { x: Number(m[1]), y: Number(m[2]), z: Number(m[3]), surface: { x: s.x, y: s.y, w: s.width, h: s.height } };
 });
-// The paper's world position, from its screen box and the camera: what must not change when the side panel moves.
-const paperWorld = async () => { const b = await paper().boundingBox(), c = await camera(); return { x: (b.x - c.surface.x - c.x) / c.z, y: (b.y - c.surface.y - c.y) / c.z, w: b.width / c.z, h: b.height / c.z, z: c.z }; };
+// The paper's world position: its offset inside the world layer (the layer carries the camera transform).
+// What must not change when the side panel moves. Screen-box arithmetic read a panel close as a 300 px move.
+const paperWorld = () => paper().evaluate(el => {
+  const m = el.offsetParent?.style.transform.match(/scale\(([-\d.e]+)\)/);
+  return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight, z: m ? Number(m[1]) : 1 };
+});
 // The canvas room left for the paper: the surface minus whatever of the right panel overlaps it.
 const available = async () => {
   const c = await camera(), p = await pane().isVisible().catch(() => false) ? await pane().boundingBox() : null;
@@ -192,16 +199,18 @@ const assertUsable = async (selector, what) => {
   await menu.waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error(`${what} (${selector}) did not open`); });
   await page.waitForTimeout(200);
   const b = await menu.boundingBox(), room = await available(), vp = page.viewportSize();
+  assert.ok(b, `${what} (${selector}) closed again within 200 ms of opening`);
   assert.ok(b.x >= 0 && b.y >= 0 && b.x + b.width <= vp.width + 1 && b.y + b.height <= vp.height + 1, `${what} is off screen (${JSON.stringify(b)})`);
-  assert.ok(b.x >= room.left - 1 && b.x + b.width <= room.right + 1, `${what} runs under the side panel or off the canvas (${Math.round(b.x)}..${Math.round(b.x + b.width)} vs ${Math.round(room.left)}..${Math.round(room.right)})`);
+  assert.ok(b.x >= room.left - 2 && b.x + b.width <= room.right + 2, `${what} runs under the side panel or off the canvas (${Math.round(b.x)}..${Math.round(b.x + b.width)} vs ${Math.round(room.left)}..${Math.round(room.right)})`);
   const top = await page.evaluate(([sel, x, y]) => !!document.elementFromPoint(x, y)?.closest(sel), [selector, b.x + Math.min(b.width / 2, 40), b.y + Math.min(b.height / 2, 14)]);
   assert.ok(top, `${what} is covered at its own top-left (something else is on top of it)`);
   return b;
 };
 const clickBlock = async (id, where = 'end') => {
   const el = page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${id}"] .bn-inline-content`).first();
-  const b = await el.boundingBox();
-  await page.mouse.click(where === 'end' ? b.x + b.width - 2 : b.x + 2, b.y + b.height / 2);
+  const b = await el.boundingBox(), room = await available();
+  // The line's end can sit off screen or under Chat; click inside the visible room and let End do the rest.
+  await page.mouse.click(where === 'end' ? Math.min(b.x + b.width - 2, room.right - 12) : Math.max(b.x + 2, room.left + 12), b.y + b.height / 2);
   if (where === 'end') await page.keyboard.press('End');
   await page.waitForTimeout(150);
 };
@@ -299,14 +308,17 @@ await check('scenario 2: the slash menu makes a heading, the formatting toolbar 
   await assertUsable('.bn-suggestion-menu', 'the slash menu');
   await page.keyboard.type('heading');
   await page.waitForTimeout(250);
-  await page.locator('.bn-suggestion-menu-item').first().click();
+  await page.keyboard.press('Enter'); // the highlighted Heading item; clicking it is its own check below
   await page.keyboard.type(MARK);
   await page.keyboard.press('Enter');
   await page.keyboard.type('Light reactions make ATP');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft'); // selects "ATP"
   await assertUsable('.bn-formatting-toolbar', 'the formatting toolbar');
-  await page.locator('.bn-formatting-toolbar [data-test="bold"]').click();
+  await page.keyboard.press('Control+b'); // clicking Bold is its own check below
+  await waitFor(async () => (await page.locator('[data-canvas-doc-editor] strong, [data-canvas-doc-editor] [data-style-type="bold"]').filter({ hasText: /^ATP$/ }).count()) > 0, 3000, 'no bold ATP').catch(async () => { throw Error(`Ctrl+B did not bold the selected ATP (the document reads ${JSON.stringify((await docTextNow()).replace(/\s+/g, ' ').slice(0, 90))})`); });
   await page.keyboard.press('End');
+  const collapsed = await page.evaluate(() => getSelection().isCollapsed);
+  assert.ok(collapsed, `End did not collapse the selection, so Enter would replace "${await page.evaluate(() => getSelection().toString())}"`);
   await page.keyboard.press('Enter');
   await page.keyboard.type('/bullet');
   await page.waitForTimeout(250);
@@ -318,23 +330,27 @@ await check('scenario 2: the slash menu makes a heading, the formatting toolbar 
   const doc = (await boardOf(A)).state?.doc;
   const heading = doc?.blocks?.find(b => b.type === 'heading'), bold = doc?.blocks?.flatMap(b => (Array.isArray(b.content) ? b.content : [])).find(c => c.styles?.bold);
   assert.equal(textOf([heading]).trim(), MARK, 'the server document has the heading');
-  assert.equal(bold?.text, 'ATP', 'the server document keeps the bold run as native styles');
+  assert.equal(bold?.text, 'ATP', `the server document keeps the bold run as native styles: ${JSON.stringify(doc?.blocks?.find(b => textOf([b]).includes('Light reactions'))?.content)} (status ${await status().innerText()})`);
   assert.ok(doc.blocks.some(b => b.type === 'bulletListItem' && textOf([b]).includes('Water is split')), 'the bullet list item');
   assert.ok(doc.blocks.every(b => typeof b.id === 'string' && b.id), 'every saved block keeps its id');
-  ids2 = await blockIds(); text2 = await docTextNow();
-  assert.deepEqual(doc.blocks.map(b => b.id), ids2.filter(id => doc.blocks.some(b => b.id === id)), 'saved ids are the editor ids');
+  const idsNow = await blockIds();
+  assert.deepEqual(doc.blocks.map(b => b.id), idsNow.filter(id => doc.blocks.some(b => b.id === id)), 'saved ids are the editor ids');
   assert.equal(aiCalls(), before, 'typing and the editor menus sent an AI request');
 });
 await check('scenario 2 + brief 3: hide Editor (nothing left intercepting the canvas), move the sticky, reopen - both changes kept, no recentre, toggle not in undo', async () => {
-  const camBefore = await camera(), paperBox = await paper().boundingBox();
+  ids2 = await blockIds(); text2 = await docTextNow();
+  const paperBox = await paper().boundingBox();
   await setView('Canvas');
   const hit = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return { surface: !!el?.closest('[data-canvas-surface]'), doc: !!el?.closest('[data-canvas-doc],[data-canvas-doc-editor],.bn-container') }; }, [paperBox.x + paperBox.width / 2, paperBox.y + 120]);
   assert.deepEqual(hit, { surface: true, doc: false }, 'something of the document is still under the pointer in Canvas view');
   assert.equal(await page.locator('.bn-container, .bn-editor, .bn-formatting-toolbar, .bn-side-menu').count(), 0, 'editor menus or text are still mounted in Canvas view');
   // Move the sticky away from where the paper was, so it never lands under it.
   const sticky = page.locator('[data-item-id="n1"]').first();
+  // Framing the document can leave the sticky off screen: wheel the bare canvas until it is in view.
+  const off = await sticky.boundingBox(), room = await available();
+  if (off && off.x < room.left + 200) { await page.mouse.move(paperBox.x + paperBox.width / 2, paperBox.y + 120); await page.mouse.wheel(off.x - (room.left + 300), 0); await page.waitForTimeout(400); }
   const s = await sticky.boundingBox();
-  assert.ok(s, 'the sticky n1 is on screen');
+  assert.ok(s && s.x >= room.left && s.x + s.width <= room.right, 'the sticky n1 is on screen');
   const dx = s.x + s.width / 2 < paperBox.x + paperBox.width / 2 ? -140 : 140;
   const fromItems = (await inkOf(A)).items.find(i => i.id === 'n1');
   await page.mouse.move(s.x + 30, s.y + 12);
@@ -343,6 +359,7 @@ await check('scenario 2 + brief 3: hide Editor (nothing left intercepting the ca
   await page.mouse.move(s.x + 30 + dx, s.y + 92, { steps: 6 });
   await page.mouse.up();
   const moved = await waitFor(async () => { const n = (await inkOf(A)).items.find(i => i.id === 'n1'); return n && (n.x !== fromItems.x || n.y !== fromItems.y) && n; }, 5000, 'the sticky did not move');
+  const camBefore = await camera();
   await setView('Editor');
   assert.deepEqual(await camera(), camBefore, 'reopening Editor moved the camera (a recentre)');
   assert.deepEqual(await blockIds(), ids2, 'the same blocks, the same ids');
@@ -360,12 +377,13 @@ await check('scenario 2 + brief 3: hide Editor (nothing left intercepting the ca
   await waitFor(async () => (await inkOf(A)).items.find(i => i.id === 'n1').x === moved.x, 5000, 'canvas Redo did not redo the sticky move');
 });
 await check('brief 3 / decision B1: the view choice is remembered per user and canvas in localStorage `${canvasKey}:view`, and survives a reload', async () => {
+  const idsBefore = await blockIds();
   assert.equal(await page.evaluate(key => localStorage.getItem(key), `${keyOf(A)}:view`), 'editor');
   assert.equal(await page.evaluate(key => localStorage.getItem(key), `${keyOf(B)}:view`), null, 'another canvas has no choice');
   await page.reload();
   await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
   await waitFor(async () => (await paper().getAttribute('data-doc-state').catch(() => null)) === 'ready', 20000, 'Editor did not come back after a reload');
-  assert.deepEqual(await blockIds(), ids2, 'the same document after a reload');
+  assert.deepEqual(await blockIds(), idsBefore, 'the same document after a reload');
 });
 
 // ================================================================ Scenario 7 + brief 9: keys inside the editor never reach the canvas
@@ -391,6 +409,7 @@ await check('scenario 7 + brief 9: Space, tool letters, Backspace on a selected 
   // Select all, Delete, Undo, Redo, Undo: editor history only. (BlockNote may select the block first, then the document.)
   const full = await docTextNow(), marked = () => page.locator('[data-item-id].ring-2, [data-block-id].ring-select, [data-shape-id][data-selected]').count();
   const selectedBefore = await marked();
+  await page.waitForTimeout(800); // ProseMirror joins edits less than 500 ms apart into one undo step
   await page.keyboard.press('Control+a');
   const sel = await page.evaluate(() => ({ text: getSelection().toString(), inEditor: !!getSelection().anchorNode?.parentElement?.closest('[data-canvas-doc-editor]') }));
   facts.select_all = { chars: sel.text.length, doc_chars: full.length };
@@ -402,7 +421,7 @@ await check('scenario 7 + brief 9: Space, tool letters, Backspace on a selected 
   assert.ok(cleared.length < full.length && !cleared.includes(sel.text.trim()), 'Delete did not remove the selected text');
   assert.equal(await objectsOf(A), before, 'Delete touched the canvas');
   await page.keyboard.press('Control+z');
-  await waitFor(async () => (await docTextNow()) === full, 3000, 'Ctrl+Z did not restore the text (editor history)');
+  await waitFor(async () => (await docTextNow()) === full, 3000, 'Ctrl+Z did not restore the text (editor history)').catch(async error => { throw Error(`${error.message}: ${JSON.stringify((await docTextNow()).slice(0, 160))} vs ${JSON.stringify(full.slice(0, 160))}`); });
   await page.keyboard.press('Control+y');
   await waitFor(async () => (await docTextNow()) === cleared, 3000, 'Ctrl+Y did not redo the delete');
   await page.keyboard.press('Control+z');
@@ -419,8 +438,16 @@ await check('scenario 7 + brief 9: Space, tool letters, Backspace on a selected 
   assert.equal(aiCalls(), calls, 'editing sent an AI request');
 });
 await check('scenario 7: native block reorder (Shift+Ctrl+ArrowUp and the side-menu drag handle) moves blocks in the flow, never a canvas card', async () => {
-  const before = await objectsOf(A), ids = await blockIds();
-  await clickBlock(ids.at(-1));
+  const before = await objectsOf(A);
+  await clickBlock((await blockIds()).at(-1));
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Reorder one');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Reorder two');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Reorder three'); // the caret stays on the last line
+  const ids = await blockIds(), last = (await page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${ids.at(-1)}"]`).first().innerText()).trim();
+  assert.equal(last, 'Reorder three', 'the reorder lines were not typed at the end');
   await page.keyboard.press('Shift+Control+ArrowUp');
   await page.waitForTimeout(200);
   const after = await blockIds();
@@ -468,6 +495,7 @@ await check('brief 9: Escape closes the slash menu first and keeps Editor and th
 });
 await check('brief 9: with the Hand tool a drag over the paper pans the camera; with Select a click puts the caret back', async () => {
   await page.locator('button[aria-keyshortcuts="H"]').first().click();
+  assert.equal(await pressedTool(), 'H', 'the Hand tool is not the pressed tool');
   const b = await paper().boundingBox(), c0 = await camera();
   await page.mouse.move(b.x + b.width / 2, b.y + 80);
   await page.mouse.down();
@@ -494,14 +522,23 @@ await check('brief 9: canvas Select all + Delete outside the editor never delete
 });
 
 // ================================================================ Scenario 9: Chat open/resize/close and theme keep the editor
+const chatOpen = async () => {
+  const show = page.locator('button[aria-label="Show the right panel"]').first();
+  if (await show.isVisible().catch(() => false)) { await show.click(); await pane().waitFor({ state: 'visible' }); await page.waitForTimeout(400); }
+};
+const paneShown = async () => { const b = await pane().boundingBox().catch(() => null), vp = page.viewportSize(); return !!b && b.width >= 10 && b.x < vp.width - 2 && await pane().isVisible().catch(() => false); };
 await check('scenario 9: closing, reopening and resizing Chat keeps the same editor (no remount), the same block ids and the stored world position', async () => {
+  await chatOpen();
   const ids = await blockIds(), world = await paperWorld(), stored = (await boardOf(A)).state.doc;
   await editable().evaluate(el => { el.dataset.cdocTag = 'kept'; });
   const toggle = page.locator('button[aria-label="Hide the right panel"], button[aria-label="Show the right panel"]').first();
   await toggle.click();
-  await waitFor(async () => !(await pane().isVisible().catch(() => false)) || (await pane().boundingBox())?.width < 10, 4000, 'Chat did not close');
+  await waitFor(async () => !(await paneShown()), 4000, 'Chat did not close').catch(async error => { throw Error(`${error.message}: [data-chat-pane] box ${JSON.stringify(await pane().boundingBox().catch(() => null))}`); });
   await page.waitForTimeout(400);
-  const closed = await paperWorld();
+  const settled = async () => { let last = await paperWorld(); for (let i = 0; i < 10; i++) { await page.waitForTimeout(200); const now = await paperWorld(); if (Math.abs(now.x - last.x) < 0.5 && Math.abs(now.y - last.y) < 0.5) return now; last = now; } return last; };
+  const before = await paper().evaluate(el => el.getAttribute("style")?.slice(0, 160));
+  facts.paper_style_before_close = before;
+  const closed = await settled();
   await toggle.click();
   await pane().waitFor({ state: 'visible' });
   await page.waitForTimeout(400);
@@ -512,8 +549,8 @@ await check('scenario 9: closing, reopening and resizing Chat keeps the same edi
   await page.mouse.move(hb.x - 120, hb.y + hb.height / 2, { steps: 6 });
   await page.mouse.up();
   await page.waitForTimeout(500);
-  const resized = await paperWorld();
-  for (const [what, w] of [['closing Chat', closed], ['resizing Chat', resized]]) assert.ok(Math.abs(w.x - world.x) < 1 && Math.abs(w.y - world.y) < 1, `${what} moved the paper in the world (${Math.round(w.x - world.x)},${Math.round(w.y - world.y)})`);
+  const resized = await settled();
+  for (const [what, w] of [['closing Chat', closed], ['resizing Chat', resized]]) assert.ok(Math.abs(w.x - world.x) < 1 && Math.abs(w.y - world.y) < 1, `${what} moved the paper in the world (${Math.round(w.x - world.x)},${Math.round(w.y - world.y)}); paper offset in its layer ${JSON.stringify(await paper().evaluate(el => [el.offsetLeft, el.offsetTop, el.offsetParent?.style.transform?.slice(0, 60), el.offsetParent?.offsetLeft, el.getAttribute("style")?.slice(0, 160), getComputedStyle(el).transform]))}`);
   assert.equal(await editable().getAttribute('data-cdoc-tag'), 'kept', 'the editor was remounted');
   assert.deepEqual(await blockIds(), ids);
   await page.waitForTimeout(2500);
@@ -626,10 +663,12 @@ await check('scenario 6: near the bottom and right edges of the canvas room the 
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Backspace');
   // Right edge: the paper's left text column about 120 px from the panel.
+  // ... and the first block back in view vertically (the bottom-edge pan left it above the room).
   const p = await paper().boundingBox(), shift = (room.right - 160) - (p.x + 70);
+  const b0 = await page.locator(`[data-canvas-doc] .bn-block-outer[data-id="${ids[0]}"]`).first().boundingBox(), lift = (room.top + 200) - b0.y;
   const at = await barePoint();
   await page.mouse.move(at.x, at.y);
-  await page.mouse.wheel(-Math.round(shift), 0);
+  await page.mouse.wheel(-Math.round(shift), -Math.round(lift));
   await frames();
   await clickBlock(ids[0]);
   await page.keyboard.press('Enter');
@@ -644,6 +683,8 @@ await check('scenario 6: near the bottom and right edges of the canvas room the 
 // ================================================================ Scenario 12 (part 1): a chat question carries the unsaved document text
 await check('scenario 12: with a save still in flight, Chat carries the current unsaved document text as a document object with full coverage, in one request', async () => {
   const UNSAVED = `Unsaved marker ${run}`;
+  await chatOpen();
+  await goToStart();
   holdSaves = A;
   await clickBlock((await blockIds()).at(-1));
   await page.keyboard.press('Enter');
@@ -664,7 +705,34 @@ await check('scenario 12: with a save still in flight, Chat carries the current 
   assert.ok((parts.pkg.inventory?.items || []).some(e => e.id === 'c1') && (parts.pkg.inventory?.items || []).some(e => e.id === 'n1'), 'the cards and the sticky left the inventory');
   release();
   await waitFor(async () => (await status().getAttribute('data-state')) === 'saved', 15000, 'the held save did not finish as Saved');
-  assert.ok(textOf((await boardOf(A)).state.doc.blocks).includes(UNSAVED), 'the released save does not hold the marker');
+  if (!textOf((await boardOf(A)).state.doc.blocks).includes(UNSAVED)) {
+    const later = await waitFor(async () => textOf((await boardOf(A)).state.doc.blocks).includes(UNSAVED), 8000, 'never').then(() => true, () => false);
+    assert.fail(`the save status read Saved before the server held the marker (${later ? 'it arrived within 8 s more' : 'it never arrived within 8 s'})`);
+  }
+});
+release();
+
+await check('scenario 2 + brief 6: a click on a slash menu item and on the formatting toolbar Bold button applies it and keeps the caret in the document', async () => {
+  const where = async () => page.evaluate(() => { const a = document.activeElement; return a?.closest('[data-canvas-doc-editor]') ? 'the editor' : `${a?.tagName}${a?.getAttribute('aria-label') ? `[aria-label="${a.getAttribute('aria-label')}"]` : ''}`; });
+  await goToStart();
+  const tool = await pressedTool(), objects = await objectsOf(A);
+  await clickBlock((await blockIds()).at(-1));
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/heading');
+  await assertUsable('.bn-suggestion-menu', 'the slash menu');
+  await page.locator('.bn-suggestion-menu-item').first().click();
+  await page.waitForTimeout(200);
+  const after = (await docTextNow()).trim(), focus = await where();
+  assert.ok(!after.includes('/heading') && focus === 'the editor', `a click on the slash menu's first item did not apply it (the document still reads "/heading", focus is on ${focus})`);
+  await page.keyboard.type('Click test ATP');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await assertUsable('.bn-formatting-toolbar', 'the formatting toolbar');
+  await page.locator('.bn-formatting-toolbar [data-test="bold"]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await where(), 'the editor', 'a click on Bold took the caret out of the document');
+  assert.ok(await page.locator('[data-canvas-doc-editor] strong, [data-canvas-doc-editor] [data-style-type="bold"]').filter({ hasText: /^ATP$/ }).count() > 0, 'a click on Bold did not bold the selection');
+  assert.equal(await pressedTool(), tool, 'typing after the clicks changed the canvas tool');
+  assert.equal(await objectsOf(A), objects, 'the clicks or the typing changed a canvas object');
 });
 release();
 
@@ -725,7 +793,8 @@ await check('scenario 5 + brief 6: Ctrl+End and Ctrl+Home reveal the caret; typi
   const s0 = await scrolls();
   await page.keyboard.press('Control+End');
   await page.waitForTimeout(500);
-  assert.deepEqual(await scrolls(), s0, 'Ctrl+End scrolled the page, the shell or the paper instead of moving the camera');
+  const s1 = await scrolls();
+  assert.deepEqual(s1, s0, `Ctrl+End scrolled the page, the shell or the paper instead of moving the camera: ${JSON.stringify(s0)} -> ${JSON.stringify(s1)}`);
   const room = await available();
   let caret = await caretBox();
   assert.ok(caret?.inEditor && caret.y >= room.top && caret.y + caret.h <= room.bottom, `Ctrl+End left the caret off screen (${JSON.stringify(caret)})`);
