@@ -60,7 +60,8 @@ canvas, then the companion, then Chat, side by side (repo-graph-plan.md Interfac
   `[data-panel-viewer="files"]`. Each is a pressed toggle beside the tabs, not a tab. Graph opens from the composer's Explore
   codebase. The companion's header has its view buttons (`[data-companion-view]`, aria-pressed) and Close viewer. After a show()
   replaced a visible view (Open source from the graph), Back to <view> (`[data-companion-return]`) returns there.
-- The companion resizes from its left edge (`rh.companion.width`, default 440). It leaves room for Chat's width, so the
+- The companion resizes from its left edge (`rh.companion.width`, default 360, so at 1440 px with Chat open the canvas keeps
+  656 px, above the 640 px where its tool and map gutters fold). It leaves room for Chat's width, so the
   canvas keeps at least 360 px. The canvas is a flex sibling, so its real width shrinks and no saved object moves.
 - Below lg one column shows at a time. The viewer shows in Chat's place, with Back to chat (`[data-companion-back]`) instead
   of Close. Chat stays mounted, so its draft and history survive.
