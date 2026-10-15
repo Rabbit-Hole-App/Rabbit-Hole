@@ -218,11 +218,11 @@ await check('3 Graph and Files selections are one canonical object: the same sym
 
 await symbolRow('model_gpt_forward').click();
 const before = { keys: await keys(), asks: asks.length };
-await check('4 highlighted code does NOT auto-attach: a drag over lines 177-179 only highlights them and offers [Ask in chat] [Copy]', async () => {
+await check('4 highlighted code does NOT auto-attach: a drag over lines 177-179 only highlights them and offers [Ask in chat] [Add code card] [Copy]', async () => {
   await drag(177, 179);
   assert.match(await selected(), /tok_emb = self\.transformer\.wte/);
   assert.equal(await actions.count(), 1);
-  assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
+  assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Add code card', 'Copy']);
   assert.match(await actions.innerText(), /model\.py:177–179/);
   await reader.locator('[data-highlighted][data-source-line="177"]').first().waitFor({ timeout: 10000 }).catch(() => {});
   assert.deepEqual(await lit(), [177, 178, 179]);
@@ -333,7 +333,7 @@ await check('10 Files beside Chat: a file opens, Ask in chat puts the lines on t
   await line(5).waitFor({ timeout: 10000 });
   await drag(5, 7);
   // The panel's selection offers exactly Ask in chat and Copy (owner, 2026-10-08).
-  assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
+  assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Add code card', 'Copy']);
   await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
   await chipFor(linesKey('train.py', 5, 7));
   assert.equal(await field().inputValue(), 'What do lines 5–7 of train.py do?');
@@ -443,7 +443,7 @@ await check('10d a code reference in an answer opens Files beside Chat at that r
   await shows('files');
   await learnFiles.locator('[data-file-row="model.py"][aria-current="true"]').waitFor({ timeout: 10000 });
   await page.waitForFunction(() => [...document.querySelectorAll('[data-learn-files] [data-highlighted]')].map((n) => n.dataset.sourceLine).join() === '177,178,179', null, { timeout: 10000 });
-  assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
+  assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Add code card', 'Copy']);
   assert.ok(await line(177).isVisible(), 'scrolled into view');
   assert.ok(await page.locator('[data-chat-pane]').first().isVisible(), 'Chat stays beside it');
   await page.waitForTimeout(400);
