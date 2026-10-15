@@ -898,6 +898,170 @@ await check('scenario 12: on the 200-block canvas Chat carries the document as p
   assert.ok(['c1', 'c2', 'n2'].every(id => inv.some(e => e.id === id)), 'the long document pushed the cards out of the inventory');
 });
 
+// ---------------------------------------------------------------- cards above the document; the document in the minimap
+// (C:/s/spec/blocknote-layers-minimap.md section 4). Canvas L: a text card, a PDF card and an image card in the column with
+// a sticky beside them, and a short document placed over the column; canvas E: two cards and an EMPTY document beside them.
+const IMG = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#9ec5fe"/></svg>').toString('base64');
+const L = await makeCanvas(`Doc layers ${run}`, {
+  blocks: [card('l1', 'Light reactions', 'Light splits water in the thylakoids, releasing oxygen and making ATP and NADPH.'), { id: 'lpdf', type: 'pdf', dx: 0, dy: 0, assetKey: 'pdf:none', label: 'chloroplast.pdf', h: 300 }, { id: 'limg', type: 'image', dx: 0, dy: 0, src: IMG, title: 'Thylakoid' }],
+  items: [note('ln1', 'Over the page', 780, 60)],
+  doc: { v: 1, x: 240, y: 0, w: 760, blocks: [{ id: 'lp1', type: 'paragraph', content: run1('Layer notes, written beside and under the cards.'), children: [] }] },
+});
+const E = await makeCanvas(`Doc empty ${run}`, { ...SIDE, doc: { v: 1, x: 700, y: 0, w: 760, blocks: [] } });
+// What the pointer meets at a point: the card (or note) there, the document, or something else.
+const topAt = (x, y) => page.evaluate(([px, py]) => {
+  const el = document.elementFromPoint(px, py);
+  const owner = el?.closest('[data-block-id],[data-item-id]');
+  return owner ? `card:${owner.dataset.blockId || owner.dataset.itemId}` : el?.closest('[data-canvas-doc]') ? 'doc' : el ? el.tagName : 'none';
+}, [x, y]);
+// Points of a card that lie over the paper (its overlap), sampled on a grid: every one must hit the card.
+const overlapPoints = async id => {
+  const c = await page.locator(`[data-block-id="${id}"],[data-item-id="${id}"]`).first().boundingBox(), p = await paper().boundingBox();
+  const left = Math.max(c.x, p.x) + 6, right = Math.min(c.x + c.width, p.x + p.width) - 6, top = Math.max(c.y, p.y) + 6, bottom = Math.min(c.y + c.height, p.y + p.height) - 6;
+  if (right <= left || bottom <= top) throw Error(`${id} does not overlap the paper`);
+  const points = [];
+  for (let i = 0; i <= 3; i++) for (let j = 0; j <= 3; j++) points.push([left + (right - left) * i / 3, top + (bottom - top) * j / 3]);
+  return points;
+};
+// A point is a miss only when the DOCUMENT takes it: another card, a note or the card's own toolbar above it is fine.
+const coveredBy = async id => { const misses = []; for (const [x, y] of await overlapPoints(id)) { const hit = await topAt(x, y); if (hit === 'doc') misses.push(`${Math.round(x)},${Math.round(y)}=${hit}`); } return misses; };
+// The minimap's document page and its proportions, against the paper's own world size (the one source both must share).
+const minimapDoc = () => page.locator('[aria-label="Canvas overview"] [data-minimap-doc]');
+const footprint = async () => {
+  const r = await minimapDoc().evaluate(el => ({ w: Number(el.getAttribute('width')), h: Number(el.getAttribute('height')) }));
+  const w = await paperWorld();
+  return { ratio: r.h / r.w, paperRatio: w.h / w.w, paperH: w.h };
+};
+
+await check('layers 1+2: every card over the document - a PDF card, an image card and an unselected text card - is above it, whole', async () => {
+  await profile({ view: 'editor', canvas: L });
+  await openCanvas(L);
+  await waitFor(async () => (await paper().getAttribute('data-doc-state')) === 'ready', 20000, 'the document did not open');
+  await page.locator('[data-block-id="lpdf"]').click({ position: { x: 30, y: 14 } });
+  await waitFor(async () => (await page.locator('[data-block-id="lpdf"]').getAttribute('aria-current')) === 'true', 4000, 'a click on the PDF card over the document did not select it');
+  for (const id of ['lpdf', 'limg', 'l1']) { const misses = await coveredBy(id); assert.deepEqual(misses, [], `${id} is hidden by the document at ${misses.join(' ')}`); }
+  const caret = await page.evaluate(() => !!getSelection().anchorNode?.parentElement?.closest('[data-canvas-doc]'));
+  assert.equal(caret, false, 'the click on the card placed a caret in the document');
+  await shot('L1-cards-above-document');
+});
+await check('layers 3: focusing and typing in the document never raises it over the cards', async () => {
+  const line = await page.locator('[data-canvas-doc] .bn-inline-content', { hasText: 'Layer notes' }).boundingBox();
+  await page.mouse.click(line.x + line.width - 8, line.y + line.height / 2); // the line's uncovered end
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Typed while the cards stay on top.');
+  await waitFor(async () => (await docTextNow()).includes('stay on top'), 4000, 'the typing did not reach the document');
+  for (const id of ['lpdf', 'l1']) { const misses = await coveredBy(id); assert.deepEqual(misses, [], `${id} went under the focused document at ${misses.join(' ')}`); }
+});
+await check('layers 4: dragging and resizing a card over the document moves the card only, where it was dropped, and leaves the text alone', async () => {
+  const text = await docTextNow(), before = (await inkOf(L)).blocks.find(b => b.id === 'l1');
+  const box = await page.locator('[data-block-id="l1"]').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + 10);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) { await page.mouse.move(box.x + box.width / 2 + i * 4, box.y + 10 + i * 52); await page.waitForTimeout(16); }
+  await page.mouse.up();
+  await waitFor(async () => { const after = (await inkOf(L)).blocks.find(b => b.id === 'l1'); return after.dx !== before.dx && after.dy !== before.dy; }, 4000, 'the card did not move');
+  const moved = (await inkOf(L)).blocks.find(b => b.id === 'l1');
+  assert.ok(Math.abs(moved.dx - before.dx - 40) < 30 && Math.abs(moved.dy - before.dy - 520) < 30, `the card was not left where it was dropped (${moved.dx - before.dx}, ${moved.dy - before.dy})`);
+  assert.equal(await docTextNow(), text, 'the drag edited the document');
+  assert.equal(await page.locator('[data-doc-drop-hint]').count(), 0, 'a drop over the document was refused');
+  assert.deepEqual(await coveredBy('l1'), [], 'the dropped card is under the document');
+  const card = page.locator('[data-block-id="l1"]');
+  await card.hover();
+  const handle = card.getByRole('button', { name: /^Resize/ }).first();
+  const h = await handle.boundingBox(), w0 = (await card.boundingBox()).width;
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) { await page.mouse.move(h.x + h.width / 2 + i * 15, h.y + h.height / 2 + i * 10); await page.waitForTimeout(16); }
+  await page.mouse.up();
+  await waitFor(async () => (await card.boundingBox()).width > w0 + 40, 4000, 'the card over the document did not resize');
+  assert.equal(await docTextNow(), text, 'the resize edited the document');
+});
+await check('layers 5: Send to back keeps a note over the document above it', async () => {
+  const note = page.locator('[data-item-id="ln1"]');
+  await note.click({ button: 'right', position: { x: 6, y: 6 } });
+  await page.getByText('Send to back', { exact: true }).click();
+  await page.waitForTimeout(300);
+  assert.deepEqual(await coveredBy('ln1'), [], 'Send to back put the note behind the document');
+});
+await check('layers 6: where no card covers it, the document still takes clicks, text selection and its menus', async () => {
+  await page.keyboard.press('Escape');
+  const p = await paper().boundingBox(), target = page.locator('[data-canvas-doc] .bn-inline-content', { hasText: 'Layer notes' });
+  const t = await target.boundingBox();
+  // The first point of the line, from its end, that no card or note covers.
+  let free = null;
+  for (let x = t.x + t.width - 30; x > t.x && !free; x -= 15) if (await topAt(x, t.y + t.height / 2) === 'doc') free = x;
+  assert.ok(free, 'no part of the line is uncovered to click');
+  await page.mouse.dblclick(free, t.y + t.height / 2);
+  const selected = await page.evaluate(() => ({ text: getSelection().toString().trim(), inDoc: !!getSelection().anchorNode?.parentElement?.closest('[data-canvas-doc]') }));
+  assert.ok(selected.inDoc && selected.text.length > 1, `a double-click in uncovered text did not select a word (${JSON.stringify(selected)})`);
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/');
+  const menu = page.locator('.bn-suggestion-menu').first();
+  await menu.waitFor({ state: 'visible', timeout: 4000 });
+  const m = await menu.boundingBox();
+  const hit = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.bn-suggestion-menu'), [m.x + m.width / 2, m.y + Math.min(m.height / 2, 60)]);
+  assert.ok(hit, 'the slash menu is covered at its middle');
+  facts.layers_menu = { x: Math.round(m.x - p.x), y: Math.round(m.y - p.y), w: Math.round(m.width) };
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+});
+await check('layers 9: pan, zoom, Canvas and Editor, and a reload keep the cards above the document', async () => {
+  await page.keyboard.press('Escape');
+  await viewMenu().click(); await menubar().getByRole('menuitem', { name: /Zoom in/ }).click();
+  await page.waitForTimeout(300);
+  const at = await barePoint();
+  await page.mouse.move(at.x, at.y); await page.mouse.wheel(120, 80); await page.waitForTimeout(300);
+  assert.deepEqual(await coveredBy('lpdf'), [], 'after zoom and pan the PDF card is under the document');
+  await setView('Canvas');
+  assert.equal(await minimapDoc().count(), 0, 'Canvas view still shows the document in the minimap');
+  await setView('Editor');
+  assert.equal(await minimapDoc().count(), 1, 'Editor view lost the document in the minimap');
+  await page.reload();
+  await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+  await waitFor(async () => (await paper().getAttribute('data-doc-state').catch(() => null)) === 'ready', 20000, 'the document did not reopen');
+  await page.waitForTimeout(800);
+  for (const id of ['lpdf', 'limg']) { const misses = await coveredBy(id).catch(error => [error.message]); assert.deepEqual(misses, [], `after a reload ${id} is under the document at ${misses.join(' ')}`); }
+});
+await check('layers 7: an empty document shows in the minimap as a page of its world size, beside the card marks', async () => {
+  await profile({ view: 'editor', canvas: E });
+  await openCanvas(E);
+  await waitFor(async () => (await paper().getAttribute('data-doc-state')) === 'ready', 20000, 'the empty document did not open');
+  await waitFor(async () => (await minimapDoc().count()) === 1, 4000, 'the empty document is not in the minimap');
+  const f = await footprint();
+  facts.minimap_empty = f;
+  assert.ok(f.paperH >= 900, `the empty paper is ${f.paperH} high, not its minimum page height`);
+  assert.ok(Math.abs(f.ratio - f.paperRatio) < 0.03, `the minimap page (${f.ratio.toFixed(3)}) is not the paper's shape (${f.paperRatio.toFixed(3)})`);
+  const marks = await page.locator('[aria-label="Canvas overview"] rect:not([data-minimap-doc])').count();
+  const order = await page.locator('[aria-label="Canvas overview"]').evaluate(svg => [...svg.querySelectorAll('rect')].findIndex(r => r.hasAttribute('data-minimap-doc')));
+  assert.ok(marks >= 2 && order === 0, 'the document page is not drawn first, under the card marks');
+  await page.locator('[aria-label="Canvas overview"]').screenshot({ path: `${OUT}/L7-minimap-empty-document.png` });
+});
+await check('layers 8: the minimap page grows with the document', async () => {
+  const before = await footprint();
+  await editable().click();
+  for (let i = 0; i < 40; i++) { await page.keyboard.type(`Line ${i}`); await page.keyboard.press('Enter'); }
+  await waitFor(async () => (await paperWorld()).h > before.paperH + 300, 6000, 'the paper did not grow');
+  await waitFor(async () => { const f = await footprint(); return Math.abs(f.ratio - f.paperRatio) < 0.03 && f.ratio > before.ratio + 0.2; }, 4000, 'the minimap page did not follow the paper\'s growth');
+  facts.minimap_grown = await footprint();
+  await page.locator('[aria-label="Canvas overview"]').screenshot({ path: `${OUT}/L8-minimap-grown-document.png` });
+});
+await check('layers 10: dark and light - the paper and its minimap page stand apart from the canvas, cards stay on top', async () => {
+  for (const dark of [true, false]) {
+    await page.evaluate(on => { document.documentElement.classList.toggle('dark', on); window.dispatchEvent(new CustomEvent('small:theme', { detail: on })); }, dark);
+    await page.waitForTimeout(300);
+    const colors = await page.evaluate(() => {
+      const fill = getComputedStyle(document.querySelector('[data-minimap-doc]')).fill, frame = getComputedStyle(document.querySelector('[aria-label="Canvas overview"]').parentElement).backgroundColor;
+      const paper = getComputedStyle(document.querySelector('[data-canvas-doc]')).backgroundColor, surface = getComputedStyle(document.querySelector('[data-canvas-surface]')).backgroundColor;
+      return { fill, frame, paper, surface };
+    });
+    assert.notEqual(colors.fill, colors.frame, `${dark ? 'dark' : 'light'}: the minimap page has the minimap's own colour`);
+    facts[`layers_${dark ? 'dark' : 'light'}`] = colors;
+    await shot(`L10-${dark ? 'dark' : 'light'}`);
+  }
+});
+
 await check('no AI request other than the chat questions this check sent, no other model-capable request, no page error', async () => {
   assert.equal(captured.length, 2, `requests: ${captured.map(c => c.route).join(', ')}`);
   assert.deepEqual(refused, [], `refused routes: ${refused.join(', ')}`);
@@ -907,7 +1071,7 @@ await check('no AI request other than the chat questions this check sent, no oth
 await context.close();
 await browser.close();
 const failed = results.filter(r => !r.ok);
-writeFileSync(`${OUT}/results.json`, JSON.stringify({ base: BASE, canvases: { A, B }, passed: results.length - failed.length, failed: failed.length, checks: results, facts,
+writeFileSync(`${OUT}/results.json`, JSON.stringify({ base: BASE, canvases: { A, B, L, E }, passed: results.length - failed.length, failed: failed.length, checks: results, facts,
   model_capable_refused: refused, outside_hosts: [...new Set(outside)], page_errors: errors }, null, 2));
 console.log(failed.length ? `FAIL ${failed.length} of ${results.length} checks (see ${OUT}/results.json)` : `PASS ${results.length} checks`);
 process.exit(failed.length ? 1 : 0);

@@ -1834,8 +1834,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // unsaved words, the freehand strokes, every object's measured box in world units, and the ids selected now.
       // doc: the document with the editor's unsaved words (docLive), in both views; boxes.doc its measured sheet in Editor view.
       liveBoard: () => {
-        const doc = liveDoc(), paper = paperRef.current;
-        return { ...semanticBoard(), strokes: present.current.strokes, boxes: { ...inlineCanvas.layout(), ...(doc && paper ? { doc: { x: doc.x, y: doc.y, w: doc.w, h: paper.offsetHeight } } : {}) }, doc };
+        const doc = liveDoc(), box = docBoxRef.current;
+        return { ...semanticBoard(), strokes: present.current.strokes, boxes: { ...inlineCanvas.layout(), ...(box ? { doc: box } : {}) }, doc };
       },
       // The document (blocknote-canvas.md): its box, framing its start, and a whole replacement (Restore my unsaved document).
       goToDoc: () => goToDoc(),
@@ -4313,28 +4313,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const by = box.bottom > bottom ? bottom - box.bottom : box.top < top ? top - box.top : 0;
     if (by) setView(v => (autoView.current = { ...v, y: v.y + by }));
   };
-  // A card dropped where the sheet would hide it goes back where the drag began, with a short hint (section 7); passing
-  // across the sheet during the drag is fine. Only cards (blocks) are checked: the sheet never moves anything itself.
-  const dragFrom = useRef(null);
-  const [docDropHint, setDocDropHint] = useState(0);
-  const docDragStart = event => {
-    if (docView !== 'editor' || !docRef.current || !event.target.closest?.('[data-block-id]') || event.target.closest?.('[data-canvas-doc]')) return;
-    dragFrom.current = new Map(blocksRef.current.map(block => [block.id, { dx: block.dx, dy: block.dy }]));
-    window.addEventListener('pointerup', () => requestAnimationFrame(docDragEnd), { once: true, capture: true });
-  };
-  const docDragEnd = () => {
-    const from = dragFrom.current, sheet = docRef.current, paper = paperRef.current;
-    dragFrom.current = null;
-    if (!from || !sheet || !paper) return;
-    const rect = { x: sheet.x, y: sheet.y, w: sheet.w, h: paper.offsetHeight };
-    const under = id => { const box = boundsRef.current[id]; return box && box.x < rect.x + rect.w && box.x + box.w > rect.x && box.y < rect.y + rect.h && box.y + box.h > rect.y; };
-    const moved = blocksRef.current.filter(block => { const was = from.get(block.id); return was && (was.dx !== block.dx || was.dy !== block.dy); });
-    if (!moved.length || !moved.some(block => under(block.id))) return;
-    setBlocks(previous => previous.map(block => (from.has(block.id) && moved.some(m => m.id === block.id) ? { ...block, ...from.get(block.id) } : block)));
-    setDocDropHint(Date.now());
-  };
-  useEffect(() => { if (!docDropHint) return undefined; const timer = setTimeout(() => setDocDropHint(0), 3500); return () => clearTimeout(timer); }, [docDropHint]);
   const paperRef = useRef(null);
+  // The document's box in world units, the one source for its footprint (blocknote-layers-minimap.md section 3): its saved
+  // x, y and width, and the paper's measured height (at least DOC_MIN_H, empty or not), in Editor view only. The height comes
+  // from one ResizeObserver, set only when it changes (a new line, not a key), and is never saved with the board.
+  const [docH, setDocH] = useState(DOC_MIN_H);
+  const docBox = doc && docView === 'editor' ? { x: doc.x, y: doc.y, w: doc.w, h: docH } : null;
+  const docBoxRef = useRef(docBox);
+  docBoxRef.current = docBox;
+  const docShown = !!doc && docView === 'editor';
+  useEffect(() => {
+    const paper = paperRef.current;
+    if (!paper) return undefined;
+    const observer = new ResizeObserver(() => setDocH(Math.max(DOC_MIN_H, paper.offsetHeight)));
+    observer.observe(paper);
+    return () => observer.disconnect();
+  }, [docShown]);
   const [docMounted, setDocMounted] = useState(false);
   const [docEpoch, setDocEpoch] = useState(0);
   // [+] pushes everything below the line down; [-] pulls it up, stopping short
@@ -4608,6 +4602,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       ), COLUMN, pages === 'landscape')
     : [];
   const minimapBoxes = [
+    ...(docBox ? [{ ...docBox, doc: true }] : []),
     ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
@@ -4727,7 +4722,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
-        {docDropHint > 0 && <div role="status" data-doc-drop-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">The document would hide that card, so it went back. Drop it beside the document.</div>}
         {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (
           <div data-canvas-doc data-doc-state={docError ? 'error' : 'loading'} className="absolute top-12 left-1/2 z-40 w-80 -translate-x-1/2 rounded-md border border-line bg-white p-4 text-sm text-ink-2 shadow-md dark:bg-side">
             {docError ? <>
@@ -4736,8 +4730,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             </> : <p>Loading the document…</p>}
           </div>
         )}
-        <div ref={worldRef} onPointerDownCapture={docDragStart} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
-        {/* The document (docs/features/blocknote-canvas.md): a sheet in world units above the cards, in Editor view only - in
+        <div ref={worldRef} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
+        {/* The document (docs/features/blocknote-canvas.md): a writing surface in world units BELOW every canvas object
+            (blocknote-layers-minimap.md): the first child of the world layer with no z-index of its own, so cards, notes, shapes,
+            connectors and their handles - all later in this layer - paint and take the pointer above it, whatever their own
+            order, and focus or a menu never raises it. Its editor menus keep their own z-index in this layer, above the cards.
+            Editor view only - in
             Canvas view it is not drawn at all, so nothing invisible catches the canvas's input. The hand tool and Space pan
             through it; a press inside it is the editor's, never a marquee, pan or card drag. Files dropped on it do nothing
             (no media in this MVP) rather than becoming a canvas card behind it. */}
@@ -4748,7 +4746,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onContextMenu={event => event.stopPropagation()}
             onDragOver={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
             onDrop={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
-            className={`absolute z-40 flex flex-col rounded-md border border-line bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.06)] dark:bg-side ${(tool === 'hand' && !readOnly) || spacePan ? 'pointer-events-none' : ''}`}>
+            className={`absolute flex flex-col rounded-md border border-line bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.06)] dark:bg-side ${(tool === 'hand' && !readOnly) || spacePan ? 'pointer-events-none' : ''}`}>
             <div data-canvas-doc-editor className="flex-1 px-4 py-14 [&_.bn-editor]:px-10">
               {unknownDocBlock(doc.blocks)
                 ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>

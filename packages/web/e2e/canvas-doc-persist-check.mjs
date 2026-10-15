@@ -2,7 +2,7 @@
 // section 15 scenarios 3, 4, 8, 10, 11), against the LOCAL stack only: local D1 and fresh browser profiles. Coded to the
 // "Exact UI contract for checks" in the BlockNote plan: [data-canvas-doc] (data-doc-state), [data-canvas-doc-editor] .bn-editor,
 // [data-doc-save-status] (data-state saving|saved|error), [data-board-size-warning], [data-doc-conflict], [data-doc-restore],
-// [data-doc-drop-hint], the View menu's Canvas / Editor choice, and the server board's state.doc = { v: 1, x, y, w, blocks }.
+// no [data-doc-drop-hint] (a card dropped on the page stays there), the View menu's Canvas / Editor choice, and the server board's state.doc = { v: 1, x, y, w, blocks }.
 // No model is ever called: every model-capable route is aborted and counted, and none may happen.
 // Covered: write, hide, reopen, reload (block ids kept); a hide while a save is pending; another browser profile; canvas and
 // document edits alternated; an unsupported card-onto-paper drop; a second canvas and a child Rabbit Hole with their own
@@ -135,7 +135,8 @@ const setView = async (p, label) => {
   else await until(async () => (await paper(p).count()) === 0, 8000, 'the paper is still in the DOM in Canvas view');
 };
 const typeAtEnd = async (p, text) => {
-  await editorOf(p).click();
+  // Focus, not a click: a card may lie over the editor's middle, and cards sit above the document (blocknote-layers-minimap.md).
+  await editorOf(p).focus();
   await p.keyboard.press('Control+End');
   await p.keyboard.type(text);
 };
@@ -300,21 +301,25 @@ await check('decision 2: document edit, card move, document edit, card move - th
 });
 
 // ================================================================ 8. card onto the paper
-await check('scenario 8: dropping the card onto the paper is refused with [data-doc-drop-hint]; the card returns and the document is unchanged', async () => {
+// Owner, 2026-10-15 (C:/s/spec/blocknote-layers-minimap.md): users control placement - a card dropped onto the page is NOT
+// refused or moved back; it stays where it was dropped, above the document, and stays a canvas object.
+await check('scenario 8: a card dropped onto the paper stays where it was dropped, above the document; the document is unchanged', async () => {
   await page.keyboard.press('Escape');
   await cardInView(page);
   const beforeCard = await cardOf(A), beforeDoc = await docOf(A);
   const beforeBox = await card(page).boundingBox();
   const target = centre(await paper(page).boundingBox());
   await drag(page, await handleOf(page), target);
-  await page.locator('[data-doc-drop-hint]').waitFor({ state: 'visible', timeout: 5000 });
-  assert.ok((await page.locator('[data-doc-drop-hint]').innerText()).trim().length > 0, 'the hint says why');
-  await shot('8-drop-hint');
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator('[data-doc-drop-hint]').count(), 0, 'the drop was refused');
   const afterBox = await card(page).boundingBox();
-  assert.ok(Math.abs(afterBox.x - beforeBox.x) < 3 && Math.abs(afterBox.y - beforeBox.y) < 3, `the card is back where it was (${Math.round(beforeBox.x)},${Math.round(beforeBox.y)} -> ${Math.round(afterBox.x)},${Math.round(afterBox.y)})`);
+  assert.ok(Math.abs(afterBox.x - beforeBox.x) > 20 || Math.abs(afterBox.y - beforeBox.y) > 20, 'the card went back where it was');
+  const at = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return el?.closest('[data-block-id="c1"]') ? 'card' : el?.closest('[data-canvas-doc]') ? 'doc' : el?.tagName; }, [afterBox.x + afterBox.width / 2, afterBox.y + afterBox.height / 2]);
+  assert.notEqual(at, 'doc', 'the dropped card is under the document');
+  await shot('8-card-on-paper');
   await page.waitForTimeout(3500);
   const afterCard = await cardOf(A), afterDoc = await docOf(A);
-  assert.deepEqual([afterCard.dx, afterCard.dy], [beforeCard.dx, beforeCard.dy], 'the saved card position is unchanged');
+  assert.notDeepEqual([afterCard.dx, afterCard.dy], [beforeCard.dx, beforeCard.dy], 'the saved card position did not follow the drop');
   assert.deepEqual(afterDoc.blocks, beforeDoc.blocks, 'the document neither gained nor lost content');
   assert.equal((await page.locator('[aria-label="Lesson canvas"] [data-block-id="c1"]').evaluateAll(els => new Set(els.map(e => e.dataset.blockId)).size)), 1, 'one card, not a copy');
 });
