@@ -65,6 +65,8 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   // Lane E findings: a pressed node takes focus (Escape reaches the graph), a retracted column is inert, and a ready repository
   // whose snapshot read failed shows Retry rather than Loading forever.
   assert.match(read('RepositoryGraph.jsx'), /\.setPointerCapture\(e\.pointerId\);target\?\.focus\(\{preventScroll:true\}\);/);
+  // A right press takes no default focus (its scroll closed the node menu the contextmenu opened, Home's check on 44b97be1).
+  assert.match(read('RepositoryGraph.jsx'), /if\(e\.button!==0\)\{e\.preventDefault\(\);e\.target\.closest\('\[data-graph-node\]'\)\?\.focus\(\{preventScroll:true\}\);return;\}/);
   assert.match(read('ResizableSidePanel.jsx'), /<aside \{\.\.\.props\} ref=\{panel\} inert=\{collapsed \|\| undefined\}/);
   assert.match(wired, /const failed = status === 'failed' \|\| \(status === 'ready' && !!error\);/);
   // The canvas header beside the companion and Chat: wraps, centred only while it fits, starting after the Back button.

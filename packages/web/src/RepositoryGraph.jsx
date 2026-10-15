@@ -128,7 +128,10 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
     </div>
     <svg role="img" aria-label="Repository dependency graph" viewBox="0 0 1000 700" style={{backgroundImage:"radial-gradient(var(--graph-dot) 0.65px, transparent 0.65px)",backgroundSize:"22px 22px"}} className="h-full min-h-80 w-full flex-1 touch-none select-none" onWheel={e=>setView(v=>({...v,z:Math.max(.2,Math.min(3,v.z*(e.deltaY<0?1.1:.9)))}))}
       onPointerDown={e=>{
-        if(e.button!==0)return;e.preventDefault();suppressClick.current=false;
+        // A right press must not take the browser's default focus either: focusing scrolls the node into view, and that scroll
+        // closes the portaled node menu (ui.jsx Menu closes on any scroll) the contextmenu that follows has just opened.
+        if(e.button!==0){e.preventDefault();e.target.closest('[data-graph-node]')?.focus({preventScroll:true});return;}
+        e.preventDefault();suppressClick.current=false;
         const target=e.target.closest('[data-graph-node]');
         (target||e.currentTarget).setPointerCapture(e.pointerId);target?.focus({preventScroll:true}); // the press keeps focus off the node (preventDefault): give it, so Escape reaches the graph
         if(target){

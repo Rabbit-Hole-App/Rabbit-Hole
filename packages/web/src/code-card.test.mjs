@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { cardLines } from './card-source.js';
 import { CODE_DRAG, codeCardRef, dragSource, insertCodeCard, nodeCodeCard, previewOf, provenanceOf, repoCodeCard, sameCodeSource, uploadCodeCard, PREVIEW_LINES } from './code-card.js';
 import { codeLanguage, isCodeFile } from './code-language.js';
 import { assetKeysOf } from './learn-board-assets.js';
@@ -56,14 +57,19 @@ test('a card rides as the same code ref the graph and Files use, so they dedupe;
 
 test('the preview is a bounded excerpt of the card own lines, and says so', () => {
   const text = Array.from({ length: 100 }, (_, i) => `line ${i + 1}`).join('\n');
-  const range = previewOf(repoCodeCard({ ...repo, path: 'a.py', start: 10, end: 12 }), text);
+  // The hook hands over the card's range already cut (cardLines); the preview never cuts it again.
+  const range = previewOf(cardLines(text, 10, 12).lines);
   assert.deepEqual(range.lines.map(l => l.n), [10, 11, 12]);
   assert.equal(range.excerpt, false);
-  const whole = previewOf(repoCodeCard({ ...repo, path: 'a.py' }), text);
+  const whole = previewOf(cardLines(text).lines);
   assert.deepEqual([whole.shown, whole.total, whole.excerpt], [PREVIEW_LINES, 100, true]);
-  assert.deepEqual([previewOf(repoCodeCard({ ...repo, path: 'a.py' }), text, true).shown], [100]);
-  const symbol = previewOf(repoCodeCard({ ...repo, path: 'a.py', start: 90, nodeId: 'n' }), text);
+  assert.deepEqual([previewOf(cardLines(text).lines, true).shown], [100]);
+  const symbol = previewOf(cardLines(text, 90).lines);
   assert.deepEqual([symbol.lines[0].n, symbol.total], [90, 11], 'a symbol reads on from its line');
+  // Home's repro: a card from line 118 labelled 118 showed file line 235 (the range cut twice).
+  const file = Array.from({ length: 300 }, (_, i) => `src ${i + 1}`).join('\r\n');
+  const ranged = previewOf(cardLines(file, 118).lines);
+  assert.deepEqual([ranged.lines[0].n, ranged.lines[0].text], [118, 'src 118']);
   assert.equal(provenanceOf(repoCodeCard({ ...repo, path: 'a.py', start: 2, end: 4 })), `karpathy/nanoGPT › a.py:2-4 · ${sha.slice(0, 7)}`);
   assert.equal(provenanceOf(uploadCodeCard({ assetKey: 'k', name: 'dir/x.go', size: 1 })), 'Uploaded file · x.go');
 });
@@ -88,4 +94,14 @@ test('code is inert: the card never runs it, and the canvas renders repo-code as
   assert.doesNotMatch(card, /runPython|pyodide|eval\(|new Function/);
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /block\.type === 'repo-code'\) return <CanvasNode[^\n]*<CodeCard block=\{block\}/);
+});
+
+test('an uploaded code card reads its text from the board asset (cache, then the board copy), never a URL', async () => {
+  const { uploadText } = await import('./use-card-source.js');
+  assert.deepEqual(await uploadText('k', async () => 'print(1)'), { content: 'print(1)' });
+  assert.deepEqual(await uploadText('k', async () => new Blob(['x = 2'])), { content: 'x = 2' });
+  await assert.rejects(uploadText('k', async () => null), error => error.status === 404, 'a missing asset is unavailable');
+  const card = readFileSync(new URL('./CodeCard.jsx', import.meta.url), 'utf8');
+  assert.match(card, /const \{ status, lines \} = useCardSource\(block\);/);
+  assert.match(card, /previewOf\(lines, expanded\)/);
 });

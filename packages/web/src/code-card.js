@@ -66,13 +66,11 @@ export function codeCardRef(block, text = '') {
   return null;
 }
 
-// What the card shows of `text`: a repository range's own lines, else the whole text; bounded unless expanded.
+// What the card shows of its numbered lines. useCardSource already cut them to the card's range with the file's own line
+// numbers (card-source.js cardLines), so they are never cut again here; bounded unless expanded.
 // Returns { lines: [{ n, text }], shown, total, excerpt } - excerpt when fewer lines show than the card's code has.
-export function previewOf(block, text, expanded = false) {
-  const all = String(text ?? '').replace(/\r\n/g, '\n').split('\n');
-  const { start = null, end = null } = block?.source?.kind === 'repository' ? block.source : {};
-  const first = start ? Math.min(start, all.length) : 1, last = start && end ? Math.min(end, all.length) : all.length;
-  const range = all.slice(first - 1, last).map((line, i) => ({ n: first + i, text: line }));
+export function previewOf(lines, expanded = false) {
+  const range = (lines || []).map(line => ({ n: line.n, text: String(line.text ?? '').replace(/\r$/, '') }));
   const shown = expanded ? range : range.slice(0, PREVIEW_LINES);
   return { lines: shown, shown: shown.length, total: range.length, excerpt: shown.length < range.length };
 }

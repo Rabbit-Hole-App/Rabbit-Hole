@@ -6,7 +6,9 @@
 // Covered: both panels open (no blank strip, the map still shown in the tools gutter, the selected PDF card and its reader
 // whole); Chat dragged wider; Add to chat opening a hidden Chat keeps the selected card in view (a PDF card, then a Notebook
 // card); zoom 64%, 100% and 156% (the canvas still runs to the panel); Sources closed (the map back in its own column, top
-// right); every saved card position and size unchanged by all of it.
+// right); every saved card position and size unchanged by all of it. Then, on a second canvas, a repository code card and
+// graph card (repo-graph Release 2): whole beside both panels, whole after Add to chat opens a hidden Chat, and clipped by
+// the canvas surface alone.
 // Prints `ok <label>` per check; exits 1 on any failure. Evidence (screenshots, results.json) goes to OUT.
 // Usage: BASE=http://127.0.0.1:8881 SMALL_CP=http://127.0.0.1:8883 VARS=<cp .dev.vars> OUT=<dir> node e2e/canvas-clipping-check.mjs
 import { chromium } from '@playwright/test';
@@ -268,6 +270,60 @@ await check('Context closed (back on Chat) and the panel back to its 420 px defa
 await check('every saved card position and size is unchanged by opening, closing, resizing and zooming', async () => {
   assert.deepEqual(await saved(), positions);
 });
+
+// ================================================================ repository cards (repo-graph Release 2), on a second canvas
+// A code card and a graph card from the board itself. They point at a repository this user does not have, so each shows its
+// unavailable state at its full size: the frames are what clipping is about.
+const repoCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Clip cards ${run}` }) });
+const repository = { app: 'repo-0badc0de-clip-probe', repo: 'acme/clip-probe', commit: 'c'.repeat(40) };
+await api(`/api/learn/boards/${repoCanvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [
+  { id: 'rc1', type: 'repo-code', dx: 0, dy: 0, title: 'clip_probe.py', language: 'python', source: { kind: 'repository', ...repository, path: 'clip_probe.py' } },
+  { id: 'rg1', type: 'repo-graph', dx: 0, dy: 0, title: 'acme/clip-probe graph', repository, scope: 'whole', nodeIds: [], camera: null, w: 560, h: 520 },
+] } }) });
+await page.goto(`${BASE}/apps/${repoCanvas.name}`);
+await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
+await waitFor(async () => { const g = await geometry(); return g.cards.rc1 && g.cards.rg1; }, 20000, 'the repository cards were not drawn');
+await settle();
+for (const [name, id] of [['code', 'rc1'], ['graph', 'rg1']]) {
+  await check(`the repository ${name} card beside Chat and Context: the canvas runs to the panel and the selected card is whole`, async () => {
+    if ((await geometry()).panels < 2) { await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 }); await settle(); }
+    await select(id);
+    const g = await geometry();
+    facts[`repo_${name}_both_open`] = { surface: g.surface, panelLeft: g.panelLeft, card: g.cards[id] };
+    assert.equal(g.panels, 2, 'Chat and the companion column are open');
+    noBlankStrip(g, `${name} card, both open`);
+    whole(g, id, `${name} card, both open`);
+    const clip = await page.evaluate(blockId => {
+      for (let el = document.querySelector(`[data-canvas-surface] [data-block-id="${blockId}"]`)?.parentElement; el; el = el.parentElement) {
+        const cs = getComputedStyle(el);
+        if (cs.overflowX !== 'visible' || cs.clipPath !== 'none') return el.hasAttribute('data-canvas-surface') ? 'surface' : `${el.tagName}.${String(el.className).slice(0, 60)}`;
+      }
+      return null;
+    }, id);
+    assert.equal(clip, 'surface', `the ${name} card's first clipping ancestor is ${clip}`);
+    await shot(`07-repo-${name}-both-open`);
+  });
+  await check(`Add to chat on the repository ${name} card with Chat hidden: Chat opens and the card stays whole in the narrower canvas`, async () => {
+    if (await chatOpen()) { await page.locator('aside[aria-label="Learn agent chat"] [data-panel-close]').first().click(); await settle(); }
+    assert.equal(await chatOpen(), false, 'Chat is hidden');
+    await select(id);
+    let g = await geometry();
+    await pan(g.surface.right - 40 - g.cards[id].right);
+    g = await geometry();
+    whole(g, id, `${name} card parked right, Chat hidden`);
+    const parked = g.cards[id];
+    await page.locator('[role="toolbar"][aria-label="Selection actions"] [data-add-to-chat]').click();
+    await waitFor(chatOpen, 5000, 'Add to chat did not open Chat');
+    await settle();
+    g = await geometry();
+    facts[`repo_${name}_add_to_chat`] = { parked, after: g.cards[id], surface: g.surface, panelLeft: g.panelLeft };
+    noBlankStrip(g, `${name} card: Chat opened`);
+    whole(g, id, `${name} card: Chat opened`);
+    assert.ok(Math.abs(g.cards[id].w - parked.w) < 1, 'its size on screen is unchanged (the camera moved, not the card)');
+    await shot(`08-repo-${name}-add-to-chat`);
+  });
+}
 
 // The canvas's own background requests (the next-steps hooks) are aborted here, never sent; the check sends none itself.
 await check('nothing left the local stack, no page error; every model-capable request was aborted before the server', async () => {
