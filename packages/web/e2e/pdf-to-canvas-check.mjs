@@ -175,7 +175,10 @@ const dialog = () => page.locator('[data-pdf-add-dialog] [role="dialog"]');
 const confirmButton = () => dialog().locator('button').last();
 const cancelButton = () => dialog().getByRole('button', { name: 'Cancel', exact: true });
 // A closed Sources panel collapses to width 0 (ResizableSidePanel) but keeps its children, which Playwright still calls visible.
-const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-sources-pane]')?.closest('[aria-label="Sources"]')?.getBoundingClientRect().width || 0) > 50);
+// Sources is the right panel's Context tab (docs/features/hide-right-panel.md): hidden on another tab or with the panel hidden.
+const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-context-panel]')?.getBoundingClientRect().width || 0) > 50);
+// Chat and Context share the panel: a step that needs the composer or the selection pill shows the Chat tab first.
+const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.getAttribute('aria-selected') !== 'true') await tab.click(); };
 const openSources = async () => {
   // The composer's chip for the document opens Sources on it (ContextChips: chat.openSource), the way a learner reaches it.
   if (!(await sourcesOpen()) || !(await addButton().isVisible().catch(() => false))) {
@@ -267,6 +270,7 @@ const focusCanvas = async () => {
 };
 // Select one page block: a press on its image near the top-left, until the composer shows its pill.
 const selectBlock = async id => {
+  await chatTab();
   const target = page.locator(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`).first();
   await reveal(target);
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -284,7 +288,7 @@ const setMode = async mode => {
   await page.locator(`[data-chat-mode-option="${mode}"]`).click();
   await page.waitForTimeout(200);
 };
-const newChat = async () => { await pane().locator('[data-chat-new]').click(); await page.waitForTimeout(300); };
+const newChat = async () => { await chatTab(); await pane().locator('[data-chat-new]').click(); await page.waitForTimeout(300); };
 const send = async text => {
   await field().fill(text);
   const n = captured.length;

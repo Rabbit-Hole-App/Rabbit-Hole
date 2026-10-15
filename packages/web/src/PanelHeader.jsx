@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, FolderTree, MessageCircle, MessageSquareText, Pin, Search, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Files, FolderTree, MessageCircle, MessageSquareText, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
@@ -13,6 +13,8 @@ export const PANEL_TABS = [
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   { id: 'toc', label: 'Table of contents', Icon: BookOpen },
   { id: 'comments', label: 'Comments', Icon: MessageCircle },
+  // Context (owner, 2026-10-14): the Sources experience - Materials and the reader - as a tab; it replaced the Chat | Sources switch.
+  { id: 'context', label: 'Context', Icon: Files },
   // A project's Main canvas only (filesOn): the repository's Files, opened by the canvas's Map icon (owner, 2026-10-08).
   { id: 'files', label: 'Repository files', Icon: FolderTree },
 ];

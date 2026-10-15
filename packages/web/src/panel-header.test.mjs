@@ -79,8 +79,8 @@ test('pinned by default, and the choice lasts in this browser; storage that thro
   assert.match(page, /const \[panelPinned, setPanelPinned\] = useState\(\(\) => readPanelPin\(\(\) => localStorage\)\);/);
 });
 
-test('unpinned, a press on the canvas surface closes the panel; pinned or on Chat, nothing listens', () => {
-  assert.match(page, /if \(panelPinned \|\| !panelOpen \|\| panelTab === 'chat' \|\| !frame\) return undefined;\n\s+const close = event => \{ if \(event\.target\.closest\?\.\('\[data-canvas-surface\]'\)\) setPanelOpen\(false\); \};\n\s+frame\.addEventListener\('pointerdown', close\);/);
+test('unpinned, a press on the canvas surface closes the panel; pinned, on Chat or on Context, nothing listens', () => {
+  assert.match(page, /if \(panelPinned \|\| !panelOpen \|\| panelTab === 'chat' \|\| panelTab === 'context' \|\| !frame\) return undefined;\n\s+const close = event => \{ if \(event\.target\.closest\?\.\('\[data-canvas-surface\]'\)\) setPanelOpen\(false\); \};\n\s+frame\.addEventListener\('pointerdown', close\);/);
 });
 
 test('Close shuts the panel and touches nothing else', () => {
