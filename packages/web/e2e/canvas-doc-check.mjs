@@ -302,17 +302,13 @@ await check('scenario 2: the slash menu makes a heading, the formatting toolbar 
   await assertUsable('.bn-suggestion-menu', 'the slash menu');
   await page.keyboard.type('heading');
   await page.waitForTimeout(250);
-  await page.locator('.bn-suggestion-menu-item').first().click();
-  await page.waitForTimeout(200);
-  const focus = await page.evaluate(() => { const a = document.activeElement; return a?.closest('[data-canvas-doc-editor]') ? 'the editor' : `${a?.tagName}${a?.getAttribute('aria-label') ? `[aria-label="${a.getAttribute('aria-label')}"]` : ''}`; });
-  const after = (await docTextNow()).trim();
-  assert.ok(!after.includes('/heading') && focus === 'the editor', `a click on the slash menu's first item did not apply it (the block reads ${JSON.stringify(after.slice(0, 40))}, focus is on ${focus})`);
+  await page.keyboard.press('Enter'); // the highlighted Heading item; clicking it is its own check below
   await page.keyboard.type(MARK);
   await page.keyboard.press('Enter');
   await page.keyboard.type('Light reactions make ATP');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft'); // selects "ATP"
   await assertUsable('.bn-formatting-toolbar', 'the formatting toolbar');
-  await page.locator('.bn-formatting-toolbar [data-test="bold"]').click();
+  await page.keyboard.press('Control+b'); // clicking Bold is its own check below
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/bullet');
@@ -333,15 +329,18 @@ await check('scenario 2: the slash menu makes a heading, the formatting toolbar 
   assert.equal(aiCalls(), before, 'typing and the editor menus sent an AI request');
 });
 await check('scenario 2 + brief 3: hide Editor (nothing left intercepting the canvas), move the sticky, reopen - both changes kept, no recentre, toggle not in undo', async () => {
-  const camBefore = await camera(), paperBox = await paper().boundingBox();
+  const paperBox = await paper().boundingBox();
   await setView('Canvas');
   const hit = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return { surface: !!el?.closest('[data-canvas-surface]'), doc: !!el?.closest('[data-canvas-doc],[data-canvas-doc-editor],.bn-container') }; }, [paperBox.x + paperBox.width / 2, paperBox.y + 120]);
   assert.deepEqual(hit, { surface: true, doc: false }, 'something of the document is still under the pointer in Canvas view');
   assert.equal(await page.locator('.bn-container, .bn-editor, .bn-formatting-toolbar, .bn-side-menu').count(), 0, 'editor menus or text are still mounted in Canvas view');
   // Move the sticky away from where the paper was, so it never lands under it.
   const sticky = page.locator('[data-item-id="n1"]').first();
+  // Framing the document can leave the sticky off screen: wheel the bare canvas until it is in view.
+  const off = await sticky.boundingBox(), room = await available();
+  if (off && off.x < room.left + 200) { await page.mouse.move(paperBox.x + paperBox.width / 2, paperBox.y + 120); await page.mouse.wheel(off.x - (room.left + 300), 0); await page.waitForTimeout(400); }
   const s = await sticky.boundingBox();
-  assert.ok(s, 'the sticky n1 is on screen');
+  assert.ok(s && s.x >= room.left && s.x + s.width <= room.right, 'the sticky n1 is on screen');
   const dx = s.x + s.width / 2 < paperBox.x + paperBox.width / 2 ? -140 : 140;
   const fromItems = (await inkOf(A)).items.find(i => i.id === 'n1');
   await page.mouse.move(s.x + 30, s.y + 12);
@@ -350,6 +349,7 @@ await check('scenario 2 + brief 3: hide Editor (nothing left intercepting the ca
   await page.mouse.move(s.x + 30 + dx, s.y + 92, { steps: 6 });
   await page.mouse.up();
   const moved = await waitFor(async () => { const n = (await inkOf(A)).items.find(i => i.id === 'n1'); return n && (n.x !== fromItems.x || n.y !== fromItems.y) && n; }, 5000, 'the sticky did not move');
+  const camBefore = await camera();
   await setView('Editor');
   assert.deepEqual(await camera(), camBefore, 'reopening Editor moved the camera (a recentre)');
   assert.deepEqual(await blockIds(), ids2, 'the same blocks, the same ids');
@@ -672,6 +672,29 @@ await check('scenario 12: with a save still in flight, Chat carries the current 
   release();
   await waitFor(async () => (await status().getAttribute('data-state')) === 'saved', 15000, 'the held save did not finish as Saved');
   assert.ok(textOf((await boardOf(A)).state.doc.blocks).includes(UNSAVED), 'the released save does not hold the marker');
+});
+release();
+
+await check('scenario 2 + brief 6: a click on a slash menu item and on the formatting toolbar Bold button applies it and keeps the caret in the document', async () => {
+  const where = async () => page.evaluate(() => { const a = document.activeElement; return a?.closest('[data-canvas-doc-editor]') ? 'the editor' : `${a?.tagName}${a?.getAttribute('aria-label') ? `[aria-label="${a.getAttribute('aria-label')}"]` : ''}`; });
+  const tool = await pressedTool(), objects = await objectsOf(A);
+  await clickBlock((await blockIds()).at(-1));
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/heading');
+  await assertUsable('.bn-suggestion-menu', 'the slash menu');
+  await page.locator('.bn-suggestion-menu-item').first().click();
+  await page.waitForTimeout(200);
+  const after = (await docTextNow()).trim(), focus = await where();
+  assert.ok(!after.includes('/heading') && focus === 'the editor', `a click on the slash menu's first item did not apply it (the document still reads "/heading", focus is on ${focus})`);
+  await page.keyboard.type('Click test ATP');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await assertUsable('.bn-formatting-toolbar', 'the formatting toolbar');
+  await page.locator('.bn-formatting-toolbar [data-test="bold"]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await where(), 'the editor', 'a click on Bold took the caret out of the document');
+  assert.ok(await page.locator('[data-canvas-doc-editor] strong, [data-canvas-doc-editor] [data-style-type="bold"]').filter({ hasText: /^ATP$/ }).count() > 0, 'a click on Bold did not bold the selection');
+  assert.equal(await pressedTool(), tool, 'typing after the clicks changed the canvas tool');
+  assert.equal(await objectsOf(A), objects, 'the clicks or the typing changed a canvas object');
 });
 release();
 
