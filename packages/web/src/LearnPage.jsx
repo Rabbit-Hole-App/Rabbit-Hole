@@ -365,6 +365,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
     locate: id => canvasApi.current?.focusBlock(id),
     canvasContext, selection: () => canvasApi.current?.selection?.() || [],
+    // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
+    // revealed, never added twice by a double-click or a retry; otherwise inserted where the learner looks, one undo step.
+    // Returns { id, existed }.
+    insertCard: (block, { same = null } = {}) => {
+      const existing = same && canvasApi.current?.blocks?.().find(same);
+      if (existing) { canvasApi.current.focusBlock(existing.id); return { id: existing.id, existed: true }; }
+      return { id: canvasApi.current?.insertBlock(block) ?? null, existed: false };
+    },
     insertNotebook: (cells, language = 'python') => {
       const block = newNotebookBlock(), [cell] = block.ipynb.cells;
       return canvasApi.current?.insertImported({ ...block, language, ipynb: { ...block.ipynb, cells: cells.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') })) } });

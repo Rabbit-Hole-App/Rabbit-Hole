@@ -39,7 +39,7 @@ test('a reference is a real button with that name, guarded in prose, Sources lin
   assert.match(md, /const onFile = given && refs \? refs\.open : given, has = given && refs \? refs\.has : null;/);
   // The repository canvas: the snapshot's paths, and open = the file in its reader beside Chat with the range picked (no ask, no fetch).
   const wired = read('repository-canvas.jsx');
-  assert.match(wired, /const codeRefs = snapshot \? \{ has: p => paths\.has\(p\), open: \(path, start, end\) => \{ if \(paths\.has\(path\)\) showFile\(path, start, end\); \} \} : null;/);
+  assert.match(wired, /const codeRefs = snapshot \? \{ app: repository\.name, commit: snapshot\.commit, has: p => paths\.has\(p\), open: \(path, start, end\) => \{ if \(paths\.has\(path\)\) showFile\(path, start, end\); \}, showGraph \} : null;/);
   const open = wired.slice(wired.indexOf('const showFile = (path, start, end) => {'), wired.indexOf('// A code reference in an answer'));
   assert.match(open, /files\.setOpen\(path\);\n\s+if \(start\) files\.setJump\(\{ path, start, end: end \|\| start, at: Date\.now\(\) \}\);\n\s+window\.dispatchEvent\(new CustomEvent\('small:open-files'\)\);/);
   assert.doesNotMatch(open, /fetch\(|api\(|askDraft|learnAction/);

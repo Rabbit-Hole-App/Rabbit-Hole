@@ -14,7 +14,8 @@ const MEMORY=new Set(['decision','question','session']),MEMORY_COLOR={decision:'
 // Pointer, wheel and keys stop here, so the graph never pans or selects the canvas.
 // camera ({ view, focus, positions }) restores a saved camera on mount, so nothing refits; onCamera(camera) reports it on
 // unmount only (a remount restores it). focusRequest ({ id }) explores that node's one-hop neighbourhood, as a double-click does.
-export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null }) {
+// onNodeMenu(node, { x, y }) opens the caller's menu for a right-clicked node (viewport coordinates).
+export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null, onNodeMenu = null }) {
   const [answer,setAnswer]=useState(null);
   const graph=answer||sourceGraph;
   const chosen=useMemo(()=>new Set(selectedIds??(selected?.id?[selected.id]:[])),[selectedIds,selected?.id]);
@@ -163,6 +164,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
           const emphasized=n.id===active,radius=Math.min(14,7+Math.sqrt(degrees.get(n.id)||0));
           return <g key={n.id} data-graph-node={n.id} data-selected={chosen.has(n.id)||undefined} role="button" tabIndex={0} aria-label={n.label} aria-pressed={chosen.has(n.id)} transform={`translate(${positions.get(n.id)?.x??n.x},${positions.get(n.id)?.y??n.y})`} opacity={!active||connected.has(n.id)?1:.4} className="cursor-grab active:cursor-grabbing"
             onPointerEnter={()=>setHovered(n.id)} onPointerLeave={()=>setHovered(null)}
+            onContextMenu={onNodeMenu?e=>{e.preventDefault();onNodeMenu(n,{x:e.clientX,y:e.clientY});}:undefined}
             onDoubleClick={()=>{if(!suppressClick.current)explore(n.id);}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSelect(n,{toggle:false});if(e.shiftKey)explore(n.id);}else if(e.key===' '){e.preventDefault();onSelect(n,{toggle:true});}}}>
             {n.kind==='decision'?<rect data-memory-node="decision" x={-8} y={-8} width={16} height={16} rx={2} transform="rotate(45)" fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>
               :n.kind==='question'?<rect data-memory-node="question" x={-8} y={-8} width={16} height={16} rx={4} fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>

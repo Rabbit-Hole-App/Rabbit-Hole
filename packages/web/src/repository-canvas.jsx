@@ -32,7 +32,9 @@ export function useRepositoryCanvas(project, { codeCards = false } = {}) {
     };
     // A code reference in an answer (Md.jsx CodeRefs): only a file of this snapshot is a link; nothing is asked or attached.
     const paths = new Set(snapshot?.files.map(f => f.path) || []);
-    const codeRefs = snapshot ? { has: p => paths.has(p), open: (path, start, end) => { if (paths.has(path)) showFile(path, start, end); } } : null;
+    // app and commit let a graph card on this canvas (GraphCard.jsx) open its source or nodes here only at its own revision.
+    const showGraph = ids => { repository.graph.setSelected(ids); window.dispatchEvent(new CustomEvent('small:open-graph')); };
+    const codeRefs = snapshot ? { app: repository.name, commit: snapshot.commit, has: p => paths.has(p), open: (path, start, end) => { if (paths.has(path)) showFile(path, start, end); }, showGraph } : null;
     // The Files reader's selection is the composer's repository context, exactly as on the old repository page.
     const ground = object => (object.kind === 'range' ? object : contextOf(object, snapshot.commit));
     const attach = object => { setContext(ground(object)); if (object.path) files.setOpen(object.path); };

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, Package, Search, Waypoints, X } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Network, Package, Search, SquarePlus, Waypoints, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
-import { Button, IconBtn, Input } from './ui.jsx';
+import { Button, IconBtn, Input, Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { objectOf, relationshipGroups, typeOf } from './inspector.js';
 import { askDraft, askQuestion, whyQuestion } from './agent/scope.js';
@@ -12,6 +12,8 @@ import { fixturesOn, useMapMemory } from './home/review-fixtures.js';
 import { layerGraph, MEMORY_KINDS, visibleMemory } from './map-memory.js';
 import { LayersRow } from './MapMemory.jsx';
 import { getSurface } from './agent/surface.js';
+import { graphCardBlock, sameGraphCard } from './graph-card.js';
+import { insertCodeCard } from './graph-card-stubs.js';
 
 // The repository graph in the companion column beside Chat (repo-canvas-graph.md sections 3-6, 12; owner 2026-10-15).
 // Props:
@@ -24,6 +26,9 @@ import { getSurface } from './agent/surface.js';
 // Graph information, Layers (review fixtures only), Open source (Files viewer, and GitHub), Ask about this, Ask why, Learn
 // this. Selecting is temporary chat context (repo-context.js); Add to chat pins it. Nothing here sends or calls a model.
 // Closing the companion column clears the temporary selection; pinned refs stay.
+// Add to canvas (clarification section 1, Release 2): "Add graph to canvas" (the whole indexed graph), and for a selection
+// "Add selection as graph" (its nodes and only their indexed relationships) or "Add code card" (nodes with retrievable code),
+// from the selection row or a node's right-click menu. They place a card on this canvas and never touch Chat.
 const ICONS = { file: FileCode, symbol: Braces, external: Package };
 const short = commit => (commit || '').slice(0, 7);
 
@@ -47,8 +52,20 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   const addToChat = () => { for (const ref of graphRefs(repository)) chat?.addToChat(ref); };
   const one = selected.length === 1 ? shown?.nodes.find(n => n.id === selected[0]) : null;
   const camera = repository.graph.camera?.commit === snapshot?.commit ? repository.graph.camera : null;
+  // Add to canvas: an equivalent card already on the canvas is revealed, not added again (graph-card.js sameGraphCard).
+  const ops = chat?.canvasOps?.insertCard ? chat.canvasOps : null, [menu, setMenu] = useState(null);
+  const indexed = ids => ids.filter(id => snapshot?.graph.nodes.some(n => n.id === id)); // fixture layer records stay out
+  const addGraph = (ids = []) => { const block = graphCardBlock(repository, ids); ops.insertCard(block, { same: other => sameGraphCard(other, block) }); };
+  const codeNodes = ids => ids.map(id => snapshot?.graph.nodes.find(n => n.id === id)).filter(n => n?.path);
+  const addCode = nodes => nodes.forEach(n => insertCodeCard(ops, { title: n.label, source: { kind: 'repository', app: repository.name, repo: app.repo, commit: snapshot.commit, path: n.path, start: n.line || undefined, end: n.line || undefined, nodeId: n.id } }));
+  const canCode = !!insertCodeCard && !!ops && codeNodes(selected).length > 0;
+  // A right-clicked node outside the selection becomes the selection, so the menu acts on what is lit.
+  const openMenu = (node, at) => { if (!selected.includes(node.id)) setSelected([node.id]); setMenu(at); };
+  const menuIds = menu ? selected : [];
 
-  return <section data-graph-panel aria-label="Repository graph" className="flex min-h-0 flex-1 flex-col gap-2">
+  // Escape closes an open menu first, before the graph clears its selection (clarification section 5).
+  return <section data-graph-panel aria-label="Repository graph" className="flex min-h-0 flex-1 flex-col gap-2"
+    onKeyDownCapture={event => { if (menu && event.key === 'Escape') { event.stopPropagation(); setMenu(null); } }}>
     <header className="flex shrink-0 items-center gap-2 text-xs text-ink-2">
       <span data-graph-status={status} className="flex min-w-0 flex-1 items-center gap-1.5">
         {status === 'unavailable' ? <span>Repository content unavailable</span> : <>
@@ -58,6 +75,9 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
       </span>
+      {snapshot && <IconBtn data-graph-add-to-canvas aria-label="Add graph to canvas" disabled={!ops || !snapshot.graph.nodes.length}
+        title={['queued', 'indexing'].includes(status) ? `Add the graph of commit ${short(snapshot.commit)} to the canvas (a newer commit is still indexing)` : 'Add graph to canvas'}
+        onClick={() => addGraph()}><Network size={14} /></IconBtn>}
       {memory && snapshot && <Button size="sm" data-map-layers-open aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} />Layers<ChevronDown size={12} className="text-ink-3" /></Button>}
     </header>
     <Body repository={repository} />
@@ -68,15 +88,24 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
       </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
       {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
-        <RepositoryGraph key={snapshot.commit} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore}
+        <RepositoryGraph key={snapshot.commit} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu}
           camera={camera} onCamera={value => repository.graph.setCamera({ ...value, commit: snapshot.commit })} />
       </div> : <p data-graph-empty className="text-sm text-ink-2">This repository has no code graph. You can still ask about its code in Chat.</p>}
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>
       {selected.length > 0 && <div data-graph-selection className="flex shrink-0 items-center gap-2 border-t border-line pt-2 text-sm">
         <span className="min-w-0 flex-1 text-ink-2">{selected.length} selected</span>
         <Button size="sm" variant="secondary" data-graph-add-to-chat disabled={!chat || !graphRefs(repository).length} title="Keep the selected code with this chat" onClick={addToChat}>Add to chat</Button>
+        <IconBtn data-graph-add-selection aria-label="Add selection as graph" title="Add selection as graph" disabled={!ops || !indexed(selected).length} onClick={() => addGraph(indexed(selected))}><SquarePlus size={14} /></IconBtn>
+        <IconBtn data-graph-add-code aria-label="Add code card" title={insertCodeCard ? 'Add code card' : 'Code cards are not available yet'} disabled={!canCode} onClick={() => addCode(codeNodes(selected))}><FileCode size={14} /></IconBtn>
         <IconBtn data-graph-clear aria-label="Clear selection" title="Clear selection (Escape)" onClick={() => setSelected([])}><X size={14} /></IconBtn>
       </div>}
+      <Menu open={!!menu} portal style={menu ? { left: menu.x, top: menu.y } : undefined} onClose={() => setMenu(null)} className="w-52">
+        <div data-graph-node-menu role="menu" aria-label="Graph selection">
+          <MenuItem icon={SquarePlus} role="menuitem" data-menu-add-selection disabled={!ops || !indexed(menuIds).length} onClick={() => { addGraph(indexed(menuIds)); setMenu(null); }}>Add selection as graph</MenuItem>
+          <MenuItem icon={FileCode} role="menuitem" data-menu-add-code disabled={!canCode} onClick={() => { addCode(codeNodes(menuIds)); setMenu(null); }}>Add code card</MenuItem>
+          <MenuItem icon={MessageSquarePlus} role="menuitem" data-menu-add-to-chat disabled={!chat || !graphRefs(repository).length} onClick={() => { addToChat(); setMenu(null); }}>Add to chat</MenuItem>
+        </div>
+      </Menu>
       {one && <NodeDetails repository={repository} node={one} onOpenSource={onOpenSource} onExplore={id => setExplore({ id, at: Date.now() })} onSelect={node => choose(node)} />}
     </>}
   </section>;

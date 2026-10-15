@@ -2,6 +2,7 @@ import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './Chat
 import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
 import { dropRef, selectionRefs, turnRefs } from './repo-context.js';
+import { dropCardRef, useCardRefs } from './graph-card.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { refsForSend } from './chat-draft.js';
 import { MAX_REFS, sameRef } from './chat-context.js';
@@ -256,7 +257,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // section 6): what the graph and Files viewers hold now is temporary context beside this chat's pinned refs - one chip and
   // one sent ref each, pinned first, up to the server's 20 (repo-context.js turnRefs). The Files selection is one of these
   // chips, so the older "Asking about" box is not shown beside it.
-  const codeTurnRefs = turnRefs(chat?.context.attached || [], chat && codebase ? selectionRefs(codebase) : []);
+  // Nodes selected inside graph cards on the canvas (graph-card.js) are temporary context of the same kind, on any canvas.
+  const cardRefs = useCardRefs();
+  const temporaryCode = chat ? [...(codebase ? selectionRefs(codebase) : []), ...cardRefs] : [];
+  const codeTurnRefs = turnRefs(chat?.context.attached || [], temporaryCode);
   const graphOpen = !!(chat?.panels?.companion?.open && chat.panels.companion.view === 'graph');
 
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
@@ -1058,7 +1062,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} chips={chat ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null}
             selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null}
-            code={codebase ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: selectionRefs(codebase), onRemove: ref => dropRef(codebase, ref) } : null} /> : null}
+            code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => { if (codebase) dropRef(codebase, ref); dropCardRef(ref); } } : null} /> : null}
           leading={<>
           <div className="relative shrink-0">
             <button

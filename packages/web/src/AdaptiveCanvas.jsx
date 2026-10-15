@@ -59,6 +59,7 @@ import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.j
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
 import CanvasRefCard from './CanvasRefCard.jsx';
+import { GRAPH_CARD } from './graph-card.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
@@ -66,6 +67,8 @@ const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
 const InlineAiEditor = lazy(() => import('./InlineAiEditor.jsx'));
 // The canvas's document editor (BlockNote), loaded only when Editor view first shows it (docs/features/blocknote-canvas.md).
 const CanvasDoc = lazy(() => import('./CanvasDoc.jsx'));
+// The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
+const GraphCard = lazy(() => import('./GraphCard.jsx'));
 const noop = () => {};
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -773,6 +776,9 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CanvasRefCard block={block} /></CanvasNode>;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
+  if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph…</p>}><GraphCard block={block} /></Suspense></CanvasNode>;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
@@ -2978,8 +2984,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Delete, undo, its formatting and link shortcuts, Esc for its own menus. Never a canvas tool or selection.
       if (document.activeElement?.closest?.('[data-canvas-doc]')) return;
       // The companion column (Context, Files, Graph; repo-canvas-graph.md) owns its keys: Delete, the arrows and Esc on a focused
-      // graph node act on the graph, never on canvas cards.
-      if (document.activeElement?.closest?.('[data-companion]')) return;
+      // graph node act on the graph, never on canvas cards. So do a graph card's own controls (GraphCard.jsx): Delete on a focused
+      // node never deletes the card; the card is deleted by selecting it as a canvas object.
+      if (document.activeElement?.closest?.('[data-companion],[data-graph-card]')) return;
       // A drag in progress owns Esc: it cancels the gesture (startDrag) and nothing else.
       if (gestureLive && event.key === 'Escape') return;
       // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;
