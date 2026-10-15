@@ -171,7 +171,7 @@ const dialog = () => page.locator('[data-pdf-add-dialog] [role="dialog"]');
 const confirmButton = () => dialog().locator('button').last();
 const cancelButton = () => dialog().getByRole('button', { name: 'Cancel', exact: true });
 const openSources = async () => {
-  if (!(await sourcesPane().isVisible().catch(() => false))) await pane().locator('[data-chat-sources]').click();
+  if (!(await sourcesPane().isVisible().catch(() => false))) await page.locator('[data-chat-sources]:visible').first().click({ timeout: 5000 }).catch(() => page.locator('[data-context-chip]:visible').filter({ hasText: DOC_NAME }).first().click({ timeout: 5000 }));
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
   if (!(await addButton().isVisible().catch(() => false))) {
     await sourcesPane().locator('section button[aria-expanded]').filter({ hasText: DOC_NAME }).first().click();
