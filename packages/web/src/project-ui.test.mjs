@@ -35,6 +35,8 @@ test('a repository opens on its canvas: no Files | Graph | Learn page; the badge
   // A repository with no snapshot opens its canvas too: its status shows in the header and its viewers, never a separate page.
   assert.match(wired, /data-repo-status=\{status\} role="status"/);
   assert.match(wired, /<RepositoryState repository=\{repository\} what="files" \/>/);
+  // Files opens in the companion column beside Chat (lane A), mounted on its first show.
+  assert.match(learn, /\{files && shown\.current\.has\('files'\) && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{companionView === 'files' \? 'flex' : 'hidden'\}[^`]*`\}>\{files\}<\/div>\}/);
 });
 
 test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {

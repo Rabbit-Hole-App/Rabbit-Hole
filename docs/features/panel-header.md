@@ -42,11 +42,13 @@ This is a new, local find. The header's Search button (YouTube, arXiv and Wikipe
 - **Unpinned:** a press on the canvas surface (`[data-canvas-surface]`) closes the panel. Work inside the panel, such as typing a find or picking a row, never closes it.
 - **Storage:** the choice is kept in this browser (`localStorage` `small.learn-panel:pinned`). Reading and writing it are guarded, so blocked storage keeps the default.
 
-## Repository files (a project's Main canvas)
+## Viewers: Context and Repository files
 
-A fourth tab, after Comments, only where the canvas has the repository's files (`filesOn`): lucide `FolderTree`,
-"Repository files". The canvas's Map icon opens the panel on it (owner, 2026-10-08). It holds the Map's file reader and
-Open the Map → (repository-browser.md). Anywhere else there is no Files tab, not even a disabled one.
+Owner decision 1A (2026-10-15): Context and Repository files are no longer tabs. They are views of the companion column
+LEFT of Chat (hide-right-panel.md, "Companion column"). Right of the tablist, before Pin and Close, the header carries one
+pressed toggle per viewer: Context (lucide `Files`) always, and Repository files (`FolderTree`) where the canvas has
+repository files. A toggle shows that view, or closes the column when that view is already showing. The tabs are Chat,
+Find, Table of contents, Comments and Links.
 
 ## Close sidebar
 
@@ -67,7 +69,7 @@ Comments is paused by the owner. Its slot only holds a placeholder:
 ## No Card conversation tab
 
 The r36 Card conversation tab (`MessagesSquare`, a tabpanel per selected card) is removed (owner, 2026-10-13: "we do not need
-Card Conversation in right side panel ... remove it"). The tabs are only Find, Table of contents, Comments and, on a
-project's Main canvas, Repository files. A question about a selected card is answered where any ordinary chat answer
+Card Conversation in right side panel ... remove it"). The tabs are only Chat, Find, Table of contents, Comments and
+Links. A question about a selected card is answered where any ordinary chat answer
 goes (learn-chat-sheet.md, "Where an answer goes"). `src/panel-header.test.mjs` fails if a conversation tab or panel
 comes back.

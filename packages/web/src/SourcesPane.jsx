@@ -33,7 +33,7 @@ export default function SourcesPane() {
   const [removing, setRemoving] = useState(null);
   const [rows, setRows] = useState({});
   if (!chat) return null;
-  const { context, sources, panels } = chat;
+  const { context, sources } = chat;
   const sections = paneSections(context.items, active);
   const url = active && externalUrl(active);
   const allSources = () => { setFolded(active); body.current?.scrollTo({ top: 0 }); };
@@ -75,7 +75,6 @@ export default function SourcesPane() {
             </Menu>
           </span>
         )}
-        <button type="button" data-sources-close onClick={panels.closeSources} aria-label="Close sources" title="Close sources" className={ICON_BUTTON}><X size={16} aria-hidden /></button>
       </div>
       <div ref={body} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2">
         <div className="flex shrink-0 items-center justify-between gap-2 px-1 pb-1">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, Files, FolderTree, Link2, MessageCircle, MessageSquareText, Pin, Search, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Files, FolderTree, Link2, MessageCircle, MessageSquareText, Network, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
@@ -13,20 +13,24 @@ export const PANEL_TABS = [
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   { id: 'toc', label: 'Table of contents', Icon: BookOpen },
   { id: 'comments', label: 'Comments', Icon: MessageCircle },
-  // Context (owner, 2026-10-14): the Sources experience - Materials and the reader - as a tab; it replaced the Chat | Sources switch.
-  { id: 'context', label: 'Context', Icon: Files },
-  // Links (canvas references, owner 2026-10-14 Q3): sixth, after Context - links from this canvas and its backlinks.
+  // Links (canvas references, owner 2026-10-14 Q3): fifth - links from this canvas and its backlinks.
   { id: 'links', label: 'Links', Icon: Link2 },
-  // A project's Main canvas only (filesOn): the repository's Files, opened by the canvas's Map icon (owner, 2026-10-08).
-  { id: 'files', label: 'Repository files', Icon: FolderTree },
+];
+// The companion column's viewers (owner decision 1A, 2026-10-15): Context (Materials and the reader) always, the repository's
+// Files and Graph where the canvas has them. They left Chat's tabs, so Chat stays visible beside any of them.
+export const COMPANION_VIEWS = [
+  { id: 'context', label: 'Context', Icon: Files },
+  { id: 'files', label: 'Files', Icon: FolderTree },
+  { id: 'graph', label: 'Graph', Icon: Network },
 ];
 const OFF_TITLE = 'Comments are on saved canvases';
 
 // commentsUnread: threads with news for you; the Comments tab carries a dot while there are any.
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, filesOn = false }) {
+// viewers: the companion views Chat's header opens with one click (Context, and Repository files where there are files); each
+// is a pressed toggle that shows or closes that view, beside the tabs and never one of them. viewer: the view open now, or null.
+export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, viewers = [], viewer = null, onViewer = null }) {
   const off = id => id === 'comments' && !commentsOn;
-  const TABS = PANEL_TABS.filter(entry => entry.id !== 'files' || filesOn);
-  const ENABLED = TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
+  const ENABLED = PANEL_TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
   const arrow = event => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -39,7 +43,7 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
     <div data-panel-header className="-mx-5 mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-line px-5 pb-2.5">
       {/* Too many tabs for a narrow panel: the row scrolls sideways (no bar; a focused tab scrolls into view), never squeezed. */}
       <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg border border-line bg-hover p-0.5 [scrollbar-width:none]">
-        {TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label; return (
+        {PANEL_TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label; return (
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}
@@ -50,12 +54,39 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
         ); })}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
+        {viewers.map(({ id, label, Icon }) => { const name = id === 'files' ? 'Repository files' : label; return (
+          <button key={id} type="button" data-panel-viewer={id} aria-label={name} title={name} aria-pressed={viewer === id} onClick={() => onViewer(id)}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg ${viewer === id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><Icon size={15} strokeWidth={1.8} aria-hidden /></button>
+        ); })}
+        {viewers.length > 0 && <span aria-hidden className="mx-0.5 h-4 w-px bg-line" />}
         <button type="button" data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open" aria-pressed={pinned} onClick={() => onPin(!pinned)}
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${pinned ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
           <Pin size={15} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden /></button>
         <button type="button" data-panel-close aria-label="Close sidebar" title="Close sidebar" onClick={onClose}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} strokeWidth={1.8} aria-hidden /></button>
       </div>
+    </div>
+  );
+}
+
+// The companion column's header: its viewers as labelled tabs, then Close (the column only; Chat stays). Below lg the column
+// shows in Chat's place, so Back to chat stands in for Close there.
+export function CompanionHeader({ views, view, onView, onClose }) {
+  // A view switch (pressed buttons), not a second tablist: Chat's tabs stay the page's one tablist.
+  return (
+    <div data-companion-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
+      <button type="button" data-companion-back onClick={onClose} aria-label="Back to chat" title="Back to chat"
+        className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-ink-2 hover:bg-hover hover:text-ink lg:hidden"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden />Chat</button>
+      <div role="group" aria-label="Viewer" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
+        {views.map(({ id, label, Icon }) => (
+          <button key={id} type="button" data-companion-view={id} aria-pressed={view === id} onClick={() => onView(id)}
+            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm ${view === id ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+            <Icon size={15} strokeWidth={1.8} aria-hidden />{label}
+          </button>
+        ))}
+      </div>
+      <button type="button" data-companion-close onClick={onClose} aria-label="Close viewer" title="Close viewer"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink max-lg:hidden"><X size={15} strokeWidth={1.8} aria-hidden /></button>
     </div>
   );
 }
