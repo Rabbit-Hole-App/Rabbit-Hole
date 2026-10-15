@@ -1,5 +1,5 @@
 import { CHAT_MODES, PROJECT_FIELDS, projectAccess, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
-import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
+import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
@@ -440,6 +440,8 @@ export async function projectRepository(env, app) {
     return {
       context: `SCOPE: canvas ${JSON.stringify(app.title)} in the project ${row.repo} - a learning canvas whose content lives in the learner's browser, about this repository: ${JSON.stringify({ repo: row.repo, commit: row.commit_sha })}`,
       system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input),
+      // The learner's code refs (graph and Files selections), read from this snapshot only (repository-context.js).
+      selected: refs => ({ selectedEntities: resolveCodeRefs(snapshot, refs), selectedNote: SELECTED_NOTE }),
     };
   } catch { return null; }
 }
