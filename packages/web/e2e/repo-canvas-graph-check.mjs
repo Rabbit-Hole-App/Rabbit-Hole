@@ -11,7 +11,9 @@
 // may happen. Scripted answers prove the wiring, not suggestion quality (the lead's real-model run does that).
 // Prints `ok <label>` or `FAIL <label> - <reason>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Lane A names (rg-layout): [data-companion] (aria-label Viewer), [data-companion-view] pressed buttons, [data-companion-close],
-// [data-companion-back] (below lg), [data-companion-return] (Back to <view>), [data-learn-files], [data-learn-graph].
+// [data-companion-back] (below lg), [data-companion-return] (Back to <view>), [data-learn-files], [data-learn-graph]. Lane B
+// (rg-graph 85f12364): [data-graph-panel], [data-graph-selection] with [data-graph-add-to-chat] and [data-graph-clear], chips
+// [data-code-selection] (temporary), [data-code-more] / [data-code-more-list], button[data-explore-codebase].
 // Evidence goes to OUT: results.json (captured payload fields, never cookies) and *.png (graph beside Chat, selected-node
 // chips, source navigation, narrow layout).
 // Usage: BASE=http://127.0.0.1:8911 SMALL_CP=http://127.0.0.1:8913 VARS=<cp .dev.vars> OUT=<dir> node e2e/repo-canvas-graph-check.mjs
@@ -53,7 +55,8 @@ const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/(ask|learn-course)$|learn\/(ar
 const options = () => [1, 2, 3].map(n => ({ id: `rcg-${n}`, hook: `Scripted technical direction ${n}`, selected_next_step: { kind: 'explain', title: `Scripted direction ${n}` } }));
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
-  if (url.origin !== BASE) { outside.push(url.hostname); return route.abort(); }
+  // A read elsewhere (the notebook runtime's warm-up) is refused quietly; a write elsewhere is counted and fails the run.
+  if (url.origin !== BASE) { if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method())) outside.push(`${request.method()} ${url.hostname}`); return route.abort(); }
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.fallback();
   const path = url.pathname;
   let body = {};
@@ -83,7 +86,9 @@ const results = [], facts = {};
 const check = async (label, fn) => {
   try { await fn(); results.push({ label, ok: true }); console.log(`ok ${label}`); }
   catch (error) {
-    const message = String(error?.message || error).split('\n')[0].slice(0, 400);
+    // A click that timed out says why: what took the pointer, or that the target never showed.
+    const lines = String(error?.message || error).split('\n'), why = lines.find(l => /intercepts pointer events|not visible|outside of the viewport/.test(l));
+    const message = `${lines[0]}${why ? ` (${why.replace(/\u001b\[[0-9;]*m/g, '').trim().slice(0, 240)})` : ''}`.slice(0, 600);
     results.push({ label, ok: false, error: message });
     console.log(`FAIL ${label} - ${message}`);
     if (page) await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
@@ -110,24 +115,26 @@ const pane = () => page.locator('[data-chat-pane]');
 const field = () => pane().locator('[data-chat-composer] textarea').first();
 const explore = () => page.locator('button[aria-label="Explore codebase"]');
 const companion = () => page.locator('[data-companion]');
-const graphPanel = () => page.locator('[data-companion] [data-learn-graph]');
+const graphPanel = () => page.locator('[data-companion] [data-graph-panel]');
 // The companion's shown view: its view buttons are a pressed switch (lane A, CompanionHeader).
 const view = () => companion().locator('[data-companion-view][aria-pressed="true"]').getAttribute('data-companion-view', { timeout: 2000 }).catch(() => null);
 const showView = id => companion().locator(`[data-companion-view="${id}"]`).click();
-const node = id => graphPanel().locator(`[data-graph-node="${id}"]`);
+// A node's dot, where a learner clicks: the center of the whole node (dot and label) can fall between them once the graph scales.
+const node = id => graphPanel().locator(`[data-graph-node="${id}"] :is(circle, rect)`).first();
 const selectedNodes = () => graphPanel().locator('[data-graph-node][data-selected]').evaluateAll(all => all.map(n => n.dataset.graphNode).sort());
 const camera = () => graphPanel().locator('[data-graph-layer]').getAttribute('transform');
 const selection = () => graphPanel().locator('[data-graph-selection]');
 // Every context entry in the Chat pane by its key: temporary (dashed selection) or pinned (ready), outermost element only.
-const entries = () => pane().evaluate(() => [...document.querySelectorAll('[data-chat-pane] [data-context-chip], [data-chat-pane] [data-context-selection]')]
+// Lane B: a viewer selection is a dashed [data-code-selection] chip; Add to chat makes it [data-context-chip="ready"].
+const entries = () => pane().evaluate(() => [...document.querySelectorAll('[data-chat-pane] [data-context-chip], [data-chat-pane] [data-context-selection], [data-chat-pane] [data-code-selection]')]
   .filter((el, i, all) => !all.some(other => other !== el && other.contains(el)))
-  .map(el => ({ key: el.getAttribute('data-ref-key'), text: el.innerText.replace(/\s+/g, ' ').trim(), chip: el.getAttribute('data-context-chip'), temporary: el.hasAttribute('data-context-selection') })));
+  .map(el => ({ key: el.getAttribute('data-ref-key'), text: el.innerText.replace(/\s+/g, ' ').trim(), chip: el.getAttribute('data-context-chip'), temporary: el.hasAttribute('data-context-selection') || el.hasAttribute('data-code-selection') })));
 // The overflow list's keys count too: a compact "+N" hides entries, it does not drop them.
 const overflowKeys = async () => {
-  const more = pane().locator('[data-context-more]');
+  const more = pane().locator('[data-code-more]');
   if (!await more.count()) return [];
   if (await more.getAttribute('aria-expanded') !== 'true') await more.click();
-  const keys = await page.locator('[data-context-more-list] [data-ref-key]').evaluateAll(all => all.map(el => el.getAttribute('data-ref-key')));
+  const keys = await page.locator('[data-code-more-list] [data-ref-key]').evaluateAll(all => all.map(el => el.getAttribute('data-ref-key')));
   await page.keyboard.press('Escape');
   return keys;
 };
@@ -140,14 +147,24 @@ const openCanvas = async (path = `/apps/${REPO}`) => {
   await page.locator('[aria-label="Lesson canvas"] [data-block-id="rcg-note"]').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(1200);
 };
+// A closed column keeps its views mounted at zero width (ResizableSidePanel), so open means the column's own width.
+const companionOpen = async () => ((await companion().boundingBox().catch(() => null))?.width ?? 0) > 100;
 const openGraph = async () => {
-  if (await graphPanel().isVisible().catch(() => false)) return;
+  if (await companionOpen() && await view() === 'graph') return;
   await explore().click();
   await graphPanel().waitFor({ state: 'visible', timeout: 15000 });
   await node(N.train).waitFor({ timeout: 30000 });
   await page.waitForTimeout(600); // the first fit
 };
+// The composer starts in Tutor mode (a planner turn); these questions are Ask turns, on the scripted /api/learn/ask.
+const askMode = async () => {
+  if (await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === 'ask') return;
+  await pane().getByRole('button', { name: 'Mode', exact: true }).click();
+  await page.locator('[data-chat-mode-option="ask"]').click();
+  await page.waitForTimeout(200);
+};
 const send = async text => {
+  await askMode();
   await field().fill(text);
   const n = captured.length;
   await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
@@ -225,7 +242,7 @@ await check('4 a node click is a temporary chip naming its file; no request, no 
   await node(N.train).click();
   await waitFor(async () => (await entries()).some(e => e.temporary && e.key?.startsWith('code:')), 5000, 'no temporary code chip');
   const chip = (await entries()).find(e => e.temporary && e.key?.startsWith('code:'));
-  assert.match(chip.key, new RegExp(`@${COMMIT.slice(0, 7)}[0-9a-f]*:train\\.py`), `the chip's identity is repository, commit and path: ${chip.key}`);
+  assert.equal(chip.key, `code:karpathy/nanoGPT@${COMMIT}:train.py|null`, `the chip's identity is repository, commit and path: ${chip.key}`);
   assert.match(chip.text, /train\.py/);
   assert.deepEqual(await selectedNodes(), [N.train]);
   await page.waitForTimeout(800);
@@ -239,7 +256,7 @@ await check('4b Shift-click adds and removes; a plain click selects one; Ctrl-cl
   await node(N.gpt).click({ modifiers: ['Shift'] });
   await waitFor(async () => (await selectedNodes()).length === 2, 3000, 'Shift-click did not add');
   assert.equal((await codeKeys()).length, 2, 'two temporary chips, two identities');
-  assert.match((await selection().innerText()).trim(), /^2\b/, 'the selection controls count 2');
+  assert.match((await selection().innerText()).trim(), /^2 selected/, 'the selection controls count 2');
   await node(N.gpt).click({ modifiers: ['Shift'] });
   await waitFor(async () => (await selectedNodes()).length === 1, 3000, 'Shift-click did not remove');
   await node(N.sample).click();
@@ -263,8 +280,8 @@ await check('4c five selected nodes are five identities in a compact chip row wi
   await waitFor(async () => (await selectedNodes()).length === 5, 3000, 'five nodes selected');
   const keys = await codeKeys();
   assert.equal(new Set(keys).size, 5, `five distinct identities: ${JSON.stringify(keys)}`);
-  assert.ok(await pane().locator('[data-context-more]').count() === 1, 'a compact +N overflow');
-  assert.ok((await box(pane().locator('[data-context-chips]'))).height < 80, 'the chips do not fill the composer');
+  assert.equal((await pane().locator('[data-code-more]').innerText()).trim(), '+2 more', 'three chips shown, the rest behind +N');
+  assert.equal(await pane().locator('[data-context-chips] > ul > li[data-code-selection]').count(), 3, 'three chips in the row, the rest in the list');
   await shot('03-five-selected-chips');
   await page.keyboard.press('Escape');
 });
@@ -272,11 +289,11 @@ await check('4c five selected nodes are five identities in a compact chip row wi
 await check('5 Add to chat pins in place: the same chip turns solid, no second chip; the question carries each node once', async () => {
   await node(N.train).click(); await node(N.gpt).click({ modifiers: ['Shift'] });
   await waitFor(async () => (await codeKeys()).length === 2, 3000, 'two temporary chips');
-  await selection().getByRole('button', { name: 'Add to chat', exact: true }).click();
+  await selection().locator('[data-graph-add-to-chat]').click();
   await waitFor(async () => (await entries()).filter(e => e.key?.startsWith('code:') && e.chip === 'ready').length === 2, 5000, 'Add to chat did not pin both');
   const all = await codeKeys();
   assert.equal(all.length, 2, `no duplicate chip after pinning: ${JSON.stringify(all)}`);
-  await selection().getByRole('button', { name: 'Add to chat', exact: true }).click().catch(() => {}); // a second press adds nothing
+  await selection().locator('[data-graph-add-to-chat]').click().catch(() => {}); // a second press adds nothing
   assert.equal((await codeKeys()).length, 2, 'a second Add to chat adds nothing');
   const body = await send('How do these two relate?');
   const refs = codeRefs(body);
@@ -310,7 +327,7 @@ await check('6 closing the viewer drops temporary chips, keeps pinned ones, the 
   assert.equal((await entries()).filter(e => e.key?.startsWith('code:') && e.chip === 'ready').length, 0, 'New chat holds no pinned code');
 });
 
-await check('7 a repository-wide question with nothing selected: the repository at its commit, no selection, the whole-canvas package', async () => {
+await check('7 a repository-wide question with nothing selected: the repository at its commit, no selection, the whole-canvas package; a follow-up fills the composer, unsent', async () => {
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   const body = await send('Where is the training loop?');
@@ -320,11 +337,20 @@ await check('7 a repository-wide question with nothing selected: the repository 
   for (const key of ['range', 'path', 'nodeId']) assert.equal(body.repository_context?.[key], undefined, `no ${key} without a selection`);
   assert.equal(codeRefs(body).length, 0, 'no code ref without a selection');
   assert.ok(body.canvas_context, 'the whole-canvas package still rides');
+  // The answer's follow-ups (lane C answer_meta) continue the conversation: a click fills the composer and sends nothing.
+  const n = asked();
+  await pane().locator('[data-answer-followup]:visible').last().click();
+  await page.waitForTimeout(400);
+  assert.match(await field().inputValue(), /^Scripted follow-up \d+: trace the caller$/, 'a follow-up fills the composer');
+  assert.equal(asked(), n, 'and sends nothing');
+  await field().fill('');
 });
 
 await check('8 a selection question carries the repository, the commit and the symbol: model.py GPT', async () => {
   await openGraph();
-  await node(N.gpt).click();
+  // By keyboard (lane B: Enter selects, Space toggles): the companion was resized and the camera never refits, so a node can
+  // sit outside the visible graph; a learner pans or tabs to it.
+  await graphPanel().locator(`[data-graph-node="${N.gpt}"]`).focus(); await page.keyboard.press('Enter');
   await waitFor(async () => (await codeKeys()).length === 1, 3000, 'one temporary chip');
   const body = await send('What does this class do?');
   const refs = codeRefs(body);
@@ -338,9 +364,9 @@ await check('8 a selection question carries the repository, the commit and the s
 await check('9 a code citation opens Files at its range, not pinned and asking nothing; Back to graph restores the camera and the selection', async () => {
   await openGraph();
   await graphPanel().getByRole('button', { name: 'Zoom in', exact: true }).click();
-  await node(N.attn).click({ modifiers: ['Shift'] });
+  await graphPanel().locator(`[data-graph-node="${N.attn}"]`).focus(); await page.keyboard.press(' '); // Space adds to the selection
   await page.waitForTimeout(400);
-  const view = { camera: await camera(), selected: await selectedNodes() };
+  const was = { camera: await camera(), selected: await selectedNodes() };
   cite = 'The causal mask is applied in model.py:177-179.';
   await send('Where is the causal mask applied?');
   const n = asked(), pinnedBefore = (await entries()).filter(e => e.chip === 'ready').length;
@@ -357,8 +383,8 @@ await check('9 a code citation opens Files at its range, not pinned and asking n
   await companion().getByRole('button', { name: 'Back to graph', exact: true }).click();
   await graphPanel().waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(400);
-  facts.s9 = { before: view, after: { camera: await camera(), selected: await selectedNodes() } };
-  assert.deepEqual(facts.s9.after, view, 'the same camera and selection');
+  facts.s9 = { before: was, after: { camera: await camera(), selected: await selectedNodes() } };
+  assert.deepEqual(facts.s9.after, was, 'the same camera and selection');
 });
 
 await check('10 old links: ?tab=graph and ?tab=map open the canvas with Graph, ?tab=code with Files, once (the address becomes the plain one); a plain link and ?tab=learn open no viewer', async () => {
@@ -381,28 +407,29 @@ await check('10 old links: ?tab=graph and ?tab=map open the canvas with Graph, ?
 await check('11 Hide right panel hides Chat and the companion whatever the view; Show brings both back with the graph as it was', async () => {
   await openGraph();
   await node(N.model).click();
-  const view = { camera: await camera(), selected: await selectedNodes() }, full = (await box(canvasFrame())).width;
+  const was = { camera: await camera(), selected: await selectedNodes() }, full = (await box(canvasFrame())).width;
+  // A hidden column keeps its contents mounted at zero width (ResizableSidePanel), so the columns' own widths say it.
+  const widths = async () => [(await box(companion()))?.width ?? 0, (await box(page.locator('aside[aria-label="Learn agent chat"]')))?.width ?? 0];
   await page.locator('button[aria-label="Hide the right panel"]').first().click();
-  await waitFor(async () => !(await pane().isVisible()) && !(await companion().isVisible()), 5000, 'a column stayed visible');
+  await waitFor(async () => (await widths()).every(w => w < 2), 5000, `a column stayed open: ${JSON.stringify(await widths())}`);
   assert.ok((await box(canvasFrame())).width > full + 300, 'the canvas takes both columns');
   await page.locator('button[aria-label="Show the right panel"]').first().click();
-  await waitFor(async () => (await pane().isVisible()) && (await companion().isVisible()), 5000, 'both columns did not come back');
+  await waitFor(async () => (await widths()).every(w => w > 300), 5000, `both columns did not come back: ${JSON.stringify(await widths())}`);
   await page.waitForTimeout(400);
-  assert.deepEqual({ camera: await camera(), selected: await selectedNodes() }, view, 'the graph kept its camera and selection');
+  facts.s11 = { before: was, after: { camera: await camera(), selected: await selectedNodes() } };
+  assert.deepEqual(facts.s11.after, was, `the graph kept its camera and selection: ${JSON.stringify(facts.s11)}`);
 });
 
-await check('12 Curious carries the repository and its commit; Chat shows the answer\'s implementation follow-ups; neither runs by itself', async () => {
+await check('12 Curious asks for the repository canvas at its indexed commit and shows its three directions (the answer\'s follow-ups are case 7)', async () => {
   await waitFor(() => hooks.length > 0, 15000, 'the Curious hook never asked');
   const last = hooks.at(-1);
-  facts.s12 = { repository: last.input?.repository ?? last.repository ?? null, hooks: hooks.length };
-  assert.deepEqual(facts.s12.repository, { repo: REPO, commit: COMMIT }, `the hook input names the repository: ${JSON.stringify(facts.s12.repository)}`);
+  // Lane C: the server reads the canvas's repository itself (learn-next-steps-routes.js curiousRepository); the client adds the
+  // indexed commit to the basis, so a new commit asks again (learn-next-steps.js repositoryBasis).
+  facts.s12 = { app: last.app ?? null, commit_in_basis: JSON.stringify(last).includes(`@${COMMIT.slice(0, 12)}`), hooks: hooks.length };
+  assert.equal(facts.s12.app, REPO, 'the hook asks for the repository canvas');
+  assert.ok(facts.s12.commit_in_basis, 'the hook basis carries the indexed commit');
   await page.locator('[data-next-steps] [data-next-step]').first().waitFor({ timeout: 10000 });
-  const n = asked();
-  const follow = pane().locator('[data-answer-followup]').last();
-  await follow.click();
-  await page.waitForTimeout(400);
-  assert.match(await field().inputValue(), /^Scripted follow-up \d+: trace the caller$/, 'a follow-up fills the composer');
-  assert.equal(asked(), n, 'and sends nothing');
+  assert.equal(await page.locator('[data-next-steps] [data-next-step]').count(), 3, 'three directions');
 });
 
 await check('13 another canvas never inherits graph context; it shows no Explore codebase', async () => {
