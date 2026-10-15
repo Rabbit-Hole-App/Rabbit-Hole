@@ -55,6 +55,11 @@ second press. The upload/drop dialog for a new PDF is the same dialog, with the 
   plan route reads that PDF beside the switched-on documents with a line naming the page (`learn-tutor-routes.js`). A question
   about several pages posts to `/api/learn/ask`, the route that sends them all (`chat-route.js` `pageTurn`). The Tutor route is
   never taken by dropping a page.
+  Real-model check, 2026-10-14 about 8:35 PM PT, owner budget up to $1, spent $0.028: one Auto Tutor turn on the application
+  code of 23257886, local stack, a 3-page fixture whose page 2 alone names 41.7 kPa and part QX-8814, page 2 of the context
+  document selected. The plan request carried `page_context { doc: { id, page: 2 } }`; the production default planner
+  (Sonnet 5.5 fast tier) answered with 41.7 kPa and QX-8814. Verified: that one single-page context-document scenario. Not
+  verified with a real model: an uploaded-PDF page (`page_context.paper`), or anything beyond one page.
 - **Saving.** Page images and the PDF card's bytes are board assets: the browser cache plus the board's server copy, keyed by
   asset key. They survive a reload and open on another device. No blob URL is ever stored.
 - **No side effects on the source.** Adding never attaches, detaches or deletes the context document. Deleting a page or card
@@ -128,6 +133,8 @@ They stay separate from the CI redesign, F1/F2 and Anatomy.
 - follow-up 3: Add to chat on the uploaded-PDF page 12 attaches `paper:<id>` at page 12 (no card ref), and with the selection
   cleared the question sends `paper_context { id, page: 12 }`; with a document page 12 also selected, Auto falls back to
   `/api/learn/ask` and both pages ride;
+- coverage: page chips of two different uploaded PDFs: exactly one is marked "label only" (visible text and tooltip), the
+  first chip's PDF is the `paper_context`, and the other page still rides as a named ref;
 - follow-up 4: a set added with the view centre between the "Page 15" label and page 15 lands before the label, every page
   keeps its label right above it, and one Undo removes only the new set;
 - follow-up 2, authorized copy: the owner's Duplicate reads both PDFs (the document by its id, the upload from its home),

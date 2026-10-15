@@ -545,6 +545,7 @@ await check('deleting a page block leaves the context document as it was', async
   assert.equal(Buffer.from(await bytes.arrayBuffer()).equals(PDF), true, 'the same bytes');
 });
 
+let dropped = null;
 await check('the upload/drop road: a dropped PDF opens the same dialog; the upload is posted only after the choice; pages 2-3 land', async () => {
   const surface = page.locator('[aria-label="Lesson canvas"] div.touch-none').first();
   const drop = async () => {
@@ -565,6 +566,7 @@ await check('the upload/drop road: a dropped PDF opens the same dialog; the uplo
     assert.equal(papers.length, 0, 'nothing is uploaded before the choice');
   };
   const added = await add({ mode: 'pages', span: 'range', from: 2, to: 3 }, 'Add 2 pages', opened);
+  dropped = added;
   assert.equal(papers.length, 1, `one upload after the choice (${papers.length})`);
   assert.deepEqual(added.map(b => (b.slide ? `slide ${b.slide}` : `divider ${b.divider}`)), ['divider Page 2', 'slide 2', 'divider Page 3', 'slide 3']);
   for (const b of added.filter(x => x.slide)) assert.match(String(b.data?.pdf), /^pdf:/, 'an uploaded PDF\'s page keeps its paper key');
@@ -636,6 +638,37 @@ await check('follow-up 3: Add to chat (Ctrl+L) on the uploaded-PDF page 12 attac
   assert.equal(both.route, 'ask', 'two pages post to /api/learn/ask');
   assert.ok((both.body.context_refs || []).some(r => isPage(r, 12)), 'the document page 12 rides');
   assert.deepEqual(both.body.paper_context, { id: PAPER_ID, page: 12, home: canvas.name }, 'and the uploaded page 12 rides');
+});
+
+// Coverage: one uploaded PDF is read per question; a page chip of another uploaded PDF is marked a label only.
+await check('coverage: with page chips of two uploaded PDFs, the one not read is marked label only (visible text and tooltip); the first chip PDF is the paper_context', async () => {
+  const other = dropped?.find(b => b.slide === 2);
+  assert.ok(other, 'the dropped set holds page 2');
+  const OTHER_ID = String(other.data?.pdf).slice('pdf:'.length);
+  assert.notEqual(OTHER_ID, PAPER_ID, 'two different uploads');
+  await closeSources();
+  await newChat();
+  await setMode('ask');
+  const chips = pane().locator('[data-context-chip]');
+  for (const id of [paper12.id, other.id]) {
+    await selectBlock(id);
+    const before = await chips.count();
+    await page.evaluate(() => document.activeElement?.blur?.());
+    await page.keyboard.press('Control+l');
+    await waitFor(async () => (await chips.count()) > before, 5000, `no new chip after Ctrl+L (had ${before})`);
+  }
+  await focusCanvas();
+  await page.keyboard.press('Escape');
+  await waitFor(async () => (await pane().locator('[data-canvas-target]').count()) === 0, 5000, 'the selection pill stayed');
+  const marked = pane().locator('[data-context-chip][data-label-only]');
+  await waitFor(async () => (await marked.count()) === 1, 5000, 'not exactly one chip marked label only');
+  assert.match(await marked.innerText(), /label only/, 'the marker is visible text');
+  assert.match(String(await marked.locator('button').first().getAttribute('title')), /sent as a label only/, 'its tooltip says why');
+  await shot('11b-label-only-chip');
+  const cap = await send('Compare the attached pages.');
+  facts.label_only = { paper_context: cap.body.paper_context ?? null, context_refs: (cap.body.context_refs || []).map(r => [r.sourceId, r.range]) };
+  assert.deepEqual(cap.body.paper_context, { id: PAPER_ID, page: 12, home: canvas.name }, 'the first chip PDF is the one read');
+  assert.ok((cap.body.context_refs || []).some(r => r.sourceId === `paper:${OTHER_ID}` && r.range?.page === 2), 'the label-only page rides as a named ref');
 });
 
 await check('follow-up 4: a set added with the view centre between a page label and its page lands before the label; every pair stays together; one Undo removes only it', async () => {
@@ -751,7 +784,7 @@ await check('the context document is unchanged: listed once, same attached flag,
 });
 
 await check('no model call, no other model-capable request, no page error', async () => {
-  assert.equal(captured.length, 6, `only the six questions this check sent (${captured.map(c => c.route).join(', ')})`);
+  assert.equal(captured.length, 7, `only the seven questions this check sent (${captured.map(c => c.route).join(', ')})`);
   assert.deepEqual(refused, [], `refused routes: ${refused.join(', ')}`);
   assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
 });
