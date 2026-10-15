@@ -124,7 +124,7 @@ function nextStepsFor(input) {
   const topics = claims.length
     ? claims.map(([id, c]) => ({ label: label(concepts[c.concept]), concept_ids: Object.hasOwn(concepts, c.concept) ? [c.concept] : [], claim_ids: [id], repair: needsRepair(c), texts: [c.statement, ...(c.ideas || []), c.drawn] }))
     : Object.keys(concepts).length ? Object.entries(concepts).map(([id, name]) => ({ label: label(name), concept_ids: [id], claim_ids: [] }))
-      : (input?.canvas?.blocks?.length ? input.canvas.blocks.map(b => b?.title) : drawn.length ? drawn : [input?.goal || input?.canvas?.title]).map(t => ({ label: label(t), concept_ids: [], claim_ids: [] }));
+      : (input?.canvas?.blocks?.length ? input.canvas.blocks.map(b => b?.title) : drawn.length ? drawn : input?.repository?.symbols?.length ? input.repository.symbols.slice(0, 3) : [input?.goal || input?.canvas?.title]).map(t => ({ label: label(t), concept_ids: [], claim_ids: [] }));
   const seen = new Set((input?.previous?.hooks || []).map(h => String(h).toLowerCase()));
   const options = [];
   for (let f = 0; options.length < 3 && f < FRAMES.length * 3; f++) {

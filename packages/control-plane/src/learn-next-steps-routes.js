@@ -6,7 +6,10 @@ import { sha256Hex } from './learn-grade-jev.js';
 import { NO_CAP, admitUsage, limitsFrom, sharedAskLimits } from './learn-shared-ask.js';
 import { planNextSteps } from './learn-journey-planners.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
-import { NEXT_STEPS_LIMITS as L, NEXT_STEPS_PLANNER_VERSION, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit } from './agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS as L, NEXT_STEPS_PLANNER_VERSION, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit, withRepository } from './agents/learn-next-steps.js';
+import { NOT_TRASHED } from './library-trash.js';
+import { repositorySnapshot } from './repositories.js';
+import { repositoryTool } from './repository-context.js';
 import { TUTOR_DOMAINS } from '../../web/src/learn-tutor-domains.js';
 import { resolveTarget } from '../../web/src/learn-target.js';
 import { STATES } from '../../web/src/learn-tutor-evidence.js';
@@ -37,26 +40,73 @@ const failed = async (env, error, row) => { if (error.telemetry) await keepTelem
 // the next only after a Refresh landed, so a Refresh never gets the reply it replaces). A one-way hash, never the values.
 const REFRESH = /^r[0-9]{1,4}$/;
 const refreshProblem = body => (body?.refresh !== undefined && !(typeof body.refresh === 'string' && REFRESH.test(body.refresh)) ? json({ error: 'refresh must be r and 1-4 digits' }, 400) : null);
-export const ownedCacheKey = async (access, body, version = NEXT_STEPS_PLANNER_VERSION) =>
-  `${ORIGIN}/owned/${await sha256Hex(JSON.stringify([access.user_id || access.email, body.app, version, body.refresh ?? null, body.input]))}`;
+// repository: the canvas's repository and the commit its digest is read at (repo-graph Release 1), so a new commit is a new
+// entry; absent for a canvas with none, which keeps every earlier key.
+export const ownedCacheKey = async (access, body, version = NEXT_STEPS_PLANNER_VERSION, repository = null) =>
+  `${ORIGIN}/owned/${await sha256Hex(JSON.stringify([access.user_id || access.email, body.app, version, body.refresh ?? null, body.input, ...(repository ? [repository] : [])]))}`;
+
+// The canvas's repository for Curious (repo-graph Release 1, brief section 10): a repository Main canvas is its own row
+// (repositoryAccess already checked the owner); a project canvas reads its project's row under projectRepository's rule
+// (canvases.js): the caller's own, in this workspace, not in Trash. Never a name the browser sent. null: no repository.
+export async function curiousRepository(env, access) {
+  if (access?.kind === 'repository') return access;
+  if (!access?.project) return null;
+  return env.LEARN_DB.prepare(`SELECT * FROM repository_apps r WHERE r.org=? AND r.name=? AND r.owner_email=? AND ${NOT_TRASHED('r.org', 'r.name')}`).bind(access.org, access.project, access.email).first().catch(() => null);
+}
+
+// The bounded per-commit digest Curious reads: a README excerpt and the most connected files and symbols (get_repo_overview's
+// degree order). ponytail: an in-isolate performance memo of 32 digests, never storage - a cold isolate reads the snapshot again.
+export const DIGEST_LIMITS = Object.freeze({ readme: 1500, files: 8, symbols: 12, label: 100, memo: 32 });
+const digests = new Map();
+export async function repositoryDigest(env, row, { load = repositorySnapshot } = {}) {
+  const memo = `${row.id}@${row.commit_sha}`;
+  if (digests.has(memo)) return digests.get(memo);
+  const snapshot = await load(env, row, row.commit_sha);
+  const { symbols } = repositoryTool(snapshot, 'get_repo_overview');
+  // The shallowest README (the repository's own before a package's).
+  const readme = Object.keys(snapshot.files).filter(path => /(^|\/)readme(\.\w+)?$/i.test(path)).sort((a, b) => a.split('/').length - b.split('/').length)[0];
+  const digest = {
+    repo: row.repo, commit: row.commit_sha,
+    ...(readme ? { readme: capText(snapshot.files[readme], DIGEST_LIMITS.readme) } : {}),
+    files: [...new Set(symbols.map(node => node.path).filter(Boolean))].slice(0, DIGEST_LIMITS.files).map(path => capText(path, DIGEST_LIMITS.label)),
+    symbols: symbols.slice(0, DIGEST_LIMITS.symbols).map(node => capText(node.label, DIGEST_LIMITS.label)),
+  };
+  digests.set(memo, digest);
+  if (digests.size > DIGEST_LIMITS.memo) digests.delete(digests.keys().next().value);
+  return digest;
+}
+// Nothing on the canvas to plan from but the repository: no cards, no drawn objects, no scope.
+const blank = input => !input.canvas?.blocks?.length && !input.canvas?.objects?.length && !Object.keys(input.scope?.claims || {}).length && !Object.keys(input.scope?.concepts || {}).length;
+const UNREAD = 'Suggestions for this repository follow once its code has been read.';
 
 // A HookSet plus the planner telemetry (TutorDecisionEvent input, never shown); reason_internal never leaves (mintSet
 // keeps only the hook and its step). A cache hit was paid for once, so it reports no usage (ruling F13).
-export async function ownedNextSteps(env, access, body, { callModel, cache = globalThis.caches?.default } = {}) {
+// repositoryOf and loadSnapshot: test seams for curiousRepository and the R2 snapshot read.
+export async function ownedNextSteps(env, access, body, { callModel, cache = globalThis.caches?.default, repositoryOf = null, loadSnapshot = null } = {}) {
   if (!env.LEARN_DB) return json({ error: 'Next steps need the Learn database on this worker.' }, 503);
   const problem = nextStepsInputProblem(body?.input); // shape, limits (12000 characters) and forbidden keys
   if (problem) return json({ error: problem }, 400);
   if (refreshProblem(body)) return refreshProblem(body);
-  const key = await ownedCacheKey(access, body);
+  // repo-graph Release 1: a canvas with a repository plans with its digest; one not read yet (queued, indexing, failed, or a
+  // snapshot that will not load) is never invented - with nothing else on the canvas there is nothing to plan from (409).
+  const repository = await (repositoryOf || curiousRepository)(env, access);
+  const key = await ownedCacheKey(access, body, NEXT_STEPS_PLANNER_VERSION, repository ? `${repository.id}@${repository.commit_sha || repository.status}` : null);
   const hit = await nextStepsReply(cache, key);
   if (hit) return json({ ...hit, telemetry: { ...hit.telemetry, cached: true, calls: 0, usage: NO_USAGE, cost_usd: 0 } });
+  let input = body.input, digest = null;
+  if (repository) {
+    digest = repository.commit_sha ? await repositoryDigest(env, repository, loadSnapshot ? { load: loadSnapshot } : {}).catch(() => null) : null;
+    if (!digest && blank(input)) return json({ error: UNREAD, repository: 'unread' }, 409);
+    input = withRepository(input, digest || { repo: repository.repo, status: 'unread' });
+  }
   const limit = limitsFrom(NEXT_STEPS_CAPS, env);
   const refused = await admitUsage(env.LEARN_DB, { category: 'tutor_next_steps', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email, viewerHour: limit.TUTOR_NEXT_STEPS_HOUR, viewerDay: limit.TUTOR_NEXT_STEPS_DAY, shareHour: NO_CAP, shareDay: NO_CAP });
   if (refused) return json({ error: 'Next steps are paused for now; try again later.', limited: true }, 429);
   let planned;
-  try { planned = await planNextSteps(env, body.input, callModel ? { callModel } : {}); } catch (error) { return failed(env, error, { scope: 'owned', userId: access.user_id, board: body.app }); }
-  const set = { ...mintSet(planned.options, body.input), telemetry: { ...planned.telemetry, cached: false } };
-  await keepReply(cache, key, set);
+  try { planned = await planNextSteps(env, input, callModel ? { callModel } : {}); } catch (error) { return failed(env, error, { scope: 'owned', userId: access.user_id, board: body.app }); }
+  const set = { ...mintSet(planned.options, input), telemetry: { ...planned.telemetry, cached: false } };
+  // A snapshot that failed to load at an indexed commit is not kept under that commit's key: the next ask reads it again.
+  if (!(repository?.commit_sha && !digest)) await keepReply(cache, key, set);
   await keepTelemetry(env.LEARN_DB, { scope: 'owned', userId: access.user_id, board: body.app, telemetry: set.telemetry });
   return json(set);
 }

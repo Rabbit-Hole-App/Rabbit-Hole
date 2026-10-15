@@ -126,6 +126,7 @@ const baseDeps = Object.fromEntries(modules.flatMap(m => Object.entries(m)).filt
 // A test double of B4's trailer functions (on this base they are stubs): the wiring is what is under test here.
 const fakeMeta = {
   ANSWER_META_SYSTEM: 'ANSWER_META_RULES',
+  answerMetaSystem: ({ repository = false } = {}) => (repository ? 'ANSWER_META_RULES REPOSITORY_FOLLOWUPS' : 'ANSWER_META_RULES'),
   splitAnswerMeta: text => { const m = String(text).match(/\s*<answer_meta>([^]*?)<\/answer_meta>\s*$/); return m ? { content: text.slice(0, m.index), raw: m[1] } : { content: text, raw: null }; },
   validateAnswerMeta: (raw, { messageId }) => ({ actions: [], followUps: raw ? [{ id: 'f1', text: `next after ${messageId}`, kind: 'next' }] : [] }),
 };

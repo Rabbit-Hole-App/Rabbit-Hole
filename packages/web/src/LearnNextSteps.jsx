@@ -3,7 +3,7 @@
 // say('', { nextStep, selectedAt }) while that mode is on (contract §1.4).
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from './api.js';
-import { goalOf, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, viewerStates } from './learn-next-steps.js';
+import { goalOf, nextStepsBasis, nextStepsController, nextStepsInput, repositoryBasis, stoppingPoint, viewerStates } from './learn-next-steps.js';
 import { emitDecision, hooksEvent, shownEvent, tracing } from './learn-tutor-trace.js';
 import { loadStore, storeKey } from './learn-tutor-evidence.js';
 
@@ -65,7 +65,7 @@ export function ownedSteps(read, { post = (input, extra = {}) => api('/api/learn
       if (!s?.context) return { basis: null, stop: 'off' };
       const semantic = semanticOf(p), snapshot = semantic?.snapshot;
       return {
-        basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle, fingerprint: semantic?.fingerprint ?? null }),
+        basis: repositoryBasis(nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle, fingerprint: semantic?.fingerprint ?? null }), p.repositoryCommit),
         // Task 14 C-M2: the goal the input is built from (goalOf over the snapshot), never the title fallback prop alone.
         stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, objects: snapshot ? snapshot.objects.length + snapshot.omitted.objects : 0, goal: goalOf({ context: s.context, record: s.record, title: p.title, liveTitle: s.liveTitle }).goal, plain: s.context.source === 'canvas' && !s.record }),
         ...(semantic ? { semantic } : {}),
@@ -92,14 +92,17 @@ export function ownedSteps(read, { post = (input, extra = {}) => api('/api/learn
   };
 }
 
+// repositoryCommit: the indexed commit of the canvas's repository, or null (none, or not read yet). The server reads the
+// repository itself (learn-next-steps-routes.js curiousRepository), never from this; the commit only joins the basis, so a
+// repository that finishes indexing, or moves to a new commit, asks again (repo-graph Release 1).
 // describe: LearningBlocks' describeBlock when the page passes it (a card's kind and title as every canvas surface names
 // it); without it a block's type and title stand in. Not imported here: LearningBlocks.jsx cannot load under node tests.
 // board: the board name (LearnPage's boardName). canvasVersion: the board revision, for telemetry only.
 // ponytail: one controller per mount (previous hooks and the tab ceiling span board changes inside one LearnPage); key it by
 // app and board if a page ever switches canvases without remounting.
-export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, record = null, access, title = '', graded = 0, canvasVersion = null, board = 'main', describe = null }) {
+export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, record = null, access, title = '', graded = 0, canvasVersion = null, board = 'main', describe = null, repositoryCommit = null }) {
   const live = useRef(null);
-  live.current = { tutor, journey, canvasApi, canvasState, record, access, title, graded, canvasVersion, board, describe };
+  live.current = { tutor, journey, canvasApi, canvasState, record, access, title, graded, canvasVersion, board, describe, repositoryCommit };
   const [steps] = useState(() => ownedSteps(() => live.current));
   const { basis, stop, semantic, settling = false } = steps.state();
   useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
