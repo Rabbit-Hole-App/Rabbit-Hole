@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { Component, useContext, useEffect, useMemo, useState } from 'react';
 import { FileCode, Loader2, Maximize2, MessageSquarePlus, Network, Search, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input } from './ui.jsx';
@@ -16,7 +16,24 @@ import { useCardSource } from './use-card-source.js';
 // chat context (graph-card.js), like the companion's; nothing here sends a message or calls a model.
 const short = commit => (commit || '').slice(0, 7);
 
-export default function GraphCard({ block }) {
+// main.jsx swaps the whole page for its crash screen on any uncaught error, so a card that throws while drawing (a reply of
+// an unexpected shape) shows its own failed state with Retry instead (Home's cards check, case 5).
+class GraphCardBoundary extends Component {
+  state = { failed: false, attempt: 0 };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error) { console.error('[graph card]', error); }
+  render() {
+    if (!this.state.failed) return <GraphCardBody key={this.state.attempt} block={this.props.block} />;
+    return <div role="status" data-graph-card data-graph-card-state="failed" className="flex flex-1 flex-col items-start gap-2 px-3 pb-3 text-sm text-ink-2">
+      <p>The graph could not load.</p>
+      <Button size="sm" variant="secondary" data-graph-card-retry onClick={() => this.setState(s => ({ failed: false, attempt: s.attempt + 1 }))}>Retry</Button>
+    </div>;
+  }
+}
+
+export default function GraphCard({ block }) { return <GraphCardBoundary block={block} />; }
+
+function GraphCardBody({ block }) {
   const source = useCardSource(block), chat = useChatWorkspace(), companion = useContext(CodeRefs);
   const [query, setQuery] = useState('');
   const selected = useCardSelection(block.id);
@@ -40,7 +57,7 @@ export default function GraphCard({ block }) {
       <span className="min-w-0 truncate font-medium text-ink" title={block.repository?.repo}>{block.repository?.repo || 'Repository'}</span>
       <span className="shrink-0 font-mono" title={`Commit ${block.repository?.commit}`}>{short(block.repository?.commit)}</span>
       <span data-graph-card-scope={block.scope} className="shrink-0 text-ink-3">· {scope}</span>
-      {source.status === 'ready' && source.skipped.length > 0 && <span className="shrink-0 text-ink-3" title="Files the indexer excluded are not in this graph">· {source.skipped.length} excluded</span>}
+      {source.status === 'ready' && source.skipped?.length > 0 && <span className="shrink-0 text-ink-3" title="Files the indexer excluded are not in this graph">· {source.skipped.length} excluded</span>}
     </div>
     {source.status !== 'ready' ? <div role="status" data-graph-card-state={source.stale ? 'stale' : source.status} className="flex flex-1 flex-col items-start gap-2 text-sm text-ink-2">
       {source.status === 'loading' ? <span className="flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" aria-hidden />Loading the graph…</span>
