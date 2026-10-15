@@ -2,7 +2,8 @@ import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { Eye, FileText, MessageCircle, X } from 'lucide-react';
 import { docIsEmpty } from '../canvas-doc.js';
 import { setRemoteAssets, setWorkspaceStore } from '../learn-board-assets.js';
-import { Button } from '../ui.jsx';
+import { Button, toast } from '../ui.jsx';
+import { CARD_GONE, cardParam, withoutCardParam } from '../canvas-refs-model.js';
 import { PRODUCT } from '../flags.js';
 import CommentsPanel from './CommentsPanel.jsx';
 import { useCanvasComments } from './useCanvasComments.js';
@@ -38,6 +39,25 @@ export default function MemberBoardPage({ boardId }) {
       setBoard(read.body); setAbout(info.status === 200 ? info.body : null);
     }, () => setProblem('This canvas could not be opened. Check your connection and try again.'));
   }, [base]);
+  // card=<objectId>, a backlink's origin card (C:/s/spec/references-plan.md, URLs): once the board's canvas is up, that card
+  // is shown - the document hidden, never dropped - or, gone, a toast and nothing selected; the param is dropped either way.
+  // ponytail: polls for the lazy canvas's api (no state callback here); stops on unmount.
+  const cardFocus = useRef(cardParam(window.location.search));
+  useEffect(() => {
+    const id = cardFocus.current;
+    if (!board || !id) return undefined;
+    const timer = setInterval(() => {
+      const api = canvasApi.current;
+      if (!api) return;
+      clearInterval(timer);
+      cardFocus.current = null;
+      window.history.replaceState(window.history.state, '', withoutCardParam(window.location.href));
+      if (!api.blocks().some(block => block.id === id)) { api.deselect(); toast(CARD_GONE); return; }
+      setDocShown(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => canvasApi.current?.focusBlock(id)));
+    }, 50);
+    return () => clearInterval(timer);
+  }, [board]);
   const comments = useCanvasComments({ base: board && base, canAdd: !!about?.can.post, openPanel: openComments, canvasApi, link: `/c/${boardId}`, shown: commentsOpen });
 
   if (problem) return <main className="grid h-screen place-items-center bg-white p-6"><div className="max-w-sm text-center"><h1 className="text-lg font-semibold text-ink">{problem}</h1><a href="/" className="mt-3 inline-block text-sm text-ink-2 underline">Go to {PRODUCT}</a></div></main>;
