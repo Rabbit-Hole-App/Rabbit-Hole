@@ -143,9 +143,8 @@ const frames = () => page.evaluate(() => new Promise(resolve => requestAnimation
 // ---------------------------------------------------------------- Materials rows
 const pane = () => page.locator('[data-chat-pane]');
 const sourcesPane = () => page.locator('[data-sources-pane]');
-// The side panel holding Sources (labelled Sources, or Context once it is a navigation tab); the composer's own Sources button
-// shares the label, so the panel is the one that holds the pane.
-const sourcesPanel = () => page.locator(':is([aria-label="Sources"],[aria-label="Context"]):has([data-sources-pane])');
+// Sources is the right panel's Context tab (docs/features/hide-right-panel.md): its tabpanel spans the panel's width.
+const sourcesPanel = () => page.locator('[data-context-panel]');
 const row = doc => page.locator(`[data-material-row][data-source-id="doc:${doc.id}"]`);
 const action = (doc, name) => row(doc).locator(`[data-material-action="${name}"]`);
 const expander = doc => row(doc).locator('button[aria-expanded]').first();
@@ -158,9 +157,11 @@ const clearChat = async (...docs) => {
   }
 };
 const readerTitle = async () => (await page.locator('[data-sources-header] h2').innerText().catch(() => '')).trim();
-const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-sources-pane]')?.closest('[aria-label="Sources"],[aria-label="Context"]')?.getBoundingClientRect().width || 0) > 50);
+const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-context-panel]')?.getBoundingClientRect().width || 0) > 50);
+// Chat and Context share the panel: a step on the composer or the selection pill shows the Chat tab first.
+const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.getAttribute('aria-selected') !== 'true') await tab.click(); };
 const openSources = async () => {
-  if (!(await sourcesOpen())) await page.locator('[data-chat-sources]:visible').first().click({ timeout: 5000 });
+  if (!(await sourcesOpen())) await page.locator('[data-panel-tab="context"]').click({ timeout: 5000 });
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
   // Every row is listed and ready (its expand control enabled).
   await waitFor(async () => {
@@ -171,6 +172,8 @@ const openSources = async () => {
 const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-sources-close]').click(); await page.waitForTimeout(300); } };
 // Click one row action and check it neither expanded its row nor switched the reader.
 const press = async (doc, name) => {
+  // A row action lives in the Context tab; a step on Chat (send, select) left Chat showing.
+  if (!(await sourcesOpen())) await page.locator('[data-panel-tab="context"]').click({ timeout: 5000 });
   const expanded = await expander(doc).getAttribute('aria-expanded'), reader = await readerTitle();
   await action(doc, name).click();
   await page.waitForTimeout(300);
@@ -184,13 +187,15 @@ const chipsOf = doc => pane().locator(`[data-context-chip] button[title="Open ${
 // ---------------------------------------------------------------- the composer and the canvas
 const field = () => pane().locator('[data-chat-composer] textarea').first();
 const setMode = async mode => {
+  await chatTab();
   if (await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === mode) return;
   await pane().getByRole('button', { name: 'Mode', exact: true }).click();
   await page.locator(`[data-chat-mode-option="${mode}"]`).click();
   await page.waitForTimeout(200);
 };
-const newChat = async () => { await pane().locator('[data-chat-new]').click(); await page.waitForTimeout(300); };
+const newChat = async () => { await chatTab(); await pane().locator('[data-chat-new]').click(); await page.waitForTimeout(300); };
 const send = async text => {
+  await chatTab();
   await field().fill(text);
   const n = captured.length;
   await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
@@ -241,6 +246,7 @@ const reveal = async locator => {
   return locator.boundingBox();
 };
 const selectBlock = async id => {
+  await chatTab();
   const target = page.locator(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`).first();
   await reveal(target);
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -478,14 +484,17 @@ await P.context.close();
 // Scenario 11: a long name, Sources at 320 and 480 px, light and dark, keyboard focus; the rows at rest.
 for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
   await check(`${theme} ${width}px: the long name truncates with its full-name title, the four actions stay visible inside the pane, Tab reaches each with a visible focus`, async () => {
-    const Q = await profile(`${theme}-${width}`, { 'small.theme': theme, 'rh.sources.width': String(width) });
+    const Q = await profile(`${theme}-${width}`, { 'small.theme': theme, 'rh.chat.width': String(width) });
     page = Q.page;
     try {
       await openCanvas(page);
       await openSources();
       assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), theme === 'dark', `the ${theme} theme is on`);
+      // rh.chat.width sizes the right panel (the aside); wait for its slide to settle at that width, then measure Context in it.
+      const aside = page.locator('aside[aria-label="Learn agent chat"]');
+      await waitFor(async () => Math.abs(((await aside.boundingBox())?.width ?? 0) - width) <= 1, 5000, `the right panel did not settle at ${width}px (${(await aside.boundingBox())?.width})`);
       const panel = await sourcesPanel().boundingBox();
-      assert.ok(Math.abs(panel.width - width) <= 2, `Sources is ${width}px wide (${panel.width})`);
+      assert.ok(Math.abs(panel.width - width) <= 1, `Context spans the ${width}px panel (${panel.width})`);
       assert.ok(await sourcesPane().evaluate(el => el.scrollWidth <= el.clientWidth + 1), 'no horizontal overflow in Sources');
       const name = row(L).locator('[data-material-name]');
       assert.equal(await name.getAttribute('title'), LONG_NAME, 'the long name keeps its full name as its title');
