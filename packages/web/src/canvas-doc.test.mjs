@@ -75,3 +75,21 @@ test('a replaced document remounts its editor; leaving the page writes pending w
   assert.match(canvas, /<CanvasDoc key=\{docEpoch\} blocks=\{doc\.blocks\}/, 'the editor is keyed by that epoch');
   assert.match(canvas, /window\.addEventListener\('pagehide', flushDoc\)/, 'leaving the page flushes the pending document');
 });
+
+// Home canvas-doc-check bug 2 (lead 12:08 AM PT): a click on a slash menu item did not apply it and dropped the focus to the
+// page. The canvas shell blurs a focused field when a press lands outside it (AdaptiveCanvas onPointerDownCapture), and
+// BlockNote's menus, toolbars and drag handles sit beside its contenteditable, not in it. A press anywhere in the same
+// document keeps the editor's focus.
+test('a press on the document editor\'s own menus keeps its focus; a press outside the document does not', async () => {
+  const { pressKeepsDocFocus } = await import('./canvas-doc.js');
+  const menuItem = {}, card = {};
+  const paper = { contains: node => node === menuItem };
+  const editor = { closest: selector => (selector === '[data-canvas-doc]' ? paper : null) };
+  const note = { closest: () => null };
+  assert.equal(pressKeepsDocFocus(editor, menuItem), true, 'the slash menu item');
+  assert.equal(pressKeepsDocFocus(editor, card), false, 'a card on the canvas');
+  assert.equal(pressKeepsDocFocus(note, menuItem), false, 'a canvas note is not the document');
+  assert.equal(pressKeepsDocFocus(null, menuItem), false);
+  const { readFileSync } = await import('node:fs');
+  assert.match(readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), /if \(editable && !active\.contains\(event\.target\) && !pressKeepsDocFocus\(active, event\.target\) && /, 'the shell uses it');
+});
