@@ -120,3 +120,15 @@ test('docSaved: Saved only when the PUT carried the document as shown', async ()
   const { readFileSync } = await import('node:fs');
   assert.match(readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8'), /const shown = canvas\(\)\?\.liveBoard\?\.\(\);\s+setSaveState\(!shown \|\| docSaved\(state\.doc, shown\.doc\) \? \{ state: 'saved' \} : \{ state: 'saving' \}\);/);
 });
+
+// Lead 12:56 AM PT (block-drag diagnosis fix 1): the canvas's file drop acted on any drop that reached the surface, so an
+// editor drag (BlockNote's block drag carries blocknote/html, never Files) could be cancelled and sent as an empty upload.
+test('only a drag that carries files is a file drop', async () => {
+  const { isFileDrag } = await import('./canvas-doc.js');
+  assert.equal(isFileDrag({ types: ['blocknote/html', 'text/html', 'text/plain'] }), false, 'a block drag');
+  assert.equal(isFileDrag({ types: ['Files'] }), true);
+  assert.equal(isFileDrag(null), false);
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /onDrop=\{event => \{ if \(!onDropFiles \|\| !isFileDrag\(event\.dataTransfer\)\) return;/);
+});
