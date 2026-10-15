@@ -17,6 +17,8 @@ import { videoMomentTools } from './learn-youtube.js';
 import { devIdentity } from './dev-forwarding.js';
 import { emptyBoard } from './canvases.js';
 import { CANVAS_CONTEXT_RULES, CANVAS_PACKAGE_CHARS, canvasContextText, validateCanvasContext } from './canvas-context.js';
+import { chatFields } from './chat-modes.js';
+import { repositoryChatTurn, repositoryRegenerate } from './repository-chat.js';
 // A Learn ask's JSON (repositoriesFetch): 64 KB of its own fields, plus the canvas_context package at its cap, plus context_refs at
 // their A2 worst case (20 refs x 2 KB without text + 32,000 characters of text, under 80,000 as JSON).
 const ASK_JSON=64000+CANVAS_PACKAGE_CHARS+80000;
@@ -314,6 +316,7 @@ function selectedRange(snapshot,{path,start,end}){
 }
 async function repositoryAsk(req,env,user,app){
   const {body,file}=await readAskRequest(req);
+  const chat=chatFields(body); // a Chat composer turn (repository-chat.js); null for an ask without its fields
   // The ask's own fields keep 64 KB; the canvas package is bounded by its validator and context_refs by ASK_JSON.
   const {canvas_context:_canvas,context_refs:_refs,...own}=body;
   if(JSON.stringify(own).length>64000)return json({error:'Request exceeds 64 KB'},413);
@@ -377,12 +380,15 @@ async function repositoryAsk(req,env,user,app){
   catch(error){return json({error:error.message},502);}
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,scopeRef,commit,body.message.slice(0,120)).run();
-  const history=await threadTurns(db,id,seed,question);
+  const turn=await repositoryRegenerate(db,id,chat);
+  const history=await threadTurns(db,id,seed,question,turn?.userMessageId);
+  const chatTurn=await repositoryChatTurn(db,{chat,turn,threadId:id,history,message:body.message,readPaper:source?.paper?body.paper_context?.id:null});
   // Whole-canvas context (canvas-context.js): the same block and rules as /api/learn/ask, on every ask that sends it.
-  const board=canvas?`\n\n${canvasContextText(canvas)}`:'',rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
+  const board=(canvas?`\n\n${canvasContextText(canvas)}`:'')+chatTurn.context,rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
+  const saveGraph=async messageId=>{if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(messageId,JSON.stringify(graphView)).run();};
   return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),...(selectedEntities?{selectedEntities,selectedNote:SELECTED_NOTE}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget)+board,history,question,
-    async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
-    (body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
+    chatTurn.onDone(saveGraph)||(async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();await saveGraph(message.id);}),{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
+    chatTurn.system((body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules),{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org,...chatTurn.research});
 }
 
 export async function repositoryEvidence(env,app,input){
