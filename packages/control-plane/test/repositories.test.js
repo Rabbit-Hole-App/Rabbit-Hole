@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { parseRepository, repositoriesFetch, repositoryAccess, RepositoryImports, ownerRepositories } from '../src/repositories.js';
-import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
+import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS, parseCodeRef, resolveCodeRefs } from '../src/repository-context.js';
 import { researchAnswer } from '../src/learn-research.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { putUploadedPaper } from '../src/learn-paper.js';
@@ -110,6 +110,41 @@ test('a whole-file context is read from stored source and stored as the plain qu
   assert.equal((await f.send('ask',{message:'Why?',repository_context:{commit:sha,path:'../secret'}})).status,400);
   const thread=f.sqlite.prepare('SELECT id FROM threads').get();
   assert.equal((await f.send('ask',{message:'Why?',thread_id:thread.id,repository_context:{commit:newer,path:'model.py'}})).status,409);
+});
+
+// repo-canvas-graph.md sections 6-8: several selected graph nodes and Files selections ride as code refs; each is read from the
+// stored snapshot at its commit, an unreadable one is marked and never shown as read, and a ref from another commit is refused
+// in an existing chat (409) the way a single selection is.
+test('several selected code refs are each read from stored source; foreign, stale and missing ones are marked, never read',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let prompt;
+  globalThis.fetch=async(_,options)=>{prompt=JSON.parse(options.body);return Response.json({content:[{type:'text',text:'They connect through forward.'}],stop_reason:'end_turn'});};
+  const ref=(path,extra={})=>({sourceId:`code:example/project@${sha}:${path}`,kind:'code',name:path,version:sha,range:null,...extra});
+  const context_refs=[
+    ref('model.py#forward',{name:'forward()',range:{path:'model.py',start:2,end:2}}),
+    ref('model.py',{range:{path:'model.py',start:1,end:2}}),
+    ref('README.md'),
+    ref('model.py#ghost',{name:'ghost()'}),
+    {...ref('model.py'),sourceId:`code:someone/else@${sha}:model.py`,name:'other model.py'},
+    {...ref('model.py'),sourceId:`code:example/project@${newer}:model.py`,name:'newer model.py'},
+  ];
+  const response=await f.send('ask',{message:'How do these connect?',repository_context:{commit:sha},context_refs});
+  assert.equal(response.status,200);await response.text();
+  const sent=JSON.stringify(prompt.messages),statuses=[...sent.matchAll(/\\"status\\":\\"(\w+)\\"/g)].map(m=>m[1]);
+  assert.deepEqual(statuses,['read','read','read','unavailable','unavailable','other_commit']);
+  assert.match(sent,/2:     def forward/);assert.match(sent,/1: A model/);assert.match(sent,/Node not found in this commit/);
+  assert.match(sent,/never describe it as inspected/);
+  assert.match(f.sqlite.prepare("SELECT content FROM messages WHERE role='user'").get().content,/Selected: forward\(\), model\.py, README\.md, ghost\(\), other model\.py, newer model\.py \(commit a{40}\)$/);
+  const thread=f.sqlite.prepare('SELECT id FROM threads').get();
+  assert.equal((await f.send('ask',{message:'And now?',thread_id:thread.id,context_refs:[context_refs[5]]})).status,409);
+  assert.equal((await f.send('ask',{message:'Bad ref',context_refs:[{sourceId:'nope',kind:'code',name:'x',version:'',range:null}]})).status,400);
+});
+test('selected source is bounded per question: past the budget a selection is named, not read',()=>{
+  const big={...snapshot,files:{...snapshot.files,'big.py':Array.from({length:120},(_,i)=>`x${i} = ${'y'.repeat(395)}`).join('\n')}};
+  const refs=Array.from({length:4},(_,i)=>({sourceId:`code:example/project@${sha}:big.py`,kind:'code',name:`big ${i}`,version:sha,range:{path:'big.py',start:1,end:120}}));
+  const statuses=resolveCodeRefs(big,refs).map(e=>e.status);
+  assert.equal(statuses[0],'read');assert.equal(statuses.at(-1),'not_read');
+  assert.deepEqual(parseCodeRef({sourceId:`code:a/b@${sha}:src/x.py#${encodeURIComponent('x.py::f#1')}`}),{repo:'a/b',commit:sha,path:'src/x.py',nodeId:'x.py::f#1'});
+  assert.deepEqual(parseCodeRef({sourceId:`code:a/b@${sha}:src/x.py`}),{repo:'a/b',commit:sha,path:'src/x.py',nodeId:null});
 });
 
 // C4 models-1, repository row: same resolution as apiAsk; Auto keeps the server-side fallback.

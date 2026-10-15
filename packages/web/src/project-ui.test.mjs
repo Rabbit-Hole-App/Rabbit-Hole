@@ -134,6 +134,13 @@ test('one selection: the Files reader picks and Ask or Learn on a range attach t
   assert.doesNotMatch(reader, /setContext|small:ask-focus|learnAction/);
 });
 
+// Owner, 2026-10-08, from the stable preview (pallets/itsdangerous); repo-canvas-graph.md decision 4.
+test('a click on the graph\'s white space clears the selection; Shift on a node toggles it', () => {
+  // RepositoryGraph reports an unmoved press on empty space as onSelect(null) (Shift held: nothing), and on a node as that
+  // node, toggled when Shift is held (repo-canvas-graph.md decision 4).
+  assert.match(read('RepositoryGraph.jsx'), /onPointerUp=\{e=>\{const active=drag\.current;release\(e\);if\(!active\|\|active\.moved\)return;if\(active\.node\)onSelect\(scene\.positions\.get\(active\.node\.id\),\{toggle:e\.shiftKey\}\);else if\(!e\.shiftKey\)onSelect\(null,\{toggle:false\}\);\}\}/);
+});
+
 test('Files: the inspector does not repeat the code the reader shows - no preview, no Source tab', () => {
   const inspector = read('MapInspector.jsx');
   assert.match(inspector, /const file = object\.path, source = !record && !!file, tabs = source && !codeInView;/);

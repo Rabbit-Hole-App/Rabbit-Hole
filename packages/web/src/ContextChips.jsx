@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { CircleAlert, FileCode2, FileText, Film, Globe, Group, Image, Loader2, RotateCw, Shapes, StickyNote, X } from 'lucide-react';
+import { Menu } from './ui.jsx';
+import { refWhere } from './repo-context.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { rangeLabel, refKey, sameRef } from './chat-context.js';
 import { refIds } from './chat-canvas-context.js';
@@ -25,9 +28,24 @@ const LABEL_ONLY = 'Only one uploaded PDF is read per question; this page is sen
 // detaches it and clears the selection, so it does not come straight back as a selection); an unpinned one (a PDF card or page)
 // is a dashed chip of its own whose x clears the selection, the way the pill's did. The selection pill above the composer carries
 // the same data-canvas-target and data-selected-card markers.
-export default function ContextChips({ readPaper = null, selection = null }) {
+// code: a repository canvas's viewer selection (ask.jsx, repo-context.js): { temporary: refs not pinned that go with the next
+// question, left: selected refs past the 20-ref limit (not sent), selected: every selected ref, onRemove(ref) }. A pinned ref
+// that is also selected is one chip marked selected (its x unpins it and lets go of the selection); the rest are dashed chips,
+// three shown and the others behind +N.
+const SHOWN = 3;
+export default function ContextChips({ readPaper = null, selection = null, code = null }) {
   const chat = useChatWorkspace();
+  const [more, setMore] = useState(false);
   if (!chat) return null;
+  const codeSelected = ref => !!code?.selected.some(other => sameRef(other, ref));
+  const codeChip = ref => (
+    <li key={refKey(ref)} data-code-selection data-ref-key={refKey(ref)} title={`${ref.name} · ${refWhere(ref)}. Selected in the repository viewer: it goes with the next question; Add to chat keeps it.`}
+      className={`${CHIP} border-dashed border-line-strong pr-0.5`}>
+      <span className="flex h-full min-w-0 items-center gap-1 pl-1.5"><RefIcon kind="code" /><span className="max-w-40 truncate">{ref.name}</span>
+        {rangeLabel(ref.range) && <span className="shrink-0 text-ink-3">{rangeLabel(ref.range)}</span>}<span className="shrink-0 text-ink-3">· selected</span></span>
+      <button type="button" onClick={() => code.onRemove(ref)} aria-label={`Remove ${ref.name} from the selection`} title="Remove from the selection" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
+    </li>
+  );
   const chips = chat.context.items.filter(item => item.attached || item.state !== 'ready');
   const failed = chips.filter(item => item.state === 'failed');
   // "This canvas" says what goes with a message (whole-canvas context): the coverage line of the package the draft would send,
@@ -57,12 +75,19 @@ export default function ContextChips({ readPaper = null, selection = null }) {
             </li>
           );
         })()}
+        {code?.temporary.slice(0, SHOWN).map(codeChip)}
+        {code?.temporary.length > SHOWN && <li className="relative">
+          <button type="button" data-code-more aria-expanded={more} onClick={() => setMore(open => !open)} className={`${CHIP} border-dashed border-line-strong px-1.5 text-ink-2 hover:bg-hover`}>+{code.temporary.length - SHOWN} more</button>
+          <Menu open={more} onClose={() => setMore(false)} className="bottom-full left-0 mb-1 w-72 p-1">
+            <ul data-code-more-list aria-label="More selected code" className="flex max-h-60 flex-col gap-1 overflow-y-auto">{code.temporary.slice(SHOWN).map(codeChip)}</ul>
+          </Menu>
+        </li>}
         {chips.map(item => {
           const { ref, state } = item, label = rangeLabel(ref.range), busy = state === 'uploading' || state === 'processing', labelOnly = state === 'ready' && labelOnlyChip(ref, readPaper);
-          const selected = !!selection?.pinned && state === 'ready' && sameRef(selection.ref, ref);
+          const selected = (!!selection?.pinned && state === 'ready' && sameRef(selection.ref, ref)) || (state === 'ready' && codeSelected(ref));
           return (
             <li key={item.id || refKey(ref)} data-context-chip={state} data-ref-key={refKey(ref)} data-label-only={labelOnly || undefined}
-              {...(selected ? { 'data-canvas-target': true, 'data-selected-card': selection.id } : {})}
+              {...(selected && !codeSelected(ref) ? { 'data-canvas-target': true, 'data-selected-card': selection.id } : {})} data-code-pinned={codeSelected(ref) || undefined}
               className={`${CHIP} pr-0.5 ${state === 'failed' ? 'border-red-300' : selected ? 'border-accent' : ''}`}>
               <button type="button" disabled={state !== 'ready'} onClick={() => chat.openSource(ref)} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `Open ${ref.name}`}
                 className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent">
@@ -76,12 +101,13 @@ export default function ContextChips({ readPaper = null, selection = null }) {
                 {selected && <span className="shrink-0 text-ink-3">· selected</span>}
               </button>
               {state === 'failed' && <button type="button" onClick={item.retry} aria-label={`Retry uploading ${ref.name}`} title="Retry" className={CHIP_ICON_BUTTON}><RotateCw size={12} aria-hidden /></button>}
-              {!busy && <button type="button" onClick={() => { if (item.dismiss) item.dismiss(); else { chat.context.detach(ref); if (selected) selection.onClear?.(); } }}
+              {!busy && <button type="button" onClick={() => { if (item.dismiss) item.dismiss(); else { chat.context.detach(ref); if (codeSelected(ref)) code.onRemove(ref); else if (selected) selection.onClear?.(); } }}
                 aria-label={item.dismiss ? `Dismiss ${ref.name}` : `Remove ${ref.name} from this chat`} title={item.dismiss ? 'Dismiss' : 'Remove from this chat'} className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>}
             </li>
           );
         })}
       </ul>
+      {code?.left.length > 0 && <p data-code-left className="mt-1 text-xs text-ink-3">{code.left.length} more selected not sent: a chat holds up to 20 attachments.</p>}
       {failed.map(item => <p key={item.id} role="alert" className="mt-1 truncate text-xs text-red-700" title={item.error}>{item.ref.name}: {item.error}</p>)}
     </div>
   );

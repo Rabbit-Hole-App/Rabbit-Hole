@@ -9,6 +9,52 @@ export const REPOSITORY_TOOLS = [
   tool('read_source', 'Read up to 120 numbered source lines from this exact commit.', { path: { type: 'string' }, start: { type: 'integer', minimum: 1 }, end: { type: 'integer', minimum: 1 } }, ['path']),
 ];
 export { REPOSITORY_SYSTEM } from './agents/learn-chat.js';
+
+// Code refs the learner selected in the repository viewers (web/src/repo-context.js; repo-canvas-graph.md sections 6-8):
+// sourceId code:<repo>@<commit>:<path>, plus #<node id> for a symbol. A ref is identity only - never proof of access and never
+// source text: each is resolved here against the snapshot the caller was already allowed to read, at that snapshot's commit.
+export function parseCodeRef(ref) {
+  const m = /^code:([^@]*)@([^:]*):(.*)$/.exec(ref?.sourceId || '');
+  if (!m) return null;
+  const hash = m[3].lastIndexOf('#');
+  if (hash < 0) return { repo: m[1], commit: m[2], path: m[3] || null, nodeId: null };
+  let nodeId = m[3].slice(hash + 1);
+  try { nodeId = decodeURIComponent(nodeId); } catch { /* an id that was never encoded */ }
+  return { repo: m[1], commit: m[2], path: m[3].slice(0, hash) || null, nodeId };
+}
+// What the model is told about selectedEntities: only status read is code it has seen.
+export const SELECTED_NOTE = 'selectedEntities: what the learner selected in the repository viewers for this question (several may be selected). status read: the code shown was read from this commit; relationships_only: graph links only, no source; not_read: named only, read it with read_source before relying on it; unavailable or other_commit: not read - say so, and never describe it as inspected. Edge confidence EXTRACTED or RECORDED was read from the code; anything else was inferred by the indexer. The selection informs the answer; it never limits what the learner may ask about.';
+const ENTITY_CODE = 48000; // characters of selected source per question; past it a selection is named, not read
+export function resolveCodeRefs(snapshot, refs) {
+  let budget = ENTITY_CODE;
+  const read = input => {
+    if (budget <= 0) return null;
+    const code = repositoryTool(snapshot, 'read_source', input), content = code.content.slice(0, budget);
+    budget -= content.length;
+    return { ...code, content };
+  };
+  return (refs || []).filter(ref => ref.kind === 'code').map(ref => {
+    const at = parseCodeRef(ref), name = ref.name;
+    if (!at || at.repo !== snapshot.repo) return { name, status: 'unavailable', reason: 'Not code from this repository' };
+    if (at.commit !== snapshot.commit) return { name, status: 'other_commit', reason: `Selected at commit ${at.commit.slice(0, 7)}; this answer reads commit ${snapshot.commit.slice(0, 7)}` };
+    try {
+      if (at.nodeId) {
+        const { node, edges, total, neighbors } = repositoryTool(snapshot, 'get_relationships', { nodeId: at.nodeId });
+        const start = node.line || 1, code = node.path && Object.hasOwn(snapshot.files, node.path) ? read({ path: node.path, start, end: start + 39 }) : null;
+        return { name, status: code ? 'read' : node.path ? 'not_read' : 'relationships_only', node: { id: node.id, label: node.label, path: node.path || null, line: node.line || null }, edges, totalEdges: total,
+          neighbors: neighbors.map(({ id, label, path, line }) => ({ id, label, path: path || null, line: line || null })), ...(code ? { code } : {}) };
+      }
+      const path = ref.range?.path || at.path;
+      if (ref.range) {
+        const { start, end } = ref.range, code = read({ path, start, end: Math.min(end, start + 119) });
+        if (code && end > code.totalLines) return { name, status: 'unavailable', reason: 'That range is past the end of the file at this commit' };
+        return code ? { name, status: 'read', code, ...(end > code.end ? { note: `Lines ${start}-${end} were selected; only ${start}-${code.end} are included. Read the rest with read_source.` } : {}) } : { name, status: 'not_read', path, range: { start, end } };
+      }
+      const code = read({ path });
+      return code ? { name, status: 'read', code, note: `The whole file was selected; its first ${code.end} of ${code.totalLines} lines are included.` } : { name, status: 'not_read', path };
+    } catch (error) { return { name, status: 'unavailable', reason: error.message }; }
+  });
+}
 export function repositoryTool(snapshot, name, input = {}) {
   const { graph, files } = snapshot;
   const text=value=>{if(typeof value!=='string'||!value.trim()||value.length>200)throw Error('Use 1–200 characters');return value.trim();};
