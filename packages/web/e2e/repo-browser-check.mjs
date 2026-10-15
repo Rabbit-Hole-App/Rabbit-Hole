@@ -336,6 +336,8 @@ await check('10 Files beside Chat: a file opens, Ask in chat puts the lines on t
   assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Add code card', 'Copy']);
   await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
   await chipFor(linesKey('train.py', 5, 7));
+  // The question lands just after its chip: wait for it rather than read once (a race on 60422ff5, Toolbar 2026-10-15).
+  for (let i = 0; i < 30 && (await field().inputValue()) !== 'What do lines 5–7 of train.py do?'; i++) await page.waitForTimeout(100);
   assert.equal(await field().inputValue(), 'What do lines 5–7 of train.py do?');
   // The lines are on the canvas as a Code card (owner, 2026-10-08: "put the highlighted code as code card"), holding exactly
   // them, selected: the selected-card chip names it, beside the code chip.
