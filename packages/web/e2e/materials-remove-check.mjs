@@ -112,7 +112,8 @@ const trash = () => row().locator('[data-material-action="remove"]');
 const chip = () => page.locator(`[data-chat-pane] [data-context-chip] button[title="Open ${DOC_NAME}"]`);
 const confirmDialog = () => page.getByRole('dialog', { name: 'Remove from Materials?' });
 // Sources is the right panel's Context tab: open when that tabpanel is on screen.
-const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-context-panel]')?.getBoundingClientRect().width || 0) > 50);
+// Context shows when the companion column is open on it (a collapsed column keeps its content's own width inside).
+const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
 const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.getAttribute('aria-selected') !== 'true') await tab.click(); };
 const openCanvas = async () => {
   await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -122,7 +123,7 @@ const openCanvas = async () => {
 };
 const openSources = async () => {
   if (await sourcesOpen()) return;
-  await page.locator('[data-panel-tab="context"]').click({ timeout: 5000 });
+  await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
 };
 const slides = () => page.evaluate(() => [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')]
@@ -184,13 +185,13 @@ await check('the row has its own trash icon, labelled and titled "Remove remove-
 // The normal, non-hovered rows (owner hand-off): light and dark, at the default and the narrowest Sources width.
 await check('the rows at rest: light and dark, default and narrow width, actions visible and the long name truncated', async () => {
   for (const [theme, width] of [['light', 400], ['dark', 400], ['light', 320], ['dark', 320]]) {
-    await page.evaluate(([t, w]) => { localStorage.setItem('small.theme', t); localStorage.setItem('rh.chat.width', String(w)); }, [theme, width]);
+    await page.evaluate(([t, w]) => { localStorage.setItem('small.theme', t); localStorage.setItem('rh.companion.width', String(w)); }, [theme, width]);
     await openCanvas();
     await openSources();
     await waitFor(async () => (await sourcesPane().locator('[data-material-row]').count()) >= 2, 10000, 'the two rows did not show');
     await page.mouse.move(5, 500);
     await page.waitForTimeout(400);
-    const panel = page.locator('aside[aria-label="Learn agent chat"]').first();
+    const panel = page.locator('aside[data-companion]').first(); // Context's own column, left of Chat
     await panel.screenshot({ path: `${OUT}/rows-${theme}-${width}.png` });
     const long = sourcesPane().locator('[data-material-row]').filter({ has: page.locator(`[data-material-name][title="${LONG_NAME}"]`) });
     const name = await long.locator('[data-material-name]').evaluate(el => { const b = el.getBoundingClientRect(); return { clipped: el.scrollWidth > el.clientWidth, right: b.right, bottom: b.bottom, y: b.y }; });
@@ -204,7 +205,7 @@ await check('the rows at rest: light and dark, default and narrow width, actions
     (facts.rows ||= {})[`${theme}-${width}`] = { second_line: actions[0].y >= name.bottom - 1 };
   }
   assert.deepEqual([facts.rows['light-400'].second_line, facts.rows['light-320'].second_line], [false, true], 'one line at 400 px; a second action line at 320 px');
-  await page.evaluate(() => { localStorage.setItem('small.theme', 'light'); localStorage.setItem('rh.chat.width', '400'); });
+  await page.evaluate(() => { localStorage.setItem('small.theme', 'light'); localStorage.setItem('rh.companion.width', '400'); });
   await openCanvas();
   await openSources();
 });
@@ -250,7 +251,7 @@ await check('after a reload: still gone; the page blocks draw; the page reader o
   assert.equal(await row().count(), 0, 'not back in Materials');
   assert.equal(await chip().count(), 0, 'no chip came back');
   await waitFor(async () => (await slides()).filter(b => b.loaded).length === 3, 30000, 'the page blocks did not draw');
-  if (await sourcesOpen()) { await page.locator('[data-sources-close]').click(); await page.waitForTimeout(300); }
+  if (await sourcesOpen()) { await page.locator('[data-companion-close]').click(); await page.waitForTimeout(300); }
   const two = (await slides()).find(b => b.slide === 2);
   await setMode('ask');
   await selectBlock(two.id);

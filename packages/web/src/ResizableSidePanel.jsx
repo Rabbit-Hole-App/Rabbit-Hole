@@ -14,14 +14,16 @@ import { useEffect, useRef, useState } from 'react';
 // below lg, a right drawer over the page that ends at the Agent Bar, full width on a phone, instead of stacking under it.
 // edgeVar publishes the panel's on-screen width as a root CSS variable (0 when hidden), so the bar's window can sit beside it.
 // onWidth(width, available) reports the on-screen width and the parent's room (0 below lg) for the Chat/Sources layout.
-export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320, maxWidth = 800, resizeEdge = 'left', resizeLabel = 'Resize panel', collapsed = false, storageKey = null, overlay = false, edgeVar = null, onWidth = null, className = '', children, ...props }) {
+// reserve: room another panel beside it already takes (Chat, for the companion column), so the two together still leave the
+// canvas its 360 px. narrowHidden hides it below lg without unmounting (Chat while the companion shows in its place).
+export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320, maxWidth = 800, resizeEdge = 'left', resizeLabel = 'Resize panel', collapsed = false, reserve = 0, narrowHidden = false, storageKey = null, overlay = false, edgeVar = null, onWidth = null, className = '', children, ...props }) {
   const panel = useRef(null), drag = useRef(null);
   const [width, setWidth] = useState(() => { try { return Number(storageKey && localStorage.getItem(storageKey)) || defaultWidth; } catch { return defaultWidth; } });
   useEffect(() => { try { if (storageKey) localStorage.setItem(storageKey, String(width)); } catch { /* private mode: the width lasts this visit */ } }, [storageKey, width]);
   const [available, setAvailable] = useState(1180);
   const [resizing, setResizing] = useState(false); // drag-resize must not fight the slide
   const [wide, setWide] = useState(() => window.matchMedia('(min-width: 64rem)').matches);
-  const max = Math.max(minWidth, Math.min(maxWidth, available - 360));
+  const max = Math.max(minWidth, Math.min(maxWidth, available - 360 - reserve));
   const visible = Math.max(minWidth, Math.min(width, max));
   const resize = value => setWidth(Math.max(minWidth, Math.min(value, max)));
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function ResizableSidePanel({ defaultWidth = 400, minWidth = 320,
   if (!wide && collapsed) return null;
   return <aside {...props} ref={panel}
     style={wide ? { width: collapsed ? 0 : visible, transition: resizing ? 'none' : 'width 320ms cubic-bezier(0.25,1,0.35,1)' } : undefined}
-    className={`relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-white ${collapsed ? '' : resizeEdge === 'right' ? 'border-r border-line' : 'border-l border-line'} ${overlay ? 'max-lg:absolute max-lg:top-0 max-lg:right-0 max-lg:bottom-(--agent-bar-h) max-lg:z-20 max-lg:w-[min(26rem,100%)] max-lg:shadow-pop max-md:top-(--shell-top-h) max-md:w-full max-md:border-l-0' : 'max-lg:h-[45%] max-lg:min-h-64 max-lg:w-full max-lg:border-t max-lg:border-l-0'}`}>
+    className={`relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-white ${narrowHidden ? 'max-lg:hidden' : ''} ${collapsed ? '' : resizeEdge === 'right' ? 'border-r border-line' : 'border-l border-line'} ${overlay ? 'max-lg:absolute max-lg:top-0 max-lg:right-0 max-lg:bottom-(--agent-bar-h) max-lg:z-20 max-lg:w-[min(26rem,100%)] max-lg:shadow-pop max-md:top-(--shell-top-h) max-md:w-full max-md:border-l-0' : 'max-lg:h-[45%] max-lg:min-h-64 max-lg:w-full max-lg:border-t max-lg:border-l-0'}`}>
     {!collapsed && <div role="separator" aria-label={resizeLabel} aria-orientation="vertical" aria-valuemin={minWidth} aria-valuemax={max} aria-valuenow={visible} tabIndex={0} title="Drag to resize · double-click to reset"
       className={`absolute inset-y-0 ${resizeEdge === 'right' ? '-right-0.5' : '-left-0.5'} z-30 w-1.5 touch-none cursor-col-resize hover:bg-line-strong/70 focus-visible:bg-line max-lg:hidden`}
       onPointerDown={e => { if (e.button !== 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, width: visible }; setResizing(true); }}

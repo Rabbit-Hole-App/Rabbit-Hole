@@ -8,16 +8,25 @@ import { Button, IconBtn, Menu } from './ui.jsx';
 // link come first in the overview, drawn as shapes instead of dots. Kept local: Learn imports this file into the live build.
 const MEMORY=new Set(['decision','question','session']),MEMORY_COLOR={decision:'#c28a42',question:'#8b6bb1',session:'#439b88'};
 // SVG text is React-escaped: graph labels never become HTML or executable markup.
-export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect, query, answerView, external = true }) {
+// Selection (repo-canvas-graph.md decision 4): `selected` is one node ({id}), or `selectedIds` several. onSelect(node, { toggle })
+// gets the clicked node (null for empty space): a plain click or Enter means that node alone, Shift-click or Space toggles it,
+// empty space clears. Escape closes Graph information first, then clears. No Ctrl-click: Ctrl/Cmd selects inside canvas groups.
+// Pointer, wheel and keys stop here, so the graph never pans or selects the canvas.
+// camera ({ view, focus, positions }) restores a saved camera on mount, so nothing refits; onCamera(camera) reports it on
+// unmount only (a remount restores it). focusRequest ({ id }) explores that node's one-hop neighbourhood, as a double-click does.
+export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null }) {
   const [answer,setAnswer]=useState(null);
   const graph=answer||sourceGraph;
-  const [focus,setFocus]=useState(null),[view,setView]=useState({x:0,y:0,z:1});const drag=useRef(null), simulation=useRef(null), layer=useRef(null), saved=useRef(new Map()), suppressClick=useRef(false), restore=useRef(false);
+  const chosen=useMemo(()=>new Set(selectedIds??(selected?.id?[selected.id]:[])),[selectedIds,selected?.id]);
+  const [focus,setFocus]=useState(camera?.focus??null),[view,setView]=useState(camera?.view||{x:0,y:0,z:1});const drag=useRef(null), simulation=useRef(null), layer=useRef(null), saved=useRef(new Map(camera?.positions||[])), suppressClick=useRef(false), restore=useRef(!!camera?.positions?.length), mounted=useRef(false);
+  const latest=useRef(null);latest.current={view,focus};
+  useEffect(()=>()=>onCamera?.({...latest.current,positions:[...saved.current]}),[]); // eslint-disable-line react-hooks/exhaustive-deps
   const [history,setHistory]=useState([]),[positions,setPositions]=useState(new Map()),[hovered,setHovered]=useState(null),[infoOpen,setInfoOpen]=useState(false);
   const palette=['#2383e2','#8b6bb1','#439b88','#c28a42','#bc718d','#638baf'];
   const colors=useMemo(()=>new Map([...new Set(graph.nodes.map(n=>n.path).filter(Boolean))].sort().map((path,i)=>[path,palette[i%palette.length]])),[graph]);
   const color=n=>MEMORY_COLOR[n.kind]||colors.get(n.path)||'#a1a7ae';
   const degrees=useMemo(()=>{const counts=new Map();graph.edges.forEach(e=>{for(const id of [e.source,e.target])counts.set(id,(counts.get(id)||0)+1);});return counts;},[graph]);
-  useEffect(()=>{setFocus(null);setHistory([]);setAnswer(null);},[query]);
+  useEffect(()=>{if(!mounted.current){mounted.current=true;return;}setFocus(null);setHistory([]);setAnswer(null);},[query]); // a restored camera keeps its focus
   const ranked=useMemo(()=>{
     let nodes;
     if(focus){const ids=new Set([focus]);graph.edges.forEach(e=>{if(e.source===focus||e.target===focus){ids.add(e.source);ids.add(e.target);}});nodes=graph.nodes.filter(n=>ids.has(n.id));}
@@ -32,9 +41,9 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
   },[graph,focus,query,answer]);
   // Files and Graph share one selection (repository-browser.md): a selected node outside the bounded overview joins it, so
   // a symbol picked in Files is lit when the Graph opens. A search, a focus or an answer view stays exactly what it asked for.
-  const pinned=!focus&&!answer&&!query.trim()&&selected?.id&&!ranked.nodes.some(n=>n.id===selected.id)?graph.nodes.find(n=>n.id===selected.id)?.id:null;
+  const pinned=useMemo(()=>!focus&&!answer&&!query.trim()?[...chosen].filter(id=>!ranked.nodes.some(n=>n.id===id)).map(id=>graph.nodes.find(n=>n.id===id)).filter(Boolean):[],[chosen,focus,answer,query,ranked,graph]);
   const scene=useMemo(()=>{
-    const nodes=pinned?[...ranked.nodes,graph.nodes.find(n=>n.id===pinned)]:ranked.nodes;
+    const nodes=[...ranked.nodes,...pinned];
     const total=ranked.total,count=nodes.length;
     const positions=new Map(nodes.map((n,i)=>[n.id,{...n,x:500+Math.cos(i/Math.max(1,count)*Math.PI*2)*Math.min(330,Math.max(210,count*10)),y:350+Math.sin(i/Math.max(1,count)*Math.PI*2)*Math.min(250,Math.max(160,count*8))}]));
     if(focus&&positions.has(focus))positions.set(focus,{...positions.get(focus),x:500,y:350});
@@ -47,6 +56,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
     setHistory(previous=>[...previous,{focus,view,positions:snapshotPositions(),answer}]);
     setAnswer(answerView);setFocus(null);setView({x:0,y:0,z:1});setHovered(null);
   },[answerView]);
+  useEffect(()=>{if(focusRequest?.id&&graph.nodes.some(n=>n.id===focusRequest.id))explore(focusRequest.id);},[focusRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const explore=id=>{
     if(id===focus)return;
     setHistory(previous=>[...previous,{focus,view,positions:snapshotPositions(),answer}]);
@@ -90,10 +100,16 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
     if(active?.node){active.node.fx=null;active.node.fy=null;simulation.current.alphaTarget(0);suppressClick.current=active.moved;}
     if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
   };
-  const active=hovered||(scene.positions.has(selected?.id)?selected.id:null);
+  const only=chosen.size===1?[...chosen][0]:null;
+  const active=hovered||(scene.positions.has(only)?only:null);
   const connected=new Set(active?[active]:[]);
   if(active)scene.edges.forEach(e=>{if(e.source===active||e.target===active){connected.add(e.source);connected.add(e.target);}});
-  return <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-[#fafbfc] [--graph-bg:#fafbfc] [--graph-dot:#d8dee5] dark:bg-side dark:[--graph-bg:var(--color-side)] dark:[--graph-dot:#3a3a3a]">
+  const keys=e=>{
+    if(e.key!=='Escape')return;
+    if(infoOpen)setInfoOpen(false);else if(chosen.size)onSelect(null,{toggle:false});else return;
+    e.preventDefault();e.stopPropagation();
+  };
+  return <div data-repository-graph onKeyDown={keys} onPointerDown={e=>e.stopPropagation()} onWheel={e=>e.stopPropagation()} className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-[#fafbfc] [--graph-bg:#fafbfc] [--graph-dot:#d8dee5] dark:bg-side dark:[--graph-bg:var(--color-side)] dark:[--graph-dot:#3a3a3a]">
     {!!history.length&&<div className="absolute top-3 left-3 z-10"><Button size="sm" onClick={back}><ArrowLeft size={13}/>Back</Button></div>}
     <div className="absolute top-3 right-3 z-10 flex rounded border border-line bg-white">
       <IconBtn title="Zoom in" onClick={()=>setView(v=>({...v,z:Math.min(3,v.z*1.3)}))}><Plus size={15}/></IconBtn>
@@ -105,7 +121,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
           <p>{scene.nodes.length} of {scene.total} nodes</p>
           <p className="text-ink-2">Solid: extracted or recorded<br/>Dashed: inferred</p>
           {scene.nodes.some(n=>MEMORY.has(n.kind))&&<p className="text-ink-2">◆ decision · ■ question · ○ session</p>}
-          <p className="mt-2 border-t border-line pt-2">Click to inspect. Double-click to explore.<br/>Drag nodes to move; drag empty space to pan.<br/>Scroll to zoom. Back returns.</p>
+          <p className="mt-2 border-t border-line pt-2">Click to select; Shift-click adds or removes. Double-click to explore.<br/>Drag nodes to move; drag empty space to pan.<br/>Scroll to zoom. Back returns.</p>
         </div></Menu>
       </span>
     </div>
@@ -134,7 +150,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
           setView({...active.view,x:active.view.x+(e.clientX-active.x)/matrix.a,y:active.view.y+(e.clientY-active.y)/matrix.d});
         }
       }}
-      onPointerUp={e=>{const active=drag.current;release(e);if(active&&!active.moved)onSelect(active.node?scene.positions.get(active.node.id):null);}}
+      onPointerUp={e=>{const active=drag.current;release(e);if(!active||active.moved)return;if(active.node)onSelect(scene.positions.get(active.node.id),{toggle:e.shiftKey});else if(!e.shiftKey)onSelect(null,{toggle:false});}}
       onPointerCancel={release} onLostPointerCapture={release}>
       <defs><marker id="repo-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#9ca3af"/></marker></defs>
       <g ref={layer} data-graph-layer transform={`translate(${view.x+500*(1-view.z)},${view.y+350*(1-view.z)}) scale(${view.z})`}>
@@ -145,14 +161,15 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
         })}
         {scene.nodes.map(n=>{
           const emphasized=n.id===active,radius=Math.min(14,7+Math.sqrt(degrees.get(n.id)||0));
-          return <g key={n.id} data-graph-node={n.id} data-selected={n.id===selected?.id||undefined} role="button" tabIndex={0} aria-label={n.label} transform={`translate(${positions.get(n.id)?.x??n.x},${positions.get(n.id)?.y??n.y})`} opacity={!active||connected.has(n.id)?1:.4} className="cursor-grab active:cursor-grabbing"
+          return <g key={n.id} data-graph-node={n.id} data-selected={chosen.has(n.id)||undefined} role="button" tabIndex={0} aria-label={n.label} aria-pressed={chosen.has(n.id)} transform={`translate(${positions.get(n.id)?.x??n.x},${positions.get(n.id)?.y??n.y})`} opacity={!active||connected.has(n.id)?1:.4} className="cursor-grab active:cursor-grabbing"
             onPointerEnter={()=>setHovered(n.id)} onPointerLeave={()=>setHovered(null)}
-            onDoubleClick={()=>{if(!suppressClick.current)explore(n.id);}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSelect(n);if(e.shiftKey)explore(n.id);}}}>
+            onDoubleClick={()=>{if(!suppressClick.current)explore(n.id);}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSelect(n,{toggle:false});if(e.shiftKey)explore(n.id);}else if(e.key===' '){e.preventDefault();onSelect(n,{toggle:true});}}}>
             {n.kind==='decision'?<rect data-memory-node="decision" x={-8} y={-8} width={16} height={16} rx={2} transform="rotate(45)" fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>
               :n.kind==='question'?<rect data-memory-node="question" x={-8} y={-8} width={16} height={16} rx={4} fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>
               :n.kind==='session'?<circle data-memory-node="session" r={8} fill="white" stroke={color(n)} strokeWidth="3"/>
               :<circle data-node-dot r={radius} fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>}
             {emphasized&&<circle r={radius+5} fill="none" stroke={color(n)} strokeOpacity=".3" strokeWidth="2" pointerEvents="none"/>}
+            {chosen.has(n.id)&&<circle data-selected-ring r={radius+4} fill="none" stroke="#2383e2" strokeWidth="2" pointerEvents="none"/>}
             <text y={radius+17} textAnchor="middle" fontSize="12" fontWeight={emphasized?600:400} className="fill-[#334155] stroke-(--graph-bg) dark:fill-ink" strokeWidth="4" paintOrder="stroke" strokeLinejoin="round">{n.label.length>28?n.label.slice(0,27)+'…':n.label}</text>
             <title>{n.label}{n.path?` · ${n.path}${n.line?`:${n.line}`:''}`:external?' · External dependency':''}</title>
           </g>;

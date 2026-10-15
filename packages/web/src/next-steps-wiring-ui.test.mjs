@@ -94,7 +94,7 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
   assert.match(page, /const nextStepsHere = learnPreview && \(app\.hosting !== 'aws' \|\| !!app\.app_chat\) && !\(reviewTools && board\);/);
   // The canvas dock is gone (owner brief 2026-10-13 section 4): the right-side Chat is the one main composer.
   assert.doesNotMatch(page, /data-learn-dock|composerOnly dock/);
-  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
+  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\} repositoryCommit=\{repository\?\.commit \|\| null\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
   assert.match(page, /function NextStepsHost\(\{ on, children, \.\.\.props \}\) \{\n\s+return on \? <NextStepsMounted \{\.\.\.props\}>\{children\}<\/NextStepsMounted> : children\(null\);\n\}\nfunction NextStepsMounted\(\{ children, \.\.\.props \}\) \{\n\s+return children\(useNextSteps\(props\)\);/);
   // Voice Mode's caption keeps the canvas's lower-left stack (tutor.extras stay drawn there while Voice is on); the hook card is
   // the bottom strip's lower right, beside the composer (owner, 2026-10-08).

@@ -809,6 +809,43 @@ test('a project canvas asks with its own project\'s repository, re-checked on ev
   }
 });
 
+// repo-canvas-graph.md sections 6-8: a project canvas's code refs (graph nodes, Files selections) are read from the project's
+// own snapshot, once each, and are not listed again as named attachments; on a canvas whose project the caller may not read
+// they stay names only, never source.
+test('a project canvas reads its selected code refs from its own snapshot; another person\'s project reads none', async t => {
+  const env = fixture(t);
+  env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  const SHA = 'a'.repeat(40), snapshot = { repo: 'acme/lab', commit: SHA, graph: { nodes: [{ id: 'run', label: 'run()', path: 'lab.py', line: 2 }], edges: [] }, files: { 'lab.py': 'import torch\ndef run():\n    return torch.ones(1)' } };
+  env.REPOSITORY_SNAPSHOTS = { get: async key => (key === 'snap/lab' ? { json: async () => snapshot } : null) };
+  sqlite.exec(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('workspace-a','repo-0a0a0a0a-lab','owner@example.test','acme/lab','main','${SHA}','ready'),('workspace-a','repo-0b0b0b0b-theirs','colleague@example.test','acme/lab','main','${SHA}','ready')`);
+  sqlite.exec("INSERT INTO repository_versions(app_id,commit_sha,storage_key) SELECT id,commit_sha,'snap/lab' FROM repository_apps");
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title,project) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention','repo-0a0a0a0a-lab'),('workspace-a','canvas-0c0c0c0c','owner@example.test','Borrowed','repo-0b0b0b0b-theirs')");
+  const refs = [
+    { sourceId: `code:acme/lab@${SHA}:lab.py#run`, kind: 'code', name: 'run()', version: SHA, range: { path: 'lab.py', start: 2, end: 2 } },
+    { sourceId: `code:acme/lab@${SHA}:lab.py`, kind: 'code', name: 'lab.py', version: SHA, range: { path: 'lab.py', start: 1, end: 1 } },
+  ];
+  const ask = async name => {
+    const seam = canvasAskSeam(env, canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name=?').get(name), owner));
+    assert.equal((await handlers.apiAsk(request({ scope: { app: name }, message: 'How do these connect?', mode: 'ask', context_refs: refs }), env, {}, owner, 'learn', seam)).status, 200);
+    return env.answers.at(-1).context;
+  };
+  const own = await ask('canvas-0a1b2c3d');
+  assert.match(own, /"selectedEntities"/);
+  assert.match(own, /return torch\.ones\(1\)/, 'the symbol is read from stored source');
+  assert.equal((own.match(/"status":"read"/g) || []).length, 2);
+  assert.doesNotMatch(own, /Attached by the learner/, 'a resolved code ref is not listed a second time');
+  const borrowed = await ask('canvas-0c0c0c0c');
+  assert.doesNotMatch(borrowed, /selectedEntities|return torch/);
+});
+
 // C1: the same canvas turn with the real askStream and findVideoMoments, the video tools called
 // and the hot path bound (AI, MOMENTS). The runTool closes over apiAsk's own env, so the proof
 // is that the live DB spy records nothing: no moment log, no hot-path read.

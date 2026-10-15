@@ -172,6 +172,10 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
   } };
 }
 
+// The basis with the canvas repository's commit (repo-graph Release 1): short, so it stays inside the server's 400-character
+// cap; no commit leaves the basis as it was.
+export const repositoryBasis = (basis, commit) => (basis && commit ? `${basis}@${String(commit).slice(0, 12)}` : basis);
+
 // FNV-1a over the trigger state: a short opaque key (the server caps a basis at 400 characters).
 // ponytail: 32 bits, so one change in about 4e9 could keep a stale set; widen the hash if that ever matters.
 const fnv = text => {

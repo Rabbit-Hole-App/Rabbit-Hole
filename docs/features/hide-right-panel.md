@@ -42,3 +42,29 @@ fifth navigation icon, Context.
   - a held upload completing after a hide (the panel stays hidden);
   - repeated tab and hide cycles: the canvas width comes back, no handle or overlay is left, and saved cards are unmoved.
 - `chat-panels.test.mjs` pins the single state.
+
+## Companion column (owner decision 1A, 2026-10-15)
+
+Context, repository Files and the repository Graph left Chat's tabs for a companion column immediately LEFT of Chat:
+canvas, then the companion, then Chat, side by side (repo-graph-plan.md Interface 1).
+
+- `chat.panels.companion = { open, view, previous, show(view, { reveal }), close(), back() }`, where view is `context`,
+  `files` or `graph`. `openSources()` is `show('context')`, and `closeSources()` is `close()`. Closing the viewer leaves Chat
+  open.
+- One visibility state still covers the right side. Hide right panel hides both columns whatever the view, and reopening
+  restores both. `sourcesOpen` is `open && companion.open && view === 'context'`. `reveal: false` never reopens a hidden right
+  side.
+- Context stays mounted from the start. Files and Graph mount on their first show and stay mounted, so the graph code loads
+  only when it is first used. Each view keeps its state (PDF page, file position, graph camera) across switches and hides.
+- Chat's header opens a viewer with one click: `[data-panel-viewer="context"]` and, on a repository canvas,
+  `[data-panel-viewer="files"]`. Each is a pressed toggle beside the tabs, not a tab. Graph opens from the composer's Explore
+  codebase. The companion's header has its view buttons (`[data-companion-view]`, aria-pressed) and Close viewer. After a show()
+  replaced a visible view (Open source from the graph), Back to <view> (`[data-companion-return]`) returns there.
+- The companion resizes from its left edge (`rh.companion.width`, default 440). It leaves room for Chat's width, so the
+  canvas keeps at least 360 px. The canvas is a flex sibling, so its real width shrinks and no saved object moves.
+- Below lg one column shows at a time. The viewer shows in Chat's place, with Back to chat (`[data-companion-back]`) instead
+  of Close. Chat stays mounted, so its draft and history survive.
+- Events: `small:open-files` shows Files and `small:open-graph` shows Graph. LearnSurface's `openViewer` (old `?tab=code` and
+  `?tab=graph` links) shows its view once on arrival.
+- `e2e/hide-right-panel-check.mjs` also covers Context beside Chat, Close viewer leaving Chat open, cycles with the viewer
+  open and closed, and the narrow layout.

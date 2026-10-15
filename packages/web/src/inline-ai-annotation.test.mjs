@@ -90,6 +90,7 @@ const READERS = {
   'web/src/LearnPage.jsx': 'the Links tab and canvas references, not board links',
   'web/src/LinksPanel.jsx': 'canvas references (links between canvases), not board links',
   'web/src/PanelHeader.jsx': 'the Links tab id',
+  'web/src/chat-panels.js': 'the Links tab id in a comment',
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {

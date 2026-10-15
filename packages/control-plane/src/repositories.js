@@ -6,7 +6,8 @@ import { handleLearnCourse, generateCourseContent } from './learn-course.js';
 import { askStream, attachmentBlocks, readAskRequest, ATTACHMENT_LIMIT } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
-import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
+import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool, parseCodeRef, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
+import { contextRefs } from './chat-modes.js';
 import { readArxivPaper } from './arxiv.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
@@ -16,6 +17,8 @@ import { videoMomentTools } from './learn-youtube.js';
 import { devIdentity } from './dev-forwarding.js';
 import { emptyBoard } from './canvases.js';
 import { CANVAS_CONTEXT_RULES, CANVAS_PACKAGE_CHARS, canvasContextText, validateCanvasContext } from './canvas-context.js';
+import { chatFields } from './chat-modes.js';
+import { repositoryChatTurn, repositoryRegenerate } from './repository-chat.js';
 // A Learn ask's JSON (repositoriesFetch): 64 KB of its own fields, plus the canvas_context package at its cap, plus context_refs at
 // their A2 worst case (20 refs x 2 KB without text + 32,000 characters of text, under 80,000 as JSON).
 const ASK_JSON=64000+CANVAS_PACKAGE_CHARS+80000;
@@ -313,6 +316,7 @@ function selectedRange(snapshot,{path,start,end}){
 }
 async function repositoryAsk(req,env,user,app){
   const {body,file}=await readAskRequest(req);
+  const chat=chatFields(body); // a Chat composer turn (repository-chat.js); null for an ask without its fields
   // The ask's own fields keep 64 KB; the canvas package is bounded by its validator and context_refs by ASK_JSON.
   const {canvas_context:_canvas,context_refs:_refs,...own}=body;
   if(JSON.stringify(own).length>64000)return json({error:'Request exceeds 64 KB'},413);
@@ -322,6 +326,9 @@ async function repositoryAsk(req,env,user,app){
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
   const videoContext=validateLearnContext(body,'learn'),canvasTarget=validateCanvasTarget(body.canvas_target,'learn');
   const db=env.LEARN_DB;
+  // Code refs from the repository viewers (graph nodes, Files selections; repo-canvas-graph.md section 7): several at once,
+  // each resolved below from stored source. Other ref kinds are not read on this path.
+  const codeRefs=(body.context_refs==null?[]:contextRefs(body.context_refs)).filter(ref=>ref.kind==='code');
   // A node question (body.node) joins that node's own thread at the context's commit, found on the server, so the
   // conversation stays with the node whatever the learner selects while it streams; anything else is the project's chat.
   if(body.node!==undefined&&!nodeScope(app,body.node))return json({error:'Choose a node'},400);
@@ -331,12 +338,14 @@ async function repositoryAsk(req,env,user,app){
   if(body.thread_id&&!thread)return json({error:'Chat not found'},404);
   const commit=thread?.commit_sha||body.repository_context?.commit||app.commit_sha;
   if(thread&&(body.repository_context?.nodeId||body.repository_context?.range||body.repository_context?.path)&&body.repository_context?.commit!==commit)return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
+  if(thread&&codeRefs.some(ref=>{const at=parseCodeRef(ref);return at&&at.repo===app.repo&&at.commit!==commit;}))return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
   const snapshot=await repositorySnapshot(env,app,commit);
   const selected=body.repository_context?.nodeId?repositoryTool(snapshot,'get_relationships',{nodeId:body.repository_context.nodeId}):null;
   const selectedCode=body.repository_context?.range?selectedRange(snapshot,body.repository_context.range):null;
   // A whole file in the composer's context (workspace-dock.md): its opening lines and length, never a line selection, so no
   // 'Selected code' suffix is stored with the question; the model reads further with read_source.
   const selectedFile=!selected&&!selectedCode&&typeof body.repository_context?.path==='string'?repositoryTool(snapshot,'read_source',{path:body.repository_context.path}):null;
+  const selectedEntities=codeRefs.length?resolveCodeRefs(snapshot,codeRefs):null;
   let graphView=null;
   // The video-moment tools ride here too: a repository canvas is the main
   // Learn surface, and the show_video bargain is the same on it - a window
@@ -351,7 +360,8 @@ async function repositoryAsk(req,env,user,app){
     }
     return result;
   };
-  const question=selectedCode?`${body.message}\n\nSelected code: ${selectedCode.path}:${selectedCode.start}-${selectedCode.selectedEnd||selectedCode.end} (commit ${commit})`:body.message;
+  const picked=selectedEntities?.length?`\n\nSelected: ${selectedEntities.map(e=>e.name).join(', ')} (commit ${commit})`:'';
+  const question=(selectedCode?`${body.message}\n\nSelected code: ${selectedCode.path}:${selectedCode.start}-${selectedCode.selectedEnd||selectedCode.end} (commit ${commit})`:body.message)+picked;
   const extraBlocks=[],papers=[];
   // A file from the composer's +: an image or PDF as a block, anything else as text.
   if(file)extraBlocks.push(...(await attachmentBlocks(file)).blocks);
@@ -370,12 +380,15 @@ async function repositoryAsk(req,env,user,app){
   catch(error){return json({error:error.message},502);}
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,scopeRef,commit,body.message.slice(0,120)).run();
-  const history=await threadTurns(db,id,seed,question);
+  const turn=await repositoryRegenerate(db,id,chat);
+  const history=await threadTurns(db,id,seed,question,turn?.userMessageId);
+  const chatTurn=await repositoryChatTurn(db,{chat,turn,threadId:id,history,message:body.message,readPaper:source?.paper?body.paper_context?.id:null});
   // Whole-canvas context (canvas-context.js): the same block and rules as /api/learn/ask, on every ask that sends it.
-  const board=canvas?`\n\n${canvasContextText(canvas)}`:'',rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
-  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget)+board,history,question,
-    async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
-    (body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
+  const board=(canvas?`\n\n${canvasContextText(canvas)}`:'')+chatTurn.context,rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
+  const saveGraph=async messageId=>{if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(messageId,JSON.stringify(graphView)).run();};
+  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),...(selectedEntities?{selectedEntities,selectedNote:SELECTED_NOTE}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget)+board,history,question,
+    chatTurn.onDone(saveGraph)||(async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();await saveGraph(message.id);}),{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
+    chatTurn.system((body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules),{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org,...chatTurn.research});
 }
 
 export async function repositoryEvidence(env,app,input){

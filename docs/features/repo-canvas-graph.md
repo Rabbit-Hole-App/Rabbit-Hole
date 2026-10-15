@@ -1,6 +1,41 @@
 # Repository learning inside the canvas: graph companion panel and contextual suggestions
 
-(Owner brief, received 2026-10-15 after the References release. Saved verbatim.)
+(Owner brief, received 2026-10-15 after the References release. Saved verbatim below the implementation notes.)
+
+## Implementation notes (lead, Release 1)
+
+### What existed before (brief section 1), on production main 6f7f8c59
+
+- **Start from a repository:** "Start a rabbit hole", Repository tab: GitHub URL, Check repository, Branch, then a "Connect owner/repo" confirm (StartDialog.jsx, agent/commands.js).
+  - Endpoints: `GET /api/repositories/branches`, then `POST /api/repositories`.
+  - The repository is a project row, `repository_apps`, named `repo-<8hex>-<name>`. Its Main canvas is `learn_boards` app=<name>, board main, created in the same batch.
+  - Other canvases link to it through `canvases.project`, set only at creation. There is one repository per canvas and no attach-later path.
+- **Graph view:**
+  - `/apps/repo-*` rendered RepositoryPage with a Files | Graph | Learn switcher (Graph by default; `?tab=learn` was the canvas).
+  - RepositoryGraph.jsx is hand-rolled SVG with d3-force. Nodes are the indexer's file types, symbols and externals, plus fixture memory kinds. Edges carry `{relation, confidence}`; EXTRACTED or RECORDED draws solid, anything else dashed.
+  - Selection was single. Double-click or Shift+Enter explores one hop. Search, zoom, pan and node drag.
+  - Actions: Back, Zoom in, Zoom out, Reset graph, Graph information; Layers (fixtures); Repository details (Refresh branch / Retry import); More (the card menu).
+  - Inspector actions: Learn this, Open source, Ask about this, Ask why, and the Source / Chat tabs.
+- **Indexing:**
+  - Durable Object RepositoryImports drives the lesson renderer: an anonymous `git ls-remote`, then a codeload zip.
+  - The snapshot (graph plus file texts) is stored in R2 `REPOSITORY_SNAPSHOTS`, keyed per commit and listed in D1 `repository_versions`.
+  - Limits: 20 MB zip, 2000 files, 10,000 nodes, 30,000 edges.
+  - Reads: `GET /api/repositories/<name>/snapshot` and `POST .../file`. Every route is owner-only. Imports are public GitHub only.
+- **Chat:**
+  - Ask on a repo-* canvas goes to `repositoryAsk` with tools (search_code, read_source, query_graph, get_relationships…) over that snapshot, and `repository_context` holds one selected object.
+  - Project canvases get the same tools in apiAsk (`projectRepository`).
+- **Context lifecycle:**
+  - Temporary canvas selection is `canvas_target`.
+  - Pinned "Add to chat" refs are useChatContext's `context_refs`: deduplicated by sourceId plus range, at most 20, per thread; New chat starts with none. Code refs are `code:<repo>@<commit>:<path>`.
+- **Curious:** NextStepsCard / useNextSteps, `POST /api/learn/tutor/next-steps`. It is debounced, cached per basis hash and edge-cached. It had no repository input.
+- **Chat suggestions:** the model's `<answer_meta>` trailer, drawn by AnswerSuggestions. AnswerFooter's buttons are fixed.
+
+### Old links (decision 2 and its correction)
+
+- `/apps/repo-*`, at any `?tab`, opens the canvas.
+- `?tab=map|graph|agent|overview|sources` opens Graph beside Chat once. `?tab=code` opens Files once (the correction's wording; historically `?tab=code` was the code page, which opened on its Graph view).
+- The URL then becomes the plain one, so a reload opens neither viewer. `?canvas=<canvas>` keeps its project canvas.
+- The card menu's project item "Map" is now "Explore codebase", which opens the canvas with Graph.
 
 ## Goal
 

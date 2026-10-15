@@ -5,7 +5,7 @@ import { LEARNING_GOAL_MAX, STATE_RULES, learningGoalProblem, tagged } from './l
 import { LEARNER_LABELS } from './learn-labels.js';
 import { STATES, claimCoverage } from '../../../web/src/learn-tutor-evidence.js';
 
-export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-2';
+export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-3';
 export const NEXT_STEPS_LIMITS = Object.freeze({
   options: 3, hook_words_min: 4, hook_words_max: 16, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
   scope_concepts: 12, scope_claims: 12, blocks: 20, block_title: 80, statement: 240, ideas: 4, idea: 120, drawn: 160,
@@ -45,6 +45,7 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- scope.concepts: concept id to label. scope.claims: claim id to { concept, statement, ideas, drawn, state, misconception_id?, prerequisite?, settled_passes, settled_negatives, presented }.',
     '- recent: intent (the learner\'s last move), question (their own last words, only for a question or request), tutor (the Tutor\'s last reply: the example being taught), transitions, modalities, practice. previous: hooks already shown and goals already chosen.',
     '- dive (a Rabbit Hole): title, concept, claim_ids, parent_goal, parent_section, parent_states (read only). constraints: the learner\'s stated constraints.',
+    '- repository (a canvas connected to a code repository): { repo, commit, readme?, files, symbols } - an excerpt of its README and its most connected files and symbols, background evidence of what the code implements; or { repo, status: unread } while its code is not read (still indexing, or unavailable).',
   ],
   allowed_evidence: [
     '- Only scope.claims[].state with its settled counts, dive.parent_states and recent.transitions say what the learner knows.',
@@ -59,7 +60,9 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- Completed-section claims only to repair a misconception, a prerequisite gap or an uncertain claim. Upcoming sections come later: never a hook into their content, except at most one hook into path.next when it is given, with section_id path.next.id (its ids may be empty).',
     '- The other hooks stay on recent.tutor\'s example and on what is still missing (scope.claims[].missing_ideas), never another example or a covered idea.',
     '- Three meaningfully different hooks with different goals; the same claims are fine only with a different goal. Never repeat previous.hooks or a previous goal; only the path.next hook may stay as it was.',
-    '- A blank canvas (mode canvas, no cards, no canvas.objects, empty scope): with a goal or a canvas.title, three hooks into three different sides of it; with no goal, three starter hooks inside AI, machine learning and large language models, each a different direction (one on LLMs and how they generate text, one on how models learn from data, one on neural networks or another AI area), never three takes on one topic and never outside AI. ids empty.',
+    '- With repository content, the hooks open the technical ideas behind what this code implements - why a mechanism, algorithm or design works, its trade-offs, the theory under it - in the field the code belongs to, grounded in repository.readme, files and symbols. Never a code-navigation question (where something is defined or handled, which file does what): those belong in the chat. The canvas and recent activity still lead: when the learner\'s cards, objects or question move to another subject, follow them; the repository, like canvas.title, is background, never a topic restriction.',
+    '- repository.status unread: its code has not been read, so never claim anything about what it contains.',
+    '- A blank canvas (mode canvas, no cards, no canvas.objects, empty scope): with repository content, three hooks into three different technical ideas that code implements, ids empty; otherwise with a goal or a canvas.title, three hooks into three different sides of it; with no goal, three starter hooks inside AI, machine learning and large language models, each a different direction (one on LLMs and how they generate text, one on how models learn from data, one on neural networks or another AI area), never three takes on one topic and never outside AI. ids empty.',
     '- Never label, level or score the learner, and never say they have understood or mastered something.',
     '- reason_internal: one short line of plain words, without angle brackets, on why this hook fits the evidence; it is never shown.',
     '- Set ambiguous: true when the evidence can be read more than one way.',
@@ -72,11 +75,13 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- [conceptual science] plate tectonics, every core claim understood, so a transfer hook ("Would a planet with no ocean still split apart?") and a frontier hook; no re-teaching.',
     '- [shared canvas] a shared board of block titles about the Silk Road, empty scope, so hooks grounded in the visible titles, ids empty.',
     '- [drawn canvas] titled Volcanoes, objects drawing a food web (algae to snails to crabs), so hooks on the web, never on volcanoes; ids empty.',
-    '- [blank canvas] no goal, no cards, empty scope, so three AI directions: "Why does a chatbot sometimes pick an unlikely next word?", "Why can a model ace its practice data yet fail on new data?", "How can a list of numbers capture what a word means?"; ids empty.',
+    '- [repository] a blank canvas whose repository readme and symbols show what the code implements, so three hooks on three different ideas behind it (a mechanism, a trade-off, the theory under it) in that code\'s own field; ids empty.',
+    '- [blank canvas] no goal, no cards, empty scope, no repository, so three AI directions: "Why does a chatbot sometimes pick an unlikely next word?", "Why can a model ace its practice data yet fail on new data?", "How can a list of numbers capture what a word means?"; ids empty.',
     '- Bad output [command]: "Explain eigenvalues", "Learn joins", "Next lesson". Why: a hook is a question the learner wants answered, not an instruction or a course label.',
     '- Bad output [modality]: "Generate an animation of plate motion". Why: the Tutor chooses the material after the click; the hook only says what to pursue.',
     '- Bad output [answer reveal]: "Why does a LEFT JOIN keep every left row?" when that is the claim. Why: it hands over the answer the hook should make the learner curious about.',
     '- Bad output [mastery]: "You have got joins, try a harder one". Why: no hook labels or scores the learner.',
+    '- Bad output [navigation]: "Which file handles the main loop?" on a repository canvas. Why: finding code belongs in the chat; a hook opens an idea the code rests on.',
     '- Bad output [clickbait]: "The one trick about matrices nobody tells you". Why: curiosity comes from the idea, never from hype.',
   ],
   output_contract: [
@@ -118,7 +123,8 @@ const jaccard = (a, b) => { const x = content(a), y = content(b); const inter = 
 // The escape hatch for a format word: the lowercased goal, scope labels and visible block titles. A chat card's title is the
 // learner's own words: grounding, never topic authority, so a "quiz me" never opens the word quiz.
 // Owner task 2: the board title and the canvas's own words too (canvas.title, canvas.objects).
-export const topicOf = input => [input?.goal, input?.canvas?.title, ...(input?.canvas?.objects || []).map(o => o?.text), ...Object.values(input?.scope?.concepts || {}), ...(input?.canvas?.blocks || []).filter(b => b?.kind !== 'chat').map(b => b?.title)]
+// repo-graph Release 1: the repository's readme and symbols too, so a format word that is the code's own subject is allowed.
+export const topicOf = input => [input?.goal, input?.canvas?.title, input?.repository?.readme, ...(input?.repository?.symbols || []), ...(input?.canvas?.objects || []).map(o => o?.text), ...Object.values(input?.scope?.concepts || {}), ...(input?.canvas?.blocks || []).filter(b => b?.kind !== 'chat').map(b => b?.title)]
   .filter(t => typeof t === 'string').join(' ').toLowerCase();
 
 // topic: topicOf's string; texts: claim statements, ideas, drawn and the option's own goal (the deterministic
@@ -217,6 +223,20 @@ export function nextStepsInputProblem(input) {
 
 // One line, at most max characters: every text the planner input carries.
 export const capText = (text, max) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+// repo-graph Release 1 (brief section 10): the server's repository digest joins the browser's input under input_chars, after
+// everything the browser sent - symbols leave first, then files, then the readme shortens, then the repository itself - so
+// the live canvas and recent activity are never trimmed for it. Returns a new input; the caller's is untouched.
+export function withRepository(input, digest) {
+  const out = { ...input, repository: structuredClone(digest) }, r = out.repository;
+  const over = () => JSON.stringify(out).length > LIMITS.input_chars;
+  while (over() && r.symbols?.length) r.symbols.pop();
+  while (over() && r.files?.length) r.files.pop();
+  while (over() && r.readme) r.readme = r.readme.slice(0, -200).trimEnd();
+  if (r.readme === '') delete r.readme;
+  if (over()) delete out.repository;
+  return out;
+}
 
 // The one input_chars trim (§2.1; Task 7's order, owner sixth message 1), shared by the owned input (web nextStepsInput) and
 // the shared route (sharedInput). In place, by structured priority only, never titles or text. While over the cap: the

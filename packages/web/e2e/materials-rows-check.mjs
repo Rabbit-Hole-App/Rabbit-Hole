@@ -157,11 +157,12 @@ const clearChat = async (...docs) => {
   }
 };
 const readerTitle = async () => (await page.locator('[data-sources-header] h2').innerText().catch(() => '')).trim();
-const sourcesOpen = () => page.evaluate(() => (document.querySelector('[data-context-panel]')?.getBoundingClientRect().width || 0) > 50);
+// Context shows when the companion column is open on it (a collapsed column keeps its content's own width inside).
+const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
 // Chat and Context share the panel: a step on the composer or the selection pill shows the Chat tab first.
 const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.getAttribute('aria-selected') !== 'true') await tab.click(); };
 const openSources = async () => {
-  if (!(await sourcesOpen())) await page.locator('[data-panel-tab="context"]').click({ timeout: 5000 });
+  if (!(await sourcesOpen())) await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
   // Every row is listed and ready (its expand control enabled).
   await waitFor(async () => {
@@ -169,11 +170,11 @@ const openSources = async () => {
     return true;
   }, 30000, 'the Materials rows are not all listed and ready');
 };
-const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-sources-close]').click(); await page.waitForTimeout(300); } };
+const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-companion-close]').click(); await page.waitForTimeout(300); } };
 // Click one row action and check it neither expanded its row nor switched the reader.
 const press = async (doc, name) => {
   // A row action lives in the Context tab; a step on Chat (send, select) left Chat showing.
-  if (!(await sourcesOpen())) await page.locator('[data-panel-tab="context"]').click({ timeout: 5000 });
+  if (!(await sourcesOpen())) await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
   const expanded = await expander(doc).getAttribute('aria-expanded'), reader = await readerTitle();
   await action(doc, name).click();
   await page.waitForTimeout(300);
@@ -484,14 +485,15 @@ await P.context.close();
 // Scenario 11: a long name, Sources at 320 and 480 px, light and dark, keyboard focus; the rows at rest.
 for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
   await check(`${theme} ${width}px: the long name truncates with its full-name title, the four actions stay visible inside the pane, Tab reaches each with a visible focus`, async () => {
-    const Q = await profile(`${theme}-${width}`, { 'small.theme': theme, 'rh.chat.width': String(width) });
+    const Q = await profile(`${theme}-${width}`, { 'small.theme': theme, 'rh.companion.width': String(width) });
     page = Q.page;
     try {
       await openCanvas(page);
       await openSources();
       assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), theme === 'dark', `the ${theme} theme is on`);
-      // rh.chat.width sizes the right panel (the aside); wait for its slide to settle at that width, then measure Context in it.
-      const aside = page.locator('aside[aria-label="Learn agent chat"]');
+      // rh.companion.width sizes the companion column (the aside left of Chat); wait for its slide to settle at that width, then
+      // measure Context in it.
+      const aside = page.locator('aside[data-companion]');
       await waitFor(async () => Math.abs(((await aside.boundingBox())?.width ?? 0) - width) <= 1, 5000, `the right panel did not settle at ${width}px (${(await aside.boundingBox())?.width})`);
       const panel = await sourcesPanel().boundingBox();
       assert.ok(Math.abs(panel.width - width) <= 1, `Context spans the ${width}px panel (${panel.width})`);

@@ -35,6 +35,8 @@ test('a repository opens on its canvas: no Files | Graph | Learn page; the badge
   // A repository with no snapshot opens its canvas too: its status shows in the header and its viewers, never a separate page.
   assert.match(wired, /data-repo-status=\{status\} role="status"/);
   assert.match(wired, /<RepositoryState repository=\{repository\} what="files" \/>/);
+  // Files opens in the companion column beside Chat (lane A), mounted on its first show.
+  assert.match(learn, /\{files && shown\.current\.has\('files'\) && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{companionView === 'files' \? 'flex' : 'hidden'\}[^`]*`\}>\{files\}<\/div>\}/);
 });
 
 test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {
@@ -132,6 +134,13 @@ test('one selection: the Files reader picks and Ask or Learn on a range attach t
   // Selecting text only offers [Ask] [Learn]; the context changes on a click, never on a selection.
   assert.match(reader, /<SourceSelectionContext\.Provider value=\{\{ value: pending, set: setPending \}\}>/);
   assert.doesNotMatch(reader, /setContext|small:ask-focus|learnAction/);
+});
+
+// Owner, 2026-10-08, from the stable preview (pallets/itsdangerous); repo-canvas-graph.md decision 4.
+test('a click on the graph\'s white space clears the selection; Shift on a node toggles it', () => {
+  // RepositoryGraph reports an unmoved press on empty space as onSelect(null) (Shift held: nothing), and on a node as that
+  // node, toggled when Shift is held (repo-canvas-graph.md decision 4).
+  assert.match(read('RepositoryGraph.jsx'), /onPointerUp=\{e=>\{const active=drag\.current;release\(e\);if\(!active\|\|active\.moved\)return;if\(active\.node\)onSelect\(scene\.positions\.get\(active\.node\.id\),\{toggle:e\.shiftKey\}\);else if\(!e\.shiftKey\)onSelect\(null,\{toggle:false\}\);\}\}/);
 });
 
 test('Files: the inspector does not repeat the code the reader shows - no preview, no Source tab', () => {

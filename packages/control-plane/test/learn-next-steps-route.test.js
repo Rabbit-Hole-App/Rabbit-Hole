@@ -108,7 +108,7 @@ test('planNextSteps: Sonnet first; a missing tool call, a validator failure or a
   assert.equal(ok.calls[0].body.output_config.effort, 'low');
   assert.match(plain.telemetry.prompt_version, /^[0-9a-f]{12}$/);
   assert.equal(plain.telemetry.cost_usd, costUsd({ model: 'claude-sonnet-5-5', input_tokens: 2000, output_tokens: 400 }));
-  assert.deepEqual([plain.telemetry.model_role, plain.telemetry.model_id, plain.telemetry.planner_version], ['tutor_next_steps', 'claude-sonnet-5-5', 'next-steps-planner-2']);
+  assert.deepEqual([plain.telemetry.model_role, plain.telemetry.model_id, plain.telemetry.planner_version], ['tutor_next_steps', 'claude-sonnet-5-5', 'next-steps-planner-3']);
   // Before Task 6 fix round 2: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }. A count
   // no reply reported is unknown (null), not 0: this reply reports no cache counts.
   assert.deepEqual(plain.telemetry.usage, { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: null, cache_read_input_tokens: null });
@@ -372,7 +372,7 @@ test('blank canvas, no goal: the planner request carries the AI, ML and LLM star
   await planNextSteps({}, blank(), { callModel });
   const system = typeof sent[0].system === 'string' ? sent[0].system : sent[0].system.map(block => block.text).join('\n');
   assert.match(system, /with no goal, three starter hooks inside AI, machine learning and large language models, each a different direction \(one on LLMs and how they generate text, one on how models learn from data, one on neural networks or another AI area\), never three takes on one topic and never outside AI/);
-  assert.match(system, /\[blank canvas\] no goal, no cards, empty scope, so three AI directions:/);
+  assert.match(system, /\[blank canvas\] no goal, no cards, empty scope, no repository, so three AI directions:/);
   assert.match(sent[0].messages[0].content, /"goal":""/, 'the untitled canvas sends no goal');
   await planNextSteps({}, blank('Tide pools'), { callModel });
   assert.match(sent[1].messages[0].content, /"goal":"Tide pools"/, 'a titled blank canvas keeps its title as the goal');

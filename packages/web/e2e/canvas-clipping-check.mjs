@@ -55,9 +55,9 @@ const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask$|artifact|ass
 const browser = await chromium.launch();
 // 1536 x 864: a common laptop (1920 at 125%), where Chat and Sources together leave the canvas row about 712 px.
 const context = await browser.newContext({ viewport: { width: 1536, height: 864 } });
-// Sources is now the right panel's Context tab (docs/features/hide-right-panel.md), so the 712 px canvas row that Chat (420) and
-// Sources (400) side by side used to leave is set up as one 820 px right panel; the last step resets it to its 420 px default.
-await context.addInitScript(() => { try { if (location.pathname.startsWith('/apps/')) localStorage.setItem('rh.chat.width', '820'); } catch { /* a sandboxed frame */ } });
+// The 712 px canvas row that Chat and Sources side by side used to leave: Chat 400 and the companion column (Context, 420) beside
+// it (docs/features/hide-right-panel.md, "Companion column"); the last step closes Context and resets Chat to its 420 px default.
+await context.addInitScript(() => { try { if (location.pathname.startsWith('/apps/')) { localStorage.setItem('rh.chat.width', '400'); localStorage.setItem('rh.companion.width', '420'); } } catch { /* a sandboxed frame */ } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.route('**/*', route => {
   const request = route.request(), url = new URL(request.url());
@@ -87,7 +87,7 @@ const geometry = () => page.evaluate(pdfId => {
   const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width || b.height ? { x: b.left, right: b.right, y: b.top, bottom: b.bottom, w: b.width } : null; };
   const surface = document.querySelector('[data-canvas-surface]');
   // One right panel since Sources became its Context tab (docs/features/hide-right-panel.md).
-  const panels = [...document.querySelectorAll('aside[aria-label="Learn agent chat"]')].map(r).filter(box => box && box.w > 1);
+  const panels = [...document.querySelectorAll('aside[aria-label="Learn agent chat"], aside[data-companion]')].map(r).filter(box => box && box.w > 1);
   const cards = Object.fromEntries([...document.querySelectorAll('[aria-label="Lesson canvas"] [data-canvas-surface] [data-block-id]')].map(el => [el.dataset.blockId, r(el)]));
   const frame = pdfId && document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${pdfId}"] iframe`);
   return { surface: r(surface), row: r(surface?.parentElement), panelLeft: panels.length ? Math.min(...panels.map(p => p.x)) : innerWidth, panels: panels.length,
@@ -153,8 +153,8 @@ await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
 await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
 await page.waitForTimeout(1500);
-// Context (the right panel's Sources tab), then the document's own row action Add to canvas.
-await page.locator('[data-panel-tab="context"]').click({ timeout: 5000 });
+// Context (the companion column left of Chat, opened from Chat's header), then the document's own row action Add to canvas.
+await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
 await page.locator('[data-material-row]').filter({ has: page.locator(`[data-material-name][title="${NAME}"]`) }).first().locator('[data-material-action="canvas"]').click({ timeout: 10000 });
 const dialog = page.locator('[data-pdf-add-dialog] [role="dialog"]');
 await dialog.waitFor({ timeout: 10000 });
@@ -175,8 +175,8 @@ facts.cards = { pdf: PDF_CARD, notebook: NOTE_CARD, saved: positions };
 await check('the right panel open on Context: the canvas runs to the panel (no blank strip), the map is still shown, beside the canvas', async () => {
   const g = await geometry();
   facts.both_open = g;
-  assert.equal(g.panels, 1, 'the one right panel is open');
-  assert.equal(await page.locator('[data-panel-tab="context"]').getAttribute('aria-selected'), 'true', 'on its Context tab');
+  assert.equal(g.panels, 2, 'Chat and the companion column are open');
+  assert.equal(await page.locator('[data-panel-viewer="context"]').getAttribute('aria-pressed'), 'true', 'the companion shows Context');
   noBlankStrip(g, 'Context open');
   assert.ok(g.nav, 'the Rabbit Holes Map is still on screen');
   assert.ok(g.nav.right <= g.surface.x + 0.5 || g.nav.x >= g.surface.right - 0.5, `the map ${Math.round(g.nav.x)}-${Math.round(g.nav.right)} never sits on the canvas ${Math.round(g.surface.x)}-${Math.round(g.surface.right)}`);
@@ -254,7 +254,7 @@ for (const zoom of ['Zoom out', 'Zoom in']) {
 
 await check('Context closed (back on Chat) and the panel back to its 420 px default: the map is in its own column, top right, beside the canvas', async () => {
   await page.keyboard.press('Shift+Digit0');
-  if (await page.locator('[data-sources-close]').isVisible().catch(() => false)) await page.locator('[data-sources-close]').click();
+  if (await page.locator('[data-companion-close]').isVisible().catch(() => false)) await page.locator('[data-companion-close]').click();
   await page.getByRole('separator', { name: 'Resize Learn panel' }).dblclick();
   await settle();
   const g = await geometry();

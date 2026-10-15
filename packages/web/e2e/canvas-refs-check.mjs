@@ -508,7 +508,7 @@ await check('10 the card menu keeps its items, each with an icon; panel tabs kee
   assert.deepEqual(labels.filter(row => !row.icon).map(row => row.text), [], 'menu items without an icon');
   await page.keyboard.press('Escape');
   const tabs = await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
-  assert.deepEqual(tabs.filter(id => id !== 'files'), ['chat', 'find', 'toc', 'comments', 'context', 'links'], `panel tabs: ${tabs.join(',')}`);
+  assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments', 'links'], `panel tabs: ${tabs.join(',')}`);
   assert.equal(await page.locator('[data-panel-tab="links"]').getAttribute('aria-label'), 'Links');
   const viewMenu = page.locator('[role="menubar"][aria-label="Canvas menu"]').getByRole('menuitem', { name: 'View', exact: true });
   const mode = page.locator('[role="menubar"] select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
