@@ -189,6 +189,7 @@ await check('2 a symbol click is symbol context: model.py lists its symbols; GPT
   assert.equal(chips.length, 1, `one selection: ${JSON.stringify(chips.map((c) => c.key))}`);
   assert.ok(chips[0].key.startsWith(`${SRC('model.py')}#model_gpt|`), chips[0].key);
   assert.equal(await reader.locator('[data-source-title]').innerText(), 'karpathy/nanoGPT › model.py › GPT');
+  await reader.locator('[data-highlighted][data-source-line="118"]').first().waitFor({ timeout: 10000 }).catch(() => {});
   assert.deepEqual(await lit(), [118]);
   assert.ok(await inView(118), 'the reader jumped to the symbol');
   assert.equal(await symbolRow('model_gpt').getAttribute('aria-current'), 'true');
@@ -205,6 +206,7 @@ await check('3 Graph and Files selections are one canonical object: the same sym
   assert.deepEqual(await keys(), fromFiles, 'the graph pick of the same symbol adds no second chip');
   await graphPanel.locator('[data-node-open-source]').click();
   await shows('files');
+  await reader.locator('[data-highlighted][data-source-line="29"]').first().waitFor({ timeout: 10000 }).catch(() => {});
   assert.deepEqual(await lit(), [29]);
   assert.equal(await symbolRow('model_causalselfattention').getAttribute('aria-current'), 'true');
   await shot('H-graph-node-to-files');
@@ -222,6 +224,7 @@ await check('4 highlighted code does NOT auto-attach: a drag over lines 177-179 
   assert.equal(await actions.count(), 1);
   assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
   assert.match(await actions.innerText(), /model\.py:177–179/);
+  await reader.locator('[data-highlighted][data-source-line="177"]').first().waitFor({ timeout: 10000 }).catch(() => {});
   assert.deepEqual(await lit(), [177, 178, 179]);
   assert.deepEqual(await keys(), before.keys, 'the composer context did not move');
   assert.equal(asks.length, before.asks, 'nothing was sent');
@@ -240,6 +243,7 @@ await check('5 Ask in chat attaches the exact range and writes the question, sen
   assert.equal(await field().inputValue(), 'What do lines 177–179 of model.py do?');
   assert.equal(asks.length, before.asks, 'nothing was sent');
   assert.equal(await actions.count(), 0);
+  await reader.locator('[data-highlighted][data-source-line="177"]').first().waitFor({ timeout: 10000 }).catch(() => {});
   assert.deepEqual(await lit(), [177, 178, 179], 'the attached range stays highlighted');
   await page.waitForFunction((n) => document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]').length === n + 1, cards, { timeout: 10000 });
 });
