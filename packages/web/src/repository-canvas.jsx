@@ -1,15 +1,16 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { GitBranch, Info, RefreshCw } from 'lucide-react';
 import { Button, IconBtn, Menu, toast } from './ui.jsx';
 import CodeReader from './CodeReader.jsx';
+import { lazyFeature } from './lazy-feature.jsx';
 import { useRepository } from './use-repository.js';
 import { contextOf, fileObject, objectOf } from './inspector.js';
 import { learnAction } from './agent/learn-hook.js';
 import { askDraft, askQuestion, wireContext } from './agent/scope.js';
 
 // The graph view's code loads when Explore codebase first shows it (brief section 13), never with the canvas.
-// A stale deploy's missing chunk shows a reload inside the column, never a page-wide failure.
-const GraphPanel = lazy(() => import('./GraphPanel.jsx').catch(() => ({ default: () => <div role="status" data-graph-unavailable className="flex flex-col items-start gap-2 p-4 text-sm text-ink-2"><p>The graph could not load. A newer version may be out.</p><Button size="sm" onClick={() => window.location.reload()}><RefreshCw size={13} aria-hidden /> Reload</Button></div> })));
+// A missing chunk (offline, or a stale deploy) shows Retry inside the column, never a page-wide failure (lazy-feature.jsx).
+const GraphPanel = lazyFeature(() => import('./GraphPanel.jsx'), 'The graph');
 
 // What a canvas attached to a repository gets (repo-canvas-graph.md): the Main canvas of a repo-* project and every
 // project canvas alike - the association decides, never the flow that made the canvas. `project` is the repository row the

@@ -11,6 +11,38 @@ export function canvasKeys({ org, email, slug }) {
   return { base, ink: `${base}:ink`, chat: `${base}:chat`, sources: `${base}:sources` };
 }
 
+// window.localStorage, or null where the browser blocks it: reading the property itself then throws (a SecurityError) before
+// any helper's own try/catch runs, so pages pass this instead (follow-up R3 item 3). Every helper here treats null as unreadable.
+export function browserStorage() {
+  try { return window.localStorage; } catch { return null; }
+}
+
+// This browser's copy of a board, for a save: {} when there is none, null when it cannot be read (blocked storage, or a value
+// that is not a board). An unreadable copy is never {}: saved, that empty board would replace the server's content.
+export function readBoardCopy(storage, key) {
+  try {
+    const raw = storage.getItem(key);
+    if (raw === null) return {};
+    const state = JSON.parse(raw);
+    return state && typeof state === 'object' && !Array.isArray(state) ? state : null;
+  } catch {
+    return null;
+  }
+}
+
+// The server version this browser's copy is based on: 0 when none is stored, null when it cannot be read or is not a version.
+// An unreadable version never proves this browser's copy is current.
+export function readBoardVersion(storage, key) {
+  try {
+    const raw = storage.getItem(key);
+    if (raw === null) return 0;
+    const version = Number(raw);
+    return raw.trim() !== '' && Number.isInteger(version) && version >= 0 ? version : null;
+  } catch {
+    return null;
+  }
+}
+
 const empty = (value) => Array.isArray(value) && value.length === 0;
 
 // Absent, or present and holding nothing. Anything unreadable counts as content, so Undo

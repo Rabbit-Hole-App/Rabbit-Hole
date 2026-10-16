@@ -1,4 +1,4 @@
-import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
@@ -15,7 +15,7 @@ import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
 import AnimatedScene from './AnimatedScene.jsx';
-const WhiteboardBlock = lazy(() => import('./WhiteboardBlock.jsx'));
+const WhiteboardBlock = lazyFeature(() => import('./WhiteboardBlock.jsx'), 'The whiteboard');
 import { fromTemplate } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
 import { sceneLegibility } from './scene-layout.js';
@@ -32,6 +32,7 @@ import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
+import { lazyFeature } from './lazy-feature.jsx';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
 // capture, readOnly }. Null wherever a card renders outside a canvas, so no sketch is offered there.

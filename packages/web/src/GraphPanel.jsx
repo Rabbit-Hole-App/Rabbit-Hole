@@ -9,6 +9,7 @@ import { repositoryUrl } from './card-sources.js';
 import { clearSelection, graphRefs } from './repo-context.js';
 import { reviewTools } from './flags.js';
 import { fixturesOn, useMapMemory } from './home/review-fixtures.js';
+import { browserStorage } from './home/canvas-local.js';
 import { layerGraph, MEMORY_KINDS, visibleMemory } from './map-memory.js';
 import { LayersRow } from './MapMemory.jsx';
 import { getSurface } from './agent/surface.js';
@@ -37,7 +38,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   const [query, setQuery] = useState(''), [explore, setExplore] = useState(null), [layersOpen, setLayersOpen] = useState(false), [layers, setLayers] = useState(() => new Set());
   const { status, snapshot, app } = repository;
   // Review fixtures (map-memory.js): work-memory layers, labelled, filtered to what this viewer may see.
-  const fixtures = reviewTools && fixturesOn(localStorage, window.location.search, reviewTools), stored = useMapMemory(fixtures, app?.repo), viewer = getSurface().email || null;
+  const fixtures = reviewTools && fixturesOn(browserStorage(), window.location.search, reviewTools), stored = useMapMemory(fixtures, app?.repo), viewer = getSurface().email || null;
   const memory = useMemo(() => stored && visibleMemory(stored, viewer), [stored, viewer]);
   const shown = useMemo(() => snapshot && (memory && layers.size ? layerGraph(snapshot.graph, memory, layers) : snapshot.graph), [snapshot, memory, layers]);
   // An invisible selection never rides the next question: closing the column clears it (brief section 6).

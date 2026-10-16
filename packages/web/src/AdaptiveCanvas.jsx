@@ -1,4 +1,4 @@
-import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -62,15 +62,16 @@ import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, dragSource, insertCodeCard, repoCodeCard } from './code-card.js';
+import { lazyFeature } from './lazy-feature.jsx';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
-const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
+const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
 // The inline AI editor arrives with its first Ctrl/Cmd+K (docs/features/inline-ai-editor.md), never with the canvas.
-const InlineAiEditor = lazy(() => import('./InlineAiEditor.jsx'));
+const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI editor');
 // The canvas's document editor (BlockNote), loaded only when Editor view first shows it (docs/features/blocknote-canvas.md).
-const CanvasDoc = lazy(() => import('./CanvasDoc.jsx'));
+const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
-const GraphCard = lazy(() => import('./GraphCard.jsx'));
+const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 const noop = () => {};
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is

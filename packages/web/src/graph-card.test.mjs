@@ -58,7 +58,7 @@ test('nodes selected in a card are the companion graph refs; the same file in bo
 
 test('the canvas wires the card: lazy renderer, its own keys, and a reveal-or-insert path for the companion', () => {
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /const GraphCard = lazy\(\(\) => import\('\.\/GraphCard\.jsx'\)\)/);
+  assert.match(canvas, /const GraphCard = lazyFeature\(\(\) => import\('\.\/GraphCard\.jsx'\), 'The graph'\)/);
   assert.match(canvas, /block\.type === 'repo-graph'/);
   assert.match(canvas, /closest\?\.\('\[data-companion\],\[data-graph-card\]'\)/, 'Delete on a focused node never deletes the card');
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
