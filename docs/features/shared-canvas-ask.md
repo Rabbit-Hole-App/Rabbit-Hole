@@ -37,13 +37,13 @@ sees, and nothing is written to the owner's board, threads or any owner data. Ke
   snapshot that is gone answers from the canvas only, with a notice under the answer.
   **Backfill:** a link made before this shipped has no pin row; it is pinned at its first open or ask after the
   deploy (the repository's commit then), and holds from then on.
-- **C. A share link never grants a private repository by itself.** A public repository's code is used normally, at
-  the pinned commit. A private one's code, name and commit reach the page and the model only when its owner switched
-  on "Allow questions to use private repository code" for this link (Share panel: "Signed-in viewers' questions can
-  use code from <repo> at <short commit>, the revision pinned for this link. Off: only this canvas's cards, notes
-  and sources."). Off by default and for every new link, per share, kept and enforced on the server; nothing the
-  client sends counts. Off, questions use only the shared canvas's cards, notes and content and its explicitly
-  shared sources - never the repository's files. Unknown visibility is private.
+- **C. A share link never grants a private repository.** A public repository's code is used normally, at the pinned
+  commit. Owner decision (2026-10-16, superseding the per-link "Allow questions to use private repository code"
+  switch): a private one's code, name and commit reach the page and the model only for the repository's original
+  importer (its `repository_apps` org and owner, from server records) on a link they can open - an explicit
+  snapshot-ownership policy for the stored import, not GitHub authorization, and never a reason to refresh or fetch.
+  Everyone else's questions use only the shared canvas's cards, notes and content and its explicitly shared sources.
+  Nothing the client sends counts. Unknown visibility is private.
 - **D. Limits and usage.** Sign-in is required; each admitted question is one `shared_canvas_ask` usage event and
   counts against per-viewer and per-share-link limits (one config place, below). Usage & Credits will meter it to the
   viewer, the signed-in account that asked - never to the owner because someone opened their share. Over a limit: 429 with a message that
@@ -73,15 +73,11 @@ public at that moment. There is no GitHub API flag and no stored token.
 
 - `public`: a `repository_visibility` row says `public`. No row is unknown, which is private.
 - `owned`: the repository's `owner_email` is the shared board's owner.
-- `allowed`: `public`, or `owned` and the pin's `repo_access` is 1. A fork's share is never `owned` for someone
-  else's repository, so a fork can never open up another person's private repository.
+- `allowed`: `public`, or the viewer is the repository's original importer (`importerOf`). The pin's `repo_access`
+  column is no longer read: a row an old switch set to 1 opens nothing.
 
-Who can set what: only the board's owner, through `POST /api/learn/boards/:app/:board/share/repository { allow }`
-(`boardOwner`: a canvas's owner, or the repository's importer for a `repo-*` board). It answers 409 unless the
-board's view link is on and its repository is the owner's own and not confirmed public, and it writes only that
-link's pin. A new link starts with it off. The owner's `GET /api/learn/boards/:app/:board` and the share route's
-reply carry `sharing.repository: { repo, commit, private, repo_access }` for the Share panel, only for the owner's own
-repository; the panel shows the switch only when `private` is true.
+The switch is gone (owner decision, 2026-10-16): `POST /api/learn/boards/:app/:board/share/repository` answers 410 and
+writes nothing, and the Share panel and the owner's `sharing` carry no repository permission.
 
 What a viewer and the model see:
 
