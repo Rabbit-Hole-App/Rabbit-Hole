@@ -380,13 +380,16 @@ test('calling the tool records a proposal and says it was not applied', async t 
   assert.deepEqual(research.proposed(), [{ op: 'add', text: 'Positional encoding', level: 1, after: 'h1' }]);
 });
 
-test('a second call in one answer is refused, and the first proposal survives', async t => {
+// A refusal comes back as not proposed with its reason, so the reply cannot read it as success (lead, R4 real-model defect).
+test('a second call in one answer is refused as not proposed, and the first proposal survives', async t => {
   const env = fixture(t);
   const outline = [{ id: 'h1', level: 1, label: 'Attention', done: false }];
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'x', outline }), env, {}, owner, 'learn');
   const { research } = env.answers[0];
   await research.runTool('propose_lesson_outline', { ops: [{ op: 'retitle', id: 'h1', text: 'Self-attention' }] });
-  await assert.rejects(() => research.runTool('propose_lesson_outline', { ops: [{ op: 'add', text: 'Other', level: 1 }] }), /one outline proposal/i);
+  const second = await research.runTool('propose_lesson_outline', { ops: [{ op: 'add', text: 'Other', level: 1 }] });
+  assert.equal(second.proposed, 0);
+  assert.match(second.error, /^Not proposed: one outline proposal/i);
   assert.equal(research.proposed()[0].text, 'Self-attention');
 });
 
@@ -394,7 +397,8 @@ test('the tool cannot reach a heading the learner never sent', async t => {
   const env = fixture(t);
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'x', outline: [{ id: 'h1', level: 1, label: 'A', done: false }] }), env, {}, owner, 'learn');
   const { research } = env.answers[0];
-  await assert.rejects(() => research.runTool('propose_lesson_outline', { ops: [{ op: 'retitle', id: 'somewhere-else', text: 'x' }] }), /No section/);
+  assert.deepEqual(await research.runTool('propose_lesson_outline', { ops: [{ op: 'retitle', id: 'somewhere-else', text: 'x' }] }),
+    { proposed: 0, applied: false, error: 'Not proposed: No section somewhere-else in this outline', note: 'Nothing was shown to the learner. Do not say you proposed this change.' });
   await assert.rejects(() => research.runTool('some_other_tool', {}), /Unknown Learn tool/);
   assert.equal(research.proposed(), null);
 });

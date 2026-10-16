@@ -345,6 +345,38 @@ test('Tutor with contents: the outline proposal is its one tool, the headings ri
   assert.equal(f.calls.at(-1).system.includes(TUTOR_OUTLINE_SYSTEM), false);
 });
 
+// R4 real-model defect (lead, 2026-10-16): asked from the docked composer to add a topic, the Tutor wrote that it had
+// proposed a subtopic, but never called the tool, so no proposal reached the page. A stub replay of that turn matched the
+// run's prompt id exactly with the tool offered: the claim was prose. A change exists only as a tool call, the prompt says so,
+// and a refused call comes back as not proposed with its reason.
+test('Tutor with contents: an add request offers the tool and the rule that only a call proposes; a prose claim is no proposal', async t => {
+  const f = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'Why real coasts disagree', done: false, description: '' }, { id: 'h2', level: 2, label: 'Resonance and funnelling', done: false, description: '' }];
+  f.replies.push('Good addition. I\'ve proposed it as a new subtopic under Why real coasts disagree.\n<answer_meta>{}</answer_meta>');
+  const { events } = await f.ask({ message: 'I would also like to learn about tidal bores. Please add that to my course.', mode: 'tutor', canvas_context: canvasPackage(), outline, outlineRevision: outlineRevision(outline) });
+  assert.deepEqual(f.calls[0].tools.map(tool => tool.name), ['propose_lesson_outline'], 'the docked-composer Tutor turn is offered the tool');
+  assert.match(f.calls[0].system, /A change exists only when propose_lesson_outline was called in this answer and returned proposed/);
+  assert.match(f.calls[0].system, /Never say you proposed a change unless that call returned proposed in this answer/);
+  assert.match(f.calls[0].system, /call propose_lesson_outline once, before you write your reply/);
+  assert.equal(events.some(e => e.event === 'outline'), false, 'a claim in prose proposes nothing');
+});
+
+test('a refused outline call reaches the model as not proposed with its reason; a corrected call in the same answer is the proposal', async t => {
+  const f = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'Why real coasts disagree', done: false, description: '' }, { id: 'h2', level: 2, label: 'Resonance and funnelling', done: false, description: '' }];
+  f.replies.push({ content: [{ type: 'tool_use', id: 'tu1', name: 'propose_lesson_outline', input: { ops: [{ op: 'add', text: 'Tidal bores', level: 2, parent: 'invented-id' }] } }], stop_reason: 'tool_use' });
+  f.replies.push({ content: [{ type: 'tool_use', id: 'tu2', name: 'propose_lesson_outline', input: { ops: [{ op: 'add', text: 'Tidal bores', level: 2, parent: 'h1', after: 'h2', description: 'A wave that runs up a river on the rising tide.' }] } }], stop_reason: 'tool_use' });
+  f.replies.push('I proposed Tidal bores under Why real coasts disagree.\n<answer_meta>{}</answer_meta>');
+  const { events } = await f.ask({ message: 'Please add tidal bores to my course.', mode: 'tutor', outline, outlineRevision: outlineRevision(outline) });
+  const result = calls => calls.messages.at(-1).content.find(block => block.type === 'tool_result');
+  const refused = result(f.calls[1]);
+  assert.equal(refused.is_error, false);
+  assert.deepEqual(JSON.parse(refused.content[0].text), { proposed: 0, applied: false, error: 'Not proposed: No section invented-id in this outline', note: 'Nothing was shown to the learner. Do not say you proposed this change.' });
+  assert.equal(JSON.parse(result(f.calls[2]).content[0].text).proposed, 1);
+  assert.equal(events.some(e => e.event === 'progress' && /failed/i.test(e.data.stage)), false, 'a refusal is not shown as a failed retrieval');
+  assert.deepEqual(events.find(e => e.event === 'outline').data.ops, [{ op: 'add', text: 'Tidal bores', level: 2, after: 'h2', parent: 'h1', description: 'A wave that runs up a river on the rising tide.' }]);
+});
+
 test('outlineRevision rides only beside an outline, as 8 hex digits; a description is at most 240 characters', async t => {
   const f = fixture(t);
   const outline = [{ id: 'h1', level: 1, label: 'Tides', done: false }];
