@@ -56,8 +56,13 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   assert.match(read('./CommandList.jsx'), /<CommandMark name=\{item\.name\} \/>/);
   for (const sheet of ['./SlashCommandsSheet.jsx', './agent/BarCommandsSheet.jsx']) assert.match(read(sheet), /<CommandList sections=\{sections\} current=\{name\}/, sheet);
   const ask = read('./ask.jsx');
-  assert.match(ask, /data-command-pill data-command-tone=\{commandTone\(command\) \|\| undefined\}/);
-  assert.match(ask, /font-medium">\/\{command\}<\/button>/, 'the pill is the literal /command, no icon');
+  // The composer pill is the shared CommandPill (Release B: the Chat composer's and Ctrl+K's).
+  assert.match(ask, /<CommandPill name=\{command\} /);
+  const pill = read('./CommandPill.jsx');
+  assert.match(pill, /const tone = commandTone\(name\);/);
+  assert.match(pill, /data-command-pill=\{name\} data-command-tone=\{tone \|\| undefined\}/);
+  assert.match(pill, /font-medium">\/\{name\}<\/button>/, 'the pill is the literal /command, no icon');
+  assert.doesNotMatch(pill, /CommandIcon/);
   for (const code of [ask, read('./agent/AgentBar.jsx')]) assert.doesNotMatch(code, /CommandIcon/);
   // The empty "/" slot stays the quiet neutral control; the selected-card strip stays neutral too.
   assert.match(ask, /className=\{cn\(chat \? cn\(COMPOSER_TOOL, 'font-mono text-\[15px\]'\) : dock \? COMPOSER_PILL : [^}]+\}>\/<\/button>/);

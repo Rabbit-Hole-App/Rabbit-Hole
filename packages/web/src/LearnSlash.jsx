@@ -11,7 +11,9 @@ import { CommandSearch } from './CommandList.jsx';
 // (runLearnCommand, bound to this canvas by the page). apiRef gives the
 // composer its key handler, send interception and search (the Auto button
 // opens the palette with its own search field; composerRef takes focus back).
-export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null }) {
+// onFinder(finder): a source command opened the source finder (finder: a promise of { added } once it closes); the composer
+// keeps its draft meanwhile (ask.jsx).
+export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null, onFinder = null }) {
   const [active, setActive] = useState(0);
   const [catalog, setCatalog] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -49,6 +51,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     setBusy(false);
     if (out.catalog) { setNotice(null); setCatalog(true); setInput('/'); return; }
     if (out.prompt) { setNotice(null); onPrompt(out.prompt); return; }
+    if (out.finder) onFinder?.(out.finder);
     if (out.keep) setInput(out.keep);
     setNotice(out.notice || null);
     setProposal(out.proposal || null);

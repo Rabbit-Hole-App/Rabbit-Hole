@@ -57,11 +57,11 @@ await search.fill('zzz');
 ok('no match says so', await rows.count() === 0 && await sheet.getByText('No commands match').count() === 1);
 await page.keyboard.press('Escape');
 ok('Esc clears the search and keeps the sheet open', await search.inputValue() === '' && await sheet.isVisible() && await rows.count() === all, `${all} rows`);
-// Every command shows a demo: a card, the card /source opens, or an example exchange.
+// Every command shows a demo: a card, the card /source opens, what a source search does (Release B), or an example exchange.
 const missing = [];
 for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
-  if (!await sheet.locator('[data-slash-card], [data-slash-chat]').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false)) missing.push(command);
+  if (!await sheet.locator('[data-slash-card], [data-slash-chat], [data-slash-finder]').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false)) missing.push(command);
 }
 ok('every command shows a demo', missing.length === 0, missing.join(' '));
 // The card a command makes: [data-slash-card] and a readiness hint per card type.

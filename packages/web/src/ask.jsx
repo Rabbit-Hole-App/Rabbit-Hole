@@ -28,7 +28,7 @@ import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
 import { outlineRevision } from './learn-outline-model.js';
 import { destinationOf } from './answer-destination.js';
-import { commandTone } from './CommandTone.jsx';
+import CommandPill from './CommandPill.jsx';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { holdsLine, parseSlash, releaseLine } from './learn-slash.js';
@@ -406,6 +406,17 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const slashRef = useRef(null), held = useRef(null);
   // The command a sent /line ran, so a command whose prompt comes back to this chat route (onPrompt) is named in its body.
   const promptCommand = useRef(null);
+  // What the composer showed when a /line was sent (its pill and text). A source command (/youtube, /arxiv, /wikipedia)
+  // keeps it while its finder is open (owner 4A; lead ruling 2026-10-16): closed with nothing added, the composer shows it
+  // again, focused; after Add to canvas the command line clears. Attachments and context are never touched. It never
+  // reaches the Tutor.
+  const sentDraft = useRef(null);
+  const keepDraft = finder => {
+    const draft = sentDraft.current;
+    if (!draft) return;
+    setCommand(draft.command); setInput(draft.text);
+    finder.then(({ added }) => { if (added) { setCommand(null); setInput(''); } inputRef.current?.focus(); });
+  };
   // Stop (the docked shell): aborts the answer being streamed.
   const answerFlight = useRef(null);
   // A thread opened from History, New chat or a canvas change (thread.restore.key) replaces the transcript with its saved
@@ -421,8 +432,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null } = {}) => {
     // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the slot goes back to "/".
     // A typed /command replaces the pill rather than nesting inside it.
-    if (!regenerate && slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); promptCommand.current = command; setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
-    if (!regenerate && slash && raw.trim().startsWith('/')) { promptCommand.current = parseSlash(raw)?.name || null; setCommand(null); if (slashRef.current?.intercept(raw)) return; }
+    if (!regenerate && slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); promptCommand.current = command; sentDraft.current = { command, text: raw }; setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
+    if (!regenerate && slash && raw.trim().startsWith('/')) { promptCommand.current = parseSlash(raw)?.name || null; sentDraft.current = { command: null, text: raw }; setCommand(null); if (slashRef.current?.intercept(raw)) return; }
     // An explicit Ask never goes to the journey resolver or starts a journey (owner brief section 5): a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (chat?.thread.mode === 'ask') skipJourney = true;
@@ -816,12 +827,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // sits here as a pill (/name) - the name reopens the palette to swap it, × returns the slot to "/" and keeps the text.
   // The slot is never the mode: Auto / Ask / Tutor is the separate ModeSelector, and removing a command never changes it.
   const slashControl = slash && (command
-    // A command with a family wears its tint (CommandTone.jsx); the rest stay neutral. Never the whole composer.
-    ? <span data-command-pill data-command-tone={commandTone(command) || undefined} className={cn(chat ? 'h-8 rounded-lg pl-2 text-sm' : dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border', !commandTone(command) && 'border-line bg-hover text-ink', voiceOn && 'opacity-45')}>
-        <button type="button" title="Change the command" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={openPalette} className="inline-flex cursor-pointer items-center gap-1 font-medium">/{command}</button>
-        <button type="button" aria-label={`Remove ${command}`} title="Remove the command" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
-          className={cn(chat ? 'mx-0.5 h-6 w-6' : dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
-      </span>
+    // The shared pill (CommandPill.jsx, also Ctrl+K's): a command with a family wears its tint (CommandTone.jsx); the rest
+    // stay neutral. Never the whole composer. Removing it keeps the text, attachments and context.
+    ? <CommandPill name={command} onOpen={openPalette} onRemove={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
+        className={cn(chat ? 'h-8 rounded-lg pl-2 text-sm' : dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', voiceOn && 'opacity-45')}
+        removeClassName={chat ? 'mx-0.5 h-6 w-6' : dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5'} />
     : <button type="button" data-command-slot aria-label="Commands" title="Choose a command" aria-expanded={input.startsWith('/')} disabled={voiceOn}
         onMouseDown={event => event.preventDefault()} onClick={() => { if (!input.startsWith('/')) return openPalette(); setComposerInput(''); inputRef.current?.focus(); }}
         className={cn(chat ? cn(COMPOSER_TOOL, 'font-mono text-[15px]') : dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>/</button>);
@@ -1057,7 +1067,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);

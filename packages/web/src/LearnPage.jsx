@@ -210,6 +210,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const [searchOpen, setSearchOpen] = useState(false);
   // What a /paper <topic> command searches for; null for the plain search bar.
   const [searchSeed, setSearchSeed] = useState(null);
+  // Resolves the open finder's promise for the Chat source command that opened it ({ added }); null for any other opening.
+  const finderDone = useRef(null);
   // Tool Performance v1: common tools fetched on idle, one per quiet moment (learn-warmup.js).
   useEffect(() => { warmLearnTools(app.name); }, [app.name]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -771,7 +773,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             return {};
           },
         },
-        openSearch: seed => { setSearchSeed(seed); setSearchOpen(true); },
+        // A Chat source command's finder: settles { added } when it closes, so the composer keeps its draft until then.
+        openSearch: seed => new Promise(resolve => { finderDone.current = resolve; setSearchSeed(seed); setSearchOpen(true); }),
         post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }),
       });
     },
@@ -1873,8 +1876,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           )}
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
-          {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
-            onPick={pickResult} />}
+          {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); finderDone.current?.({ added: false }); finderDone.current = null; }}
+            onPick={(source, item) => { finderDone.current?.({ added: true }); finderDone.current = null; return pickResult(source, item); }} />}
           <div className="flex items-center gap-0.5">
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
             <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
