@@ -72,17 +72,22 @@ const at = (y, h = 100) => ({ x: 0, y, w: 400, h });
 const lesson = [heading('a', 'A'), { id: 'a1', type: 'card' }, heading('b', 'B'), { id: 'b1', type: 'card' }, heading('c', 'C')];
 const boxes = { a: at(0, 40), a1: at(40, 400), b: at(440, 40), b1: at(480, 300), c: at(780, 40) };
 
-test('the section with the most area in view is the one being viewed', () => {
+test('the section spanning the middle of the view is the one being viewed', () => {
   assert.equal(activeSection(lesson, boxes, { x: 0, y: 0, w: 800, h: 300 }), 'a');
-  assert.equal(activeSection(lesson, boxes, { x: 0, y: 400, w: 800, h: 300 }), 'b', 'B shows 300 of its height, A only 40');
-  assert.equal(activeSection(lesson, boxes, { x: 0, y: 760, w: 800, h: 300 }), 'c');
+  assert.equal(activeSection(lesson, boxes, { x: 0, y: 400, w: 800, h: 300 }), 'b', 'the middle (550) is inside B');
+  assert.equal(activeSection(lesson, boxes, { x: 0, y: 700, w: 800, h: 300 }), 'c', 'past the end of B, C is nearest the middle');
+});
+
+test('a small section framed in a tall view is marked, even when a bigger neighbour shows more of itself', () => {
+  // B (440-780) sits in the middle of a view from -200 to 1420; A shows 440 of height, B 340.
+  assert.equal(activeSection(lesson, boxes, { x: 0, y: -200, w: 800, h: 1620 }), 'b');
 });
 
 test('a tie goes to the earlier section, and the answer never depends on anything but blocks, boxes and view', () => {
-  const even = { a: at(0, 100), b: at(100, 100) };
   const pair = [heading('a'), heading('b')];
-  assert.equal(activeSection(pair, even, { x: 0, y: 0, w: 400, h: 200 }), 'a');
-  assert.equal(activeSection(pair, even, { x: 0, y: 0, w: 400, h: 200 }), activeSection(pair, even, { x: 0, y: 0, w: 400, h: 200 }));
+  const gap = { a: at(0, 100), b: at(200, 100) };
+  assert.equal(activeSection(pair, gap, { x: 0, y: 0, w: 400, h: 300 }), 'a', 'the middle (150) is 50 from both');
+  assert.equal(activeSection(pair, gap, { x: 0, y: 0, w: 400, h: 300 }), activeSection(pair, gap, { x: 0, y: 0, w: 400, h: 300 }));
 });
 
 test('nothing in view, no headings, unmeasured cards or no view: no active section', () => {

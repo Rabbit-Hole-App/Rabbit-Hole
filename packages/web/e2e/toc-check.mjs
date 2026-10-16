@@ -299,12 +299,29 @@ await check('11 a Tutor proposal marks the tab without switching to it; the card
   assert.equal(await entry('t3').getAttribute('data-done'), 'true', 'its topic stays done');
   assert.equal((await added.innerText()).replace(/\s+/g, ' ').trim(), '1.11 Proofing Why dough rests before it bakes.', 'the end of the Baking section');
   assert.equal(await tocTab().getAttribute('aria-label'), 'Table of contents', 'the marker clears once applied');
+  await saved('the applied proposal', headings => headings.some(block => block.text === 'Proofing' && block.description === 'Why dough rests before it bakes.' && !block.done));
   lastProposal = proposal;
+});
+
+// The A1 deliverable: the whole contents in a panel tall enough to hold it - topics and sub-sections with and without
+// descriptions; done, open and active entries - narrow and wide, light and dark. Pictures only; the steps above assert.
+await check('12 the deliverable screenshots: whole contents, narrow and wide, light and dark, with done and active entries', async () => {
+  for (const theme of ['light', 'dark']) for (const chat of [300, 520]) {
+    await open({ theme, chat, height: 2000 });
+    await title('s12').click();
+    await page.waitForFunction(() => document.querySelector('[data-toc-entry="s12"]')?.hasAttribute('data-active'));
+    await page.mouse.move(0, 0); // no hover chrome in the picture
+    // The contents scroll on their own: the top and the end of the list.
+    await toc().evaluate(node => node.scrollTo(0, 0));
+    await shot(`A1-${theme}-${chat === 300 ? 'narrow' : 'wide'}-top`);
+    await toc().evaluate(node => node.scrollTo(0, node.scrollHeight));
+    await shot(`A1-${theme}-${chat === 300 ? 'narrow' : 'wide'}-end`);
+  }
 });
 
 // Needs the proposal object end to end (contract C6: ask.jsx hands the page { ops, base, source }), so it passes on the
 // integrated release, not on toc/panel alone, whose ask.jsx still forwards bare ops.
-await check('12 the same proposal again (a retry) was made against the old headings: stale, and Apply changes nothing', async () => {
+await check('13 the same proposal again (a retry) was made against the old headings: stale, and Apply changes nothing', async () => {
   const proposal = lastProposal;
   const card = toc().locator('[data-toc-proposal]');
   reply = tutorTurn(proposal);
