@@ -414,13 +414,15 @@ test('attempt kinds: a repair is labelled at its call site, under the same actio
   assert.deepEqual(rows(sqlite, 'usage_actions').slice(1).map(a => [a.user_id, a.status, a.result]), [['u-route', 'completed', 'none']]);
 });
 
-test('the dev/preview and stack configs carry a valid allowance; production does not in Phase 1', () => {
+// Owner 2026-10-16 morning: credits Phase 1 goes to production, so the production app worker (which serves /api/learn/usage)
+// carries the allowance too; the control plane serves no usage route and stays without it.
+test('the dev/preview, stack and production app configs carry a valid allowance; the production control plane does not', () => {
   const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
-  for (const path of ['../../web/wrangler.dev.jsonc', '../../../scripts/ci/config/integ-local.jsonc']) {
+  for (const path of ['../../web/wrangler.dev.jsonc', '../../../scripts/ci/config/integ-local.jsonc', '../../web/wrangler.rabbit-hole-prod.jsonc']) {
     const value = read(path).match(/"AI_MONTHLY_ALLOWANCE_USD":\s*"([^"]*)"/)?.[1];
     assert.equal(monthlyAllowanceMicros({ AI_MONTHLY_ALLOWANCE_USD: value }), 50_000_000, path);
   }
-  for (const path of ['../../web/wrangler.rabbit-hole-prod.jsonc', '../wrangler.rabbit-hole-prod.jsonc']) assert.doesNotMatch(read(path), /AI_MONTHLY_ALLOWANCE_USD/, path);
+  assert.doesNotMatch(read('../wrangler.rabbit-hole-prod.jsonc'), /AI_MONTHLY_ALLOWANCE_USD/);
 });
 
 test('ledger-bypass media: reported cost is settled, a documented estimate is estimated, otherwise unknown; a failure keeps no estimate', async t => {
