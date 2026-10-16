@@ -25,6 +25,7 @@ const lengths = schema => Object.entries(schema.properties || {}).filter(([, fie
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
 import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
+import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 export { ARTIFACT_SYSTEM };
 
 // What a command resolves to before any model runs. `ready` is the command's
@@ -53,8 +54,8 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
   const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null });
   // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
-  const ask = async history => {
-    const response = await callModel(env, { max_tokens: LEARN_TASKS.artifact.maxTokens, system: ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
+  const ask = async (history, kind) => {
+    const response = await callModel(kind ? withAttemptKind(env, kind) : env, { max_tokens: LEARN_TASKS.artifact.maxTokens, system: ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
     if (!response.ok) throw new Error((await notConfiguredMessage(response)) || `Artifact generation unavailable (model HTTP ${response.status}). Try again.`);
     const result = await response.json();
     const calls = result.content?.filter(part => part.type === 'tool_use') || [];
@@ -79,7 +80,7 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
       return { result: 'artifact', primitive: id, block, repaired: attempt > 0 };
     } catch (error) {
       if (attempt >= ARTIFACT_REPAIRS) return { result: 'validation_error', primitive: id || null, error: error.message };
-      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }]));
+      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
   }
 }
@@ -104,6 +105,10 @@ export async function artifactFetch(req, env, generate = generateArtifact) {
   if (ownerRefused) return ownerRefused;
   let documents;
   try { documents = await contextDocumentBlocks(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
-  try { return json(await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) })); }
+  try {
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) });
+    noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
+    return json(out);
+  }
   catch (error) { return json({ error: error.message }, 502); }
 }

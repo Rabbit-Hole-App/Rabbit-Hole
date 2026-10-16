@@ -6,6 +6,7 @@ import { MotionProvider, MotionRequestProvider, motionCacheKey, motionRequestCac
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
+import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext } from './learn-usage.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
@@ -28,7 +29,7 @@ export async function privateLessonAssetFetch(req, env, binding) {
   if (req.method === 'POST' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);
   // Cache and placements are private to this learner in this app/workspace.
   const id = binding.idFromName(JSON.stringify([app.org, app.name, app.email]));
-  return binding.get(id).fetch(req);
+  return binding.get(id).fetch(forwardUsagePayer(req, usageContext(env)?.identity || app));
 }
 
 // A stored clip, with range support. Its type is the job's own (Avatar Teacher §13: WebM with alpha stays
@@ -129,6 +130,9 @@ export class LearnVideos {
           // A Motion submit is a GET of a finished render (nothing charged), and a definite refusal
           // started nothing: both stay retryable. Anything else may have started a paid job.
           catch (error) { const known = motion || error.definite === true; job.status = 'failed'; job.uncertain = !known; job.error = known ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
+          // Usage accounting (ledger bypass): one attempt per submission, cost unknown (no verified price); a definite
+          // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render.
+          if (!motion && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, 'video'), { provider: job.provider, ok: !!job.ticket });
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);

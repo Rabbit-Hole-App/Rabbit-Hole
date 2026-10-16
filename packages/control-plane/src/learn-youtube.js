@@ -10,6 +10,8 @@ import { fetchCaptions } from './learn-captions.js';
 import { guardedCaptions, enqueueForIndex, warmMoments, semanticWindowScorer, hotMoment, upsertAcceptedQuestion, withdrawAcceptedQuestion } from './learn-moment-index.js';
 import { topPassages } from './learn-moment-retrieve.js';
 import { learnMomentsDb } from './learn-storage.js';
+import { recordMedia } from './learn-usage.js';
+import { exaCost, EXA_SEARCH_ESTIMATE } from './learn-usage-estimates.js';
 import { VIDEO_SYSTEM as VIDEO_TOOLS_SYSTEM, VIDEO_SHOWN_NOTE } from './agents/learn-chat.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -99,8 +101,11 @@ export async function searchYouTube(query, env, fetcher = fetch) {
   } catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'Video search did not answer in time. Try again.' : 'Video search is unavailable'); }
   if (response.status === 401 || response.status === 403) throw new Error('The Exa search key was refused.');
   if (response.status === 429) throw new Error('Video search is rate-limited. Wait a minute and try again.');
+  const data = response.ok ? await response.json() : null;
+  // Usage accounting (ledger bypass): Exa's reported cost when it gives one, else the documented per-search estimate.
+  await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok: response.ok, costMicros: exaCost(data), estimateMicros: EXA_SEARCH_ESTIMATE });
   if (!response.ok) throw new Error(`Video search is unavailable (${response.status})`);
-  return parseExaResults(await response.json());
+  return parseExaResults(data);
 }
 
 // --- phase 2: the tutor finds and shows a moment ---

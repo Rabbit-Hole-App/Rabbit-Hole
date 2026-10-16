@@ -16,6 +16,7 @@ import { JOURNEY_SYSTEMS, JOURNEY_TOOLS, diagnosticOutput, pathOutput, resolverO
 import { NEXT_STEPS_PLANNER_VERSION, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, nextStepsOutput, words } from './agents/learn-next-steps.js';
 import { fixtureModel } from './learn-journey-fixtures.js';
 import { normalizeToolInput } from './tool-input.js';
+import { withAttemptKind } from './learn-usage.js';
 
 // The five journey roles are LEARN_TASKS entries (learn-models.js): journey_resolver, journey_diagnostic, journey_path,
 // journey_section and journey_adapt, each with effort (output_config.effort; null is the model default).
@@ -100,7 +101,7 @@ export async function adaptPath(env, input, { callModel = journeyCallModel(env) 
     if (checked?.ok && out.ambiguous !== true) return { ...checked.value, ambiguous: false, escalated: null };
     escalated = checked?.ok ? 'ambiguous' : 'validator';
   }
-  const out = await callRole(env, 'journey_path', input, callModel);
+  const out = await callRole(withAttemptKind(env, 'escalation'), 'journey_path', input, callModel);
   return { ...valid('journey_path', check(out)), ambiguous: out.ambiguous === true, escalated };
 }
 
@@ -133,7 +134,7 @@ export async function planNextSteps(env, input, { callModel = journeyCallModel(e
     const c = result?.usage ? costUsd({ model: LEARN_TASKS[role].model, ...result.usage }) : null; // no usage, no known cost
     cost = c == null ? cost : +((cost || 0) + c).toFixed(6);
   };
-  const ask = role => callRole(env, role, input, callModel, { tool: NEXT_STEPS_TOOL, system: NEXT_STEPS_SYSTEM, failure: 'The next steps planner is unavailable', onReply: result => onReply(role, result) });
+  const ask = role => callRole(role === 'tutor_next_steps_escalation' ? withAttemptKind(env, 'escalation') : env, role, input, callModel, { tool: NEXT_STEPS_TOOL, system: NEXT_STEPS_SYSTEM, failure: 'The next steps planner is unavailable', onReply: result => onReply(role, result) });
   // rejected_words: the word count of each hook in a routine reply the validator refused (numbers only, never a hook; Tutor eval
   // run A saw hook_words without knowing over or under), else null.
   let rejected = null;

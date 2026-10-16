@@ -1,4 +1,5 @@
 import { paidSubmissionRefusal } from './learn-paid-transport.js';
+import { recordMedia } from './learn-usage.js';
 
 // Voice Mode's speech-to-text token. See docs/features/voice-tutor-mvp.md §5.
 //
@@ -29,6 +30,8 @@ export async function scribeToken(env, deps = {}) {
   } catch {
     return reply(unavailable, 502);
   }
+  // Usage accounting: the browser then streams to ElevenLabs directly, so the session's cost is unknown here.
+  await recordMedia(env, { provider: 'elevenlabs', model: 'scribe_realtime', ok: upstream.ok });
   // The provider's body is never forwarded: it can echo request details.
   if (!upstream.ok) return reply(unavailable, 502);
   const token = (await upstream.json().catch(() => null))?.token;

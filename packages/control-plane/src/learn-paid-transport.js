@@ -1,6 +1,7 @@
 // Existing unpriced/delegated media transports fail closed before new paid submissions.
 // A diagnostic read cannot authorize spending: only the bounded Fish path below can admit.
 import { admitSpend, settleSpend, operationId, platformSpendStatus, spendEnforced } from './learn-spend-ledger.js';
+import { beginAttempt, settleAttempt, toMicros } from './learn-usage.js';
 
 const message = code => code === 'cap_unset' ? 'Daily paid-operation spend cap is not configured.'
   : code === 'daily_cap_reached' ? 'Daily paid-operation spend cap reached.'
@@ -32,13 +33,19 @@ export async function fishSpendTransport(env, text, transport) {
   const opId = operationId('fish_tts');
   const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'fish_tts', reservedUsd });
   if (gate.refused) return paidSpendReply(gate.reason);
+  // Usage accounting (learn-usage.js, Phase 1). Fish bills exactly the input bytes, so a delivered response settles at the
+  // reservation; a failed one keeps it as unknown.
+  const reservedMicros = toMicros(reservedUsd);
+  const begun = beginAttempt(env, { attemptId: opId, kind: 'media', provider: 'fish', model: 's1', reservedMicros });
   let response;
   try { response = await transport(); }
   catch (error) {
     await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: 'fish', model: 's1', error: 'transport' });
+    await settleAttempt(env, await begun, { status: 'failed' });
     throw error;
   }
   // Preserve the entire input charge even if audio later disconnects; no refund is assumed.
   await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, provider: 'fish', model: 's1', error: response.ok ? null : `http_${response.status}` });
+  await settleAttempt(env, await begun, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? reservedMicros : null });
   return response;
 }

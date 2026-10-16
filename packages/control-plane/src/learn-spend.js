@@ -3,6 +3,7 @@
 import { MODEL_PRICES } from './learn-models.js';
 
 import { spendError, platformCaps, admitSpend, settleSpend, operationId, spendEnforced } from './learn-spend-ledger.js';
+import { beginAttempt, settleAttempt, toMicros } from './learn-usage.js';
 export { spendError, platformCaps, platformSpendStatus, admitSpend, settleSpend, operationId, spendEnforced } from './learn-spend-ledger.js';
 
 // Prices for the existing picker models, verified 2026-10-12 (not aliases of 5.5):
@@ -73,6 +74,9 @@ export async function spendTransport(env, body, model, org, transport, identity 
   const opId = operationId(identity.category || 'provider');
   const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: identity.userId || `provider:${org || 'platform'}`, org: org || 'platform', category: identity.category || 'provider', reservedUsd });
   if (gate.refused) return refusal(gate.reason);
+  // Usage accounting (learn-usage.js, Phase 1): the same attempt beside the ledger row, best effort and never awaited
+  // before the provider call; finish() waits for it. It cannot refuse or fail this request.
+  const begun = beginAttempt(env, { attemptId: opId, kind: identity.kind, provider, model, reservedMicros: toMicros(reservedUsd) });
   const token = { request: JSON.stringify(body), model, provider, db: env.LEARN_DB };
   activeAdmissions.add(token);
   const finish = async (result, error = null) => {
@@ -88,6 +92,8 @@ export async function spendTransport(env, body, model, org, transport, identity 
     // per-TTL breakdown, a one-hour write keeps its conservative reservation.
     if (JSON.stringify(body).includes('\"ttl\":\"1h\"') && usage?.cache_creation_input_tokens > 0) cost = null;
     await settleSpend(env.LEARN_DB, opId, { status: error ? 'failed' : 'settled', calls: 1, costUsd: cost, model: result?.model || model, provider, error });
+    await settleAttempt(env, await begun, { costMicros: toMicros(cost), status: error === 'stream_cancelled' ? 'cancelled' : error ? 'failed' : 'settled',
+      model: result?.model || model, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens });
   };
   try {
     const response = await transport({ ...env, [admission]: token });

@@ -10,6 +10,7 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { challengePrompt } from './agents/learn-grade.js';
+import { withAttemptKind } from './learn-usage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const ATTEMPT = /^[A-Za-z0-9:_-]{8,120}$/;
@@ -233,7 +234,7 @@ export const assessContent = (instruction, sketch = null) => (sketch?.image
 export async function assessText(env, instruction, callModel) {
   const messages = [{ role: 'user', content: instruction }];
   for (let turn = 0; ; turn += 1) {
-    const response = await callModel(env, { max_tokens: LEARN_TASKS.grading.maxTokens, messages }, LEARN_TASKS.grading.model, null);
+    const response = await callModel(turn > 0 ? withAttemptKind(env, 'retry') : env, { max_tokens: LEARN_TASKS.grading.maxTokens, messages }, LEARN_TASKS.grading.model, null);
     if (!response.ok) throw await modelFailure(response, 'Grading unavailable');
     const result = await response.json();
     if (result.stop_reason === 'max_tokens') throw new Error('The answer was cut short. Try a narrower question.');

@@ -21,6 +21,7 @@ import { validateLessonSnapshot } from './learn-context.js';
 import { PEXELS_TOOL, INSPECT_IMAGE_TOOL, inspectImage, searchPexels } from './pexels.js';
 
 import { BOARD_SYSTEM, BOARD_NO_DESMOS } from './agents/learn-board.js';
+import { withAttemptKind } from './learn-usage.js';
 export { BOARD_SYSTEM };
 
 export const BOARD_TOOL = { name: 'explain_on_canvas', description: 'Propose a bounded visual explanation, rendered by the application after validation.', input_schema: {
@@ -134,9 +135,10 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     if (!env.DESMOS_API_KEY && plan.blocks.some(b => b.operation?.renderer === 'desmos')) throw new Error(BOARD_NO_DESMOS);
     return plan;
   };
-  const invoke = async (system, tools, toolChoice, history, max_tokens = LEARN_TASKS.board.maxTokens.draft) => {
+  const invoke = async (system, tools, toolChoice, history, max_tokens = LEARN_TASKS.board.maxTokens.draft, kind = null) => {
     const strictNames = [PLAN_TOOL.name, REVIEW_TOOL.name];
-    const send = strict => callModel(env, { max_tokens, system, tools: tools.map(tool => strict && strictNames.includes(tool.name) ? strictTool(tool) : tool), tool_choice: toolChoice, messages: history }, selectedModel, null);
+    // Usage accounting labels (learn-usage.js): the non-strict resend is a retry of this attempt.
+    const send = strict => callModel(!strict ? withAttemptKind(env, 'retry') : kind ? withAttemptKind(env, kind) : env, { max_tokens, system, tools: tools.map(tool => strict && strictNames.includes(tool.name) ? strictTool(tool) : tool), tool_choice: toolChoice, messages: history }, selectedModel, null);
     let response = await send(true);
     // Structured outputs compile the schema into a grammar; when that request
     // is rejected the plan is still validated here, so drop strict rather than
@@ -182,7 +184,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
       const repairHistory = [...history, { role: 'assistant', content: response.result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: response.call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected ${tool.name} input. Follow all schema limits, preserving supported meaning. This is the only format correction attempt; factual review still follows.` }] }];
       // A truncated response cannot be repaired with the same too-small budget.
       const repairTokens = response.result.stop_reason === 'max_tokens' ? Math.min(6000, Math.max(2400, maxTokens * 2)) : maxTokens;
-      const repaired = await invoke(drawingSystem, [tool], forced(tool), repairHistory, repairTokens);
+      const repaired = await invoke(drawingSystem, [tool], forced(tool), repairHistory, repairTokens, 'repair');
       if (repaired.call.name !== tool.name) throw new Error('Unexpected correction tool');
       if (repaired.result.stop_reason === 'max_tokens') throw new Error(`${tool.name}: correction reached its ${repairTokens}-token limit`);
       try { return { ...repaired, plan: validate(repaired.call.input) }; }
@@ -230,7 +232,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
   for (let attempt = 0; attempt < BOARD_DRAFT_TURNS; attempt++) {
     const search = attempt < BOARD_DRAFT_TURNS - 1;
     onProgress('Preparing explanation and assets...');
-    const { result, call } = await invoke(drawingSystem, [BOARD_TOOL, ...(search ? [SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(env.PEXELS_API_KEY ? [PEXELS_TOOL, INSPECT_IMAGE_TOOL] : [])] : [])], search ? { type: 'any', disable_parallel_tool_use: true } : forced(BOARD_TOOL), messages);
+    const { result, call } = await invoke(drawingSystem, [BOARD_TOOL, ...(search ? [SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(env.PEXELS_API_KEY ? [PEXELS_TOOL, INSPECT_IMAGE_TOOL] : [])] : [])], search ? { type: 'any', disable_parallel_tool_use: true } : forced(BOARD_TOOL), messages, undefined, attempt > 0 ? 'tool' : null);
     if (call.name === BOARD_TOOL.name) { draft = await validateOrRepair({ result, call }, BOARD_TOOL, validateDraft, messages); break; }
     if (!search || ![PEXELS_TOOL.name, INSPECT_IMAGE_TOOL.name, SEARCH_ARXIV_TOOL.name, READ_ARXIV_TOOL.name].includes(call.name)) throw new Error('No canvas explanation returned');
     let content, is_error = false;
@@ -272,7 +274,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     for (const paper of papers.values()) content.push(paperDocument(paper));
     const renderedCrops = previews ? previewImages(previews, plan) : [];
     content.push(...renderedCrops);
-    const reviewResponse = await invoke(BOARD_REVIEW_SYSTEM, [REVIEW_TOOL], forced(REVIEW_TOOL), [{ role: 'user', content }], LEARN_TASKS.board.maxTokens.review);
+    const reviewResponse = await invoke(BOARD_REVIEW_SYSTEM, [REVIEW_TOOL], forced(REVIEW_TOOL), [{ role: 'user', content }], LEARN_TASKS.board.maxTokens.review, 'evaluation');
     if (reviewResponse.call.name !== REVIEW_TOOL.name) throw new Error('No explanation review returned');
     const review = validateBoardReview(reviewResponse.call.input, plan.blocks.length);
     if (review.verdict === 'ready') return { ...plan, teachingPlan, review: { passes: pass, checks: review.checks } };
@@ -283,7 +285,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     for (const photoId of inspected) revisionContent.push(...inspectImage(photos, photoId));
     for (const paper of papers.values()) revisionContent.push(paperDocument(paper));
     revisionContent.push(...renderedCrops);
-    const revised = await invoke(drawingSystem, [BOARD_TOOL], forced(BOARD_TOOL), [{ role: 'user', content: revisionContent }]);
+    const revised = await invoke(drawingSystem, [BOARD_TOOL], forced(BOARD_TOOL), [{ role: 'user', content: revisionContent }], undefined, 'repair');
     if (revised.call.name !== BOARD_TOOL.name) throw new Error('No revised explanation returned');
     draft = await validateOrRepair(revised, BOARD_TOOL, validateDraft, [{ role: 'user', content: revisionContent }]);
     previews = null;
