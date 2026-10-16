@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CARD_NODE_CAP, cardRefs, dropCardRef, graphCardBlock, graphScopeRef, sameGraphCard, setCardScope, setCardSelection, subgraph } from './graph-card.js';
+import { CARD_NODE_CAP, EDGE_CAP, limitEdges, cardRefs, dropCardRef, graphCardBlock, graphScopeRef, sameGraphCard, setCardScope, setCardSelection, subgraph } from './graph-card.js';
 import { nodeRef, turnRefs } from './repo-context.js';
 import { sameRef } from './chat-context.js';
 
@@ -111,4 +111,19 @@ test('a wheel over a graph card zooms only the card: the canvas wheel handler sk
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   const wheel = canvas.slice(canvas.indexOf('const wheel = event => {'), canvas.indexOf('event.preventDefault();', canvas.indexOf('const wheel = event => {')));
   assert.match(wheel, /if \(event\.target\.closest\?\.\('\[data-graph-card\]'\)\) return;/);
+});
+
+test('the connection cap counts eligible edges before it truncates, per displayed scope (item 4)', () => {
+  const ring = n => Array.from({ length: n }, (_, i) => ({ source: `n${i % 40}`, target: `n${(i + 1 + Math.floor(i / 40)) % 40}` }));
+  const all = new Set(Array.from({ length: 40 }, (_, i) => `n${i}`));
+  assert.equal(EDGE_CAP, 250);
+  assert.deepEqual([limitEdges(ring(249), all).edges.length, limitEdges(ring(249), all).eligible], [249, 249], 'below the cap: nothing hidden');
+  assert.deepEqual([limitEdges(ring(250), all).edges.length, limitEdges(ring(250), all).eligible], [250, 250], 'exactly the cap: nothing hidden');
+  assert.deepEqual([limitEdges(ring(630), all).edges.length, limitEdges(ring(630), all).eligible], [250, 630], 'above: 250 of 630');
+  const focused = new Set(['n0', 'n1', 'n2']);
+  const view = limitEdges([...ring(630), { source: 'n0', target: 'n99' }], focused);
+  assert.ok(view.eligible < 630 && view.eligible === view.edges.length, 'a filtered view counts only edges between its displayed nodes');
+  const graph = readFileSync(new URL('./RepositoryGraph.jsx', import.meta.url), 'utf8');
+  assert.match(graph, /scene\.eligible>scene\.edges\.length[^]*data-graph-edge-limit/);
+  assert.match(graph, /Showing \{scene\.edges\.length\} of \{scene\.eligible\} connections between displayed nodes/);
 });

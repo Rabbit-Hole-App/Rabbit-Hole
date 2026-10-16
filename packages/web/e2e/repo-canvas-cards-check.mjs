@@ -87,7 +87,7 @@ const line = (path, n) => content[path].split('\n')[n - 1].trim();
 
 // ---------------------------------------------------------------- routes: capture, scripted answers, refuse the rest
 const captured = [], hooks = [], refused = [], outside = [], errors = [], sourceReads = [], consoleErrors = [];
-let replies = 0, holdSource = null;
+let replies = 0, holdSource = null, served = SNAPSHOT; // served: the snapshot both the companion and the cards read
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/(ask|learn-course)$|learn\/(artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/(plan|handoff)|dive|explore))/;
 const router = async route => {
@@ -102,8 +102,9 @@ const router = async route => {
     sourceReads.push({ path: ask.path ?? null, commit: ask.commit ?? null });
     if (holdSource) await holdSource;
     if (ask.commit && ask.commit !== COMMIT) return route.fulfill({ status: 404, json: { error: 'Repository content unavailable' } });
-    return route.fulfill({ json: ask.path ? { path: ask.path, commit: COMMIT, content: content[ask.path] ?? '' } : SNAPSHOT });
+    return route.fulfill({ json: ask.path ? { path: ask.path, commit: COMMIT, content: content[ask.path] ?? '' } : served });
   }
+  if (path === `/api/repositories/${REPO}/snapshot`) return route.fulfill({ json: served });
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.fallback();
   if (path === '/api/learn/ask') {
     const reply = ++replies, messageId = `m-${reply}`;
@@ -686,6 +687,73 @@ await check('16 a late source answer never fills a deleted card', async () => {
   await page.waitForTimeout(1200);
   assert.ok(!(await ofType('repo-code')).some(b => b.id === card.id), 'the late answer did not bring the card back');
   assert.equal(await canvasFrame().locator(`[data-block-id="${card.id}"]`).count(), 0);
+});
+
+// Item 4: the drawing cap is stated. 30 extra fully linked symbols make a graph whose displayed nodes have far more than 250
+// connections between them; the label's two numbers must match what is displayed, and follow search and focus.
+await check('16b more than 250 connections: the graph says "Showing 250 of N connections between displayed nodes", N from the displayed scope, updated by search and focus; a card says it too', async () => {
+  const bulk = Array.from({ length: 30 }, (_, i) => ({ id: `bulk_${i}`, label: `bulk_${i}`, path: 'bulk.py', line: i + 1, kind: 'symbol' }));
+  const links = bulk.flatMap(a => bulk.filter(b => b !== a).map(b => ({ source: a.id, target: b.id, relation: 'calls', confidence: 'EXTRACTED' })));
+  const big = { ...SNAPSHOT, graph: { nodes: [...SNAPSHOT.graph.nodes, ...bulk], edges: [...SNAPSHOT.graph.edges, ...links] } };
+  served = big;
+  try {
+    await openCanvas();
+    await explore().click(); // not openGraph: the bulk symbols outrank train in the overview
+    await graphPanel().waitFor({ state: 'visible', timeout: 15000 });
+    await graphPanel().locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
+    const panel = graphPanel(), limit = panel.locator('[data-graph-edge-limit]');
+    // Both numbers are re-derived from the nodes on screen and the stored edges: the label is a claim about this scope.
+    const expected = async () => {
+      const ids = new Set(await panel.locator('[data-graph-node]').evaluateAll(all => all.map(n => n.dataset.graphNode)));
+      return big.graph.edges.filter(e => ids.has(e.source) && ids.has(e.target)).length;
+    };
+    const read = async () => ({ shown: Number(await limit.getAttribute('data-shown')), eligible: Number(await limit.getAttribute('data-eligible')), text: (await limit.innerText()).replace(/\s+/g, ' ').trim(), title: await limit.getAttribute('title'), drawn: await panel.locator('[data-graph-layer] line').count() });
+    await limit.waitFor({ timeout: 15000 });
+    let now = await read(), want = await expected();
+    assert.ok(want > 250, `the overview scope has more than 250 connections (${want})`);
+    assert.equal(now.eligible, want, 'overview: N is the connections between the displayed nodes');
+    assert.equal(now.text, `Showing 250 of ${want} connections between displayed nodes`);
+    assert.equal(now.drawn, 250, 'exactly 250 lines are drawn');
+    assert.match(now.title || '', /limited for responsiveness/);
+    assert.equal(await panel.locator('[data-graph-card-limit]').count(), 0, 'the connection label is not the node label');
+    await shot('05-edge-limit-overview');
+    const first = want;
+    // Search: 30 matching nodes (870 connections) is another scope; 11 matching nodes (110 connections) is under the cap.
+    const search = panel.getByLabel('Search repository');
+    await search.fill('bulk_');
+    await waitFor(async () => (await panel.locator('[data-graph-node]').count()) === 30, 8000, 'search shows 30 nodes');
+    now = await read(); want = await expected();
+    assert.equal(want, 870); assert.deepEqual([now.shown, now.eligible], [250, 870], 'search: the label follows the displayed scope');
+    assert.notEqual(now.eligible, first);
+    await search.fill('bulk_1');
+    await waitFor(async () => (await panel.locator('[data-graph-node]').count()) === 11, 8000, 'search shows 11 nodes');
+    assert.equal(await limit.count(), 0, 'under the cap there is no label');
+    assert.equal(await panel.locator('[data-graph-layer] line').count(), 110, 'all 110 connections are drawn');
+    await search.fill('');
+    await limit.waitFor({ timeout: 8000 });
+    assert.equal((await read()).eligible, first, 'clearing the search restores the overview count');
+    // Focus: a double-click explores one node's neighbourhood, the 30 linked symbols.
+    await panel.locator('[data-graph-node="bulk_3"]').dispatchEvent('dblclick');
+    await waitFor(async () => (await panel.locator('[data-graph-node]').count()) === 30, 8000, 'focus shows 30 nodes');
+    now = await read(); want = await expected();
+    assert.deepEqual([now.shown, now.eligible, want], [250, 870, 870], 'focus: the label follows the focused scope');
+    await shot('06-edge-limit-focus');
+    // A card draws every node (cap 200) and reads the same stored graph: its label counts the whole graph's connections.
+    await panel.locator('[data-graph-clear]').click().catch(() => {});
+    await panel.getByRole('button', { name: 'Reset graph' }).click().catch(() => {});
+    await page.keyboard.press('Escape');
+    await panel.getByRole('button', { name: SELECTORS.addGraphToCanvas, exact: true }).first().click();
+    const card = await waitFor(async () => (await ofType('repo-graph')).find(b => b.scope === 'whole' && !facts.edgeCards?.includes(b.id)), 8000, 'no whole-graph card');
+    const el = cardEl(card.id).locator(SELECTORS.graphCard), cardLimit = el.locator('[data-graph-edge-limit]');
+    await cardLimit.waitFor({ timeout: 20000 });
+    const ids = new Set(await el.locator('[data-graph-node]').evaluateAll(all => all.map(n => n.dataset.graphNode)));
+    const cardWant = big.graph.edges.filter(e => ids.has(e.source) && ids.has(e.target)).length;
+    assert.equal(await cardLimit.getAttribute('data-eligible'), String(cardWant), 'card: N matches its displayed nodes');
+    assert.equal(await cardLimit.getAttribute('data-shown'), '250');
+    await shot('07-edge-limit-card');
+  } finally {
+    served = SNAPSHOT;
+  }
 });
 
 await check('17 no model route, no write outside the stack, no page error', async () => {

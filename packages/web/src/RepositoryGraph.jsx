@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Info, Minus, Plus, RotateCcw } from 'lucide-react';
 import { forceSimulation, forceLink, forceManyBody, forceCollide, forceX, forceY } from 'd3-force';
 import { Button, IconBtn, Menu } from './ui.jsx';
+import { limitEdges } from './graph-card.js';
 
 // Overview is bounded; focusing a symbol expands its actual one-hop relationships.
 // The Map's work-memory layers (RepositoryPage, map-memory.js) arrive as extra nodes of these kinds: they and the code they
@@ -50,7 +51,8 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
     const positions=new Map(nodes.map((n,i)=>[n.id,{...n,x:500+Math.cos(i/Math.max(1,count)*Math.PI*2)*Math.min(330,Math.max(210,count*10)),y:350+Math.sin(i/Math.max(1,count)*Math.PI*2)*Math.min(250,Math.max(160,count*8))}]));
     if(focus&&positions.has(focus))positions.set(focus,{...positions.get(focus),x:500,y:350});
     if(nodes.length===1)positions.set(nodes[0].id,{...positions.get(nodes[0].id),x:500,y:350});
-    return{nodes:[...positions.values()],edges:graph.edges.filter(e=>positions.has(e.source)&&positions.has(e.target)).slice(0,250),positions,total};
+    const {edges,eligible}=limitEdges(graph.edges,positions);
+    return{nodes:[...positions.values()],edges,eligible,positions,total};
   },[graph,focus,ranked,pinned]);
   const snapshotPositions=()=>new Map([...saved.current].map(([id,p])=>[id,{...p}]));
   useEffect(()=>{
@@ -182,6 +184,6 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
         })}
       </g>
     </svg>
-
+    {scene.eligible>scene.edges.length&&<span data-graph-edge-limit data-shown={scene.edges.length} data-eligible={scene.eligible} role="note" title="Drawing is limited for responsiveness. The stored graph and the AI context keep every connection." className="absolute bottom-2 left-3 z-10 rounded bg-white/90 px-2 py-0.5 text-xs text-ink-3 dark:bg-side/90">Showing {scene.edges.length} of {scene.eligible} connections between displayed nodes</span>}
   </div>;
 }

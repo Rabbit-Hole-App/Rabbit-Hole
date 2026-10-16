@@ -9,6 +9,13 @@ export const GRAPH_CARD = { w: 560, h: 520 };
 // The most nodes a card draws at once (brief section 11: a limit is stated, never silent). Past it the card says how many it
 // shows, and Open in Graph has the rest.
 export const CARD_NODE_CAP = 200;
+// The most connections a graph draws (RepositoryGraph). Only drawing is limited: the stored graph and the AI context keep every
+// edge. `eligible` counts the edges between the displayed nodes before the cap, so the label's two numbers share one scope.
+export const EDGE_CAP = 250;
+export function limitEdges(edges, shown, cap = EDGE_CAP) {
+  const eligible = edges.filter(e => shown.has(e.source) && shown.has(e.target));
+  return { edges: eligible.slice(0, cap), eligible: eligible.length };
+}
 
 // `repository` is use-repository.js's object; the commit is the loaded snapshot's, the code the learner is looking at.
 export function graphCardBlock(repository, nodeIds = []) {
