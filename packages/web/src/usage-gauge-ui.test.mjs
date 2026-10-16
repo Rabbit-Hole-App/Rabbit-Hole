@@ -87,6 +87,18 @@ test('the popover: reserved shown apart, exhausted in words, enforced hides the 
   assert.match(details(ready({ allowance: 80_000_000, remaining: 62_600_000 })), />\$17\.40 used of \$80\.00</);
 });
 
+test('requests with cost not yet known: one quiet line in the popover and Settings, a count and never $0, absent at 0 or missing', async () => {
+  const two = details(ready({ unknownAttempts: 2 }));
+  assert.match(two, /<p data-usage-unknown="true" class="text-xs text-ink-2">2 AI requests with cost not yet known<\/p>/);
+  assert.equal(details(ready({ unknownAttempts: 1 })).match(/data-usage-unknown[^>]*>([^<]*)</)[1], '1 AI request with cost not yet known');
+  for (const html of [details(ready({ unknownAttempts: 0 })), details(ready())]) assert.doesNotMatch(html, /data-usage-unknown|not yet known/);
+  const withUnknown = settings(await storeOf(200, body({ unknownAttempts: 1, unknownReservedMicros: 0 })));
+  assert.match(withUnknown, /data-usage-unknown[^>]*>1 AI request with cost not yet known</);
+  assert.doesNotMatch(withUnknown.match(/data-usage-unknown[^>]*>[^<]*</)[0], /\$/);
+  assert.doesNotMatch(settings(await storeOf(200, body())), /data-usage-unknown|not yet known/, 'a server without the field');
+  assert.doesNotMatch(settings(await storeOf(200, body({ unknownAttempts: 0 }))), /data-usage-unknown/);
+});
+
 test('the popover: unavailable says so with no numbers; signed out has no numbers and no View usage', () => {
   const unavailable = details({ status: 'unavailable', reason: 'config' });
   assert.match(unavailable, /role="status"[^>]*>AI usage unavailable</);

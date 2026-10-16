@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TRACKING_NOTE, USAGE_PATH, barParts, createUsageStore, formatMicros, formatRemaining, formatReset, readUsage, usageView } from './account-usage.js';
+import { TRACKING_NOTE, USAGE_PATH, barParts, createUsageStore, formatMicros, formatRemaining, formatReset, readUsage, unknownLine, usageView } from './account-usage.js';
 
 const body = (over = {}) => ({ enforced: false, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
   allowanceMicros: 50_000_000, usedMicros: 17_400_000, reservedMicros: 0, estimatedMicros: 0, remainingMicros: 32_600_000, ...over });
@@ -20,7 +20,7 @@ test('positive: allowance left is green, says how much, and says it is not enfor
   const { store } = storeWith(reply(200, body()));
   const state = await settle(store);
   assert.equal(state.status, 'ready');
-  assert.deepEqual(state.usage, { allowance: 50_000_000, used: 17_400_000, reserved: 0, remaining: 32_600_000, resetsAt: '2026-11-01T00:00:00.000Z', period: '2026-10', enforced: false });
+  assert.deepEqual(state.usage, { allowance: 50_000_000, used: 17_400_000, reserved: 0, remaining: 32_600_000, resetsAt: '2026-11-01T00:00:00.000Z', period: '2026-10', enforced: false, unknownAttempts: 0 });
   const view = usageView(state);
   assert.equal(view.tone, 'ok');
   assert.equal(view.label, 'AI allowance: $32.60 remaining');
@@ -119,6 +119,21 @@ test('the window regaining focus refreshes while a display is mounted, and not a
   assert.equal(listeners.focus, undefined);
   for (const file of ['./account-usage.js', './UsageGauge.jsx'])
     assert.doesNotMatch(readFileSync(new URL(file, import.meta.url), 'utf8'), /setInterval|setTimeout\(.*refresh/, file);
+});
+
+test('requests with cost not yet known: a count, never an amount; a missing count is 0; a bad one is unavailable', () => {
+  assert.equal(readUsage(200, body()).usage.unknownAttempts, 0, 'a server without the field');
+  assert.equal(readUsage(200, body({ unknownAttempts: null })).usage.unknownAttempts, 0);
+  const some = readUsage(200, body({ unknownAttempts: 3, unknownReservedMicros: 400_000, reservedMicros: 400_000, remainingMicros: 32_200_000 }));
+  assert.equal(some.usage.unknownAttempts, 3);
+  assert.equal(some.usage.reserved, 400_000, 'their bound is already inside reservedMicros: not added twice');
+  for (const bad of [-1, 1.5, '2']) assert.equal(readUsage(200, body({ unknownAttempts: bad })).status, 'unavailable', String(bad));
+  assert.equal(unknownLine(0), null);
+  assert.equal(unknownLine(undefined), null);
+  assert.equal(unknownLine(1), '1 AI request with cost not yet known');
+  assert.equal(unknownLine(3), '3 AI requests with cost not yet known');
+  assert.doesNotMatch(unknownLine(3), /\$/);
+  assert.equal(usageView(some).tone, 'ok', 'unknown cost alone never turns the gauge red');
 });
 
 test('dollars from integer micros: two decimals, half up, no float drift', () => {
