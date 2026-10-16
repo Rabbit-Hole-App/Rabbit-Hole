@@ -140,3 +140,32 @@ test('a repository not confirmed public is read only by its importer, on her own
   assert.equal((await f.call('POST', `/api/learn/boards/${canvas.name}/main/share/repository`, { as: 'ana', body: { allow: true } })).status, 200);
   assert.equal((await f.source(token, 'c1', 'ben')).status, 404);
 });
+
+test('each link has its own budget of card reads: only reads that reach a snapshot count, a refusal is a 429 naming nothing, and the row holds no viewer or token', async t => {
+  const f = world(t, { vars: { SHARED_CARD_SOURCE_HOUR: '2' } });
+  const { canvas, token } = await f.shareProject({ state: STATE });
+  // Refusals before the snapshot (no such card, redacted, an upload card) cost nothing.
+  for (const card of ['nope', 'h', 'u1']) assert.equal((await f.source(token, card)).status, 404, card);
+  assert.equal((await f.source(token, 'c1')).status, 200);
+  assert.equal((await f.source(token, 'g1', 'ben')).status, 200, 'signed in or out, the link\'s one budget');
+  const limited = await f.source(token, 'c2');
+  assert.deepEqual([limited.status, limited.body.limited, leaks(limited), limited.text.includes('model.py')], [429, true, [], false]);
+  // The board's publication is another link with its own budget, and the board's file route is not counted.
+  f.sqlite.prepare('INSERT INTO user_profiles (email, name) VALUES (?, ?)').run('ana@test', 'Ana');
+  f.sqlite.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?)').run('ana@test', 'ana');
+  const publication = (await f.call('POST', `/api/apps/${canvas.name}/publish`, { as: 'ana' })).body.publication_token;
+  assert.equal((await f.source(publication, 'c1')).status, 200);
+  assert.equal((await f.upload(canvas)).status, 200);
+  assert.equal((await f.asset(token, UPLOAD.source.assetKey)).status, 200);
+  const rows = f.sqlite.prepare("SELECT category, viewer_email, share_key FROM shared_ask_events WHERE category = 'shared_card_source'").all();
+  assert.equal(rows.length, 3, 'two reads on the share, one on the publication');
+  assert.deepEqual([...new Set(rows.map(r => r.viewer_email))], ['']);
+  assert.equal(new Set(rows.map(r => r.share_key)).size, 2);
+  assert.equal(rows.some(r => r.share_key.includes(token) || r.share_key.includes(publication)), false, 'keys, never tokens');
+});
+
+test('a malformed percent escape in the link or card id is the same 404, never a 500', async t => {
+  const f = world(t);
+  const { token } = await f.shareProject({ state: STATE });
+  for (const path of [`/api/learn/boards/shared/${token}/cards/%E0%A4%A/source`, `/api/learn/boards/shared/%zz${token.slice(3)}/cards/c1/source`]) assert.equal((await f.call('GET', path)).status, 404, path);
+});

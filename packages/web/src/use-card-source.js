@@ -39,9 +39,15 @@ const linkUpload = async (token, assetKey) => {
   if (!response.ok) throw Object.assign(new Error('asset unavailable'), { status: response.status });
   return { content: await response.text() };
 };
-const load = (request, block, scope) => {
+// What a link's answer depends on besides the link: the card's source, its stored range for code, its node set for a subgraph
+// (as the server cuts them, repository-cards.js sharedCardSource). Cards with the same source share one read, by the first
+// card's id: each read costs the server a snapshot parse and counts against the link's budget (security review finding 1).
+const linkSource = (request, block) => (request.kind === 'file' ? `${request.key}:${block.source.start ?? ''}-${block.source.end ?? ''}`
+  : request.kind === 'graph' ? `${request.key}|${block.scope === 'subgraph' && Array.isArray(block.nodeIds) ? `sub:${[...block.nodeIds].sort().join('\n')}` : 'whole'}` : request.key);
+// The read a card needs, shared by every card of the same scope and source. Exported for its unit test.
+export const readCardSource = (request, block, scope) => {
   const key = `${scopeKey(scope)}|${request.key}`;
-  if (scope?.token) return request.kind === 'upload' ? once(key, () => linkUpload(scope.token, block.source.assetKey)) : once(`${key}|${block.id}`, () => linkRead(scope.token, block));
+  if (scope?.token) return request.kind === 'upload' ? once(key, () => linkUpload(scope.token, block.source.assetKey)) : once(`${scopeKey(scope)}|${linkSource(request, block)}`, () => linkRead(scope.token, block));
   // By repository and commit (control plane /api/repositories/card-source): the same read for the owner, a member and a fork.
   const at = `repo=${encodeURIComponent(request.repo)}&commit=${encodeURIComponent(request.commit)}`;
   if (request.kind === 'file') return once(key, () => api(`/api/repositories/card-source?${at}&path=${encodeURIComponent(request.path)}`));
@@ -64,7 +70,7 @@ export function useCardSource(block) {
     if (!usable) { setState({ status: 'unavailable' }); return undefined; }
     let active = true;
     setState({ status: 'loading' });
-    load(request, block, scope).then(data => {
+    readCardSource(request, block, scope).then(data => {
       if (!active) return;
       if (request.kind === 'graph') setState({ status: 'ready', graph: cardGraph(data.graph, nodes ? nodes.split('\n') : []), skipped: data.skipped || [] });
       // A link's read is already the card's stored range, numbered from its first line; any other read is the whole file.
