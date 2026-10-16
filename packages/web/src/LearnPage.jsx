@@ -77,6 +77,7 @@ import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsavedKey } from './home/canvas-local.js';
 import { editorClosed, editorOpened } from './chunk-reload.js';
+import { blockedStorage } from './storage-fallback.js';
 import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
 import { boardText, serial, sharingOf } from './canvas-persist.js';
 import { lazyFeature } from './lazy-feature.jsx';
@@ -85,9 +86,10 @@ import { codeRef, paperRef, wikiRef } from './chat-sources.js';
 
 const LearnNotes = lazyFeature(() => import('./LearnNotes.jsx'), 'Notes');
 // Follow-up R3 item 3: this browser's copy of a board cannot be read (blocked storage, a value that is not a board), so a save
-// sends nothing rather than an empty board; storage blocked outright keeps nothing at all, which the canvas says on open.
+// sends nothing rather than an empty board. Storage blocked outright is held in memory for the page (storage-fallback.js), so
+// edits save to the account but nothing outlives the page here, which the canvas says on open.
 const UNREADABLE_COPY = "Not saved: this browser can't read its copy of this canvas, so nothing was sent to replace the saved one.";
-const UNKEPT = "This browser is blocking storage, so this canvas can't be kept here and your edits won't be saved.";
+const UNKEPT = "This browser is blocking storage, so nothing is kept in this browser: your edits save to your account only while you're online.";
 // A review board named main gets a slug of its own (owner decision 3, 2026-10-07): review boards stay apart from the learner's
 // real board, so ?board=main never shares its server row, journey or Tutor store.
 const boardSlug = name => { const slug = String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test'; return slug === 'main' ? 'review-main' : slug; };
@@ -1007,7 +1009,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       boardLoaded.current = true;
       // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
       const hasLocal = hasLocalContent(storage, { ink: boardStorageKey, chat: chatKey });
-      if (!storage) toast(UNKEPT, { tone: 'error' });
+      if (!storage || blockedStorage.includes('localStorage')) toast(UNKEPT, { tone: 'error' });
       if (data.exists === false) {
         boardVersion.current = null; setCanvasVersion(null);
         if (hasLocal) pushBoard(null, { now: true });

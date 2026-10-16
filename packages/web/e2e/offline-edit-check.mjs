@@ -4,6 +4,8 @@
 //   editor), reconnect, save, reload. The rejected import never reloads the page, never reaches the root crash screen and
 //   never lands on the browser's network error page; the feature says so in its place with Retry; Retry waits while an
 //   edit is not on the server, then reloads; the edit survives.
+// 2 Blocked storage at canvas open (reading window.localStorage and sessionStorage throws): the canvas opens with the
+//   saved board, says nothing is kept in this browser, and an edit saves to the account on top of the saved board.
 // 3 A malformed saved copy at canvas open, with this browser's version current: never saved as an empty board over the
 //   server's content; the server's copy loads instead.
 // Usage: BASE=http://127.0.0.1:8941 SMALL_CP=http://127.0.0.1:8943 VARS=<.dev.vars> OUT=<dir> node e2e/offline-edit-check.mjs
@@ -160,7 +162,30 @@ const placeEquation = async (page, from) => {
   });
   await context.close();
 }
-const saved = await board();
+let saved = await board();
+
+// ---------------------------------------------------------------- 2 blocked storage at canvas open
+{
+  // Both stores blocked, as a browser that blocks site data does it: reading the property itself throws.
+  const B = await profile({ script: () => {
+    for (const name of ['localStorage', 'sessionStorage']) Object.defineProperty(window, name, { configurable: true, get() { throw new DOMException(`Failed to read the '${name}' property from 'Window': Access is denied for this document.`, 'SecurityError'); } });
+  } });
+  const { page, context, puts } = B;
+  await check('2 blocked storage: the canvas opens with the saved board, says nothing is kept in this browser, and an edit saves to the account', page, async () => {
+    await open(page);
+    assert.equal(await page.evaluate(() => Object.getOwnPropertyDescriptor(window, 'localStorage').get === undefined), true, 'the page holds its stores in memory (storage-fallback.js)');
+    await until('the storage warning', async () => (await toasts(page)).includes("This browser is blocking storage, so nothing is kept in this browser: your edits save to your account only while you're online."));
+    assert.equal(await crashScreen(page), 0, 'no root crash screen');
+    await until('the saved board on the canvas', async () => (await page.locator('[data-equation]').count()) >= 1);
+    assert.equal(puts.length, 0, 'opening saves nothing');
+    await draw(page, 3);
+    const now = await until('the edit on the server', async () => { const b = await board(); return b.version === saved.version + 1 && b; });
+    assert.deepEqual(summary(now.state), { ...summary(saved.state), strokes: summary(saved.state).strokes + 1 }, 'the saved board plus the edit, never an empty board');
+    await page.screenshot({ path: `${OUT}/2-blocked-storage.png` });
+  });
+  await context.close();
+}
+saved = await board();
 
 // ---------------------------------------------------------------- 3 a malformed saved copy at canvas open
 {
@@ -197,4 +222,4 @@ const unexpected = errors.filter(message => !/Failed to fetch|NetworkError|ERR_I
 if (unexpected.length) console.log('page errors:', unexpected);
 const passed = results.filter(Boolean).length;
 console.log(`${passed}/${results.length} checks passed`);
-process.exitCode = passed === results.length && results.length === 4 && !unexpected.length ? 0 : 1;
+process.exitCode = passed === results.length && results.length === 5 && !unexpected.length ? 0 : 1;

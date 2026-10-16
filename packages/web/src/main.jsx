@@ -1,3 +1,5 @@
+// First: a store the browser blocks is replaced before any module below reads it (follow-up R3 item 3).
+import './storage-fallback.js';
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Minimize2 } from 'lucide-react';
