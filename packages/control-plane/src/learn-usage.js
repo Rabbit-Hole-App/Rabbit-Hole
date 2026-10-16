@@ -162,6 +162,34 @@ export async function beginAttempt(env, { attemptId = `att-${crypto.randomUUID()
   }
 }
 
+// A Durable Object job (video, scene) runs outside this request's isolate. The worker forwards the payer it authenticated
+// in one server-set header, always removed from what the browser sent first; the object records its submission under it.
+const PAYER_HEADER = 'x-rh-usage-payer';
+export function forwardUsagePayer(req, identity) {
+  const headers = new Headers(req.headers);
+  headers.delete(PAYER_HEADER);
+  const userId = identity?.user_id || identity?.userId || null, email = identity?.email || null;
+  if (userId || email) headers.set(PAYER_HEADER, JSON.stringify({ userId, email }));
+  return new Request(req, { headers });
+}
+export function usageFromForwarded(env, req, feature) {
+  const scoped = withUsage(env, { feature, req });
+  let who = null;
+  try { who = JSON.parse(req.headers.get(PAYER_HEADER) || 'null'); } catch { /* none */ }
+  noteUsageIdentity(scoped, who && typeof who === 'object' ? who : null);
+  return scoped;
+}
+
+// A ledger-bypass media call, recorded once when it has finished (design "Attempt recording"): the provider's own reported
+// cost when it gives one (settled), else a documented estimate (learn-usage-estimates.js, 'estimated'), else 'unknown'.
+// A failed call keeps no estimate: whether it was charged is unknown. Never throws; nothing is admitted or refused here.
+export function recordMedia(env, { kind = 'media', provider, model = null, ok = true, costMicros = null, estimateMicros = null }) {
+  const reported = Number.isSafeInteger(costMicros) && costMicros >= 0 ? costMicros : null;
+  const estimate = ok && reported == null && Number.isSafeInteger(estimateMicros) && estimateMicros >= 0 ? estimateMicros : null;
+  return beginAttempt(env, { kind, provider, model, status: ok ? 'settled' : 'failed',
+    costState: reported != null ? 'settled' : estimate != null ? 'estimated' : 'unknown', costMicros: reported ?? estimate });
+}
+
 // Settles a running attempt once: a known cost is 'settled', else 'unknown' with its reservation kept. A duplicate
 // completion finds the row no longer running and changes nothing. Never throws.
 export async function settleAttempt(env, attemptId, { costMicros = null, status = 'settled', model = null, inputTokens = null, outputTokens = null, now = nowSeconds() } = {}) {

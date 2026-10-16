@@ -46,7 +46,8 @@ import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { forwardToProduction, guardControlPlane, devIdentity } from '../control-plane/src/dev-forwarding.js';
-import { usageFeature, withUsage, finishAction, finishWithResponse } from '../control-plane/src/learn-usage.js';
+import { usageFeature, withUsage, finishAction, finishWithResponse, recordMedia } from '../control-plane/src/learn-usage.js';
+import { imageEstimate, TRANSCRIBE_ESTIMATE } from '../control-plane/src/learn-usage-estimates.js';
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
@@ -165,6 +166,8 @@ const routes = {
         body: JSON.stringify({ model: 'gpt-image-1', prompt, size: '1024x1024', quality: 'low', n: 1 }),
         signal: AbortSignal.timeout(120000),
       });
+      // Usage accounting (ledger bypass): a documented estimate, never settled spend (learn-usage-estimates.js).
+      await recordMedia(env, { provider: 'openai', model: 'gpt-image-1', ok: upstream.ok, estimateMicros: imageEstimate(prompt) });
       if (!upstream.ok) return Response.json({ error: `Image generation unavailable (${upstream.status})` }, { status: 502 });
       const result = await upstream.json();
       const encoded = result.data?.[0]?.b64_json;
@@ -240,6 +243,7 @@ const routes = {
       const upstream = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: upload,
       });
+      await recordMedia(env, { provider: 'openai', model: 'gpt-4o-transcribe', ok: upstream.ok, estimateMicros: TRANSCRIBE_ESTIMATE });
       if (!upstream.ok) return Response.json({ error: 'Could not transcribe that recording.' }, { status: 502 });
       const heard = await upstream.json();
       return Response.json({ text: (heard.text || '').trim() });

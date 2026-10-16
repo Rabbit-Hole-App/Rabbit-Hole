@@ -10,7 +10,12 @@ import { askJev, JEV_TRANSPORTS } from '../src/learn-grade-jev.js';
 import { fishSpendTransport } from '../src/learn-paid-transport.js';
 import { devIdentity } from '../src/dev-forwarding.js';
 import { withUsage, noteUsageIdentity, beginAttempt, settleAttempt, finishAction, finishWithResponse, usageTotals, usageFeature, toMicros,
-  periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES } from '../src/learn-usage.js';
+  periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES, recordMedia, forwardUsagePayer, usageFromForwarded } from '../src/learn-usage.js';
+import { imageEstimate, EXA_SEARCH_ESTIMATE, TRANSCRIBE_ESTIMATE } from '../src/learn-usage-estimates.js';
+import { searchYouTube } from '../src/learn-youtube.js';
+import { searchCanvasSource } from '../src/learn-search.js';
+import { LearnScenes } from '../src/learn-scene.js';
+import sceneExample from '../../lesson-renderer/example-scene.json' with { type: 'json' };
 import { monthlyAllowanceMicros } from '../src/learn-usage-config.js';
 import { usageFetch } from '../src/learn-usage-route.js';
 import { devWorker } from './worker-import.js';
@@ -401,4 +406,69 @@ test('the dev/preview and stack configs carry a valid allowance; production does
     assert.equal(monthlyAllowanceMicros({ AI_MONTHLY_ALLOWANCE_USD: value }), 50_000_000, path);
   }
   for (const path of ['../../web/wrangler.rabbit-hole-prod.jsonc', '../wrangler.rabbit-hole-prod.jsonc']) assert.doesNotMatch(read(path), /AI_MONTHLY_ALLOWANCE_USD/, path);
+});
+
+test('ledger-bypass media: reported cost is settled, a documented estimate is estimated, otherwise unknown; a failure keeps no estimate', async t => {
+  const { sqlite, LEARN_DB } = database(t);
+  const env = signedIn({ LEARN_DB }, 'image');
+  await recordMedia(env, { provider: 'openai', model: 'gpt-image-1', estimateMicros: imageEstimate('a cat') });
+  await recordMedia(env, { provider: 'openai', model: 'gpt-image-1', ok: false, estimateMicros: imageEstimate('a cat') });
+  await recordMedia(env, { provider: 'elevenlabs' });
+  await recordMedia(env, { provider: 'exa', costMicros: 5000, estimateMicros: 7000 });
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.status, a.cost_state, a.cost_micros, a.reserved_micros]), [
+    ['media', 'settled', 'estimated', 272 * 40 + 5 * 5, null], ['media', 'failed', 'unknown', null, null], ['media', 'settled', 'unknown', null, null], ['media', 'settled', 'settled', 5000, null]]);
+  assert.equal(TRANSCRIBE_ESTIMATE, 6000);
+});
+
+test('Exa searches are recorded once as tool steps: the reported cost when given, else the estimate (YouTube) or unknown (summaries)', async t => {
+  const { sqlite, LEARN_DB } = database(t);
+  const env = signedIn({ LEARN_DB, EXA_API_KEY: 'fixture' }, 'ask');
+  await searchYouTube('sigmoid', env, async () => Response.json({ results: [], costDollars: { total: 0.005 } }));
+  await searchYouTube('softmax', env, async () => Response.json({ results: [] }));
+  await assert.rejects(searchYouTube('relu', env, async () => new Response('down', { status: 500 })));
+  await searchCanvasSource('arxiv', 'attention is all you need', env, { fetcher: async () => Response.json({ results: [] }), direct: async () => null });
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.provider, a.status, a.cost_state, a.cost_micros]), [
+    ['tool', 'exa', 'settled', 'settled', 5000], ['tool', 'exa', 'settled', 'estimated', EXA_SEARCH_ESTIMATE], ['tool', 'exa', 'failed', 'unknown', null], ['tool', 'exa', 'settled', 'unknown', null]]);
+  assert.equal(new Set(rows(sqlite, 'usage_attempts').map(a => a.action_id)).size, 1, 'all under the one Ask action');
+});
+
+test('a Durable Object job is recorded under the payer the worker forwarded, never one the browser sent', async t => {
+  const { sqlite, LEARN_DB } = database(t);
+  const scene = () => new Request('https://dev.test/api/learn/scene?app=demo', { method: 'POST', headers: { 'x-rh-usage-payer': JSON.stringify({ userId: 'u-victim' }) },
+    body: JSON.stringify({ operation: sceneExample, lessonId: 'lesson', page: 'freeform', confirmed: true }) });
+  const spoofed = scene();
+  assert.equal(forwardUsagePayer(scene(), null).headers.get('x-rh-usage-payer'), null, 'a browser header is removed');
+  const forwarded = forwardUsagePayer(spoofed, { userId: 'u-alice', email: 'alice@test' });
+  assert.deepEqual(JSON.parse(forwarded.headers.get('x-rh-usage-payer')), { userId: 'u-alice', email: 'alice@test' });
+  assert.equal(payerOf(usageContext(usageFromForwarded({}, new Request('https://x/'), 'video'))).payerReason, 'system');
+  const data = new Map(); let lock = Promise.resolve();
+  const state = { id: 'scene', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix))), setAlarm: async () => {} },
+    blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ version: 'blender-test' });
+  t.after(() => { globalThis.fetch = original; });
+  const actor = new LearnScenes(state, { LEARN_DB, SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', LEARN_MEDIA: {} });
+  assert.equal((await actor.fetch(forwarded)).status, 202);
+  assert.equal((await actor.fetch(forwardUsagePayer(scene(), { userId: 'u-alice', email: 'alice@test' }))).status, 202, 'the same scene again');
+  assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.payer]), [['u-alice', 'scene', 'user']]);
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.provider, a.model, a.cost_state]), [['media', 'fly_scene_worker', 'blender-test', 'unknown']], 'one queued render, one attempt');
+});
+
+test('the dev worker records an image generation as an estimated media attempt of the signed-in user', async t => {
+  const worker = (await devWorker()).default;
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Mine')");
+  const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; } };
+  // Image generation only reaches the provider where spend is not enforced (the paid-submission gate refuses it elsewhere).
+  const env = { SMALL_ENV: 'test', LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), OPENAI_API_KEY: 'fixture',
+    CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: 'owner@test', orgName: 'Team', user_id: 'u-owner-3c9f' }) } };
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ data: [{ b64_json: 'AAAA' }] });
+  t.after(() => { globalThis.fetch = original; });
+  const response = await worker.fetch(new Request('https://dev.example/api/learn/image', { method: 'POST', headers: { cookie: 's', 'content-type': 'application/json' },
+    body: JSON.stringify({ app: 'canvas-0a1b2c3d', prompt: 'a cat', confirmed: true }) }), env, { waitUntil() {} });
+  assert.equal(response.status, 200);
+  assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.status, a.result]), [['u-owner-3c9f', 'image', 'completed', 'full']]);
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'estimated', imageEstimate('a cat')]]);
 });

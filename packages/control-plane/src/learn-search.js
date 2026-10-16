@@ -9,6 +9,8 @@
 import { arxivId, readArxivPaper } from './arxiv.js';
 import { wikiTitle, searchWikipediaTitles } from './learn-wiki.js';
 import { videoIdFrom } from './learn-youtube.js';
+import { recordMedia } from './learn-usage.js';
+import { exaCost } from './learn-usage-estimates.js';
 
 export const SEARCH_SOURCES = {
   youtube: { domain: 'youtube.com', noun: 'YouTube videos' },
@@ -158,8 +160,11 @@ export async function searchCanvasSource(source, query, env, { fetcher = fetch, 
   } catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'Search did not answer in time. Try again.' : 'Search is unavailable right now. Try again.'); }
   if (response.status === 401 || response.status === 403) throw new Error('The search key was refused.');
   if (response.status === 429) throw new Error('Too many searches right now. Wait a moment and try again.');
+  const data = response.ok ? await response.json() : null;
+  // Usage accounting (ledger bypass): Exa's reported cost, else unknown (its per-result summaries are not priced here).
+  await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok: response.ok, costMicros: exaCost(data) });
   if (!response.ok) throw new Error(`Search is unavailable right now (${response.status}). Try again.`);
-  let results = resultsFromExa(source, await response.json());
+  let results = resultsFromExa(source, data);
   if (source === 'arxiv') results = await enrichPapers(results, fetcher);
   const body = { results, exact: false };
   if (cache && results.length) {

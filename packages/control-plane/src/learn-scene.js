@@ -1,4 +1,5 @@
 import { privateLessonAssetFetch } from './learn-video.js';
+import { usageFromForwarded, recordMedia } from './learn-usage.js';
 import { sceneCacheKey, validateScene } from './learn-scene-schema.js';
 import { validateToolInput } from './learn-validation.js';
 import { paidRefusal } from './learn-paid.js';
@@ -70,6 +71,8 @@ export class LearnScenes {
           const attempt = (job?.attempt || 0) + 1;
           job = { key, input, version, attempt, workerKey: await sceneCacheKey(input, `${version}:${key}:${attempt}`), status: 'queued', startedAt: Date.now() };
           await this.state.storage.put(`job:${key}`, job); await this.state.storage.setAlarm(Date.now() + 100);
+          // Usage accounting (ledger bypass): one attempt per queued render on the Fly scene worker, cost unknown.
+          await recordMedia(usageFromForwarded(this.env, req, 'scene'), { provider: 'fly_scene_worker', model: version });
         }
         const id = await sceneCacheKey({ ...input, scene: { lessonId: body.lessonId, page: body.page, id: input.id } }, key);
         const previous = await this.state.storage.get(`placement:${id}`);
