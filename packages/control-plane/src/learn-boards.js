@@ -295,7 +295,7 @@ const linkPath = (found, token) => `${found.publication ? '/e/' : '/b/'}${token}
 // (shareSource). A publication: the board's current revision, and a repository's name, commit and code only when the
 // repository is confirmed public - never private code, whatever a share link of the same board allows (an explicit
 // publication permission for private code is not part of V1; default off). Same shape as shareSource.
-async function linkSource(db, found) {
+export async function linkSource(db, found) {
   if (!found.publication) return shareSource(db, found.row);
   const revision = await boardRevision(db, found.row);
   const repo = revision && await db.prepare('SELECT r.repo, r.owner_email, v.visibility FROM repository_apps r LEFT JOIN repository_visibility v ON v.app_id = r.id WHERE r.id = ?').bind(revision.id).first();
@@ -304,10 +304,19 @@ async function linkSource(db, found) {
   return { id: revision.id, repo: repo.repo, commit: revision.commit, public: open, owned: repo.owner_email === found.row.owner_email, repo_access: false, allowed: open };
 }
 
+// A link as a destination for a viewer (header provenance, learn-provenance.js): its path and the title it shows, only
+// while it is live and would admit them (signed out: a public view link or a publication), else null.
+export async function linkTarget(env, token, signedIn) {
+  const found = await sharedRow(env, token);
+  if (!found || !(signedIn || found.row.public_view || found.publication)) return null;
+  const canvas = CANVAS.test(found.row.app) ? await env.LEARN_DB.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(found.row.org, found.row.app).first() : null;
+  return { url: linkPath(found, token), title: sharedTitle(found.row, canvas?.title, await linkSource(env.LEARN_DB, found)) };
+}
+
 // Who may open a shared link: anyone for a public view link or an Explore publication, otherwise any
 // signed-in account. Returns the row and role (and the viewer, when it had to
 // ask), or the refusal.
-async function sharedAccess(req, env, token) {
+export async function sharedAccess(req, env, token) {
   const found = await sharedRow(env, token);
   if (!found) return json({ error: 'This link is not shared any more, or never was.' }, 404);
   if (!(found.role === 'view' && (found.row.public_view || found.publication))) {
