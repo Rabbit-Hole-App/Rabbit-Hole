@@ -55,7 +55,8 @@ function setup(t) {
   return { sqlite, call, run, canvas, member, repository };
 }
 
-// P (ben) <- M (cara; ben is a member) <- Q (dan; private) <- S (ana; share link, signed in) <- O (ana; published, the root)
+// P (ben) <- M (cara; ben is a member) <- Q (dan; private) <- S (ana; a share link nobody here forked through) <- O (ana;
+// published, the root). A share link opens only for whoever forked through it (hotfix 2026-10-16): S is private to all here.
 function chain(f) {
   const root = ['ana-ws', 'canvas-0000000a'];
   f.canvas('ana', 'canvas-0000000a', 'Original tides', { publish: TOKEN(1) });
@@ -67,7 +68,7 @@ function chain(f) {
   return m;
 }
 
-test('a mixed chain for its owner: member, private, share link and published ancestors, in recorded order, complete and original', async t => {
+test('a mixed chain for its owner: member, private and published ancestors, in recorded order, complete and original', async t => {
   const f = setup(t), m = chain(f);
   const { status, body, cache } = await f.call('GET', '/api/learn/provenance/apps/canvas-0000000e', { as: 'ben' });
   assert.equal(status, 200);
@@ -78,7 +79,7 @@ test('a mixed chain for its owner: member, private, share link and published anc
       ancestors: [
         { state: 'accessible', title: 'Cara members canvas', url: `/c/${m.id}` },
         { state: 'private' },
-        { state: 'accessible', title: 'Shared tides', url: `/b/${TOKEN(2)}` },
+        { state: 'private' },
         { state: 'accessible', title: 'Original tides', url: `/e/${TOKEN(1)}` },
       ],
       complete: true,
@@ -100,13 +101,43 @@ test('signed out on a publication: only what a link admits anyone to; no private
 
 test('the same chain for each viewer: access is checked per ancestor, never copied from the page', async t => {
   const f = setup(t), m = chain(f);
-  // cara owns M: her own canvas opens at /apps; signed in, the share link admits her too.
+  // cara owns M: S's share link is not one she forked through, so S is private to her too.
   const cara = (await f.call('GET', `/api/learn/provenance/c/${m.id}`, { as: 'cara' })).body;
-  assert.deepEqual(cara.fork.ancestors.map(a => a.url ?? a.state), ['private', `/b/${TOKEN(2)}`, `/e/${TOKEN(1)}`]);
-  // ben as M's member: the member page, whose own ancestors he cannot see beyond the links.
-  assert.deepEqual((await f.call('GET', `/api/learn/provenance/c/${m.id}`, { as: 'ben' })).body.fork.ancestors.map(a => a.url ?? a.state), ['private', `/b/${TOKEN(2)}`, `/e/${TOKEN(1)}`]);
+  assert.deepEqual(cara.fork.ancestors.map(a => a.url ?? a.state), ['private', 'private', `/e/${TOKEN(1)}`]);
+  // ben as M's member: the member page, whose own ancestors he cannot see beyond the publication.
+  assert.deepEqual((await f.call('GET', `/api/learn/provenance/c/${m.id}`, { as: 'ben' })).body.fork.ancestors.map(a => a.url ?? a.state), ['private', 'private', `/e/${TOKEN(1)}`]);
   // dan, signed in on ben's publication: his own canvas is his to open.
-  assert.deepEqual((await f.call('GET', `/api/learn/provenance/link/${TOKEN(5)}`, { as: 'dan' })).body.fork.ancestors.map(a => a.url ?? a.state), ['private', '/apps/canvas-0000000c', `/b/${TOKEN(2)}`, `/e/${TOKEN(1)}`]);
+  assert.deepEqual((await f.call('GET', `/api/learn/provenance/link/${TOKEN(5)}`, { as: 'dan' })).body.fork.ancestors.map(a => a.url ?? a.state), ['private', '/apps/canvas-0000000c', 'private', `/e/${TOKEN(1)}`]);
+});
+
+// Hotfix 2026-10-16 (live in 0fb91ad7): a share link is a capability. Only the person who forked through a link gets its /b path,
+// and only while that same link is live; a newer link is never handed to anyone, nor any link to anyone else.
+test('a share link names its /b path only to whoever forked through it, while it is live; a reshare never leaks the new token', async t => {
+  const f = setup(t);
+  const source = ['ana-ws', 'canvas-000000f1'];
+  f.canvas('ana', 'canvas-000000f1', 'Ana unlisted notes', { share: TOKEN(20) });
+  const fork = f.canvas('ben', 'canvas-000000f2', 'Ben fork', { share: TOKEN(23), publish: TOKEN(22), fork: { parent: source, root: source, share: TOKEN(20) } });
+  f.member('cara', fork);
+  const views = () => Promise.all([
+    f.call('GET', '/api/learn/provenance/apps/canvas-000000f2', { as: 'ben' }), // the forker, on his own page
+    f.call('GET', `/api/learn/provenance/c/${fork.id}`, { as: 'cara' }), // a member of the fork
+    f.call('GET', `/api/learn/provenance/link/${TOKEN(22)}`), // signed out, on the fork's publication
+    f.call('GET', `/api/learn/provenance/link/${TOKEN(22)}`, { as: 'dan' }), // signed in, on the fork's publication
+    f.call('GET', `/api/learn/provenance/link/${TOKEN(23)}`, { as: 'dan' }), // signed in, on the fork's own share link
+  ]);
+  const [ben, ...others] = await views();
+  assert.deepEqual(ben.body.fork.ancestors, [{ state: 'accessible', title: 'Ana unlisted notes', url: `/b/${TOKEN(20)}` }], 'the link he forked through');
+  for (const view of others) {
+    assert.equal(view.status, 200);
+    assert.deepEqual(view.body.fork.ancestors, [{ state: 'private' }]);
+    for (const secret of [TOKEN(20), 'Ana unlisted notes', 'canvas-000000f1']) assert.equal(view.text.includes(secret), false, `a viewer who never held the link got ${secret}`);
+  }
+  // Ana turns the link off and shares again: the new token goes to nobody, the forker included.
+  f.run("UPDATE learn_boards SET view_token = ? WHERE app = 'canvas-000000f1'", TOKEN(21));
+  for (const view of await views()) {
+    assert.deepEqual(view.body.fork.ancestors, [{ state: 'private' }]);
+    for (const secret of [TOKEN(21), TOKEN(20), 'Ana unlisted notes']) assert.equal(view.text.includes(secret), false, `the reshare leaked ${secret}`);
+  }
 });
 
 test('a missing record ends the walk as unavailable and incomplete; nothing after it is invented', async t => {
