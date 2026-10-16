@@ -32,13 +32,13 @@ const owner = { session: await sessionFor(`pm-owner-${run}@example.com`, `pm_${r
 const viewer = { session: await sessionFor(`pm-viewer-${run}@example.org`, `pmv_${run}`) };
 const api = async (who, path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { ...(who ? { cookie: `small_session=${who.session}` } : {}), 'content-type': 'application/json' } }); return { status: r.status, body: await r.json().catch(() => null) }; };
 
-// Two projects: one on a public repository, one on a private one; two canvases in the first. A third, with a three-letter
-// name, puts its header ⋯ near the window's left edge (step 12b).
+// Two projects: one on a public repository, one on a private one; two canvases in the first. A third, minGPT as in the owner's
+// report, has a short name that puts its header ⋯ near the window's left edge (step 12b).
 const catalog = (await api(owner, '/api/apps')).body;
 const PUB = `repo-${run.slice(-8).padStart(8, '0')}-pmpub`, PRIV = `repo-${run.slice(-8).padStart(8, '0')}-pmpriv`, SHORT = `repo-${run.slice(-8).padStart(8, '0')}-pmgpt`, SHA = 'd'.repeat(40);
 const sql = [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${PUB}','${catalog.email}','acme/attention-${run}','main','${SHA}','ready')`,
   `INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${PRIV}','${catalog.email}','acme/secret-${run}','main','${SHA}','ready')`,
-  `INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${SHORT}','${catalog.email}','acme/g${run.slice(-2)}','main','${SHA}','ready')`,
+  `INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${SHORT}','${catalog.email}','acme/minGPT','main','${SHA}','ready')`,
   `INSERT INTO repository_visibility(app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = '${PUB}'`].join('; ');
 execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
 const STATE = title => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'b0', type: 'explanation', dx: 0, dy: 0, title, body: `${title}, explained in one card.` }] });
@@ -152,37 +152,38 @@ await check('12 Main and nested Learn expose the same project menu as Map', asyn
     await close();
   }
 });
-// Owner bug (2026-10-16): on a project's Main canvas, after the right panel was closed, the project ⋯ opened partly off-screen.
-// A short project name puts the ⋯ near the window's left edge, and the menu's right edge on the button's put it 100px past it.
-await check('12b the project ⋯ beside a short name opens inside the window: panel hidden, reopened and resized, the window resized, a phone; a row works', async () => {
-  const more = async what => { await page.locator('[data-project-more]').click(); await page.locator('[data-menu-item]').first().waitFor(); await inWindow(what); };
+// Owner bug (2026-10-16): on minGPT's Main canvas, after the right panel was closed, the project ⋯ opened partly off-screen, its
+// labels and actions cut off. The short name puts the ⋯ near the window's left edge, and the menu's right edge on the button's
+// put it 100px past it (0005fbce). Each picture is taken before the assertion, so a failing run still shows the menu.
+await check('12b minGPT\'s Main canvas: the project ⋯ opens inside the window with the right panel closed, reopened and resized, the window resized, a phone; a row works', async () => {
+  const more = async (what, picture) => { await page.locator('[data-project-more]').click(); await page.locator('[data-menu-item]').first().waitFor(); if (picture) await shot(page, REVIEW, picture); await inWindow(what); };
   await page.goto(`${BASE}/apps/${SHORT}?tab=learn`);
   await page.locator('[data-project-more]').waitFor({ timeout: 60000 });
+  assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), 'minGPT');
   const toggle = page.locator('button[aria-label="Hide the right panel"], button[aria-label="Show the right panel"]').first();
   await toggle.waitFor({ timeout: 30000 });
-  await more('the panel open'); await close();
   await toggle.click(); await page.locator('button[aria-label="Show the right panel"]').waitFor();
-  await more('the panel hidden'); await shot(page, REVIEW, 'project-menu-12b-panel-hidden'); await close();
+  await more('the right panel closed', 'project-menu-12b-1-panel-closed'); await close();
   await toggle.click(); await page.locator('button[aria-label="Hide the right panel"]').waitFor();
-  await more('the panel reopened'); await close();
+  await more('the right panel reopened', 'project-menu-12b-2-panel-reopened'); await close();
   const handle = await page.getByRole('separator', { name: 'Resize Learn panel' }).boundingBox();
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down();
   await page.mouse.move(handle.x - 200, handle.y + handle.height / 2, { steps: 6 }); await page.mouse.up();
-  await more('the panel resized'); await close();
+  await more('the right panel resized', 'project-menu-12b-3-panel-resized'); await close();
   for (const [width, height] of [[1100, 760], [390, 760], [360, 640]]) {
     await page.setViewportSize({ width, height });
-    await more(`the window at ${width}x${height}`);
+    await more(`the window at ${width}x${height}`, `project-menu-12b-4-window-${width}x${height}`);
     if (width === 360) {
-      await shot(page, REVIEW, 'project-menu-12b-phone');
       // Visibility opens its rows inside the same menu, which grows after it opened: it is placed again.
       await page.locator('[data-menu-visibility]').click(); await page.locator('[data-access]').first().waitFor();
+      await shot(page, REVIEW, 'project-menu-12b-5-phone-visibility');
       await inWindow('a phone, Visibility open');
     }
     await close();
   }
   // A real press on a row: Rename opens its dialog with the project's name.
   await page.locator('[data-project-more]').click(); await page.locator('[data-menu-rename]').click();
-  assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), `g${run.slice(-2)}`);
+  assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), 'minGPT');
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.setViewportSize({ width: 1440, height: 900 });
 });
