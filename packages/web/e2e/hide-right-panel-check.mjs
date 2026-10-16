@@ -273,8 +273,10 @@ await check('repeated tab switches and hide/show cycles: no stuck panel, no hand
     for (const tab of ['find', 'toc', 'links', 'chat']) {
       await page.locator(`[data-panel-tab="${tab}"]`).click();
       assert.equal(await activeTab(), tab);
-      const viewerWas = (await sourcesWidth()) > 50;
+      // Read whether the viewer is open once the layout has settled: right after the close in cycle 2 the column is still
+      // sliding shut (320 ms), and a reading taken then counts a closed viewer as open.
       openWidth = await stableWidth();
+      const viewerWas = (await sourcesWidth()) > 50;
       await hide();
       // Where the panel was, the canvas (its surface or its own right gutter) answers the pointer: no invisible overlay left over.
       const hit = await page.evaluate(() => { const x = window.innerWidth - 60, y = window.innerHeight / 2, e = document.elementFromPoint(x, y); return !!e?.closest('[aria-label="Lesson canvas"]') && !e.closest('aside'); });
