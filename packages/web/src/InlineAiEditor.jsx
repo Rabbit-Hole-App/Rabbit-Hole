@@ -187,9 +187,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // Picked: the command and its mode (a generation command selects Explain); the line is then its words.
   const choose = entry => { const next = pick({ mode, text: '' }, entry); setMode(next.mode); setCommand(next.command); setPrompt(next.text); setRefused(null); focusField(); };
   const changeMode = value => { const next = switchMode({ command, text: prompt }, value); setMode(next.mode); setCommand(next.command); };
-  // A source search opens the shared finder (the same opener Chat's command uses) with its query: no model, nothing sent.
-  // The draft, the selection and the context stay; focus comes back here when it closes, and an explicit add clears the line.
-  const openFinder = ({ source, query: words }) => config.openSearch({ source, query: words, origin: { returnFocus: focusField, added: () => { setCommand(null); setPrompt(''); } } });
+  // A source search opens the shared finder with its query: no model, nothing sent. config.openSearch has the shape of B3's
+  // openSourceFinder({ source, query, origin }) -> Promise<{ added }> (the page binds the one opener Chat uses), settling
+  // when the finder closes: the draft, the selection and the context stay until then; an add clears the line; either way
+  // focus comes back here.
+  const openFinder = ({ source, query: words }) => Promise.resolve(config.openSearch({ source, query: words, origin: { returnFocus: focusField } })).then(out => {
+    if (out?.added) { setCommand(null); setPrompt(''); }
+    focusField();
+  });
   // One Send: a typed command resolves through the registry exactly as a picked one, so both submit the same request.
   const send = () => {
     const out = submission({ mode, command, text: prompt });

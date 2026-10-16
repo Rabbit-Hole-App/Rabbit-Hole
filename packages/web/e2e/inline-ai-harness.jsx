@@ -3,7 +3,8 @@
 // app's own SSE parser (readGeneration), and nothing leaves the machine. Vite dev serves it from disk; it is never a
 // vite.config.js entry, so it never ships. ?board=<key> picks the board; ?readonly=1 view-only; ?flush=<ms> the coalescing
 // window (0: render every chunk, the A2 baseline); ?motion=0 turns Motion off. Ctrl+K's source commands open the real
-// SearchBar through config.openSearch, bound as LearnPage binds it; a picked result is recorded, never added.
+// SearchBar through config.openSearch, bound as LearnPage binds it (settles { added } when it closes); a picked result is
+// recorded, never added.
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import AdaptiveCanvas from '../src/AdaptiveCanvas.jsx';
@@ -146,7 +147,7 @@ const config = {
   motion: motionOn ? MOTION : null,
   extras: () => ({ title: 'Inline AI test board' }),
   sendTelemetry: rows => { mock.telemetry.push(...rows); },
-  openSearch: seed => { mock.calls.push({ type: 'openSearch', source: seed.source, query: seed.query }); openSearch(seed); },
+  openSearch: seed => { mock.calls.push({ type: 'openSearch', source: seed.source, query: seed.query }); return new Promise(done => openSearch({ ...seed, done })); },
 };
 let openSearch = () => {};
 
@@ -168,8 +169,8 @@ function Harness() {
         hooks={<NextStepsCard steps={{ status: 'loading' }} onPick={() => {}} />}
         composer={<div data-composer-standin className="flex items-center gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-2"><textarea data-chat-composer aria-label="Composer stand-in" placeholder="Composer" className="h-10 min-w-0 flex-1 rounded border border-line px-2 text-sm" /><ComposerHideButton /></div>} />
       {searchSeed && <SearchBar app="harness" initialSource={searchSeed.source} initialQuery={searchSeed.query}
-        onClose={() => { setSearchSeed(null); searchSeed.origin?.returnFocus?.(); }}
-        onPick={(source, item) => { mock.calls.push({ type: 'pick', source, item }); searchSeed.origin?.added?.(); }} />}
+        onClose={() => { setSearchSeed(null); searchSeed.done({ added: false }); }}
+        onPick={(source, item) => { mock.calls.push({ type: 'pick', source, item }); searchSeed.done({ added: true }); }} />}
     </div>
   );
 }

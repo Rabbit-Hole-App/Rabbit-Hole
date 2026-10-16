@@ -162,7 +162,7 @@ await page.getByText('Go down a Rabbit Hole').first().click();
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), 'softmax', 'choosing a command keeps the typed text as its argument');
 await shot('01c-command-pill');
-await dock.getByRole('button', { name: 'Remove dive' }).click();
+await dock.getByRole('button', { name: 'Remove Dive' }).click();
 assert.equal(await dock.locator('[data-command-pill]').count(), 0);
 assert.equal(await composer().inputValue(), 'softmax', 'the pill\'s × keeps the text');
 // Enter in the search takes the highlighted match (a description match here) and hands focus back to the composer.
@@ -172,7 +172,7 @@ await search.press('Enter');
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), 'softmax', 'Enter in the search chooses the command and keeps the text');
 assert.ok(await composer().evaluate(node => node === document.activeElement), 'choosing from the search focuses the composer');
-await dock.getByRole('button', { name: 'Remove dive' }).click();
+await dock.getByRole('button', { name: 'Remove Dive' }).click();
 await dock.getByRole('button', { name: 'Commands' }).click();
 await search.press('Escape');
 await search.waitFor({ state: 'detached' });
@@ -321,7 +321,7 @@ await page.getByText('What do you want to go deeper into?').first().waitFor();
 assert.equal((await blocks()).length, before, 'no card made without a topic');
 assert.equal(url().searchParams.get('hole'), null);
 await shot('07d-bare-dive-asks');
-await page.locator('[data-chat-pane]').getByRole('button', { name: 'Remove dive' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
+await page.locator('[data-chat-pane]').getByRole('button', { name: 'Remove Dive' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
 // /dive <topic> with no card: the anchor shows the topic once, with no Explanation kicker; leaving
 // the empty hole takes its temporary portal with it.
 await deselect();

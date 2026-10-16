@@ -28,7 +28,10 @@ test('the Settings default model says the pick applies to chat answers only; Lea
   // The slot is "/" (not a model and not the mode: it opens the command palette; owner brief 2026-10-13 section 5) or the
   // chosen command as a pill whose × keeps the text, and a pill sends exactly "/command text".
   assert.match(ask, /data-command-slot aria-label="Commands" title="Choose a command"/);
-  assert.match(ask, /data-command-pill/);
-  assert.match(ask, /aria-label=\{`Remove \$\{command\}`\} title="Remove the command" onMouseDown=\{event => event\.preventDefault\(\)\} onClick=\{\(\) => \{ setCommand\(null\); inputRef\.current\?\.focus\(\); \}\}/);
+  // The pill is the shared CommandPill (Release B): its x is "Remove <label>" and only drops the command.
+  assert.match(ask, /<CommandPill name=\{command\} onOpen=\{openPalette\} onRemove=\{\(\) => \{ setCommand\(null\); inputRef\.current\?\.focus\(\); \}\}/);
+  const pill = readFileSync(new URL('./CommandPill.jsx', import.meta.url), 'utf8');
+  assert.match(pill, /data-command-pill=\{name\}/);
+  assert.match(pill, /aria-label=\{`Remove \$\{label\}`\} title=\{`Remove \$\{label\}`\} onMouseDown=\{event => event\.preventDefault\(\)\} onClick=\{onRemove\}/);
   assert.match(ask, /const line = `\/\$\{command\} \$\{raw\.trim\(\)\}`\.trim\(\);/);
 });

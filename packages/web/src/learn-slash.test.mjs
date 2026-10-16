@@ -317,6 +317,9 @@ test('/youtube, /arxiv and /wikipedia open the source finder with the query; not
     ['search', { source: 'youtube', query: 'how transformers pay attention' }], ['search', { source: 'arxiv', query: '1706.03762' }],
     ['search', { source: 'wikipedia', query: '' }], ['search', { source: 'arxiv', query: 'https://arxiv.org/abs/2005.14165' }],
   ]);
-  assert.equal(outs[2].notice, null, 'an empty query opens the finder and waits');
-  assert.ok(outs.every(out => !out.prompt), 'never sent to the Tutor');
+  assert.ok(outs.every(out => out.notice === null && !out.prompt), 'the finder says the rest; never sent to the Tutor');
+  // The composer keeps its draft until the finder closes: finder settles { added } from the opener's answer.
+  assert.deepEqual(await Promise.all(outs.map(out => out.finder)), [{ added: false }, { added: false }, { added: false }, { added: false }]);
+  const added = await runLearnCommand('/arxiv attention', { app: 'demo', canvas: {}, post: null, openSearch: async () => ({ added: true }) });
+  assert.deepEqual(await added.finder, { added: true });
 });

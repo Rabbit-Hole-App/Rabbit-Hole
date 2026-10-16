@@ -3,7 +3,7 @@
 // smart-home); this file is the Learn side: which commands the picker offers
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
-import { LEARN_MENU, commandsFor, descFor, labelOf, learnRequest, resolveCommand } from './agent/slash.js';
+import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { arxivId } from '../../control-plane/src/arxiv.js';
 import { filterSections } from './command-search.js';
@@ -139,21 +139,22 @@ export function generateCommand(name, args, { app, selection = null, context = n
 //   { catalog }  open the full tool list
 //   { notice }   a one-line result or reason ({ tone, text })
 //   { proposal } a paid artifact waiting for Cancel / Generate
+//   { finder }   a source search's finder is open: a promise of { added } once it closes (the composer keeps its draft)
 // Deterministic commands never reach the model. A typed command resolves to the entry the picker lists (resolveCommand).
-// openSearch({ source, query }): the shared source finder (Release B: B3's opener takes the page's binding).
+// openSearch({ source, query }): the shared source finder (Release B: B3's opener takes the page's binding); it may return
+// a promise of { added } that settles when the finder closes.
 export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev }) {
   const resolved = resolveCommand(text, 'learn', { motionDev });
   if (!resolved?.command) return { notice: { tone: 'error', text: `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
-  const label = labelOf(resolved.command);
   const selection = target?.id ? { kind: 'card', id: target.id, title: String(target.title || '').slice(0, 200) } : null;
   const request = learnRequest(name, { args, selection });
   if (request.action === 'open_tool_catalog') return { catalog: true };
   // /youtube, /arxiv, /wikipedia: the source finder opens on its source and query (searching at once when there is one);
-  // nothing reaches the Tutor or a model, and nothing is added until the learner adds a result.
+  // nothing reaches the Tutor or a model, and nothing is added until the learner adds a result. The finder says the rest.
   if (request.action === 'open_source') {
-    openSearch({ source, query: args });
-    return { notice: args ? { tone: 'info', text: `${label}: "${args}". Pick a result to add.` } : null };
+    const finder = Promise.resolve(openSearch({ source, query: args })).then(done => ({ added: !!done?.added }));
+    return { notice: null, finder };
   }
   if (request.action === 'insert_notebook') { canvas.insertNotebook(); return { notice: { tone: 'done', text: 'Added a notebook.' } }; }
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
