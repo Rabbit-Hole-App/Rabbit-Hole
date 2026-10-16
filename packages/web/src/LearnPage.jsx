@@ -75,7 +75,7 @@ import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.j
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
-import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
+import { ProvenanceRow, useBesideCentred, useProvenance } from './ProvenanceGroup.jsx';
 import { cardModel } from './home/provenance.js';
 import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsavedKey } from './home/canvas-local.js';
 import { editorClosed, editorOpened } from './chunk-reload.js';
@@ -102,6 +102,16 @@ const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…',
 // A pending Rabbit Hole (Dive.jsx) opens in its parent's place until its first canvas object keeps it.
 // The right-side Chat workspace (chat-workspace.jsx, owner brief 2026-10-13) wraps the canvas and its panels; the
 // canvas's name scopes its threads.
+// The canvas header's centred layout with Chat closed (owner, Release B A3 item 2): only from a frame of this width, where the
+// strip always fits; below it the header is the wrapping row. groupBelow: the provenance row on the next row, right-aligned,
+// when it does not fit beside the centred strip. Literal class names, for Tailwind.
+const TITLE_CENTRED = {
+  header: '@min-[1100px]/frame:grid @min-[1100px]/frame:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',
+  groupBelow: '@min-[1100px]/frame:[&>[data-provenance-row]]:col-span-full',
+  spacer: 'hidden @min-[1100px]/frame:block',
+  strip: 'contents @min-[1100px]/frame:flex @min-[1100px]/frame:min-w-0 @min-[1100px]/frame:items-center @min-[1100px]/frame:gap-1',
+};
+
 export default function LearnPage(props) {
   const hole = usePendingHole(props.app);
   return <ChatWorkspaceProvider canvas={hole ? hole.name : props.app.name}>{hole ? <LearnSurface key={hole.name} app={holeApp(props.app, hole)} hole={hole} /> : <LearnSurface {...props} />}</ChatWorkspaceProvider>;
@@ -181,6 +191,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // right panel, which hides Chat too and restores both), or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
   // their thread. Below lg, Back to chat swaps the column for Chat with the chips in view, so the selection stays for the ask.
   const viewerShown = companion.open, heldRepository = useRef(repository);
+  // The canvas header (Release B A3 item 2): with Chat closed, whether the provenance row fits beside the centred title strip.
+  const canvasHeader = useRef(null);
+  const groupBeside = useBesideCentred(canvasHeader, !panelOpen, [provenance, repository]);
   heldRepository.current = repository;
   useEffect(() => { if (!viewerShown && window.matchMedia('(min-width: 64rem)').matches) clearSelection(heldRepository.current); }, [viewerShown]);
   useEffect(() => () => clearSelection(heldRepository.current), []);
@@ -1792,7 +1805,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     <section aria-label="Learn" className={`min-h-0 min-w-0 flex-1 ${!courseView && learningView === 'lesson' ? 'max-lg:flex-none' : ''}`}>
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
-      <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
+      <div className={`expanded-page-frame @container/frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
         {pdfAdd && <PdfAddDialog key={pdfAdd.total ?? 'reading'} name={pdfAdd.name} total={pdfAdd.total} busy={pdfAdd.busy} progress={pdfAdd.progress} error={pdfAdd.error} onCancel={closePdf} onConfirm={confirmPdf} />}
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
         {/* One centered strip is all the chrome the canvas gets: an editable
@@ -1800,8 +1813,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             heading, no rule underneath - the canvas has no boundary. */}
         {/* A row narrower than its content (the canvas beside the companion column and Chat) wraps instead of clipping its
             start; not a scroller, which would clip the menus' dropdowns. Centred only while it fits (safe), and it starts
-            after the absolute Back button, so the crumbs never run under it or off screen. */}
-        {!canvasState.presenting && <div data-canvas-header className="relative flex shrink-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5 pt-3 pr-3 pb-1 pl-12 max-md:px-2 max-md:pt-2">
+            after the absolute Back button, so the crumbs never run under it or off screen.
+            With Chat closed on a wide frame (owner, Release B A3 item 2), the strip - title, menubar and the one-press
+            actions, centred as before the provenance group (main 85b060be) - takes the middle of a three-column grid; the
+            provenance group takes the right column when it fits there (useBesideCentred), else the next row, right-aligned,
+            so it never pulls the strip off centre; a long title truncates first. With Chat open, or on a narrower frame, the strip's box dissolves (contents) and the
+            row is the wrapping one above, the group right-aligned on the next row when it wraps (E2). */}
+        {!canvasState.presenting && <div ref={canvasHeader} data-canvas-header className={`relative flex shrink-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5 pt-3 pr-3 pb-1 pl-12 max-md:px-2 max-md:pt-2 ${panelOpen ? '' : `${TITLE_CENTRED.header} ${groupBeside ? '' : TITLE_CENTRED.groupBelow}`}`}>
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
@@ -1811,6 +1829,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               kept whole on a desktop (the canvas narrows beside the Chat pane) and on a phone shrinking first down to its
               minimum; then the canvas title (renamable) and what hangs off it. The project's
               name is the one its card shows (cardModel), never the repository's own. */}
+          {!panelOpen && <span aria-hidden="true" className={TITLE_CENTRED.spacer} />}
+          <div data-title-strip className={panelOpen ? 'contents' : TITLE_CENTRED.strip}>
           <div data-title-crumbs className="flex max-w-full min-w-0 items-center">
           {project && <>
             <button type="button" data-project-crumb title={cardModel(project).title} onClick={() => navigate(canvasHref(project.name))}
@@ -1904,6 +1924,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               className={`flex h-8 w-8 items-center justify-center rounded-lg ${panelOpen ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
               {panelOpen ? <PanelRightClose size={15} strokeWidth={1.8} /> : <PanelRightOpen size={15} strokeWidth={1.8} />}
             </button>
+          </div>
           </div>
           {/* The canvas's repository and fork origin (decisions 1A-4A, C:/s/spec/hdr-provenance.md), from the server's provenance for
               this viewer; the fork label beside the title is gone (4A). Last in the row, at its right edge, and right-aligned on

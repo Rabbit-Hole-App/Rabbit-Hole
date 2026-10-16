@@ -72,7 +72,14 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   assert.match(read('ResizableSidePanel.jsx'), /<aside \{\.\.\.props\} ref=\{panel\} inert=\{collapsed \|\| undefined\}/);
   assert.match(wired, /const failed = status === 'failed' \|\| \(status === 'ready' && !!error\);/);
   // The canvas header beside the companion and Chat: wraps, centred only while it fits, starting after the Back button.
-  assert.match(learn, /<div data-canvas-header className="relative flex shrink-0 flex-wrap items-center justify-center-safe [^"]*pl-12/);
+  // With Chat closed on a wide frame (owner, Release B A3 item 2) a three-column grid: the strip centred as on 85b060be, the
+  // provenance row in the right column; with Chat open the strip's box is contents and the row wraps as before (E2).
+  // The group's column when it fits beside the centred strip (useBesideCentred), else the next row, right-aligned.
+  assert.match(learn, /<div ref=\{canvasHeader\} data-canvas-header className=\{`relative flex shrink-0 flex-wrap items-center justify-center-safe [^`]*pl-12[^`]*\$\{panelOpen \? '' : `\$\{TITLE_CENTRED\.header\} \$\{groupBeside \? '' : TITLE_CENTRED\.groupBelow\}`\}`\}>/);
+  assert.match(learn, /const groupBeside = useBesideCentred\(canvasHeader, !panelOpen, \[provenance, repository\]\);/);
+  assert.match(learn, /header: '@min-\[1100px\]\/frame:grid @min-\[1100px\]\/frame:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]',\s*groupBelow: '@min-\[1100px\]\/frame:\[&>\[data-provenance-row\]\]:col-span-full'/);
+  assert.match(learn, /\{!panelOpen && <span aria-hidden="true" className=\{TITLE_CENTRED\.spacer\} \/>\}\s*<div data-title-strip className=\{panelOpen \? 'contents' : TITLE_CENTRED\.strip\}>\s*<div data-title-crumbs/);
+  assert.match(learn, /<\/div>\s*<\/div>\s*\{\/\* The canvas's repository[\s\S]{0,700}<ProvenanceRow provenance=\{provenance\}>/, 'the provenance row sits outside the strip');
   // #12 an ordinary open forces no viewer.
   assert.match(app, /a\.kind === 'repository' \? navigate\(`\/apps\/\$\{a\.name\}`\)/);
 });

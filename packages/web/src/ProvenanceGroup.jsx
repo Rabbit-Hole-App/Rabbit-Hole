@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, ExternalLink, GitFork, Lock } from 'lucide-react';
 import { Menu } from './ui.jsx';
 import { wsHeaders } from './api.js';
@@ -48,6 +48,31 @@ export function ProvenanceRow({ provenance, children = null }) {
       {children}
     </div>
   );
+}
+
+// Whether the provenance row fits beside a centred title strip in `header` (owner, Release B A3 item 2): the strip centred
+// leaves the same width on either side, so the row fits on the strip's line only when the strip plus twice the row (and the
+// column gaps) fit the header's content box. When it does not, the header puts the row on the next line, right-aligned, and
+// the strip stays centred. Re-measured as the header, the strip or the row resize; `deps` re-attach when the row appears.
+export function useBesideCentred(header, active, deps = []) {
+  const [fits, setFits] = useState(true);
+  useLayoutEffect(() => {
+    const root = header.current;
+    if (!active || !root) return undefined;
+    const parts = () => [root.querySelector('[data-title-strip]'), root.querySelector('[data-provenance-row]')];
+    const measure = () => {
+      const [strip, row] = parts();
+      if (!strip || !row) { setFits(true); return; }
+      const style = getComputedStyle(root), gap = parseFloat(style.columnGap) || 0;
+      const room = root.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      setFits(strip.scrollWidth + 2 * (row.scrollWidth + gap) <= room);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const node of [root, ...parts()]) if (node) observer.observe(node);
+    return () => observer.disconnect();
+  }, [header, active, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
+  return fits;
 }
 
 export const hasProvenance = provenance => !!(provenance?.repository || provenance?.fork?.ancestors?.length);
