@@ -493,7 +493,9 @@ test('the dev worker records an image generation as an estimated media attempt o
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'estimated', imageEstimate('a cat')]]);
 });
 
-test('shared canvas Next Steps: a signed-out visitor is platform-funded, a signed-in viewer pays, never the canvas owner', async t => {
+// Owner R3 decision (2026-10-16, rel-a.md A2 item 4), superseding the Phase 1 platform-funded anonymous call: a signed-out
+// visitor gets no generation and no action; a signed-in viewer pays.
+test('shared canvas Next Steps: a signed-out visitor is asked to sign in and records nothing, a signed-in viewer pays, never the canvas owner', async t => {
   const { setup } = await import('./shared-canvas-fixture.js');
   const { fixtureModel } = await import('../src/learn-journey-fixtures.js');
   t.mock.method(console, 'log', () => {});
@@ -503,13 +505,18 @@ test('shared canvas Next Steps: a signed-out visitor is platform-funded, a signe
   const store = new Map(), had = 'caches' in globalThis, caches = globalThis.caches;
   globalThis.caches = { default: { match: async () => undefined, put: async (key, response) => { store.set(key, response); } } };
   t.after(() => { if (had) globalThis.caches = caches; else delete globalThis.caches; });
-  for (const [as, expected] of [[null, [null, 'platform', 'anonymous_public', 'platform']], ['ben', ['u-ben-9a2b', 'user', 'signed_in', 'would_charge']]]) {
+  for (const [as, expected] of [[null, null], ['ben', ['u-ben-9a2b', 'user', 'signed_in', 'would_charge']]]) {
     // The per-request context rides in on the fixture's env (a spread copies the Symbol); it is reset to a fresh request after the owner shares.
     const vars = withUsage({ SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: '10' }, { feature: 'shared_next_steps' });
     const f = setup(t, { vars });
     const { token } = await f.shareProject();
     Object.assign(usageContext(vars), { identity: undefined, action: null, final: null });
     const got = await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body: { origin: null } });
+    if (!expected) {
+      assert.deepEqual([got.status, got.body.signIn], [401, true], got.text);
+      assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM usage_actions').get().n, 0, 'no action, no attempt');
+      continue;
+    }
     assert.equal(got.status, 200, got.text);
     const actions = f.sqlite.prepare('SELECT a.user_id, a.payer, a.payer_reason, a.charge_class, COUNT(t.attempt_id) AS attempts FROM usage_actions a JOIN usage_attempts t USING (action_id) GROUP BY a.action_id').all();
     assert.equal(actions.length, 1, as || 'anonymous');

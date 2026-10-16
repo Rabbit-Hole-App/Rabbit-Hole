@@ -2,8 +2,9 @@
 // to local D1 and fresh browser profiles; never point it at a deployed worker. The ask route is scripted in the
 // browser: no model is called (run the app worker without model keys too, below). Prints no secrets. Shared canvas v1
 // checks (owner decisions A-F): the viewer's chat never reaches a fork, the repository pill holds the pinned commit
-// across a refresh, a private repository shows no pill until its owner turns it on in the Share panel, a rate limit
-// shows in the viewer's window with the draft kept, and a / message is a plain question.
+// across a refresh, a private repository shows no pill to anyone but its original importer - no link opens it, not even one
+// the removed per-link switch once opened (owner decision A2, 2026-10-16) - a rate limit shows in the viewer's window with
+// the draft kept, and a / message is a plain question. Signed out, a shared page asks for no Next Steps (owner R3 decision).
 //   build:         VITE_RABBIT_HOLE=true VITE_NOTEBOOK_ORIGIN=… VITE_LESSON_NOTEBOOK_ORIGIN=… VITE_TLDRAW_LICENSE_KEY=… npx vite build --outDir dist-dev
 //   app:           npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8848 --env-file <a copy of packages/control-plane/.dev.vars>
 //   control plane: npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8849
@@ -191,11 +192,17 @@ await page.goto(`${BASE}/b/${token}`);
 await composer.waitFor({ timeout: 60000 });
 check('the shared page then counts the fork on Fork itself, the composer still at the bottom', (await page.locator('[data-fork-button] [data-fork-count-value]').innerText()).trim() === '1' && await page.locator('header [data-fork-count]').count() === 0 && await composer.count() === 1);
 
-// ---- C: a private repository's canvas: no repository pill until the owner opens it up for this link ----
+// ---- C: a private repository's canvas (owner decision A2, 2026-10-16): a share link grants the canvas, never the private
+// repository. No viewer gets a pill, even through an old link whose removed per-link switch was on; only the importer does. ----
 const lab = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Lab notes (private repo)', project: PRIVATE_REPO }) });
 const labShare = await api(owner, `/api/learn/boards/${lab.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: BOARD }) });
 const labToken = labShare.sharing.view;
-check('the owner\'s Share panel data marks the repository private, off', JSON.stringify(labShare.sharing.repository) === JSON.stringify({ repo: 'acme/private-lab', commit: SHA, private: true, repo_access: false }), JSON.stringify(labShare.sharing.repository));
+check('the owner\'s Share panel data offers no repository permission', labShare.sharing.repository === undefined, JSON.stringify(labShare.sharing.repository));
+// An old link whose switch was on: its pin row says repo_access = 1, as one saved before the decision does.
+d1(`UPDATE board_repository_pins SET repo_access = 1 WHERE board_id = (SELECT id FROM learn_boards WHERE app = '${lab.name}' AND board = 'main')`);
+const gone = await call(owner, `/api/learn/boards/${lab.name}/main/share/repository`, { method: 'POST', body: JSON.stringify({ allow: true }) });
+check('a direct request to the removed switch answers 410', gone.status === 410, String(gone.status));
+check('the old enabled row opens nothing for a signed-in viewer', (await api(viewer, `/api/learn/boards/shared/${labToken}`)).context.repository === null);
 const labPage = await contextFor(viewer);
 await labPage.goto(`${BASE}/b/${labToken}`);
 await labPage.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
@@ -208,20 +215,28 @@ await ownerPage.goto(`${BASE}/apps/${lab.name}?tab=learn`);
 await ownerPage.locator('[data-share-button]').waitFor({ timeout: 60000 });
 await ownerPage.waitForTimeout(1500);
 await ownerPage.locator('[data-share-button]').click();
-const toggle = ownerPage.locator('[data-share-repository]');
-await toggle.waitFor({ timeout: 20000 });
-const toggleText = (await toggle.innerText()).replace(/\s+/g, ' ');
-check('the owner\'s Share panel offers private repository code for this link, off', (await toggle.locator('[role="switch"]').getAttribute('aria-checked')) === 'false'
-  && toggleText.includes('Allow questions to use private repository code')
-  && toggleText.includes("Signed-in viewers' questions can use code from acme/private-lab at 3adf61e, the revision pinned for this link. Off: only this canvas's cards, notes and sources."), toggleText);
-await shot(ownerPage, '06-owner-share-private-toggle');
-await toggle.locator('[role="switch"]').click();
-await ownerPage.waitForFunction(() => document.querySelector('[data-share-repository] [role="switch"]')?.getAttribute('aria-checked') === 'true', null, { timeout: 20000 });
-check('turning it on is saved on the server for this link', (await api(viewer, `/api/learn/boards/shared/${labToken}`)).context.repository?.repo === 'acme/private-lab');
-await shot(ownerPage, '07-owner-share-private-toggle-on');
-await labPage.reload();
-await labPage.locator('[data-context-pill="repository"]').waitFor({ timeout: 60000 });
-check('the viewer then sees the repository pill', (await labPage.locator('[data-context-pill="repository"]').innerText()).trim() === 'acme/private-lab · 3adf61e');
+await ownerPage.locator('[role="dialog"][aria-label="Share this board"]').waitFor({ timeout: 20000 });
+check('the owner\'s Share panel has no private repository switch', await ownerPage.locator('[data-share-repository]').count() === 0 && !(await ownerPage.content()).includes('Allow questions to use private repository code'));
+await shot(ownerPage, '06-owner-share-no-repository-switch');
+// The original importer (the owner here) on her own link: her stored snapshot's repository, at the pinned commit.
+const importerPage = await contextFor(owner);
+await importerPage.goto(`${BASE}/b/${labToken}`);
+await importerPage.locator('[data-context-pill="repository"]').waitFor({ timeout: 60000 });
+check('the importer on her own link sees the repository pill', (await importerPage.locator('[data-context-pill="repository"]').innerText()).trim() === 'acme/private-lab · 3adf61e');
+
+// ---- B4 (owner R3 decision, 2026-10-16): signed out, a shared page asks for no Next Steps; a signed-in page does ----
+const outRequests = [], outPage = await contextFor();
+outPage.on('request', request => { if (/\/next-steps$/.test(new URL(request.url()).pathname)) outRequests.push(request.url()); });
+await outPage.goto(`${BASE}/b/${token}`);
+await outPage.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
+// Opened after the signed-out page, a signed-in page has asked for its hooks: the signed-out one had as long, and asked nothing.
+const inPage = await contextFor(viewer);
+const hooked = inPage.waitForRequest(request => request.method() === 'POST' && /\/next-steps$/.test(new URL(request.url()).pathname), { timeout: 60000 });
+await inPage.goto(`${BASE}/b/${token}`);
+await hooked;
+check('signed out, the shared page asks for no Next Steps and shows none', outRequests.length === 0 && await outPage.locator('[data-next-steps]').count() === 0, outRequests.join(' | '));
+const signedOutHooks = await call(null, `/api/learn/boards/shared/${token}/next-steps`, { method: 'POST', body: JSON.stringify({ origin: null }) });
+check('the server asks a signed-out request to sign in', signedOutHooks.status === 401 && (await signedOutHooks.json()).signIn === true, String(signedOutHooks.status));
 
 await browser.close();
 check('no page errors', errors.length === 0, errors.join(' | '));

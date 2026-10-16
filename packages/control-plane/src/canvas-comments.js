@@ -11,6 +11,7 @@ import { HANDLE_OF, NAME_OF } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { boardAsset } from './learn-boards.js';
+import { redactRepositoryCards } from './repository-cards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const refuse = (error, code, status, extra = {}) => json({ error, code, ...extra }, status);
@@ -84,7 +85,7 @@ async function actorOn(env, board, viewer) {
   const db = env.LEARN_DB;
   const member = !owner && !!uid && !board.trashed && !!(await db.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(board.org, board.canvas, uid).first());
   const blocked = !owner && !!uid && !!(await db.prepare('SELECT 1 FROM canvas_comment_blocks WHERE org = ? AND canvas = ? AND user_id = ?').bind(board.org, board.canvas, uid).first());
-  return { owner, member, blocked, signedIn: !!uid, uid, email: viewer?.email || null };
+  return { owner, member, blocked, signedIn: !!uid, uid, email: viewer?.email || null, org: viewer?.org || null };
 }
 const settingsOf = board => ({ mode: board.published ? board.public_mode : 'off', enabled: !!board.comments_enabled });
 
@@ -546,10 +547,12 @@ async function removeBlock(env, ctx, id) {
 }
 
 // The member page (/c/<board id>): the board read-only, for the owner and active members. Never through the public family.
+// Membership opens the canvas, never a private repository: its cards are whole only for their original importer.
 async function readBoard(env, ctx) {
   const row = await env.LEARN_DB.prepare('SELECT state_json, version, updated_at FROM learn_boards WHERE id = ?').bind(ctx.board.id).first();
+  const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), { org: ctx.actor.org, email: ctx.actor.email });
   // The owner is sent to their own page; only they learn its name here.
-  return json({ title: ctx.board.title, owner: person(ctx.board, 'owner_'), role: ctx.actor.owner ? 'owner' : 'member', ...(ctx.actor.owner ? { canvas: ctx.board.canvas } : {}), version: row.version, updated_at: row.updated_at, state: JSON.parse(row.state_json) });
+  return json({ title: ctx.board.title, owner: person(ctx.board, 'owner_'), role: ctx.actor.owner ? 'owner' : 'member', ...(ctx.actor.owner ? { canvas: ctx.board.canvas } : {}), version: row.version, updated_at: row.updated_at, state });
 }
 
 // Library → Shared with you (section 5): canvases where I am an active member, with their owner, last change and how many

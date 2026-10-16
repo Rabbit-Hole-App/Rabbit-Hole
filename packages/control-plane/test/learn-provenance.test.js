@@ -214,7 +214,8 @@ test('each route answers only whoever may open its page; the rest get 404 or a s
   assert.equal(await status(`/api/learn/provenance/c/${m.id}`, 'ben'), 404);
 });
 
-test('repository visibility per viewer: owner, member, share link (with and without the owner opening private code) and publication', async t => {
+// Owner decision A2 (2026-10-16): a share link never opens a private repository; only its original importer sees it.
+test('repository visibility per viewer: owner, member, share link (even a pin row the old switch opened) and publication', async t => {
   const f = setup(t);
   const repoId = f.repository('ana', 'repo-secret', 'ana/secret-engine');
   const k = f.canvas('ana', 'canvas-000000d1', 'Engine notes', { project: 'repo-secret', share: TOKEN(11), publish: TOKEN(12) });
@@ -227,7 +228,8 @@ test('repository visibility per viewer: owner, member, share link (with and with
   assert.deepEqual(await seen(`/api/learn/provenance/link/${TOKEN(11)}`, 'cara'), { repository: null, leaked: false }, 'a share link without the owner opening it');
   assert.deepEqual(await seen(`/api/learn/provenance/link/${TOKEN(12)}`), { repository: null, leaked: false }, 'a publication of private code');
   f.run("UPDATE board_repository_pins SET repo_access = 1 WHERE board_id = ?", k.id);
-  assert.deepEqual(await seen(`/api/learn/provenance/link/${TOKEN(11)}`, 'cara'), { repository: label, leaked: true }, 'the owner opened it for this link');
+  assert.deepEqual(await seen(`/api/learn/provenance/link/${TOKEN(11)}`, 'cara'), { repository: null, leaked: false }, 'a share link never opens it');
+  assert.deepEqual(await seen(`/api/learn/provenance/link/${TOKEN(11)}`, 'ana'), { repository: label, leaked: true }, 'the importer on her own link');
   assert.deepEqual(await seen(`/api/learn/provenance/link/${TOKEN(12)}`), { repository: null, leaked: false }, 'a publication never shows private code');
   f.run("INSERT INTO repository_visibility (app_id, visibility) VALUES (?, 'public')", repoId);
   assert.deepEqual(await seen(`/api/learn/provenance/c/${k.id}`, 'ben'), { repository: label, leaked: true });

@@ -122,7 +122,7 @@ test('a private canvas has no link to read by, and tampered ids reach nothing th
   assert.equal((await f.asset(token, 'upload:someone-elses')).status, 404);
 });
 
-test('a repository not confirmed public is read only by its importer, on her own link; anyone else gets the same 404', async t => {
+test('a repository not confirmed public: its original importer reads her stored snapshot on her own link; anyone else gets the same 404', async t => {
   const f = world(t, { visibility: null });
   const { canvas, token } = await f.shareProject({ state: STATE });
   for (const as of [undefined, 'ben']) for (const card of ['c1', 'c2', 'g1', 'g2']) {
@@ -135,10 +135,13 @@ test('a repository not confirmed public is read only by its importer, on her own
   const ana = await f.source(token, 'c1', 'ana');
   assert.equal(ana.status, 200);
   assert.equal(ana.body.content, '    def forward(self, x):\n        return x');
-  // The owner's per-link repository permission opens the link's repository to its shared ask; a card's redaction is the board's
-  // own rule (repository-cards.js, owner ruling 2026-10-15) and this route reuses it unchanged, so the card stays her own.
-  assert.equal((await f.call('POST', `/api/learn/boards/${canvas.name}/main/share/repository`, { as: 'ana', body: { allow: true } })).status, 200);
+  // No link opens a private repository (owner decision A2, 2026-10-16): the old per-link permission is gone, and a pin row it
+  // once opened changes nothing, so the card stays the importer's own.
+  assert.equal((await f.call('POST', `/api/learn/boards/${canvas.name}/main/share/repository`, { as: 'ana', body: { allow: true } })).status, 410);
+  f.sqlite.exec('UPDATE board_repository_pins SET repo_access = 1');
   assert.equal((await f.source(token, 'c1', 'ben')).status, 404);
+  assert.equal((await f.source(token, 'c1')).status, 404, 'signed out too');
+  assert.equal((await f.source(token, 'g1', 'ana')).status, 200, 'the importer still reads her stored snapshot through the same old link');
 });
 
 test('each link has its own budget of card reads: only reads that reach a snapshot count, a refusal is a 429 naming nothing, and the row holds no viewer or token', async t => {

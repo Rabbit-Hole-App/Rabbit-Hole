@@ -136,7 +136,7 @@ async function linkPage(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found.status === 404 ? notFound() : found;
   const viewer = found.viewer || await signedIn(req, env);
-  const source = await linkSource(env.LEARN_DB, found);
+  const source = await linkSource(env.LEARN_DB, found, viewer);
   return reply({
     repository: source?.allowed ? repositoryOf(source.repo) : null,
     fork: CANVAS.test(found.row.app) && found.row.board === 'main' ? await forkHistory(env, { org: found.row.org, name: found.row.app }, viewer) : null,

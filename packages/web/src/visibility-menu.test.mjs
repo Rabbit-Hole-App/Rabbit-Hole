@@ -86,10 +86,11 @@ test('the Library\'s Share popup is the canvas page\'s SharePanel on the same ro
   const share = library.slice(library.indexOf('function ShareDialog('));
   assert.match(share, /<div data-share-dialog className="fixed inset-0 z-50 flex items-start justify-center bg-black\/20/, 'a modal popup over the Library');
   assert.match(share, /<SharePanel place="relative mt-\[26vh\] max-w-\[90vw\]"/);
-  // The routes the canvas page uses (LearnPage.jsx changeSharing, changeRepositoryAccess, changePublication).
+  // The routes the canvas page uses (LearnPage.jsx changeSharing, changePublication). No private repository switch (owner
+  // decision A2, 2026-10-16): no link opens a private repository.
   assert.match(share, /useEffect\(\(\) => \{ api\(base\)\.then\(\(board\) => setSharing\(board\.sharing\)/);
   assert.match(share, /post\(`\$\{base\}\/share`, \{ \.\.\.next, \.\.\.\(state \? \{ state \} : \{\}\) \}\)/, 'a null copy is never sent');
-  assert.match(share, /post\(`\$\{base\}\/share\/repository`, \{ allow \}\)/);
+  assert.doesNotMatch(share, /share\/repository|onRepository/);
   assert.match(share, /post\(`\/api\/apps\/\$\{a\.name\}\/\$\{publish \? 'publish' : 'unpublish'\}`\)/);
   assert.match(share, /setSharing\(\(await api\(base\)\)\.sharing\); onChanged\(\);/, 'the panel and the Library card follow each change');
   assert.doesNotMatch(share, /navigate\(/);

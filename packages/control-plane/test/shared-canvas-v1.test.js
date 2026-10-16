@@ -113,14 +113,17 @@ test('B pin: a fork records the revision it was forked at, and its own share ans
 // ---- C: the private repository boundary ----
 
 for (const [name, visibility] of [['private', 'private'], ['unknown-visibility', null]]) {
-  test(`C boundary: a ${name} repository the owner did not open up shows nothing of itself - no name, commit, pill, code or path`, async t => {
+  // Owner decision A2 (2026-10-16): a share link grants the canvas, never its private repository; only the original importer
+  // (ana, from repository_apps) is shown her own repository on her own link.
+  test(`C boundary: a ${name} repository shows nothing of itself to anyone but its importer - no name, commit, pill, code or path`, async t => {
     const f = setup(t, { visibility }), sent = scriptModel(t);
     const { token } = await f.shareProject();
-    for (const who of [null, 'ben', 'ana']) {
+    for (const who of [null, 'ben']) {
       const page = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: who });
       assert.equal(page.body.context.repository, null, `${who}: no pill`);
       for (const leak of ['karpathy/nanoGPT', SHA, SHA.slice(0, 7), 'model.py', 'repo-0a1b2c3d']) assert.ok(!page.text.includes(leak), `${who} sees ${leak}`);
     }
+    assert.deepEqual((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ana' })).body.context.repository, { repo: 'karpathy/nanoGPT', commit: SHA }, 'the importer on her own link');
     // A client cannot claim access: flags in the ask are ignored.
     const response = await f.ask(token, 'ben', { message: 'What does the code do?', repo_access: true, allow: true, repository: { repo: 'karpathy/nanoGPT', commit: SHA } });
     assert.equal(response.status, 200);
@@ -193,33 +196,32 @@ test('Lineage: a fork of a fork is owned and editable by its forker, names its s
   assert.equal(JSON.parse(f.sqlite.prepare('SELECT state_json FROM learn_boards WHERE app = ?').get(a.name).state_json).items.length, BOARD.items.length, 'the original is untouched');
 });
 
-test('C permission: only the owner opens up their private repository, for one link, on the server; a new link starts closed', async t => {
+// Owner decision A2 (2026-10-16), replacing the per-link repository permission: a share link never opens a private
+// repository. The switch's route answers 410 and stores nothing, and a pin row that still says repo_access = 1 opens nothing.
+test('C permission: no link opens a private repository - the per-link permission is gone, even a row that says so', async t => {
   const f = setup(t, { visibility: 'private' }), replies = [], sent = scriptModel(t, replies);
   const { canvas, token } = await f.shareProject();
   const path = `/api/learn/boards/${canvas.name}/main/share/repository`;
-  assert.deepEqual((await f.call('GET', `/api/learn/boards/${canvas.name}/main`, { as: 'ana' })).body.sharing.repository, { repo: 'karpathy/nanoGPT', commit: SHA, private: true, repo_access: false });
+  assert.equal((await f.call('GET', `/api/learn/boards/${canvas.name}/main`, { as: 'ana' })).body.sharing.repository, undefined, 'the Share panel has nothing to offer');
   assert.equal((await f.call('POST', path, { body: { allow: true } })).status, 401);
   assert.equal((await f.call('POST', path, { as: 'ben', body: { allow: true } })).status, 404, 'not ben\'s canvas');
-  assert.equal((await f.call('POST', path, { as: 'ana', body: { allow: 'yes' } })).status, 400);
+  const gone = await f.call('POST', path, { as: 'ana', body: { allow: true } });
+  assert.deepEqual([gone.status, gone.body.error], [410, 'Share links no longer open private repository code. Only the person who imported the repository can read it.']);
   assert.equal((await f.call('GET', path, { as: 'ana' })).status, 405);
-  assert.equal(pinOf(f, canvas.name).repo_access, 0, 'refusals change nothing');
-  const opened = await f.call('POST', path, { as: 'ana', body: { allow: true } });
-  assert.deepEqual(opened.body.sharing.repository, { repo: 'karpathy/nanoGPT', commit: SHA, private: true, repo_access: true });
-  assert.deepEqual((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' })).body.context.repository, { repo: 'karpathy/nanoGPT', commit: SHA });
-  replies.push(readSource);
+  assert.equal(pinOf(f, canvas.name).repo_access, 0, 'nothing stored');
+  f.sqlite.exec('UPDATE board_repository_pins SET repo_access = 1'); // a row the old switch opened
+  for (const who of [null, 'ben']) {
+    const page = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: who });
+    assert.equal(page.body.context.repository, null, `${who}: no pill`);
+    assert.ok(!page.text.includes('karpathy/nanoGPT') && !page.text.includes(SHA), `${who}: nothing of the repository`);
+  }
   await f.ask(token, 'ben', { message: 'What is in model.py?' });
-  assert.equal(toolResult(sent[1]).commit, SHA, 'the code at the pinned commit');
-  await f.call('POST', path, { as: 'ana', body: { allow: false } });
-  assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}`)).body.context.repository, null, 'closed again');
-  await f.call('POST', path, { as: 'ana', body: { allow: true } });
-  const fresh = await relink(f, canvas);
-  assert.equal(fresh.repository.repo_access, false, 'a new link starts closed');
-  assert.equal((await f.call('GET', `/api/learn/boards/shared/${fresh.view}`)).body.context.repository, null);
-  // A public repository needs no permission: the route refuses, and an unshared board has nothing to open.
-  f.sqlite.exec("UPDATE repository_visibility SET visibility = 'public'");
-  assert.equal((await f.call('POST', path, { as: 'ana', body: { allow: true } })).status, 409);
-  await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: false } });
-  assert.equal((await f.call('POST', path, { as: 'ana', body: { allow: true } })).status, 409);
+  assert.equal(context(sent[0]).repository, undefined, 'the model is given no repository');
+  assert.ok(!toolNames(sent[0]).some(tool => REPO_TOOLS.includes(tool)), 'and no repository tools');
+  // The original importer on her own link: her stored snapshot, at the pinned commit (snapshot ownership, not GitHub access).
+  replies.push(readSource);
+  await f.ask(token, 'ana', { message: 'What is in model.py?' });
+  assert.equal(toolResult(sent[2]).commit, SHA, 'the importer reads her stored snapshot at the pinned commit');
 });
 
 test('C permission: a fork never opens up someone else\'s private repository', async t => {
@@ -229,7 +231,7 @@ test('C permission: a fork never opens up someone else\'s private repository', a
   const fork = (await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { source: { token }, key: 'fork-key-0006' } })).body;
   const shared = (await f.call('POST', `/api/learn/boards/${fork.name}/main/share`, { as: 'ben', body: { shared: true, view: true, public_view: true } })).body.sharing;
   assert.equal(shared.repository, undefined, 'nothing for ben to manage');
-  assert.equal((await f.call('POST', `/api/learn/boards/${fork.name}/main/share/repository`, { as: 'ben', body: { allow: true } })).status, 409);
+  assert.equal((await f.call('POST', `/api/learn/boards/${fork.name}/main/share/repository`, { as: 'ben', body: { allow: true } })).status, 410);
   f.sqlite.exec('UPDATE board_repository_pins SET repo_access = 1'); // even a row that says so
   const page = await f.call('GET', `/api/learn/boards/shared/${shared.view}`, { as: 'cara' });
   assert.equal(page.body.context.repository, null);
