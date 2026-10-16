@@ -13,7 +13,7 @@ import { sniffImageType } from './learn-media.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
-import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
+import { NO_CAP, admitUsage, askShared, boardRevision, boardSources, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
@@ -692,11 +692,22 @@ async function projectCanvasLinks(db, row, signedIn) {
   return results.flatMap(r => (r.publication ? [{ title: r.title, href: `/e/${r.publication}` }] : r.view_token && (r.public_view || signedIn) ? [{ title: r.title, href: `/b/${r.view_token}` }] : []));
 }
 
+// A card read loads and parses its repository snapshot (up to 20 MB), signed out too, so each link has its own budget of
+// reads (security review 2026-10-15 finding 1): the shared ask's per-link limiter (admitUsage) under its own category, keyed
+// by the share's key or the publication's, counting only reads that reach a snapshot. A worker var of the same name overrides
+// a cap. A refusal is a 429 the card shows as failed, with Retry.
+// ponytail: one usage row per admitted read, never pruned (as every shared_ask_events row); cache the cut answer per source
+// and commit when reads grow.
+export const SHARED_CARD_SOURCE_LIMITS = { SHARED_CARD_SOURCE_HOUR: 600, SHARED_CARD_SOURCE_DAY: 3000 };
 async function sharedCard(req, env, token, cardId) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
   const identity = found.viewer || await repositoryIdentity(req, env), viewer = identity instanceof Response ? null : identity;
-  return sharedCardSource(env, await redactRepositoryCards(env.LEARN_DB, JSON.parse(found.row.state_json), viewer), cardId, viewer);
+  const limit = limitsFrom(SHARED_CARD_SOURCE_LIMITS, env);
+  const admit = async () => ((await admitUsage(env.LEARN_DB, { category: 'shared_card_source', viewer: '', shareKey: found.publication ? await publicationKey(token) : await shareKey(token),
+    boardId: found.row.id, owner: found.row.owner_email, viewerHour: NO_CAP, viewerDay: NO_CAP, shareHour: limit.SHARED_CARD_SOURCE_HOUR, shareDay: limit.SHARED_CARD_SOURCE_DAY }))
+    ? json({ error: 'This link has had as many code reads as it can take for now. Try again later.', limited: true }, 429) : null);
+  return sharedCardSource(env, await redactRepositoryCards(env.LEARN_DB, JSON.parse(found.row.state_json), viewer), cardId, viewer, admit);
 }
 
 async function openShared(req, env, token) {
@@ -831,7 +842,12 @@ export async function learnBoardsRoute(path, req, env) {
   // A code or graph card's source on this link (follow-up R3 item 5): by the link and the card's id only, whoever the link
   // admits - signed out on a public link or a publication - read under the board's own redaction for this viewer.
   const carding = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/cards\/([^/]+)\/source$/);
-  if (carding) return req.method === 'GET' ? sharedCard(req, env, decodeURIComponent(carding[1]), decodeURIComponent(carding[2])) : json({ error: 'Method not allowed' }, 405);
+  if (carding) {
+    if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+    let token, cardId;
+    try { [token, cardId] = [decodeURIComponent(carding[1]), decodeURIComponent(carding[2])]; } catch { return json({ error: 'Not available' }, 404); } // a malformed % escape
+    return sharedCard(req, env, token, cardId);
+  }
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);

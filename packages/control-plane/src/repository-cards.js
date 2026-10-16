@@ -53,14 +53,17 @@ export function restoreRedactedCards(storedText, state) {
 // repository, commit, path and lines are the stored card's own, never the request's; the repository rule is readableVersion
 // as on every other card read. A repo-code card gets its stored range only, numbered from `start`; a graph card its whole
 // graph, or for a subgraph only its nodes and the edges between them. An upload card's file is the board's asset route.
-// Anything else - no such card, redacted, unreadable - is the same 404, which names nothing.
+// Anything else - no such card, redacted, unreadable - is the same 404, which names nothing. `admit`: the link's limiter
+// (learn-boards.js), asked only for a readable card, right before the snapshot is loaded and parsed; its refusal is returned.
 const notAvailable = () => Response.json({ error: 'Not available' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
-export async function sharedCardSource(env, state, cardId, viewer) {
+export async function sharedCardSource(env, state, cardId, viewer, admit = null) {
   const block = typeof cardId === 'string' ? (state?.blocks || []).find(b => b?.id === cardId) : null;
   if (!block || block.redacted || !repositoryCard(block)) return notAvailable();
   const at = block.type === 'repo-graph' ? block.repository : block.source;
   const row = await readableVersion(env, viewer, at?.repo, at?.commit);
   if (!row) return notAvailable();
+  const refused = admit && await admit();
+  if (refused) return refused;
   let snapshot;
   try { snapshot = await repositorySnapshot(env, row, at.commit); } catch { return Response.json({ error: 'The source could not be read. Try again.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
   const ok = body => Response.json(body, { headers: { 'Cache-Control': 'no-store' } });
