@@ -12,7 +12,7 @@ import * as esbuild from 'esbuild';
 
 const dir = mkdtempSync(join(tmpdir(), 'provenance-')), outfile = join(dir, 'provenance.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as ProvenanceGroup, ForkHistoryList, forkLabel } from './ProvenanceGroup.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as ProvenanceGroup, ForkHistoryList, ProvenanceRow, forkLabel } from './ProvenanceGroup.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -75,10 +75,20 @@ test('an incomplete history says earlier history is unavailable and marks no ori
   assert.doesNotMatch(unverified, /Original/, 'the original is marked only when the server verified it');
 });
 
+test('the row (decision E2): nothing when there is nothing to show, so a plain canvas keeps its header; otherwise one right-aligned item holding the group and what sits beside it', () => {
+  const row = (provenance, children) => B.renderToStaticMarkup(B.createElement(B.ProvenanceRow, { provenance }, children));
+  assert.equal(row({ repository: null, fork: null }), '');
+  assert.equal(row(null), '');
+  const both = row({ repository, fork }, B.createElement('span', { 'data-repo-info': true }));
+  assert.match(both, /^<div data-provenance-row="true" class="ml-auto /, 'its auto margin keeps it at the right edge of whichever row it lands on');
+  assert.ok(both.indexOf('data-provenance-fork') < both.indexOf('data-repo-info'), 'the details sit right after the group');
+  assert.match(row(null, B.createElement('span', { 'data-repo-info': true })), /data-repo-info/, 'repository details with no provenance yet still show');
+});
+
 test('the header has no second fork label: the title-side Forked from is gone from the canvas page (decision 4A)', () => {
   const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
   assert.doesNotMatch(learn, /<ForkedFrom/);
   for (const page of ['./LearnPage.jsx', './SharedBoardPage.jsx', './comments/MemberBoardPage.jsx']) {
-    assert.match(readFileSync(new URL(page, import.meta.url), 'utf8'), /<ProvenanceGroup provenance=\{/, `${page} shows the provenance group`);
+    assert.match(readFileSync(new URL(page, import.meta.url), 'utf8'), /<ProvenanceRow provenance=\{provenance\}/, `${page} shows the provenance group`);
   }
 });

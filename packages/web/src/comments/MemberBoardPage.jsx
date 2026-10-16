@@ -10,7 +10,7 @@ import CommentsPanel from './CommentsPanel.jsx';
 import { useCanvasComments } from './useCanvasComments.js';
 import { displayName, memberBase } from './comments-api.js';
 import { useCanvasLinks } from '../LinksPanel.jsx';
-import ProvenanceGroup, { useProvenance } from '../ProvenanceGroup.jsx';
+import { ProvenanceRow, useProvenance } from '../ProvenanceGroup.jsx';
 
 const AdaptiveCanvas = lazy(() => import('../AdaptiveCanvas.jsx'));
 
@@ -75,7 +75,7 @@ export default function MemberBoardPage({ boardId }) {
   const owner = board.owner;
   return (
     <main data-member-board className="flex h-screen flex-col bg-white">
-      <header className="flex shrink-0 items-center gap-3 border-b border-line px-4 py-2">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 gap-y-2 border-b border-line px-4 py-2">
         <a href="/" className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
           <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" /><span className="text-sm font-semibold text-ink">{PRODUCT}</span>
         </a>
@@ -83,12 +83,13 @@ export default function MemberBoardPage({ boardId }) {
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />{about?.comments_enabled === false ? 'View only' : 'View and comment'}</span>
         <span data-member-owner className="truncate text-xs text-ink-3">Shared with you by {owner?.name || displayName(owner)}{owner?.name && owner?.handle ? ` · @${owner.handle}` : ''}</span>
         <span className="flex-1" />
-        {/* The canvas's repository and fork origin as this member may see them (decisions 1A-3A): no details menu here. */}
-        <ProvenanceGroup provenance={provenance} />
         {state.doc && !docIsEmpty(state.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>
         {/* The member's own monthly AI allowance (owner D4 section 2), never the owner's. */}
         <UsageGauge onViewUsage={goToUsageSettings} />
+        {/* The canvas's repository and fork origin as this member may see them (decisions 1A-3A): no details menu here. Last, at
+            the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
+        <ProvenanceRow provenance={provenance} />
       </header>
       <div className="flex min-h-0 flex-1">
         <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">

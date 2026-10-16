@@ -4,7 +4,7 @@ import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Load
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { CardSourceScope } from './use-card-source.js';
 import ForkButton from './ForkButton.jsx';
-import ProvenanceGroup, { useProvenance } from './ProvenanceGroup.jsx';
+import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
 import UsageGauge, { goToUsageSettings } from './UsageGauge.jsx';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
@@ -134,7 +134,7 @@ export default function SharedBoardPage({ token }) {
   const { exchanges = [], ...board } = shared.state || {};
   return (
     <main className="flex h-screen flex-col bg-white">
-      <header className="flex shrink-0 items-center gap-3 border-b border-line px-4 py-2">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 gap-y-2 border-b border-line px-4 py-2">
         {/* The product, top left (owner, 2026-10-04): the aperture mark and the name, to the site home. */}
         <a href="/" data-shared-brand className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
           <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" />
@@ -150,14 +150,15 @@ export default function SharedBoardPage({ token }) {
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
-        {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here. */}
-        <ProvenanceGroup provenance={provenance} />
         {board.doc && !docIsEmpty(board.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
         <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
         {/* The viewer's own monthly AI allowance (owner D4 section 2), never the owner's; signed out, no personal allowance. */}
         {learnPreview && <UsageGauge signedIn={!!shared.viewer} onViewUsage={goToUsageSettings} />}
         <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
+        {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here.
+            Last, at the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
+        <ProvenanceRow provenance={provenance} />
       </header>
       <div className="flex min-h-0 flex-1">
       <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">

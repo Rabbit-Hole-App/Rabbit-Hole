@@ -1,6 +1,8 @@
 // The canvas header's provenance group (C:/s/spec/hdr-provenance.md owner decisions 1A-4A; ProvenanceGroup.jsx): the four
 // display combinations, long names, a narrow window, new-tab destinations, a chain of accessible, private and unavailable
-// ancestors, an incomplete history, keyboard use, light and dark, on the owned, shared (signed out) and member pages.
+// ancestors, an incomplete history, keyboard use, light and dark, on the owned, shared (signed out) and member pages; and the
+// header layout (decision E2): the group at the right edge of its row, right-aligned on the next row when the header wraps,
+// with nothing overlapping and no horizontal scroll, with Chat open and closed at 1440 and on a phone.
 // The provenance object is the server's (contract C1, routes C2); here each page's provenance GET is answered with a C1
 // fixture, so this checks the UI only - who may see what is the SERVER lane's tests. The share link is real (local D1),
 // opened signed out; the member page's two reads are answered here too. GitHub is never contacted: its pages are stubbed.
@@ -53,12 +55,25 @@ const check = async (label, fn) => {
   results.push(label); console.log(`ok ${label}`);
 };
 let context, page, provenanceRead;
+// Where the group sits in its header (decision E2): the row's right edge is the header's, inside its padding; wrapped when it
+// starts below the header's first item; the page and the header never scroll sideways.
+const measure = selector => {
+  const root = document.querySelector(selector), style = getComputedStyle(root), edge = root.getBoundingClientRect();
+  const row = document.querySelector('[data-provenance-row]').getBoundingClientRect();
+  // The first item in the row (the title, or the brand) ends where the first row ends.
+  const first = [...root.children].find(node => getComputedStyle(node).position !== 'absolute' && node.getBoundingClientRect().height > 0).getBoundingClientRect();
+  return {
+    gap: edge.right - parseFloat(style.paddingRight) - row.right, wrapped: row.top >= first.bottom - 1,
+    page: [document.documentElement.scrollWidth, document.documentElement.clientWidth], header: [root.scrollWidth, root.clientWidth],
+  };
+};
 const open = async (path, { provenance = answer, width = 1440, height = 900, theme = 'light', signedIn = true } = {}) => {
   answer = provenance.status ? provenance : { status: 200, body: provenance };
   if (context) await context.close();
   context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2 });
   if (signedIn) await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(look => { localStorage.setItem('small.theme', look); }, theme);
+  await context.addInitScript(`window.provenanceLayout = ${measure.toString()};`); // step 13's measurement, in the page
   // Each page's provenance read (contract C2) answered with the fixture; the path is kept to assert the page's route.
   await context.route('**/api/learn/provenance/**', route => { asked.push(new URL(route.request().url()).pathname); return route.fulfill({ status: answer.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(answer.body) }); });
   await context.route('https://github.com/**', route => { external.push(route.request().url()); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/html' }, body: '<title>GitHub stub</title>' }); });
@@ -277,8 +292,46 @@ await check('12 the member page reads its own route and shows the group without 
   await shot('11-member');
 });
 
+// The right panel opens and closes with a width transition: wait for the header to settle into the expected rows (bounded),
+// then measure; a layout that never gets there fails on the assertion below with what it measured.
+const layout = async (header, wraps) => {
+  await page.waitForFunction(([selector, want]) => window.provenanceLayout(selector).wrapped === want, [header, wraps], { timeout: 5000 }).catch(() => {});
+  return page.evaluate(selector => window.provenanceLayout(selector), header);
+};
+const LAYOUTS = [
+  { name: 'owned-chat-open', path: OWNED, header: '[data-canvas-header]', chat: true, wraps: true },
+  { name: 'owned-chat-closed', path: OWNED, header: '[data-canvas-header]', chat: false, wraps: false },
+  { name: 'owned-narrow', path: OWNED, header: '[data-canvas-header]', width: 390, height: 844, wraps: true },
+  { name: 'shared', path: `/b/${token}`, header: 'header', signedIn: false, wraps: false },
+  { name: 'shared-narrow', path: `/b/${token}`, header: 'header', signedIn: false, width: 390, height: 844, wraps: true },
+  { name: 'member', path: `/c/${MEMBER}`, header: 'header', wraps: false },
+  { name: 'member-narrow', path: `/c/${MEMBER}`, header: 'header', width: 390, height: 844, wraps: true },
+];
+await check('13 layout (E2): the group ends at its row\'s right edge - right-aligned on the next row when the header wraps - with nothing overlapping and no horizontal scroll; Chat open and closed at 1440, and a phone, on the owned, shared and member pages', async () => {
+  const seen = {};
+  for (const theme of ['light', 'dark']) for (const each of LAYOUTS) {
+    await open(each.path, { provenance: { repository: REPO, fork: FORK }, width: each.width || 1440, height: each.height || 900, theme, signedIn: each.signedIn !== false });
+    await forkButton().waitFor();
+    if (each.chat !== undefined) {
+      const toggle = page.getByRole('button', { name: each.chat ? 'Show the right panel' : 'Hide the right panel' });
+      if (await toggle.count()) await toggle.click();
+      await page.getByRole('button', { name: each.chat ? 'Hide the right panel' : 'Show the right panel' }).waitFor();
+    }
+    const at = await layout(each.header, each.wraps);
+    const where = `${each.name} (${theme})`;
+    assert.ok(Math.abs(at.gap) <= 1, `${where}: the group ends ${at.gap}px from the row's right edge`);
+    assert.equal(at.wrapped, each.wraps, each.wraps ? `${where}: the header wraps here, and the group is on the next row` : `${where}: everything fits, so the group ends the first row`);
+    assert.ok(at.page[0] <= at.page[1], `${where}: the page scrolls sideways (${at.page})`);
+    assert.ok(at.header[0] <= at.header[1], `${where}: the header scrolls sideways (${at.header})`);
+    await clear(each.header);
+    seen[each.name] = at.wrapped ? 'next row' : 'first row';
+    await shot(`layout-${each.name}-${theme}`, page.locator(each.header));
+  }
+  console.log('   group placement:', JSON.stringify(seen));
+});
+
 await context.close();
 await browser.close();
 assert.ok(external.every(url => url.startsWith('https://github.com/')), 'only GitHub stubs were reached outside the stack');
 assert.deepEqual(errors, [], 'no page errors');
-console.log(`provenance-check: ${results.length}/13 steps passed`);
+console.log(`provenance-check: ${results.length}/14 steps passed`);

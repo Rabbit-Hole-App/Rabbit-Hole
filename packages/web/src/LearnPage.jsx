@@ -75,7 +75,7 @@ import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.j
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
-import ProvenanceGroup, { useProvenance } from './ProvenanceGroup.jsx';
+import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
 import { cardModel } from './home/provenance.js';
 import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsavedKey } from './home/canvas-local.js';
 import { editorClosed, editorOpened } from './chunk-reload.js';
@@ -1875,13 +1875,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
-          <div className="flex min-w-0 items-center gap-0.5">
-            {/* The canvas's repository and fork origin (decisions 1A-4A, C:/s/spec/hdr-provenance.md): one group, top right, from
-                the server's provenance for this viewer; the fork label beside the title is gone (4A). */}
-            <ProvenanceGroup provenance={provenance} />
-            {/* The repository's indexing status and details menu beside the group (decision 2A): there is no repository page any
-                more, so what it showed lives here; its Files and Graph open beside Chat (PanelHeader, Explore codebase). */}
-            {repository && <RepositoryBadge repository={repository} />}
+          <div className="flex items-center gap-0.5">
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
             <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
               onClick={() => setSearchOpen(true)}
@@ -1911,6 +1905,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               {panelOpen ? <PanelRightClose size={15} strokeWidth={1.8} /> : <PanelRightOpen size={15} strokeWidth={1.8} />}
             </button>
           </div>
+          {/* The canvas's repository and fork origin (decisions 1A-4A, C:/s/spec/hdr-provenance.md), from the server's provenance for
+              this viewer; the fork label beside the title is gone (4A). Last in the row, at its right edge, and right-aligned on
+              the next row when the header wraps (E2). The repository's indexing status and details menu stay beside it (2A):
+              there is no repository page any more; its Files and Graph open beside Chat (PanelHeader, Explore codebase). */}
+          <ProvenanceRow provenance={provenance}>{repository && <RepositoryBadge repository={repository} />}</ProvenanceRow>
         </div>}
         {learningView === 'curriculum' && canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
         {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}

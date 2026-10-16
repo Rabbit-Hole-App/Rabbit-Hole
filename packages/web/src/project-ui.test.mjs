@@ -32,7 +32,7 @@ test('a repository opens on its canvas: no Files | Graph | Learn page; the badge
   // provenance group's repository button now (decision 2A, C:/s/spec/hdr-provenance.md; provenance-group.test.mjs), with the
   // status and details beside it.
   assert.doesNotMatch(learn, /data-learn-map/);
-  assert.match(learn, /<ProvenanceGroup provenance=\{provenance\} \/>[\s\S]{0,400}\{repository && <RepositoryBadge repository=\{repository\} \/>\}/);
+  assert.match(learn, /<ProvenanceRow provenance=\{provenance\}>\{repository && <RepositoryBadge repository=\{repository\} \/>\}<\/ProvenanceRow>/);
   assert.doesNotMatch(wired, /data-repo-badge href/, 'one repository link in the header: the group');
   assert.match(wired, /data-repo-info aria-label="Repository details"/);
   assert.match(wired, /<div data-repo-details[\s\S]*?Refresh branch/);
