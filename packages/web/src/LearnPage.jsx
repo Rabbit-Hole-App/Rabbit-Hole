@@ -18,6 +18,7 @@ import CanvasMenubar from './CanvasMenubar.jsx';
 import SearchBar from './SearchBar.jsx';
 import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
+import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, motionProposal, parseSlash, runLearnCommand } from './learn-slash.js';
 import { commandsFor } from './agent/slash.js';
 import { httpTransport } from './inline-ai-transport.js';
@@ -1882,6 +1883,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             {/* Comments (docs/features/canvas-comments.md): opens the Comments view; a dot when a thread has news for you. */}
             {comments.active && <button type="button" data-comments-header title="Comments" aria-label={comments.unread ? `Comments, ${comments.unread} unread` : 'Comments'} onClick={openComments}
               className="relative flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><MessageCircle size={15} strokeWidth={1.8} />{comments.unread > 0 && <span data-unread-dot className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />}</button>}
+            {/* The signed-in person's own monthly AI allowance (owner D4 section 2), never this canvas's owner's. */}
+            {learnPreview && <UsageGauge />}
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
               aria-label={panelOpen ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panelOpen}
               onClick={() => setPanelOpen(previous => !previous)}
