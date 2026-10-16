@@ -263,7 +263,10 @@ test('AdaptiveCanvas.jsx: persist() saves the board read through refs (canvas-pe
   assert.match(src, /persist: \(\) => \{\n\s+if \(!alive\.current\) return Promise\.resolve\(\{ ok: false \}\);\n\s+const live = liveDoc\(\);[\s\S]{0,300}return persistBoard\(\{ state: \{ \.\.\.boardRef\.current, \.\.\.\(live \? \{ doc: live \} : \{\}\) \}, storageKey, storage: \(\) => localStorage, onSave: onSaveRef\.current \}\);\n\s+\},/);
   // The debounced save: same key, shape, stripping, 400 ms, and onSave only after the first (loaded) run.
   assert.match(src, /const light = lightBlocks\(blocks\);/);
-  assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); docWritten\.current = JSON\.stringify\(state\.doc \?\? null\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
+  assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); docWritten\.current = JSON\.stringify\(state\.doc \?\? null\); lastWritten\.current = JSON\.stringify\(state\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
+  // board-empty-report (owner: cancelling a pending save or remounting never discards work): what was last written is kept,
+  // and on unmount a board that differs from it is written and pushed at once - never by a retired canvas.
+  assert.match(src, /useEffect\(\(\) => \(\) => \{\n\s+const key = storageKeyRef\.current;\n\s+if \(retired\.current \|\| \(!key && !onSaveRef\.current\)\) return;\n\s+const state = savedShape\(boardRef\.current\), text = JSON\.stringify\(state\);\n\s+if \(text === lastWritten\.current\) return;[\s\S]{0,300}onSaveRef\.current\?\.\(state, \{ now: true \}\);\n\s+\}, \[\]\);/);
 });
 
 test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() - ok or failed for every owned board; the debounced push stays (LP1 Task 15)', () => {

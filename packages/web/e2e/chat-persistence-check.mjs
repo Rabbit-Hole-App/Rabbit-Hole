@@ -242,6 +242,11 @@ await check('7. Ask and Tutor modes still post with the open thread and their mo
   assert.equal(plans.length, before, 'no Tutor plan for an explicit Ask or Tutor turn');
   await pane.getByRole('button', { name: 'New chat', exact: true }).click();
   assert.equal(await title(), 'New chat');
+  // New chat lands in two commits: the title from the thread state at once, the transcript one commit later (ask.jsx's
+  // restore effect on restore.key). Read in between, the old turns were still there for a frame (board-empty-report,
+  // chat-persistence classification: gone every time once the title had changed and two frames passed). Wait, bounded,
+  // for them to go; a transcript that stayed would still fail here.
+  await pane.getByText(/\[P\]/).first().waitFor({ state: 'detached', timeout: 5000 });
   assert.doesNotMatch(await text(), /\[P\]/);
   assert.match(await pane.getByRole('button', { name: 'Mode', exact: true }).innerText(), /Auto/);
   assert.ok((await threadsOf(P)).some(t => t.id === newerThread) && (await threadsOf(P)).some(t => t.id === olderThread), 'New chat deletes nothing');

@@ -2,7 +2,7 @@
 // board's server copy, awaited. Fake storage and a fake onSave: no browser, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boardHasContent, boardPending, boardText, lightBlocks, persistBoard, serial, sharingOf } from './canvas-persist.js';
+import { boardHasContent, boardPending, boardText, lightBlocks, pendingWork, persistBoard, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 
 const big = `data:image/png;base64,${'A'.repeat(120001)}`, small = 'data:image/png;base64,AAAA';
 const state = { strokes: [{ id: 's' }], shapes: [], items: [], links: [], blocks: [{ id: 'a', src: big }, { id: 'b', src: small }, { id: 'c' }], groups: [], areas: [] };
@@ -125,4 +125,39 @@ test('check 4: once the server holds the live board, nothing is pending; a serve
   // A repository's Main canvas registers its repository as a source on open: never content, or Retry would never reload there
   // (rabbit-hole-check wp7-stale-chunk).
   assert.equal(boardPending({ live: { ...EMPTY_BOARD, sources: [{ id: 'repo', kind: 'repository' }] }, copy: EMPTY_BOARD, answered: true, synced: null }), false);
+});
+
+// board-empty-report: the server's copy arrives after the canvas mounted on an empty or older copy. What was made on this
+// page since mount is put on the server's copy: the server's content is never dropped, this page's work is never dropped,
+// and when both changed the same object, both versions are kept.
+test('pending work: objects added (by id, or ink by content), changed and removed since mount; untouched ones are not work', () => {
+  const ink = { tool: 'pen', points: [{ x: 1, y: 2 }] }, stroke = { tool: 'pen', points: [{ x: 5, y: 6 }] };
+  const mounted = { blocks: [{ id: 'old', title: 'Old' }, { id: 'gone', title: 'Gone' }, { id: 'kept', title: 'Kept' }], strokes: [ink], items: [{ id: 'n', text: 'note', fresh: false }] };
+  const live = { blocks: [{ id: 'old', title: 'Old, edited' }, { id: 'kept', title: 'Kept' }, { id: 'mine', title: 'Mine' }], strokes: [ink, stroke], items: [{ id: 'n', text: 'note' }] };
+  assert.deepEqual(pendingWork(mounted, live), {
+    blocks: { added: [{ id: 'mine', title: 'Mine' }], changed: [{ base: { id: 'old', title: 'Old' }, mine: { id: 'old', title: 'Old, edited' } }], removed: [{ id: 'gone', title: 'Gone' }] },
+    strokes: { added: [stroke], changed: [], removed: [] },
+  }, 'the canvas\'s own `fresh` marker is not a change');
+  assert.deepEqual(pendingWork(mounted, mounted), {}, 'nothing made, nothing pending');
+});
+
+test('on the server copy: additions appended, an edit applied where the server still has the base, a conflict kept as a copy, a removal only of an unchanged base', () => {
+  const ids = () => { let n = 0; return id => `${id}-copy-${n += 1}`; };
+  const work = { blocks: {
+    added: [{ id: 'mine', title: 'Mine' }, { id: 'c1', title: 'same id as a server card' }],
+    changed: [{ base: { id: 'a', title: 'A' }, mine: { id: 'a', title: 'A, mine' } }, { base: { id: 'b', title: 'B' }, mine: { id: 'b', title: 'B, mine' } }, { base: { id: 'z', title: 'Z' }, mine: { id: 'z', title: 'Z, mine' } }],
+    removed: [{ id: 'r', title: 'R' }, { id: 's', title: 'S' }],
+  } };
+  const server = { blocks: [{ id: 'c1', title: 'Attention' }, { id: 'a', title: 'A' }, { id: 'b', title: 'B, theirs' }, { id: 'r', title: 'R' }, { id: 's', title: 'S, theirs' }], exchanges: [{ id: 'x' }], sources: [] };
+  const merged = withPendingWork(server, work, ids());
+  assert.deepEqual(merged.state.blocks, [
+    { id: 'c1', title: 'Attention' }, { id: 'a', title: 'A, mine' }, { id: 'b', title: 'B, theirs' }, { id: 's', title: 'S, theirs' },
+    { id: 'b-copy-1', title: 'B, mine' }, { id: 'z', title: 'Z, mine' }, { id: 'mine', title: 'Mine' },
+  ], 'c1 stays the server\'s; a takes this page\'s edit; b keeps both; z (removed on the server) comes back as edited here; r goes; s (changed there) stays');
+  assert.deepEqual([merged.count, merged.conflicts], [5, 2]);
+  assert.deepEqual([merged.state.exchanges, merged.state.sources], [[{ id: 'x' }], []], 'keys the canvas does not hold are the server\'s');
+  assert.deepEqual(withPendingWork(server, {}), { state: server, count: 0, conflicts: 0 });
+  assert.deepEqual(withPendingWork(server, undefined), { state: server, count: 0, conflicts: 0 }, 'no canvas on screen: the server copy as it is');
+  const ink = { tool: 'pen', points: [] };
+  assert.deepEqual(withPendingWork({ strokes: [ink] }, { strokes: { added: [ink], changed: [], removed: [] } }).count, 0, 'ink the server already holds is not doubled');
 });
