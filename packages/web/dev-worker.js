@@ -37,6 +37,7 @@ import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
+import { provenanceRoute } from '../control-plane/src/learn-provenance.js';
 import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
@@ -269,6 +270,8 @@ const routes = {
     if (path.startsWith('/api/learn/c/') || path === '/api/learn/comments/unread' || /^\/api\/learn\/boards\/shared\/[^/]+\/comments(\/|$)/.test(path)) { const comments = await canvasCommentsRoute(path, req, env); if (comments) return comments; }
     // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
     // the exact /api/learn/board route, which generates explanations.
+    // The canvas header's repository and fork history for this viewer (learn-provenance.js).
+    if (path.startsWith('/api/learn/provenance/')) { const provenance = await provenanceRoute(path, req, env); if (provenance) return provenance; }
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
     // Canvas references: the picker and a canvas's links and backlinks (canvas-refs.js).
     if (canvasRefsRoute(path)) return canvasRefsFetch(req, env);
