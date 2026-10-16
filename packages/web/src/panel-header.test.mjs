@@ -32,7 +32,9 @@ test('there is no Card conversation tab or panel, and nothing routes an answer t
 
 test('icons only: a tooltip and an accessible name, no visible text, one tablist of tabs', () => {
   assert.match(header, /role="tablist"/);
-  assert.match(header, /role="tab" data-panel-tab=\{id\} aria-label=\{label\} title=\{title\}/);
+  // The name is the label; a Table of contents tab with Tutor proposals waiting adds how many (R4, lead 2026-10-16), and
+  // table-of-contents.test.mjs renders both names.
+  assert.match(header, /role="tab" data-panel-tab=\{id\} aria-label=\{pending \? `\$\{label\}, \$\{tocPending\} proposal\$\{tocPending === 1 \? '' : 's'\} to review` : label\} title=\{title\}/);
   assert.match(header, /<Icon size=\{15\} strokeWidth=\{1\.8\} aria-hidden \/>\n\s+<\/button>/, 'the icon is the tab\'s only child');
 });
 
@@ -101,10 +103,13 @@ test('Close shuts the panel and touches nothing else', () => {
 });
 
 // Owner brief 2026-10-13 13.8: readers open in the Sources pane beside Chat, so nothing forces another tab over Chat.
-test('an opened reader leaves the tab alone; only the course interview brings the Table of contents forward', () => {
+// Owner decision 5B (R4, 2026-10-15): the learner's click on 'Use as table of contents' opens the Apply/Discard flow, so a
+// syllabus proposal is the one other thing that brings the Table of contents forward; a Tutor proposal never does.
+test('an opened reader leaves the tab alone; only the course interview and a syllabus proposal bring the Table of contents forward', () => {
   assert.doesNotMatch(page, /if \(wikiOpen \|\| paperOpen[^\n]*setPanelTab/);
-  assert.deepEqual(page.match(/setPanelTab\('toc'\)/g), ["setPanelTab('toc')"]);
+  assert.deepEqual(page.match(/setPanelTab\('toc'\)/g), ["setPanelTab('toc')", "setPanelTab('toc')"]);
   assert.match(page, /useEffect\(\(\) => \{ if \(setupChat\) setPanelTab\('toc'\); \}, \[setupChat\]\);/);
+  assert.match(page, /if \(proposal\?\.source === 'syllabus'\) setPanelTab\('toc'\);/);
 });
 
 test('the Chat header: the thread title, History, New chat (icon only under 360 px), an overflow menu when the thread can act', () => {

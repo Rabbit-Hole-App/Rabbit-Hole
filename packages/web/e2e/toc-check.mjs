@@ -1,13 +1,16 @@
 // The Table of contents tab, R4 redesign (C:/s/spec/toc-r4.md section A1 and owner decisions 1A, 2A, 3A, 6A, 7A;
 // TableOfContents.jsx): the numbered hierarchy, descriptions, the guide line through the topic markers, round
 // completion controls that only complete, titles that only navigate, editing a title and description, drag to reorder
-// (never from a circle), narrow and wide panels, light and dark, and persistence across a reload. Against the LOCAL
+// (never from a circle), narrow and wide panels, light and dark, persistence across a reload, the active-section marker,
+// and a Tutor proposal: it marks the tab without switching to it, shows each add under its parent, applies once as an
+// uncompleted entry, and a second copy made against the old headings is refused as stale. Against the LOCAL
 // stack only: local D1 and fresh browser profiles. No model is called: /api/learn/ask is answered here for every request
 // and any other model route fails the run. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 node e2e/toc-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { outlineFrom, outlineRevision } from '../src/learn-outline-model.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8888';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8889';
@@ -54,6 +57,22 @@ const saved = async (label, test) => {
 
 const browser = await chromium.launch();
 const asks = [], stray = [], errors = [];
+let reply = null, lastProposal = null;
+const tutorTurn = proposal => `event: chunk\ndata: ${JSON.stringify({ text: 'Here is a place for that in your contents.' })}\n\nevent: outline\ndata: ${JSON.stringify(proposal)}\n\nevent: done\ndata: {}\n\n`;
+const send = async text => {
+  await page.getByRole('tab', { name: /^Chat$/ }).click();
+  // Tutor mode, which posts to /api/learn/ask (answered above); Auto would plan with the live Tutor first.
+  const pane = page.locator('aside[aria-label="Learn agent chat"]');
+  if (await pane.locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'tutor') {
+    await pane.getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.locator('[data-chat-mode-option="tutor"]').click();
+    await pane.locator('[data-chat-mode="tutor"]').waitFor();
+  }
+  const input = page.locator('aside[aria-label="Learn agent chat"] [data-chat-composer] textarea, aside[aria-label="Learn agent chat"] [data-chat-composer] input:not([type="file"])').first();
+  await input.fill(text);
+  await input.press('Enter');
+};
+const tocTab = () => page.locator('[data-panel-tab="toc"]');
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 let context, page;
@@ -65,7 +84,8 @@ const open = async ({ width = 1440, height = 900, chat = 420, theme = 'light' } 
     localStorage.setItem('rh.chat.width', String(chatWidth));
     localStorage.setItem('small.theme', look);
   }, [chat, theme]);
-  await context.route('**/api/learn/ask', route => { asks.push(route.request().url()); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: 'event: done\ndata: {}\n\n' }); });
+  // Every ask is answered here, by URL: a scripted Tutor turn when a step set one (reply), else an empty turn.
+  await context.route('**/api/learn/ask', route => { asks.push(route.request().url()); const body = reply || 'event: done\ndata: {}\n\n'; reply = null; return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body }); });
   await context.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
   page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
@@ -233,9 +253,78 @@ await check('9 dark: the same hierarchy on the dark surface, the line a low-emph
   await shot('06-dark-narrow');
 });
 
+await check('10 the active marker follows the canvas by its rule, apart from completion, and never moves the canvas or ticks anything', async () => {
+  await open();
+  const done = async () => toc().locator('[data-toc-entry][data-done]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-toc-entry')));
+  const ticked = await done();
+  await title('t2').click();
+  await page.waitForFunction(() => document.querySelector('[data-toc-entry="t2"]')?.hasAttribute('data-active'));
+  assert.equal(await toc().locator('[data-toc-entry][data-active]').count(), 1, 'one section is active');
+  assert.equal(await title('t2').getAttribute('aria-current'), 'location');
+  const resting = await camera();
+  await title('s11').click();
+  await page.waitForFunction(() => document.querySelector('[data-toc-entry="s11"]')?.hasAttribute('data-active'));
+  assert.equal(await entry('s11').getAttribute('data-done'), 'true', 'a done section that is active stays done');
+  assert.equal(await circle('s11').isChecked(), true);
+  const settled = await camera();
+  assert.notEqual(settled, resting);
+  assert.deepEqual(await done(), ticked, 'marking a section active completes nothing');
+  await shot('07-active-section');
+});
+
+await check('11 a Tutor proposal marks the tab without switching to it; the card shows each add under its parent; Apply adds an uncompleted entry once, under a completed topic', async () => {
+  await circle('t3').click(); // Baking done: a new sub-section under it must still start open
+  await page.waitForFunction(() => document.querySelector('[data-toc-entry="t3"]')?.hasAttribute('data-done'));
+  await saved('Baking done', headings => headings.find(block => block.id === 't3')?.done === true);
+  const base = outlineRevision(outlineFrom(await serverBlocks()));
+  const proposal = { base, ops: [{ op: 'add', text: 'Proofing', level: 2, parent: 't3', description: 'Why dough rests before it bakes.' }] };
+  reply = tutorTurn(proposal);
+  await send('Where would proofing fit?');
+  await page.waitForFunction(() => document.querySelector('[data-panel-tab="toc"]')?.getAttribute('aria-label') === 'Table of contents, 1 proposal to review');
+  assert.equal(await page.locator('[data-panel-tab="chat"]').getAttribute('aria-selected'), 'true', 'still on Chat: a Tutor proposal never switches tabs');
+  assert.equal(await tocTab().locator('[data-toc-pending]').count(), 1);
+  await shot('08-proposal-pending-tab', page.locator('[data-panel-header]'));
+  await tocTab().click();
+  const card = toc().locator('[data-toc-proposal]');
+  await card.waitFor();
+  assert.equal((await card.innerText()).replace(/\s+/g, ' ').includes('Under "Baking" + Proofing Why dough rests before it bakes.'), true, await card.innerText());
+  assert.equal(await card.locator('[role="alert"]').count(), 0);
+  await shot('09-proposal-card', card);
+  await card.getByRole('button', { name: 'Apply' }).click();
+  await card.waitFor({ state: 'detached' });
+  const added = toc().locator('[data-toc-entry]', { hasText: 'Proofing' });
+  assert.equal(await added.count(), 1, 'added once');
+  assert.equal(await added.getAttribute('data-done'), null, 'a new entry starts uncompleted');
+  assert.equal(await added.getAttribute('data-level'), '2');
+  assert.equal(await entry('t3').getAttribute('data-done'), 'true', 'its topic stays done');
+  assert.equal((await added.innerText()).replace(/\s+/g, ' ').trim(), '1.11 Proofing Why dough rests before it bakes.', 'the end of the Baking section');
+  assert.equal(await tocTab().getAttribute('aria-label'), 'Table of contents', 'the marker clears once applied');
+  lastProposal = proposal;
+});
+
+// Needs the proposal object end to end (contract C6: ask.jsx hands the page { ops, base, source }), so it passes on the
+// integrated release, not on toc/panel alone, whose ask.jsx still forwards bare ops.
+await check('12 the same proposal again (a retry) was made against the old headings: stale, and Apply changes nothing', async () => {
+  const proposal = lastProposal;
+  const card = toc().locator('[data-toc-proposal]');
+  reply = tutorTurn(proposal);
+  await send('Where would proofing fit?');
+  await page.waitForFunction(() => document.querySelector('[data-panel-tab="toc"]')?.getAttribute('aria-label') === 'Table of contents, 1 proposal to review');
+  await tocTab().click();
+  await card.waitFor();
+  assert.equal(await card.locator('[role="alert"]').innerText(), 'The contents changed since this proposal. Ask the Tutor again.');
+  await card.getByRole('button', { name: 'Apply' }).click();
+  assert.equal(await card.locator('[role="alert"]').innerText(), 'The contents changed since this proposal. Ask the Tutor again.');
+  assert.equal(await toc().locator('[data-toc-entry]', { hasText: 'Proofing' }).count(), 1, 'Apply on a stale proposal changes nothing');
+  await shot('10-proposal-stale', card);
+  await card.getByRole('button', { name: 'Discard' }).click();
+  await card.waitFor({ state: 'detached' });
+  assert.equal(await tocTab().getAttribute('aria-label'), 'Table of contents');
+});
+
 await context.close();
 await browser.close();
 assert.deepEqual(stray, [], 'no model route was called');
-assert.deepEqual(asks, [], 'nothing was sent');
+assert.equal(asks.length, 2, 'only the two scripted Tutor turns were sent, both answered here');
 assert.deepEqual(errors, [], 'no page errors');
 console.log(`\n${results.length} checks passed -> ${SHOTS}`);

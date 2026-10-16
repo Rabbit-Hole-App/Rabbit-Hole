@@ -124,6 +124,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const suppliedCourse = learnPreview && !!registeredCourse({ app })?.capabilities?.suppliedCourse;
   const nanoProgress = useNanoProgress(app, suppliedCourse);
   const canAuthor = canEditCourse(course.canAuthor, suppliedCourse);
+  // A canvas shared with this learner to view only (no edit rights): its Table of contents is read-only and takes no proposals
+  // (R4). Repository Learn boards are each learner's own, so only a canvas's canEdit counts.
+  const canEditCanvas = !(app.kind === 'canvas' && app.canEdit === false);
   const [lessonSource, setLessonSource] = useState(null);
   const [plannedLesson, setPlannedLesson] = useState(null);
   const [planOpen, setPlanOpen] = useState(false);
@@ -231,7 +234,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && previous.selected === next.selected && previous.units === next.units && previous.grouped === next.grouped && previous.canPaste === next.canPaste && previous.content === next.content && previous.attempts === next.attempts && previous.semanticFingerprint === next.semanticFingerprint && previous.semanticSettling === next.semanticSettling && JSON.stringify(previous.card) === JSON.stringify(next.card) && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && previous.selected === next.selected && previous.units === next.units && previous.grouped === next.grouped && previous.canPaste === next.canPaste && previous.content === next.content && previous.attempts === next.attempts && previous.semanticFingerprint === next.semanticFingerprint && previous.semanticSettling === next.semanticSettling && previous.activeSection === next.activeSection && JSON.stringify(previous.card) === JSON.stringify(next.card) && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -1381,7 +1384,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     releaseCard: id => canvas()?.release(id),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
-    onOutlineProposal: ops => setProposal(ops),
+    // R4 (lead, 2026-10-16): 'Use as table of contents' (source 'syllabus') is the learner's click, so the contents come
+    // forward with the Apply/Discard card; a Tutor proposal arrives unasked, so it only marks the tab (PanelHeader
+    // tocPending) and never switches tabs or scrolls. A canvas the learner cannot edit takes no proposals.
+    onOutlineProposal: canEditCanvas ? proposal => { setProposal(proposal); if (proposal?.source === 'syllabus') setPanelTab('toc'); } : undefined,
     onShowPaper: (paper, into) => addPaper(paper, into),
     preview: paperContext?.selection?.preview || preview,
     previewKind: paperContext?.selection ? 'paper' : 'canvas',
@@ -1954,7 +1960,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
     <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
-      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} viewers={companionViews.filter(entry => entry.id !== 'graph')} viewer={panelOpen && companion.open ? companionView : null}
+      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} viewers={companionViews.filter(entry => entry.id !== 'graph')} viewer={panelOpen && companion.open ? companionView : null}
         onViewer={id => (panelOpen && companion.open && companionView === id ? companion.close() : companion.show(id))} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
@@ -1968,7 +1974,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
-      <TableOfContents outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+      <TableOfContents outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         className="mb-3 flex max-h-[45%] shrink-0 flex-col overflow-y-auto" />
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
