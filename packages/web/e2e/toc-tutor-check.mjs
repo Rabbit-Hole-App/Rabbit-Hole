@@ -186,12 +186,12 @@ if (panel) await check('7 a proposal made against an older revision is refused a
   const before = await headings();
   const body = await turn('add a part on neap tides', { outline: () => [{ op: 'add', text: 'Neap tides', level: 2, parent: before[0].id }] });
   assert.equal(body.outline.length, before.length);
-  // A manual edit between the proposal and Apply, through the panel's own (unconditional) path: double-click a title to rename.
+  // A manual edit between the proposal and Apply, through the panel's own (unconditional) path: its Edit control opens the
+  // title and description editor (TableOfContents.jsx; the title button's name now carries its number, decision 1A).
   await tab('Table of contents').click();
   await apply().waitFor({ timeout: 5000 });
-  const renamed = contents().getByRole('button', { name: before.at(-1).text, exact: true }).first();
-  await renamed.dblclick();
-  await page.keyboard.type('Tide tables, edited');
+  await contents().getByRole('button', { name: `Edit ${before.at(-1).text}`, exact: true }).click();
+  await contents().getByRole('textbox', { name: `Title of ${before.at(-1).text}`, exact: true }).fill('Tide tables, edited');
   await page.keyboard.press('Enter');
   await waitFor(async () => (await headings()).some(h => h.text === 'Tide tables, edited'));
   await apply().click();
