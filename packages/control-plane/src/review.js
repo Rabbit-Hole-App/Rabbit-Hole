@@ -2,6 +2,7 @@
 // the Fly build. A control, not a chat - fixed prompt, schema-forced JSON, risk
 // computed here in code. Must never break a deploy: every failure path just logs.
 import { MODEL_NOT_CONFIGURED } from './learn-models.js';
+import { recordMedia } from './learn-usage.js';
 
 const MODEL = 'claude-opus-5';
 
@@ -111,6 +112,9 @@ async function fetchReview(env, bundle) {
       messages: [{ role: 'user', content: bundle }],
     }),
   });
+  // Usage accounting (credits Phase 1): this legacy call bypasses the spend ledger; recorded once, cost unknown, under a
+  // context-less 'system' action (feature legacy). Best effort, never refuses.
+  await recordMedia(env, { kind: 'generation', provider: 'anthropic', model: MODEL, ok: resp.ok });
   if (!resp.ok) throw new Error(`anthropic ${resp.status}`);
   const msg = await resp.json();
   if (msg.stop_reason === 'refusal') throw new Error('model refused');

@@ -418,6 +418,9 @@ test('ledger-bypass media: reported cost is settled, a documented estimate is es
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.status, a.cost_state, a.cost_micros, a.reserved_micros]), [
     ['media', 'settled', 'estimated', 272 * 40 + 5 * 5, null], ['media', 'failed', 'unknown', null, null], ['media', 'settled', 'unknown', null, null], ['media', 'settled', 'settled', 5000, null]]);
   assert.equal(TRANSCRIBE_ESTIMATE, 6000);
+  // A legacy call with no request context (review.js on the control plane) is its own system action, platform-funded.
+  await recordMedia({ LEARN_DB }, { kind: 'generation', provider: 'anthropic', ok: true });
+  assert.deepEqual(rows(sqlite, 'usage_actions').slice(1).map(a => [a.user_id, a.payer, a.payer_reason, a.charge_class, a.feature]), [[null, 'platform', 'system', 'platform', 'legacy']]);
 });
 
 test('Exa searches are recorded once as tool steps: the reported cost when given, else the estimate (YouTube) or unknown (summaries)', async t => {
