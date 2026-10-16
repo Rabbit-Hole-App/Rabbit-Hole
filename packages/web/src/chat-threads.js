@@ -4,7 +4,7 @@ import { activeThread, rememberThread } from './chat-persist.js';
 
 // Sub-lane A2 (threads and History) owns this file. Contract: chat-workspace-CONTRACT.md A1-A5.
 // Shape every other sub-lane relies on:
-//   { id: string | null, title, mode: 'auto' | 'ask' | 'tutor', setMode(mode),
+//   { id: string | null, title, mode: 'auto' | 'ask' | 'tutor', setMode(mode, { save = true }),
 //     historyOpen, setHistoryOpen(open), newChat(), open(id) (a Promise; it rejects with the server's error), adopt(id, title) (the first send's done event names the new thread),
 //     restore: { key, mode, contextRefs, draft, messages } (a new key resets the draft and the attached refs; messages is the transcript to show),
 //     turnKey: string (changes whenever the open thread changes; a stream started under another key is dropped, contract A5),
@@ -91,7 +91,9 @@ export function useChatThread(canvas) {
     if (idRef.current === threadId) return;
     select(threadId); setTitle(previous => previous || nextTitle || '');
   }, [remember]);
-  const setMode = useCallback(next => { setModeState(next); saveState({ mode: next }); }, [saveState]);
+  // save false: shown here only (the Table of contents selecting Tutor on entry, LearnPage.jsx), so opening a tab sends no
+  // request; the next turn records the mode, and a mode the learner picks is saved as before.
+  const setMode = useCallback((next, { save = true } = {}) => { setModeState(next); if (save) saveState({ mode: next }); }, [saveState]);
   const rename = useCallback(async nextTitle => {
     const threadId = idRef.current, clean = String(nextTitle ?? '').trim().slice(0, 120);
     if (!threadId || !clean) return;

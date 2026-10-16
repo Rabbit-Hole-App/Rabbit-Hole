@@ -235,7 +235,7 @@ export function NextStepsCard({ steps, onPick }) {
 // The hole openings this tab has sent, by opening key (openOnce): module-level, not a ref, so a dock remounted while the
 // hole's board lands from the server (LearnPage canvasEpoch) never sends the same opening twice.
 const openedHoles = new Set();
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onExploreCodebase = null, codebase = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onExploreCodebase = null, codebase = null, hideConversation = false }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -929,7 +929,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       )}
       {(view === 'chat' || contentPanel) && (<>
       {contentPanel && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SourceSelectionContext.Provider value={{value:codeSelection,set:setCodeSelection}}>{contentPanel}</SourceSelectionContext.Provider></div>}
-      <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || (composerOnly && !sheetMode)) && 'hidden',
+      <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || hideConversation || (composerOnly && !sheetMode)) && 'hidden',
         sheetMode && 'absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] rounded-xl border border-line bg-white px-3 pb-3 shadow-pop',
         sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card) || tutor?.extras)) && 'hidden')}>
         {sheetMode && (
