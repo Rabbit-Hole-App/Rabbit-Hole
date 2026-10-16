@@ -232,31 +232,36 @@ await check('11 the carried hook is taken once: a reload of the hole sends no se
 });
 await page.context().close();
 
-// ---- shared canvas: signed out, then back from sign-in ----
+// ---- shared canvas: signed out, then signed in (owner R3 decision, 2026-10-16: no AI generation for signed-out viewers) ----
 ({ page } = await contextFor(null));
 watchSets(page);
+const signedOutHooks = [];
+page.on('request', request => { if (/\/next-steps$/.test(new URL(request.url()).pathname)) signedOutHooks.push(request.url()); });
 await page.goto(`${BASE}/b/${token}`);
-await ready();
-const lateClicked = (await hooks())[1];
-const lateId = await page.locator('[data-next-step]').nth(1).getAttribute('data-next-step');
-await page.locator('[data-next-step]').nth(1).click();
-await page.waitForURL(/\/login\?next=/, { timeout: 30000 });
-const next = new URL(page.url()).searchParams.get('next');
-await check('12 signed out, the hook waits through sign-in for this link: ?rabbit=root&hook=<id>, the step kept in this tab', async () => {
-  assert.equal(new URLSearchParams(next.split('?')[1]).get('hook'), lateId);
-  assert.equal(new URLSearchParams(next.split('?')[1]).get('rabbit'), 'root');
-  assert.ok(await page.evaluate(() => !!sessionStorage.getItem('small.next-step.pending')));
+await page.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
+// Opened after the signed-out page, a signed-in page has asked for its hooks: the signed-out one had as long, and asked nothing.
+const { page: signedInPage } = await contextFor(viewer);
+const asked = signedInPage.waitForRequest(request => request.method() === 'POST' && /\/next-steps$/.test(new URL(request.url()).pathname), { timeout: 60000 });
+await signedInPage.goto(`${BASE}/b/${token}`);
+await asked;
+await signedInPage.context().close();
+await check('12 signed out, the shared page asks for no hooks and shows none', async () => {
+  assert.deepEqual(signedOutHooks, []);
+  assert.equal(await page.locator('[data-next-steps]').count(), 0);
 });
 await page.context().addCookies([{ name: 'small_session', value: late.session, url: BASE }]);
 const beforeLate = plans.length;
-await page.goto(`${BASE}${next}`);
+await page.reload();
+await ready();
+const lateClicked = (await hooks())[1];
+await page.locator('[data-next-step]').nth(1).click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 30000 });
 await page.locator('[data-block-id]').filter({ hasText: lateClicked }).first().waitFor({ timeout: 60000 }); // its reply card (1eea0344)
-await check('13 back from sign-in, the kept step starts the hole and opens it, once', async () => {
+await check('13 once signed in, the same page shows the hooks, and one starts the hole and opens it, once', async () => {
   const opening = plans.slice(beforeLate).filter(p => p.context?.learner_intent?.kind === 'next_step');
   assert.equal(opening.length, 1);
   assert.equal(opening[0].context.learner_intent.selected_next_step.hook, lateClicked);
-  assert.ok(await page.evaluate(() => !sessionStorage.getItem('small.next-step.pending')), 'taken once');
+  assert.ok(await page.evaluate(() => !sessionStorage.getItem('small.next-step.pending')), 'nothing left pending');
 });
 await shot('07-after-sign-in-opening');
 await check('14 no provider request (tripwire) and no page errors', async () => {
