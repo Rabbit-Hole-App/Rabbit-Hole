@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api } from './api.js';
 import { loadAsset } from './learn-board-assets.js';
-import { cardGraph, cardLines, cardRequest, failureStatus } from './card-source.js';
+import { cardGraph, cardLines, cardRequest, failureStatus, rangeLines } from './card-source.js';
 
-// One read per file or snapshot however many cards show it; a failed read is forgotten, so Retry asks again.
+// The link a card is read through (follow-up R3 item 5): SharedBoardPage provides { token, viewer, version } for a share
+// link or an Explore publication, so its repository cards read by the link and the card's id - signed out too, never
+// sent to sign in - and its uploads by the link's own asset route. Elsewhere null: the owner's routes.
+export const CardSourceScope = createContext(null);
+
+// One read per file or snapshot however many cards show it; a failed read is forgotten, so Retry asks again. Keyed by the
+// access scope as well as the source: a link's read (its token, who is viewing, the board version it was opened at) is
+// never another scope's, so a signed-in or owner's read is never reused by a link viewer, nor one link's by another.
 const reads = new Map();
 const once = (key, load) => {
   if (!reads.has(key)) reads.set(key, load().catch(error => { reads.delete(key); throw error; }));
@@ -16,21 +23,40 @@ export async function uploadText(assetKey, read = loadAsset) {
   if (value == null) throw Object.assign(new Error('asset missing'), { status: 404 });
   return { content: typeof value === 'string' ? value : await value.text() };
 }
-const load = (request, block) => {
-  // By repository and commit (control plane /api/repositories/card-source): the same read for the owner, a share viewer and a fork.
+const scopeKey = scope => (scope?.token ? `link:${scope.token}:${scope.viewer || ''}:${scope.version ?? ''}` : 'own');
+// A link's reads: plain fetches, so a refusal is the card's own state and never the sign-in redirect api() makes on a 401.
+// A repository card by the link and its id (learn-boards.js sharedCard): the server reads the card it saved, not this one.
+// An upload card by the link's own asset route, the board's server copy (no owner's browser cache), so a 404 is unavailable
+// and a dropped connection or a 5xx is a failure worth a Retry.
+const linkRead = async (token, block) => {
+  const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/cards/${encodeURIComponent(block.id)}/source`);
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) throw Object.assign(new Error(data?.error || 'Card source unavailable'), { status: response.status });
+  return data;
+};
+const linkUpload = async (token, assetKey) => {
+  const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/assets/${encodeURIComponent(assetKey)}`);
+  if (!response.ok) throw Object.assign(new Error('asset unavailable'), { status: response.status });
+  return { content: await response.text() };
+};
+const load = (request, block, scope) => {
+  const key = `${scopeKey(scope)}|${request.key}`;
+  if (scope?.token) return request.kind === 'upload' ? once(key, () => linkUpload(scope.token, block.source.assetKey)) : once(`${key}|${block.id}`, () => linkRead(scope.token, block));
+  // By repository and commit (control plane /api/repositories/card-source): the same read for the owner, a member and a fork.
   const at = `repo=${encodeURIComponent(request.repo)}&commit=${encodeURIComponent(request.commit)}`;
-  if (request.kind === 'file') return once(request.key, () => api(`/api/repositories/card-source?${at}&path=${encodeURIComponent(request.path)}`));
-  if (request.kind === 'graph') return once(request.key, () => api(`/api/repositories/card-source?${at}`));
-  return once(request.key, () => uploadText(block.source.assetKey));
+  if (request.kind === 'file') return once(key, () => api(`/api/repositories/card-source?${at}&path=${encodeURIComponent(request.path)}`));
+  if (request.kind === 'graph') return once(key, () => api(`/api/repositories/card-source?${at}`));
+  return once(key, () => uploadText(block.source.assetKey));
 };
 
 // useCardSource(block) -> { status: 'loading' | 'ready' | 'unavailable' | 'failed', text, lines, totalLines, graph, skipped, retry }.
 // Code cards get text and numbered lines (their range, else the file); graph cards get their graph (the subgraph for
 // nodeIds, else the whole). A redacted card, or one without a readable source, is unavailable at once.
 export function useCardSource(block) {
+  const scope = useContext(CardSourceScope);
   const request = cardRequest(block);
   const usable = !!request;
-  const key = usable ? request.key : null;
+  const key = usable ? `${scopeKey(scope)}|${request.key}|${block.id}` : null;
   const [state, setState] = useState({ status: usable ? 'loading' : 'unavailable' });
   const [attempt, setAttempt] = useState(0);
   const start = block?.source?.start ?? null, end = block?.source?.end ?? null, nodes = (block?.nodeIds || []).join('\n');
@@ -38,9 +64,11 @@ export function useCardSource(block) {
     if (!usable) { setState({ status: 'unavailable' }); return undefined; }
     let active = true;
     setState({ status: 'loading' });
-    load(request, block).then(data => {
+    load(request, block, scope).then(data => {
       if (!active) return;
       if (request.kind === 'graph') setState({ status: 'ready', graph: cardGraph(data.graph, nodes ? nodes.split('\n') : []), skipped: data.skipped || [] });
+      // A link's read is already the card's stored range, numbered from its first line; any other read is the whole file.
+      else if (Number.isInteger(data.start)) setState({ status: 'ready', ...rangeLines(data.content, data.start) });
       else setState({ status: 'ready', ...cardLines(data.content, start, end) });
     }, error => { if (active) setState({ status: failureStatus(error) }); });
     return () => { active = false; };
