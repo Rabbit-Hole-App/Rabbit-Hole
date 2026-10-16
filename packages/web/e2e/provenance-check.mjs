@@ -3,6 +3,7 @@
 // ancestors, an incomplete history, keyboard use, light and dark, on the owned, shared (signed out) and member pages; and the
 // header layout (decision E2): the group at the right edge of its row, right-aligned on the next row when the header wraps,
 // with nothing overlapping and no horizontal scroll, with Chat open and closed at 1440 and on a phone.
+// And title centring with Chat closed (Release B A3 item 2): the title group at the header's centre, a long title truncated.
 // The provenance object is the server's (contract C1, routes C2); here each page's provenance GET is answered with a C1
 // fixture, so this checks the UI only - who may see what is the SERVER lane's tests. The share link is real (local D1),
 // opened signed out; the member page's two reads are answered here too. GitHub is never contacted: its pages are stubbed.
@@ -32,6 +33,10 @@ const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method
 const token = shared.body?.sharing?.view;
 assert.ok(token, `a public view link: ${shared.status}`);
 const MEMBER = crypto.randomUUID();
+// Step 15's long title: 120 characters, the most a rename keeps.
+const LONG_TITLE = `A deliberately long canvas title that runs well past what the header can show beside its menus and actions ${run}`.slice(0, 120);
+const long = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: LONG_TITLE }) })).body;
+assert.equal((await api(`/api/learn/boards/${long.name}/main`, { method: 'PUT', body: JSON.stringify({ state: STATE }) })).status, 200, 'seeding the long-titled board');
 
 // C1 fixtures.
 const REPO = { label: 'acme/attention', url: 'https://github.com/acme/attention' };
@@ -60,8 +65,10 @@ let context, page, provenanceRead;
 const measure = selector => {
   const root = document.querySelector(selector), style = getComputedStyle(root), edge = root.getBoundingClientRect();
   const row = document.querySelector('[data-provenance-row]').getBoundingClientRect();
-  // The first item in the row (the title, or the brand) ends where the first row ends.
-  const first = [...root.children].find(node => getComputedStyle(node).position !== 'absolute' && node.getBoundingClientRect().height > 0).getBoundingClientRect();
+  // The first item in the row (the title, or the brand) ends where the first row ends. A box with display: contents (the
+  // owned page's header columns with Chat open, Release B A3 item 2) lays out its children as the row's own items.
+  const items = [...root.children].flatMap(node => (getComputedStyle(node).display === 'contents' ? [...node.children] : [node]));
+  const first = items.find(node => getComputedStyle(node).position !== 'absolute' && node.getBoundingClientRect().height > 0).getBoundingClientRect();
   return {
     gap: edge.right - parseFloat(style.paddingRight) - row.right, wrapped: row.top >= first.bottom - 1,
     page: [document.documentElement.scrollWidth, document.documentElement.clientWidth], header: [root.scrollWidth, root.clientWidth],
@@ -292,14 +299,22 @@ await check('12 the member page reads its own route and shows the group without 
   await shot('11-member');
 });
 
-// The right panel opens and closes with a width transition: wait for the header to settle into the expected rows (bounded),
-// then measure; a layout that never gets there fails on the assertion below with what it measured.
+// The right panel opens and closes with a width transition: wait for the header to settle - its width unchanged for 10
+// animation frames - into the expected rows (bounded), then measure; a layout that never gets there fails on the assertions
+// below with what it measured.
 const layout = async (header, wraps) => {
-  await page.waitForFunction(([selector, want]) => window.provenanceLayout(selector).wrapped === want, [header, wraps], { timeout: 5000 }).catch(() => {});
+  await page.waitForFunction(([selector, want]) => {
+    const width = document.querySelector(selector).getBoundingClientRect().width;
+    window.headerFrames = window.headerWidth === width ? (window.headerFrames || 0) + 1 : 0;
+    window.headerWidth = width;
+    return window.headerFrames >= 10 && window.provenanceLayout(selector).wrapped === want;
+  }, [header, wraps], { polling: 'raf', timeout: 5000 }).catch(() => {});
   return page.evaluate(selector => window.provenanceLayout(selector), header);
 };
 const LAYOUTS = [
   { name: 'owned-chat-open', path: OWNED, header: '[data-canvas-header]', chat: true, wraps: true },
+  // Chat closed (Release B A3 item 2): the title is centred, and at 1440 the actions with a repository and a fork fit in the
+  // right half, so the group ends the first row (step 15 has the case where it takes its own line).
   { name: 'owned-chat-closed', path: OWNED, header: '[data-canvas-header]', chat: false, wraps: false },
   { name: 'owned-narrow', path: OWNED, header: '[data-canvas-header]', width: 390, height: 844, wraps: true },
   { name: 'shared', path: `/b/${token}`, header: 'header', signedIn: false, wraps: false },
@@ -330,8 +345,72 @@ await check('13 layout (E2): the group ends at its row\'s right edge - right-ali
   console.log('   group placement:', JSON.stringify(seen));
 });
 
+// Title centring with Chat closed (owner, Release B A3 item 2; lead ruling: the menubar sits after Back): the title group sits
+// at the middle of the header's content box, the menubar on its left, the one-press actions and the provenance group on its
+// right ending at the header's right edge, and a long title truncates without running under a control. With Chat open the
+// header is E2's wrapping row.
+const centring = () => page.locator('[data-canvas-header]').evaluate(root => {
+  const style = getComputedStyle(root), edge = root.getBoundingClientRect(), r = node => node.getBoundingClientRect();
+  const crumbs = r(root.querySelector('[data-title-crumbs]')), left = r(root.querySelector('[data-header-left]')), title = root.querySelector('input[aria-label="Canvas title"]');
+  const actions = r(root.querySelector('[data-header-right] button[aria-label="Present"]')), t = r(title);
+  const mid = (edge.left + parseFloat(style.paddingLeft) + edge.right - parseFloat(style.paddingRight)) / 2;
+  const under = [...root.querySelectorAll('button, a, [role="menubar"]')].filter(node => node.getClientRects().length && node !== title)
+    .map(r).filter(b => b.width > 0 && t.left < b.right - 0.5 && b.left < t.right - 0.5 && t.top < b.bottom - 0.5 && b.top < t.bottom - 0.5).length;
+  return { display: style.display, offset: (crumbs.left + crumbs.right) / 2 - mid, order: left.right <= crumbs.left + 0.5 && crumbs.right <= actions.left + 0.5,
+    truncated: title.scrollWidth > title.clientWidth, under, page: [document.documentElement.scrollWidth, document.documentElement.clientWidth], header: [root.scrollWidth, root.clientWidth] };
+});
+// wraps: whether the group takes its own line - it stays beside the actions only when both fit in the right half.
+const CENTRING = [
+  { name: 'wide-repository', path: OWNED, width: 1440, provenance: { repository: REPO, fork: null }, wraps: false },
+  { name: 'wide', path: OWNED, width: 1440, wraps: false },
+  { name: 'wide-no-provenance', path: OWNED, width: 1440, provenance: { status: 404, body: { error: 'Not found' } } },
+  { name: 'long-title', path: `/apps/${long.name}`, width: 1440, long: true, wraps: true },
+  { name: 'narrow', path: OWNED, width: 390, height: 844, narrow: true, wraps: true },
+];
+await check('15 title centring (Release B A3 item 2): with Chat closed the title group sits at the header\'s centre, the menubar on its left, the actions and the group on its right ending at the right edge; a long title truncates under nothing; Chat open and a phone keep the wrapping row', async () => {
+  const seen = {};
+  for (const theme of ['light', 'dark']) for (const each of CENTRING) {
+    await open(each.path, { provenance: each.provenance || { repository: REPO, fork: FORK }, width: each.width, height: each.height || 900, theme });
+    if (each.wraps === undefined) await settled(`/api/learn/provenance/apps/${canvas.name}`); else await group().waitFor();
+    const hide = page.getByRole('button', { name: 'Hide the right panel' });
+    if (await hide.count()) await hide.click();
+    await page.getByRole('button', { name: 'Show the right panel' }).waitFor();
+    const where = `${each.name} (${theme})`;
+    // The panel closes with a width transition: wait (bounded) for the title to settle at the centre, then assert what it measured.
+    if (!each.narrow) await page.waitForFunction(() => { const root = document.querySelector('[data-canvas-header]'), s = getComputedStyle(root), e = root.getBoundingClientRect(), b = root.querySelector('[data-title-crumbs]').getBoundingClientRect();
+      return s.display === 'grid' && Math.abs((b.left + b.right) / 2 - (e.left + parseFloat(s.paddingLeft) + e.right - parseFloat(s.paddingRight)) / 2) <= 1; }, null, { timeout: 5000 }).catch(() => {});
+    const at = await centring();
+    if (each.narrow) assert.equal(at.display, 'flex', `${where}: a phone keeps the wrapping row`);
+    else {
+      assert.equal(at.display, 'grid', `${where}: the three-column header`);
+      assert.ok(Math.abs(at.offset) <= 1, `${where}: the title is ${at.offset.toFixed(1)}px off the header's centre`);
+      assert.equal(at.order, true, `${where}: the menubar left of the title, the actions right of it`);
+    }
+    if (each.long) assert.equal(at.truncated, true, `${where}: the long title truncates`);
+    assert.equal(at.under, 0, `${where}: the title runs under ${at.under} control(s)`);
+    assert.ok(at.page[0] <= at.page[1], `${where}: the page scrolls sideways (${at.page})`);
+    assert.ok(at.header[0] <= at.header[1], `${where}: the header scrolls sideways (${at.header})`);
+    if (each.wraps !== undefined) {
+      const row = await layout('[data-canvas-header]', each.wraps);
+      assert.ok(Math.abs(row.gap) <= 1, `${where}: the group ends ${row.gap}px from the header's right edge`);
+      assert.equal(row.wrapped, each.wraps, each.wraps ? `${where}: the group does not fit beside the actions, so it takes its own line` : `${where}: the group fits beside the actions, on the title's line`);
+      await clear('[data-canvas-header]');
+    }
+    seen[each.name] = `${each.narrow ? 'wrapping row' : `centred (${at.offset.toFixed(1)}px)`}${each.wraps === undefined ? '' : each.wraps ? ', group own line' : ', group same line'}`;
+    await shot(`centring-${each.name}-${theme}`, page.locator('[data-canvas-header]'));
+  }
+  // Chat open: E2's wrapping row, the column boxes dissolved.
+  await open(OWNED, { provenance: { repository: REPO, fork: FORK } });
+  await forkButton().waitFor();
+  const show = page.getByRole('button', { name: 'Show the right panel' });
+  if (await show.count()) await show.click();
+  await page.getByRole('button', { name: 'Hide the right panel' }).waitFor();
+  assert.equal((await centring()).display, 'flex', 'Chat open keeps the wrapping row');
+  console.log('   title group:', JSON.stringify(seen));
+});
+
 await context.close();
 await browser.close();
 assert.ok(external.every(url => url.startsWith('https://github.com/')), 'only GitHub stubs were reached outside the stack');
 assert.deepEqual(errors, [], 'no page errors');
-console.log(`provenance-check: ${results.length}/14 steps passed`);
+console.log(`provenance-check: ${results.length}/15 steps passed`);

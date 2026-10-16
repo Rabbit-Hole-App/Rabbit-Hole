@@ -105,6 +105,20 @@ const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…',
 // A pending Rabbit Hole (Dive.jsx) opens in its parent's place until its first canvas object keeps it.
 // The right-side Chat workspace (chat-workspace.jsx, owner brief 2026-10-13) wraps the canvas and its panels; the
 // canvas's name scopes its threads.
+// The canvas header's centred layout with Chat closed (owner, Release B A3 item 2), from a frame of this width; below it the
+// header is the wrapping row. Three columns: the menubar after Back (lead ruling: it is not an action cluster), the title
+// group in the middle, the one-press actions and the provenance group at the right. The side columns are equal while both
+// fit, so the title is at the header's centre; the menubar's column never shrinks below the menubar, and the right column
+// never below its widest item, so a long title truncates before anything overlaps. The right column wraps: when the
+// provenance group does not fit beside the actions it takes its own line, right-aligned (as E2). Literal class names, for
+// Tailwind.
+const TITLE_CENTRED = {
+  header: '@min-[1100px]/frame:grid @min-[1100px]/frame:grid-cols-[minmax(max-content,1fr)_auto_minmax(min-content,1fr)] @min-[1100px]/frame:items-start',
+  left: 'contents @min-[1100px]/frame:col-start-1 @min-[1100px]/frame:row-start-1 @min-[1100px]/frame:flex @min-[1100px]/frame:items-center',
+  title: '@min-[1100px]/frame:col-start-2 @min-[1100px]/frame:row-start-1 @min-[1100px]/frame:min-w-min',
+  right: 'contents @min-[1100px]/frame:col-start-3 @min-[1100px]/frame:row-start-1 @min-[1100px]/frame:flex @min-[1100px]/frame:flex-wrap @min-[1100px]/frame:items-center @min-[1100px]/frame:justify-end @min-[1100px]/frame:gap-1 @min-[1100px]/frame:gap-y-0.5 @min-[1100px]/frame:[&>[data-provenance-row]]:ml-0',
+};
+
 export default function LearnPage(props) {
   const hole = usePendingHole(props.app);
   return <ChatWorkspaceProvider canvas={hole ? hole.name : props.app.name}>{hole ? <LearnSurface key={hole.name} app={holeApp(props.app, hole)} hole={hole} /> : <LearnSurface {...props} />}</ChatWorkspaceProvider>;
@@ -1815,7 +1829,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     <section aria-label="Learn" className={`min-h-0 min-w-0 flex-1 ${!courseView && learningView === 'lesson' ? 'max-lg:flex-none' : ''}`}>
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
-      <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
+      <div className={`expanded-page-frame @container/frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
         {pdfAdd && <PdfAddDialog key={pdfAdd.total ?? 'reading'} name={pdfAdd.name} total={pdfAdd.total} busy={pdfAdd.busy} progress={pdfAdd.progress} error={pdfAdd.error} onCancel={closePdf} onConfirm={confirmPdf} />}
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
         {/* One centered strip is all the chrome the canvas gets: an editable
@@ -1823,8 +1837,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             heading, no rule underneath - the canvas has no boundary. */}
         {/* A row narrower than its content (the canvas beside the companion column and Chat) wraps instead of clipping its
             start; not a scroller, which would clip the menus' dropdowns. Centred only while it fits (safe), and it starts
-            after the absolute Back button, so the crumbs never run under it or off screen. */}
-        {!canvasState.presenting && <div data-canvas-header className="relative flex shrink-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5 pt-3 pr-3 pb-1 pl-12 max-md:px-2 max-md:pt-2">
+            after the absolute Back button, so the crumbs never run under it or off screen.
+            With Chat closed on a wide frame (owner, Release B A3 item 2) a three-column grid (TITLE_CENTRED): the menubar after
+            Back, the title group at the centre, the actions and the provenance group at the right. With Chat open, or on a
+            narrower frame, the column boxes dissolve (contents) into the wrapping row above, in the same order, the group
+            right-aligned on the next row when it wraps (E2). */}
+        {!canvasState.presenting && <div data-canvas-header className={`relative flex shrink-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5 pt-3 pr-3 pb-1 pl-12 max-md:px-2 max-md:pt-2 ${panelOpen ? '' : TITLE_CENTRED.header}`}>
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
@@ -1834,7 +1852,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               kept whole on a desktop (the canvas narrows beside the Chat pane) and on a phone shrinking first down to its
               minimum; then the canvas title (renamable) and what hangs off it. The project's
               name is the one its card shows (cardModel), never the repository's own. */}
-          <div data-title-crumbs className="flex max-w-full min-w-0 items-center">
+          <div data-title-crumbs className={`flex max-w-full min-w-0 items-center ${panelOpen ? '' : TITLE_CENTRED.title}`}>
           {project && <>
             <button type="button" data-project-crumb title={cardModel(project).title} onClick={() => navigate(canvasHref(project.name))}
               className="h-8 max-w-60 min-w-12 shrink-[50] truncate rounded-lg md:shrink-0 px-1.5 text-sm text-ink-2 hover:bg-hover hover:text-ink">{cardModel(project).title}</button>
@@ -1864,7 +1882,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               switcher here already, so the holes are a group in that menu, never a second control. */}
           {switcher ? cloneElement(switcher, { holes: dive.titleHoles }) : <TitleHoles {...dive.titleHoles} />}
           </div>
-          <CanvasMenubar menus={canvasMenus} />
+          <div data-header-left className={panelOpen ? 'contents' : TITLE_CENTRED.left}><CanvasMenubar menus={canvasMenus} /></div>
+          <div data-header-right className={panelOpen ? 'contents' : TITLE_CENTRED.right}>
           {/* The document's save status and the board's size (blocknote-canvas.md): Saved only once the server has it. A 409 or
               a document a newer server copy replaced are offered back here, never dropped. */}
           {docView === 'editor' && saveState && (
@@ -1929,6 +1948,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               the next row when the header wraps (E2). The repository's indexing status and details menu stay beside it (2A):
               there is no repository page any more; its Files and Graph open beside Chat (PanelHeader, Explore codebase). */}
           <ProvenanceRow provenance={provenance}>{repository && <RepositoryBadge repository={repository} />}</ProvenanceRow>
+          </div>
         </div>}
         {learningView === 'curriculum' && canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
         {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}
