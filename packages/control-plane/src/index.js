@@ -1104,7 +1104,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     scopedApp = app;
     // appContext reads live runs/members by app.id, and LEARN_DB canvas ids overlap live ids.
     context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : seam ? repository?.context ?? seam.context : await appContext(env, app, useSet);
-    context = appendOutline(context, body.outline);
+    context = appendOutline(context, body.outline, body.outlineOmitted);
     canAct = !lessonSnapshot && !!app.canEdit;
     scopeKind = conversation === 'learn' ? 'learn' : 'app';
     scopeRef = scope.app;

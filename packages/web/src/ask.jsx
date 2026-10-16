@@ -26,7 +26,7 @@ import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
-import { outlineRevision } from './learn-outline-model.js';
+import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import { destinationOf } from './answer-destination.js';
 import { commandTone } from './CommandTone.jsx';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
@@ -599,7 +599,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
         // outlineRevision: the revision these headings were read at, echoed back as a proposal's base (R4 contract C4).
-        ...(questionOutline?.length ? { outline: questionOutline, outlineRevision: outlineRevision(questionOutline) } : {}),
+        // Past MAX_OUTLINE_HEADINGS (owner decision, Release A3 item 1) the headings stay home and outlineOmitted says how many
+        // there are, so the Tutor knows the contents exist and does not edit them; the question itself is unaffected.
+        ...(questionOutline?.length > MAX_OUTLINE_HEADINGS ? { outlineOmitted: { count: questionOutline.length } }
+          : questionOutline?.length ? { outline: questionOutline, outlineRevision: outlineRevision(questionOutline) } : {}),
         // The page read: a selected page, else the open reader (its selection included), else an uploaded-paper page chip in the
         // composer (pdf-to-canvas.md), so the chip asks about its page after the selection is cleared. home: a copied page's canvas.
         ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.home ? { home: questionPaper.home } : {}), ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : chat && turnPaper(null, chat.context.attached) ? { paper_context: turnPaper(null, chat.context.attached) } : {}),

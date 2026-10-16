@@ -6,10 +6,10 @@ import { arxivId, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isCanvasName, isUploadedPaperId, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { isUploadedMediaId } from './learn-media.js';
-import { validateOutline, renderOutline } from './learn-context.js';
+import { validateOutline, validateOutlineOmitted, renderOutline, MAX_OUTLINE_HEADINGS } from './learn-context.js';
 import { wikiTitle } from './learn-wiki.js';
 import { validateVideoContext } from './learn-youtube.js';
-import { PAPER_CONTEXT_INSTRUCTION, IMAGE_CONTEXT_INSTRUCTION, WIKI_CONTEXT_INSTRUCTION, WIKI_CONTEXT_READ_ONLY_INSTRUCTION, VIDEO_CONTEXT_INSTRUCTION, OUTLINE_CONTEXT_HEADER, CANVAS_TARGET_HEADER } from './agents/learn-chat.js';
+import { PAPER_CONTEXT_INSTRUCTION, IMAGE_CONTEXT_INSTRUCTION, WIKI_CONTEXT_INSTRUCTION, WIKI_CONTEXT_READ_ONLY_INSTRUCTION, VIDEO_CONTEXT_INSTRUCTION, OUTLINE_CONTEXT_HEADER, outlineOmittedNote, CANVAS_TARGET_HEADER } from './agents/learn-chat.js';
 
 // Throws the 400 message for the first malformed field; returns the validated video context.
 export function validateLearnContext(body, conversation) {
@@ -18,6 +18,13 @@ export function validateLearnContext(body, conversation) {
       if (conversation !== 'learn') throw new Error('Outline is a Learn idea');
       validateOutline(body.outline);
     } catch { throw new Error('Invalid lesson outline'); }
+  }
+  // The contents' heading count when they were too many to send: never beside the outline itself.
+  if (body.outlineOmitted !== undefined) {
+    try {
+      if (conversation !== 'learn' || body.outline !== undefined) throw new Error('Omitted outline is a Learn idea, instead of the outline');
+      validateOutlineOmitted(body.outlineOmitted);
+    } catch { throw new Error('Invalid omitted lesson outline'); }
   }
   // The revision the outline was read at (R4 contract C4): echoed back as a proposal's base, never interpreted here.
   if (body.outlineRevision !== undefined && (conversation !== 'learn' || body.outline === undefined || typeof body.outlineRevision !== 'string' || !/^[0-9a-f]{8}$/.test(body.outlineRevision))) throw new Error('Invalid lesson outline revision');
@@ -83,12 +90,16 @@ ${JSON.stringify({ ...target, text })}${text.length < target.text.length ? `
 }
 
 // The lesson's own table of contents, so a question about its structure is
-// answered from the outline rather than inferred from the cards.
-export function appendOutline(context, outline) {
-  return outline?.length ? `${context}
+// answered from the outline rather than inferred from the cards. `omitted` ({ count }): the contents were too many to
+// send, so the Tutor is told they exist and why it cannot change them.
+export function appendOutline(context, outline, omitted = null) {
+  if (outline?.length) return `${context}
 
 ${OUTLINE_CONTEXT_HEADER}
-${renderOutline(outline)}` : context;
+${renderOutline(outline)}`;
+  return omitted ? `${context}
+
+${outlineOmittedNote(omitted.count, MAX_OUTLINE_HEADINGS)}` : context;
 }
 
 // The one source that rides, as { <kind>: ..., instruction } for the caller to merge beside its

@@ -28,6 +28,8 @@ test('Use as table of contents proposes the saved syllabus through toContents an
   assert.match(source, /syllabusProposal\(\{ \.\.\.syllabus, topics: topics\.map\(/);
   assert.match(source, /toContents\.propose\(proposal\)/);
   assert.match(source, /toContents\.outline\(\)/, 'against the contents as they are at the click');
+  // Owner decision, Release A3 item 1: an adoption past the 120-heading limit is refused here, whole, before any proposal.
+  assert.match(source, /else if \(problem\) setAdopted\(`\$\{problem\} Nothing was changed\.`\);\s*else \{ toContents\.propose\(proposal\)/);
   assert.match(source, /data-syllabus-contents disabled=\{dirty\}/, 'unsaved edits are saved first');
   assert.match(source, /Already in the table of contents\./);
   assert.doesNotMatch(source, /applyOutline/);

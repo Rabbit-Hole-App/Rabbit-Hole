@@ -138,6 +138,16 @@ test('describe sets an existing heading\'s description, 1-240 characters, by id'
   assert.equal(validateOutlineOps([{ op: 'describe', id: 'b1', description: 'x'.repeat(240) }], tree)[0].description.length, 240);
 });
 
+// Owner decision, Release A3 item 1: a Tutor proposal never takes the contents past 120; the refusal says how many fit.
+test('adds that would take the contents past 120 headings are refused with how many more fit', () => {
+  const outline = n => Array.from({ length: n }, (_, i) => ({ id: `h${i}`, level: 1, label: `S${i}`, done: false }));
+  const adds = n => Array.from({ length: n }, (_, i) => ({ op: 'add', text: `New ${i}`, level: 1 }));
+  assert.equal(validateOutlineOps(adds(1), outline(119)).length, 1);
+  assert.throws(() => validateOutlineOps(adds(1), outline(120)), /^Error: The table of contents holds at most 120 headings and has 120: no more fit$/);
+  assert.throws(() => validateOutlineOps(adds(3), outline(118)), /has 118: 2 more fit$/);
+  assert.equal(validateOutlineOps([{ op: 'retitle', id: 'h0', text: 'R' }], outline(120)).length, 1, 'a rename adds nothing');
+});
+
 test('one bad op refuses the whole proposal', () => {
   assert.throws(() => validateOutlineOps([{ op: 'add', text: 'fine', level: 2, parent: 'a' }, { op: 'add', text: 'bad', level: 2, parent: 'missing' }], tree));
 });

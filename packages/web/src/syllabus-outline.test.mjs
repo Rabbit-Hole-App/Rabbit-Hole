@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { syllabusToOutlineOps, syllabusProposal } from './syllabus-outline.js';
-import { outlineFrom, outlineRevision, applyOutlineProposal } from './learn-outline-model.js';
+import { outlineFrom, outlineRevision, applyOutlineProposal, MAX_OUTLINE_HEADINGS } from './learn-outline-model.js';
 
 const syllabus = {
   goal: 'Read a tide table',
@@ -75,11 +75,39 @@ test('an old syllabus without descriptions or subtopics adopts as plain level-1 
   assert.deepEqual(syllabusToOutlineOps({ topics: [] }, outline), []);
 });
 
-// The page caps a syllabus proposal at 96 ops (lead ruling C8 size A), so the button carries no size guard of its own.
+// The page caps a syllabus proposal at 96 ops (lead ruling C8 size A); the contents' 120-heading limit is the test below.
 test('the largest valid syllabus (12 topics, 6 subtopics each) stays within the 96-op cap, on empty and on matching contents', () => {
   const big = { topics: Array.from({ length: 12 }, (_, i) => ({ title: `Unit ${i + 1}`, description: 'd', objectives: ['o'], subtopics: Array.from({ length: 6 }, (_, j) => ({ title: `Part ${j + 1}` })) })) };
   assert.equal(syllabusToOutlineOps(big, []).length, 84);
   const titlesOnly = big.topics.map((t, i) => ({ id: `u${i}`, level: 1, label: t.title, done: false, description: '' }));
   assert.equal(syllabusToOutlineOps(big, titlesOnly).length, 84, '12 describes and 72 subtopic adds');
   // Applying 84 is the page's cap (PANEL 5b9343ef, table-of-contents tests) and toc-tutor-check step 8 on the release.
+});
+
+// Owner decision, Release A3 item 1: adoption is checked against the resulting total, existing headings included. The
+// largest syllabus (84 headings) fits empty contents and fits beside 36 others; beside 37 the whole adoption is refused
+// with how many more fit, and the existing contents stay exactly as they were.
+test('the largest syllabus adopts into empty contents and into existing ones that leave room; past 120 nothing applies', () => {
+  const big = { topics: Array.from({ length: 12 }, (_, i) => ({ title: `Unit ${i + 1}`, description: 'd', objectives: ['o'], subtopics: Array.from({ length: 6 }, (_, j) => ({ title: `Part ${j + 1}` })) })) };
+  // As the page applies it: with the proposal's source, so the syllabus op cap and the heading limit both hold.
+  const adoptAll = (blocks, proposal) => applyOutlineProposal(blocks, proposal.ops, { base: proposal.base, source: proposal.source, newId });
+  const headings = blocks => blocks.filter(block => block.type === 'heading').length;
+  const empty = adoptAll([], syllabusProposal(big, []));
+  assert.equal(empty.ok, true);
+  assert.equal(headings(empty.blocks), 84);
+  const others = n => Array.from({ length: n }, (_, i) => ({ id: `o${i}`, type: 'heading', level: 1, text: `Mine ${i}`, done: false }));
+  const fits = adoptAll(others(36), syllabusProposal(big, outlineFrom(others(36))));
+  assert.equal(fits.ok, true);
+  assert.equal(headings(fits.blocks), MAX_OUTLINE_HEADINGS);
+  assert.deepEqual(fits.blocks.slice(0, 36), others(36), 'the existing headings are kept, in order');
+  const before = others(37);
+  const over = adoptAll(before, syllabusProposal(big, outlineFrom(before)));
+  assert.deepEqual([over.ok, over.reason], [false, 'invalid']);
+  assert.equal(over.message, 'This proposal cannot be applied: it adds 84 headings to 37, and the contents hold at most 120: 83 more fit.');
+  assert.equal(over.blocks, undefined, 'nothing partly applied');
+  assert.deepEqual(before, others(37), 'the existing contents are untouched');
+  // A matching topic adds only its missing subtopics, so the same syllabus beside its own titles counts 72 new headings.
+  const titles = big.topics.map((t, i) => ({ id: `u${i}`, type: 'heading', level: 1, text: t.title, done: false }));
+  assert.equal(adoptAll([...titles, ...others(36)], syllabusProposal(big, outlineFrom([...titles, ...others(36)]))).ok, true, '12 + 36 + 72 = 120');
+  assert.match(adoptAll([...titles, ...others(37)], syllabusProposal(big, outlineFrom([...titles, ...others(37)]))).message, /adds 72 headings to 49, .*: 71 more fit\.$/);
 });
