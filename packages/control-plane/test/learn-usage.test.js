@@ -482,3 +482,29 @@ test('the dev worker records an image generation as an estimated media attempt o
   assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.status, a.result]), [['u-owner-3c9f', 'image', 'completed', 'full']]);
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'estimated', imageEstimate('a cat')]]);
 });
+
+test('shared canvas Next Steps: a signed-out visitor is platform-funded, a signed-in viewer pays, never the canvas owner', async t => {
+  const { setup } = await import('./shared-canvas-fixture.js');
+  const { fixtureModel } = await import('../src/learn-journey-fixtures.js');
+  t.mock.method(console, 'log', () => {});
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options) => { assert.equal(new URL(url).host, 'api.anthropic.com'); return fixtureModel(null, JSON.parse(options.body)); };
+  t.after(() => { globalThis.fetch = original; });
+  const store = new Map(), had = 'caches' in globalThis, caches = globalThis.caches;
+  globalThis.caches = { default: { match: async () => undefined, put: async (key, response) => { store.set(key, response); } } };
+  t.after(() => { if (had) globalThis.caches = caches; else delete globalThis.caches; });
+  for (const [as, expected] of [[null, [null, 'platform', 'anonymous_public', 'platform']], ['ben', ['u-ben-9a2b', 'user', 'signed_in', 'would_charge']]]) {
+    // The per-request context rides in on the fixture's env (a spread copies the Symbol); it is reset to a fresh request after the owner shares.
+    const vars = withUsage({ SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: '10' }, { feature: 'shared_next_steps' });
+    const f = setup(t, { vars });
+    const { token } = await f.shareProject();
+    Object.assign(usageContext(vars), { identity: undefined, action: null, final: null });
+    const got = await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body: { origin: null } });
+    assert.equal(got.status, 200, got.text);
+    const actions = f.sqlite.prepare('SELECT a.user_id, a.payer, a.payer_reason, a.charge_class, COUNT(t.attempt_id) AS attempts FROM usage_actions a JOIN usage_attempts t USING (action_id) GROUP BY a.action_id').all();
+    assert.equal(actions.length, 1, as || 'anonymous');
+    assert.deepEqual([actions[0].user_id, actions[0].payer, actions[0].payer_reason, actions[0].charge_class], expected);
+    assert.ok(actions[0].attempts >= 1);
+    assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM usage_actions WHERE user_id = 'u-ana-5d1e'").get().n, 0, 'the owner never pays for a viewer');
+  }
+});
