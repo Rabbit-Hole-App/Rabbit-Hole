@@ -108,7 +108,7 @@ test('Fork and Start Rabbit Hole from /e ask a signed-out viewer to sign in, the
   assert.deepEqual([anonFork.status, anonFork.body.signIn, anonHole.status, anonHole.body.signIn], [401, true, 401, true]);
   const fork = (await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { source: { token }, key: 'pub-fork-0002' } })).body;
   const card = (await f.call('GET', `/api/apps/${fork.name}`, { as: 'ben' })).body;
-  assert.deepEqual([card.owner_handle, card.forked_from_handle, card.forked_from_url, card.published], ['ben', 'ana', `/e/${token}`, false], 'the fork is Ben\'s, private, crediting @ana');
+  assert.deepEqual([card.owner_handle, card.forked_from?.handle, card.forked_from?.url, card.published], ['ben', 'ana', `/e/${token}`, false], 'the fork is Ben\'s, private, crediting @ana');
   const hole = (await f.call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as: 'ben', body: { origin: null } })).body;
   assert.deepEqual([hole.source.share_url, hole.source.creator], [`/e/${token}`, null]);
   assert.ok(!JSON.stringify(hole).includes('ana@test'));
@@ -124,7 +124,7 @@ test('Remove from Explore kills /e and the listing, not the share link; archivin
   await f.call('POST', `/api/apps/${canvas.name}/unpublish`, { as: 'ana' });
   assert.deepEqual([(await open(f, token)).status, await explore(f)], [404, []]);
   assert.equal((await open(f, shareToken)).status, 200, 'the share link still opens');
-  assert.equal((await f.call('GET', `/api/apps/${fork.name}`, { as: 'ben' })).body.forked_from_url, null, 'the fork stays, its original now unavailable to it');
+  assert.deepEqual((await f.call('GET', `/api/apps/${fork.name}`, { as: 'ben' })).body.forked_from, { state: 'private' }, 'the fork stays, its original now private to it');
   // Publishing again mints a new token; the old one stays dead.
   const again = tokenOf((await publish(f, 'ana', canvas.name)).body);
   assert.notEqual(again, token);

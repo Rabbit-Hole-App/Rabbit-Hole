@@ -165,7 +165,7 @@ await confirmFork();
 await anon.page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 60000 });
 const forkName = new URL(anon.page.url()).pathname.split('/').pop();
 const fork = (await api(who.late, `/api/apps/${forkName}`)).body;
-check('Fork signed out -> sign in -> the fork is made from the same publication, owned by the forker, crediting @owner', wrongFork === null && fork.owner_handle === H.late && fork.forked_from_handle === H.owner && fork.forked_from_url === `/e/${token}` && fork.published === false, wrongFork || '');
+check('Fork signed out -> sign in -> the fork is made from the same publication, owned by the forker, crediting @owner', wrongFork === null && fork.owner_handle === H.late && fork.forked_from?.handle === H.owner && fork.forked_from?.url === `/e/${token}` && fork.published === false, wrongFork || '');
 await anon.context.clearCookies();
 await anon.page.goto(`${BASE}/e/${token}`);
 await anon.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });

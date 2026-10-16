@@ -68,11 +68,11 @@ test('a fork belongs to the forker and credits the original owner\'s @handle; ca
   const a = await f.shareOf('alice', 'Transformers');
   const fork = (await f.call('POST', '/api/learn/boards/fork', { as: 'bob', body: { source: { token: a.link }, key: 'handle-fork-0001' } })).body;
   const mine = await f.card('bob', fork.name);
-  assert.deepEqual([mine.owner_email, mine.owner_handle, mine.forked_from_title, mine.forked_from_handle], ['bob@test', 'bob', 'Transformers', 'alice']);
-  assert.deepEqual([(await f.card('alice', a.name)).owner_handle, (await f.card('alice', a.name)).forked_from_handle], ['alice', null]);
-  // Nothing stored with the fork names Alice's email: the board's provenance carries no creator.
+  assert.deepEqual([mine.owner_email, mine.owner_handle, mine.forked_from?.title, mine.forked_from?.handle], ['bob@test', 'bob', 'Transformers', 'alice']);
+  assert.deepEqual([(await f.card('alice', a.name)).owner_handle, (await f.card('alice', a.name)).forked_from], ['alice', null]);
+  // Nothing stored with the fork names Alice's email: the board says only that it is a fork.
   const board = await f.call('GET', `/api/learn/boards/${fork.name}/main`, { as: 'bob' });
-  assert.equal(board.body.forked_from.creator, null);
+  assert.deepEqual([board.body.forked, board.body.forked_from], [true, undefined]);
   assert.ok(!JSON.stringify(board.body).includes('alice@test'));
   // Bob's own private canvas (and a nested hole of his) carries his handle the same way.
   const hole = (await f.call('POST', `/api/learn/boards/shared/${a.link}/rabbit-hole`, { as: 'bob', body: { origin: null } })).body;
@@ -91,7 +91,7 @@ test('a changed handle shows everywhere at once, with no canvas rewritten; unrel
   const forksBefore = JSON.stringify(f.sqlite.prepare('SELECT * FROM canvas_forks').all());
   assert.equal((await f.claim('alice', 'wonderland')).body.handle, 'wonderland');
   assert.equal((await f.card('alice', a.name)).owner_handle, 'wonderland');
-  assert.equal((await f.card('bob', fork.name)).forked_from_handle, 'wonderland');
+  assert.equal((await f.card('bob', fork.name)).forked_from?.handle, 'wonderland');
   assert.equal((await f.call('GET', `/api/learn/boards/shared/${a.link}`)).body.creator.handle, 'wonderland');
   assert.equal(JSON.stringify(f.sqlite.prepare('SELECT * FROM canvases ORDER BY id').all()), canvasesBefore, 'no canvas row rewritten');
   assert.equal(JSON.stringify(f.sqlite.prepare('SELECT * FROM canvas_forks').all()), forksBefore, 'no fork row rewritten');

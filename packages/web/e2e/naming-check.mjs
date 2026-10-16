@@ -47,7 +47,7 @@ await check('1 the Library ⋮ on your own canvas offers Duplicate; it makes "(2
   await duplicateFrom(TITLE);
   await card(`${TITLE} (2)`).waitFor({ timeout: 20000 });
   const copy = (await api('/api/canvases')).body.canvases.find(c => c.title === `${TITLE} (2)`);
-  assert.equal(copy.forked_from_title, null, 'never a fork');
+  assert.equal(copy.forked_from, null, 'never a fork');
   assert.equal(copy.published, false);
 });
 await shot('library-after-duplicate');

@@ -45,10 +45,9 @@ function canvasTitle(value) {
   if (typeof value !== 'string' || value.trim().length > TITLE) throw Error(`Use a title of up to ${TITLE} characters`);
   return value.trim();
 }
-// Fork provenance on every canvas its owner reads (docs/features/canvas-forking.md): the source's title when
-// it was forked, a link to the source only while this owner may still open it - their own canvas, or the
-// live share link they forked through; never a newer link or anything else about a source they lost - and
-// the canvas's direct fork count. `published`: whether its owner published it to Explore - only an explicit owner action
+// Fork provenance on every canvas its owner reads (docs/features/canvas-forking.md; owner decision E1, 2026-10-16): the
+// immediate source as the header resolves it for this owner now (withForkSources), never the title saved when it was
+// forked - and the canvas's direct fork count. `published`: whether its owner published it to Explore - only an explicit owner action
 // writes canvas_publications (docs/features/explore-publish.md); a share link, public_view, a fork or a Rabbit Hole never does.
 export const FORK_COUNT = '(SELECT count(*) FROM canvas_forks k JOIN canvases kc ON kc.org = k.org AND kc.name = k.canvas WHERE k.forked_from_org = c.org AND k.forked_from_canvas_id = c.name)';
 // A person's public handle and display name, by reference (docs/features/user-handles.md): read at the moment, never
@@ -57,27 +56,36 @@ export const FORK_COUNT = '(SELECT count(*) FROM canvas_forks k JOIN canvases kc
 // bare name can never bind to them and match every row.
 export const HANDLE_OF = email => `(SELECT uh.handle FROM user_handles uh WHERE uh.email = ${email})`;
 export const NAME_OF = email => `(SELECT up.name FROM user_profiles up WHERE up.email = ${email})`;
-// The owner's handle and name (Home/Library cards, nested holes included), and the handle of whoever owned the source
-// of a fork ("Forked from ... · @alice"); the fork itself is the forker's.
-const CANVAS_ROW = `SELECT c.*, f.forked_from_title, CASE
-    WHEN src.org = c.org AND src.owner_email = c.owner_email THEN '/apps/' || src.name
-    WHEN f.forked_from_share IS NOT NULL AND (f.forked_from_canvas_id IS NULL OR src.name IS NOT NULL)
-      AND EXISTS (SELECT 1 FROM learn_boards b WHERE b.shared = 1 AND b.view_token = f.forked_from_share) THEN '/b/' || f.forked_from_share
-    WHEN f.forked_from_share IS NOT NULL AND EXISTS (SELECT 1 FROM canvas_publications pp JOIN canvases pc ON pc.org = pp.org AND pc.name = pp.canvas AND pc.archived_at IS NULL WHERE pp.token = f.forked_from_share) THEN '/e/' || f.forked_from_share
-  END AS forked_from_url, ${FORK_COUNT} AS fork_count,
-  ${HANDLE_OF('c.owner_email')} AS owner_handle, ${NAME_OF('c.owner_email')} AS owner_name, ${HANDLE_OF('f.forked_from_owner_id')} AS forked_from_handle,
+// The owner's handle and name (Home/Library cards, nested holes included); the fork itself is the forker's. A fork row's
+// recorded parent is read here only for withForkSources, which replaces it with the resolved source.
+const CANVAS_ROW = `SELECT c.*, f.canvas IS NOT NULL AS fork_row, f.owner_email AS fork_owner, f.forked_from_org AS fork_parent_org, f.forked_from_canvas_id AS fork_parent, f.forked_from_share AS fork_parent_share,
+  ${FORK_COUNT} AS fork_count,
+  ${HANDLE_OF('c.owner_email')} AS owner_handle, ${NAME_OF('c.owner_email')} AS owner_name,
   (SELECT p.token FROM canvas_publications p WHERE p.org = c.org AND p.canvas = c.name) AS publication_token,
   m.description, COALESCE(m.updated_at, c.created_at) AS updated_at,
   (SELECT b.shared FROM learn_boards b WHERE b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main') AS shared,
   EXISTS (SELECT 1 FROM learn_boards b WHERE b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main') AS board_saved,
   (SELECT t.trashed_at FROM library_trash t WHERE t.org = c.org AND t.name = c.name) AS trashed_at
   FROM canvases c LEFT JOIN canvas_forks f ON f.org = c.org AND f.canvas = c.name
-  LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
-  LEFT JOIN canvases src ON src.org = f.forked_from_org AND src.name = f.forked_from_canvas_id`;
+  LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name`;
+// forked_from: null (not a fork), or its immediate source for this viewer from the header's resolver (learn-provenance.js
+// sourceAccess): { state: 'accessible', title, url, handle }, { state: 'private' } or { state: 'unavailable' }. Every row of
+// a list in one query, never one per card.
+async function withForkSources(env, rows, user) {
+  const forks = rows.filter(row => row.fork_row);
+  const { sourceAccess } = forks.length ? await import('./learn-provenance.js') : {};
+  const sources = forks.length ? await sourceAccess(env, forks.map(row => ({ org: row.fork_parent_org, name: row.fork_parent, share: row.fork_parent_share, forker: { org: row.org, email: row.fork_owner } })), user) : [];
+  const of = new Map(forks.map((row, index) => [row, sources[index]]));
+  return rows.map(row => {
+    const { fork_row: _fork, fork_owner: _forker, fork_parent_org: _org, fork_parent: _parent, fork_parent_share: _share, ...rest } = row;
+    return { ...rest, forked_from: of.get(row) ?? null };
+  });
+}
 async function ownedCanvas(env, user, name) {
-  const row = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.name=?`).bind(user.org, name).first();
-  if (!row) return json({ error: 'Canvas not found in this workspace' }, 404);
-  if (row.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
+  const found = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.name=?`).bind(user.org, name).first();
+  if (!found) return json({ error: 'Canvas not found in this workspace' }, 404);
+  if (found.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
+  const [row] = await withForkSources(env, [found], user);
   return canvasApp(row, user);
 }
 // `pending` ({ parent: { app, board }, title }) lets a pending Rabbit Hole's chat and / commands run
@@ -116,7 +124,7 @@ export async function freeTitle(db, org, owner, title) {
 // from someone's shared canvas (parent `share:...`) is a root of the viewer's own, so it is listed.
 export async function ownerCanvases(env, user, archived = false) {
   const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND ${NOT_TRASHED('c.org', 'c.name')} AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') ORDER BY updated_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
-  return results.map(row => canvasApp(row, user));
+  return (await withForkSources(env, results, user)).map(row => canvasApp(row, user));
 }
 
 // Exactly the slugs canvasesFetch creates, so a live app that merely starts with canvas- stays live.

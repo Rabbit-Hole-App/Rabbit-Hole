@@ -88,7 +88,7 @@ await friend.waitForURL(url => /^\/apps\/canvas-[a-f0-9]{8}$/.test(url.pathname)
 const canvasName = new URL(friend.url()).pathname.split('/').pop();
 const copy = await friend.evaluate(async name => { const r = await fetch(`/api/learn/boards/${name}/main`); return { status: r.status, body: await r.json() }; }, canvasName);
 check('Fork makes the friend their own canvas holding a copy of the board', /^canvas-[a-f0-9]{8}$/.test(canvasName) && copy.status === 200
-  && copy.body.state.shapes.some(shape => shape.id === 'shared-rect') && copy.body.forked_from?.creator?.name === 'yudhisteer.chin@gmail.com',
+  && copy.body.state.shapes.some(shape => shape.id === 'shared-rect') && copy.body.forked === true,
   `${canvasName} ${copy.status}`);
 const saved = await friend.evaluate(async ([name, state]) => (await fetch(`/api/learn/boards/${name}/main`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state, version: 1 }) })).status, [canvasName, { ...copy.body.state, shapes: [] }]);
 check('the fork is editable by the forker; the shared original is not changed', saved === 200

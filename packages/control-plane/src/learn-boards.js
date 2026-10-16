@@ -278,7 +278,7 @@ const CANVAS_EXISTS = "(b.app NOT LIKE 'canvas-%' OR EXISTS (SELECT 1 FROM canva
 // A canvas or project in Trash suspends its links (docs/features/library-trash.md), and a Rabbit Hole under it sleeps
 // with it however deep (beta hardening 3c): the walk climbs canvas_dives only - a fork is linked by canvas_forks and is
 // nobody's child - and UNION ends a corrupted cycle. Restore wakes the same tokens; nothing is rewritten.
-const NO_TRASHED_ANCESTOR = `NOT EXISTS (WITH RECURSIVE up(app) AS (SELECT b.app UNION SELECT d.parent_app FROM canvas_dives d JOIN up ON d.child = up.app WHERE d.org = b.org AND d.owner_email = b.owner_email)
+export const NO_TRASHED_ANCESTOR = `NOT EXISTS (WITH RECURSIVE up(app) AS (SELECT b.app UNION SELECT d.parent_app FROM canvas_dives d JOIN up ON d.child = up.app WHERE d.org = b.org AND d.owner_email = b.owner_email)
   SELECT 1 FROM up JOIN library_trash t ON t.org = b.org AND t.name = up.app)`;
 async function sharedRow(env, token) {
   if (!TOKEN.test(token)) return null;
@@ -518,7 +518,7 @@ async function fork(req, env, body, { duplicate = false } = {}) {
     return json({ error: `The ${duplicate ? 'copy' : 'fork'} could not be made: ${error.message}` }, 500);
   }
   if (duplicate) return json(forkReply(name, title, { files, duplicate: true }), 201);
-  return json(forkReply(name, title, { files, forked_from: forkedFrom, source_fork_count: await sourceForkCount(db, source.org, source.canvas) }), 201);
+  return json(forkReply(name, title, { files, source_fork_count: await sourceForkCount(db, source.org, source.canvas) }), 201);
 }
 
 // Start Rabbit Hole (docs/features/shared-canvas-rabbit-hole.md): a viewer's own private Rabbit Hole from a
@@ -894,7 +894,9 @@ export async function learnBoardsRoute(path, req, env) {
   if (req.method === 'GET') {
     const row = await ownerRow(env, owner, app, board);
     // board_id: the owner's own key for the canvas's comments (docs/features/canvas-comments.md); never shown to a viewer.
-    return row ? json({ version: row.version, board_id: row.id, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked_from: row.forked_from ? JSON.parse(row.forked_from) : null, sharing: await ownerSharing(env, row), state: JSON.parse(row.state_json) }) : json({ exists: false, sharing: sharingOf(null) });
+    // forked: whether this board was made by a fork - never the source's title, ids or link as saved then (owner decision E1,
+    // 2026-10-16): where it came from is resolved for this viewer by the provenance routes and the Library rows.
+    return row ? json({ version: row.version, board_id: row.id, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked: !!row.forked_from, sharing: await ownerSharing(env, row), state: JSON.parse(row.state_json) }) : json({ exists: false, sharing: sharingOf(null) });
   }
   if (req.method === 'PUT') return saveOwn(env, owner, app, board, await readBody(req));
   return json({ error: 'Method not allowed' }, 405);

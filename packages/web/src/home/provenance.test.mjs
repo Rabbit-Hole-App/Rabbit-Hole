@@ -7,21 +7,22 @@ import { FIXTURES } from './review-fixtures-data.js';
 const store = (entries = {}) => { const m = new Map(Object.entries(entries)); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
 const byName = (name) => FIXTURES.find((a) => a.name === name);
 
-// docs/features/user-handles.md: the server sends owner_handle / forked_from_handle by reference.
+// docs/features/user-handles.md: the server sends owner_handle, and a fork source's handle (forked_from.handle) while the
+// source is open to this person (owner decision E1, 2026-10-16), by reference.
 test('creator attribution is @handle, the display name first when set, and never an email', () => {
   assert.equal(creatorLabel({ handle: 'ada' }), '@ada');
   assert.equal(creatorLabel({ handle: 'ada', name: 'Ada Lovelace' }), 'Ada Lovelace · @ada');
   assert.equal(creatorLabel(null), null);
   assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000e', title: 'Mine', owner_email: 'ada@test', owner_handle: 'ada', owner_name: null }).creator.name, '@ada');
   assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000f', title: 'Before a handle', owner_email: 'ada@test', owner_handle: null }).creator, null, 'no handle, no creator: never the email');
-  const fork = cardModel({ kind: 'canvas', name: 'canvas-00000010', title: 'Transformers', owner_email: 'bob@test', owner_handle: 'bob', forked_from_title: 'Transformers', forked_from_url: null, forked_from_handle: 'alice' });
+  const fork = cardModel({ kind: 'canvas', name: 'canvas-00000010', title: 'Transformers', owner_email: 'bob@test', owner_handle: 'bob', forked_from: { state: 'accessible', title: 'Transformers', url: '/b/tok', handle: 'alice' } });
   assert.deepEqual([fork.creator.name, fork.forkedFrom.creator], ['@bob', '@alice'], 'the fork is the forker\'s; its provenance credits the original owner');
-  // Every @handle links to its profile (owner, 2026-10-08), the original's creator included, whatever the original's state.
-  assert.equal(fork.forkedFrom.creatorUrl, '/@alice', 'an unavailable original still credits a clickable @handle');
+  // Every @handle links to its profile (owner, 2026-10-08), the original's creator included, while the original is open to them.
+  assert.equal(fork.forkedFrom.creatorUrl, '/@alice');
   assert.equal(fork.creator.url, '/@bob');
-  const via = url => cardModel({ kind: 'canvas', name: 'canvas-00000011', forked_from_title: 'T', forked_from_url: url, forked_from_handle: 'alice' }).forkedFrom.creatorUrl;
-  assert.deepEqual([via('/b/tok'), via('/apps/canvas-00000012'), via('/e/tok')], ['/@alice', '/@alice', '/@alice']);
-  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-00000013', forked_from_title: 'T', forked_from_creator: { name: 'Fixture' } }).forkedFrom.creatorUrl, null, 'no handle, no link');
+  const via = url => cardModel({ kind: 'canvas', name: 'canvas-00000011', forked_from: { state: 'accessible', title: 'T', url, handle: 'alice' } }).forkedFrom.creatorUrl;
+  assert.deepEqual([via('/b/tok'), via('/apps/canvas-00000012'), via('/e/tok'), via('/c/00000000-0000-4000-8000-000000000001')], ['/@alice', '/@alice', '/@alice', '/@alice']);
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-00000013', forked_from_resource_id: 'fixture-t', forked_from_title: 'T', forked_from_creator: { name: 'Fixture' } }).forkedFrom.creatorUrl, null, 'no handle, no link');
 });
 
 test('fork counts read naturally: none is omitted, one is singular, large ones are compact', () => {
@@ -44,7 +45,7 @@ test('the source-owner check comes only from source_owner_verified, never from a
 test('a fork shows where it came from; the check stays with the original creator', () => {
   const fork = cardModel(byName('fixture-canvas-attention-deep-dive'));
   assert.deepEqual(fork.creator, { name: 'Maya', sourceOwner: false });
-  assert.deepEqual(fork.forkedFrom, { id: 'fixture-proj-nanogpt-lab', url: null, title: 'nanoGPT from First Principles', creator: 'Yudhisteer', sourceOwner: true, creatorUrl: null });
+  assert.deepEqual(fork.forkedFrom, { state: 'accessible', id: 'fixture-proj-nanogpt-lab', url: null, title: 'nanoGPT from First Principles', creator: 'Yudhisteer', sourceOwner: true, creatorUrl: null });
   assert.equal(fork.forks, '12 forks');
 });
 
@@ -90,16 +91,20 @@ test('the source line links to the repository on GitHub; a canvas made from a re
   assert.equal(canvas.sourceUrl, 'https://github.com/yudhisteer/nanogpt-lab');
 });
 
-// A real fork (docs/features/canvas-forking.md): the server sends the title as it was when forked, a url
-// only while the original still opens for this person, and the direct fork count.
-test('a real fork keeps its source title, links the original only while it opens, and counts direct forks', () => {
-  const open = cardModel({ kind: 'canvas', name: 'canvas-0000000b', title: 'My notes', forked_from_title: 'Attention', forked_from_url: '/apps/canvas-0000000a', fork_count: 1 });
-  assert.deepEqual(open.forkedFrom, { id: null, url: '/apps/canvas-0000000a', title: 'Attention', creator: undefined, sourceOwner: false, creatorUrl: null });
+// A real fork (docs/features/canvas-forking.md; owner decision E1, 2026-10-16): the server sends its immediate source as
+// resolved for this person now, and the direct fork count. Title, link and @handle only while the source opens for them.
+test('a real fork names its source only while it opens for this person; otherwise private or unavailable, with nothing else', () => {
+  const open = cardModel({ kind: 'canvas', name: 'canvas-0000000b', title: 'My notes', forked_from: { state: 'accessible', title: 'Attention', url: '/apps/canvas-0000000a', handle: null }, fork_count: 1 });
+  assert.deepEqual(open.forkedFrom, { state: 'accessible', id: null, url: '/apps/canvas-0000000a', title: 'Attention', creator: null, sourceOwner: false, creatorUrl: null });
   assert.equal(open.title, 'My notes', 'renaming the fork leaves the attribution alone');
   assert.equal(open.forks, '1 fork');
-  const gone = cardModel({ kind: 'canvas', name: 'canvas-0000000c', title: 'Attention', forked_from_title: 'Attention', forked_from_url: null, fork_count: 0 });
-  assert.deepEqual([gone.forkedFrom.title, gone.forkedFrom.url, gone.forkedFrom.id, gone.forks], ['Attention', null, null, null]);
-  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000d', title: 'Mine', forked_from_title: null, forked_from_url: null, fork_count: 24 }).forkedFrom, null);
+  // A stale title, url or handle sent beside a private or unavailable state is never shown.
+  for (const state of ['private', 'unavailable']) {
+    const lost = cardModel({ kind: 'canvas', name: 'canvas-0000000c', title: 'Attention', forked_from: { state, title: 'Saved title', url: '/b/old', handle: 'alice' }, forked_from_title: 'Saved title', fork_count: 0 });
+    assert.deepEqual(lost.forkedFrom, { state, id: null, url: null, title: null, creator: null, sourceOwner: false, creatorUrl: null });
+    assert.equal(JSON.stringify(lost.forkedFrom).includes('Saved title'), false);
+  }
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000d', title: 'Mine', forked_from: null, fork_count: 24 }).forkedFrom, null);
 });
 
 // The card redesign (docs/features/card-redesign.md): the owner's description, never a project's placeholder; the fork

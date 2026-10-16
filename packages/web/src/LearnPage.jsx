@@ -1062,7 +1062,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       setCanvasEpoch(epoch => epoch + 1);
       // A Rabbit Hole just started from a shared canvas opens on its one anchor card (docs/features/shared-canvas-rabbit-hole.md).
       const startedFromShare = data.version === 1 && data.state?.blocks?.[0]?.anchor?.source === 'shared';
-      toast(data.forked_from ? `Your fork of ${data.forked_from.title} is ready. It is yours to edit.` : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
+      toast(data.forked ? 'Your fork is ready. It is yours to edit.' : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
     }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); })
       .finally(() => { if (live) setRestoredBoard(boardPath); });
     return () => { live = false; };

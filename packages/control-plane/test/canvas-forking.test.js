@@ -78,8 +78,8 @@ test('forking your own canvas copies this browser\'s board into a new canvas of 
   const listed = await f.library('ana');
   assert.deepEqual(listed.map(c => c.name), [made.body.name, a.name].sort((x, y) => (x === made.body.name ? -1 : y === made.body.name ? 1 : 0)));
   const copy = listed.find(c => c.name === made.body.name);
-  // Ana already owns "Attention", so her fork steps to "Attention (2)"; the provenance keeps the source's title (canvas-naming.md).
-  assert.deepEqual([copy.owner_email, copy.org, copy.project, copy.title, copy.forked_from_title, copy.forked_from_url], ['ana@test', 'ana-ws', null, 'Attention (2)', 'Attention', `/apps/${a.name}`]);
+  // Ana already owns "Attention", so her fork steps to "Attention (2)"; its source is her own canvas, resolved for her (owner decision E1, 2026-10-16).
+  assert.deepEqual([copy.owner_email, copy.org, copy.project, copy.title, copy.forked_from], ['ana@test', 'ana-ws', null, 'Attention (2)', { state: 'accessible', title: 'Attention', url: `/apps/${a.name}`, handle: null }]);
   assert.equal(listed.find(c => c.name === a.name).fork_count, 1);
   assert.deepEqual((await f.board('ana', made.body.name)).state, BOARD, 'the clone is the persisted board');
   // The source keeps the empty board it was made with (version 0); forking this browser's copy does not write it.
@@ -121,7 +121,7 @@ test('a shared canvas forks for any signed-in viewer: the server copy, its files
   assert.equal(made.status, 201);
   assert.equal(made.body.files, 2);
   const copy = (await f.library('ben')).find(c => c.name === made.body.name);
-  assert.deepEqual([copy.owner_email, copy.org, copy.title, copy.forked_from_title, copy.forked_from_url], ['ben@test', 'ben-ws', 'Attention', 'Attention', `/b/${links.view}`]);
+  assert.deepEqual([copy.owner_email, copy.org, copy.title, copy.forked_from], ['ben@test', 'ben-ws', 'Attention', { state: 'accessible', title: 'Attention', url: `/b/${links.view}`, handle: null }]);
   const state = (await f.board('ben', made.body.name)).state;
   assert.deepEqual(Object.keys(state).sort(), ['areas', 'blocks', 'exchanges', 'groups', 'items', 'links', 'shapes', 'strokes'], 'content only: no selection, view, voice or tutor state');
   assert.deepEqual(state.exchanges.map(e => e.status), ['done', 'done'], 'chat cards arrive settled');
@@ -189,7 +189,8 @@ test('the title snapshot survives a rename of the source and of the fork', async
   await f.call('PATCH', `/api/apps/${a.name}`, { as: 'ana', body: { title: 'Attention, renamed' } });
   await f.call('PATCH', `/api/apps/${b.name}`, { as: 'ana', body: { title: 'My copy' } });
   const fork = await f.app('ana', b.name);
-  assert.deepEqual([fork.title, fork.forked_from_title], ['My copy', 'Attention']);
+  // The source's title as it is now, while its owner may open it - never the title saved when it was forked (owner decision E1, 2026-10-16).
+  assert.deepEqual([fork.title, fork.forked_from], ['My copy', { state: 'accessible', title: 'Attention, renamed', url: `/apps/${a.name}`, handle: null }]);
 });
 
 test('View original opens while the source is reachable, and reads unavailable - leaking nothing - once it is not', async t => {
@@ -198,28 +199,29 @@ test('View original opens while the source is reachable, and reads unavailable -
   await f.save('ana', a.name, BOARD);
   const first = await f.share('ana', a.name);
   const viaLink = (await f.fork('ben', { token: first.view })).body;
-  assert.equal((await f.app('ben', viaLink.name)).forked_from_url, `/b/${first.view}`);
+  assert.deepEqual((await f.app('ben', viaLink.name)).forked_from, { state: 'accessible', title: 'Attention', url: `/b/${first.view}`, handle: null });
   // Ana renames, then turns the link off and shares again: Ben's link is dead and the new one is not his.
   await f.call('PATCH', `/api/apps/${a.name}`, { as: 'ana', body: { title: 'Secret new title' } });
   await f.share('ana', a.name, false);
   const again = await f.share('ana', a.name);
   assert.notEqual(again.view, first.view);
   const lost = await f.app('ben', viaLink.name);
-  assert.deepEqual([lost.forked_from_title, lost.forked_from_url], ['Attention', null]);
-  assert.doesNotMatch(JSON.stringify(lost), new RegExp(`Secret new title|${again.view}|ana@test`), 'nothing about the source beyond the snapshot');
+  // Private now, with no saved title either (owner decision E1, 2026-10-16): nothing about the source, the link he once held included.
+  assert.deepEqual(lost.forked_from, { state: 'private' });
+  assert.doesNotMatch(JSON.stringify(lost), new RegExp(`Secret new title|${again.view}|${first.view}|ana@test|${a.name}`), 'nothing about the source');
   // An own source opens by its page until it is deleted.
   const mine = await f.canvas('ben', 'Mine');
   const ownFork = (await f.fork('ben', { canvas: mine.name }, { state: BOARD })).body;
-  assert.equal((await f.app('ben', ownFork.name)).forked_from_url, `/apps/${mine.name}`);
+  assert.deepEqual((await f.app('ben', ownFork.name)).forked_from, { state: 'accessible', title: 'Mine', url: `/apps/${mine.name}`, handle: null });
   await f.call('DELETE', `/api/apps/${mine.name}`, { as: 'ben' });
-  assert.deepEqual([(await f.app('ben', ownFork.name)).forked_from_url, (await f.app('ben', ownFork.name)).forked_from_title], [null, 'Mine']);
+  assert.deepEqual((await f.app('ben', ownFork.name)).forked_from, { state: 'unavailable' });
   // A deleted canvas whose share row is still live does not count as reachable either.
   const shared = await f.canvas('ana', 'Shared then deleted');
   await f.save('ana', shared.name, BOARD);
   const token = (await f.share('ana', shared.name)).view;
   const orphan = (await f.fork('ben', { token })).body;
   await f.call('DELETE', `/api/apps/${shared.name}`, { as: 'ana' });
-  assert.equal((await f.app('ben', orphan.name)).forked_from_url, null);
+  assert.deepEqual((await f.app('ben', orphan.name)).forked_from, { state: 'unavailable' });
 });
 
 test('fork counts are direct forks only: A with forks B and C, and D forked from B, reads A = 2 and B = 1', async t => {
@@ -343,9 +345,9 @@ test('a fork takes the typed name; blank falls back; provenance keeps the source
   assert.equal((await f.fork('ben', { token: link }, { title: '   ' })).body.title, 'Attention');
   assert.equal((await f.fork('ben', { token: link }, { title: 42 })).body.title, 'Attention (2)');
   const copy = (await f.library('ben')).find(c => c.name === named.body.name);
-  assert.deepEqual([copy.title, copy.forked_from_title], ['My attention notes', 'Attention']);
+  assert.deepEqual([copy.title, copy.forked_from], ['My attention notes', { state: 'accessible', title: 'Attention', url: `/b/${link}`, handle: null }]);
   assert.equal(f.sqlite.prepare('SELECT forked_from_title FROM canvas_forks WHERE canvas = ?').get(named.body.name).forked_from_title, 'Attention');
-  assert.equal(named.body.forked_from.title, 'Attention');
+  assert.equal(named.body.forked_from, undefined, 'the fork reply carries no saved source (owner decision E1, 2026-10-16)');
   const dup = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: a.name }, state: BOARD, title: 'Ignored' } });
   assert.equal(dup.body.title, 'Attention (2)', 'Duplicate keeps its own naming rule');
 });

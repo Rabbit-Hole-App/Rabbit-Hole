@@ -186,7 +186,7 @@ test('Lineage: a fork of a fork is owned and editable by its forker, names its s
   for (const name of [b.name, c.name]) assert.equal(pinOf(f, name).commit_sha, SHA, name);
   // Owned and editable by the forker only; the source shows in their Library.
   const mine = (await f.call('GET', '/api/canvases', { as: 'cara' })).body.canvases.find(row => row.name === c.name);
-  assert.deepEqual([mine.owner_email, mine.forked_from_title, mine.forked_from_url], ['cara@test', 'nanoGPT attention', `/b/${bLink}`]);
+  assert.deepEqual([mine.owner_email, mine.forked_from?.title, mine.forked_from?.url], ['cara@test', 'nanoGPT attention', `/b/${bLink}`]);
   const board = (await f.call('GET', `/api/learn/boards/${c.name}/main`, { as: 'cara' })).body;
   assert.equal((await f.call('PUT', `/api/learn/boards/${c.name}/main`, { as: 'cara', body: { state: { ...board.state, items: [{ id: 'mine', text: 'my note' }] }, version: board.version } })).status, 200, 'the forker edits it');
   for (const who of ['ben', 'ana']) assert.ok([403, 404].includes((await f.call('PUT', `/api/learn/boards/${c.name}/main`, { as: who, body: { state: {} } })).status), who);

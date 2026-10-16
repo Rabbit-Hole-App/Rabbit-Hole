@@ -83,7 +83,7 @@ test('Duplicate makes "(2)", then "(3)": a private copy of the owner\'s, never a
   assert.equal(forks, 0, 'no fork row: no provenance, no fork count');
   const listed = (await f.call('GET', '/api/canvases', { as: 'ana' })).body.canvases;
   assert.equal(listed.find(c => c.name === src.name).fork_count, 0);
-  assert.equal(listed.find(c => c.name === one.body.name).forked_from_title, null);
+  assert.equal(listed.find(c => c.name === one.body.name).forked_from, null);
   const board = (await f.call('GET', `/api/learn/boards/${one.body.name}/main`, { as: 'ana' })).body;
   assert.deepEqual(board.state.blocks, BOARD.blocks, 'the content is copied');
   assert.equal(board.sharing?.shared ?? false, false, 'the copy is private');

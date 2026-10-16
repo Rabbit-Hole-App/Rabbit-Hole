@@ -52,7 +52,7 @@ function setup(t) {
     if (visibility) run('INSERT INTO repository_visibility (app_id, visibility) VALUES (?, ?)', Number(lastInsertRowid), visibility);
     return Number(lastInsertRowid);
   };
-  return { sqlite, call, run, canvas, member, repository };
+  return { sqlite, env, call, run, canvas, member, repository };
 }
 
 // P (ben) <- M (cara; ben is a member) <- Q (dan; private) <- S (ana; a share link nobody here forked through) <- O (ana;
@@ -256,4 +256,48 @@ test('new forks keep the source repository association: own fork, a fork through
   assert.deepEqual(await repoOf('ben', viaLink), label, 'once confirmed public, the fork names it');
   const second = await fork('ben', { canvas: viaLink });
   assert.deepEqual(await repoOf('ben', second), label, 'a fork of a fork keeps it');
+});
+
+// Owner decision E1 (2026-10-16): the Library card's "Forked from" follows the header's rule through the same resolver, for
+// the immediate source only, every card of a list in one query.
+test('Library: an older fork whose source became private or was deleted carries no saved title, link or handle', async t => {
+  const f = setup(t);
+  const source = ['ana-ws', 'canvas-000000a8'];
+  f.canvas('ana', 'canvas-000000a8', 'Ana current title', { share: TOKEN(30) });
+  f.run("INSERT INTO user_profiles (email) VALUES ('ana@test')");
+  f.run("INSERT INTO user_handles (email, handle) VALUES ('ana@test', 'ana')");
+  f.canvas('ben', 'canvas-000000b8', 'Ben older fork', { fork: { parent: source, root: source, share: TOKEN(30), title: 'Saved at fork time' } });
+  const card = async () => { const r = await f.call('GET', '/api/canvases', { as: 'ben' }); return { row: r.body.canvases.find(c => c.name === 'canvas-000000b8'), text: r.text }; };
+  let { row, text } = await card();
+  assert.deepEqual(row.forked_from, { state: 'accessible', title: 'Ana current title', url: `/b/${TOKEN(30)}`, handle: 'ana' }, 'the current title, the link he forked through, the owner\'s handle');
+  assert.equal(text.includes('Saved at fork time'), false, 'never the title saved at fork time');
+  for (const field of ['forked_from_title', 'forked_from_url', 'forked_from_handle', 'fork_parent', 'fork_owner']) assert.equal(field in row, false, field);
+  // Ana stops sharing: private, with nothing of hers - a newer link included.
+  f.run("UPDATE learn_boards SET shared = 1, view_token = ? WHERE app = 'canvas-000000a8'", TOKEN(31));
+  ({ row, text } = await card());
+  assert.deepEqual(row.forked_from, { state: 'private' });
+  for (const secret of ['Ana current title', 'Saved at fork time', TOKEN(30), TOKEN(31), 'canvas-000000a8', 'ana-ws', '"ana"']) assert.equal(text.includes(secret), false, secret);
+  assert.deepEqual((await f.call('GET', '/api/apps/canvas-000000b8', { as: 'ben' })).body.forked_from, { state: 'private' }, 'the single canvas read agrees');
+  // Deleted: unavailable.
+  assert.equal((await f.call('DELETE', '/api/apps/canvas-000000a8', { as: 'ana' })).status < 300, true, 'Ana deletes it');
+  assert.deepEqual((await card()).row.forked_from, { state: 'unavailable' });
+});
+
+test('Library: the forks of a list resolve in one query, not one per card', async t => {
+  const queries = async n => {
+    const f = setup(t);
+    for (let i = 0; i < n; i += 1) {
+      const name = `canvas-${(0xa0000000 + i).toString(16)}`, fork = `canvas-${(0xb0000000 + i).toString(16)}`;
+      f.canvas('ana', name, `Source ${i}`, { publish: TOKEN(100 + i) });
+      f.canvas('ben', fork, `Fork ${i}`, { fork: { parent: ['ana-ws', name], root: ['ana-ws', name] } });
+    }
+    const prepare = f.env.LEARN_DB.prepare;
+    let count = 0;
+    f.env.LEARN_DB.prepare = sql => { count += 1; return prepare(sql); };
+    const listed = (await f.call('GET', '/api/canvases', { as: 'ben' })).body.canvases;
+    f.env.LEARN_DB.prepare = prepare;
+    assert.equal(listed.filter(c => c.forked_from?.state === 'accessible').length, n);
+    return count;
+  };
+  assert.equal(await queries(30), await queries(3), 'the same number of queries for 3 forks and 30');
 });

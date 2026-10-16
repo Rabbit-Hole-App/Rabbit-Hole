@@ -8,7 +8,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { boardRevision } from './learn-shared-ask.js';
-import { linkSource, linkTarget, sharedAccess } from './learn-boards.js';
+import { NO_TRASHED_ANCESTOR, linkSource, linkTarget, sharedAccess } from './learn-boards.js';
 
 export const MAX_ANCESTORS = 25;
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
@@ -27,48 +27,71 @@ async function boardRepository(db, board, viewer) {
   return repo && (repo.visibility === 'public' || repo.owner_email === viewer?.email) ? repositoryOf(repo.repo) : null;
 }
 
-// A share link is a capability (owner decision 1A): only the link a viewer forked through themselves - the token recorded on
-// that fork row, which they own - may name its /b path to them. A link they never held, a newer one included, never does.
-const forkedIt = (step, viewer) => !!viewer && viewer.org === step.org && viewer.email === step.owner_email;
-// Where this viewer may open a canvas, recorded as the parent on fork row `step`: their own, as a member, through its live
-// publication (public), or through the live share link they forked it through.
-async function canvasUrl(env, canvas, viewer, step) {
-  const db = env.LEARN_DB;
-  if (viewer && viewer.org === canvas.org && viewer.email === canvas.owner_email) return `/apps/${canvas.name}`;
-  const main = await db.prepare("SELECT id, shared, view_token FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(canvas.org, canvas.owner_email, canvas.name).first();
-  if (main && viewer?.userId && !canvas.trashed && await db.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(canvas.org, canvas.name, viewer.userId).first()) return `/c/${main.id}`;
-  const published = await db.prepare('SELECT token FROM canvas_publications WHERE org = ? AND canvas = ?').bind(canvas.org, canvas.name).first();
-  if (published) { const link = await linkTarget(env, published.token, !!viewer); if (link) return link.url; }
-  if (main?.shared && main.view_token && main.view_token === step.forked_from_share && forkedIt(step, viewer)) { const link = await linkTarget(env, main.view_token, true); if (link) return link.url; }
-  return null;
+// The one permission resolver for a recorded parent (the header's history here, the Library card's "Forked from" through
+// canvases.js): many parents in one query, for this viewer. A canvas opens at their own /apps, as an active member of a live
+// canvas at /c/<board id>, through its live publication at /e (public), or through a share link at /b - only the link this
+// viewer forked through themselves (the fork row's own token, they own that fork row) while it is still live: a share link is
+// a capability, so a link they never held, a newer one included, is never handed out (owner decision 1A). Liveness follows
+// the share and publication routes (learn-boards.js sharedRow). Each parent becomes { state: 'accessible', title, url, handle }
+// (handle: its owner's public handle, or null), { state: 'private' } (nothing else), or { state: 'unavailable' } (no such
+// canvas). `parents`: [{ org, name, share, forker: { org, email } }] as one canvas_forks row records them.
+// A function, read at call time: canvases.js loads this module lazily, and the helpers it names come from modules it imports.
+const SOURCES = () => `WITH p(org, name) AS (SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]') FROM json_each(?1))
+  SELECT c.org, c.name, c.title, c.owner_email, (SELECT uh.handle FROM user_handles uh WHERE uh.email = c.owner_email) AS handle, b.id AS board_id,
+    (b.id IS NOT NULL AND ${NOT_TRASHED('c.org', 'c.name')} AND EXISTS (SELECT 1 FROM canvas_members m WHERE m.org = c.org AND m.canvas = c.name AND m.member_user_id = ?2 AND m.status = 'active')) AS member,
+    CASE WHEN b.shared = 1 AND b.view_token IS NOT NULL AND (?3 OR b.public_view = 1) AND ${NO_TRASHED_ANCESTOR} THEN b.view_token END AS share_token,
+    CASE WHEN b.id IS NOT NULL AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org', 'c.name')} THEN pub.token END AS publication
+  FROM p JOIN canvases c ON c.org = p.org AND c.name = p.name
+  LEFT JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'
+  LEFT JOIN canvas_publications pub ON pub.org = c.org AND pub.canvas = c.name`;
+const key = (org, name) => `${org}\u0000${name}`;
+const forkedIt = (parent, viewer) => !!viewer && viewer.org === parent.forker?.org && viewer.email === parent.forker?.email;
+export async function sourceAccess(env, parents, viewer) {
+  const canvases = parents.filter(parent => parent.name);
+  const found = new Map();
+  if (canvases.length) {
+    const { results } = await env.LEARN_DB.prepare(SOURCES()).bind(JSON.stringify(canvases.map(parent => [parent.org, parent.name])), viewer?.userId ?? null, viewer ? 1 : 0).all();
+    for (const row of results) found.set(key(row.org, row.name), row);
+  }
+  return Promise.all(parents.map(async parent => {
+    // A parent that is not a canvas (a share of a repository's Main board): its link while it is live and admits the viewer.
+    // ponytail: one lookup per such parent (rare: forks of a project's shared Main board); batch it if a Library holds many.
+    if (!parent.name) {
+      const link = parent.share && await linkTarget(env, parent.share, !!viewer);
+      if (!link) return { state: 'unavailable' };
+      return link.url.startsWith('/e/') || forkedIt(parent, viewer) ? { state: 'accessible', title: link.title, url: link.url, handle: null } : { state: 'private' };
+    }
+    const row = found.get(key(parent.org, parent.name));
+    if (!row) return { state: 'unavailable' };
+    const url = viewer && viewer.org === row.org && viewer.email === row.owner_email ? `/apps/${row.name}`
+      : viewer?.userId && row.member ? `/c/${row.board_id}`
+      : row.publication ? `/e/${row.publication}`
+      : row.share_token && row.share_token === parent.share && forkedIt(parent, viewer) ? `/b/${row.share_token}` : null;
+    return url ? { state: 'accessible', title: row.title, url, handle: row.handle ?? null } : { state: 'private' };
+  }));
 }
 
 // The recorded parent chain (canvas_forks), never invented: [0] is the immediate source. Stops at a canvas with no fork row
 // (complete), a missing record (unavailable), a repeat (cycle) or MAX_ANCESTORS; the last three leave it incomplete.
 export async function forkHistory(env, start, viewer) {
-  const db = env.LEARN_DB, key = (org, name) => `${org}\u0000${name}`;
+  const db = env.LEARN_DB;
   const own = await db.prepare('SELECT org, owner_email, forked_from_org, forked_from_canvas_id, forked_from_share, root_org, root_canvas_id FROM canvas_forks WHERE org = ? AND canvas = ?').bind(start.org, start.name).first();
   if (!own) return null;
   const ancestors = [], seen = new Set([key(start.org, start.name)]);
   let step = own, complete = false, top = null;
   while (ancestors.length < MAX_ANCESTORS) {
     // A parent that is not a canvas (a share of a repository's Main board) has no lineage of its own: the walk ends there.
-    if (!step.forked_from_canvas_id) {
-      // Its link while live: a publication for anyone, a share link only for whoever forked through it.
-      const link = step.forked_from_share && await linkTarget(env, step.forked_from_share, !!viewer);
-      ancestors.push(!link ? { state: 'unavailable' } : link.url.startsWith('/e/') || forkedIt(step, viewer) ? { state: 'accessible', title: link.title, url: link.url } : { state: 'private' });
-      complete = true;
-      break;
-    }
-    const at = key(step.forked_from_org, step.forked_from_canvas_id);
-    if (seen.has(at)) break;
-    seen.add(at);
-    const canvas = await db.prepare(`SELECT c.org, c.name, c.title, c.owner_email, NOT ${NOT_TRASHED('c.org', 'c.name')} AS trashed FROM canvases c WHERE c.org = ? AND c.name = ?`).bind(step.forked_from_org, step.forked_from_canvas_id).first();
-    if (!canvas) { ancestors.push({ state: 'unavailable' }); break; }
-    const url = await canvasUrl(env, canvas, viewer, step);
-    ancestors.push(url ? { state: 'accessible', title: canvas.title, url } : { state: 'private' });
-    step = await db.prepare('SELECT org, owner_email, forked_from_org, forked_from_canvas_id, forked_from_share FROM canvas_forks WHERE org = ? AND canvas = ?').bind(canvas.org, canvas.name).first();
-    if (!step) { complete = true; top = canvas; break; }
+    const parent = { org: step.forked_from_org, name: step.forked_from_canvas_id, share: step.forked_from_share, forker: { org: step.org, email: step.owner_email } };
+    if (parent.name && seen.has(key(parent.org, parent.name))) break;
+    // The header's ancestor is exactly C1's: state, and title and url when accessible - no owner handle.
+    const [{ handle: _owner, ...ancestor }] = await sourceAccess(env, [parent], viewer);
+    ancestors.push(ancestor);
+    // A parent that is not a canvas has no lineage of its own: the walk ends there.
+    if (!parent.name) { complete = true; break; }
+    if (ancestor.state === 'unavailable') break;
+    seen.add(key(parent.org, parent.name));
+    step = await db.prepare('SELECT org, owner_email, forked_from_org, forked_from_canvas_id, forked_from_share FROM canvas_forks WHERE org = ? AND canvas = ?').bind(parent.org, parent.name).first();
+    if (!step) { complete = true; top = parent; break; }
   }
   // The original only when the walk ended at a canvas with no parent and that canvas is the root the fork recorded.
   return { ancestors, complete, original: !!top && own.root_org === top.org && own.root_canvas_id === top.name };

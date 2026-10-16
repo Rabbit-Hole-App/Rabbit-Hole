@@ -40,14 +40,18 @@ export function cardModel(a) {
   const repo = a.kind === 'repository' ? a.repo : a.source_repo;
   const source = repo ? `${a.kind === 'repository' ? '' : 'From '}github.com/${repo}` : null;
   const sourceUrl = repo ? `https://github.com/${repo}` : null;
-  // A real fork (docs/features/canvas-forking.md) carries the source's title as it was when forked and a
-  // url only while the original still opens for this person; review fixtures carry a resource id instead.
-  const forkedFrom = a.forked_from_title || a.forked_from_resource_id
-    ? { id: a.forked_from_resource_id || null, url: a.forked_from_url || null, title: a.forked_from_title, creator: a.forked_from_handle ? `@${a.forked_from_handle}` : a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true,
-      // The original creator's public profile (docs/features/creator-profile.md), whenever the fork names a @handle
-      // (owner, 2026-10-08); the profile shows only what they published.
-      creatorUrl: a.forked_from_handle ? `/@${a.forked_from_handle}` : null }
-    : null;
+  // A real fork (docs/features/canvas-forking.md; owner decision E1, 2026-10-16): its immediate source as the server
+  // resolved it for this person now - its title, link and owner's @handle only while they may open it, otherwise just
+  // private or unavailable (never the title saved when it was forked). Review fixtures carry a resource id instead.
+  const from = a.forked_from;
+  const forkedFrom = from?.state
+    ? { state: from.state, id: null, url: from.state === 'accessible' ? from.url || null : null, title: from.state === 'accessible' ? from.title ?? null : null,
+      // The original creator's public profile (docs/features/creator-profile.md, owner 2026-10-08); the profile shows only
+      // what they published.
+      creator: from.state === 'accessible' && from.handle ? `@${from.handle}` : null, sourceOwner: false, creatorUrl: from.state === 'accessible' && from.handle ? `/@${from.handle}` : null }
+    : a.forked_from_resource_id
+      ? { state: 'accessible', id: a.forked_from_resource_id, url: null, title: a.forked_from_title, creator: a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true, creatorUrl: null }
+      : null;
   // The card redesign (docs/features/card-redesign.md): the owner's own description (canvas-metadata.md), never generated -
   // a project's server `description` is a placeholder ("Learn from <repo>"), so a project shows only a fixture's summary;
   // the canonical fork count as a number (null where the row has none: projects); updated_at, else created_at (0009).

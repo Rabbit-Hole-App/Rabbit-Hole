@@ -140,7 +140,7 @@ await nameField(linkPage).fill('   ');
 await nameField(linkPage).press('Enter');
 await linkPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
 theirs = await canvases(viewer);
-check('a blank name falls back to the source title (Enter confirms)', theirs.length === 2 && theirs.some(c => c.title === TITLE && c.forked_from_title === TITLE));
+check('a blank name falls back to the source title (Enter confirms)', theirs.length === 2 && theirs.some(c => c.title === TITLE && c.forked_from?.state === 'accessible' && c.forked_from.title === TITLE));
 check('the source now counts two direct forks', await ownerCount() === 2);
 await linkPage.goto(`${BASE}/b/${shared.sharing.view}`);
 await linkPage.locator('header [data-fork-button] [data-fork-count-value]').waitFor({ timeout: 60000 });
