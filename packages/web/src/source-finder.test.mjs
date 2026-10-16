@@ -79,3 +79,13 @@ test('LearnPage: "/" opens the right panel on Find and focuses it; the finder ho
   assert.equal((page.match(/<SearchBar /g) || []).length, 1, 'one finder');
   assert.match(page, /commandsFor\('insert'\)/, 'the Insert menu lists the registry\'s insert commands');
 });
+
+test('SearchBar adds only through the Add to canvas button: Enter searches a new query and only previews an answered one (lead ruling 2026-10-16)', () => {
+  const bar = readFileSync(new URL('./SearchBar.jsx', import.meta.url), 'utf8');
+  assert.equal((bar.match(/choose\(/g) || []).length, 1, 'choose is called in one place');
+  assert.match(bar, /<button type="button" onClick=\{\(\) => choose\(results\[active\] \|\| results\[0\]\)\}[^>]*>\s*Add to canvas<\/button>/);
+  const submit = bar.slice(bar.indexOf('onSubmit='), bar.indexOf('}}>', bar.indexOf('onSubmit=')));
+  assert.match(submit, /if \(!current\) run\(\);/);
+  assert.doesNotMatch(submit, /choose/);
+  assert.match(bar, /data-finder-result=\{result\.key\} onClick=\{\(\) => setActive\(index\)\}/, 'a click previews');
+});

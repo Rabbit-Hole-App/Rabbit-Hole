@@ -134,8 +134,11 @@ ok('the query went to the chosen source', searches.at(-1)?.source === 'youtube' 
 await page.keyboard.press('ArrowDown');
 ok('arrow keys move the highlight', (await bar.getByRole('listbox').getByRole('option').nth(1).getAttribute('aria-selected')) === 'true');
 await page.keyboard.press('Enter');
+await page.waitForTimeout(400);
+ok('Enter on the answered query only previews: the bar stays and nothing is added', (await bar.count()) === 1 && (await canvas.locator('iframe').count()) === 0);
+await bar.getByRole('button', { name: 'Add to canvas' }).click();
 await page.waitForTimeout(800);
-ok('Enter adds the highlighted result and closes the bar', (await bar.count()) === 0 && (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
+ok('Add to canvas adds the highlighted result and closes the bar', (await bar.count()) === 0 && (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
 
 // --- Insert > Search arXiv; exact match; preview, then Add to canvas ---
 await openSearch('Search arXiv…');

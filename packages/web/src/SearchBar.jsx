@@ -10,9 +10,9 @@ import { wsHeaders } from './api.js';
 //
 // Search runs on Enter, not per keystroke: every search is a paid call.
 // Esc, the X, or a click outside closes it. The results preview here: a click
-// or the arrows choose one, and nothing is added until Add to canvas (or Enter
-// on the chosen result; owner decision 4A, Release B). Opened only through
-// openSourceFinder (source-finder.js).
+// or the arrows choose one, Enter on an answered query keeps the preview, and
+// only the Add to canvas button adds (owner decision 4A, lead ruling
+// 2026-10-16, Release B). Opened only through openSourceFinder (source-finder.js).
 export const SOURCES = [
   { id: 'youtube', label: 'YouTube', noun: 'videos', placeholder: 'What do you want to learn?', examples: ['I want to understand backpropagation', 'how transformers pay attention', 'gradient descent visually'] },
   { id: 'arxiv', label: 'arXiv', noun: 'papers', placeholder: 'A topic, a paper title, or an arXiv link', examples: ['Attention is all you need', 'why does batch normalization help', '1706.03762'] },
@@ -80,8 +80,8 @@ export default function SearchBar({ app, initialSource = null, initialQuery = ''
         className="absolute top-[18vh] left-1/2 w-[40rem] max-w-[92vw] -translate-x-1/2 overflow-hidden rounded-2xl border border-line bg-white shadow-pop">
         <form className="flex items-center gap-2 border-b border-line px-3 py-2.5" onSubmit={event => {
           event.preventDefault();
-          if (current && results?.length) choose(results[active] || results[0]);
-          else run();
+          // Enter searches a new or changed query; on the answered one it only previews (Add to canvas adds).
+          if (!current) run();
         }}>
           <Search size={16} className="shrink-0 text-ink-3" />
           {/* The source is a native select - accessible, keyboard-reachable,
@@ -184,7 +184,7 @@ export default function SearchBar({ app, initialSource = null, initialQuery = ''
           <div data-finder-add className="flex items-center justify-end gap-3 border-t border-line px-3 py-2">
             <button type="button" onClick={() => choose(results[active] || results[0])}
               className="flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover">
-              Add to canvas<CornerDownLeft size={12} aria-hidden /></button>
+              Add to canvas</button>
           </div>
         )}
       </div>

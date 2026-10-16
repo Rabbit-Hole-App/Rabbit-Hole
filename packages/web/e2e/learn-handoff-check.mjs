@@ -157,7 +157,7 @@ await bar.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia')
 await bar.getByRole('textbox').fill('Cross entropy');
 await bar.getByRole('textbox').press('Enter');
 await bar.getByRole('listbox').waitFor();
-await bar.getByRole('textbox').press('Enter');
+await bar.getByRole('button', { name: 'Add to canvas' }).click();
 ok('manual Search still adds an article card', (await blocks('wiki')).some(block => block.title === 'Cross_entropy'));
 ok('and answers no handoff', (await page.evaluate(() => window.__results.length)) === answered);
 
