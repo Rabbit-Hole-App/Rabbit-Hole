@@ -76,7 +76,9 @@ await page.waitForTimeout(3000);
 
 // --- the learner adds one ---
 ok('no article on the canvas to begin with', (await card.count()) === 0);
-await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click();
+// Insert > Search Wikipedia (Release B removed the top-bar Search control); a card only on Add to canvas.
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
+await page.getByRole('menuitem', { name: 'Search Wikipedia…', exact: true }).click();
 await page.waitForTimeout(300);
 const box = page.getByRole('dialog', { name: 'Search' });
 await box.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia');
@@ -84,6 +86,7 @@ await box.getByRole('textbox').fill('machine learning');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(1200);
 await box.getByRole('listbox').getByRole('option').first().click();
+await box.getByRole('button', { name: 'Add to canvas' }).click();
 await page.waitForTimeout(2500);
 ok('picking an article puts a card on the canvas', (await card.count()) === 1);
 ok('and only the card - the side panel stays shut', (await reader.count()) === 0);

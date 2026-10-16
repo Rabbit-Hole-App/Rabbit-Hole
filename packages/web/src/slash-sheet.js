@@ -25,13 +25,19 @@ export const CHAT_EXAMPLES = {
 // /source acts on a card rather than making one: the sheet opens the Sources & evidence of its own /explain card.
 export const SOURCE_NOTE = 'Opens the Sources & evidence of the card you select. It adds no card of its own.';
 
+// /youtube, /arxiv and /wikipedia open the source finder on their source with what follows them, and search at once; the
+// learner previews the results there and adds one. They make no card themselves and call no model.
+const FINDS = { youtube: 'YouTube videos', arxiv: 'arXiv papers: a topic, or an arXiv ID or link', wikipedia: 'Wikipedia articles' };
+export const FINDER_NOTES = Object.fromEntries(Object.entries(FINDS).map(([name, what]) => [name, `Opens Search on ${what}, with what you type after the command, and searches at once. Preview the results there: nothing is added until you add one to the canvas.`]));
+
 // The cards the sheet shows for a command: what it makes (learn-slash.js cardsFor). /motion (development builds only)
 // makes a video card through its own action, so it names that card here.
 const SHEET_CARDS = { motion: [{ primitive: 'motion', card: 'videoGenerate' }] };
 export const sheetCards = name => SHEET_CARDS[name] || cardsFor(name);
 
-// What the right pane shows: the cards a command makes, the card /source opens, or an example exchange.
-export const demoOf = name => (sheetCards(name).length ? 'cards' : name === 'source' ? 'sources' : CHAT_EXAMPLES[name] ? 'chat' : null);
+// What the right pane shows: the cards a command makes, the card /source opens, what a source search does, or an example
+// exchange.
+export const demoOf = name => (sheetCards(name).length ? 'cards' : name === 'source' ? 'sources' : FINDER_NOTES[name] ? 'finder' : CHAT_EXAMPLES[name] ? 'chat' : null);
 
 const XS = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
 const round = value => Math.round(value * 1000) / 1000;

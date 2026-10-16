@@ -3,7 +3,7 @@
 // smart-home); this file is the Learn side: which commands the picker offers
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
-import { LEARN_MENU, commandsFor, descFor, learnRequest } from './agent/slash.js';
+import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { arxivId } from '../../control-plane/src/arxiv.js';
 import { filterSections } from './command-search.js';
@@ -16,7 +16,7 @@ export const available = command => !command.family || command.deterministic || 
 const row = command => ({ name: command.name, desc: descFor(command, 'learn') });
 
 // The picker's sections for what is typed, or null when it should be closed.
-// A bare / shows the primary menu (LEARN, then CREATE) and a collapsible
+// A bare / shows the primary menu (LEARN, CREATE, then SEARCH: the source finders) and a collapsible
 // "More learning tools" section with every other available command - /more is
 // a way to reach tools, not a tool, so it is never a row. A typed prefix (or
 // a typed /more) searches every available Learn command.
@@ -30,11 +30,12 @@ export function pickerSections(text, { catalog = false, motionDev } = {}) {
     return items.length ? [{ title: catalog && !typed ? 'All learning tools' : null, items }] : [];
   }
   const pick = names => names.map(name => learn.find(command => command.name === name)).filter(Boolean).map(row);
-  const primary = [...LEARN_MENU.learn, ...LEARN_MENU.create];
+  const primary = [...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search];
   const rest = learn.filter(command => !primary.includes(command.name) && command.name !== 'more').map(row);
   return [
     { title: 'Learn', items: pick(LEARN_MENU.learn) },
     { title: 'Create', items: pick(LEARN_MENU.create.filter(name => name !== 'more')) },
+    { title: 'Search', items: pick(LEARN_MENU.search) },
     { title: 'More learning tools', collapsible: true, items: rest },
   ];
 }
@@ -52,6 +53,7 @@ export const EXAMPLES = {
   diagram: '/diagram where a token goes in nanoGPT', animate: '/animate how softmax shares the whole by score', flashcards: "/flashcards nanoGPT's embeddings and parameters",
   notebook: '/notebook', walkthrough: '/walkthrough a token through the model', whiteboard: '/whiteboard the sigmoid', paper: '/paper 1706.03762',
   image: '/image a sigmoid curve', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
+  youtube: '/youtube how transformers pay attention', arxiv: '/arxiv 1706.03762', wikipedia: '/wikipedia softmax function',
   ask: '/ask what does wte do?', teach: '/teach causal masking',
   // Development builds only (VITE_MOTION_DEV): the committed clip it shows is 25 s.
   motion: '/motion 25s explain softmax',
@@ -69,12 +71,12 @@ export const CARD_OF = {
 // model (the deterministic ones, and /image's photo search): /video, say,
 // can only propose a generated clip, never an existing one.
 export const cardsFor = name => {
-  const command = commandsFor('learn').find(entry => entry.name === name);
+  const command = commandsFor('learn', { hidden: true }).find(entry => entry.name === name);
   return (command?.family || []).filter(id => CARD_OF[id] && (isReady(id) || (insertsWithoutModel(name) && PRIMITIVES[id]?.direct))).map(id => ({ primitive: id, card: CARD_OF[id] }));
 };
 // A command that inserts its card without the model: the deterministic ones, and /image's photo search (Task 11b fix B3: the
 // Tutor's cost_tier for such a create_material is none).
-export const insertsWithoutModel = name => !!commandsFor('learn').find(entry => entry.name === name)?.deterministic || name === 'image';
+export const insertsWithoutModel = name => !!commandsFor('learn', { hidden: true }).find(entry => entry.name === name)?.deterministic || name === 'image';
 
 // Whether running this command can end in a paid generation (it always asks first). /motion's action is a paid proposal.
 export const mayConfirmPaid = name => name === 'motion' || learnRequest(name).paid.some(isReady);
@@ -85,8 +87,8 @@ const MAKES_ALONE = command => !command.action || command.action === 'insert_not
 export const materialCommands = () => commandsFor('learn').filter(command => available(command) && MAKES_ALONE(command) && cardsFor(command.name).length)
   .map(command => ({ command: command.name, cards: cardsFor(command.name).map(entry => entry.card), paid: mayConfirmPaid(command.name) }));
 
-// Whether a word names a Learn command (the composer's command pill takes only these).
-export const isLearnCommand = name => commandsFor('learn').some(command => command.name === name);
+// Whether a word names a Learn command (the composer's command pill takes only these; typed-only /paper too).
+export const isLearnCommand = name => commandsFor('learn', { hidden: true }).some(command => command.name === name);
 
 export const parseSlash = text => {
   const match = text.trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
@@ -137,15 +139,23 @@ export function generateCommand(name, args, { app, selection = null, context = n
 //   { catalog }  open the full tool list
 //   { notice }   a one-line result or reason ({ tone, text })
 //   { proposal } a paid artifact waiting for Cancel / Generate
-// Deterministic commands never reach the model.
+//   { finder }   a source search's finder is open: a promise of { added } once it closes (the composer keeps its draft)
+// Deterministic commands never reach the model. A typed command resolves to the entry the picker lists (resolveCommand).
+// openSearch({ source, query }): the shared source finder (Release B: B3's opener takes the page's binding); it may return
+// a promise of { added } that settles when the finder closes.
 export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev }) {
-  const parsed = parseSlash(text);
-  const command = parsed && commandsFor('learn', { motionDev }).find(entry => entry.name === parsed.name);
-  if (!command) return { notice: { tone: 'error', text: `${parsed ? `/${parsed.name}` : 'That'} is not a Learn command. Type / to see them.` } };
-  const { name, args } = parsed;
+  const resolved = resolveCommand(text, 'learn', { motionDev });
+  if (!resolved?.command) return { notice: { tone: 'error', text: `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
+  const { command: { name, source }, arg: args } = resolved;
   const selection = target?.id ? { kind: 'card', id: target.id, title: String(target.title || '').slice(0, 200) } : null;
   const request = learnRequest(name, { args, selection });
   if (request.action === 'open_tool_catalog') return { catalog: true };
+  // /youtube, /arxiv, /wikipedia: the source finder opens on its source and query (searching at once when there is one);
+  // nothing reaches the Tutor or a model, and nothing is added until the learner adds a result. The finder says the rest.
+  if (request.action === 'open_source') {
+    const finder = Promise.resolve(openSearch({ source, query: args })).then(done => ({ added: !!done?.added }));
+    return { notice: null, finder };
+  }
   if (request.action === 'insert_notebook') { canvas.insertNotebook(); return { notice: { tone: 'done', text: 'Added a notebook.' } }; }
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
   if (request.action === 'insert_paper') {

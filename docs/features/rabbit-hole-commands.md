@@ -19,7 +19,17 @@ smart-home does not edit `ask.jsx` or `LearnPage.jsx`.
 
 - `home`: Home, Library, Explore (workspace scope).
 - `project`: the Project hub and its Map.
-- `learn`: the Learn composer.
+- `learn`: the Learn composer (the canvas Chat; `commandsFor('chat')` is the same list).
+- `ctrlk`: the canvas's inline Ctrl+K editor (Release B, owner 2026-10-16): exactly /explain /code /graph /diagram
+  /walkthrough /animate /flashcards /image /video /3d /motion /youtube /arxiv /wikipedia. Anything else typed there is
+  reported as unavailable in Ctrl+K and sends nothing.
+- `insert`: the canvas Insert menu's source searches (/youtube /arxiv /wikipedia).
+
+Each command also has a `kind` (`generate`, `source`, `prompt`, `dialog`), an optional `label` (its name in words, as
+the pill's "Remove <label>": /video "Generate video", /youtube "Search YouTube", /arxiv "Search arXiv", /wikipedia
+"Search Wikipedia"; otherwise the capitalised name) and `hidden` for typed-only commands (/paper). `commandsFor` leaves
+hidden commands out unless asked (`{ hidden: true }`); `resolveCommand(text, surface)` turns a typed line into the
+same entry a picker lists (`{ command, arg }`), `{ unsupported: name }`, or `null` when the line is not a command.
 
 `placeOf(scope)` maps a bar scope to a place. `commandsFor(place, { catalog })`
 lists what a place can use; unavailable commands are not shown (for example
@@ -39,7 +49,8 @@ one-line description; modes read differently per place.
 | /dive | learn | learn | `action: 'dive'`: open a nested Rabbit Hole from the selected card; with no card it makes a topic anchor card from the request and dives from that; bare /dive with no card and no referent asks what to go deeper into (docs/features/dive-v1.md). No model call |
 | /source | learn | learn | `action: 'open_sources'` (open the Source inspector or attach evidence; never dump citations into a card) |
 | /explain /flashcards /code /graph /diagram /walkthrough /animate /image /video /3d | create | learn | A tool override: the tutor returns a validated block from the command's family, or asks a clarifying question |
-| /notebook /whiteboard /paper | create | learn | Deterministic inserts, no model: `insert_notebook`, `insert_whiteboard`, `insert_paper` (a known paper id) |
+| /notebook /whiteboard /paper | create | learn | Deterministic inserts, no model: `insert_notebook`, `insert_whiteboard`, `insert_paper` (a known paper id opens directly; a topic opens the arXiv search). /paper is typed only since Release B (owner, 2026-10-16): /arxiv is the listed paper search |
+| /youtube /arxiv /wikipedia | source | learn, ctrlk, insert | `action: 'open_source'`: the shared source finder opens on that source with the query and searches at once (an empty query waits); results are previewed and nothing is added until the learner adds one. No model call. /arxiv takes a topic or an arXiv ID or link; /youtube finds existing videos, /video generates a new clip. One opener for Chat, Ctrl+K and Insert: `openSourceFinder` (packages/web/src/source-finder.js); a result is previewed on click and added by Add to canvas. The top-bar Search control is gone (owner 5A): `/` outside editable fields focuses the right panel's canvas Find |
 | /more | create | learn | `action: 'open_tool_catalog'`: the full tool catalog |
 
 ## Learn tool families (user, 2026-09-28)

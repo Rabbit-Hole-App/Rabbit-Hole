@@ -16,7 +16,7 @@ const names = sections => sections.flatMap(section => section.items.map(item => 
 const asset = path => existsSync(new URL(`../public${path}`, import.meta.url));
 
 test('every command in the sheet has a demo: a card, the card /source opens, or an example exchange', () => {
-  assert.equal(commands.length, 23);
+  assert.equal(commands.length, 25);
   assert.deepEqual(devCommands.map(({ name }) => name).filter(name => !commands.some(command => command.name === name)), ['motion']);
   for (const { name } of devCommands) {
     const demo = demoOf(name);
@@ -128,6 +128,7 @@ test('/source opens the selected card through the page, and says so when the pag
 const NOT_OFFERED = {
   research: 'refused on every scope (reviewOff: it would call the live model) and unwired in AgentBar.jsx; kept for when it is',
   more: 'opens the full list of learning tools: the picker\'s own section, never a row, and the sheet is that list',
+  paper: 'typed only (owner A4, 2026-10-16): /arxiv is the one listed paper search; a typed /paper still opens an ID or link',
 };
 const SCOPES = [{ kind: 'workspace', slug: null }, { kind: 'project', slug: 'repo-1' }, { kind: 'app', slug: 'job-1' }];
 const JOB = [{ name: 'job-1', kind: 'job' }];

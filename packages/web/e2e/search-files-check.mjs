@@ -4,6 +4,8 @@ import { chromium } from '@playwright/test';
 // stubbed worker. Every way out of the search bar, every state it can be in
 // (idle, busy, results, exact match, nothing found, failed), keyboard use,
 // and the Files panel's switch / show / remove on real cards.
+// Release B (C:/s/spec/rel-b.md, owner decisions 4A and 5A, 2026-10-16): the top-bar Search control is gone; Insert opens
+// the finder on a source, results preview there and a card is added only by Add to canvas (or Enter on the chosen one).
 
 const app = { name: 'nanogpt', org: 'example-team', orgName: 'Example team', kind: 'repository', repo: 'karpathy/nanoGPT', description: '', owner_email: 'b@e.test', deployed_at: '2026-09-08T09:16:00Z', created_at: '2026-09-07T16:20:00Z', visibility: 'domain', members: [], teams: [], observations: [], canEdit: true, email: 'b@e.test', schedule: null, commit_sha: 'abc123' };
 const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.email, apps: [app], folders: [] }, '/api/apps/nanogpt': app, '/api/apps/nanogpt/learn-course': { course: null, canAuthor: true }, '/api/repositories/nanogpt': { ...app, status: 'ready' }, '/api/repositories/nanogpt/snapshot': { commit: 'abc123', graph: { nodes: [], edges: [] }, files: [], skipped: [] }, '/api/workspaces': { active: app.org, email: app.email, workspaces: [{ slug: app.org, name: app.orgName, role: 'owner', kind: 'custom' }] } };
@@ -54,7 +56,7 @@ const ok = (name, condition, extra = '') => { if (!condition) failed += 1; conso
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 const menubar = page.getByRole('menubar', { name: 'Canvas menu' });
 const bar = page.getByRole('dialog', { name: 'Search' });
-const openSearch = async () => { await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click(); await page.waitForTimeout(250); };
+const openSearch = async (label = 'Search YouTube…') => { await menubar.getByRole('menuitem', { name: /^Insert/ }).click(); await page.waitForTimeout(200); await page.getByRole('menuitem', { name: label, exact: true }).click(); await page.waitForTimeout(250); };
 
 await page.goto('http://localhost:5189/apps/nanogpt?tab=learn&board=search-files-1');
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
@@ -84,7 +86,8 @@ await page.mouse.click(700, 700);
 
 // --- every way out ---
 await openSearch();
-ok('Search opens one bar', (await bar.count()) === 1);
+ok('no top-bar Search control', (await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).count()) === 0);
+ok('Insert > Search YouTube opens one bar, on YouTube', (await bar.count()) === 1 && (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'youtube');
 const rect = await bar.boundingBox();
 ok('centered horizontally, in the upper part of the page', Math.abs(rect.x + rect.width / 2 - 750) < 4 && rect.y < 950 / 3, `x-center ${Math.round(rect.x + rect.width / 2)}, top ${Math.round(rect.y)}`);
 await page.keyboard.press('Escape');
@@ -134,17 +137,19 @@ await page.keyboard.press('Enter');
 await page.waitForTimeout(800);
 ok('Enter adds the highlighted result and closes the bar', (await bar.count()) === 0 && (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
 
-// --- source dropdown, remembered; exact match ---
-await openSearch();
-ok('the source is remembered', (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'youtube');
-await bar.getByRole('combobox', { name: 'Search in' }).selectOption('arxiv');
+// --- Insert > Search arXiv; exact match; preview, then Add to canvas ---
+await openSearch('Search arXiv…');
+ok('Insert > Search arXiv opens the bar on arXiv', (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'arxiv');
 await bar.getByRole('textbox').fill('1706.03762');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(700);
 ok('a pasted id comes back as an exact match', (await bar.getByText('Exact match').count()) === 1);
-await page.keyboard.press('Enter');
-await page.waitForTimeout(1000);
 const paperCard = canvas.locator('[aria-label="Paper reader"]');
+await bar.getByRole('listbox').getByRole('option').first().locator('button').click();
+await page.waitForTimeout(400);
+ok('clicking a result previews it and adds nothing', (await bar.count()) === 1 && (await paperCard.count()) === 0);
+await bar.getByRole('button', { name: 'Add to canvas' }).click();
+await page.waitForTimeout(1000);
 ok('picking a paper puts a paper card on the canvas', (await paperCard.count()) === 1);
 ok('and not the side panel', (await page.locator('aside [aria-label="Paper reader"]').count()) === 0);
 await paperCard.locator('[aria-label="Next paper page"]').waitFor({ timeout: 15000 });

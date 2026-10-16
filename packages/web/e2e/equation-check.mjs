@@ -132,6 +132,8 @@ await check('typing in the equation never fires the canvas or page shortcuts (De
   assert.ok(await commentOff(), 'C did not arm Comment');
   await page.keyboard.type('/');
   assert.equal(await page.getByRole('dialog', { name: 'Search' }).count(), 0, '/ did not open Search');
+  // Release B (owner decision 5A): outside a field / focuses the canvas Find; inside the equation it is typed.
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Find text on canvas'), false, '/ did not move to Find');
   await page.keyboard.press('Control+d');
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Backspace');

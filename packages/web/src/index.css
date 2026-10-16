@@ -291,6 +291,15 @@ html {
   --cmd-more-bg: #fdecf3;
   --cmd-more-fg: #701036;
   --cmd-more-line: #f1b1cb;
+  --cmd-youtube-bg: #fcf1eb;
+  --cmd-youtube-fg: #693111;
+  --cmd-youtube-line: #f2ccb5;
+  --cmd-arxiv-bg: #fcebf2;
+  --cmd-arxiv-fg: #691136;
+  --cmd-arxiv-line: #f2b5cf;
+  --cmd-wikipedia-bg: #ebf3fc;
+  --cmd-wikipedia-fg: #113a69;
+  --cmd-wikipedia-line: #b5d2f2;
 }
 [data-command-tone] { background-color: var(--cmd-bg); color: var(--cmd-fg); border-color: var(--cmd-line); }
 [data-command-tone="ask"] { --cmd-bg: var(--cmd-ask-bg); --cmd-fg: var(--cmd-ask-fg); --cmd-line: var(--cmd-ask-line); }
@@ -325,6 +334,9 @@ html {
 [data-command-tone="3d"] { --cmd-bg: var(--cmd-3d-bg); --cmd-fg: var(--cmd-3d-fg); --cmd-line: var(--cmd-3d-line); }
 [data-command-tone="notebook"] { --cmd-bg: var(--cmd-notebook-bg); --cmd-fg: var(--cmd-notebook-fg); --cmd-line: var(--cmd-notebook-line); }
 [data-command-tone="more"] { --cmd-bg: var(--cmd-more-bg); --cmd-fg: var(--cmd-more-fg); --cmd-line: var(--cmd-more-line); }
+[data-command-tone="youtube"] { --cmd-bg: var(--cmd-youtube-bg); --cmd-fg: var(--cmd-youtube-fg); --cmd-line: var(--cmd-youtube-line); }
+[data-command-tone="arxiv"] { --cmd-bg: var(--cmd-arxiv-bg); --cmd-fg: var(--cmd-arxiv-fg); --cmd-line: var(--cmd-arxiv-line); }
+[data-command-tone="wikipedia"] { --cmd-bg: var(--cmd-wikipedia-bg); --cmd-fg: var(--cmd-wikipedia-fg); --cmd-line: var(--cmd-wikipedia-line); }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
@@ -460,6 +472,15 @@ html {
   --cmd-more-bg: #341420;
   --cmd-more-fg: #f9b4cf;
   --cmd-more-line: #82264b;
+  --cmd-youtube-bg: #321e13;
+  --cmd-youtube-fg: #f6c4a7;
+  --cmd-youtube-line: #7c4627;
+  --cmd-arxiv-bg: #321320;
+  --cmd-arxiv-fg: #f6a7c8;
+  --cmd-arxiv-line: #7c274b;
+  --cmd-wikipedia-bg: #132132;
+  --cmd-wikipedia-fg: #a7ccf6;
+  --cmd-wikipedia-line: #274f7c;
   --shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.3), 0 9px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 
