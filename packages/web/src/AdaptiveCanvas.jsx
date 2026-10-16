@@ -17,7 +17,7 @@ import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
-import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
+import { outlineFrom, applyOutlineProposal, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
@@ -2133,8 +2133,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Page guides: false (off), 'portrait' or 'landscape' A4.
       setPages,
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
-      // rather than one heading at a time.
-      applyOutline: ops => { snapshot(); setBlocks(previous => applyOutlineOps(previous, ops)); },
+      // rather than one heading at a time. R4 contract C7: { ok: true, applied, skipped } or { ok: false, reason:
+      // 'stale' | 'invalid', message }; a proposal passes its `base` revision, the panel's own edits pass none.
+      applyOutline: (ops, { base } = {}) => {
+        const result = applyOutlineProposal(blocksRef.current, ops, { base });
+        if (!result.ok) return result;
+        if (result.applied) { snapshot(); setBlocks(result.blocks); }
+        return { ok: true, applied: result.applied, skipped: result.skipped };
+      },
       moveSection: (id, beforeId) => { snapshot(); setBlocks(previous => moveSection(previous, id, beforeId)); },
       toggleSectionDone: id => { snapshot(); setBlocks(previous => previous.map(block => block.id === id ? { ...block, done: !block.done } : block)); },
       // Frame the section rather than scroll to it: a section is a heading plus
