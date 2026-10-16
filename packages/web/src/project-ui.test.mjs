@@ -72,14 +72,15 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   assert.match(read('ResizableSidePanel.jsx'), /<aside \{\.\.\.props\} ref=\{panel\} inert=\{collapsed \|\| undefined\}/);
   assert.match(wired, /const failed = status === 'failed' \|\| \(status === 'ready' && !!error\);/);
   // The canvas header beside the companion and Chat: wraps, centred only while it fits, starting after the Back button.
-  // With Chat closed on a wide frame (owner, Release B A3 item 2) a three-column grid: the strip centred as on 85b060be, the
-  // provenance row in the right column; with Chat open the strip's box is contents and the row wraps as before (E2).
-  // The group's column when it fits beside the centred strip (useBesideCentred), else the next row, right-aligned.
-  assert.match(learn, /<div ref=\{canvasHeader\} data-canvas-header className=\{`relative flex shrink-0 flex-wrap items-center justify-center-safe [^`]*pl-12[^`]*\$\{panelOpen \? '' : `\$\{TITLE_CENTRED\.header\} \$\{groupBeside \? '' : TITLE_CENTRED\.groupBelow\}`\}`\}>/);
-  assert.match(learn, /const groupBeside = useBesideCentred\(canvasHeader, !panelOpen, \[provenance, repository\]\);/);
-  assert.match(learn, /header: '@min-\[1100px\]\/frame:grid @min-\[1100px\]\/frame:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]',\s*groupBelow: '@min-\[1100px\]\/frame:\[&>\[data-provenance-row\]\]:col-span-full'/);
-  assert.match(learn, /\{!panelOpen && <span aria-hidden="true" className=\{TITLE_CENTRED\.spacer\} \/>\}\s*<div data-title-strip className=\{panelOpen \? 'contents' : TITLE_CENTRED\.strip\}>\s*<div data-title-crumbs/);
-  assert.match(learn, /<\/div>\s*<\/div>\s*\{\/\* The canvas's repository[\s\S]{0,700}<ProvenanceRow provenance=\{provenance\}>/, 'the provenance row sits outside the strip');
+  // With Chat closed on a wide frame (owner, Release B A3 item 2) a three-column grid: the menubar after Back (lead ruling),
+  // the title group centred, the actions and the provenance row at the right, wrapping the row onto its own line when it
+  // does not fit; with Chat open the column boxes are contents and the row wraps as before (E2).
+  assert.match(learn, /<div data-canvas-header className=\{`relative flex shrink-0 flex-wrap items-center justify-center-safe [^`]*pl-12[^`]*\$\{panelOpen \? '' : TITLE_CENTRED\.header\}`\}>/);
+  assert.match(learn, /header: '@min-\[1100px\]\/frame:grid @min-\[1100px\]\/frame:grid-cols-\[minmax\(max-content,1fr\)_auto_minmax\(min-content,1fr\)\] @min-\[1100px\]\/frame:items-start'/);
+  assert.match(learn, /<div data-title-crumbs className=\{`flex max-w-full min-w-0 items-center \$\{panelOpen \? '' : TITLE_CENTRED\.title\}`\}>/);
+  assert.match(learn, /<div data-header-left className=\{panelOpen \? 'contents' : TITLE_CENTRED\.left\}><CanvasMenubar menus=\{canvasMenus\} \/><\/div>\s*<div data-header-right className=\{panelOpen \? 'contents' : TITLE_CENTRED\.right\}>/);
+  assert.match(learn, /<ProvenanceRow provenance=\{provenance\}>\{repository && <RepositoryBadge repository=\{repository\} \/>\}<\/ProvenanceRow>\s*<\/div>\s*<\/div>\}/, 'the provenance row ends the right column');
+  assert.match(learn, /right: 'contents [^']*flex-wrap [^']*justify-end [^']*\[&>\[data-provenance-row\]\]:ml-0'/);
   // #12 an ordinary open forces no viewer.
   assert.match(app, /a\.kind === 'repository' \? navigate\(`\/apps\/\$\{a\.name\}`\)/);
 });
@@ -270,7 +271,7 @@ test('the inspector has one action, Learn this, in its header beside the title; 
 // a bread crumb: pallets/itsdangerous > canvas 2". In a project the title is [project] › [canvas] on one line, the Main
 // canvas included; the project part is the card's own title (cardModel), goes to the Main canvas, and shrinks first.
 test('in a project the title is a one-line breadcrumb: the project (its card title, to the Main canvas), then the canvas', () => {
-  assert.match(learn, /<div data-title-crumbs className="flex max-w-full min-w-0 items-center">\n\s*\{project && <>\n\s*<button type="button" data-project-crumb title=\{cardModel\(project\)\.title\} onClick=\{\(\) => navigate\(canvasHref\(project\.name\)\)\}\n\s*className="h-8 max-w-60 min-w-12 shrink-\[50\] truncate [^"]*">\{cardModel\(project\)\.title\}<\/button>/);
+  assert.match(learn, /<div data-title-crumbs className=\{`flex max-w-full min-w-0 items-center \$\{panelOpen \? '' : TITLE_CENTRED\.title\}`\}>\n\s*\{project && <>\n\s*<button type="button" data-project-crumb title=\{cardModel\(project\)\.title\} onClick=\{\(\) => navigate\(canvasHref\(project\.name\)\)\}\n\s*className="h-8 max-w-60 min-w-12 shrink-\[50\] truncate [^"]*">\{cardModel\(project\)\.title\}<\/button>/);
   // The canvas title stays the renamable input, and the switcher or the Rabbit Holes chevron hangs off it, inside the crumbs.
   assert.match(learn, /<\/>\}\n\s*<input aria-label="Canvas title"[\s\S]*?\{switcher \? cloneElement[^\n]*\n\s*<\/div>/);
   // The Main canvas is named so, the project name being the crumb before it.
