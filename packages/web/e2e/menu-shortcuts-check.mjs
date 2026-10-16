@@ -136,15 +136,16 @@ await page.keyboard.press('Escape');
 
 // --- / and ? ---
 await blank();
-const searchButton = page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' });
-ok('Search is an icon beside Present, and tells its key', (await searchButton.innerText()).trim() === '' && (await searchButton.getAttribute('title')).endsWith('(/)')
-  && await searchButton.evaluate(button => button.nextElementSibling?.getAttribute('aria-label') === 'Present'));
-ok('and is no longer in the menubar', (await menubar.getByRole('menuitem', { name: /^Search/ }).count()) === 0);
+// Release B (C:/s/spec/rel-b.md, owner decision 5A, 2026-10-16): the top-bar Search control is gone; / focuses the right
+// panel's canvas Find; source search is in Insert.
+ok('no top-bar Search control', (await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).count()) === 0);
+ok('and no Search in the menubar', (await menubar.getByRole('menuitem', { name: /^Search/ }).count()) === 0);
 await page.keyboard.press('/');
-await page.waitForTimeout(250);
-ok('/ opens Search', (await page.getByRole('dialog', { name: 'Search' }).count()) === 1);
+await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Find text on canvas', null, { timeout: 5000 }).catch(() => {});
+ok('/ focuses the canvas Find and opens no Search', (await page.getByRole('dialog', { name: 'Search' }).count()) === 0
+  && await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Find text on canvas'));
 await page.keyboard.press('Escape');
-await page.waitForTimeout(150);
+await blank();
 await page.keyboard.press('?');
 await page.waitForTimeout(250);
 const sheet = page.getByRole('dialog', { name: 'Keyboard shortcuts' });

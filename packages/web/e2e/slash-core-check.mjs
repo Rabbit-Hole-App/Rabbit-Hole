@@ -103,6 +103,8 @@ const before = await blocks();
 await composer().press('Enter');
 await finder.getByText('Attention in transformers, visually').waitFor({ timeout: 10000 });
 await finder.getByText('Attention in transformers, visually').click();
+// Release B lane B3 (owner decision 4A): a click previews the result; only Add to canvas adds it.
+await finder.getByRole('button', { name: 'Add to canvas' }).click();
 await finder.waitFor({ state: 'detached' });
 await page.waitForFunction(n => document.querySelectorAll('[data-block-id]:not([data-chat-block])').length > n, before, { timeout: 10000 }).catch(() => {});
 ok('adding a result puts the card on the canvas and clears the command line', await blocks() > before && await pill.count() === 0 && await composer().inputValue() === '');

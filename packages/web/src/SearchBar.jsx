@@ -9,8 +9,10 @@ import { wsHeaders } from './api.js';
 // resolves to exactly that item.
 //
 // Search runs on Enter, not per keystroke: every search is a paid call.
-// Esc, the X, or a click outside closes it; nothing is added until a result
-// is chosen.
+// Esc, the X, or a click outside closes it. The results preview here: a click
+// or the arrows choose one, and nothing is added until Add to canvas (or Enter
+// on the chosen result; owner decision 4A, Release B). Opened only through
+// openSourceFinder (source-finder.js).
 export const SOURCES = [
   { id: 'youtube', label: 'YouTube', noun: 'videos', placeholder: 'What do you want to learn?', examples: ['I want to understand backpropagation', 'how transformers pay attention', 'gradient descent visually'] },
   { id: 'arxiv', label: 'arXiv', noun: 'papers', placeholder: 'A topic, a paper title, or an arXiv link', examples: ['Attention is all you need', 'why does batch normalization help', '1706.03762'] },
@@ -60,7 +62,7 @@ export default function SearchBar({ app, initialSource = null, initialQuery = ''
     } catch (problem) { if (problem.name !== 'AbortError') setError(problem.message); }
     finally { if (!controller.signal.aborted) setBusy(false); }
   };
-  // Opened with a query (/paper <topic>): search it straight away.
+  // Opened with a query (/youtube, /arxiv, /wikipedia <query>, /paper <topic>): search it straight away.
   useEffect(() => { if (initialQuery) run(initialQuery, source); }, []);
   const choose = result => { onPick(source, result.item); onClose(); };
   const switchTo = next => {
@@ -159,7 +161,7 @@ export default function SearchBar({ app, initialSource = null, initialQuery = ''
             <ul role="listbox" aria-label={`${meta.label} results`}>
               {results.map((result, index) => (
                 <li key={result.key} role="option" aria-selected={index === active}>
-                  <button type="button" onClick={() => choose(result)} onPointerEnter={() => setActive(index)}
+                  <button type="button" data-finder-result={result.key} onClick={() => setActive(index)}
                     className={`flex w-full items-start gap-3 rounded-xl px-2.5 py-2 text-left ${index === active ? 'bg-hover' : ''}`}>
                     {result.thumbnail
                       ? <img src={result.thumbnail} alt="" loading="lazy" referrerPolicy="no-referrer" className="mt-0.5 h-12 w-20 shrink-0 rounded-md bg-hover object-cover" />
@@ -170,15 +172,21 @@ export default function SearchBar({ app, initialSource = null, initialQuery = ''
                         {result.exact && <span className="shrink-0 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">Exact match</span>}
                       </span>
                       {result.subtitle && <span className="block truncate text-xs text-ink-3">{result.subtitle}</span>}
-                      {result.why && <span className="mt-0.5 line-clamp-2 text-xs text-ink-2">{result.why}</span>}
+                      {result.why && <span className={`mt-0.5 text-xs text-ink-2 ${index === active ? '' : 'line-clamp-2'}`}>{result.why}</span>}
                     </span>
-                    {index === active && <span className="mt-1 hidden shrink-0 items-center gap-1 text-[11px] text-ink-3 sm:flex"><CornerDownLeft size={12} />add</span>}
                   </button>
                 </li>
               ))}
             </ul>
           )}
         </div>
+        {!busy && !error && current && !!results?.length && (
+          <div data-finder-add className="flex items-center justify-end gap-3 border-t border-line px-3 py-2">
+            <button type="button" onClick={() => choose(results[active] || results[0])}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover">
+              Add to canvas<CornerDownLeft size={12} aria-hidden /></button>
+          </div>
+        )}
       </div>
     </div>
   );

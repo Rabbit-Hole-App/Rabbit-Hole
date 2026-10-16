@@ -1,5 +1,5 @@
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
+import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
 import { canvasHref } from './project-canvases.js';
@@ -21,7 +21,8 @@ import FeedbackButton from './FeedbackButton.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, motionProposal, parseSlash, runLearnCommand } from './learn-slash.js';
-import { commandsFor } from './agent/slash.js';
+import { commandsFor, labelOf } from './agent/slash.js';
+import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
 import { ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
 import { warmLearnTools } from './learn-warmup.js';
@@ -50,7 +51,7 @@ import LinksPanel, { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle, ArrowUpToLine, RotateCw, Link2, ArrowLeft } from 'lucide-react';
+import { MessageCircle, ArrowUpToLine, RotateCw, Link2, ArrowLeft, MonitorPlay, ScrollText, Globe } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -96,6 +97,8 @@ const UNKEPT = "This browser is blocking storage, so nothing is kept in this bro
 // real board, so ?board=main never shares its server row, journey or Tutor store.
 const boardSlug = name => { const slug = String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test'; return slug === 'main' ? 'review-main' : slug; };
 const AdaptiveCanvas = lazyFeature(() => import('./AdaptiveCanvas.jsx'), 'The canvas');
+// The Insert menu's source search rows (descriptive icons, never a brand mark).
+const FINDER_ICONS = { youtube: MonitorPlay, arxiv: ScrollText, wikipedia: Globe };
 // What a reserved research card says while the answer finishes (docs/features/canvas-skeleton-cards.md).
 const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…', video: 'Opening the video…' };
 
@@ -207,25 +210,44 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  // What a /paper <topic> command searches for; null for the plain search bar.
-  const [searchSeed, setSearchSeed] = useState(null);
-  // Resolves the open finder's promise for the Chat source command that opened it ({ added }); null for any other opening.
-  const finderDone = useRef(null);
+  // The source finder (SearchBar), opened only through openSourceFinder (source-finder.js; Release B, B3): Chat's and Ctrl+K's
+  // /youtube /arxiv /wikipedia, a typed /paper <topic>, the Insert menu and the + palette's YouTube moment. finder:
+  // { source, query, origin, from, done } while it is open, else null; done settles the opener's promise once ({ added }).
+  const [finder, setFinder] = useState(null);
+  const finderNow = useRef(null);
+  finderNow.current = finder;
+  useEffect(() => setSourceFinderHost(({ source, query, origin }) => new Promise(resolve => {
+    finderNow.current?.done({ added: false });
+    let settled = false;
+    const done = result => { if (!settled) { settled = true; resolve(result); } };
+    setFinder({ source, query, origin, from: document.activeElement, done });
+  })), []);
+  const closeFinder = () => {
+    const open = finderNow.current;
+    if (!open) return;
+    setFinder(null);
+    open.done({ added: false });
+    requestAnimationFrame(() => returnFocus(open.origin, open.from));
+  };
+  // "/" focuses the right panel's Find (owner decision 5A): bumped to focus it once the panel has rendered open.
+  const [findFocus, setFindFocus] = useState(0);
+  useEffect(() => { if (findFocus) requestAnimationFrame(() => findInput.current?.focus()); }, [findFocus]);
   // Tool Performance v1: common tools fetched on idle, one per quiet moment (learn-warmup.js).
   useEffect(() => { warmLearnTools(app.name); }, [app.name]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [slashHelpOpen, setSlashHelpOpen] = useState(false);
-  // / opens Search and ? the shortcuts sheet - the keys the page owns; the
-  // canvas owns the rest. Neither fires while typing or presenting.
+  // / focuses the right panel's canvas Find (owner decision 5A, Release B; it opened Search before) and ? the shortcuts
+  // sheet - the keys the page owns; the canvas owns the rest. Neither fires while typing or presenting: "/" keeps its typing
+  // or slash-picker meaning in Chat, Ctrl+K, fields, BlockNote and code editors (slashOpensFind).
   useEffect(() => {
     const key = event => {
       if (event.ctrlKey || event.metaKey || event.altKey || (event.key !== '/' && event.key !== '?')) return;
       const active = window.document.activeElement;
       if (typingIn(active) || active?.tagName === 'SELECT') return;
+      if (event.key === '/' && !slashOpensFind(active)) return;
       if (canvasStateRef.current.presenting) return;
       event.preventDefault();
-      if (event.key === '/') { setShortcutsOpen(false); setSearchOpen(true); } else setShortcutsOpen(open => !open);
+      if (event.key === '/') { setPanelOpen(true); setPanelTab('find'); setFindFocus(n => n + 1); } else setShortcutsOpen(open => !open);
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
@@ -364,7 +386,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   };
   // One road from a search result to a card: the Search bar and the Agent Bar
   // handoff both take it. Returns the card's block id.
-  const pickResult = (source, item) => (source === 'arxiv' ? addPaper(item) : source === 'wikipedia' ? addWiki({ title: item.title }) : addVideo(item));
+  const pickResult = (source, item, into = null) => (source === 'arxiv' ? addPaper(item, into) : source === 'wikipedia' ? addWiki({ title: item.title }, into) : addVideo(item, into));
   // A paper card turning its page is where the learner is now - unless the
   // reader is open, which wins, as it does for a wiki card's section.
   // The Learn Chat workspace's handle (chat-workspace.jsx). This page renders the provider, so A1 mounts
@@ -773,8 +795,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             return {};
           },
         },
-        // A Chat source command's finder: settles { added } when it closes, so the composer keeps its draft until then.
-        openSearch: seed => new Promise(resolve => { finderDone.current = resolve; setSearchSeed(seed); setSearchOpen(true); }),
+        // A Chat source command's finder (the shared opener): settles { added } when it closes, so the composer keeps its
+        // draft until then; focus goes back to the composer.
+        openSearch: seed => openSourceFinder({ source: seed.source, query: seed.query, origin: { returnFocus: document.activeElement } }),
         post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }),
       });
     },
@@ -1704,6 +1727,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // The one way to add a file besides dropping it on the canvas.
         { label: 'Upload a file', icon: Upload, onSelect: () => filePicker.current?.click() },
         { divider: true },
+        // Source search (owner decisions 4A and 5A, Release B): the registry's 'insert' commands open the shared finder; it adds
+        // a card only on Add to canvas.
+        ...commandsFor('insert').map(command => ({ label: `${labelOf(command)}…`, icon: FINDER_ICONS[command.source], onSelect: () => openSourceFinder({ source: command.source }) })),
+        { divider: true },
         { label: 'Link to canvas…', icon: Link2, onSelect: () => setRefPick({}) },
       ],
     },
@@ -1876,13 +1903,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           )}
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
-          {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); finderDone.current?.({ added: false }); finderDone.current = null; }}
-            onPick={(source, item) => { finderDone.current?.({ added: true }); finderDone.current = null; return pickResult(source, item); }} />}
+          {finder && <SearchBar key={`${finder.source}:${finder.query}`} app={app.name} initialSource={finder.source} initialQuery={finder.query} onClose={closeFinder}
+            onPick={(source, item) => { const blockId = pickResult(source, item, finder.origin?.into ?? null); finder.done({ added: !!blockId }); return blockId; }} />}
           <div className="flex items-center gap-0.5">
-            {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
-            <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
-              onClick={() => setSearchOpen(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Search size={15} strokeWidth={1.8} /></button>
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
@@ -1926,7 +1949,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             land as movable blocks. Lesson playback stays parked. */}
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none" style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={null}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock} repositoryCommit={repository?.commit || null}>{steps => <AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
-          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
             linked={refPick.blockId ? ((canvasApi.current?.liveRefs?.() || []).find(entry => entry.blockId === refPick.blockId)?.refs || []).map(ref => ref.target) : []}
             returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
             onPick={async canvas => {

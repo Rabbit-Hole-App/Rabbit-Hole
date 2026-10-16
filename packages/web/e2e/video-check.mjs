@@ -53,8 +53,9 @@ await page.goto('http://localhost:5189/apps/nanogpt?tab=learn');
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(3000);
 
-// --- picking one ---
-await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click();
+// --- picking one (Insert > Search YouTube; Release B removed the top-bar Search control) ---
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
+await page.getByRole('menuitem', { name: 'Search YouTube…', exact: true }).click();
 await page.waitForTimeout(300);
 const box = page.getByRole('dialog', { name: 'Search' });
 await box.getByRole('combobox', { name: 'Search in' }).selectOption('youtube');
@@ -63,6 +64,7 @@ await page.keyboard.press('Enter');
 await page.waitForTimeout(1200);
 ok('results show title and channel', (await box.getByText('3Blue1Brown').count()) === 1);
 await box.getByRole('listbox').getByRole('option').first().click();
+await box.getByRole('button', { name: 'Add to canvas' }).click();
 await page.waitForTimeout(2000);
 
 const card = canvas.locator('iframe[src*="youtube-nocookie.com"]');

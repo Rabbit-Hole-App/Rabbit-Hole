@@ -13,7 +13,7 @@ test('the shortcuts sheet lists Quick Edit, Add to chat and Search in the canvas
   assert.match(canvas, /\['Add the selection to chat \(Cmd on a Mac\)', \['Ctrl', 'L'\]\],/);
   assert.match(canvas, /\['Search the app \(Cmd on a Mac\)', \['Ctrl', 'Shift', 'F'\]\],/);
   assert.doesNotMatch(sheet, /Explain or edit the selection with AI/);
-  for (const row of [/\['Search', \['\/'\]\]/, /\['Comment on the selection/, /\['Undo', \['Ctrl', 'Z'\]\]/, /\['Group', \['Ctrl', 'G'\]\]/, /\['Lock or unlock', \['Ctrl', 'Shift', 'L'\]\]/]) assert.match(sheet, row);
+  for (const row of [/\['Find on this canvas', \['\/'\]\]/, /\['Comment on the selection/, /\['Undo', \['Ctrl', 'Z'\]\]/, /\['Group', \['Ctrl', 'G'\]\]/, /\['Lock or unlock', \['Ctrl', 'Shift', 'L'\]\]/]) assert.match(sheet, row);
   assert.equal((sheet.match(/'K'\]/g) || []).length, 1, 'one row names K');
   assert.equal((sheet.match(/'L']/g) || []).length, 3, 'the Line tool, Ctrl+L adding to chat, and Ctrl+Shift+L still locking');
 });

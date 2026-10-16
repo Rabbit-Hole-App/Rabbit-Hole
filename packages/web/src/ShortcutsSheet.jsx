@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 // AdaptiveCanvas's key handler and LearnPage's / and ? - so keep them in step.
 const GROUPS = [
   ['Canvas', [
-    ['Search', ['/']],
+    ['Find on this canvas', ['/']],
     ['Keyboard shortcuts', ['?']],
     ['Back to the pointer, clear the selection', ['Esc']],
     ['Select an area', ['drag empty canvas']],
