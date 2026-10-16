@@ -149,7 +149,7 @@ test('payer: anonymous public link is platform; a signed-in viewer pays on someo
   const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
   // No session: devIdentity notes none, and the boundary's own read agrees.
   const signedOut = { ...base, CONTROL_PLANE: { fetch: async () => new Response('no', { status: 401 }) } };
-  const anonymous = withUsage(signedOut, { feature: 'shared_next_steps' });
+  const anonymous = withUsage(signedOut, { feature: 'shared_ask' });
   assert.ok((await devIdentity(new Request('https://synthetic.test/x'), anonymous)) instanceof Response);
   await spendTransport(anonymous, body, MODEL, null, priced());
   // A signed-in viewer of another person's shared canvas: the session user is the payer, never the canvas owner.
@@ -163,14 +163,16 @@ test('payer: anonymous public link is platform; a signed-in viewer pays on someo
   await spendTransport(withUsage(base, { feature: 'shared_ask', resolveUser: async () => { throw new Error('down'); } }), body, MODEL, null, priced());
   await spendTransport(base, body, MODEL, null, priced());
   assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.payer, a.payer_reason, a.charge_class, a.feature]), [
-    [null, 'platform', 'anonymous_public', 'platform', 'shared_next_steps'],
+    [null, 'platform', 'anonymous_public', 'platform', 'shared_ask'],
     ['u-viewer', 'user', 'signed_in', 'would_charge', 'shared_ask'],
     ['u-lazy', 'user', 'signed_in', 'would_charge', 'board'],
     [null, 'platform', 'system', 'platform', 'shared_ask'],
     [null, 'platform', 'system', 'platform', 'legacy'],
   ]);
-  // A signed-out caller on a private feature is never anonymous_public.
+  // A signed-out caller on a private feature is never anonymous_public, nor on shared Next Steps since the owner R3 decision
+  // (2026-10-16: no AI generation signed out).
   assert.equal(payerOf({ feature: 'ask', identity: null }).payerReason, 'system');
+  assert.equal(payerOf({ feature: 'shared_next_steps', identity: null }).payerReason, 'system');
 });
 
 test('the payer comes from the session through the real dev worker: a body or header naming another payer has no effect', async t => {
