@@ -115,11 +115,29 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
   assert.match(pane, /<Plus size=\{16\}[^>]*\/><span className="@max-\[360px\]:hidden">New chat<\/span>/);
   assert.match(pane, /thread\.rename && \['Rename'[^\]]*\], thread\.remove && \['Delete'/);
   assert.match(pane, /\{actions\.length > 0 && <span className="relative">/);
-  assert.match(pane, /\{thread\.historyOpen && <ChatHistory \/>\}\n\s+<div className=\{`\$\{thread\.historyOpen \? 'hidden' : 'flex'\}/, 'History in place of the conversation, which stays mounted');
+  assert.match(pane, /\{thread\.historyOpen && <div className=\{docked \? 'hidden' : 'contents'\}><ChatHistory \/><\/div>\}\n\s+<div className=\{`\$\{thread\.historyOpen && !docked \? 'hidden' : 'flex'\}/, 'History in place of the conversation, which stays mounted');
   assert.match(pane, /data-chat-pane/, 'e2e selects [data-chat-pane] [data-chat-composer]');
-  assert.match(pane, /\{unavailable \|\| <AskPanel \{\.\.\.askProps\} \{\.\.\.chatAskProps\} \/>\}/, 'the dock\'s props (A3b) reach the Chat AskPanel');
+  assert.match(pane, /\{unavailable \|\| <AskPanel \{\.\.\.askProps\} \{\.\.\.chatAskProps\} hideConversation=\{docked\} \/>\}/, 'the dock\'s props (A3b) reach the Chat AskPanel');
   assert.doesNotMatch(pane, /Sparkles|AppIcon|contentPanel/);
-  assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat'\}/);
+  assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat' && !composerDocked\} docked=\{composerDocked\}/);
+});
+
+// R4 A3 (C:/s/spec/toc-r4.md): the Table of contents keeps the Chat composer below it, Tutor selected on entry. The rendered
+// behaviour (draft, attachments, no request on open, Send opens Chat, scroll restored, a narrow panel) is e2e/panel-header-check.mjs.
+test('the Table of contents docks the same Chat pane under the contents: composer only, Tutor once per entry, Send opens Chat', () => {
+  const pane = read('./ChatPane.jsx'), ask = read('./ask.jsx'), threads = read('./chat-threads.js');
+  assert.match(page, /const composerDocked = panelTab === 'toc' && !setupChat;/, 'not under the course interview, which has its own composer');
+  assert.match(page, /useEffect\(\(\) => \{ if \(composerDocked\) chat\.thread\.setMode\('tutor', \{ save: false \}\); \}, \[composerDocked\]\);/, 'once per entry, not every render; shown, not saved');
+  assert.match(threads, /const setMode = useCallback\(\(next, \{ save = true \} = \{\}\) => \{ setModeState\(next\); if \(save\) saveState\(\{ mode: next \}\); \}, \[saveState\]\);/);
+  assert.match(page, /onSent=\{\(\) => setPanelTab\(tab => \(tab === 'toc' \? 'chat' : tab\)\)\}/, 'a turn sent there shows its answer in Chat');
+  const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
+  assert.ok(toc > 0 && chatPane > toc && chatPane < page.indexOf('</ResizableSidePanel>', toc), 'one ChatPane, after the contents, in the same panel');
+  assert.equal(page.match(/<ChatPane\b/g).length, 1, 'the same instance, never a second composer');
+  assert.match(pane, /className=\{`\$\{hidden \? 'hidden' : 'flex'\} @container min-h-0 \$\{docked \? 'shrink-0' : 'flex-1'\} flex-col`\}/);
+  assert.match(pane, /data-chat-header className=\{`mb-2 \$\{docked \? 'hidden' : 'flex'\}/);
+  assert.match(ask, /\(contentPanel \|\| hideConversation \|\| \(composerOnly && !sheetMode\)\) && 'hidden'/, 'the conversation stays mounted, hidden');
+  assert.match(page, /onScrollCapture=\{event => \{ if \(event\.target\.matches\?\.\('\[data-toc\]'\)\) tocScroll\.current = event\.target\.scrollTop; \}\}/);
+  assert.match(page, /if \(list\) list\.scrollTop = tocScroll\.current;\n  \}, \[panelOpen, panelTab\]\);/, 'coming back restores the contents\' scroll');
 });
 
 test('find: case-insensitive over titles and bodies, one match per card, in canvas order', () => {

@@ -1,4 +1,4 @@
-import { cloneElement, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
@@ -867,6 +867,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const savedRefs = useRef(null);
   // The course interview (Edit course) still lives under the Table of contents tab, so starting one brings that tab forward.
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
+  // R4 A3 (C:/s/spec/toc-r4.md): under the Table of contents the Chat pane docks, its composer only, below the contents (the
+  // course interview has its own composer, so not then). Docking selects Tutor once per entry, shown and not saved, so opening
+  // the tab sends nothing; a mode picked after that stays, in Chat too. A turn sent from there opens Chat on its answer, and
+  // coming back puts the contents where they were scrolled (a hidden tab loses its scroll position).
+  const composerDocked = panelTab === 'toc' && !setupChat;
+  useEffect(() => { if (composerDocked) chat.thread.setMode('tutor', { save: false }); }, [composerDocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tocPanel = useRef(null), tocScroll = useRef(0); // the tabpanel's onScrollCapture keeps the contents' scrollTop
+  useLayoutEffect(() => {
+    const list = panelOpen && panelTab === 'toc' && tocPanel.current?.querySelector('[data-toc]');
+    if (list) list.scrollTop = tocScroll.current;
+  }, [panelOpen, panelTab]);
   // ?share=1 (the Library's Share / Manage link) opens this canvas's Share panel once; the query is dropped at once.
   const [shareOpen, setShareOpen] = useState(() => new URLSearchParams(window.location.search).get('share') === '1');
   useEffect(() => {
@@ -1962,20 +1973,16 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} viewers={companionViews.filter(entry => entry.id !== 'graph')} viewer={panelOpen && companion.open ? companionView : null}
         onViewer={id => (panelOpen && companion.open && companionView === id ? companion.close() : companion.show(id))} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
-      <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
-        onExploreCodebase={repository ? () => chat.panels.companion?.show('graph') : null} codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
-        // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
-        // the page past Learn's header strip.
-        autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
       <LinksPanel hidden={panelTab !== 'links'} links={links} go={refLinks.go} onFocusCard={id => canvasApi.current?.focusBlock(id)} />
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
-      <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
+      <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
+        ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure, not a view onto another
           document: its sections are the canvas headings, and the learner and the agent
           both author them. Dragging a section carries its cards and sub-sections. */}
-      <div data-toc className="mb-3 flex max-h-[45%] shrink-0 flex-col overflow-y-auto">
+      <div data-toc className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`}>
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <h2 className="text-base font-semibold text-ink">Table of contents</h2>
           <div className="flex items-center gap-0.5 text-ink-2">
@@ -2063,10 +2070,16 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         </ol>
       </div>
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
-      <div className={`${setupChat ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
+      <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
       </div>
       </div>
+      {/* After the Table of contents, so docked under it (composerDocked) its composer sits below the contents. */}
+      <ChatPane key={app.name} hidden={panelTab !== 'chat' && !composerDocked} docked={composerDocked} onSent={() => setPanelTab(tab => (tab === 'toc' ? 'chat' : tab))} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
+        onExploreCodebase={repository ? () => chat.panels.companion?.show('graph') : null} codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
+        // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
+        // the page past Learn's header strip.
+        autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
     </ResizableSidePanel>
     <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.ipynb,.py" className="hidden"
       onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />

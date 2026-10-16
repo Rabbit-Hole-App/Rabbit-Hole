@@ -11,7 +11,7 @@ const source = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8')
 test('no AskPanel in LearnPage gets the parked sigmoid demo', () => {
   const panels = source.match(/<AskPanel\b[^\n]*/g);
   // The right-panel Learn chat is the Chat pane now (ChatPane.jsx renders its AskPanel from these props).
-  const chat = source.slice(source.indexOf('<ChatPane key={app.name}'), source.indexOf('<CanvasFind hidden='));
+  const chat = source.slice(source.indexOf('<ChatPane key={app.name}'), source.indexOf('</ResizableSidePanel>', source.indexOf('<ChatPane key={app.name}')));
   assert.match(chat, /conversation="learn"/);
   assert.deepEqual([...panels, chat].filter(panel => /\bdemo=/.test(panel)), []);
 });

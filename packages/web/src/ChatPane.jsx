@@ -11,17 +11,20 @@ import { chatTitle } from './chat-threads.js';
 // conversation, which stays mounted underneath so its draft and scroll survive. Mounted only under ChatWorkspaceProvider.
 // unavailable: what shows instead of the AskPanel (an AWS job without app chat); every other prop goes to the AskPanel,
 // then chatAskProps (A3b: slash, tutor, journey, voice and the other props the removed dock had).
+// docked (R4 A3, C:/s/spec/toc-r4.md): under the Table of contents only this pane's composer shows. Same pane, same AskPanel,
+// so the thread, draft and attachments stay; the header, History and the conversation stay mounted, hidden.
 const ICON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink';
 
-export default function ChatPane({ hidden = false, unavailable = null, chatAskProps = {}, ...askProps }) {
+export default function ChatPane({ hidden = false, docked = false, unavailable = null, chatAskProps = {}, ...askProps }) {
   const { thread } = useChatWorkspace();
   const title = chatTitle(thread); // never New chat while this canvas's conversation is loading or failed to load
   const [menu, setMenu] = useState(false), [renaming, setRenaming] = useState(false), [deleting, setDeleting] = useState(false);
   // Rename and Delete come from the thread hook (A2) once it has them; until then the menu is not drawn.
   const actions = thread.id ? [thread.rename && ['Rename', Pencil, () => setRenaming(true)], thread.remove && ['Delete', Trash2, () => setDeleting(true)]].filter(Boolean) : [];
   return (
-    <div role="tabpanel" aria-label="Chat" data-chat-pane data-chat-restore={thread.status} className={`${hidden ? 'hidden' : 'flex'} @container min-h-0 flex-1 flex-col`}>
-      <div data-chat-header className="mb-2 flex h-8 shrink-0 items-center gap-0.5">
+    <div role={docked ? 'region' : 'tabpanel'} aria-label={docked ? 'Chat composer' : 'Chat'} data-chat-pane data-chat-docked={docked || undefined} data-chat-restore={thread.status}
+      className={`${hidden ? 'hidden' : 'flex'} @container min-h-0 ${docked ? 'shrink-0' : 'flex-1'} flex-col`}>
+      <div data-chat-header className={`mb-2 ${docked ? 'hidden' : 'flex'} h-8 shrink-0 items-center gap-0.5`}>
         {renaming
           ? <input autoFocus defaultValue={thread.title} aria-label="Chat title" onFocus={event => event.currentTarget.select()}
             onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.dataset.cancel = '1'; event.currentTarget.blur(); } if (event.key === 'Enter') event.currentTarget.blur(); }}
@@ -47,11 +50,11 @@ export default function ChatPane({ hidden = false, unavailable = null, chatAskPr
       {deleting && <ConfirmDialog title="Delete this chat?" body={`"${title.slice(0, 80)}" and its messages are removed for good. Uploaded materials stay on the canvas.`}
         onConfirm={() => { setDeleting(false); thread.remove(); }} onCancel={() => setDeleting(false)} />}
       {/* Restoring this canvas's conversation (chat-threads.js status): loading, or failed with a retry that keeps what is shown. */}
-      {!thread.historyOpen && thread.status === 'loading' && <p role="status" className="flex shrink-0 items-center gap-2 px-1 py-2 text-sm text-ink-3"><Loader2 size={14} aria-hidden="true" className="animate-spin" />Loading this canvas's chat…</p>}
-      {!thread.historyOpen && thread.status === 'error' && <p role="alert" data-chat-restore-error className="flex shrink-0 items-center gap-2 px-1 py-2 text-sm text-fail">Could not load this canvas's chat.
+      {!docked && !thread.historyOpen && thread.status === 'loading' && <p role="status" className="flex shrink-0 items-center gap-2 px-1 py-2 text-sm text-ink-3"><Loader2 size={14} aria-hidden="true" className="animate-spin" />Loading this canvas's chat…</p>}
+      {!docked && !thread.historyOpen && thread.status === 'error' && <p role="alert" data-chat-restore-error className="flex shrink-0 items-center gap-2 px-1 py-2 text-sm text-fail">Could not load this canvas's chat.
         <button type="button" onClick={thread.retry} className="font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
-      {thread.historyOpen && <ChatHistory />}
-      <div className={`${thread.historyOpen ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{unavailable || <AskPanel {...askProps} {...chatAskProps} />}</div>
+      {thread.historyOpen && <div className={docked ? 'hidden' : 'contents'}><ChatHistory /></div>}
+      <div className={`${thread.historyOpen && !docked ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{unavailable || <AskPanel {...askProps} {...chatAskProps} hideConversation={docked} />}</div>
     </div>
   );
 }

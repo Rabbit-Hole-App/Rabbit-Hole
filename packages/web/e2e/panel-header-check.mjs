@@ -107,6 +107,22 @@ await check('2 Chat is the default tab; Table of contents selects violet with a 
 await shot('01-header-toc-active', panel());
 await shot('01b-page-toc-active');
 
+// R4 A3 (C:/s/spec/toc-r4.md): the Table of contents keeps the Chat composer below it, Tutor selected. The long contents, the
+// draft and attachments, Send and the narrow panel are on their own canvas below (L1-L7).
+const docked = (on = page) => on.locator('aside[aria-label="Learn agent chat"] [data-chat-docked]');
+const below = async (upper, lower) => { const a = await upper.boundingBox(), b = await lower.boundingBox(); return !!a && !!b && a.y + a.height <= b.y + 1; };
+await check('2b short contents: the Chat composer stays below them, Tutor selected; no Chat header or conversation over the contents', async () => {
+  await docked().waitFor();
+  assert.ok(await docked().locator('[data-chat-composer] textarea').first().isVisible(), 'the composer shows');
+  assert.ok(await below(panel().locator('[data-toc]'), docked()), 'below the contents');
+  const [aside, pane] = [await panel().boundingBox(), await docked().boundingBox()];
+  assert.ok(Math.abs(aside.y + aside.height - (pane.y + pane.height)) < 40, `anchored at the panel's foot: pane ends ${Math.round(pane.y + pane.height)}, panel ${Math.round(aside.y + aside.height)}`);
+  assert.equal(await docked().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
+  assert.equal(await panel().locator('[data-chat-header]').isVisible(), false);
+  assert.equal(await page.getByRole('tabpanel', { name: 'Chat', exact: true }).count(), 0, 'the Table of contents is the one tabpanel');
+});
+await shot('01c-toc-composer-short', panel());
+
 // Comments is live on a saved canvas (docs/features/canvas-comments.md); comments-check.mjs covers the view itself.
 await check('3 Comments selects on a saved canvas and shows the Comments view; the Table of contents comes back', async () => {
   const comments = tab('Comments');
@@ -254,6 +270,162 @@ await check('13 Close shuts the panel and changes no canvas content', async () =
 });
 await shot('05-closed');
 
+// L: a canvas with a long contents list, in its own browser context (its own routes; the hook counts above stay this page's).
+// /api/learn/ask is answered here with a canned stream; every other model route fails the run; every request to a chat, ask or
+// Tutor route is recorded, so opening the tab is shown to request nothing.
+const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+const HEADINGS = Array.from({ length: 30 }, (_, i) => ({ id: `t-h-${i}`, type: 'heading', dx: 0, dy: 0, level: i % 3 === 0 ? 1 : 2, text: `Part ${i + 1}: heat and phase` }));
+const LONG = { ...STATE, blocks: [{ id: 't-card', type: 'explanation', dx: 0, dy: 0, title: 'Heat flows from hot to cold', body: 'A metal spoon conducts heat away from your hand faster than wood.' }, ...HEADINGS] };
+const longCanvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Panel contents ${run}` }) })).body;
+const longKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${longCanvas.name}:ink`;
+const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+await ctx2.addCookies([{ name: 'small_session', value: owner.session, url: BASE }]);
+await ctx2.addInitScript(([key, value]) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, [longKey, LONG]);
+const tocAsks = [], tocStray = [], tocErrors = [], chatRequests = [];
+await ctx2.route('**/api/learn/ask', route => {
+  tocAsks.push(JSON.parse(route.request().postData() || '{}'));
+  const n = tocAsks.length;
+  return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: `Canned answer ${n}.` }) + frame('done', { ok: true, threadId: 'toc-thread-1', userMessageId: `u-${n}`, messageId: `m-${n}` }) });
+});
+await ctx2.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); tocStray.push(route.request().url()); return route.abort(); });
+await ctx2.route(/\/api\/learn\/chat\//, route => (route.request().method() === 'GET' ? route.continue() : route.fulfill({ json: { ok: true } }))); // the canned thread exists nowhere
+const p2 = await ctx2.newPage();
+p2.on('pageerror', error => tocErrors.push(error.message));
+p2.on('request', request => { const path = new URL(request.url()).pathname; if (/^\/api\/(ask\b|learn\/(ask|chat|tutor)\b)/.test(path)) chatRequests.push(`${request.method()} ${path}`); });
+const panel2 = () => p2.locator('aside[aria-label="Learn agent chat"]');
+const field = () => p2.locator('[data-chat-pane] [data-chat-composer] textarea').first();
+const send2 = () => p2.locator('[data-chat-pane] [data-chat-composer] button[aria-label="Send"]');
+const mode2 = () => p2.locator('[data-chat-pane] [data-chat-mode]').getAttribute('data-chat-mode');
+const pickMode = async id => { await p2.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click(); await p2.locator(`[data-chat-mode-option="${id}"]`).click(); };
+const tab2 = name => p2.getByRole('tab', { name, exact: true });
+const selected2 = async () => p2.locator('[role="tab"][aria-selected="true"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
+const list = () => panel2().locator('[data-toc]');
+const lastEntry = () => list().getByRole('button', { name: 'Part 30: heat and phase', exact: true });
+const chip = () => p2.locator('[data-chat-pane] [data-context-chip]', { hasText: 'Heat flows from hot to cold' }); // Add to chat's attached card
+const shot2 = async (name, clip = null) => {
+  await p2.waitForTimeout(400);
+  const box = clip ? await clip.boundingBox() : null;
+  await p2.screenshot({ path: `${SHOTS}/${name}.png`, ...(box ? { clip: { x: Math.max(0, box.x - 8), y: Math.max(0, box.y - 8), width: box.width + 16, height: box.height + 16 } } : {}) });
+  console.log('shot', name);
+};
+// The contents reach their last entry above the composer: the list scrolls by itself, and its end shows clear of the composer.
+const reachable = async () => {
+  assert.ok(await below(list(), docked(p2)), 'the composer is below the contents, never over them');
+  const [scrolls, sideways] = await list().evaluate(node => [node.scrollHeight > node.clientHeight + 4, node.scrollWidth > node.clientWidth + 1]);
+  assert.ok(scrolls, 'the long contents scroll in their own area');
+  assert.equal(sideways, false, 'no horizontal scroll');
+  await lastEntry().scrollIntoViewIfNeeded();
+  assert.ok(await lastEntry().isVisible());
+  assert.ok(await below(lastEntry(), docked(p2)), 'the last entry shows above the composer');
+};
+
+await p2.goto(`${BASE}/apps/${longCanvas.name}`);
+await p2.locator('[data-block-id="t-card"]').waitFor({ timeout: 60000 });
+if (!(await p2.getByRole('button', { name: 'Hide the right panel' }).count())) await p2.getByRole('button', { name: 'Show the right panel' }).click();
+await field().waitFor();
+
+await check('L1 in Chat: one Ask question answered, then an unsent draft and a card attached', async () => {
+  assert.deepEqual(await selected2(), ['chat']);
+  await pickMode('ask'); // Auto on a canvas is the Tutor's planner; Ask is the one /api/learn/ask turn this context answers
+  await field().fill('Why does a metal spoon feel colder than a wooden one?');
+  await send2().click();
+  await p2.locator('[data-chat-pane]').getByText('Canned answer 1.', { exact: true }).waitFor({ timeout: 15000 });
+  await field().fill('Which part should I review next?');
+  await p2.locator('[data-block-id="t-card"] [data-drag-zone]').last().click({ position: { x: 12, y: 8 }, force: true });
+  await p2.getByRole('button', { name: 'Add to chat', exact: true }).click();
+  await chip().waitFor();
+  assert.equal(await field().inputValue(), 'Which part should I review next?');
+  assert.equal(tocAsks.length, 1);
+});
+
+await check('L2 opening the Table of contents: the same composer docks below the long contents with Tutor selected, the draft and card kept, nothing requested', async () => {
+  await p2.waitForTimeout(1200); // past the 800 ms thread-state save of the draft and the card (chat-threads.js SAVE_DELAY)
+  const mark = chatRequests.length;
+  await tab2('Table of contents').click();
+  await docked(p2).waitFor();
+  assert.equal(await mode2(), 'tutor', 'Tutor on entry');
+  assert.equal(await field().inputValue(), 'Which part should I review next?', 'the draft');
+  assert.equal(await chip().count(), 1, 'the attached card');
+  assert.equal(await p2.locator('[data-chat-pane]').getByText('Canned answer 1.', { exact: true }).isVisible(), false, 'the conversation stays in Chat');
+  await reachable();
+  await p2.waitForTimeout(1200); // past the same save delay: entering the tab saves nothing either
+  assert.deepEqual(chatRequests.slice(mark), [], 'no chat, ask or Tutor request from opening the tab');
+  assert.equal(tocAsks.length, 1);
+});
+await shot2('06-toc-composer-long', panel2());
+
+await check('L3 Tutor once per entry: a mode picked under the contents stays, in Chat too; a new entry selects Tutor, which Chat keeps', async () => {
+  await pickMode('ask');
+  await field().fill('Which part should I review next?'); // typing re-renders; the pick stays
+  assert.equal(await mode2(), 'ask');
+  await tab2('Chat').click();
+  assert.equal(await mode2(), 'ask', 'never reset on switching to Chat');
+  await tab2('Table of contents').click();
+  await docked(p2).waitFor();
+  assert.equal(await mode2(), 'tutor', 'a new entry');
+  await tab2('Chat').click();
+  assert.equal(await mode2(), 'tutor', 'never silently Auto');
+});
+
+await check('L4 coming back to the contents restores their scroll position, from Chat and after hiding the panel', async () => {
+  await tab2('Table of contents').click();
+  await docked(p2).waitFor();
+  const box = await list().boundingBox();
+  await p2.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p2.mouse.wheel(0, 260);
+  await p2.waitForFunction(() => document.querySelector('aside[aria-label="Learn agent chat"] [data-toc]').scrollTop > 100);
+  const was = await list().evaluate(node => node.scrollTop);
+  await tab2('Chat').click();
+  await tab2('Table of contents').click();
+  await docked(p2).waitFor();
+  assert.ok(Math.abs((await list().evaluate(node => node.scrollTop)) - was) <= 2, `back from Chat at ${was}`);
+  await p2.getByRole('button', { name: 'Hide the right panel' }).click();
+  await p2.getByRole('button', { name: 'Show the right panel' }).click();
+  await docked(p2).waitFor();
+  assert.ok(Math.abs((await list().evaluate(node => node.scrollTop)) - was) <= 2, `reopened at ${was}`);
+});
+
+await check('L5 Send from under the contents: the Tutor turn in the same conversation, then Chat shows its answer, Tutor still selected', async () => {
+  assert.equal(await mode2(), 'tutor');
+  await field().fill('Which part should I review next?');
+  await send2().click();
+  await p2.locator('[data-chat-pane]').getByText('Canned answer 2.', { exact: true }).waitFor({ timeout: 15000 });
+  assert.deepEqual(await selected2(), ['chat'], 'the panel switched to Chat');
+  assert.ok(await p2.locator('[data-chat-pane]').getByText('Canned answer 1.', { exact: true }).isVisible(), 'the earlier turn is in the same conversation');
+  assert.equal(await p2.locator('[data-chat-docked]').count(), 0);
+  assert.equal(tocAsks.length, 2);
+  assert.equal(tocAsks[1].mode, 'tutor', 'the existing Tutor pipeline');
+  assert.equal(tocAsks[1].thread_id, 'toc-thread-1', 'the same thread');
+  assert.equal(await mode2(), 'tutor');
+});
+await shot2('07-sent-from-contents-chat', panel2());
+
+await check('L6 a narrow panel (its minimum width) and a phone: contents and composer both usable, no overlap, no horizontal scroll', async () => {
+  await tab2('Table of contents').click();
+  await docked(p2).waitFor();
+  const handle = p2.getByRole('separator', { name: 'Resize Learn panel' });
+  await handle.focus();
+  for (let i = 0; i < 20; i += 1) await p2.keyboard.press('ArrowRight');
+  if (await handle.getAttribute('aria-valuenow') !== await handle.getAttribute('aria-valuemin')) for (let i = 0; i < 40; i += 1) await p2.keyboard.press('ArrowLeft');
+  assert.equal(await handle.getAttribute('aria-valuenow'), await handle.getAttribute('aria-valuemin'), 'at the minimum width');
+  await reachable();
+  assert.ok((await field().boundingBox()).width > 200, 'room to type');
+  assert.equal(await panel2().evaluate(node => node.scrollWidth > node.clientWidth + 1), false, 'the panel does not scroll sideways');
+  await shot2('08-toc-composer-narrow', panel2());
+  await p2.setViewportSize({ width: 390, height: 844 });
+  await docked(p2).scrollIntoViewIfNeeded();
+  assert.ok((await list().boundingBox()).height > 60, 'the contents keep room on a phone');
+  await reachable();
+  await shot2('09-toc-composer-phone');
+});
+
+await check('L7 the long canvas: no other model route, no page error', async () => {
+  assert.deepEqual(tocStray, []);
+  assert.deepEqual(tocErrors, []);
+  assert.equal(tocAsks.length, 2);
+});
+await ctx2.close();
+
 await check('no model route was called and no page error', async () => {
   assert.deepEqual(asks, []);
   assert.deepEqual(stray, []);
@@ -271,5 +443,5 @@ await check('the canvas asked for hooks once on open, and nothing the panel did 
 });
 
 await browser.close();
-console.log(`${results.length}/16 checks passed`);
-process.exit(results.length === 16 ? 0 : 1);
+console.log(`${results.length}/24 checks passed`);
+process.exit(results.length === 24 ? 0 : 1);
