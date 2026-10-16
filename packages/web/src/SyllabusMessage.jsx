@@ -7,10 +7,12 @@
 // existing Apply/Discard flow. The button proposes this syllabus, as saved, against the contents as they are now; the
 // learner reviews and applies it there, and this message stays a historical proposal.
 // A validated syllabus is at most 12 topics of 1 + 6 headings plus 12 descriptions: 96 ops, the page's cap for a syllabus
-// proposal (lead ruling C8 size A), so no size guard here; the card says why if Apply ever refuses.
+// proposal (lead ruling C8 size A). One that would take the contents past MAX_OUTLINE_HEADINGS, existing headings included
+// (owner decision, Release A3 item 1), is refused here whole with how many more fit, and nothing is proposed.
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Check, ListTree, Loader2, Plus, Trash2 } from 'lucide-react';
 import { syllabusProposal } from './syllabus-outline.js';
+import { proposalProblem } from './learn-outline-model.js';
 
 const ICON = 'shrink-0 rounded p-1 text-ink-3 hover:bg-hover hover:text-ink disabled:opacity-40';
 const PILL = 'inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-hover disabled:opacity-50';
@@ -23,8 +25,10 @@ export default function SyllabusMessage({ syllabus, saveSyllabus = null, toConte
   const [dirty, setDirty] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(null);
   const [adopted, setAdopted] = useState(null);
   const useAsContents = () => {
-    const proposal = syllabusProposal({ ...syllabus, topics: topics.map(({ objectivesText, ...t }) => t) }, toContents.outline());
+    const outline = toContents.outline(), proposal = syllabusProposal({ ...syllabus, topics: topics.map(({ objectivesText, ...t }) => t) }, outline);
+    const problem = proposal.ops.length ? proposalProblem(outline, proposal) : null;
     if (!proposal.ops.length) setAdopted('Already in the table of contents.');
+    else if (problem) setAdopted(`${problem} Nothing was changed.`);
     else { toContents.propose(proposal); setAdopted('Proposed in Table of contents: review it there, then Apply or Discard.'); }
   };
   const editable = !!saveSyllabus;

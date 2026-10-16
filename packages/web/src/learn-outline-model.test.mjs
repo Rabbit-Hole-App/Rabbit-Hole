@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { outlineFrom, outlineProgress, applyOutlineOps, moveSection, outlineRevision, applyOutlineProposal, proposalProblem, STALE_PROPOSAL } from './learn-outline-model.js';
+import { outlineFrom, outlineProgress, applyOutlineOps, moveSection, outlineRevision, applyOutlineProposal, proposalProblem, STALE_PROPOSAL, MAX_OUTLINE_HEADINGS } from './learn-outline-model.js';
 
 const h = (id, level, text, done = false) => ({ id, type: 'heading', level, text, done });
 const card = id => ({ id, type: 'explanation' });
@@ -314,6 +314,26 @@ test('proposalProblem reports stale or invalid before Apply, null when it applie
   assert.equal(proposalProblem(outline, { ops: [], base: 'deadbeef' }), STALE_PROPOSAL);
   assert.match(proposalProblem(outline, { ops: [{ op: 'add', text: 'V', level: 3, parent: 'h1' }] }), /one level below/);
   assert.equal(proposalProblem(outline, { ops: [{ op: 'add', key: 'a', text: 'A', level: 1 }, { op: 'add', key: 'b', text: 'B', level: 1 }, { op: 'add', text: 'C', level: 2, parent: 'b' }] }), null, 'each add earlier in the proposal has its own id');
+});
+
+// Owner decision, Release A3 item 1: one 120-heading limit, checked against the resulting total, existing headings
+// included; over it the whole proposal is refused with how many more fit, and the learner's own edits are never capped.
+test('a proposal may take the contents to 120 headings and no further; the refusal says how many more fit', () => {
+  assert.equal(MAX_OUTLINE_HEADINGS, 120);
+  const existing = n => Array.from({ length: n }, (_, i) => ({ id: `e${i}`, type: 'heading', level: 1, text: `Existing ${i}` }));
+  const adds = n => Array.from({ length: n }, (_, i) => ({ op: 'add', key: `a${i}`, text: `New ${i}`, level: 1 }));
+  assert.equal(applyOutlineProposal(existing(119), adds(1), { source: 'tutor', newId: ids() }).ok, true, '120 fits');
+  const over = applyOutlineProposal(existing(120), adds(1), { source: 'tutor', newId: ids() });
+  assert.deepEqual([over.ok, over.reason], [false, 'invalid'], '121 does not');
+  assert.equal(over.message, 'This proposal cannot be applied: it adds 1 heading to 120, and the contents hold at most 120: no more fit.');
+  assert.match(applyOutlineProposal(existing(100), adds(24), { source: 'tutor', newId: ids() }).message, /adds 24 headings to 100, .*: 20 more fit\.$/);
+  assert.match(applyOutlineProposal(existing(119), adds(2), { source: 'tutor', newId: ids() }).message, /: 1 more fits\.$/);
+  // Changes that add nothing still apply above the limit, and the learner's own add (no source) is never refused.
+  assert.equal(applyOutlineProposal(existing(130), [{ op: 'retitle', id: 'e0', text: 'Renamed' }], { source: 'tutor', newId: ids() }).ok, true);
+  const manual = applyOutlineProposal(existing(120), [{ op: 'add', text: 'Mine', level: 1 }], { newId: ids() });
+  assert.equal(manual.ok, true);
+  assert.equal(manual.blocks.filter(block => block.type === 'heading').length, 121);
+  assert.equal(proposalProblem(outlineFrom(existing(120)), { ops: adds(1), source: 'syllabus' }), over.message);
 });
 
 test('a syllabus adoption may carry up to 96 changes; anything else stays at 24 (C7b)', () => {

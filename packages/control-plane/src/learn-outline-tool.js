@@ -42,6 +42,8 @@ export const OUTLINE_TOOL = {
 };
 
 export { OUTLINE_SYSTEM } from './agents/learn-chat.js';
+import { MAX_OUTLINE_HEADINGS } from './learn-context.js';
+import { moreFit } from '../../web/src/learn-outline-model.js';
 
 const title = value => typeof value === 'string' && value.trim() && value.trim().length <= MAX_TEXT;
 const level = value => [1, 2, 3].includes(value);
@@ -55,6 +57,8 @@ const description = value => typeof value === 'string' && value.trim() && value.
 export function validateOutlineOps(ops, outline) {
   if (!Array.isArray(ops) || !ops.length) throw new Error('Propose at least one outline change');
   if (ops.length > MAX_OPS) throw new Error(`Propose at most ${MAX_OPS} outline changes at once`);
+  const adds = ops.filter(op => op?.op === 'add').length, have = (outline || []).length;
+  if (adds && have + adds > MAX_OUTLINE_HEADINGS) throw new Error(`The table of contents holds at most ${MAX_OUTLINE_HEADINGS} headings and has ${have}: ${moreFit(have)}`);
   const list = (outline || []).map(entry => ({ id: entry.id, level: entry.level }));
   const known = new Set(list.map(entry => entry.id));
   const minted = new Set();

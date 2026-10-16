@@ -361,6 +361,45 @@ test('Tutor with contents: an add request offers the tool and the rule that only
   assert.equal(events.some(e => e.event === 'outline'), false, 'a claim in prose proposes nothing');
 });
 
+// Owner decision, Release A3 item 1 (stub model, no paid call): the largest syllabus adoption, 84 headings, followed by a
+// chat turn - it was refused at 60 before - in Tutor and in Ask; then 121 manual headings, which ride as a count.
+test('after the largest syllabus adoption (84 headings) a chat turn sends them whole and Tutor keeps the outline tool', async t => {
+  const f = fixture(t);
+  const outline = Array.from({ length: 12 }, (_, i) => [{ id: `t${i}`, level: 1, label: `Unit ${i + 1}`, done: false, description: 'd' },
+    ...Array.from({ length: 6 }, (_, j) => ({ id: `t${i}-${j}`, level: 2, label: `Part ${j + 1}`, done: false, description: '' }))]).flat();
+  assert.equal(outline.length, 84);
+  f.replies.push('Unit 12 builds on Unit 11.\n<answer_meta>{}</answer_meta>');
+  const tutor = await f.ask({ message: 'how do the last two units connect?', mode: 'tutor', outline, outlineRevision: outlineRevision(outline) });
+  assert.equal(tutor.res.status, 200);
+  assert.deepEqual(f.calls[0].tools.map(tool => tool.name), ['propose_lesson_outline']);
+  assert.match(JSON.stringify(f.calls[0].messages), /Part 6 \(id \\"t11-5\\"\)/, 'the last heading rides');
+  f.replies.push('Attention weighs tokens.\n<answer_meta>{}</answer_meta>');
+  const ask = await f.ask({ message: 'what is attention?', mode: 'ask', outline, outlineRevision: outlineRevision(outline) });
+  assert.equal(ask.res.status, 200);
+  assert.match(JSON.stringify(f.calls[1].messages), /Unit 12 \(id \\"t11\\"\)/);
+});
+
+test('past 120 headings a chat turn still answers; the model hears the count, Tutor gets no outline tool, and nothing is proposed', async t => {
+  const f = fixture(t);
+  f.replies.push('Attention weighs tokens.\n<answer_meta>{}</answer_meta>');
+  const ask = await f.ask({ message: 'what is attention?', mode: 'ask', outlineOmitted: { count: 121 } });
+  assert.equal(ask.res.status, 200);
+  assert.equal(ask.events[0].data.text, 'Attention weighs tokens.');
+  assert.equal((f.calls[0].tools || []).some(tool => tool.name === 'propose_lesson_outline'), false);
+  const sent = JSON.stringify(f.calls[0].messages);
+  assert.match(sent, /table of contents has 121 headings, more than the 120 that can be sent, so they were omitted from this request/);
+  assert.doesNotMatch(sent, /as the learner sees it:/, 'no empty contents block');
+  f.replies.push('The table of contents is too large (121 headings, over 120) for me to edit; you can edit it in the Table of contents panel.\n<answer_meta>{}</answer_meta>');
+  const tutor = await f.ask({ message: 'add a section on positional encoding', mode: 'tutor', outlineOmitted: { count: 121 } });
+  assert.equal(tutor.res.status, 200);
+  assert.equal('tools' in f.calls[1], false, 'Tutor offers no outline tool');
+  assert.equal(f.calls[1].system.includes(TUTOR_OUTLINE_SYSTEM), false);
+  assert.match(JSON.stringify(f.calls[1].messages), /say once, in one sentence, that the table of contents is too large \(121 headings, over 120\)/);
+  assert.equal(tutor.events.some(e => e.event === 'outline'), false);
+  const whole = Array.from({ length: 121 }, (_, i) => ({ id: `h${i}`, level: 1, label: 'x', done: false }));
+  assert.equal((await f.ask({ message: 'x', outline: whole })).res.status, 400, '121 sent whole is refused');
+});
+
 test('a refused outline call reaches the model as not proposed with its reason; a corrected call in the same answer is the proposal', async t => {
   const f = fixture(t);
   const outline = [{ id: 'h1', level: 1, label: 'Why real coasts disagree', done: false, description: '' }, { id: 'h2', level: 2, label: 'Resonance and funnelling', done: false, description: '' }];

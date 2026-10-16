@@ -411,10 +411,57 @@ test('a malformed outline is refused rather than half-read', async t => {
     [{ id: 'h1', level: 1, label: 'No done flag' }],
     [{ id: 'h1', level: 1, label: 'Twice', done: false }, { id: 'h1', level: 1, label: 'Twice', done: false }],
     [{ id: 'h1', level: 1, label: 'x'.repeat(201), done: false }],
-    Array.from({ length: 61 }, (_, i) => ({ id: `h${i}`, level: 1, label: 'x', done: false })),
+    // 121: one past the shared limit (owner decision, Release A3 item 1; it was 61 against the old 60).
+    Array.from({ length: 121 }, (_, i) => ({ id: `h${i}`, level: 1, label: 'x', done: false })),
   ];
   for (const outline of bad) {
     assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', outline }), env, {}, owner, 'learn')).status, 400, JSON.stringify(outline).slice(0, 40));
+  }
+  assert.equal(env.answers.length, 0);
+});
+
+// Owner decision, Release A3 item 1: one shared constant, so the 84-heading adoption the browser accepts is never refused
+// here, and 120 headings ride whole.
+test('the outline limit is the web model\'s 120, and 120 headings reach the model with the outline tool', async t => {
+  const { MAX_OUTLINE_HEADINGS: web } = await import('../../web/src/learn-outline-model.js');
+  const { MAX_OUTLINE_HEADINGS } = await import('../src/learn-context.js');
+  assert.equal(MAX_OUTLINE_HEADINGS, 120);
+  assert.equal(MAX_OUTLINE_HEADINGS, web, 'imported, not copied');
+  const env = fixture(t);
+  const outline = Array.from({ length: 120 }, (_, i) => ({ id: `h${i}`, level: 1, label: `Section ${i}`, done: false }));
+  const response = await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', outline }), env, {}, owner, 'learn');
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.match(env.answers[0].context, /Section 119 \(id "h119"\)/);
+  assert.equal(env.answers[0].research.tools.some(tool => tool.name === OUTLINE_TOOL.name), true);
+});
+
+// Past the limit the client sends { outlineOmitted: { count } } instead (owner decision, Release A3 item 1): chat keeps
+// working, the model is told the contents exist but were left out for size, and no outline tool is offered.
+test('omitted contents: the question is answered, the model hears the count and why, and cannot change the outline', async t => {
+  const env = fixture(t);
+  const response = await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is attention?', outlineOmitted: { count: 121 } }), env, {}, owner, 'learn');
+  assert.equal(response.status, 200, await response.clone().text());
+  const { context, research } = env.answers[0];
+  assert.match(context, /table of contents has 121 headings, more than the 120 that can be sent, so they were omitted from this request\. They exist: never treat the contents as empty/);
+  assert.match(context, /Only if the learner asks you to add, rename, describe or restructure sections, say once, in one sentence/);
+  assert.equal(research.tools.some(tool => tool.name === OUTLINE_TOOL.name), false, 'no outline tool');
+  assert.doesNotMatch(research.system, /propose_lesson_outline/);
+});
+
+test('an omitted outline is a count past the limit, in Learn, never beside the outline itself', async t => {
+  const env = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'A', done: false }];
+  for (const [body, conversation] of [
+    [{ outlineOmitted: { count: 120 } }, 'learn'],
+    [{ outlineOmitted: { count: '121' } }, 'learn'],
+    [{ outlineOmitted: { count: 121, outline: [] } }, 'learn'],
+    [{ outlineOmitted: 121 }, 'learn'],
+    [{ outlineOmitted: { count: 121 }, outline }, 'learn'],
+    [{ outlineOmitted: { count: 121 }, outlineRevision: 'deadbeef' }, 'learn'],
+    [{ outlineOmitted: { count: 121 } }, 'agent'],
+  ]) {
+    const response = await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', ...body }), env, {}, owner, conversation);
+    assert.equal(response.status, 400, JSON.stringify(body));
   }
   assert.equal(env.answers.length, 0);
 });

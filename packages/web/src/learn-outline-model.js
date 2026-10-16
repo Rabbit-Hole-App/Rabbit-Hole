@@ -13,6 +13,10 @@ const TITLE_MAX = 200;
 // At most this many ops per proposal (contract C7b): 96 when adopting a validated Tutor syllabus (12 topics x (1 + 6
 // subtopics) + 12 describes), 24 for anything else.
 const MAX_OPS = 24, MAX_SYLLABUS_OPS = 96;
+// The most headings the contents hold for the Tutor (owner decision, Release A3 item 1): a proposal (a Tutor change or a
+// syllabus adoption) may not take the total past it, and chat sends the headings only up to it. The learner's own edits
+// in the panel are never capped. The control plane imports this same constant (learn-context.js).
+export const MAX_OUTLINE_HEADINGS = 120;
 const levelOf = block => (block.level >= 1 && block.level <= 3 ? block.level : 1);
 const describedBy = block => (typeof block.description === 'string' ? block.description.trim().slice(0, DESCRIPTION_MAX) : '');
 
@@ -101,7 +105,21 @@ export const STALE_PROPOSAL = 'The contents changed since this proposal. Ask the
 export function applyOutlineProposal(blocks, ops, { base = null, source = null, newId } = {}) {
   if (base != null && outlineRevision(outlineFrom(blocks)) !== base) return { ok: false, reason: 'stale', message: STALE_PROPOSAL };
   const plan = planOutline(blocks, ops, { newId, strict: true, dedupe: base != null, max: source === 'syllabus' ? MAX_SYLLABUS_OPS : MAX_OPS });
+  // Checked against the resulting total, existing headings included; over the limit the whole proposal is refused and
+  // nothing applies, never a partial or truncated one.
+  if (!plan.error && source) {
+    const count = list => list.filter(block => block.type === 'heading').length;
+    const before = count(blocks || []), after = count(plan.blocks);
+    if (after > before && after > MAX_OUTLINE_HEADINGS) plan.error = `it adds ${plural(after - before, 'heading')} to ${before}, and the contents hold at most ${MAX_OUTLINE_HEADINGS}: ${moreFit(before)}.`;
+  }
   return plan.error ? { ok: false, reason: 'invalid', message: `This proposal cannot be applied: ${plan.error}` } : { ok: true, ...plan };
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// How many more headings fit beside `count`, as a clause: 'no more fit', '1 more fits', '36 more fit'.
+export function moreFit(count) {
+  const left = Math.max(0, MAX_OUTLINE_HEADINGS - count);
+  return left === 0 ? 'no more fit' : left === 1 ? '1 more fits' : `${left} more fit`;
 }
 
 // What Apply would say, before it is pressed: the stale or invalid message, or null.

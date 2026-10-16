@@ -1,4 +1,7 @@
+import { MAX_OUTLINE_HEADINGS } from '../../web/src/learn-outline-model.js';
+
 export { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM } from './agents/learn-chat.js';
+export { MAX_OUTLINE_HEADINGS };
 
 export function validateLessonSnapshot(value) {
   const text = (s, max = 1000) => typeof s === 'string' && s.length > 0 && s.length <= max;
@@ -20,16 +23,25 @@ export function validateLessonSnapshot(value) {
 
 // The lesson's table of contents, as the learner sees it in the right panel.
 // It is what the canvas's heading blocks say, so the model can answer about
-// structure instead of guessing at it. Data, never instructions.
+// structure instead of guessing at it. Data, never instructions. At most MAX_OUTLINE_HEADINGS, the limit adoption is
+// checked against in the browser; past it the client sends validateOutlineOmitted's count instead.
 export function validateOutline(value) {
   const text = (s, max) => typeof s === 'string' && s.length > 0 && s.length <= max;
-  if (!Array.isArray(value) || value.length > 60) throw new Error('Invalid lesson outline');
+  if (!Array.isArray(value) || value.length > MAX_OUTLINE_HEADINGS) throw new Error('Invalid lesson outline');
   for (const entry of value) {
     if (!entry || !text(entry.id, 150) || !text(entry.label, 200)
       || ![1, 2, 3].includes(entry.level) || typeof entry.done !== 'boolean'
       || (entry.description !== undefined && (typeof entry.description !== 'string' || entry.description.length > 240))) throw new Error('Invalid outline entry');
   }
   if (new Set(value.map(entry => entry.id)).size !== value.length) throw new Error('Duplicate outline entry');
+  return value;
+}
+
+// The contents were left out for size (owner decision, Release A3 item 1): { count } headings, more than the limit, so a
+// smaller count is a client that should have sent them. The bound above is only against nonsense.
+export function validateOutlineOmitted(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => key !== 'count')
+    || !Number.isInteger(value.count) || value.count <= MAX_OUTLINE_HEADINGS || value.count > 100000) throw new Error('Invalid omitted outline');
   return value;
 }
 
