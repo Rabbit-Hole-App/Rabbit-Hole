@@ -7,7 +7,8 @@
 // activation, tooltip and aria-pressed; hiding while an uploaded PDF is still being placed (its completion never reopens the
 // panel); repeated tab switches and hide/show cycles (no stuck panel, no resize handle or overlay left, the canvas reclaims the
 // panel's width and gets it back, saved card positions unchanged); below lg one column at a time (the viewer in Chat's place,
-// Back to chat, the draft kept).
+// Back to chat, the draft kept); a stroke drawn and the panel hidden or shown within the canvas's 400 ms save, kept in this
+// browser and on the server.
 // Usage: BASE=http://127.0.0.1:8921 SMALL_CP=http://127.0.0.1:8923 VARS=<cp .dev.vars> OUT=<dir> node e2e/hide-right-panel-check.mjs
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -166,6 +167,28 @@ await check('hide and reopen from Chat: the panel goes, the canvas takes its wid
   assert.equal(await activeTab(), 'chat');
   assert.equal(await field().inputValue(), 'a draft I have not sent', 'the draft survives');
   await waitFor(async () => Math.abs((await surfaceWidth()) - openWidth) < 2, 5000, 'the canvas width did not come back').catch(async e => { throw Error(`${e.message}: ${Math.round(await surfaceWidth())} vs ${Math.round(openWidth)}, panel ${Math.round(await width(PANEL))}`); });
+});
+
+// Toggling the panel never loses canvas work (owner, 2026-10-16): a stroke drawn and the panel hidden at once, inside the
+// canvas's 400 ms save, is in this browser's copy and on the server; the same for one drawn and the panel shown.
+await check('a stroke drawn and the panel hidden, then shown, within 400 ms: each kept in this browser and on the server', async () => {
+  const kept = () => page.evaluate(key => (JSON.parse(localStorage.getItem(key) || 'null')?.strokes || []).length, INK);
+  const saved = async () => ((await api(`/api/learn/boards/${canvas.name}/main`)).state?.strokes || []).length;
+  for (const [what, done] of [['hidden', () => assertHidden()], ['shown', () => waitFor(async () => (await width(PANEL)) > 300, 5000, 'the panel did not reopen')]]) {
+    const before = await kept();
+    await page.getByRole('button', { name: 'Pen', exact: true }).click();
+    const frame = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
+    const x = frame.x + frame.width * 0.55, y = frame.y + frame.height * (what === 'hidden' ? 0.7 : 0.8);
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 120, y + 20, { steps: 8 }); await page.mouse.up();
+    const drawn = Date.now();
+    await toggle().click();
+    const after = Date.now() - drawn;
+    assert.ok(after < 400, `the panel was ${what} ${after} ms after the stroke, inside the 400 ms save`);
+    await done();
+    await page.keyboard.press('Escape');
+    await waitFor(async () => (await kept()) === before + 1, 10000, `the stroke drawn as the panel was ${what} is not in this browser's copy (${await kept()} vs ${before})`);
+    await waitFor(async () => (await saved()) === before + 1, 15000, `the stroke drawn as the panel was ${what} is not on the server (${await saved()} vs ${before})`);
+  }
 });
 
 await check('hide and reopen from Context without an open reader: Context opens beside Chat, both come back, Materials listed', async () => {

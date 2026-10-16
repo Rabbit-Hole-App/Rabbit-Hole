@@ -5,7 +5,10 @@
 //   - Rename from the card and from the header: it stays on reload, and the repository stays the subtitle;
 //   - Visibility for the whole project: confirm with the count, every canvas set, Mixed, a new canvas inheriting, a private
 //     repository never Public; the project link working signed out and never listing a private canvas;
-//   - the cards: the picture's inset above equals its inset below, and the footer ends on the picture's bottom edge.
+//   - the cards: the picture's inset above equals its inset below, and the footer ends on the picture's bottom edge;
+//   - every ⋮ menu on screen (owner bug, 2026-10-16): inside the window with an 8px margin and every row answering a press at
+//     its centre - card menus at each window edge, and the open project's ⋯ beside a short name with the right panel hidden,
+//     reopened and resized, the window resized, and on a phone.
 // The projects are repository rows seeded in local D1 (importing needs the indexer), as project-canvases-check.mjs does.
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 PERSIST=<lane>/local D1_CONFIG=<lane>/cfg/cp/wrangler.jsonc \
 //        node e2e/project-menu-check.mjs [shotsDir] [reviewShotsDir]
@@ -29,11 +32,13 @@ const owner = { session: await sessionFor(`pm-owner-${run}@example.com`, `pm_${r
 const viewer = { session: await sessionFor(`pm-viewer-${run}@example.org`, `pmv_${run}`) };
 const api = async (who, path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { ...(who ? { cookie: `small_session=${who.session}` } : {}), 'content-type': 'application/json' } }); return { status: r.status, body: await r.json().catch(() => null) }; };
 
-// Two projects: one on a public repository, one on a private one; two canvases in the first.
+// Two projects: one on a public repository, one on a private one; two canvases in the first. A third, with a three-letter
+// name, puts its header ⋯ near the window's left edge (step 12b).
 const catalog = (await api(owner, '/api/apps')).body;
-const PUB = `repo-${run.slice(-8).padStart(8, '0')}-pmpub`, PRIV = `repo-${run.slice(-8).padStart(8, '0')}-pmpriv`, SHA = 'd'.repeat(40);
+const PUB = `repo-${run.slice(-8).padStart(8, '0')}-pmpub`, PRIV = `repo-${run.slice(-8).padStart(8, '0')}-pmpriv`, SHORT = `repo-${run.slice(-8).padStart(8, '0')}-pmgpt`, SHA = 'd'.repeat(40);
 const sql = [`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${PUB}','${catalog.email}','acme/attention-${run}','main','${SHA}','ready')`,
   `INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${PRIV}','${catalog.email}','acme/secret-${run}','main','${SHA}','ready')`,
+  `INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${SHORT}','${catalog.email}','acme/g${run.slice(-2)}','main','${SHA}','ready')`,
   `INSERT INTO repository_visibility(app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = '${PUB}'`].join('; ');
 execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
 const STATE = title => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'b0', type: 'explanation', dx: 0, dy: 0, title, body: `${title}, explained in one card.` }] });
@@ -66,6 +71,18 @@ const library = async () => { await page.goto(`${BASE}/library`); await page.loc
 const labels = () => page.locator('[data-menu-item]').evaluateAll(els => els.map(el => el.textContent.trim()));
 const open = async card => { await card.hover(); await card.getByTitle('More').click(); await page.locator('[data-menu-item]').first().waitFor({ timeout: 5000 }); await page.waitForTimeout(300); };
 const close = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(200); };
+// The open menu as it is on screen: its box inside the window with the 8px margin, and every row the element a press at its
+// centre lands on (nothing over it, not cut off).
+const inWindow = async what => {
+  const m = await page.evaluate(() => {
+    let menu = document.querySelector('[data-menu-item]'); while (menu && !menu.classList.contains('fixed')) menu = menu.parentElement;
+    const r = menu.getBoundingClientRect();
+    const blocked = [...menu.querySelectorAll('[data-menu-item]')].filter(row => { const b = row.getBoundingClientRect(), hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !hit || !row.contains(hit); }).map(row => row.textContent.trim());
+    return { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom), width: innerWidth, height: innerHeight, blocked };
+  });
+  assert.ok(m.left >= 8 && m.right <= m.width - 8 && m.top >= 8 && m.bottom <= m.height - 8, `${what}: the menu ${JSON.stringify(m)} is inside the window, 8px from each edge`);
+  assert.deepEqual(m.blocked, [], `${what}: every row answers a press at its centre`);
+};
 
 await library();
 let canvasMenu, projectMenu, headerMenu;
@@ -76,6 +93,18 @@ await check('1 one menu: the canvas ⋮ and the project ⋮ show the same shared
   const shared = (list, only) => list.filter(l => !only.includes(l));
   assert.deepEqual(shared(canvasMenu, ONLY.canvas), shared(projectMenu, ONLY.project), `${canvasMenu} | ${projectMenu}`);
   assert.deepEqual(shared(canvasMenu, ONLY.canvas), ['Open', 'Rename', 'Visibility', 'Share / Manage link', 'Copy link', 'Change thumbnail', 'Move to Trash']);
+});
+await check('1b card ⋮ menus near each window edge open inside it: the leftmost and rightmost card, and a phone\'s top and bottom', async () => {
+  const cards = page.locator('[data-library-card]');
+  const at = async (card, block, what) => { await card.evaluate((el, b) => el.scrollIntoView({ block: b }), block); await open(card); await inWindow(what); await close(); };
+  const xs = await cards.evaluateAll(list => list.map(el => el.getBoundingClientRect().left));
+  await at(cards.nth(xs.indexOf(Math.min(...xs))), 'nearest', 'the leftmost card');
+  await at(cards.nth(xs.indexOf(Math.max(...xs))), 'nearest', 'the rightmost card');
+  await page.setViewportSize({ width: 360, height: 640 });
+  await at(cards.first(), 'center', 'a phone, a card mid-screen');
+  await at(cards.first(), 'end', 'a phone, the card at the bottom (the menu opens above it)');
+  await open(cards.first()); await shot(page, REVIEW, 'project-menu-01b-phone-card-menu'); await close();
+  await page.setViewportSize({ width: 1440, height: 900 });
 });
 const NAME = `Attention, from scratch ${run}`, NAME2 = `Attention in 3 canvases ${run}`;
 await check('2 Rename from the project card: the card shows the new name, the repository stays its subtitle, and a reload keeps it', async () => {
@@ -122,6 +151,40 @@ await check('12 Main and nested Learn expose the same project menu as Map', asyn
     assert.deepEqual(await labels(), projectMenu, query);
     await close();
   }
+});
+// Owner bug (2026-10-16): on a project's Main canvas, after the right panel was closed, the project ⋯ opened partly off-screen.
+// A short project name puts the ⋯ near the window's left edge, and the menu's right edge on the button's put it 100px past it.
+await check('12b the project ⋯ beside a short name opens inside the window: panel hidden, reopened and resized, the window resized, a phone; a row works', async () => {
+  const more = async what => { await page.locator('[data-project-more]').click(); await page.locator('[data-menu-item]').first().waitFor(); await inWindow(what); };
+  await page.goto(`${BASE}/apps/${SHORT}?tab=learn`);
+  await page.locator('[data-project-more]').waitFor({ timeout: 60000 });
+  const toggle = page.locator('button[aria-label="Hide the right panel"], button[aria-label="Show the right panel"]').first();
+  await toggle.waitFor({ timeout: 30000 });
+  await more('the panel open'); await close();
+  await toggle.click(); await page.locator('button[aria-label="Show the right panel"]').waitFor();
+  await more('the panel hidden'); await shot(page, REVIEW, 'project-menu-12b-panel-hidden'); await close();
+  await toggle.click(); await page.locator('button[aria-label="Hide the right panel"]').waitFor();
+  await more('the panel reopened'); await close();
+  const handle = await page.getByRole('separator', { name: 'Resize Learn panel' }).boundingBox();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down();
+  await page.mouse.move(handle.x - 200, handle.y + handle.height / 2, { steps: 6 }); await page.mouse.up();
+  await more('the panel resized'); await close();
+  for (const [width, height] of [[1100, 760], [390, 760], [360, 640]]) {
+    await page.setViewportSize({ width, height });
+    await more(`the window at ${width}x${height}`);
+    if (width === 360) {
+      await shot(page, REVIEW, 'project-menu-12b-phone');
+      // Visibility opens its rows inside the same menu, which grows after it opened: it is placed again.
+      await page.locator('[data-menu-visibility]').click(); await page.locator('[data-access]').first().waitFor();
+      await inWindow('a phone, Visibility open');
+    }
+    await close();
+  }
+  // A real press on a row: Rename opens its dialog with the project's name.
+  await page.locator('[data-project-more]').click(); await page.locator('[data-menu-rename]').click();
+  assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), `g${run.slice(-2)}`);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 900 });
 });
 const visibility = async (card, to) => { await open(card); await page.locator('[data-menu-visibility]').click(); await page.locator(`[data-access="${to}"]`).click(); };
 await check('4 Visibility on the project: "Make 3 canvases public?", then every canvas and the project are Public', async () => {
