@@ -88,6 +88,11 @@ const hooks = () => page.locator('[data-next-steps] [data-next-step]').allInnerT
 const ready = () => page.locator('[data-next-steps="ready"]').waitFor({ timeout: 60000 });
 const last = path => [...sets].reverse().find(entry => entry.path === path)?.body;
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
+// Since the chat shell (8fa30fcd, ask.jsx sendStep): a hook - clicked, or carried into a new hole - opens the Chat pane and its
+// turn draws there: the hook as a step chip (a choice, never the learner's own words) with the Tutor's reply under it.
+const stepChips = hook => page.locator('[data-chat-pane] [data-step-chip]').filter({ hasText: hook });
+const chatReplies = text => page.locator('[data-chat-pane] [data-answer]').filter({ hasText: text });
+const replyCards = text => page.locator('[data-block-id]').filter({ hasText: text });
 
 // ---- owned canvas ----
 ({ page } = await contextFor(owner));
@@ -123,9 +128,7 @@ await page.getByTitle('Reset zoom').click(); // back to 100% for the screenshots
 const clicked = (await hooks())[0];
 const plansBefore = plans.length;
 await page.locator('[data-next-step]').first().click();
-// Since 1eea0344 (learn-chat-sheet.md, Where an answer goes): a substantive Tutor answer with no selected card becomes a
-// canvas card, so a hook click's reply lands on the canvas, titled by the hook, and the dock draws no step chip.
-await page.getByText(CLICK_REPLY).waitFor({ timeout: 30000 });
+await chatReplies(CLICK_REPLY).first().waitFor({ timeout: 30000 });
 await check('3 a click is one next_step Tutor turn: the step as data, no learner words, no evidence, no Learn chat, the composer untouched', async () => {
   const turn = plans.slice(plansBefore);
   assert.equal(turn.length, 1);
@@ -133,8 +136,9 @@ await check('3 a click is one next_step Tutor turn: the step as data, no learner
   assert.deepEqual([intent.kind, intent.raw_user_message, intent.selected_next_step.hook], ['next_step', '', clicked]);
   assert.deepEqual(refused, [], 'no evaluate, Learn chat or material request');
   assert.equal(await composer().inputValue(), '');
-  assert.equal(await page.locator('[data-step-chip]').count(), 0, 'the reply is a canvas card, not a sheet chip (1eea0344)');
-  assert.equal(await page.locator('[data-block-id]').filter({ hasText: CLICK_REPLY }).filter({ hasText: clicked }).count(), 1, 'one canvas card: the hook as its question, the reply as its answer');
+  assert.equal(await stepChips(clicked).count(), 1, 'the hook as one step chip in the Chat pane');
+  assert.equal(await chatReplies(CLICK_REPLY).count(), 1, 'the reply once, under it');
+  assert.equal(await replyCards(CLICK_REPLY).count(), 0, 'no canvas card (chat shell 8fa30fcd)');
 });
 await page.locator('[data-next-steps="ready"] [data-next-step]').first().waitFor({ timeout: 60000 });
 await check('4 the finished turn brings a new set without the clicked hook', async () => {
@@ -182,17 +186,18 @@ await composer().waitFor({ timeout: 60000 });
 await page.waitForTimeout(2000);
 await composer().fill('Where is the causal mask built?');
 await composer().press('Enter');
-// The Sources line is drawn as evidence pills (ask.jsx SourcesLine), so its text is the file reference. Since 1eea0344
-// (learn-chat-sheet.md, Where an answer goes): with no card selected, a retrieved source answer becomes a canvas card, so the
-// answer, its code and its Sources pill are on that card (Md, as in the sheet), not in the dock's sheet.
-const answerCard = page.locator('[data-block-id]', { has: page.locator('[aria-label="Answer evidence"]', { hasText: 'model.py:39-41' }) });
+// The Sources line is drawn as evidence pills (Md.jsx), so its text is the file reference. Since the chat shell (8fa30fcd) the
+// question is asked in the Chat pane and its answer, code and Sources pill draw there (Md doc), not on a canvas card.
+const evidence = page.locator('[aria-label="Answer evidence"]', { hasText: 'model.py:39-41' });
+const answerCard = page.locator('[data-chat-pane] [data-answer]', { has: evidence });
 await answerCard.first().waitFor({ timeout: 30000 });
-await check('8 a handoff answer is the Tutor reply on a canvas card: markdown, code and its Sources line as evidence', async () => {
+await check('8 a handoff answer is the Tutor reply in the Chat pane: markdown, code and its Sources line as evidence', async () => {
   assert.equal(handoffs.length, 1);
   assert.equal(handoffs[0].capability, 'repository_context');
   assert.equal(await answerCard.count(), 1);
   assert.ok(await answerCard.locator('pre, code').count() > 0);
   assert.match(await answerCard.innerText(), /Let me read the source for that\.[\s\S]*CausalSelfAttention[\s\S]*model\.py:39-41/);
+  assert.equal(await page.locator('[data-block-id]', { has: evidence }).count(), 0, 'no canvas card (chat shell 8fa30fcd)');
 });
 await shot('04-dock-handoff-answer');
 await page.context().close();
@@ -212,14 +217,14 @@ const sharedClicked = (await hooks())[0];
 const beforeHole = plans.length;
 await page.locator('[data-next-step]').first().click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 30000 });
-// Since 1eea0344 the opening's reply is a canvas card in the hole (the hook as its question), not a chip in the dock.
-await page.locator('[data-block-id]').filter({ hasText: OPENING_REPLY }).first().waitFor({ timeout: 60000 });
+await chatReplies(OPENING_REPLY).first().waitFor({ timeout: 60000 });
 await check('10 a shared hook starts the viewer\'s private hole, whose first Tutor turn opens on that hook once, as the step', async () => {
   const opening = plans.slice(beforeHole).filter(p => p.context?.learner_intent?.kind === 'next_step');
   assert.equal(opening.length, 1);
   assert.deepEqual([opening[0].context.learner_intent.raw_user_message, opening[0].context.learner_intent.selected_next_step.hook], ['', sharedClicked]);
-  assert.equal(await page.locator('[data-block-id]').filter({ hasText: OPENING_REPLY }).filter({ hasText: sharedClicked }).count(), 1, 'one canvas card: the carried hook and its reply (1eea0344)');
-  assert.equal(await page.locator('[data-step-chip]').count(), 0);
+  assert.equal(await stepChips(sharedClicked).count(), 1, 'the carried hook as one step chip in the hole\'s Chat pane');
+  assert.equal(await chatReplies(OPENING_REPLY).count(), 1, 'its reply once, under it');
+  assert.equal(await replyCards(OPENING_REPLY).count(), 0, 'no canvas card (chat shell 8fa30fcd)');
   assert.equal(await composer().inputValue(), '');
   assert.equal(await ownerBoard(), sharedBefore, 'the shared board is unchanged');
 });
@@ -256,11 +261,13 @@ await ready();
 const lateClicked = (await hooks())[1];
 await page.locator('[data-next-step]').nth(1).click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 30000 });
-await page.locator('[data-block-id]').filter({ hasText: lateClicked }).first().waitFor({ timeout: 60000 }); // its reply card (1eea0344)
+await stepChips(lateClicked).first().waitFor({ timeout: 60000 });
+await chatReplies(OPENING_REPLY).first().waitFor({ timeout: 60000 });
 await check('13 once signed in, the same page shows the hooks, and one starts the hole and opens it, once', async () => {
   const opening = plans.slice(beforeLate).filter(p => p.context?.learner_intent?.kind === 'next_step');
   assert.equal(opening.length, 1);
   assert.equal(opening[0].context.learner_intent.selected_next_step.hook, lateClicked);
+  assert.deepEqual([await stepChips(lateClicked).count(), await chatReplies(OPENING_REPLY).count(), await replyCards(OPENING_REPLY).count()], [1, 1, 0], 'one step chip and its reply in the Chat pane, no canvas card');
   assert.ok(await page.evaluate(() => !sessionStorage.getItem('small.next-step.pending')), 'nothing left pending');
 });
 await shot('07-after-sign-in-opening');
