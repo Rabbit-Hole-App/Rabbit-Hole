@@ -67,7 +67,7 @@ test('the popover: allowance heading, remaining prominently, used of total, rese
   assert.match(html, /Monthly AI allowance/);
   assert.match(html, /data-usage-remaining="true" class="[^"]*text-2xl[^"]*text-ink">\$32\.60 <span[^>]*>remaining<\/span>/);
   assert.match(html, /data-usage-used[^>]*>\$17\.40 used of \$50\.00</);
-  assert.match(html, /data-usage-reset[^>]*>Resets November 1, 2026</);
+  assert.match(html, /data-usage-reset[^>]*>Resets November 1 \(00:00 UTC\)</, 'the UTC date, and it says UTC');
   assert.match(html, /role="meter" aria-label="AI allowance used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" aria-valuetext="\$17\.40 of \$50\.00 used"/);
   assert.match(html, /data-usage-note[^>]*>Tracking only - limits are not enforced yet\.</);
   assert.match(html, /<button type="button" data-view-usage[^>]*>View usage<\/button>/);

@@ -57,7 +57,7 @@ export function UsageDetails({ state, onViewUsage }) {
           <p data-usage-used className="text-xs text-ink-2 tabular-nums">{formatMicros(usage.used)} used of {formatMicros(usage.allowance)}</p>
           {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Reserved for processing: {formatMicros(usage.reserved)}</p>}
           <div className="mt-2"><UsageBar usage={usage} /></div>
-          <p data-usage-reset className="mt-2 text-xs text-ink-2">Resets {formatReset(usage.resetsAt)}</p>
+          <p data-usage-reset className="mt-2 text-xs text-ink-2">Resets {formatReset(usage.resetsAt, { year: false })} (00:00 UTC)</p>
           {view.note && <div className="mt-2"><Note>{view.note}</Note></div>}
         </>
       ) : <p role="status" className="mt-1 text-sm text-ink-2">{view.label}</p>}
