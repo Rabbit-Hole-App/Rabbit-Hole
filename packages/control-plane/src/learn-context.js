@@ -26,13 +26,18 @@ export function validateOutline(value) {
   if (!Array.isArray(value) || value.length > 60) throw new Error('Invalid lesson outline');
   for (const entry of value) {
     if (!entry || !text(entry.id, 150) || !text(entry.label, 200)
-      || ![1, 2, 3].includes(entry.level) || typeof entry.done !== 'boolean') throw new Error('Invalid outline entry');
+      || ![1, 2, 3].includes(entry.level) || typeof entry.done !== 'boolean'
+      || (entry.description !== undefined && (typeof entry.description !== 'string' || entry.description.length > 240))) throw new Error('Invalid outline entry');
   }
   if (new Set(value.map(entry => entry.id)).size !== value.length) throw new Error('Duplicate outline entry');
   return value;
 }
 
-// Indented so depth is legible without the model parsing a level field.
+// Indented so depth is legible without the model parsing a level field. Each entry names its id, which is what an
+// outline proposal addresses (retitle, describe, parent, after), and its description on the line under it when it has one.
 export function renderOutline(outline) {
-  return outline.map(entry => `${'  '.repeat(entry.level - 1)}- [${entry.done ? 'x' : ' '}] ${entry.label}`).join('\n');
+  return outline.map(entry => {
+    const indent = '  '.repeat(entry.level - 1), description = entry.description?.trim();
+    return `${indent}- [${entry.done ? 'x' : ' '}] ${entry.label} (id ${JSON.stringify(entry.id)})${description ? `\n${indent}  ${description}` : ''}`;
+  }).join('\n');
 }

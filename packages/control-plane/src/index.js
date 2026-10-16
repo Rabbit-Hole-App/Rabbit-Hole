@@ -3,7 +3,7 @@ import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory } from './chat-modes.js';
+import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
 import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
@@ -1054,6 +1054,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       return { proposed: proposedOps.length, applied: false, note: 'Shown to the learner for approval. Say what you proposed.' };
     },
     proposed: () => proposedOps,
+    // The revision the outline was read at, echoed as the proposal's base (R4 contract C4, C6).
+    outlineBase: body.outlineRevision ?? null,
     shownWiki: () => shownWiki,
     shownVideo: videos.shown,
     // For the moment log: the askStream org parameter is nulled for learn.
@@ -1186,8 +1188,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (chat) {
     await recordUserTurn(db, threadId, history.userMessageId, chat, !!turn);
     resolved = resolveMode(chat, message);
-    // Tutor plans a syllabus and nothing else (B6): no tool rides, so a Tutor turn cannot open a reader or place a card.
-    if (resolved.mode === 'tutor') Object.assign(research, { tools: [], system: null, arxiv: false });
+    // Tutor plans a syllabus and nothing else (B6): no reader opens and no card lands. With a table of contents its one tool
+    // is the outline proposal, made against the headings this turn sent (R4 owner decision 4A).
+    if (resolved.mode === 'tutor') Object.assign(research, body.outline?.length ? { tools: [OUTLINE_TOOL], system: `${OUTLINE_SYSTEM}\n${TUTOR_OUTLINE_SYSTEM}`, arxiv: false } : { tools: [], system: null, arxiv: false });
     memory = await threadMemory(db, threadId, history.userMessageId);
     // On a project canvas its code refs are read from the repository snapshot (canvases.js projectRepository), once each:
     // they are not listed again as named attachments.

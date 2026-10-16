@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import * as chatModes from '../src/chat-modes.js';
-import { chatFields, contextRefs, courseIntent, resolveMode, validateSyllabus, syllabusPath, chatContext, TUTOR_SYSTEM } from '../src/chat-modes.js';
+import { chatFields, contextRefs, courseIntent, resolveMode, validateSyllabus, syllabusPath, chatContext, TUTOR_SYSTEM, TUTOR_OUTLINE_SYSTEM } from '../src/chat-modes.js';
+import { outlineRevision } from '../../web/src/learn-outline-model.js';
 import { pathOutput } from '../src/agents/learn-journey.js';
 import { REQUEST_FIRST } from '../src/agents/learn-tutor.js';
 import { CUT_NOTE, DECLINE } from '../src/learn-research.js';
@@ -312,6 +313,47 @@ test('Tutor plans only: one call with no tools, so no reader opens and no card l
   // Ask keeps its tools: the Wikipedia reader is offered there.
   await f.ask({ message: 'What causes tides?', mode: 'ask' });
   assert.ok(f.calls[1].tools.some(tool => tool.name === 'show_wikipedia'));
+});
+
+// R4 owner decisions 4A and 5B, contract C4 and C6: with a table of contents, Tutor's one tool is the outline proposal, made
+// against the headings this turn sent (the learner's manual edits included), and the proposal comes back with that
+// revision as its base. An ordinary question proposes nothing. Stub model: no paid call.
+test('Tutor with contents: the outline proposal is its one tool, the headings ride with ids and descriptions, and the proposal carries the sent revision as base', async t => {
+  const f = fixture(t);
+  // 'Lunar pull' is the learner's own retitle of a heading the Tutor once called 'The moon'.
+  const outline = [{ id: 'h1', level: 1, label: 'Tides', done: true, description: 'Why the sea rises and falls.' }, { id: 'h2', level: 2, label: 'Lunar pull', done: false, description: '' }];
+  const revision = outlineRevision(outline);
+  f.replies.push({ content: [{ type: 'tool_use', id: 'tu1', name: 'propose_lesson_outline', input: { ops: [{ op: 'add', text: 'The sun', level: 2, parent: 'h1', after: 'h2', description: 'Why spring tides are higher.' }] } }], stop_reason: 'tool_use' });
+  f.replies.push('I proposed a subtopic on the sun under Tides; apply it if you want it.\n<answer_meta>{}</answer_meta>');
+  const { res, events } = await f.ask({ message: 'why are some tides higher than others?', mode: 'tutor', outline, outlineRevision: revision });
+  assert.equal(res.status, 200);
+  assert.deepEqual(f.calls[0].tools.map(tool => tool.name), ['propose_lesson_outline'], 'no reader, video or card tool');
+  assert.ok(f.calls[0].system.includes(TUTOR_OUTLINE_SYSTEM));
+  assert.match(f.calls[0].system, /Most answers propose nothing/);
+  const sent = JSON.stringify(f.calls[0].messages);
+  assert.match(sent, /Tides \(id \\"h1\\"\)/);
+  assert.match(sent, /Why the sea rises and falls\./);
+  assert.match(sent, /Lunar pull \(id \\"h2\\"\)/, 'the learner\'s own title is what the Tutor works from');
+  assert.deepEqual(events.find(e => e.event === 'outline').data, { ops: [{ op: 'add', text: 'The sun', level: 2, after: 'h2', parent: 'h1', description: 'Why spring tides are higher.' }], base: revision });
+  assert.equal(events.find(e => e.event === 'answer_meta').data.syllabus, null, 'no second syllabus beside the contents');
+  f.replies.push('Spring tides line up the sun and the moon.\n<answer_meta>{}</answer_meta>');
+  const plain = await f.ask({ message: 'what is a spring tide?', mode: 'tutor', outline, outlineRevision: revision });
+  assert.equal(plain.events.some(e => e.event === 'outline'), false, 'an ordinary question proposes nothing');
+  f.replies.push('A plan.\n<answer_meta>{}</answer_meta>');
+  await f.ask({ message: 'make me a syllabus on tides', mode: 'tutor' });
+  assert.equal('tools' in f.calls.at(-1), false, 'without contents Tutor still offers no tool');
+  assert.equal(f.calls.at(-1).system.includes(TUTOR_OUTLINE_SYSTEM), false);
+});
+
+test('outlineRevision rides only beside an outline, as 8 hex digits; a description is at most 240 characters', async t => {
+  const f = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'Tides', done: false }];
+  for (const body of [{ outline, outlineRevision: 'zz' }, { outline, outlineRevision: 42 }, { outlineRevision: outlineRevision(outline) }, { outline: [{ ...outline[0], description: 'x'.repeat(241) }] }, { outline: [{ ...outline[0], description: 7 }] }])
+    assert.equal((await f.ask({ message: 'hi', mode: 'ask', ...body })).res.status, 400, JSON.stringify(body).slice(0, 80));
+  assert.equal(f.calls.length, 0);
+  f.replies.push({ content: [{ type: 'tool_use', id: 'tu1', name: 'propose_lesson_outline', input: { ops: [{ op: 'describe', id: 'h1', description: 'Why the sea moves.' }] } }], stop_reason: 'tool_use' });
+  const { events } = await f.ask({ message: 'describe the tides section', mode: 'ask', outline: [{ ...outline[0], description: 'x'.repeat(240) }] });
+  assert.deepEqual(events.find(e => e.event === 'outline').data, { ops: [{ op: 'describe', id: 'h1', description: 'Why the sea moves.' }], base: null }, 'an old client sends no revision: base is null');
 });
 
 // Whole-canvas context (2026-10-14-whole-canvas-context-OWNER.md): no phrase decides whether the board rides. Ask, Auto

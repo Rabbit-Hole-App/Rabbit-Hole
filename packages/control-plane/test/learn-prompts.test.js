@@ -23,7 +23,7 @@ const PINS = {
   teachingPolicy: 'af83a270b721abfc',
   chat: '8ba78d2bd5da9bf0', // canvas seam and app asks; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint; any subject, request first (topic-restriction brief)
   chatSnapshot: '75fd4965a31b942c', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '0f544d73e7d38b80',
+  chatOutline: '7778917012b2cd21',
   repository: 'dd59f312d45aad50',
   artifact: '870e84a3aa127657',
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended

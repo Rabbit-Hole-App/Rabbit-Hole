@@ -26,6 +26,7 @@ import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
+import { outlineRevision } from './learn-outline-model.js';
 import { destinationOf } from './answer-destination.js';
 import { commandTone } from './CommandTone.jsx';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
@@ -597,7 +598,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
-        ...(questionOutline?.length ? { outline: questionOutline } : {}),
+        // outlineRevision: the revision these headings were read at, echoed back as a proposal's base (R4 contract C4).
+        ...(questionOutline?.length ? { outline: questionOutline, outlineRevision: outlineRevision(questionOutline) } : {}),
         // The page read: a selected page, else the open reader (its selection included), else an uploaded-paper page chip in the
         // composer (pdf-to-canvas.md), so the chip asks about its page after the selection is cleared. home: a copied page's canvas.
         ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.home ? { home: questionPaper.home } : {}), ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : chat && turnPaper(null, chat.context.attached) ? { paper_context: turnPaper(null, chat.context.attached) } : {}),
@@ -681,7 +683,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           if (type === 'chunk') mirror(d.text);
           else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
-          else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
+          else if (type === 'outline') { boardContext?.onOutlineProposal?.({ ops: d.ops, base: d.base ?? null, source: 'tutor' }); }
           else if (type === 'paper') { if (!journeySetup) boardContext?.onShowPaper?.(d, slots.paper); }
           else if (type === 'wiki') { if (!journeySetup) boardContext?.onShowWiki?.(d, slots.wiki); }
           else if (type === 'video') { if (!journeySetup) boardContext?.onShowVideo?.(d, slots.video); }
