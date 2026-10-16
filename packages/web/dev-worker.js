@@ -45,7 +45,9 @@ import { inlineDecideFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemet
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
-import { forwardToProduction, guardControlPlane } from '../control-plane/src/dev-forwarding.js';
+import { forwardToProduction, guardControlPlane, devIdentity } from '../control-plane/src/dev-forwarding.js';
+import { usageFeature, withUsage, finishAction, finishWithResponse } from '../control-plane/src/learn-usage.js';
+import { usageFetch } from '../control-plane/src/learn-usage-route.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -61,6 +63,23 @@ export default {
     const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
     await consumeIndexQueue(batch, env);
   },
+  async fetch(req, env, ctx) {
+    env = guardControlPlane(env);
+    // Usage accounting (credits Phase 1, learn-usage.js): a route that makes provider calls gets its own per-request
+    // context, so its attempts share one action whose payer is this request's session user. Accounting only: it never
+    // refuses, and a stream passes through byte for byte.
+    const feature = usageFeature(req.method, new URL(req.url).pathname);
+    if (!feature) return routes.fetch(req, env, ctx);
+    const usageEnv = withUsage(env, { feature, req, resolveUser: () => devIdentity(req, env) });
+    let response;
+    try { response = await routes.fetch(req, usageEnv, ctx); }
+    catch (error) { await finishAction(usageEnv, { status: 'failed', result: 'none' }); throw error; }
+    return finishWithResponse(usageEnv, response);
+  },
+};
+
+// The worker's routes; fetch above is the only caller.
+const routes = {
   async fetch(req, env, ctx) {
     // Every production call from any module passes the fail-closed allowlist, not only the fall-through.
     env = guardControlPlane(env);
@@ -116,6 +135,8 @@ export default {
       const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;
       return repositoriesFetch(new Request(target, req), env, ctx);
     }
+    // The signed-in user's AI usage this month (credits Phase 1: accounting, not enforcement).
+    if (path === '/api/learn/usage') return usageFetch(req, env);
     if (path === '/api/learn/graph-config' && req.method === 'GET') {
       const app = await authorizedBoardApp(req, env, new URL(req.url).searchParams.get('app'));
       if (app instanceof Response) return app;

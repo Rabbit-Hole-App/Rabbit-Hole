@@ -1,6 +1,7 @@
 // The dev/review worker's only way through to production small-cp (dev-worker.js, last line of fetch).
 // Fail closed: a request crosses only when it matches an entry below; everything else gets a JSON 403
 // and never reaches production. Why each entry is safe: docs/features/dev-prod-write-barrier.md.
+import { noteUsageIdentity } from './learn-usage.js';
 
 // Production GETs whose handlers (control-plane/src/index.js) only SELECT from D1 or read R2,
 // and make no Fly, AWS, Slack, email or model call. Not here, on purpose: GET /api/logs (mints a Fly
@@ -50,9 +51,13 @@ export async function devIdentity(req, env) {
     me = trash instanceof Response ? trash : { email: trash.email, org: workspaces.active, orgName: workspaces.workspaces?.find(w => w.slug === workspaces.active)?.name || null };
   }
   const refuse = (error, status) => Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });
+  // Usage accounting (learn-usage.js): the session user this request resolved is its action's payer; no session, none.
+  if (me instanceof Response || !me.org || !me.email) noteUsageIdentity(env, null);
   if (me instanceof Response) return refuse('Sign in to this workspace first', me.status === 403 ? 403 : 401);
   if (!me.org || !me.email) return refuse('Workspace membership required', 403);
-  return { email: me.email, org: me.org, orgName: me.orgName || null, userId: typeof me.user_id === 'string' && me.user_id ? me.user_id : null };
+  const identity = { email: me.email, org: me.org, orgName: me.orgName || null, userId: typeof me.user_id === 'string' && me.user_id ? me.user_id : null };
+  noteUsageIdentity(env, identity);
+  return identity;
 }
 
 // Every CONTROL_PLANE call on the dev worker, not only the fall-through: dev-worker.js wraps the
