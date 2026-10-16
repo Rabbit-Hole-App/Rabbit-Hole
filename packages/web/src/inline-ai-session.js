@@ -10,7 +10,7 @@
 //   prompt, scope): the same request again reuses it instead of generating twice; new words around the selection do not
 //   (owner 2026-10-13, point 7). A move changes none of these.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
-import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, ROUTES } from './inline-ai-route.js';
+import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, routeLabel } from './inline-ai-route.js';
 import { DEFAULT_ENABLED, INLINE_SLASH, checkRequest, commandOf, generationPrompt as generationArgs } from './inline-ai-decide.js';
 
 export const STAGES = Object.freeze({ routing: 'Checking the request…', note: 'Writing the explanation…', edit: 'Preparing the edit…', shapes: 'Drawing the diagram…', artifact: 'Making the {label}…' });
@@ -119,7 +119,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       if (out.usage) metric(id).tokens = { input: out.usage.input_tokens ?? null, output: out.usage.output_tokens ?? null };
       return out.result;
     }
-    set({ status: 'generating', stage: STAGES.artifact.replace('{label}', (ROUTES[route]?.label || route).toLowerCase()), stream: null });
+    set({ status: 'generating', stage: STAGES.artifact.replace('{label}', routeLabel(route).toLowerCase()), stream: null });
     mark(id, 'providerStart');
     count(id, 'modelCalls');
     // /image runs no model (a photo search once accepted): staged here after the proceed. Every other card comes from

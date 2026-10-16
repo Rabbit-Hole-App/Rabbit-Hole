@@ -24,7 +24,7 @@ import { available, isLearnCommand, motionProposal, parseSlash, runLearnCommand 
 import { commandsFor, labelOf } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
-import { ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
+import { EXPLICIT_ROUTES, ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 // Lazy: it draws real cards, so it brings the card components with it.
@@ -835,9 +835,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
-    enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name])],
+    enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
     motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
     extras: () => ({ title: app.title || '' }),
+    // Ctrl+K's /youtube /arxiv /wikipedia: the shared source finder (B3), origin from the editor so focus returns there.
+    openSearch: ({ source, query, origin }) => openSourceFinder({ source, query, origin }),
     sendTelemetry: rows => { apiFetch('/api/learn/inline/telemetry', { method: 'POST', body: JSON.stringify({ app: app.name, ...(askScope.pending ? { pending: askScope.pending } : {}), rows }) }).catch(() => {}); },
   } : null;
   // The board revision the server last answered (boardVersion below, mirrored for render): Tutor decision telemetry only

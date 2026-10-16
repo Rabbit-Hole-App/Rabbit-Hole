@@ -197,3 +197,21 @@ test('the endpoint: auth first, then the check; the response is the validated sc
   assert.ok(checkDecision(ok));
   assert.equal(ok.meta.validator, 'jev');
 });
+
+// Release B (lead ruling 2026-10-16, owner 1A): /flashcards is a Ctrl+K command, reached only explicitly. Its command fixes
+// the route, so the one call asks no route question; a natural-language request's route question never lists it.
+test('explicit /flashcards: the command fixes the route, and automatic routing never offers flashcards', async () => {
+  const { calls, ask } = counting(jevSays('proceed', 'note'));
+  const out = await run(pick('/flashcards the parts of a cell'), ask, KEY_ENV, { enabled: ['note', 'shapes', 'flashcards'] });
+  assert.deepEqual([out.body.decision, out.body.route], ['proceed', { capability: 'flashcards', outcome: 'card' }]);
+  assert.deepEqual(Object.keys(calls[0].request.questions), ['decision', 'missing']);
+  assert.match(calls[0].request.state.output, /^Flashcards/);
+  const routed = jevDecideRequest(pick('quiz me with some cards'), null, 'jev-1.13.0');
+  assert.equal(Object.hasOwn(routed.questions.route.criteria, 'flashcards'), false);
+  // A validator that names flashcards on its own (it cannot: not an option) is never a proceed.
+  const unfixed = await run(pick('cards please'), counting(jevSays('proceed', 'flashcards')).ask, KEY_ENV, { enabled: ['note', 'flashcards'] });
+  assert.notEqual(unfixed.body.decision, 'proceed');
+  // Off on a canvas that cannot run it: said, never substituted.
+  const off = await run(pick('/flashcards cells'), counting(() => assert.fail('no call')).ask);
+  assert.equal(off.body.decision, 'unsupported');
+});

@@ -6,7 +6,11 @@ import { cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FAC
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
 import { placeResult, regionStyle } from './inline-placement.js';
-import { PROMPT_MAX, ROUTES, selectionSummary } from './inline-ai-route.js';
+import { PROMPT_MAX, routeLabel, selectionSummary } from './inline-ai-route.js';
+import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
+import { descFor } from './agent/slash.js';
+import CommandPill from './CommandPill.jsx';
+import { CommandMark } from './CommandTone.jsx';
 
 // The inline AI editor (docs/features/inline-ai-editor.md): a compact popover by the frozen selection, with Edit and
 // Explain pills, the prompt, a context indicator, the streamed preview and Accept / Reject. Everything it shows before
@@ -53,6 +57,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   const [mode, setMode] = useState(target.creation ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
+  // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
+  // is the Explain mode itself and has no pill; it is still sent. The picker opens while the line is a leading /word.
+  const [command, setCommand] = useState(null);
+  const [pickerShut, setPickerShut] = useState(false);
+  const [active, setActive] = useState(0);
+  const [refused, setRefused] = useState(null);
   const [selectionOnly, setSelectionOnly] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
@@ -149,10 +159,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return () => node.removeEventListener('wheel', stop);
   }, []);
 
-  const submit = text => {
+  const submit = (text, how = mode) => {
     if (readOnly || busy(state.status)) return;
     session.submit({
-      mode, prompt: text,
+      mode: how, prompt: text,
       prepare: () => {
         // An open text editor's words are saved first, so what the model reads and the fingerprint Accept checks come
         // from the same saved text - never from words captured when the editor opened.
@@ -167,6 +177,35 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       },
     });
   };
+  // The / commands (inline-ai-command.js): the registry's Ctrl+K list for this canvas, filtered as the line is typed.
+  const offered = useMemo(() => ctrlkCommands({ enabled: config.enabled ?? null, sources: !!config.openSearch, motionDev: true }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const query = command || readOnly ? null : pickerQuery(prompt);
+  const pickerOpen = query !== null && !pickerShut;
+  const matches = pickerOpen ? filterCommands(offered, query) : [];
+  const focusField = () => field.current?.focus({ preventScroll: true });
+  const typing = value => { setPrompt(value); setActive(0); setRefused(null); if (pickerQuery(value) === null) setPickerShut(false); };
+  // Picked: the command and its mode (a generation command selects Explain); the line is then its words.
+  const choose = entry => { const next = pick({ mode, text: '' }, entry); setMode(next.mode); setCommand(next.command); setPrompt(next.text); setRefused(null); focusField(); };
+  const changeMode = value => { const next = switchMode({ command, text: prompt }, value); setMode(next.mode); setCommand(next.command); };
+  // A source search opens the shared finder with its query: no model, nothing sent. config.openSearch has the shape of B3's
+  // openSourceFinder({ source, query, origin }) -> Promise<{ added }> (the page binds the one opener Chat uses), settling
+  // when the finder closes: the draft, the selection and the context stay until then; an add clears the line; either way
+  // focus comes back here.
+  const openFinder = ({ source, query: words }) => Promise.resolve(config.openSearch({ source, query: words, origin: { returnFocus: focusField } })).then(out => {
+    if (out?.added) { setCommand(null); setPrompt(''); }
+    focusField();
+  });
+  // One Send: a typed command resolves through the registry exactly as a picked one, so both submit the same request.
+  const send = () => {
+    const out = submission({ mode, command, text: prompt });
+    // A source search where no finder can open (an embed without one) is said like any command Ctrl+K lacks here.
+    if (out.unsupported || (out.source && !config.openSearch)) { setRefused(out.unsupported || out.source.source); return; }
+    if (out.source) { openFinder(out.source); return; }
+    if (out.mode !== mode) setMode(out.mode);
+    submit(out.prompt, out.mode);
+  };
+  // What Send would send, for the limit and the Send button.
+  const outgoing = command ? `/${command}${prompt.trim() ? ` ${prompt.trim()}` : ''}` : prompt;
   // A connector has no box of its own: it stands at the midpoint between the two objects it joins.
   const boxOfTarget = id => {
     const own = canvas.boxOf(id);
@@ -326,12 +365,22 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && state.status === 'preview' && state.preview?.kind !== 'proposal') { event.preventDefault(); accept(); }
   };
   const fieldKey = event => {
+    // The open picker owns Up, Down, Enter, Tab and Esc; Esc closes the list, never the editor.
+    if (pickerOpen && !event.nativeEvent.isComposing) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (matches.length) setActive(index => (index + (event.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length);
+        return;
+      }
+      if ((event.key === 'Enter' || event.key === 'Tab') && !event.shiftKey && !event.ctrlKey && !event.metaKey && matches.length) { event.preventDefault(); choose(matches[Math.min(active, matches.length - 1)]); return; }
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setPickerShut(true); return; }
+    }
     const what = composerKey(event.nativeEvent);
     if (what !== 'send' || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     // Always require text (owner 2026-10-14): an empty prompt never sends, with or without a selection, like the Send button.
-    if (state.status === 'proposal' || !prompt.trim()) return;
-    submit(prompt);
+    if (state.status === 'proposal' || !outgoing.trim()) return;
+    send();
   };
 
   // Where the popover goes: beside the target, never over it, inside the canvas surface (§10).
@@ -482,8 +531,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       </div>
       {/* The composer (owner brief 2026-10-13): one surface - the prompt, then a thin row of Context, the mode and Send along
           its bottom edge; output appears beneath the prompt only when there is some. */}
-      <div ref={box} role="dialog" aria-label="Quick Edit" aria-modal="false" data-inline-ai data-keep-focus data-status={status}
-        onPointerDown={event => { event.stopPropagation(); if (!event.target.closest('[data-inline-mode-menu],[data-inline-mode-toggle]')) setModeOpen(false); if (!event.target.closest('[data-inline-context-popover],[data-inline-context]')) setContextOpen(false); }}
+      <div ref={box} role="dialog" aria-label="Quick Edit" aria-modal="false" data-inline-ai data-keep-focus data-status={status} data-inline-command={command || undefined}
+        onPointerDown={event => { event.stopPropagation(); if (!event.target.closest('[data-inline-mode-menu],[data-inline-mode-toggle]')) setModeOpen(false); if (!event.target.closest('[data-inline-context-popover],[data-inline-context]')) setContextOpen(false); if (pickerOpen && !event.target.closest('[data-inline-picker],[data-inline-prompt]')) setPickerShut(true); }}
         onDoubleClick={event => event.stopPropagation()} onContextMenu={event => event.stopPropagation()} onKeyDown={keyDown}
         style={{ left: place.left, width: place.width, ...(place.up ? { bottom: surface.h - place.top - height } : { top: place.top }) }}
         className="absolute z-40 flex flex-col rounded-xl border border-line bg-white p-3 text-sm text-ink shadow-[0_2px_12px_rgba(15,15,15,0.08)]">
@@ -491,7 +540,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         <span data-inline-target-label className="sr-only">{targetLabel(target, board())}</span>
         <button type="button" data-inline-close aria-label="Close" title="Close (Esc)" onClick={close}
           className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-md text-ink-3 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai"><X size={14} /></button>
-        <textarea ref={field} rows={2} value={prompt} onChange={event => setPrompt(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
+        {/* The chosen command (CommandPill, shared with Chat): removing it keeps the words, the selection and the context. */}
+        {showsPill(command) && <div className="mb-1.5 flex pr-7"><CommandPill name={command} disabled={busy(status)} onRemove={() => { setCommand(null); focusField(); }}
+          className="h-6 gap-0.5 rounded-md pr-0.5 pl-1.5 text-xs" removeClassName="h-5 w-5" /></div>}
+        <textarea ref={field} rows={2} value={prompt} onChange={event => typing(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
+          aria-activedescendant={pickerOpen && matches.length ? `inline-command-${matches[Math.min(active, matches.length - 1)].name}` : undefined}
           aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
           placeholder={target.creation ? 'What would you like to add or understand?' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
           disabled={readOnly} style={{ maxHeight: PROMPT_H }}
@@ -538,7 +591,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         )}
         {(preview?.kind === 'card' || preview?.kind === 'proposal') && !busy(status) && (
           <div data-inline-preview={preview.kind} data-card-type={preview.block?.type} className="mt-2 rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
-            <p className="font-medium text-ink">{ROUTES[preview.route]?.label || 'Card'}: {short(preview.block?.title || preview.describe?.title || '', 60)}</p>
+            <p className="font-medium text-ink">{preview.route ? routeLabel(preview.route) : 'Card'}: {short(preview.block?.title || preview.describe?.title || '', 60)}</p>
             {(() => { const b = preview.block || {}; const words = [b.brief, b.caption, b.body, b.goal, b.operation?.request, typeof b.code === 'string' ? b.code : null].find(value => typeof value === 'string' && value.trim()) || preview.describe?.text; return words ? <p className="mt-0.5 line-clamp-3 text-ink-2">{short(words, 220)}</p> : null; })()}
             <p className="mt-1 text-[11px] text-ink-3">Adds this card ({short(preview.block?.type, 20)}) to the canvas when you {preview.kind === "proposal" ? "generate" : "accept"}.</p>
           </div>
@@ -559,12 +612,13 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </div>
         )}
         {status === 'stale' && state.stale && (
-          <p data-inline-stale role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.stale.text} <button type="button" onClick={() => submit(prompt)} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Regenerate</button></p>
+          <p data-inline-stale role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.stale.text} <button type="button" onClick={send} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Regenerate</button></p>
         )}
         {/* A request the check did not let through: one short message, the prompt kept, nothing on the canvas. */}
+        {refused && <p data-inline-unsupported={refused} role="status" className="mt-2 text-xs text-ink-2">{unsupportedText(refused)}</p>}
         {state.declined && <p data-inline-decision={state.declined.decision} role="status" className="mt-2 text-xs text-ink-2">{state.declined.message}</p>}
         {state.error && <p data-inline-error role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.error}
-          {state.retry && <button type="button" data-inline-retry onClick={() => submit(prompt)} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Try again</button>}</p>}
+          {state.retry && <button type="button" data-inline-retry onClick={send} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Try again</button>}</p>}
         {(preview && status !== 'proposal') && (
           <div className="mt-2 flex items-center justify-end gap-1.5">
             <button type="button" data-inline-reject onClick={reject} className="h-6 rounded-md border border-line bg-white px-2 text-xs text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ai">Reject</button>
@@ -573,7 +627,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </div>
         )}
         {/* The count, only near the supported limit or past it: nothing is cut, Send waits and says what to do. */}
-        {prompt.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${prompt.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{prompt.length} / {PROMPT_MAX}{prompt.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
+        {outgoing.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${outgoing.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{outgoing.length} / {PROMPT_MAX}{outgoing.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
         <div className="mt-2 flex items-center gap-2">
           <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"
             onClick={() => { setModeOpen(false); setContextOpen(open => !open); }}
@@ -589,7 +643,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 {MODES.map(([value, label]) => (
                   <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
                     disabled={target.creation && value === 'edit'} title={target.creation && value === 'edit' ? 'Select something to edit.' : undefined}
-                    onClick={() => { setMode(value); setModeOpen(false); field.current?.focus({ preventScroll: true }); }}
+                    onClick={() => { changeMode(value); setModeOpen(false); focusField(); }}
                     className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">
                     <span className="flex w-3.5 justify-center">{mode === value && <Check size={13} className="text-ai" />}</span>{label}
                   </button>
@@ -603,11 +657,25 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
             ) : (
               <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
-                disabled={readOnly || status === 'proposal' || !prompt.trim() || prompt.length > PROMPT_MAX} onClick={() => submit(prompt)}
+                disabled={readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
             )}
           </div>
         </div>
+        {/* The / picker: the registry's Ctrl+K commands for this canvas, filtered as the line is typed. Up/Down move,
+            Enter or Tab picks, Esc closes the list (never the editor); a click picks too. Focus stays in the prompt. */}
+        {pickerOpen && (
+          <div role="listbox" aria-label="Commands" data-inline-picker data-scroll
+            className={`absolute left-0 z-50 max-h-64 w-72 max-w-full overflow-y-auto rounded-xl border border-line bg-white p-1 text-xs shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+            {matches.length ? matches.map((entry, index) => (
+              <button key={entry.name} id={`inline-command-${entry.name}`} type="button" role="option" aria-selected={index === Math.min(active, matches.length - 1)} data-inline-command-option={entry.name}
+                onMouseEnter={() => setActive(index)} onMouseDown={event => event.preventDefault()} onClick={() => choose(entry)}
+                className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left ${index === Math.min(active, matches.length - 1) ? 'bg-hover' : ''}`}>
+                <CommandMark name={entry.name} className="text-sm text-ink" /><span className="truncate text-ink-2">{descFor(entry, 'ctrlk')}</span>
+              </button>
+            )) : <p data-inline-picker-none className="px-2 py-1.5 text-ink-2">No Ctrl+K command matches.</p>}
+          </div>
+        )}
         {/* Point 8: the Context popover - anchored, bounded and scrolling, never part of the composer's own height. */}
         {contextOpen && (
           <div role="dialog" aria-label="Context" data-inline-context-popover data-scroll

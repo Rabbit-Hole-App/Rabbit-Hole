@@ -39,12 +39,17 @@ export const NOT_INLINE = Object.freeze({
   dive: 'navigation: opens a Rabbit Hole (use /dive or Start Rabbit Hole)', source: 'opens a card\'s Sources & evidence, makes nothing',
   more: 'opens the tool catalog', notebook: 'adds an empty notebook, unrelated to the selection', whiteboard: 'adds an empty whiteboard, unrelated to the selection',
   paper: 'opens an arXiv paper by id or search', practice: 'assessment, not explanation: it waits for the learner\'s answer in the chat',
-  quiz: 'assessment, not explanation: it waits for the learner\'s answer', flashcards: 'study cards, not an explanation of the selection',
+  quiz: 'assessment, not explanation: it waits for the learner\'s answer',
   // Source search opens the shared source finder, never a generator (Release B; Ctrl+K's own handling is lane B2's).
   youtube: 'source search: opens the source finder', arxiv: 'source search: opens the source finder', wikipedia: 'source search: opens the source finder',
 });
+// Routes reached only by their explicit command, never by automatic routing: they are not in ROUTES, so no routing
+// question or validator lists them (Release B lead ruling, 2026-10-16: owner 1A puts /flashcards in Ctrl+K; Auto decides
+// exactly as before). Each runs its own handler, as the Chat command does.
+export const EXPLICIT_ROUTES = Object.freeze({ flashcards: { label: 'Flashcards' } });
+export const routeLabel = route => ROUTES[route]?.label || EXPLICIT_ROUTES[route]?.label || route;
 // Every Learn command has exactly one inline status - checked against the registry by the tests.
-export const inlineStatus = name => (ROUTES[name] ? 'route' : NOTE_COMMANDS[name] ? 'note' : NOT_INLINE[name] ? 'n/a' : 'unknown');
+export const inlineStatus = name => (ROUTES[name] ? 'route' : EXPLICIT_ROUTES[name] ? 'explicit' : NOTE_COMMANDS[name] ? 'note' : NOT_INLINE[name] ? 'n/a' : 'unknown');
 const META = {
   several: 'More than one of these outputs is asked for at once (for example a diagram and a video).',
   none: 'None of these fits: the request asks for something else (audio, a quiz, a translation, or to change the selection itself).',
@@ -89,7 +94,7 @@ export function planRoute({ mode, prompt, enabled = ['note'] }) {
   }
   if (command) {
     if (NOTE_COMMANDS[command.name]) return { route: 'note', via: 'command', args: [NOTE_COMMANDS[command.name], command.args].filter(Boolean).join(' ') };
-    if (!ROUTES[command.name] || command.name === 'note') {
+    if (!(ROUTES[command.name] || EXPLICIT_ROUTES[command.name]) || command.name === 'note') {
       const known = SLASH.some(entry => entry.name === command.name && entry.places.includes('learn'));
       return { clarify: { question: known ? `/${command.name} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`, options: ['note'] } };
     }
@@ -99,7 +104,7 @@ export function planRoute({ mode, prompt, enabled = ['note'] }) {
   if (isPlainExplain(prompt)) return { route: 'note', via: 'default', args: String(prompt).trim() };
   return { classify: true };
 }
-export const unavailableText = route => ({ route, text: route === 'motion' ? 'Video explainers (Motion) are not available on this canvas.' : `${ROUTES[route]?.label || route} isn't available on this canvas.` });
+export const unavailableText = route => ({ route, text: route === 'motion' ? 'Video explainers (Motion) are not available on this canvas.' : `${routeLabel(route)} isn't available on this canvas.` });
 
 // The JEV request: one Choice question. state carries compact text only - never an image (§6).
 export function routeRequest({ prompt, selection }, model) {
@@ -145,7 +150,7 @@ export const selectionSubject = context => (context?.target?.objects || [])
   .map(entry => String(entry.range?.text ?? entry.text ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).join('; ').slice(0, 200);
 const askFor = route => (route === 'image' ? 'What should the photo show? Type it after /image, for example /image an oak tree.'
   : route === 'motion' ? 'What should the video explain? Type it after /motion, for example /motion 15s explain this tree.'
-  : `What should the ${(ROUTES[route]?.label || route).toLowerCase()} show? Type it after /${route}, for example /${route} how this connects to the rest.`);
+  : `What should the ${routeLabel(route).toLowerCase()} show? Type it after /${route}, for example /${route} how this connects to the rest.`);
 // What an inline request hands its handler (§7), resolved before the call: an explicit command's own words; for a bare
 // command, the selection's words as its subject; a routed sentence as written - except a photo search, which searches
 // the selection's words, never a sentence. With no subject to use, a question for the missing input instead. Never the

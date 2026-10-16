@@ -8,7 +8,7 @@
 //   { kind: 'creation', mode: 'explain', anchor: { x, y } (world), region: '<compact subject+style summary>', prompt, slash?, context }
 // Response: { decision, message?, route?: { capability, outcome }, missing?: [...], paid, token? }
 import { SLASH, primitive } from './agent/slash.js';
-import { NOTE_COMMANDS, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
+import { EXPLICIT_ROUTES, NOTE_COMMANDS, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
 
 export const DECISIONS = Object.freeze(['proceed', 'clarify', 'invalid', 'unsupported', 'blocked']);
 export const MISSING = Object.freeze(['subject', 'target', 'format', 'data']);
@@ -25,6 +25,9 @@ export const CAPABILITIES = Object.freeze({
   shapes: { label: 'Diagram', criterion: 'An editable diagram drawn on the canvas from shapes, text and arrows: a tree, flowchart, cycle, hierarchy, timeline, or a map of how parts connect.' },
 });
 export const INLINE_SLASH = Object.freeze({ diagram: 'shapes' });
+// A capability the editor can run: one the validator may choose (CAPABILITIES), or one only its explicit command reaches
+// (EXPLICIT_ROUTES: never offered to the validator's route question, so automatic routing is unchanged).
+export const knownCapability = capability => !!(CAPABILITIES[capability] || EXPLICIT_ROUTES[capability]);
 export const DEFAULT_ENABLED = Object.freeze(['note', 'shapes']);
 export const outcomeOf = capability => (capability === 'edit' ? 'edit' : capability === 'note' ? 'text' : capability === 'shapes' ? 'diagram' : ['image', 'video', '3d', 'motion'].includes(capability) ? 'media' : 'card');
 // Whether the capability can start paid generation: Motion, or a command whose family holds a paid primitive. The router
@@ -62,7 +65,7 @@ export function checkRequest(request) {
   const bad = { error: 'Invalid inline request' };
   if (!request || typeof request !== 'object' || typeof request.prompt !== 'string' || !['edit', 'explain'].includes(request.mode)) return bad;
   // A refine names the output it revises (the session's previous route): only a known one.
-  if (request.revising != null && !(request.revising === 'edit' || CAPABILITIES[request.revising])) return bad;
+  if (request.revising != null && !(request.revising === 'edit' || knownCapability(request.revising))) return bad;
   if (request.slash != null && (typeof request.slash !== 'string' || !/^[\w-]{1,40}$/.test(request.slash))) return bad;
   if (request.context != null && typeof request.context !== 'object') return bad;
   if (request.kind === 'selection') {
@@ -93,7 +96,7 @@ export function fixedRoute(request, enabled = DEFAULT_ENABLED) {
   if (command) {
     if (NOTE_COMMANDS[command.name]) return { capability: 'note' };
     const capability = INLINE_SLASH[command.name] || command.name;
-    if (!CAPABILITIES[capability] || capability === 'note') {
+    if (!knownCapability(capability) || capability === 'note') {
       const known = SLASH.some(entry => entry.name === command.name && entry.places.includes('learn'));
       return stop('unsupported', known ? `/${command.name} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`);
     }
@@ -131,7 +134,8 @@ export function settle(fixed, verdict, enabled = DEFAULT_ENABLED) {
   if (verdict.decision === 'clarify' && !refined) return { decision: 'clarify', message: verdict.message || clarifyText(missing), missing: missing.length ? missing : ['subject'], paid: false };
   if (verdict.decision === 'unsupported') return { decision: 'unsupported', message: verdict.message || MESSAGES.unsupported, paid: false };
   if (capability === 'several') return { decision: 'clarify', message: MESSAGES.several, missing: ['format'], paid: false };
-  if (capability !== 'edit' && !CAPABILITIES[capability]) return { decision: 'unsupported', message: verdict.message || MESSAGES.unsupported, paid: false };
+  // An explicit-only capability proceeds only as the fixed route its command chose, never as a validator's pick.
+  if (capability !== 'edit' && !CAPABILITIES[capability] && !(EXPLICIT_ROUTES[capability] && fixed?.capability === capability)) return { decision: 'unsupported', message: verdict.message || MESSAGES.unsupported, paid: false };
   if (capability !== 'edit' && !enabled.includes(capability)) return { decision: 'unsupported', message: unavailableText(capability).text, paid: false };
   return { decision: 'proceed', route: { capability, outcome: outcomeOf(capability) }, paid: paidOf(capability) };
 }
@@ -144,7 +148,7 @@ export function checkDecision(out) {
   if (out.missing != null && (!Array.isArray(out.missing) || !out.missing.every(id => MISSING.includes(id)))) fail();
   if (out.decision === 'proceed') {
     const capability = out.route?.capability;
-    if ((capability !== 'edit' && !CAPABILITIES[capability]) || out.route.outcome !== outcomeOf(capability) || typeof out.token !== 'string' || !out.token) fail();
+    if ((capability !== 'edit' && !knownCapability(capability)) || out.route.outcome !== outcomeOf(capability) || typeof out.token !== 'string' || !out.token) fail();
   } else if (out.token != null || !out.message) fail();
   return out;
 }
