@@ -54,15 +54,16 @@ export default function SyllabusMessage({ syllabus, saveSyllabus = null, toConte
               {editable ? <>
                 <input aria-label={`Topic ${i + 1} title`} value={t.title} maxLength={TITLE_MAX} onChange={e => edit(i, { title: e.target.value })}
                   className="w-full rounded border border-transparent bg-white px-1 font-medium text-ink hover:border-line focus:border-line focus:outline-none" />
+                {t.description && <p data-syllabus-description className="px-1 text-xs text-ink-2">{t.description}</p>}
                 <textarea aria-label={`Topic ${i + 1} objectives, one per line`} value={t.objectivesText} rows={Math.max(1, lines(t.objectivesText).length)}
                   maxLength={OBJECTIVES_MAX} onChange={e => edit(i, { objectivesText: e.target.value })}
                   className="w-full resize-none rounded border border-transparent bg-white px-1 text-xs text-ink-2 hover:border-line focus:border-line focus:outline-none" />
               </> : <>
                 <p className="font-medium text-ink">{t.title}</p>
+                {t.description && <p data-syllabus-description className="text-xs text-ink-2">{t.description}</p>}
                 <ul className="list-disc pl-4 text-xs text-ink-2">{t.objectives.map((o, k) => <li key={k}>{o}</li>)}</ul>
               </>}
-              {/* A topic's description and subtopics (contract C9) are shown, not edited here: the table of contents edits them once adopted. */}
-              {t.description && <p data-syllabus-description className="px-1 text-xs text-ink-2">{t.description}</p>}
+              {/* A topic's subtopics (contract C9) are shown, not edited here: the table of contents edits them once adopted. */}
               {t.subtopics?.length > 0 && <ol className="mt-1 flex flex-col gap-0.5 pl-1">
                 {t.subtopics.map((u, k) => (
                   <li key={u.id} data-syllabus-subtopic={u.id} className="flex gap-1.5 text-xs">

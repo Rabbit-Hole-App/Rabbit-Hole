@@ -229,6 +229,7 @@
   "defaultReason": "An unmapped executable path runs this conservative set (the app shell, navigation, selection, naming and the home ask, about 4 min of checks) and the run reports the missing mapping. It is neither the full broad set nor a failure.",
   "mapped": {
     "packages/web/src/CanvasDoc.jsx": ["canvas-doc-check.mjs"],
+    "packages/web/src/syllabus-outline.js": ["toc-tutor-check.mjs"],
     "packages/web/src/canvas-doc.js": ["canvas-doc-check.mjs"],
     "packages/web/src/lazy-feature.jsx": ["offline-edit-check.mjs","rabbit-hole-check.mjs"],
     "packages/web/src/lazy-feature-load.js": ["offline-edit-check.mjs","rabbit-hole-check.mjs"],
@@ -609,6 +610,7 @@
     "sidebar-check.mjs": {"runner":"fork","seconds":25},
     "slash-sheet-check.mjs": {"runner":"fork","seconds":15},
     "t12-deployed-check.mjs": {"runner":"windows-only","why":"targets the deployed small-cp-dev-small-deploy worker with the .env secret","seconds":120},
+    "toc-tutor-check.mjs": {"runner":"windows-only","why":"a local-stack check (BASE, SMALL_CP, VARS; the Learn ask stubbed, no model) for the Tutor and the table of contents (R4 Tutor lane: owner decisions 4A and 5B, contract C4, C6, C8, C9); its OUT and VARS default to Windows paths, which run-part.sh does not set","seconds":60},
     "tutor-entry-check.mjs": {"runner":"windows-only","why":"reads PRACTICE_BASE and needs a seeded nanoGPT repository app (PRACTICE_APP) that the stack does not create","seconds":120},
     "tutor-image-context-check.mjs": {"runner":"windows-only","why":"keyless journey-stack check: requires the stack .dev.vars (--vars or VARS) or its TEST_BYPASS_SECRET","seconds":120},
     "tutor-slice-check.mjs": {"runner":"windows-only","why":"journey-stack check (fresh-schema keyless stack, lp1h/jstack.sh); no Linux stack yet, to be proven in Task B4","seconds":120},
