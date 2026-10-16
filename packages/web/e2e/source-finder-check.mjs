@@ -1,7 +1,7 @@
 // Release B lane B3 (C:/s/spec/rel-b.md B3 and B5; owner decisions 4A, 5A and A4, 2026-10-16), against the LOCAL stack only:
 // the one source finder from Chat (/youtube, /arxiv, /wikipedia with a query searches at once, empty waits), a result
 // previews on click and only Add to canvas adds it, Cancel gives the Chat draft back, the Insert menu's three entries open
-// the same finder, the top-bar Search control is gone, and "/" outside editable fields opens and focuses the right panel's
+// the same finder (Enter on an answered query only previews: lead ruling 2026-10-16), the top-bar Search control is gone, and "/" outside editable fields opens and focuses the right panel's
 // canvas Find (which still finds), while inside Chat, Ctrl+K and the BlockNote document "/" is typed as before.
 // Search answers come from a route in this check: no Exa call, no model call, nothing sent to the Tutor.
 // usage: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> TEST_BYPASS_SECRET=<that stack's> node e2e/source-finder-check.mjs [outDir]
@@ -81,6 +81,10 @@ await finder.getByText('Attention in transformers, visually').waitFor({ timeout:
 ok('/youtube <query>: the finder opens on YouTube and searches at once', await finder.getByLabel('Search in').inputValue() === 'youtube' && searches.at(-1) === 'youtube:attention', searches.join(' '));
 await finder.getByText('Attention in transformers, visually').click();
 ok('a click previews the result and adds nothing', await finder.count() === 1 && await iframes() === 0 && await finder.locator('[role="option"][aria-selected="true"]').count() === 1);
+await finder.getByRole('textbox').press('Enter');
+// An add would close the finder in the same render as the key: two frames later it would be gone.
+await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+ok('Enter on the answered query only previews: the finder stays and nothing is added', await finder.count() === 1 && await iframes() === 0 && searches.at(-1) === 'youtube:attention' && searches.filter(s => s === 'youtube:attention').length === 1);
 await page.screenshot({ path: `${OUT}/02-youtube-preview.png` });
 await addButton.click();
 await finder.waitFor({ state: 'detached' });
