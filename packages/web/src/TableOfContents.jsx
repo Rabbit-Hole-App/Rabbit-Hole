@@ -1,0 +1,239 @@
+// The Table of contents tab (R4 redesign, owner decisions 2026-10-15 1A, 2A, 3A, 6A, 7A). The table of contents IS the
+// lesson's structure, not a view onto another document: its sections are the canvas headings, and the learner and the
+// Tutor both author them. It reads as a numbered syllabus - Topic 1, 1.1, 1.1.1 - with an optional description under
+// each title and a thin guide line through the topic markers. The round controls are checkboxes: completion changes only
+// when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its section,
+// cards and sub-sections with it; clicking a title frames it on the canvas.
+import { useRef, useState } from 'react';
+import { Check, GripVertical, Heading1, Heading2, Heading3, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Button, toast } from './ui.jsx';
+import { DESCRIPTION_MAX, outlineTree, proposalProblem } from './learn-outline-model.js';
+
+const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
+const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
+
+// outline: outlineFrom entries. canvasApi: the canvas commands (applyOutline, moveSection, toggleSectionDone, removeBlock).
+// onShow(id): frame that section. proposal: the Tutor's { ops, base, source } (contract C6; a bare ops array from an older
+// emitter reads as ops with no base), cleared through onProposal(null). activeId: the section being viewed (the canvas
+// decides which). readOnly: a viewer - titles navigate, nothing edits, drags or ticks. className: the scroll container's
+// sizing, owned by the page.
+export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '' }) {
+  // Which level is being added, the section being edited, the section being dragged, and the heading it lands before
+  // (null: the end).
+  const [adding, setAdding] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [drag, setDrag] = useState(null);
+  const [drop, setDrop] = useState(undefined);
+  const pressed = useRef(null);
+  const tree = outlineTree(outline);
+  const shown = proposal && !readOnly ? (Array.isArray(proposal) ? { ops: proposal, base: null } : proposal) : null;
+  const endDrag = () => { setDrag(null); setDrop(undefined); };
+  const save = (entry, title, description) => {
+    const ops = [];
+    if (title && title !== entry.label) ops.push({ op: 'retitle', id: entry.id, text: title });
+    if (description !== entry.description) ops.push({ op: 'describe', id: entry.id, description });
+    if (ops.length) canvasApi.current?.applyOutline(ops);
+    setEditing(null);
+  };
+
+  const row = node => {
+    const { entry, number, index } = node;
+    const topic = entry.level === 1 && number;
+    const active = entry.id === activeId;
+    return (
+      <div data-toc-entry={entry.id} data-level={entry.level} data-done={entry.done || undefined} data-active={active || undefined}
+        draggable={!readOnly && editing !== entry.id}
+        onPointerDownCapture={event => { pressed.current = event.target; }}
+        onDragStart={event => {
+          // The circle, the edit and delete buttons and the text being edited never start a drag.
+          if (pressed.current?.closest?.('[data-no-drag]')) { event.preventDefault(); return; }
+          event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', entry.id); setDrag(entry.id);
+        }}
+        onDragOver={event => {
+          if (!drag) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const box = event.currentTarget.getBoundingClientRect();
+          setDrop(event.clientY < box.top + box.height / 2 ? entry.id : outline[index + 1]?.id ?? null);
+        }}
+        onDrop={event => { event.preventDefault(); event.stopPropagation(); if (drag && drop !== undefined) canvasApi.current?.moveSection(drag, drop); endDrag(); }}
+        className={`group relative flex items-start gap-3 rounded-sm ${drag === entry.id ? 'opacity-40' : ''} ${drag && drop === entry.id ? 'shadow-[0_-2px_0_0_var(--color-accent)]' : ''} ${drag && drop === null && index === outline.length - 1 ? 'shadow-[0_2px_0_0_var(--color-accent)]' : ''}`}>
+        {!readOnly && <GripVertical size={14} aria-hidden className={`absolute -left-4 ${topic ? 'top-[5px]' : 'top-[3px]'} cursor-grab text-ink-3 opacity-0 group-hover:opacity-100`} />}
+        <Circle entry={entry} topic={topic} active={active} readOnly={readOnly} onToggle={() => canvasApi.current?.toggleSectionDone(entry.id)} />
+        {!topic && number && <span className={`${entry.level === 3 ? 'min-w-12' : 'min-w-9'} -mr-1 shrink-0 pt-px text-[13px] leading-5 text-ink-2 tabular-nums`}>{number}</span>}
+        {editing === entry.id ? <Editor entry={entry} topic={topic} onSave={(title, description) => save(entry, title, description)} onCancel={() => setEditing(null)} /> : (
+          <div className="min-w-0 flex-1">
+            <button type="button" title={readOnly ? undefined : 'Double-click to edit'} aria-current={active ? 'location' : undefined}
+              onClick={() => onShow?.(entry.id)} onDoubleClick={readOnly ? undefined : () => setEditing(entry.id)}
+              className={`rounded-sm text-left break-words hover:text-accent ${topic || entry.level === 1 ? 'text-base leading-6 font-semibold' : 'text-sm leading-5 font-medium'} ${active ? 'text-accent' : 'text-ink'}`}>
+              {topic && <span className="tabular-nums">Topic {number}: </span>}{entry.label}
+            </button>
+            {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
+          </div>
+        )}
+        {!readOnly && editing !== entry.id && (
+          <div data-no-drag className="flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100">
+            <button type="button" aria-label={`Edit ${entry.label}`} title="Edit title and description" onClick={() => setEditing(entry.id)}
+              className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink"><Pencil size={14} /></button>
+            {/* Deletes the heading only; the cards under it stay, and Ctrl+Z brings it back. */}
+            <button type="button" aria-label={`Delete ${entry.label}`} title="Delete section" onClick={() => canvasApi.current?.removeBlock(entry.id)}
+              className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // The guide line runs from each topic marker's centre (12px down a 24px row, 12px in) to the next topic's, through
+  // the descriptions and sub-sections between them, so it follows whatever height the rows wrap to. It marks
+  // hierarchy only: never completion or locking.
+  const list = (nodes, depth) => (
+    <ol className={depth ? 'mt-3.5 ml-6 space-y-3.5' : 'space-y-7'}>
+      {nodes.map((node, at) => (
+        <li key={node.entry.id} className={!depth && at < nodes.length - 1 ? 'relative before:absolute before:top-3 before:-bottom-10 before:left-[11.5px] before:w-px before:bg-line' : undefined}>
+          {row(node)}
+          {node.children.length > 0 && list(node.children, depth + 1)}
+        </li>
+      ))}
+    </ol>
+  );
+
+  return (
+    <div data-toc className={className} onDragEnd={endDrag}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <h2 className="text-base font-semibold text-ink">Table of contents</h2>
+        {!readOnly && (
+          <div className="flex items-center gap-0.5 text-ink-2">
+            <Plus size={15} aria-hidden className="mr-0.5 text-ink-3" />
+            {SECTION_LEVELS.map(([level, label, Icon]) => (
+              <button key={level} type="button" onClick={() => setAdding(level)} aria-label={`Add a ${label.toLowerCase()}`} title={`Add a ${label.toLowerCase()}`}
+                className="flex h-7 w-7 items-center justify-center rounded hover:bg-hover hover:text-ink"><Icon size={17} /></button>
+            ))}
+          </div>
+        )}
+      </div>
+      {shown && <ProposalCard proposal={shown} outline={outline} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
+      {list(tree, 0)}
+      {adding && (
+        <div style={{ paddingLeft: (adding - 1) * 24 + 36 }} className="mt-3 flex items-center gap-2">
+          <input autoFocus aria-label={`New ${SECTION_LEVELS[adding - 1][1].toLowerCase()} title`} placeholder={`${SECTION_LEVELS[adding - 1][1]} title`}
+            onKeyDown={event => {
+              if (event.key === 'Escape') setAdding(null);
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            onBlur={event => {
+              const text = event.currentTarget.value.trim();
+              if (text) canvasApi.current?.applyOutline([{ op: 'add', level: adding, text, after: null }]);
+              setAdding(null);
+            }}
+            className="h-8 min-w-0 flex-1 rounded border border-line px-2 text-base outline-none focus:border-ink-3" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The completion control: a real checkbox (its semantics, keyboard and label unchanged), drawn as a 16px circle on a
+// 24px hit area - empty and outlined when open, filled with a check when done. The section being viewed gets a ring,
+// so "here" never reads as "done".
+function Circle({ entry, topic, active, readOnly, onToggle }) {
+  return (
+    <label data-no-drag className={`relative flex w-6 shrink-0 items-center justify-center ${topic || entry.level === 1 ? 'h-6' : 'h-5'} ${readOnly ? '' : 'cursor-pointer'}`}>
+      <input type="checkbox" checked={entry.done} disabled={readOnly} aria-label={`${entry.label} done`} onChange={onToggle}
+        className={`peer absolute -inset-y-0.5 inset-x-0 m-0 appearance-none rounded-full ${readOnly ? '' : 'cursor-pointer'}`} />
+      <span aria-hidden className={`pointer-events-none flex h-4 w-4 items-center justify-center rounded-full border-[1.5px] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${entry.done ? 'border-accent bg-accent text-white' : 'border-ink-3 bg-white'} ${active ? 'ring-[3px] ring-accent/30' : ''}`}>
+        {entry.done && <Check size={11} strokeWidth={3} />}
+      </span>
+    </label>
+  );
+}
+
+// Title and description in place: Enter or leaving the editor saves, Escape cancels. One applyOutline call, so one
+// Ctrl+Z undoes both. An emptied description clears it; an emptied title keeps the old one.
+function Editor({ entry, topic, onSave, onCancel }) {
+  const form = useRef(null);
+  // Closed once: Enter saves and unmounts the editor, and the blur that follows must not save again.
+  const closed = useRef(false);
+  const commit = () => {
+    if (closed.current) return;
+    closed.current = true;
+    const data = new FormData(form.current);
+    onSave(String(data.get('title')).trim(), String(data.get('description')).trim());
+  };
+  const keys = event => {
+    if (event.key === 'Escape') { event.preventDefault(); closed.current = true; onCancel(); }
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); commit(); }
+  };
+  return (
+    <form ref={form} data-no-drag data-toc-editor onSubmit={event => { event.preventDefault(); commit(); }}
+      onBlur={event => { if (!form.current?.contains(event.relatedTarget)) commit(); }}
+      className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <input name="title" autoFocus defaultValue={entry.label} aria-label={`Title of ${entry.label}`} maxLength={200} onKeyDown={keys} onFocus={event => event.currentTarget.select()}
+        className={`h-8 min-w-0 rounded border border-line px-1.5 outline-none focus:border-ink-3 ${topic ? 'text-base font-semibold' : 'text-sm font-medium'}`} />
+      <textarea name="description" defaultValue={entry.description} aria-label={`Description of ${entry.label}`} placeholder="What this section covers (optional)" maxLength={DESCRIPTION_MAX} rows={2} onKeyDown={keys}
+        className="min-w-0 resize-none rounded border border-line px-1.5 py-1 text-[13px] leading-normal text-ink-2 outline-none focus:border-ink-3" />
+    </form>
+  );
+}
+
+// The Tutor proposes; the learner decides. Nothing here has touched the canvas yet, and Apply is one undoable step.
+// Each add shows its description and sits under its parent: beneath the add that created it, or beneath a line naming
+// the existing heading. A syllabus adoption can run to 96 rows (C7b), so the list scrolls inside the card and Apply and
+// Discard stay in view. A proposal made against older headings, or one that no longer fits them, says so and Apply
+// changes nothing (contract C7).
+function ProposalCard({ proposal, outline, canvasApi, onDone }) {
+  const [refused, setRefused] = useState(null);
+  const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
+  const problem = refused || proposalProblem(outline, proposal);
+  const titles = new Map(outline.map(entry => [entry.id, entry.label]));
+  ops.forEach(op => { if (op.op === 'add' && op.key) titles.set(op.key, op.text); });
+  const name = id => (titles.has(id) ? `"${titles.get(id)}"` : 'a removed section');
+  const children = new Map();
+  ops.forEach((op, at) => { if (op?.op === 'add' && op.parent != null) children.set(op.parent, [...(children.get(op.parent) || []), at]); });
+  const keys = new Set(ops.filter(op => op?.op === 'add' && op.key != null).map(op => op.key));
+  // Each op is drawn once; one whose parent never draws it (a broken proposal) falls back to the top level below.
+  const drawn = new Set();
+  const line = (op, nested) => (op?.op === 'add' ? <>+ {op.text}{!nested && op.level > 1 ? ` (${LEVEL_NAMES[op.level] || 'section'})` : ''}</>
+    : op?.op === 'retitle' ? `Rename ${name(op.id)} to "${op.text}"`
+    : op?.op === 'describe' ? `Describe ${name(op.id)}`
+    : op?.op === 'set_level' ? `Make ${name(op.id)} a ${LEVEL_NAMES[op.level] || 'section'}`
+    : 'An unknown change');
+  const nest = list => <ul className="mt-1 ml-1 space-y-1 border-l border-line pl-2.5">{list.map(at => item(at, true))}</ul>;
+  const item = (at, nested) => {
+    if (drawn.has(at)) return null;
+    drawn.add(at);
+    const op = ops[at];
+    return (
+      <li key={at} className="break-words">
+        {line(op, nested)}
+        {(op?.op === 'add' || op?.op === 'describe') && op.description && <span className="mt-0.5 block pl-3 text-ink-3">{op.description}</span>}
+        {op?.op === 'add' && op.key != null && children.has(op.key) && nest(children.get(op.key))}
+      </li>
+    );
+  };
+  const rows = [];
+  ops.forEach((op, at) => {
+    if (op?.op !== 'add' || op.parent == null) { rows.push(item(at, false)); return; }
+    if (keys.has(op.parent) || drawn.has(at)) return;
+    const group = children.get(op.parent);
+    rows.push(<li key={`under-${at}`} className="break-words">Under {name(op.parent)}{nest(group)}</li>);
+  });
+  ops.forEach((_, at) => { if (!drawn.has(at)) rows.push(item(at, false)); });
+  const apply = () => {
+    const result = canvasApi.current?.applyOutline(ops, { base: proposal.base, source: proposal.source });
+    if (!result?.ok) { setRefused(result?.message || 'This proposal cannot be applied.'); return; }
+    if (result.skipped) toast(result.applied ? `${result.skipped} of these ${result.skipped === 1 ? 'was' : 'were'} already in the contents.` : 'Everything in this proposal is already in the contents.');
+    onDone();
+  };
+  return (
+    <div data-toc-proposal className="mb-4 shrink-0 rounded-lg border border-accent/40 bg-accent/5 p-2">
+      <p className="mb-1 text-xs font-medium text-ink">Proposed: {ops.length} change{ops.length === 1 ? '' : 's'}</p>
+      <ul data-toc-proposal-list className="mb-2 max-h-72 space-y-1 overflow-y-auto pr-1 text-xs text-ink-2">{rows}</ul>
+      {problem && <p role="alert" className="mb-2 text-xs text-danger">{problem}</p>}
+      <div className="flex justify-end gap-1">
+        <Button size="sm" variant="ghost" onClick={onDone}>Discard</Button>
+        <Button size="sm" variant="secondary" onClick={apply}>Apply</Button>
+      </div>
+    </div>
+  );
+}

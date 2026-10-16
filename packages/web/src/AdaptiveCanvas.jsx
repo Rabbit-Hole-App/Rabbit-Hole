@@ -2134,9 +2134,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       setPages,
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
       // rather than one heading at a time. R4 contract C7: { ok: true, applied, skipped } or { ok: false, reason:
-      // 'stale' | 'invalid', message }; a proposal passes its `base` revision, the panel's own edits pass none.
-      applyOutline: (ops, { base } = {}) => {
-        const result = applyOutlineProposal(blocksRef.current, ops, { base });
+      // 'stale' | 'invalid', message }; a proposal passes its `base` revision and `source` (C7b: 'syllabus' allows 96 ops),
+      // the panel's own edits pass neither.
+      applyOutline: (ops, { base, source } = {}) => {
+        const result = applyOutlineProposal(blocksRef.current, ops, { base, source });
         if (!result.ok) return result;
         if (result.applied) { snapshot(); setBlocks(result.blocks); }
         return { ok: true, applied: result.applied, skipped: result.skipped };

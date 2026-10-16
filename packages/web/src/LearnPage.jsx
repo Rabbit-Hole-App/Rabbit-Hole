@@ -1,5 +1,5 @@
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Wand } from 'lucide-react';
+import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
 import { canvasHref } from './project-canvases.js';
@@ -18,6 +18,7 @@ import CanvasMenubar from './CanvasMenubar.jsx';
 import SearchBar from './SearchBar.jsx';
 import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
+import TableOfContents from './TableOfContents.jsx';
 import { available, isLearnCommand, motionProposal, parseSlash, runLearnCommand } from './learn-slash.js';
 import { commandsFor } from './agent/slash.js';
 import { httpTransport } from './inline-ai-transport.js';
@@ -94,7 +95,6 @@ const UNKEPT = "This browser is blocking storage, so nothing is kept in this bro
 // real board, so ?board=main never shares its server row, journey or Tutor store.
 const boardSlug = name => { const slug = String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test'; return slug === 'main' ? 'review-main' : slug; };
 const AdaptiveCanvas = lazyFeature(() => import('./AdaptiveCanvas.jsx'), 'The canvas');
-const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
 // What a reserved research card says while the answer finishes (docs/features/canvas-skeleton-cards.md).
 const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…', video: 'Opening the video…' };
 
@@ -201,11 +201,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
-  // The table of contents: which level is being added, the section being dragged, and the heading it lands before (null: the end).
-  const [tocAdding, setTocAdding] = useState(null);
-  const [tocEditing, setTocEditing] = useState(null);
-  const [tocDrag, setTocDrag] = useState(null);
-  const [tocDrop, setTocDrop] = useState(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   // What a /paper <topic> command searches for; null for the plain search bar.
   const [searchSeed, setSearchSeed] = useState(null);
@@ -1398,7 +1393,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
     // R4 contract C6 hands a proposal object; the PANEL lane's proposal card consumes it whole (base, source).
-    onOutlineProposal: proposal => setProposal(proposal?.ops ?? proposal),
+    onOutlineProposal: proposal => setProposal(proposal),
     onShowPaper: (paper, into) => addPaper(paper, into),
     preview: paperContext?.selection?.preview || preview,
     previewKind: paperContext?.selection ? 'paper' : 'canvas',
@@ -1980,96 +1975,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
-      {/* The table of contents IS the lesson's structure, not a view onto another
-          document: its sections are the canvas headings, and the learner and the agent
-          both author them. Dragging a section carries its cards and sub-sections. */}
-      <div data-toc className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`}>
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-          <h2 className="text-base font-semibold text-ink">Table of contents</h2>
-          <div className="flex items-center gap-0.5 text-ink-2">
-            <Plus size={15} aria-hidden className="mr-0.5 text-ink-3" />
-            {SECTION_LEVELS.map(([level, label, Icon]) => (
-              <button key={level} type="button" onClick={() => setTocAdding(level)} aria-label={`Add a ${label.toLowerCase()}`} title={`Add a ${label.toLowerCase()}`}
-                className="flex h-7 w-7 items-center justify-center rounded hover:bg-hover hover:text-ink"><Icon size={17} /></button>
-            ))}
-          </div>
-        </div>
-        {/* The tutor proposes; the learner decides. Applying is one undoable
-            step, and nothing here has touched the canvas yet. */}
-        {proposal?.length > 0 && (
-          <div className="mb-3 shrink-0 rounded-lg border border-accent/40 bg-accent/5 p-2">
-            <p className="mb-1 text-xs font-medium text-ink">Proposed: {proposal.length} change{proposal.length === 1 ? '' : 's'}</p>
-            <ul className="mb-2 space-y-0.5 text-xs text-ink-2">
-              {proposal.map((op, index) => (
-                <li key={index} className="truncate">
-                  {op.op === 'add' ? `+ ${op.text}${op.level > 1 ? ` (${op.level === 2 ? 'sub-section' : 'sub-sub-section'})` : ''}`
-                    : op.op === 'retitle' ? `rename to "${op.text}"`
-                    : `move to ${op.level === 1 ? 'section' : op.level === 2 ? 'sub-section' : 'sub-sub-section'}`}
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-end gap-1">
-              <Button size="sm" variant="ghost" onClick={() => setProposal(null)}>Discard</Button>
-              <Button size="sm" variant="secondary" onClick={() => { canvasApi.current?.applyOutline(proposal); setProposal(null); }}>Apply</Button>
-            </div>
-          </div>
-        )}
-        <ol className="space-y-1" onDragEnd={() => { setTocDrag(null); setTocDrop(undefined); }}>
-          {canvasOutline.map((entry, index) => (
-            <li key={entry.id} draggable={tocEditing !== entry.id} style={{ paddingLeft: (entry.level - 1) * 16 }}
-              onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', entry.id); setTocDrag(entry.id); }}
-              onDragOver={event => {
-                if (!tocDrag) return;
-                event.preventDefault();
-                const box = event.currentTarget.getBoundingClientRect();
-                setTocDrop(event.clientY < box.top + box.height / 2 ? entry.id : canvasOutline[index + 1]?.id ?? null);
-              }}
-              onDrop={event => { event.preventDefault(); if (tocDrag && tocDrop !== undefined) canvasApi.current?.moveSection(tocDrag, tocDrop); setTocDrag(null); setTocDrop(undefined); }}
-              className={`group flex items-start gap-2 border-y-2 border-transparent ${tocDrag === entry.id ? 'opacity-40' : ''} ${tocDrag && tocDrop === entry.id ? 'border-t-accent' : ''} ${tocDrag && tocDrop === null && index === canvasOutline.length - 1 ? 'border-b-accent' : ''}`}>
-              <GripVertical size={16} aria-hidden className="mt-1 -mr-1 shrink-0 cursor-grab text-ink-3 opacity-0 group-hover:opacity-100" />
-              <input type="checkbox" checked={entry.done} aria-label={`${entry.label} done`}
-                onChange={() => canvasApi.current?.toggleSectionDone(entry.id)}
-                className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-green-600" />
-              {tocEditing === entry.id ? (
-                <input autoFocus defaultValue={entry.label} aria-label={`Rename ${entry.label}`} onFocus={event => event.currentTarget.select()}
-                  onKeyDown={event => {
-                    if (event.key === 'Escape') { event.currentTarget.dataset.cancel = '1'; event.currentTarget.blur(); }
-                    if (event.key === 'Enter') event.currentTarget.blur();
-                  }}
-                  onBlur={event => {
-                    const text = event.currentTarget.value.trim();
-                    if (!event.currentTarget.dataset.cancel && text && text !== entry.label) canvasApi.current?.applyOutline([{ op: 'retitle', id: entry.id, text }]);
-                    setTocEditing(null);
-                  }}
-                  className="h-7 min-w-0 flex-1 rounded border border-line px-1.5 text-base outline-none focus:border-ink-3" />
-              ) : (
-                <button type="button" title="Double-click to rename" onClick={() => { setPanelOpen(true); canvasApi.current?.showSection(entry.id); }} onDoubleClick={() => setTocEditing(entry.id)}
-                  className={`flex-1 rounded text-left hover:text-accent ${entry.level === 1 ? 'text-base font-medium' : 'text-[15px] text-ink-2'} ${entry.done ? 'line-through decoration-ink-3' : ''}`}>
-                  {entry.label}
-                </button>
-              )}
-              {/* Deletes the heading only; the cards under it stay, and Ctrl+Z brings it back. */}
-              <button type="button" aria-label={`Delete ${entry.label}`} title="Delete section" onClick={() => canvasApi.current?.removeBlock(entry.id)}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-3 opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-red-700 focus-visible:opacity-100 max-md:opacity-100"><Trash2 size={15} /></button>
-            </li>
-          ))}
-          {tocAdding && (
-            <li style={{ paddingLeft: (tocAdding - 1) * 16 + 18 }} className="flex items-center gap-2">
-              <input autoFocus aria-label={`New ${SECTION_LEVELS[tocAdding - 1][1].toLowerCase()} title`} placeholder={`${SECTION_LEVELS[tocAdding - 1][1]} title`}
-                onKeyDown={event => {
-                  if (event.key === 'Escape') setTocAdding(null);
-                  if (event.key === 'Enter') event.currentTarget.blur();
-                }}
-                onBlur={event => {
-                  const text = event.currentTarget.value.trim();
-                  if (text) canvasApi.current?.applyOutline([{ op: 'add', level: tocAdding, text, after: null }]);
-                  setTocAdding(null);
-                }}
-                className="h-8 min-w-0 flex-1 rounded border border-line px-2 text-base outline-none focus:border-ink-3" />
-            </li>
-          )}
-        </ol>
-      </div>
+      {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
+      <TableOfContents outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+        className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}

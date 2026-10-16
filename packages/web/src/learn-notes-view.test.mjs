@@ -42,11 +42,14 @@ test('Return to lesson with no lesson player shows the canvas and calls no edito
   }
 });
 
+// The tab itself lives in TableOfContents.jsx since the R4 redesign (the page mounts it in the Table of contents tab).
 test('the side panel is a Table of contents: no My notes link, no trophy bar, add and drag sections', () => {
+  const toc = readFileSync(new URL('./TableOfContents.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.ok(!source.includes('>My notes</button>'));
   assert.ok(!source.includes('<Trophy') && !source.includes('role="progressbar"'));
-  assert.ok(source.includes('>Table of contents</h2>'));
-  assert.ok(source.includes("const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];"));
-  assert.ok(source.includes('canvasApi.current?.moveSection(tocDrag, tocDrop)'));
-  assert.ok(source.includes('onClick={() => canvasApi.current?.removeBlock(entry.id)}'));
+  assert.ok(source.includes('<TableOfContents outline={canvasOutline} canvasApi={canvasApi}'));
+  assert.ok(toc.includes('>Table of contents</h2>'));
+  assert.ok(toc.includes("const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];"));
+  assert.ok(toc.includes('canvasApi.current?.moveSection(drag, drop)'));
+  assert.ok(toc.includes('onClick={() => canvasApi.current?.removeBlock(entry.id)}'));
 });

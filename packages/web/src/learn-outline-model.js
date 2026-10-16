@@ -10,7 +10,9 @@ const UNTITLED = { 1: 'Untitled section', 2: 'Untitled sub-section', 3: 'Untitle
 // A heading's optional description (R4 contract C1): what the section covers, at most this long. Absent or '' is none.
 export const DESCRIPTION_MAX = 240;
 const TITLE_MAX = 200;
-const MAX_OPS = 24;
+// At most this many ops per proposal (contract C7b): 96 when adopting a validated Tutor syllabus (12 topics x (1 + 6
+// subtopics) + 12 describes), 24 for anything else.
+const MAX_OPS = 24, MAX_SYLLABUS_OPS = 96;
 const levelOf = block => (block.level >= 1 && block.level <= 3 ? block.level : 1);
 const describedBy = block => (typeof block.description === 'string' ? block.description.trim().slice(0, DESCRIPTION_MAX) : '');
 
@@ -21,6 +23,26 @@ export function outlineFrom(blocks) {
       const level = levelOf(block);
       return { id: block.id, level, label: (block.text || '').trim() || UNTITLED[level], done: !!block.done, description: describedBy(block) };
     });
+}
+
+// The outline as the Table of contents draws it (R4 owner decisions 1A, 2A): each entry under the nearest earlier entry
+// of a lower level, numbered from the current order - Topic 1, 1.1, 1.1.1. A number is display only (ids stay the keys),
+// so a reorder renumbers and carries nothing else with it. Entries before the first top-level section have no topic to
+// number under: they and their children stay unnumbered rather than inventing a Topic 0.
+// Nodes: { entry, index (in the flat outline), number (string or null), children }.
+export function outlineTree(outline) {
+  const roots = [], open = [];
+  let topics = 0;
+  (outline || []).forEach((entry, index) => {
+    while (open.length && open[open.length - 1].entry.level >= entry.level) open.pop();
+    const parent = open[open.length - 1];
+    const siblings = parent ? parent.children : roots;
+    const number = parent ? (parent.number && `${parent.number}.${parent.children.length + 1}`) : entry.level === 1 ? String(topics += 1) : null;
+    const node = { entry, index, number, children: [] };
+    siblings.push(node);
+    open.push(node);
+  });
+  return roots;
 }
 
 // The outline's revision (contract C3): FNV-1a (32 bit, over the UTF-16 code units) of the JSON of
@@ -75,10 +97,10 @@ export const STALE_PROPOSAL = 'The contents changed since this proposal. Ask the
 // { ok: false, reason: 'stale' | 'invalid', message }. With `base` (a proposal), the outline must still be at that
 // revision, and an add whose title matches a sibling under the same parent is skipped (its key then names that
 // sibling), so adopting the same syllabus twice adds nothing. Without `base` (the learner's own edit in the panel) it
-// applies unconditionally, as before. Either way an invalid op refuses the whole list.
-export function applyOutlineProposal(blocks, ops, { base = null, newId } = {}) {
+// applies unconditionally, as before. Either way an invalid op refuses the whole list. source: 'syllabus' | 'tutor'.
+export function applyOutlineProposal(blocks, ops, { base = null, source = null, newId } = {}) {
   if (base != null && outlineRevision(outlineFrom(blocks)) !== base) return { ok: false, reason: 'stale', message: STALE_PROPOSAL };
-  const plan = planOutline(blocks, ops, { newId, strict: true, dedupe: base != null });
+  const plan = planOutline(blocks, ops, { newId, strict: true, dedupe: base != null, max: source === 'syllabus' ? MAX_SYLLABUS_OPS : MAX_OPS });
   return plan.error ? { ok: false, reason: 'invalid', message: `This proposal cannot be applied: ${plan.error}` } : { ok: true, ...plan };
 }
 
@@ -87,7 +109,7 @@ export function proposalProblem(outline, proposal) {
   if (proposal?.base != null && outlineRevision(outline) !== proposal.base) return STALE_PROPOSAL;
   const blocks = (outline || []).map(entry => ({ id: entry.id, type: 'heading', level: entry.level, text: entry.label }));
   let n = 0;
-  const result = applyOutlineProposal(blocks, proposal?.ops, { newId: () => `proposed-${n += 1}` });
+  const result = applyOutlineProposal(blocks, proposal?.ops, { source: proposal?.source, newId: () => `proposed-${n += 1}` });
   return result.ok ? null : result.message;
 }
 
@@ -111,8 +133,8 @@ const trimmed = value => (typeof value === 'string' ? value.trim() : '');
 
 // strict: any op that does not fit the contract (C5) is { error } and nothing applies. Lenient (applyOutlineOps): an op
 // on a removed heading is skipped and an add with a lost anchor lands at the end.
-function planOutline(blocks, ops, { newId = () => crypto.randomUUID(), strict = false, dedupe = false } = {}) {
-  if (strict && (!Array.isArray(ops) || ops.length > MAX_OPS)) return { error: `a proposal has at most ${MAX_OPS} changes.` };
+function planOutline(blocks, ops, { newId = () => crypto.randomUUID(), strict = false, dedupe = false, max = MAX_OPS } = {}) {
+  if (strict && (!Array.isArray(ops) || ops.length > max)) return { error: `a proposal has at most ${max} changes.` };
   const next = [...(blocks || [])];
   const minted = new Map();
   const indexOf = ref => (ref == null ? -1 : next.findIndex(block => block.id === (minted.get(ref) ?? ref) && block.type === 'heading'));
