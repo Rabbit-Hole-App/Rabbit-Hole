@@ -14,6 +14,8 @@ const now = () => new Date().toISOString();
 const parse = text => { try { return JSON.parse(text); } catch { return null; } };
 
 export const MODES = ['auto', 'ask', 'tutor'];
+// A Tutor syllabus topic's subtopics and descriptions (R4 contract C9).
+const SUBTOPICS = 6, DESCRIPTION_MAX = 240;
 // graph: a selected repository graph card's scope (graph:<repo>@<commit>, #<node ids> for a subgraph); named, never read.
 const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph'];
 // Content the client resolved at Send for kinds the server cannot read itself (Home, 12:30 AM PT).
@@ -126,7 +128,7 @@ export function resolveMode({ mode, command }, message) {
 // teaching content", ordered so later ones build on earlier ones), but in this one chat call, with no diagnostic.
 export const TUTOR_SYSTEM = `Tutor mode: syllabus creation and refinement. You plan a learning path: an ordered plan of 1-${JOURNEY_LIMITS.sections} topics for one goal. You plan topics; you never write their teaching content, lessons, quizzes or cards, and nothing is generated for them now.
 Build the plan from the learner's goal, their level when they state it, the attached materials, and the recent conversation. Order topics forward along the dependency chain, so later topics build on earlier ones; introduce a necessary prerequisite before it is used. A missing level is unknown: never invent a learner profile.
-If the goal is missing, or one missing detail would change the syllabus materially, ask exactly one short question and give no syllabus. Otherwise write a short overview of the plan in prose, and put the syllabus in the trailer JSON as "syllabus": { "goal": "<1-300 characters>", "topics": [{ "title": "<1-80 characters>", "objectives": ["<1-3 learning objectives, together at most 240 characters>"], "refs": ["<sourceId of an attached material this topic draws on>"] }] }. Cite only sourceIds listed as attached; never invent one. Unless you asked that one question, the trailer always carries the syllabus: a plan written only in prose is lost. When the conversation already holds a syllabus and the learner asks for a change, revise that syllabus rather than starting over.`;
+If the goal is missing, or one missing detail would change the syllabus materially, ask exactly one short question and give no syllabus. Otherwise write a short overview of the plan in prose, and put the syllabus in the trailer JSON as "syllabus": { "goal": "<1-300 characters>", "topics": [{ "title": "<1-80 characters>", "description": "<one sentence, at most 240 characters: what the learner will understand, not a repeat of the title>", "objectives": ["<1-3 learning objectives, together at most 240 characters>"], "subtopics": [{ "title": "<1-80 characters>", "description": "<one sentence, at most 240 characters>" }], "refs": ["<sourceId of an attached material this topic draws on>"] }] }. Subtopics are optional, at most ${SUBTOPICS} per topic: give them when a topic has distinct parts the learner will work through one at a time, not to restate its objectives. Cite only sourceIds listed as attached; never invent one. Unless you asked that one question, the trailer always carries the syllabus: a plan written only in prose is lost. When the conversation already holds a syllabus and the learner asks for a change, revise that syllabus rather than starting over.`;
 const MAYBE_SYSTEM = 'The learner may want a structured course rather than a single answer. Answer normally; you may end with one short question asking whether they want a syllabus.';
 const SUMMARY_SYSTEM = 'This conversation is longer than the turns you see. Add "summary": { "text": "<at most 1200 characters: the whole conversation so far, folding in any earlier summary in the context and this turn>", "constraints": ["<each explicit instruction or constraint the learner stated, copied verbatim>"] } to the trailer JSON.';
 // The fields above ride in the one <answer_meta> trailer (chat-answer-meta.js), whatever else it carries.
@@ -162,27 +164,54 @@ export function chatContext(context, refs, summary, cap, readPaper = null) {
 
 // ---------- Tutor syllabus: the journey path shape ----------
 // A syllabus topic is a journey path section (web/src/learn-journey.js validatePath, the check createJourney plus
-// appendPathVersion rely on): title is the section title, objectives joined are its purpose, and it starts upcoming and
-// not generated. syllabusPath is that version-1 draft, so a later hand-off to a journey stores it without translation.
+// appendPathVersion rely on): title is the section title, its description (else its objectives joined) is the purpose,
+// and it starts upcoming and not generated. Subtopics are table-of-contents structure only (R4 contract C9): a journey
+// stays flat and never sees them. syllabusPath is that version-1 draft, so a later hand-off to a journey stores it without translation.
 const EMPTY_REGISTRY = { concepts: {}, claims: {} };
 export const syllabusPath = ({ goal, topics }) => ({
   version: 1, goal, target_topic: goal, diagnostic_evidence_refs: [], current_section_id: null,
-  sections: topics.map(t => ({ id: t.id, title: t.title, purpose: t.objectives.join('; '), kind: 'core', target_concepts: [], prerequisites: [], expected_evidence: [], depth: 'guided', status: 'upcoming', generation_state: 'not_generated' })),
+  sections: topics.map(t => ({ id: t.id, title: t.title, purpose: t.description || t.objectives.join('; '), kind: 'core', target_concepts: [], prerequisites: [], expected_evidence: [], depth: 'guided', status: 'upcoming', generation_state: 'not_generated' })),
   change: { source: 'draft', reason: 'Syllabus planned in chat', evidence_refs: [], sections_changed: [] },
 });
 
 // { ok, value: { journeyId: null, goal, topics } } or { ok: false, errors }. Refs are drawn only from the message's own
 // refs, by sourceId, so a topic cites exactly the material that answer used.
+// A topic's description and subtopics (C9) ride only when present, so an old syllabus keeps exactly its old shape.
 export function validateSyllabus(s, refs = [], journeyId = null) {
   if (!isObj(s) || !Array.isArray(s.topics)) return { ok: false, errors: ['a syllabus needs topics'] };
   if (!str(s.goal, 300)) return { ok: false, errors: ['goal must be 1-300 characters'] };
   const known = new Map(bareRefs(refs).map(r => [r.sourceId, r]));
-  const topics = s.topics.map((t, i) => ({
-    id: typeof t?.id === 'string' ? t.id : `t${i + 1}`,
-    title: typeof t?.title === 'string' ? t.title.trim() : '',
-    objectives: (Array.isArray(t?.objectives) ? t.objectives : []).filter(o => str(o, 240)).map(o => o.trim()).slice(0, 4),
-    refs: [...new Map((Array.isArray(t?.refs) ? t.refs : []).map(r => known.get(typeof r === 'string' ? r : r?.sourceId)).filter(Boolean).map(r => [r.sourceId, r])).values()],
-  }));
+  const errors = [];
+  const described = (v, at) => {
+    if (v == null || (typeof v === 'string' && !v.trim())) return null;
+    if (typeof v !== 'string' || v.trim().length > DESCRIPTION_MAX) { errors.push(`${at}: description must be at most ${DESCRIPTION_MAX} characters`); return null; }
+    return v.trim();
+  };
+  const topics = s.topics.map((t, i) => {
+    const id = typeof t?.id === 'string' ? t.id : `t${i + 1}`;
+    const description = described(t?.description, `topics[${i}]`);
+    let subtopics = [];
+    if (t?.subtopics != null) {
+      if (!Array.isArray(t.subtopics) || t.subtopics.length > SUBTOPICS) errors.push(`topics[${i}]: at most ${SUBTOPICS} subtopics`);
+      else subtopics = t.subtopics.map((u, j) => {
+        const at = `topics[${i}].subtopics[${j}]`, title = typeof u?.title === 'string' ? u.title.trim() : '';
+        if (!title || title.length > 80) errors.push(`${at}: title must be 1-80 characters`);
+        const sub = { id: typeof u?.id === 'string' && u.id ? u.id : `${id}.${j + 1}`, title };
+        const text = described(u?.description, at);
+        return text ? { ...sub, description: text } : sub;
+      });
+      if (new Set(subtopics.map(u => u.id)).size !== subtopics.length) errors.push(`topics[${i}]: subtopic ids must be unique`);
+    }
+    return {
+      id,
+      title: typeof t?.title === 'string' ? t.title.trim() : '',
+      ...(description ? { description } : {}),
+      objectives: (Array.isArray(t?.objectives) ? t.objectives : []).filter(o => str(o, 240)).map(o => o.trim()).slice(0, 4),
+      ...(subtopics.length ? { subtopics } : {}),
+      refs: [...new Map((Array.isArray(t?.refs) ? t.refs : []).map(r => known.get(typeof r === 'string' ? r : r?.sourceId)).filter(Boolean).map(r => [r.sourceId, r])).values()],
+    };
+  });
+  if (errors.length) return { ok: false, errors };
   const checked = validatePath(syllabusPath({ goal: s.goal.trim(), topics }), null, EMPTY_REGISTRY);
   return checked.ok ? { ok: true, value: { journeyId, goal: s.goal.trim(), topics } } : checked;
 }
@@ -196,7 +225,9 @@ function modelSyllabus(s, refs) {
     const given = (Array.isArray(t?.objectives) ? t.objectives : []).filter(o => str(o, 10000)), objectives = [];
     for (const o of given) if ([...objectives, o.trim()].join('; ').length <= 240) objectives.push(o.trim());
     if (!objectives.length && given.length) objectives.push(clip(given[0], 240));
-    return { id: `t${i + 1}`, title: clip(t?.title, 80), objectives, refs: t?.refs };
+    const subtopics = (Array.isArray(t?.subtopics) ? t.subtopics : []).filter(u => clip(u?.title, 80)).slice(0, SUBTOPICS)
+      .map((u, j) => ({ id: `t${i + 1}.${j + 1}`, title: clip(u.title, 80), description: clip(u.description, DESCRIPTION_MAX) }));
+    return { id: `t${i + 1}`, title: clip(t?.title, 80), description: clip(t?.description, DESCRIPTION_MAX), objectives, subtopics, refs: t?.refs };
   });
   const checked = validateSyllabus({ goal: clip(s.goal, 300), topics }, refs);
   return checked.ok ? checked.value : null;

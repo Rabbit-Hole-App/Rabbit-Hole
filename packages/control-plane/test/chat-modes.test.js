@@ -235,6 +235,47 @@ test('doc refs name exactly the context documents that ride; no context_refs kee
   assert.equal((await f.ask({ message: 'q', mode: 'nope' })).res.status, 400);
 });
 
+// R4 contract C9 (owner decisions 2A, 3A, 5B): topics gain a description and subtopics for the table of contents; a journey
+// stays flat (purpose = description, else objectives), and an old syllabus without either keeps exactly its shape.
+test('a syllabus topic may carry a description and up to 6 subtopics; the journey path stays flat', () => {
+  const checked = validateSyllabus({ goal: 'Read a tide table', topics: [
+    { id: 'a', title: 'Tides', description: ' Why the sea rises and falls twice a day. ', objectives: [], subtopics: [{ title: ' The moon ', description: 'Its pull makes the bulges.' }, { id: 'sun', title: 'The sun' }] },
+    { id: 'b', title: 'Tables', objectives: ['Read a height'] },
+  ] });
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+  assert.deepEqual(checked.value.topics[0], { id: 'a', title: 'Tides', description: 'Why the sea rises and falls twice a day.', objectives: [], subtopics: [{ id: 'a.1', title: 'The moon', description: 'Its pull makes the bulges.' }, { id: 'sun', title: 'The sun' }], refs: [] });
+  assert.deepEqual(checked.value.topics[1], { id: 'b', title: 'Tables', objectives: ['Read a height'], refs: [] }, 'no description or subtopics: the old shape');
+  const path = syllabusPath(checked.value);
+  assert.deepEqual(path.sections.map(section => [section.id, section.purpose]), [['a', 'Why the sea rises and falls twice a day.'], ['b', 'Read a height']]);
+  assert.equal(pathOutput({ path, concepts_added: { concepts: {}, claims: {} } }, { registry: { concepts: {}, claims: {} }, source: 'draft' }).ok, true);
+  const topic = { title: 't', objectives: ['o'] };
+  for (const bad of [
+    { ...topic, description: 'x'.repeat(241) },
+    { ...topic, subtopics: Array.from({ length: 7 }, (_, i) => ({ title: `s${i}` })) },
+    { ...topic, subtopics: [{ title: ' ' }] },
+    { ...topic, subtopics: [{ title: 'x'.repeat(81) }] },
+    { ...topic, subtopics: [{ title: 's', description: 'x'.repeat(241) }] },
+    { ...topic, subtopics: [{ id: 'd', title: 's' }, { id: 'd', title: 'u' }] },
+    { ...topic, subtopics: 'not a list' },
+  ]) assert.equal(validateSyllabus({ goal: 'g', topics: [bad] }).ok, false, JSON.stringify(bad).slice(0, 80));
+});
+
+test('Tutor: the model\'s descriptions and subtopics are clipped to their limits and given ids, never a reason to lose the syllabus', async t => {
+  const f = fixture(t);
+  f.replies.push(`A plan.\n<answer_meta>${JSON.stringify({ syllabus: { goal: 'Read a tide table', topics: [
+    { title: 'Tides', description: 'd'.repeat(300), objectives: ['Explain the bulges'], subtopics: [...Array.from({ length: 7 }, (_, i) => ({ title: `Part ${i + 1}`, description: i ? undefined : 'The first part.' })), { title: ' ' }] },
+    { title: 'Tables', objectives: ['Read a height'] },
+  ] } })}</answer_meta>`);
+  const { events } = await f.ask({ message: 'make me a syllabus on tides', mode: 'tutor' });
+  const { syllabus } = events.find(e => e.event === 'answer_meta').data;
+  assert.equal(syllabus.topics[0].description.length, 240);
+  assert.deepEqual(syllabus.topics[0].subtopics.map(u => u.id), ['t1.1', 't1.2', 't1.3', 't1.4', 't1.5', 't1.6']);
+  assert.deepEqual(syllabus.topics[0].subtopics[0], { id: 't1.1', title: 'Part 1', description: 'The first part.' });
+  assert.deepEqual(syllabus.topics[1], { id: 't2', title: 'Tables', objectives: ['Read a height'], refs: [] });
+  assert.match(TUTOR_SYSTEM, /"subtopics"/);
+  assert.match(TUTOR_SYSTEM, /"description"/);
+});
+
 test('Tutor: a syllabus answer is kind syllabus with journey-shaped topics; a missing goal is one clarify question', async t => {
   const f = fixture(t);
   const refs = [ref({ name: 'Notes.pdf' })];
@@ -443,6 +484,8 @@ test('PUT syllabus: the owner saves an edited syllabus over the answer meta, val
   assert.deepEqual(stored.syllabus, expected);
   assert.equal(stored.kind, 'syllabus', 'the rest of the meta is kept');
   assert.equal((await put({ topics: [{ id: 'a', title: 'x'.repeat(81), objectives: ['o'] }] })).status, 400);
+  const described = [{ id: 't1', title: 'Nodes', description: 'What a node holds.', objectives: ['Draw a node'], subtopics: [{ id: 't1.1', title: 'Fields' }], refs: [] }];
+  assert.deepEqual((await (await put({ topics: described })).json()).syllabus.topics, described, 'a description and subtopics survive an edit');
   assert.equal((await put({ topics: [] })).status, 400);
   assert.equal((await put({ topics }, { ...owner, email: 'other@example.test' })).status, 404);
   assert.equal((await put({ topics }, owner, '/api/learn/chat/messages/99999/syllabus')).status, 404);
