@@ -192,6 +192,11 @@ await shot(viewer.page, '08-unpublished-link');
 const ABOUT = `Explains <b>trusses</b> & loads ${run}`;
 check('a profile description saves through Settings\' route', (await api(who.other, '/api/profile', { method: 'PUT', body: JSON.stringify({ description: ABOUT }) })).body.description === ABOUT);
 await api(who.other, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Private sketch (explore ${run})` }) });
+// The phone row below measures two creator cards. Creators lists only people with a live publication, and the owner's was
+// removed above, so a second creator publishes here: on a fresh stack nothing else would put a second card on the row.
+const gears = (await api(who.late, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Gear trains (explore ${run})` }) })).body;
+await api(who.late, `/api/learn/boards/${gears.name}/main`, { method: 'PUT', body: JSON.stringify({ state: SEED('Gears') }) });
+check('a second creator publishes, so the Creators tab has two cards to lay out', (await api(who.late, `/api/apps/${gears.name}/publish`, { method: 'POST', body: '{}' })).status === 200);
 const people = await contextFor(who.viewer);
 await people.page.goto(`${BASE}/explore?tab=creators`);
 const otherCard = people.page.locator(`[data-explore-creators] [data-creator-card="${H.other}"]`);
@@ -202,6 +207,7 @@ const counts = (await otherCard.locator('[data-creator-counts]').innerText()).tr
 check('a creator card is square, shows the description as text (never HTML) and N projects · M canvases of published canvases only',
   await square() && (await about.innerText()).trim() === ABOUT && await about.locator('*').count() === 0 && counts === '0 projects · 1 canvas', counts);
 await shot(people.page, '09-creator-card', otherCard);
+await people.page.locator(`[data-explore-creators] [data-creator-card="${H.late}"]`).waitFor({ timeout: 30000 });
 await people.page.setViewportSize({ width: 390, height: 844 });
 await people.page.waitForTimeout(400);
 const tops = await people.page.locator('[data-explore-creators] [data-creator-card]').evaluateAll(cards => cards.slice(0, 2).map(c => Math.round(c.getBoundingClientRect().top)));
