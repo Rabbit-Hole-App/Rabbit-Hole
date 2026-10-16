@@ -1386,7 +1386,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     releaseCard: id => canvas()?.release(id),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
-    onOutlineProposal: ops => setProposal(ops),
+    // R4 contract C6 hands a proposal object; the PANEL lane's proposal card consumes it whole (base, source).
+    onOutlineProposal: proposal => setProposal(proposal?.ops ?? proposal),
     onShowPaper: (paper, into) => addPaper(paper, into),
     preview: paperContext?.selection?.preview || preview,
     previewKind: paperContext?.selection ? 'paper' : 'canvas',

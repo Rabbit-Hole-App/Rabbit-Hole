@@ -19,6 +19,8 @@ export function validateLearnContext(body, conversation) {
       validateOutline(body.outline);
     } catch { throw new Error('Invalid lesson outline'); }
   }
+  // The revision the outline was read at (R4 contract C4): echoed back as a proposal's base, never interpreted here.
+  if (body.outlineRevision !== undefined && (conversation !== 'learn' || body.outline === undefined || typeof body.outlineRevision !== 'string' || !/^[0-9a-f]{8}$/.test(body.outlineRevision))) throw new Error('Invalid lesson outline revision');
   if (body.paper_context !== undefined) {
     try {
       // A learner's own upload is a paper too; only the source of the bytes differs.
