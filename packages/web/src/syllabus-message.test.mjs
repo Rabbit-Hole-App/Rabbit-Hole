@@ -22,3 +22,13 @@ test('icon-only controls carry aria-label and title; icons are descriptive lucid
   assert.match(source, /from 'lucide-react'/);
   assert.doesNotMatch(source, /Sparkles|AppIcon/);
 });
+
+// R4 owner decision 5B, contract C8: the button hands one proposal to the page's Apply/Discard flow and applies nothing.
+test('Use as table of contents proposes the saved syllabus through toContents and never applies it here', () => {
+  assert.match(source, /syllabusProposal\(\{ \.\.\.syllabus, topics: topics\.map\(/);
+  assert.match(source, /toContents\.propose\(proposal\)/);
+  assert.match(source, /toContents\.outline\(\)/, 'against the contents as they are at the click');
+  assert.match(source, /data-syllabus-contents disabled=\{dirty\}/, 'unsaved edits are saved first');
+  assert.match(source, /Already in the table of contents\./);
+  assert.doesNotMatch(source, /applyOutline/);
+});

@@ -3,20 +3,33 @@
 // saveSyllabus(topics) (PUT /api/learn/chat/messages/:id/syllabus, chat-syllabus-route.js); the server validates it as the
 // journey path shape and answers the saved syllabus. Without saveSyllabus the list is read-only. Nothing here generates
 // a lesson.
+// Use as table of contents (R4 owner decision 5B, contract C8): toContents { outline(), propose(proposal) } is the page's
+// existing Apply/Discard flow. The button proposes this syllabus, as saved, against the contents as they are now; the
+// learner reviews and applies it there, and this message stays a historical proposal.
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Check, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ListTree, Loader2, Plus, Trash2 } from 'lucide-react';
+import { syllabusProposal } from './syllabus-outline.js';
 
 const ICON = 'shrink-0 rounded p-1 text-ink-3 hover:bg-hover hover:text-ink disabled:opacity-40';
 const PILL = 'inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-hover disabled:opacity-50';
 // Server limits (web/src/learn-journey.js validatePath): a title is 1-80 characters, objectives together at most 240.
 const TITLE_MAX = 80, OBJECTIVES_MAX = 240, TOPICS_MAX = 12;
+// ponytail: Apply takes at most 24 ops until the PANEL lane lifts syllabus proposals to 96 (lead ruling, C8 size A).
+const APPLY_MAX = 24;
 const lines = text => text.split('\n').map(l => l.trim()).filter(Boolean);
 
-export default function SyllabusMessage({ syllabus, saveSyllabus = null }) {
+export default function SyllabusMessage({ syllabus, saveSyllabus = null, toContents = null }) {
   const [topics, setTopics] = useState(() => syllabus.topics.map(t => ({ ...t, objectivesText: t.objectives.join('\n') })));
   const [dirty, setDirty] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(null);
+  const [adopted, setAdopted] = useState(null);
+  const useAsContents = () => {
+    const proposal = syllabusProposal({ ...syllabus, topics: topics.map(({ objectivesText, ...t }) => t) }, toContents.outline());
+    if (!proposal.ops.length) setAdopted('Already in the table of contents.');
+    else if (proposal.ops.length > APPLY_MAX) setAdopted(`Too many headings to add at once (${proposal.ops.length}; at most ${APPLY_MAX}).`);
+    else { toContents.propose(proposal); setAdopted('Proposed in Table of contents: review it there, then Apply or Discard.'); }
+  };
   const editable = !!saveSyllabus;
-  const change = next => { setTopics(next); setDirty(true); setError(null); };
+  const change = next => { setTopics(next); setDirty(true); setError(null); setAdopted(null); };
   const edit = (i, patch) => change(topics.map((t, j) => (j === i ? { ...t, ...patch } : t)));
   const move = (i, by) => { const next = [...topics]; [next[i], next[i + by]] = [next[i + by], next[i]]; change(next); };
   // A new topic's id is unique within the list; the server keeps ids as given.
@@ -48,6 +61,16 @@ export default function SyllabusMessage({ syllabus, saveSyllabus = null }) {
                 <p className="font-medium text-ink">{t.title}</p>
                 <ul className="list-disc pl-4 text-xs text-ink-2">{t.objectives.map((o, k) => <li key={k}>{o}</li>)}</ul>
               </>}
+              {/* A topic's description and subtopics (contract C9) are shown, not edited here: the table of contents edits them once adopted. */}
+              {t.description && <p data-syllabus-description className="px-1 text-xs text-ink-2">{t.description}</p>}
+              {t.subtopics?.length > 0 && <ol className="mt-1 flex flex-col gap-0.5 pl-1">
+                {t.subtopics.map((u, k) => (
+                  <li key={u.id} data-syllabus-subtopic={u.id} className="flex gap-1.5 text-xs">
+                    <span className="shrink-0 tabular-nums text-ink-3">{i + 1}.{k + 1}</span>
+                    <span className="min-w-0"><span className="text-ink">{u.title}</span>{u.description && <span className="block text-ink-2">{u.description}</span>}</span>
+                  </li>
+                ))}
+              </ol>}
               {t.refs.length > 0 && <p className="px-1 text-xs text-ink-3">From: {t.refs.map(r => r.name).join(', ')}</p>}
             </div>
             {editable && <div className="flex shrink-0 items-start">
@@ -58,12 +81,17 @@ export default function SyllabusMessage({ syllabus, saveSyllabus = null }) {
           </li>
         ))}
       </ol>
-      {editable && <div className="mt-2 flex flex-wrap items-center gap-2">
+      {(editable || toContents) && <div className="mt-2 flex flex-wrap items-center gap-2">
+        {editable && <>
         <button type="button" data-syllabus-add disabled={topics.length >= TOPICS_MAX} onClick={add} className={PILL}><Plus size={14} />Add topic</button>
         <button type="button" data-syllabus-save disabled={!dirty || saving} onClick={save} className={PILL}>
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}{dirty ? 'Save syllabus' : 'Saved'}
         </button>
+        </>}
+        {toContents && <button type="button" data-syllabus-contents disabled={dirty} title={dirty ? 'Save the syllabus first' : undefined}
+          onClick={useAsContents} className={PILL}><ListTree size={14} />Use as table of contents</button>}
         {error && <span role="alert" className="text-xs text-red-700">{error}</span>}
+        {adopted && <span role="status" data-syllabus-contents-status className="text-xs text-ink-2">{adopted}</span>}
       </div>}
     </div>
   );
