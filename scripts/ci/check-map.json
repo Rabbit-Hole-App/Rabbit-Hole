@@ -166,6 +166,7 @@
     "packages/web/src/learn-warmup.js",
     "packages/web/src/lesson-*.js",
     "packages/web/src/main.jsx",
+    "packages/web/src/storage-fallback.js",
     "packages/web/src/menu-*.js",
     "packages/web/src/model-*.js",
     "packages/web/src/nanogpt-*.js",
