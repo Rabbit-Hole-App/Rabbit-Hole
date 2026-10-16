@@ -191,6 +191,15 @@ if (await quick.count()) {
   await page.keyboard.type('/');
   const where = await page.evaluate(() => `${document.activeElement?.tagName}${document.activeElement?.closest?.('[data-inline-ai]') ? ' in Ctrl+K' : ''}`);
   ok('inside Ctrl+K "/" stays in the editor, never moving to Find', where.endsWith('in Ctrl+K') && !(await findFocused()) && await page.locator('[data-panel-tab="find"][aria-selected="true"]').count() === 0, where);
+  // Ctrl+K's /youtube goes through LearnPage's binding to the same finder (Release B integration of lanes B2 and B3).
+  await page.keyboard.type('youtube attention');
+  await page.keyboard.press('Enter');
+  await finder.waitFor({ timeout: 10000 }).catch(() => {});
+  ok('Ctrl+K /youtube <query> opens the same finder on YouTube and searches at once', await finder.count() === 1 && await finder.getByLabel('Search in').inputValue() === 'youtube' && searches.at(-1) === 'youtube:attention', searches.join(' '));
+  await page.screenshot({ path: `${OUT}/05b-ctrlk-youtube.png` });
+  await finder.getByRole('button', { name: 'Close search' }).click();
+  await finder.waitFor({ state: 'detached' });
+  ok('closing that finder leaves Ctrl+K open with nothing added', await quick.count() === 1 && await iframes() === 1);
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
 } else ok('Ctrl+K opens on the selected card', false);
 
