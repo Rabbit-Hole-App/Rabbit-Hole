@@ -214,8 +214,8 @@ test('period: an action keeps the UTC month it started in after settling past mi
   const [action] = rows(sqlite, 'usage_actions');
   assert.equal(action.period, '2026-10');
   assert.equal(periodOf(action.ended_at), '2026-11');
-  assert.deepEqual(await usageTotals(LEARN_DB, 'u-alice', '2026-10'), { used: 1234, reserved: 0, estimated: 0 });
-  assert.deepEqual(await usageTotals(LEARN_DB, 'u-alice', '2026-11'), { used: 0, reserved: 0, estimated: 0 });
+  assert.deepEqual(await usageTotals(LEARN_DB, 'u-alice', '2026-10'), { used: 1234, reserved: 0, estimated: 0, unknownAttempts: 0, unknownReserved: 0 });
+  assert.deepEqual(await usageTotals(LEARN_DB, 'u-alice', '2026-11'), { used: 0, reserved: 0, estimated: 0, unknownAttempts: 0, unknownReserved: 0 });
   assert.equal(periodReset('2026-10'), '2026-11-01T00:00:00.000Z');
   assert.equal(periodReset('2026-12'), '2027-01-01T00:00:00.000Z');
 });
@@ -233,7 +233,9 @@ test('unknown cost stays reserved; reservations and estimates never count as use
   await beginAttempt(signedIn({ LEARN_DB }, 'assess', 'u-alice', { now }), { reservedMicros: 100, costState: 'settled', costMicros: 100, status: 'settled', now });
   await beginAttempt(signedIn({ LEARN_DB }, 'ask', 'u-bob', { now }), { costState: 'settled', costMicros: 100, status: 'settled', now });
   assert.ok(running);
-  assert.deepEqual(await usageTotals(LEARN_DB, 'u-alice', '2026-10'), { used: 2500, reserved: 10000, estimated: 40000 });
+  // An unknown attempt with no bound (a media call) still counts: unknown is never silently 0.
+  await beginAttempt(alice, { kind: 'media', costState: 'unknown', status: 'settled', now });
+  assert.deepEqual(await usageTotals(LEARN_DB, 'u-alice', '2026-10'), { used: 2500, reserved: 10000, estimated: 40000, unknownAttempts: 2, unknownReserved: 3000 });
 });
 
 test('a ledger stream settles at the end; a cancelled stream keeps its reservation and the action records cancelled, partial', async t => {
@@ -305,13 +307,16 @@ test('GET /api/learn/usage: signed-in only, the session user\'s month, config an
   await settleAttempt(alice, id, { costMicros: 3000, now });
   await beginAttempt(alice, { reservedMicros: 6000, now });
   await beginAttempt(alice, { kind: 'media', costState: 'estimated', costMicros: 20000, status: 'settled', now });
+  const unknown = await beginAttempt(alice, { reservedMicros: 4000, now });
+  await settleAttempt(alice, unknown, { status: 'failed', now });
+  await beginAttempt(alice, { kind: 'media', costState: 'unknown', status: 'settled', now });
   const req = new Request('https://synthetic.test/api/learn/usage?user=u-bob');
   const as = userId => ({ identity: async () => (userId ? { userId, email: `${userId}@test` } : Response.json({ error: 'x' }, { status: 401 })), now });
   const env = { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: '50' };
   const reply = await usageFetch(req, env, as('u-alice'));
   assert.equal(reply.headers.get('cache-control'), 'no-store');
   assert.deepEqual(await reply.json(), { enforced: false, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', allowanceMicros: 50_000_000,
-    usedMicros: 3000, reservedMicros: 6000, estimatedMicros: 20000, remainingMicros: 50_000_000 - 9000 });
+    usedMicros: 3000, reservedMicros: 10000, estimatedMicros: 20000, remainingMicros: 50_000_000 - 13000, unknownAttempts: 2, unknownReservedMicros: 4000 });
   assert.equal((await (await usageFetch(req, env, as('u-bob'))).json()).usedMicros, 0, 'the query parameter is not read');
   assert.equal((await usageFetch(req, env, as(null))).status, 401);
   assert.equal((await usageFetch(new Request(req, { method: 'POST' }), env, as('u-alice'))).status, 405);
@@ -507,4 +512,20 @@ test('shared canvas Next Steps: a signed-out visitor is platform-funded, a signe
     assert.ok(actions[0].attempts >= 1);
     assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM usage_actions WHERE user_id = 'u-ana-5d1e'").get().n, 0, 'the owner never pays for a viewer');
   }
+});
+
+test('a signed-in user without a workspace is still the payer by their user id, never an anonymous visitor', async t => {
+  const { sqlite, LEARN_DB } = database(t);
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
+  // /api/me answers a real session whose account has no workspace: devIdentity refuses the route (403) but notes the user.
+  const noWorkspace = { ...base, CONTROL_PLANE: { fetch: async () => Response.json({ email: 'solo@test', user_id: 'u-solo', org: null }) } };
+  for (const feature of ['shared_next_steps', 'shared_ask']) {
+    const scoped = withUsage(noWorkspace, { feature });
+    const refused = await devIdentity(new Request('https://synthetic.test/x'), scoped);
+    assert.equal(refused.status, 403);
+    await spendTransport(scoped, body, MODEL, null, priced());
+  }
+  assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.payer, a.payer_reason, a.charge_class]), [
+    ['u-solo', 'user', 'signed_in', 'would_charge'], ['u-solo', 'user', 'signed_in', 'would_charge']]);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_actions WHERE payer_reason = 'anonymous_public'").get().n, 0);
 });

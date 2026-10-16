@@ -51,8 +51,10 @@ export async function devIdentity(req, env) {
     me = trash instanceof Response ? trash : { email: trash.email, org: workspaces.active, orgName: workspaces.workspaces?.find(w => w.slug === workspaces.active)?.name || null };
   }
   const refuse = (error, status) => Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });
-  // Usage accounting (learn-usage.js): the session user this request resolved is its action's payer; no session, none.
-  if (me instanceof Response || !me.org || !me.email) noteUsageIdentity(env, null);
+  // Usage accounting (learn-usage.js): the session user this request resolved is its action's payer; no session, none. A
+  // signed-in user without a workspace is still that user (lead 2026-10-16), never an anonymous visitor.
+  if (me instanceof Response) noteUsageIdentity(env, null);
+  else if (!me.org || !me.email) noteUsageIdentity(env, { userId: typeof me.user_id === 'string' && me.user_id ? me.user_id : null, email: me.email || null });
   if (me instanceof Response) return refuse('Sign in to this workspace first', me.status === 403 ? 403 : 401);
   if (!me.org || !me.email) return refuse('Workspace membership required', 403);
   const identity = { email: me.email, org: me.org, orgName: me.orgName || null, userId: typeof me.user_id === 'string' && me.user_id ? me.user_id : null };

@@ -21,5 +21,7 @@ export async function usageFetch(req, env, { identity = devIdentity, now = Math.
   catch { return json({ unavailable: 'accounting' }, 503); }
   return json({ enforced: false, currency: 'USD', period, resetsAt: periodReset(period), allowanceMicros: allowance,
     usedMicros: totals.used, reservedMicros: totals.reserved, estimatedMicros: totals.estimated,
-    remainingMicros: Math.max(0, allowance - totals.used - totals.reserved) });
+    remainingMicros: Math.max(0, allowance - totals.used - totals.reserved),
+    // Unknown cost is never silently 0: how many finished attempts have no known cost, and the part of reservedMicros they hold.
+    unknownAttempts: totals.unknownAttempts, unknownReservedMicros: totals.unknownReserved });
 }
