@@ -315,3 +315,13 @@ test('proposalProblem reports stale or invalid before Apply, null when it applie
   assert.match(proposalProblem(outline, { ops: [{ op: 'add', text: 'V', level: 3, parent: 'h1' }] }), /one level below/);
   assert.equal(proposalProblem(outline, { ops: [{ op: 'add', key: 'a', text: 'A', level: 1 }, { op: 'add', key: 'b', text: 'B', level: 1 }, { op: 'add', text: 'C', level: 2, parent: 'b' }] }), null, 'each add earlier in the proposal has its own id');
 });
+
+test('a syllabus adoption may carry up to 96 changes; anything else stays at 24 (C7b)', () => {
+  const topics = n => Array.from({ length: n }, (_, i) => ({ op: 'add', key: `t${i}`, text: `T${i}`, level: 1 }));
+  assert.equal(applyOutlineProposal([], topics(96), { source: 'syllabus', newId: ids() }).ok, true);
+  assert.equal(applyOutlineProposal([], topics(97), { source: 'syllabus', newId: ids() }).reason, 'invalid');
+  assert.equal(applyOutlineProposal([], topics(25), { source: 'tutor', newId: ids() }).reason, 'invalid');
+  assert.equal(applyOutlineProposal([], topics(25), { newId: ids() }).reason, 'invalid');
+  assert.equal(proposalProblem([], { ops: topics(60), source: 'syllabus' }), null);
+  assert.match(proposalProblem([], { ops: topics(60), source: 'tutor' }), /at most 24/);
+});
