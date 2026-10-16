@@ -17,12 +17,16 @@ const harness = reply => {
 
 test('/ opens the grouped picker: LEARN, then CREATE, in the contract order', () => {
   const sections = pickerSections('/');
-  assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'More learning tools']);
+  assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search', 'More learning tools']);
   assert.deepEqual(sections[0].items.map(item => item.name), ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare']);
   // /more is how to reach the rest, not a tool: it is the collapsible section, never a row.
   assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook']);
-  assert.equal(sections[2].collapsible, true);
-  assert.ok(sections[2].items.some(item => item.name === 'walkthrough'));
+  // Release B (owner 4A and A4, 2026-10-16): the three source searches; /arxiv is the one listed paper search, /paper typed only.
+  assert.deepEqual(sections[2].items, [{ name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
+  assert.equal(sections[3].collapsible, true);
+  assert.ok(sections[3].items.some(item => item.name === 'walkthrough'));
+  assert.ok(sections.flatMap(section => section.items).every(item => item.name !== 'paper'));
+  assert.deepEqual(pickerSections('/pa'), []);
   assert.ok(sections.flatMap(section => section.items).every(item => item.name !== 'more'));
   assert.equal(sections[0].items[0].desc, 'Go deeper');
   assert.deepEqual(pickerSections('/gr')[0].items.map(item => item.name), ['graph']);
@@ -302,4 +306,17 @@ test('held commands: the dock holds a /command Enter while busy and sends it whe
   assert.match(ask, release('send'));
   assert.match(picker, /intercept: raw => \{ if \(busy\) \{ held\.current = raw; return true; \} exec\(raw\); return true; \}/);
   assert.match(picker, release('exec'));
+});
+
+// Release B (owner 4A and A4, 2026-10-16): the source searches open the shared finder with the query and run no model;
+// /arxiv previews an ID or link there too, while a typed /paper keeps opening one directly.
+test('/youtube, /arxiv and /wikipedia open the source finder with the query; nothing is posted or inserted', async () => {
+  const { did, run } = harness();
+  const outs = [await run('/youtube how transformers pay attention'), await run('/arxiv 1706.03762'), await run('/wikipedia'), await run('/arxiv https://arxiv.org/abs/2005.14165')];
+  assert.deepEqual(did, [
+    ['search', { source: 'youtube', query: 'how transformers pay attention' }], ['search', { source: 'arxiv', query: '1706.03762' }],
+    ['search', { source: 'wikipedia', query: '' }], ['search', { source: 'arxiv', query: 'https://arxiv.org/abs/2005.14165' }],
+  ]);
+  assert.equal(outs[2].notice, null, 'an empty query opens the finder and waits');
+  assert.ok(outs.every(out => !out.prompt), 'never sent to the Tutor');
 });

@@ -9,7 +9,7 @@ import { Md } from './ask.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CommandList from './CommandList.jsx';
-import { CHAT_EXAMPLES, ILLUSTRATIONS, SAMPLES, SOURCE_NOTE, demoOf, sheetCards } from './slash-sheet.js';
+import { CHAT_EXAMPLES, FINDER_NOTES, ILLUSTRATIONS, SAMPLES, SOURCE_NOTE, demoOf, sheetCards } from './slash-sheet.js';
 
 // Every Learn / command, opened from View > Slash commands. Left: a search over the
 // picker's own sections (learn-slash.js, CommandList.jsx), so the sheet and the
@@ -71,7 +71,9 @@ export default function SlashCommandsSheet({ appName, onClose }) {
                 ? <CardPreview key={`${name}:${card.card}`} type={card.card} command={name} appName={appName} />
                 : demo === 'sources'
                   ? <div data-slash-sources className="flex flex-col items-center gap-2"><p className="w-[440px] max-w-full text-xs text-ink-2">{SOURCE_NOTE}</p><CardPreview type="explanation" command="source" appName={appName} /></div>
-                  : <ChatPreview name={name} />}
+                  : demo === 'finder'
+                    ? <p data-slash-finder={name} className="w-[440px] max-w-full text-xs text-ink-2">{FINDER_NOTES[name]}</p>
+                    : <ChatPreview name={name} />}
             </div>
           </section>
         </div>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { commandsFor, descFor, LEARN_MENU, learnRequest, placeOf, primitive, reviewOff, SELECTIONS, SLASH } from './slash.js';
+import { commandsFor, descFor, labelOf, LEARN_MENU, learnRequest, placeOf, primitive, resolveCommand, reviewOff, SELECTIONS, SLASH } from './slash.js';
 
 const names = (list) => list.map((c) => c.name);
 const JOB = [{ name: 's3-log', kind: 'job' }];
@@ -9,7 +9,7 @@ test('one command list: the four modes on Home and projects, /ask and /teach on 
   assert.deepEqual(names(commandsFor('home', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'new', 'connect', 'run']); // solo v1: no /share
   assert.deepEqual(names(commandsFor('project', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'connect', 'run']);
   assert.deepEqual(names(commandsFor('learn', { catalog: JOB })), ['ask', 'teach', 'deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source',
-    'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'whiteboard', 'paper', 'image', 'video', '3d', 'notebook', 'more']);
+    'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'whiteboard', 'image', 'video', '3d', 'notebook', 'youtube', 'arxiv', 'wikipedia', 'more']);
   assert.deepEqual(names(commandsFor('home', { catalog: [] })).includes('run'), false); // /run needs a runnable job
   assert.equal(new Set(names(SLASH)).size, SLASH.length);
 });
@@ -122,4 +122,70 @@ test('the Learn picker stays short: LEARN then CREATE; the rest only through /mo
 test('/teach on an app is off on this preview: Learn is off for apps there (D7); projects and canvases teach', () => {
   assert.deepEqual(reviewOff('teach', 'app'), { reason: 'Learn on an app would ask through live chat history, so it is off on this preview.', short: 'Off on this preview' });
   for (const kind of ['workspace', 'project', 'canvas']) assert.equal(reviewOff('teach', kind), null, kind);
+});
+
+// Release B (owner decisions 1A, 2A, 4A and A4, 2026-10-16): one registry with surface capabilities.
+const CTRLK_SET = ['explain', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'flashcards', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia'];
+
+test('surfaces: Ctrl+K offers exactly the owner set; Chat is the Learn list; Insert offers the three source searches', () => {
+  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: true })).sort(), [...CTRLK_SET].sort());
+  // A production build has no /motion anywhere, Ctrl+K included.
+  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: false })).sort(), CTRLK_SET.filter((n) => n !== 'motion').sort());
+  assert.deepEqual(commandsFor('chat', { motionDev: true }), commandsFor('learn', { motionDev: true }));
+  assert.deepEqual(names(commandsFor('insert')), ['youtube', 'arxiv', 'wikipedia']);
+  // Everything else keeps its existing places: no Learn-only command left Chat, and none reached the bar.
+  for (const c of SLASH) {
+    if (c.places.includes('ctrlk')) assert.ok(CTRLK_SET.includes(c.name), c.name);
+    if (['youtube', 'arxiv', 'wikipedia'].includes(c.name)) assert.deepEqual(c.places, ['learn', 'ctrlk', 'insert']);
+  }
+  for (const name of ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source', 'whiteboard', 'paper', 'notebook', 'more'])
+    assert.deepEqual(SLASH.find((c) => c.name === name).places, ['learn'], name);
+});
+
+test('every command has a kind; the generate ones are what Ctrl+K picks Explain for, the source ones open the finder', () => {
+  for (const c of SLASH) assert.ok(['generate', 'source', 'prompt', 'dialog'].includes(c.kind), c.name);
+  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: true }).filter((c) => c.kind === 'generate')), ['explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'image', 'video', '3d', 'motion']);
+  for (const name of ['youtube', 'arxiv', 'wikipedia']) {
+    const c = SLASH.find((entry) => entry.name === name);
+    assert.equal(c.kind, 'source');
+    assert.equal(c.source, name);
+    // No model routes or reads a source search: it runs as a deterministic action, with no primitives for the tutor.
+    assert.deepEqual([learnRequest(name).action, learnRequest(name).deterministic, learnRequest(name).allowedPrimitives], ['open_source', true, null]);
+  }
+});
+
+test('/paper is typed only: no picker lists it, typed it still resolves where it worked before; /arxiv is the listed paper search', () => {
+  for (const surface of ['chat', 'learn', 'ctrlk', 'insert', 'home', 'project']) assert.ok(!names(commandsFor(surface)).includes('paper'), surface);
+  assert.ok(names(commandsFor('learn', { hidden: true })).includes('paper'));
+  assert.equal(resolveCommand('/paper 1706.03762', 'chat').command.name, 'paper');
+  assert.deepEqual(resolveCommand('/paper 1706.03762', 'ctrlk'), { unsupported: 'paper' });
+  assert.ok(names(commandsFor('chat')).includes('arxiv'));
+});
+
+test('labels: the owner wording for /video and the source searches; others read as their capitalised name', () => {
+  const label = (name) => labelOf(SLASH.find((c) => c.name === name));
+  assert.deepEqual(['video', 'youtube', 'arxiv', 'wikipedia'].map(label), ['Generate video', 'Search YouTube', 'Search arXiv', 'Search Wikipedia']);
+  // The picker's line says the same for those four (owner A4: /video generates; /youtube finds existing videos).
+  assert.deepEqual(['video', 'youtube', 'arxiv', 'wikipedia'].map((n) => descFor(SLASH.find((c) => c.name === n), 'learn')), ['Generate video', 'Search YouTube', 'Search arXiv', 'Search Wikipedia']);
+  assert.deepEqual(['explain', 'dive', '3d'].map(label), ['Explain', 'Dive', '3D']);
+});
+
+test('resolveCommand: a typed command is the very entry the picker lists; an unoffered one is reported, never swapped', () => {
+  for (const surface of ['chat', 'ctrlk', 'insert']) {
+    for (const picked of commandsFor(surface, { motionDev: true })) {
+      const typed = resolveCommand(`/${picked.name} some words`, surface, { motionDev: true });
+      assert.equal(typed.command, picked, `${surface} /${picked.name}`);
+      assert.equal(typed.arg, 'some words');
+    }
+  }
+  assert.deepEqual(resolveCommand('  /Explain   why softmax  ', 'ctrlk'), { command: SLASH.find((c) => c.name === 'explain'), arg: 'why softmax' });
+  assert.deepEqual(resolveCommand('/youtube', 'chat'), { command: SLASH.find((c) => c.name === 'youtube'), arg: '' });
+  // Learn prompts and dialog commands are unsupported in Ctrl+K, but unchanged in Chat.
+  for (const name of ['deeper', 'quiz', 'dive', 'notebook', 'whiteboard', 'source', 'more', 'ask', 'teach']) {
+    assert.deepEqual(resolveCommand(`/${name} x`, 'ctrlk'), { unsupported: name }, name);
+    assert.equal(resolveCommand(`/${name} x`, 'chat').command.name, name, name);
+  }
+  assert.deepEqual(resolveCommand('/motion 15s softmax', 'ctrlk', { motionDev: false }), { unsupported: 'motion' });
+  assert.deepEqual(resolveCommand('/nope', 'chat'), { unsupported: 'nope' });
+  for (const text of ['explain this', '', '/', 'a /graph later', null]) assert.equal(resolveCommand(text, 'chat'), null, String(text));
 });

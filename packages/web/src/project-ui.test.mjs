@@ -116,8 +116,10 @@ test('an answer lists every cited file once, in order, including line lists writ
 test('the main composer: the Auto picker opens a / commands sheet with an example for every command it offers', () => {
   assert.match(bar, /data-bar-slash-help[\s\S]*?onClick=\{\(\) => \{ setPicker\(false\); setCommandsOpen\(true\); \}\}/);
   assert.match(bar, /\{commandsOpen && <BarCommandsSheet modes=\{modesFor\(target\)\} shortcuts=\{shortcutsFor\(target, surface\.catalog\)\}/);
-  for (const command of SLASH.filter(c => c.places.some(place => place !== 'learn')))
-    for (const place of command.places.filter(p => p !== 'learn')) {
+  // The bar's places only: 'learn', 'ctrlk' and 'insert' are canvas surfaces with their own help (Release B).
+  const BAR = ['home', 'project'];
+  for (const command of SLASH.filter(c => c.places.some(place => BAR.includes(place))))
+    for (const place of command.places.filter(p => BAR.includes(p))) {
       const example = exampleFor(command.name, place);
       assert.ok(example.startsWith(`/${command.name} `), `${command.name} in ${place}: ${example}`);
     }

@@ -40,6 +40,8 @@ export const NOT_INLINE = Object.freeze({
   more: 'opens the tool catalog', notebook: 'adds an empty notebook, unrelated to the selection', whiteboard: 'adds an empty whiteboard, unrelated to the selection',
   paper: 'opens an arXiv paper by id or search', practice: 'assessment, not explanation: it waits for the learner\'s answer in the chat',
   quiz: 'assessment, not explanation: it waits for the learner\'s answer', flashcards: 'study cards, not an explanation of the selection',
+  // Source search opens the shared source finder, never a generator (Release B; Ctrl+K's own handling is lane B2's).
+  youtube: 'source search: opens the source finder', arxiv: 'source search: opens the source finder', wikipedia: 'source search: opens the source finder',
 });
 // Every Learn command has exactly one inline status - checked against the registry by the tests.
 export const inlineStatus = name => (ROUTES[name] ? 'route' : NOTE_COMMANDS[name] ? 'note' : NOT_INLINE[name] ? 'n/a' : 'unknown');
