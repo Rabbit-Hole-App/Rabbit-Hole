@@ -585,7 +585,9 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   const arxiv = page.getByRole('searchbox', { name: 'Search arXiv' }).or(page.getByRole('textbox', { name: 'Search arXiv' }));
   await arxiv.waitFor();
   check('picked /arxiv + words opens the same finder as typed', JSON.stringify((await calls(page, 'openSearch')).at(-1)) === JSON.stringify({ type: 'openSearch', source: 'arxiv', query: 'transformers' }));
+  // A click previews only; the explicit Add to canvas adds (owner decision 4A, lead ruling: Enter or a click never adds).
   await page.getByRole('button', { name: /Attention heads explained/ }).click();
+  await page.getByRole('button', { name: 'Add to canvas' }).click();
   await arxiv.waitFor({ state: 'detached' });
   check('after an explicit add the command line clears; Ctrl+K stays', (await calls(page, 'pick')).length === 1 && (await popover(page).count()) === 1 && await field.inputValue() === '' && (await page.locator('[data-command-pill]').count()) === 0);
   check('no source command reached the check or a model', (await calls(page, 'decide')).length === decides && (await calls(page, 'generate')).length + (await calls(page, 'artifact')).length === made);
