@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardGraph, cardLines, cardRequest, failureStatus } from './card-source.js';
+import { cardGraph, cardLines, cardRequest, failureStatus, rangeLines } from './card-source.js';
 
 const commit = 'a'.repeat(40);
 
@@ -24,6 +24,11 @@ test('lines keep the file numbering: a range, start to the end, or the whole fil
   assert.equal(cardLines(file, 3).text, 'c\nd');
   assert.equal(cardLines(file).lines.length, 4);
   assert.equal(cardLines(file, 2, 99).text, 'b\nc\nd', 'a range past the end stops at the end');
+});
+
+test('a link read is the stored range already: its lines number on from the first line of the range, cut nowhere', () => {
+  assert.deepEqual(rangeLines('b\nc', 2), { text: 'b\nc', lines: [{ n: 2, text: 'b' }, { n: 3, text: 'c' }] });
+  assert.deepEqual(rangeLines('only').lines, [{ n: 1, text: 'only' }]);
 });
 
 test('a subgraph keeps its nodes that still exist and only the edges between them', () => {

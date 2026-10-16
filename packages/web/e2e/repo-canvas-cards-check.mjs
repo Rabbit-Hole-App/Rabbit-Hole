@@ -72,6 +72,14 @@ const seedProject = on => {
   const cwd = fileURLToPath(new URL('../../../', import.meta.url)), stdio = ['ignore', 'ignore', 'inherit'];
   if (process.env.WRANGLER_BIN) execFileSync(process.execPath, [process.env.WRANGLER_BIN, 'd1', 'execute', 'rabbit-hole-learn-dev', '--local', '--persist-to', PERSIST, '--config', D1_CONFIG, '--command', sql], { cwd, stdio, windowsHide: true });
   else execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to "${PERSIST}" -c "${D1_CONFIG}" --command "${sql}"`, { cwd, shell: true, stdio });
+  if (!on) return;
+  // Its indexed snapshot in the stack's repository snapshot store, the stored shape (files by path), so a link viewer's card
+  // read (learn-boards.js, follow-up R3 item 5) is the server's own answer from real stored code, never stubbed.
+  const file = `${OUT}/rcc-fixture.json`;
+  writeFileSync(file, JSON.stringify({ ...SNAPSHOT, files: content }));
+  const put = ['r2', 'object', 'put', 'rabbit-hole-dev-repositories/rcc-fixture', '--file', file, '--content-type', 'application/json', '--local', '--persist-to', PERSIST, '--config', D1_CONFIG];
+  if (process.env.WRANGLER_BIN) execFileSync(process.execPath, [process.env.WRANGLER_BIN, ...put], { cwd, stdio, windowsHide: true });
+  else execFileSync(`npx wrangler ${put.map(a => `"${a}"`).join(' ')}`, { cwd, shell: true, stdio });
 };
 seedProject(true);
 
@@ -580,7 +588,8 @@ await check('13 reload: every card keeps its source and revision, no ask on relo
 
 let token = null;
 // Owner ruling (ACCESS-3, relayed by the lead 2026-10-15 ~3:00 PM PT): anyone signed in who can read the canvas reads its
-// public repository's cards at their commit; a signed-out public-link viewer gets the card's fields only, no code.
+// public repository's cards at their commit. Signed out, the board and the repository route still give no code; a link's
+// cards read through the link (follow-up R3 item 5, owner brief 2026-10-15: signed out too, public-code-cards-check.mjs).
 await check('14 a public repository card reads for a signed-in viewer of another organization on the share link; signed out, neither the board nor the file route gives code', async () => {
   const state = JSON.parse(await page.evaluate(key => localStorage.getItem(key), boardKey));
   const shared = await json(`/api/learn/boards/${REPO}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state }) });
@@ -594,19 +603,17 @@ await check('14 a public repository card reads for a signed-in viewer of another
   assert.ok(!outText.includes(code), `signed out: the shared board carries code (HTTP ${out.status})`);
   assert.ok(!fileText.includes(code), `signed out: the file route gives code (HTTP ${file.status})`);
   await openContext({ as: viewerSession, owner: false });
-  // ponytail: a local stack has no snapshot store, so a read the server lets through (anything but 401/403) is answered from
-  // the fixture; the server's own answer is recorded. A real denial reaches the page as it is.
+  // On the link, a card reads by the link and its id (follow-up R3 item 5), answered by the server from the snapshot seeded in
+  // the stack's store (seedProject): each answer's status is recorded, and none is stubbed.
   facts.c14.viewer = [];
-  await context.route('**/api/repositories/card-source?*', async route => {
-    const real = await route.fetch(), path = new URL(route.request().url()).searchParams.get('path');
-    facts.c14.viewer.push(`${path || 'graph'} ${real.status()}`);
-    if ([401, 403].includes(real.status())) return route.fulfill({ response: real });
-    return route.fulfill({ json: path ? { path, commit: COMMIT, content: content[path] } : SNAPSHOT });
+  page.on('response', response => {
+    const match = new URL(response.url()).pathname.match(/^\/api\/learn\/boards\/shared\/[^/]+\/cards\/([^/]+)\/source$/);
+    if (match) facts.c14.viewer.push(`${decodeURIComponent(match[1])} ${response.status()}`);
   });
   await page.goto(`${BASE}/b/${token}`);
   await canvasFrame().waitFor({ timeout: 60000 });
   await canvasFrame().locator(SELECTORS.codeCard).getByText(code, { exact: false }).first().waitFor({ timeout: 20000 });
-  assert.ok(!facts.c14.viewer.some(v => / 40[13]$/.test(v)), `the server denied the viewer: ${JSON.stringify(facts.c14.viewer)}`);
+  assert.ok(facts.c14.viewer.length > 0 && !facts.c14.viewer.some(v => / [45]\d\d$/.test(v)), `the server denied the viewer: ${JSON.stringify(facts.c14.viewer)}`);
   await shot('06-viewer-reads-public-card');
 });
 

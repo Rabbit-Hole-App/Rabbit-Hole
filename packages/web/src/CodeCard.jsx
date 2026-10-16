@@ -13,7 +13,9 @@ import { repositoryUrl } from './card-sources.js';
 // for the whole stored range. Code is inert: nothing here runs it. Controls stop the press so they never select or drag.
 // Open source: a repository card asks the page to open its file and lines in the companion Files viewer at its own commit
 // (small:open-code; repository-canvas.jsx answers, else GitHub at that commit: another canvas or revision); an upload card
-// opens its stored file in a new tab. Add to chat pins the card's code ref. Nothing sends or calls a model.
+// opens its stored file in a new tab. Add to chat pins the card's code ref. Nothing sends or calls a model. The code takes the
+// pointer itself (pointer-events-auto, as the controls do), so it scrolls by wheel on a view-only link, whose hand tool leaves
+// the cards' column pointer-events-none (follow-up R3 item 5).
 const stop = event => event.stopPropagation();
 const BUTTON = 'pointer-events-auto inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50';
 
@@ -27,7 +29,7 @@ const lineRuns = runs => {
 
 export default function CodeCard({ block, onChange }) {
   const chat = useChatWorkspace();
-  const { status, lines } = useCardSource(block);
+  const { status, lines, retry } = useCardSource(block);
   const expanded = !!block.expanded;
   const view = status === 'ready' ? previewOf(lines, expanded) : null;
   const code = view ? view.lines.map(line => line.text).join('\n') : '';
@@ -70,9 +72,10 @@ export default function CodeCard({ block, onChange }) {
       </div>
       {status === 'loading' && <p role="status" className="flex items-center gap-1.5 px-3 py-2 text-xs text-ink-2"><Loader2 size={13} className="animate-spin" aria-hidden />Loading the code…</p>}
       {status === 'unavailable' && <p data-code-card-unavailable className="px-3 py-2 text-xs text-ink-2">{source.kind === 'upload' ? 'This file is not available here.' : 'Repository content unavailable.'}</p>}
-      {status === 'failed' && <p role="alert" className="px-3 py-2 text-xs text-danger">The code could not be read.</p>}
+      {status === 'failed' && <div role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The code could not be read.
+        <button type="button" data-code-card-retry className={BUTTON} onClick={retry}>Retry</button></div>}
       {view && <>
-        <pre data-scroll data-code-card-code className="min-h-0 flex-1 overflow-auto px-0 py-2 font-mono text-[12px] leading-5" onPointerDown={stop}>
+        <pre data-scroll data-code-card-code className="pointer-events-auto min-h-0 flex-1 overflow-auto px-0 py-2 font-mono text-[12px] leading-5" onPointerDown={stop}>
           {view.lines.map((line, i) => <div key={line.n} data-code-line={line.n} className="flex">
             <span aria-hidden className="w-10 shrink-0 pr-2 text-right text-ink-3 select-none">{line.n}</span>
             <span className="min-w-0 whitespace-pre">{runs?.[i] ? runs[i].map((run, j) => <span key={j} style={run.color ? { color: run.color, '--shiki-dark': run.dark || run.color } : undefined}>{run.t}</span>) : line.text}</span>

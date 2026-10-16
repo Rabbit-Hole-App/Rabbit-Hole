@@ -103,7 +103,7 @@ test('an uploaded code card reads its text from the board asset (cache, then the
   assert.deepEqual(await uploadText('k', async () => new Blob(['x = 2'])), { content: 'x = 2' });
   await assert.rejects(uploadText('k', async () => null), error => error.status === 404, 'a missing asset is unavailable');
   const card = readFileSync(new URL('./CodeCard.jsx', import.meta.url), 'utf8');
-  assert.match(card, /const \{ status, lines \} = useCardSource\(block\);/);
+  assert.match(card, /const \{ status, lines, retry \} = useCardSource\(block\);/);
   assert.match(card, /previewOf\(lines, expanded\)/);
 });
 

@@ -17,7 +17,7 @@ import { askShared, boardRevision, boardSources, publicationKey, shareKey, share
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
-import { redactRepositoryCards, restoreRedactedCards } from './repository-cards.js';
+import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -692,6 +692,13 @@ async function projectCanvasLinks(db, row, signedIn) {
   return results.flatMap(r => (r.publication ? [{ title: r.title, href: `/e/${r.publication}` }] : r.view_token && (r.public_view || signedIn) ? [{ title: r.title, href: `/b/${r.view_token}` }] : []));
 }
 
+async function sharedCard(req, env, token, cardId) {
+  const found = await sharedAccess(req, env, token);
+  if (found instanceof Response) return found;
+  const identity = found.viewer || await repositoryIdentity(req, env), viewer = identity instanceof Response ? null : identity;
+  return sharedCardSource(env, await redactRepositoryCards(env.LEARN_DB, JSON.parse(found.row.state_json), viewer), cardId, viewer);
+}
+
 async function openShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
@@ -821,6 +828,10 @@ export async function learnBoardsRoute(path, req, env) {
   // The read-only Rabbit Holes Map of a shared canvas: only holes this viewer could open by their own link.
   const holes = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/holes$/);
   if (holes) return req.method === 'GET' ? sharedHoles(req, env, decodeURIComponent(holes[1])) : json({ error: 'Method not allowed' }, 405);
+  // A code or graph card's source on this link (follow-up R3 item 5): by the link and the card's id only, whoever the link
+  // admits - signed out on a public link or a publication - read under the board's own redaction for this viewer.
+  const carding = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/cards\/([^/]+)\/source$/);
+  if (carding) return req.method === 'GET' ? sharedCard(req, env, decodeURIComponent(carding[1]), decodeURIComponent(carding[2])) : json({ error: 'Method not allowed' }, 405);
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);

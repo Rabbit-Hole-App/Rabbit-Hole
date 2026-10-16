@@ -32,6 +32,13 @@ export function cardLines(content, start = null, end = null) {
   return { text: lines.map(line => line.text).join('\n'), lines, totalLines: all.length };
 }
 
+// A link's read (learn-boards.js sharedCard): the server already cut the card's stored range, so its lines are numbered on
+// from `first`, the file's own number of the range's first line.
+export function rangeLines(content, first = 1) {
+  const lines = String(content ?? '').split('\n').map((text, i) => ({ n: first + i, text }));
+  return { text: lines.map(line => line.text).join('\n'), lines };
+}
+
 // A subgraph card's nodes and the edges between them; a whole-graph card (no node ids) is the whole graph. Ids the
 // snapshot no longer has are dropped, never invented.
 export function cardGraph(graph, nodeIds = []) {
