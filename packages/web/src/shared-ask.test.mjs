@@ -78,16 +78,15 @@ test('B: a notice that the pinned repository could not be read shows under that 
   assert.match(composer, /\{turn\.notice && <p data-shared-notice[^>]*>\{turn\.notice\}<\/p>\}/);
 });
 
-test('C: the Share panel offers repository code only for a private repository, through the owner-only route', () => {
+test('C: the Share panel offers no private repository switch; no link opens a private repository', () => {
   const panel = readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(panel, /\{current\.view && current\.repository\?\.private && \(\n\s+<label data-share-repository/);
-  assert.match(panel, /<Switch on=\{current\.repository\.repo_access\} label="Allow questions to use private repository code" disabled=\{busy\} onChange=\{onRepository\} \/>/);
-  // The owner's copy (2026-10-04): what it allows, for whom, at which pinned revision, and what Off means.
-  assert.match(panel, /<span className="block">Allow questions to use private repository code<\/span>/);
-  assert.match(panel, /Signed-in viewers' questions can use code from \{current\.repository\.repo\} at \{current\.repository\.commit\.slice\(0, 7\)\}, the revision pinned for this link\. Off: only this canvas's cards, notes and sources\./);
-  assert.match(learn, /api\(`\$\{boardPath\}\/share\/repository`, \{ method: 'POST', body: JSON\.stringify\(\{ allow \}\) \}\)/);
-  assert.match(learn, /onRepository=\{changeRepositoryAccess\}/);
+  // Owner decision A2 (2026-10-16): a share link never opens a private repository, so the Share panel has no switch for it
+  // and nothing calls the old per-link route (the server answers it 410).
+  const menu = readFileSync(new URL('./home/CardMenu.jsx', import.meta.url), 'utf8');
+  for (const [name, source] of [['SharePanel', panel], ['LearnPage', learn], ['CardMenu', menu]]) {
+    assert.doesNotMatch(source, /data-share-repository|Allow questions to use private repository code|share\/repository|onRepository/, name);
+  }
   // The shared page shows a repository pill only when the server sends one.
   assert.match(composer, /\{repository && <span data-context-pill="repository"/);
 });

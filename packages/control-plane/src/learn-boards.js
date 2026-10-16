@@ -13,7 +13,7 @@ import { sniffImageType } from './learn-media.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
-import { NO_CAP, admitUsage, askShared, boardRevision, boardSources, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
+import { NO_CAP, admitUsage, askShared, boardRevision, boardSources, importerOf, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
@@ -244,29 +244,18 @@ async function share(env, owner, app, board, body) {
   return json({ version: row.version, sharing: await ownerSharing(env, updated) });
 }
 
-// The Share panel's view of a link's repository: only a repository the owner owns (a fork's inherited one is never
-// theirs to open up). private: not confirmed public, so the panel offers repository code for this link.
+// The Share panel's view of a link. A new link still pins its repository commit (sharePin), but no link opens a private
+// repository (owner decision A2, 2026-10-16), so the panel has no repository permission to offer.
 async function ownerSharing(env, row) {
-  const source = row?.shared && row.view_token ? await shareSource(env.LEARN_DB, row) : null;
   // A canvas published to Explore (docs/features/explore-publish.md): its own /e token, for the owner's Share panel. Its
   // main board is public and live, so the browser keeps the server copy current as for a shared board.
   const published = row?.board === 'main' && /^canvas-[a-f0-9]{8}$/.test(row.app) ? await env.LEARN_DB.prepare('SELECT token FROM canvas_publications WHERE org = ? AND canvas = ?').bind(row.org, row.app).first() : null;
-  return { ...sharingOf(row), ...(source?.owned ? { repository: { repo: source.repo, commit: source.commit, private: !source.public, repo_access: source.repo_access } } : {}),
-    ...(published ? { published: true, publication: published.token } : {}) };
+  return { ...sharingOf(row), ...(published ? { published: true, publication: published.token } : {}) };
 }
 
-// The owner's repository-code permission for this link (owner-only; the server decides, never a client flag): a
-// private repository of theirs is read for this link's viewers only while it is on. A public one needs nothing,
-// and a new link starts with it off.
-async function shareRepository(env, owner, app, board, body) {
-  if (typeof body?.allow !== 'boolean') return json({ error: 'allow must be true or false' }, 400);
-  const row = await ownerRow(env, owner, app, board);
-  if (!row?.shared || !row.view_token) return json({ error: 'Turn the view link on first.' }, 409);
-  const source = await shareSource(env.LEARN_DB, row);
-  if (!source?.owned || source.public) return json({ error: 'Only a private repository of yours needs this permission.' }, 409);
-  await env.LEARN_DB.prepare('UPDATE board_repository_pins SET repo_access = ? WHERE board_id = ? AND share_key = ?').bind(body.allow ? 1 : 0, row.id, await shareKey(row.view_token)).run();
-  return json({ version: row.version, sharing: await ownerSharing(env, row) });
-}
+// The per-link repository-code permission is gone (owner decision A2, 2026-10-16): a share link never opens a private
+// repository to its viewers, so a stale client's switch is told so and nothing is stored.
+const REPOSITORY_PERMISSION_GONE = 'Share links no longer open private repository code. Only the person who imported the repository can read it.';
 
 // A link token is a share's view token, or an Explore publication's own token (docs/features/explore-publish.md): it
 // opens its canvas's main board read-only while the canvas is published, live and top-level, and dies when it is
@@ -295,13 +284,13 @@ const linkPath = (found, token) => `${found.publication ? '/e/' : '/b/'}${token}
 // (shareSource). A publication: the board's current revision, and a repository's name, commit and code only when the
 // repository is confirmed public - never private code, whatever a share link of the same board allows (an explicit
 // publication permission for private code is not part of V1; default off). Same shape as shareSource.
-export async function linkSource(db, found) {
-  if (!found.publication) return shareSource(db, found.row);
+export async function linkSource(db, found, viewer = null) {
+  if (!found.publication) return shareSource(db, found.row, viewer);
   const revision = await boardRevision(db, found.row);
-  const repo = revision && await db.prepare('SELECT r.repo, r.owner_email, v.visibility FROM repository_apps r LEFT JOIN repository_visibility v ON v.app_id = r.id WHERE r.id = ?').bind(revision.id).first();
+  const repo = revision && await db.prepare('SELECT r.repo, r.org, r.owner_email, v.visibility FROM repository_apps r LEFT JOIN repository_visibility v ON v.app_id = r.id WHERE r.id = ?').bind(revision.id).first();
   if (!repo) return null;
   const open = repo.visibility === 'public';
-  return { id: revision.id, repo: repo.repo, commit: revision.commit, public: open, owned: repo.owner_email === found.row.owner_email, repo_access: false, allowed: open };
+  return { id: revision.id, repo: repo.repo, commit: revision.commit, public: open, owned: repo.owner_email === found.row.owner_email, allowed: open || importerOf(repo, viewer) };
 }
 
 // A link as a destination for a viewer (header provenance, learn-provenance.js): its path and the title it shows, only
@@ -340,32 +329,34 @@ async function askAboutShared(req, env, token) {
   let body = null;
   try { body = JSON.parse(raw); } catch { /* askShared refuses a missing message */ }
   // A publication asks within its own boundary (no private code) and its own per-link limit.
-  return askShared(env, found.row, viewer, body, found.publication ? { source: await linkSource(env.LEARN_DB, found), key: await publicationKey(token) } : null);
+  return askShared(env, found.row, viewer, body, found.publication ? { source: await linkSource(env.LEARN_DB, found, viewer), key: await publicationKey(token) } : null);
 }
 
-// Professor Next Steps on a shared canvas (docs/features/professor-next-steps.md §1.5, §2.1): whoever may open the link,
-// signed in or not on a public one. The hooks are built from the shared board here (learn-next-steps-routes.js); nothing of
-// the board's, its owner's or any Tutor or journey row is written. A signed-in viewer may add their own claim states.
+// Professor Next Steps on a shared canvas (docs/features/professor-next-steps.md §1.5, §2.1): whoever may open the link, and
+// signed in even on a public one (owner R3 decision, 2026-10-16: no AI generation for signed-out viewers; the viewer pays).
+// The hooks are built from the shared board here (learn-next-steps-routes.js); nothing of the board's, its owner's or any
+// Tutor or journey row is written. A signed-in viewer may add their own claim states.
 async function nextStepsAboutShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
+  const viewer = found.viewer || await repositoryIdentity(req, env);
+  if (viewer instanceof Response) return viewer.status === 401 ? json({ error: 'Sign in to see next steps for this canvas.', signIn: true }, 401) : viewer;
   const raw = await req.text();
   if (raw.length > NEXT_STEPS_BODY_CHARS) return json({ error: `the request body must be at most ${NEXT_STEPS_BODY_CHARS} characters` }, 400);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const { row } = found;
-  const viewer = found.viewer || await repositoryIdentity(req, env);
-  const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer);
+  const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer);
   const origin = originOf(body?.origin, state);
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
-  return sharedNextSteps(env, { row, state, title: (await sharedBoard(env, found)).title, key: await shareKey(token), viewer: viewer instanceof Response ? null : viewer, origin, body });
+  return sharedNextSteps(env, { row, state, title: (await sharedBoard(env, found, viewer)).title, key: await shareKey(token), viewer, origin, body });
 }
 // A shared board's name as its viewers see it (sharedTitle: a private repository's name withheld), with the canvas row and
 // the link's repository boundary it was read from: a share's pin, or a publication's own (linkSource, explore-publish.md).
-async function sharedBoard(env, found) {
+async function sharedBoard(env, found, viewer) {
   const { row } = found;
   const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  const pinned = await linkSource(env.LEARN_DB, found);
+  const pinned = await linkSource(env.LEARN_DB, found, viewer);
   return { canvas, pinned, title: sharedTitle(row, canvas?.title, pinned) };
 }
 
@@ -404,7 +395,7 @@ async function forkSource(req, env, user, body) {
     const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare('SELECT name, title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
     // The fork inherits the share's pinned revision (never the current HEAD); a repository the share may not show
     // stays unnamed in the fork's title and provenance.
-    const pinned = await linkSource(env.LEARN_DB, found);
+    const pinned = await linkSource(env.LEARN_DB, found, user);
     return { row, state: await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), user), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
       revision: pinned && { id: pinned.id, commit: pinned.commit }, resource: canvas?.name || (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app) };
   }
@@ -572,7 +563,7 @@ async function startRabbitHole(req, env, token, body) {
   const originId = blank ? SHARED_BLANK : origin.root ? SHARED_ROOT : origin.id;
   // The board's name, read once for the step check and the hole's provenance.
   let named = null;
-  const board = () => (named ??= sharedBoard(env, found));
+  const board = () => (named ??= sharedBoard(env, found, user));
   // A clicked hook (docs/features/professor-next-steps.md §1.4): checked against the board as it is now - its version and
   // title fingerprint (a stale version or a rename is 409 stale_hook), then its ids and wording against the same trimmed
   // input generation read, and its origin (a chat card reads as the root) - before anything is written for the viewer.
@@ -661,7 +652,7 @@ async function sharedHoles(req, env, token) {
   const anyone = viewer instanceof Response ? 0 : 1;
   const OPEN = `b.shared = 1 AND b.view_token IS NOT NULL AND ${NOT_TRASHED('b.org', 'b.app')} AND (b.public_view = 1 OR ?)`;
   const canvasTitle = CANVAS.test(row.app) ? (await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first())?.title : null;
-  const path = [{ title: sharedTitle(row, canvasTitle, row.app.startsWith('repo-') ? await linkSource(db, found) : null), href: linkPath(found, token) }];
+  const path = [{ title: sharedTitle(row, canvasTitle, row.app.startsWith('repo-') ? await linkSource(db, found, viewer instanceof Response ? null : viewer) : null), href: linkPath(found, token) }];
   let top = row;
   for (let level = row; level.board === 'main' && CANVAS.test(level.app) && path.length < 50;) {
     const up = await db.prepare(`SELECT b.*, c.title AS canvas_title FROM canvas_dives d JOIN learn_boards b ON b.org = d.org AND b.owner_email = d.owner_email AND b.app = d.parent_app AND b.board = d.parent_board
@@ -728,10 +719,10 @@ async function openShared(req, env, token) {
   const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare(`SELECT title, ${FORK_COUNT} AS fork_count FROM canvases c WHERE org = ? AND name = ?`).bind(row.org, row.app).first() : null;
   // The composer (docs/features/shared-canvas-ask.md): who is viewing (their own email, or null signed out),
   // and the context pills - the repository at the share's pinned commit, and the sources on the board. A private
-  // repository the owner did not open up for this link shows nothing of itself: no name, commit or pill, and a
-  // project board's app name (which names it) is withheld too.
+  // repository shows nothing of itself to anyone but its original importer: no name, commit or pill, and a project
+  // board's app name (which names it) is withheld too.
   const viewer = found.viewer || await repositoryIdentity(req, env);
-  const source = await linkSource(env.LEARN_DB, found);
+  const source = await linkSource(env.LEARN_DB, found, viewer instanceof Response ? null : viewer);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
   const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer);
   // Who made it (docs/features/user-handles.md): the owner's @handle and display name, read by reference; no handle,
@@ -880,7 +871,7 @@ export async function learnBoardsRoute(path, req, env) {
   const owner = await boardOwner(req, env, app);
   if (owner instanceof Response) return owner;
   if (shareRoute) return req.method === 'POST' ? share(env, owner, app, board, await readBody(req)) : json({ error: 'Method not allowed' }, 405);
-  if (suffix === '/share/repository') return req.method === 'POST' ? shareRepository(env, owner, app, board, await readBody(req)) : json({ error: 'Method not allowed' }, 405);
+  if (suffix === '/share/repository') return req.method === 'POST' ? json({ error: REPOSITORY_PERMISSION_GONE }, 410) : json({ error: 'Method not allowed' }, 405);
   if (suffix?.startsWith('/thumbnail')) return ownThumbnail(req, env, owner, app, board, suffix === '/thumbnail/custom');
   if (suffix?.startsWith('/assets')) {
     const row = await ownerRow(env, owner, app, board);
@@ -896,7 +887,9 @@ export async function learnBoardsRoute(path, req, env) {
     // board_id: the owner's own key for the canvas's comments (docs/features/canvas-comments.md); never shown to a viewer.
     // forked: whether this board was made by a fork - never the source's title, ids or link as saved then (owner decision E1,
     // 2026-10-16): where it came from is resolved for this viewer by the provenance routes and the Library rows.
-    return row ? json({ version: row.version, board_id: row.id, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked: !!row.forked_from, sharing: await ownerSharing(env, row), state: JSON.parse(row.state_json) }) : json({ exists: false, sharing: sharingOf(null) });
+    // A repository card not confirmed public is whole only for its original importer: a fork's owner gets its place
+    // (repository-cards.js), and saveOwn restores the full card on save.
+    return row ? json({ version: row.version, board_id: row.id, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked: !!row.forked_from, sharing: await ownerSharing(env, row), state: await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), owner) }) : json({ exists: false, sharing: sharingOf(null) });
   }
   if (req.method === 'PUT') return saveOwn(env, owner, app, board, await readBody(req));
   return json({ error: 'Method not allowed' }, 405);

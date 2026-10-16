@@ -39,7 +39,7 @@ test('routes, mode on with no owner: a public link still opens for anyone; the s
   const { canvas, token } = await f.shareProject({});
   for (const as of [null, 'ben']) assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}`, { as })).status, 200, `${as ?? 'anonymous'}: the public link opens`);
   assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/ask`, { as: 'ben', body: { message: 'Why?' } })).status, 403, 'the shared ask');
-  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as: null, body: { origin: null } })).status, 403, 'the shared hooks, anonymous');
+  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as: null, body: { origin: null } })).status, 401, 'the shared hooks, signed out: sign in first (owner R3 decision, 2026-10-16)');
   assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as: 'ben', body: { origin: null } })).status, 403, 'the shared hooks, signed in');
   assert.ok(canvas?.name, 'the owner canvas exists');
   assert.deepEqual(bridge, [], 'nothing reached the bridge');

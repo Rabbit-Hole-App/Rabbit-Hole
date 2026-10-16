@@ -46,7 +46,7 @@ test('the shared page gets the project repository, its commit and the board sour
   const loose = await f.call('POST', `/api/learn/boards/${plain.name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: true, state: { blocks: [] } } });
   assert.deepEqual((await f.call('GET', `/api/learn/boards/shared/${loose.body.sharing.view}`)).body.context, { repository: null, sources: [] });
   const board = { id: 'b-repo', app: 'repo-0a1b2c3d-nanogpt', org: 'ana-ws', view_token: 'T'.repeat(32) };
-  assert.deepEqual(await shareSource(f.db, { ...board, owner_email: 'ana@test' }), { id: 7, repo: 'karpathy/nanoGPT', commit: SHA, public: true, owned: true, repo_access: false, allowed: true });
+  assert.deepEqual(await shareSource(f.db, { ...board, owner_email: 'ana@test' }), { id: 7, repo: 'karpathy/nanoGPT', commit: SHA, public: true, owned: true, allowed: true });
   assert.equal(await shareSource(f.db, { ...board, id: 'b-other', owner_email: 'ben@test' }), null, 'only the board owner\'s repository');
 });
 

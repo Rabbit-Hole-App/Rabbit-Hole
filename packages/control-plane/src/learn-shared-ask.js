@@ -61,16 +61,22 @@ export async function sharePin(db, row) {
   return { repository_id: revision.id, commit_sha: revision.commit, share_key: key, repo_access: 0 };
 }
 
-// What a share may show and read of its repository (the private repository boundary). Its name, commit and code
-// only for a repository an anonymous read confirmed public, or a private one its owner allowed for this link -
-// and only the repository's own owner can allow it, so a fork never opens up someone else's. Unknown visibility is
-// private. { id, repo, commit, public, owned, repo_access, allowed } or null; the id never leaves the server.
-export async function shareSource(db, row) {
+// The original importer of a repository (owner R3 decision, 2026-10-16, A3 item 2): its repository_apps row's own workspace
+// and owner, from server records - never a share token, a fork, membership or sign-in alone. A snapshot-ownership policy for
+// the stored import only; it is not GitHub authorization and authorizes no refresh or new fetch.
+export const importerOf = (repo, viewer) => !!viewer?.email && viewer.org === repo.org && viewer.email === repo.owner_email;
+
+// What a link may show and read of its repository (the private repository boundary) for `viewer` ({ org, email } or null),
+// who can already open the link: its name, commit and code only for a repository an anonymous read confirmed public, or
+// for the repository's original importer (importerOf). A share link grants canvas access, never a private repository's
+// (owner decision A2, 2026-10-16): the per-link repository permission (board_repository_pins.repo_access) is no longer
+// read. Unknown visibility is private. { id, repo, commit, public, owned, allowed } or null; the id never leaves the server.
+export async function shareSource(db, row, viewer = null) {
   const pin = await sharePin(db, row);
-  const repo = pin && await db.prepare('SELECT r.repo, r.owner_email, v.visibility FROM repository_apps r LEFT JOIN repository_visibility v ON v.app_id = r.id WHERE r.id = ?').bind(pin.repository_id).first();
+  const repo = pin && await db.prepare('SELECT r.repo, r.org, r.owner_email, v.visibility FROM repository_apps r LEFT JOIN repository_visibility v ON v.app_id = r.id WHERE r.id = ?').bind(pin.repository_id).first();
   if (!repo) return null;
   const open = repo.visibility === 'public', owned = repo.owner_email === row.owner_email;
-  return { id: pin.repository_id, repo: repo.repo, commit: pin.commit_sha, public: open, owned, repo_access: !!pin.repo_access, allowed: open || (owned && !!pin.repo_access) };
+  return { id: pin.repository_id, repo: repo.repo, commit: pin.commit_sha, public: open, owned, allowed: open || importerOf(repo, viewer) };
 }
 
 // The videos, Wikipedia articles and papers placed on the board: kind, title and public id.
@@ -214,7 +220,7 @@ export async function askShared(env, row, viewer, body, link = null) {
   if (refused) return refused;
   const db = env.LEARN_DB, state = await redactRepositoryCards(db, JSON.parse(row.state_json), viewer);
   const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  const source = link ? link.source : await shareSource(db, row);
+  const source = link ? link.source : await shareSource(db, row, viewer);
   const repository = source?.allowed ? source : null;
   const limited = await admitAsk(env, row, viewer, !!repository, link?.key);
   if (limited) return limited;

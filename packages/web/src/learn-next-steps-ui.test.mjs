@@ -519,16 +519,19 @@ const sharedSet = n => ({ ...setFor(n), basis: 'k:1::root', telemetry: { ...setF
   summary: { evidence_summary: { understood: [], uncertain: [IDS[0]], misconception: [], prerequisite_gap: [], not_yet_observed: [] }, canvas_summary: { blocks: 2, kinds: { explanation: 2 }, presented_claim_ids: [IDS[0]] }, target_concept_ids: ['c'], target_claim_ids: [IDS[0]] } },
   options: setFor(n).options.map(o => ({ ...o, selected_next_step: { ...o.selected_next_step, scope: 'shared', source: { share_version: 4, origin_block_id: 'k1' } } })) });
 function sharedRig({ props = {}, replies = [sharedSet(1)] } = {}) {
-  const c = clock(), bodies = [], live = { token: 'tok-abc', card: 'k1', version: 4, signedIn: false, ...props };
+  const c = clock(), bodies = [], live = { token: 'tok-abc', card: 'k1', version: 4, signedIn: true, ...props };
   const shared = B.sharedSteps(() => live, { post: async body => { bodies.push(body); const r = await replies.shift(); if (r instanceof Error) throw r; return structuredClone(r); }, setTimer: c.setTimer, clearTimer: c.clearTimer });
   return { c, live, shared, bodies, step: () => shared.update(shared.state()) };
 }
 
-test('sharedSteps: recomputes only on the selected card, the board version or sign-in; posts only the origin; select validates', async () => {
-  const off = sharedRig({ props: { token: null } });
-  off.step(); await off.c.fire();
-  assert.deepEqual([off.shared.view().status, off.shared.view().reason, off.bodies.length], ['unavailable', 'off', 0]);
-  const r = sharedRig({ replies: [sharedSet(1), sharedSet(2), sharedSet(3), sharedSet(4)] });
+// Owner R3 decision (2026-10-16, rel-a.md A2 item 4): a signed-out viewer gets no generation, so signed out is off.
+test('sharedSteps: off signed out; recomputes only on the selected card or the board version; posts only the origin; select validates', async () => {
+  for (const props of [{ token: null }, { signedIn: false }]) {
+    const off = sharedRig({ props });
+    off.step(); await off.c.fire();
+    assert.deepEqual([off.shared.view().status, off.shared.view().reason, off.bodies.length], ['unavailable', 'off', 0], JSON.stringify(props));
+  }
+  const r = sharedRig({ replies: [sharedSet(1), sharedSet(2), sharedSet(3)] });
   r.step(); await r.c.fire();
   assert.deepEqual(r.bodies, [{ origin: { block_id: 'k1' } }]);
   assert.deepEqual([r.shared.view().status, r.shared.view().set_id], ['ready', 'ns_00000001']);
@@ -537,16 +540,19 @@ test('sharedSteps: recomputes only on the selected card, the board version or si
   const same = r.shared.state();
   r.step(); await r.c.fire();
   assert.deepEqual([r.shared.state(), r.bodies.length, r.c.pending()], [same, 1, 0]);
-  for (const [change, origin] of [[() => { r.live.card = null; }, null], [() => { r.live.version = 5; }, null], [() => { r.live.signedIn = true; }, null]]) {
+  for (const [change, origin] of [[() => { r.live.card = null; }, null], [() => { r.live.version = 5; }, null]]) {
     change(); r.step();
     assert.equal(r.shared.view().status, 'stale');
     await r.c.fire();
     assert.deepEqual(r.bodies.at(-1), { origin });
   }
-  assert.equal(r.bodies.length, 4);
-  const picked = r.shared.select('ns_00000004.2');
+  assert.equal(r.bodies.length, 3);
+  const picked = r.shared.select('ns_00000003.2');
   assert.deepEqual([picked.ok, picked.selected_next_step.source], [true, { share_version: 4, origin_block_id: 'k1' }]);
   assert.deepEqual(r.shared.select('ns_00000001.1'), { ok: false, reason: 'unknown' });
+  // Signing out hides the hooks and asks nothing more.
+  r.live.signedIn = false; r.step(); await r.c.fire();
+  assert.deepEqual([r.shared.view().status, r.shared.view().reason, r.bodies.length], ['unavailable', 'off', 3]);
 });
 
 test('sharedSteps survives dispose; a 429 is limited', async () => {
@@ -602,19 +608,18 @@ function realRig(props) {
   return { c, live, shared, step: () => shared.update(shared.state()) };
 }
 
-test('sharedPost: signed out asks no /api/me and sends no states; signed in sends only public registry evidence; a 429 is limited', async t => {
+test('sharedPost: signed out sends nothing at all; signed in sends only public registry evidence; a 429 is limited', async t => {
   const w = wire(t, { me: [{ org: 'ben-ws', email: 'ben@test' }] });
   const out = realRig();
   out.step(); await out.c.fire();
-  assert.deepEqual(w.calls, [{ url: '/api/learn/boards/shared/tok%2Fabc/next-steps', body: { origin: null } }]);
-  assert.equal(out.shared.view().status, 'ready');
+  assert.deepEqual([w.calls, out.shared.view().status, out.shared.view().reason], [[], 'unavailable', 'off'], 'owner R3 decision: no request signed out');
   w.store({ org: 'ben-ws', email: 'ben@test' }, [failOn(REAL, B.TUTOR_DOMAINS[0].domain.claims[REAL].concept), failOn('not.a/public-claim')]);
   const signed = realRig({ signedIn: true, card: 'k1' });
   signed.step(); await signed.c.fire();
-  assert.deepEqual(w.calls.slice(1).map(call => call.url), ['/api/me', '/api/learn/boards/shared/tok%2Fabc/next-steps']);
+  assert.deepEqual(w.calls.map(call => call.url), ['/api/me', '/api/learn/boards/shared/tok%2Fabc/next-steps']);
   assert.deepEqual(w.calls.at(-1).body, { origin: { block_id: 'k1' }, viewer_states: { [REAL]: 'uncertain' } });
   w.status = 429;
-  const limited = realRig();
+  const limited = realRig({ signedIn: true });
   limited.step(); await limited.c.fire();
   assert.deepEqual([w.calls.length, limited.shared.view().status, limited.shared.view().reason], [4, 'unavailable', 'limited']);
 });
@@ -698,23 +703,26 @@ test('A-M1 owned: a hung post times out at 60 s, its basis records failed, the n
   steps.dispose();
 });
 
+// Signed in (the only viewer who posts since the owner R3 decision): /api/me answers, and the hook request itself hangs.
 test('A-M1 shared: the shared hook post carries the 60 s timeout; a timeout is failed for that basis and the next basis is posted', async t => {
   const { made, calls } = hookTimeouts(t);
-  const c = clock(), live = { token: 'tok-abc', card: null, version: 4, signedIn: false };
+  const c = clock(), live = { token: 'tok-abc', card: null, version: 4, signedIn: true };
   const shared = B.sharedSteps(() => live, { setTimer: c.setTimer, clearTimer: c.clearTimer });
   const step = () => shared.update(shared.state());
-  step(); c.fire(); await settle(); // not awaited: this request hangs until its timeout fires
-  assert.deepEqual([calls.length, made.map(m => m.ms), calls[0]?.signal === made[0]?.signal], [1, [60000], true]);
+  step(); c.fire(); await settle();
+  calls[0].answer({}); await settle(); // not awaited: the hook request hangs until its timeout fires
+  assert.deepEqual([calls.map(call => call.url), made.map(m => m.ms), calls[1]?.signal === made[0]?.signal], [['/api/me', '/api/learn/boards/shared/tok-abc/next-steps'], [60000], true]);
   live.card = 'k1'; step();
   assert.equal(c.pending(), 0, 'the next basis waits behind the request in flight');
   made[0].fire(); await settle();
-  c.fire(); await settle(); // answered below
-  assert.deepEqual([calls.length, calls[1].body], [2, { origin: { block_id: 'k1' } }], 'the next basis is posted');
-  calls[1].answer(sharedSet(2)); await settle();
-  calls[0].answer(sharedSet(9)); await settle();
+  c.fire(); await settle();
+  calls[2].answer({}); await settle(); // answered below
+  assert.deepEqual([calls.length, calls[3].body], [4, { origin: { block_id: 'k1' } }], 'the next basis is posted');
+  calls[3].answer(sharedSet(2)); await settle();
+  calls[1].answer(sharedSet(9)); await settle();
   assert.deepEqual([shared.view().status, shared.view().set_id], ['ready', 'ns_00000002']);
   live.card = null; step(); await c.fire();
-  assert.deepEqual([shared.view().status, shared.view().reason, calls.length], ['unavailable', 'failed', 2], 'the timed-out basis records failed');
+  assert.deepEqual([shared.view().status, shared.view().reason, calls.length], ['unavailable', 'failed', 4], 'the timed-out basis records failed');
   shared.dispose();
 });
 

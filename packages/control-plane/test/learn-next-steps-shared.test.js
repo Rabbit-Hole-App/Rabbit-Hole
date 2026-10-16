@@ -29,6 +29,8 @@ function edge(t) {
   return store;
 }
 const world = (t, vars = {}) => ({ ...setup(t, { vars: { SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures', ...vars } }), store: edge(t) });
+// Owner R3 decision (2026-10-16, rel-a.md A2 item 4): no AI generation for signed-out viewers, so the content-only set is
+// a signed-in viewer's without evidence (cara here); a signed-out request is asked to sign in.
 const hooks = (f, token, as, body = { origin: null }) => f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body });
 const start = (f, token, as, origin, step) => f.call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as, body: { origin, ...(step ? { selected_next_step: step } : {}) } });
 const anaBoards = f => JSON.stringify(f.sqlite.prepare("SELECT * FROM learn_boards WHERE owner_email = 'ana@test' ORDER BY id").all());
@@ -52,7 +54,7 @@ test('privacy 1-2: 3 hooks from the visible lesson blocks; chat cards and a goal
   assert.ok(REG.length > 0, 'the board shows a registered claim');
   const f = world(t);
   const { token } = await f.shareProject({ state: STATE });
-  const got = await hooks(f, token, null);
+  const got = await hooks(f, token, 'cara');
   assert.equal(got.status, 200, got.text);
   assert.equal(got.body.options.length, 3);
   const fingerprint = await sha256Hex('nanoGPT attention');
@@ -71,7 +73,7 @@ test('privacy 1-2 (F14): the model reads the board title and selected card as da
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: STATE });
-  assert.equal((await hooks(f, token, null, { origin: { block_id: 'b1' } })).status, 200);
+  assert.equal((await hooks(f, token, 'cara', { origin: { block_id: 'b1' } })).status, 200);
   assert.equal(inputs.length, 1);
   const [input] = inputs;
   assert.deepEqual([input.mode, input.canvas.title, input.canvas.selected], ['shared', 'nanoGPT attention', { id: 'b1', title: 'Why scale by sqrt(d)?' }]);
@@ -82,7 +84,7 @@ test('privacy 1-2 (F14): the model reads the board title and selected card as da
   assert.match(state, /canvas\.selected[^\n]*\{ id, title \}[^\n]*null/);
   assert.equal(/ana@test|Why exp\?|max trick|Half asked|Positive weights/.test(JSON.stringify(input)), false, 'no sharer identity and no chat card');
   // The root names no card.
-  assert.equal((await hooks(f, token, null)).status, 200);
+  assert.equal((await hooks(f, token, 'cara')).status, 200);
   assert.equal(inputs[1].canvas.selected, null);
 });
 
@@ -97,15 +99,15 @@ test('sharer evidence never influences viewer hooks; signed-in viewer_states rea
   assert.deepEqual(sharedInput(stamped, { origin: { root: true }, key: 'k', version: 1 }).input.canvas.blocks.find(b => b.id === 'js1').claim_ids, [], 'a journey stamp is never read');
   // Without the viewer's own states, nothing of the sharer's moves a claim off not_yet_observed, and the route reads no
   // journey, evidence or Tutor row of anyone's.
-  const plain = await hooks(f, token, null);
+  const plain = await hooks(f, token, 'cara');
   assert.deepEqual(Object.values(plain.body.telemetry.summary.evidence_summary).flat(), plain.body.telemetry.summary.evidence_summary.not_yet_observed);
   assert.equal(f.statements.some(sql => /journey|evidence|tutor/i.test(sql)), false, f.statements.filter(sql => /journey|evidence|tutor/i.test(sql)).join(' | '));
 });
 
-test('anonymous content-only hooks remain safe: the cache holds no viewer evidence (privacy 5, owner extra 12g)', async t => {
+test('content-only hooks remain safe: the cache holds no viewer evidence (privacy 5, owner extra 12g)', async t => {
   const f = world(t);
   const { token } = await f.shareProject({ state: STATE });
-  const a = await hooks(f, token, null), b = await hooks(f, token, null);
+  const a = await hooks(f, token, 'cara'), b = await hooks(f, token, 'cara');
   assert.equal(a.body.set_id, b.body.set_id, 'served from the cache');
   assert.deepEqual([a.body.telemetry.cached, b.body.telemetry.cached, b.body.telemetry.calls, b.body.telemetry.cost_usd], [false, true, 0, 0], 'a hit reports no usage (F13)');
   const size = f.store.size;
@@ -119,8 +121,9 @@ test('anonymous content-only hooks remain safe: the cache holds no viewer eviden
     assert.deepEqual(Object.values(cached.telemetry.summary.evidence_summary).flat(), cached.telemetry.summary.evidence_summary.not_yet_observed, 'content only');
     assert.equal(JSON.stringify(cached).includes('viewer_states'), false);
   }
-  const anonymousEvidence = await hooks(f, token, null, { origin: null, viewer_states: { [REG[0]]: 'misconception' } });
-  assert.equal(anonymousEvidence.body.set_id, a.body.set_id, 'an anonymous viewer cannot send evidence');
+  const signedOut = await hooks(f, token, null, { origin: null, viewer_states: { [REG[0]]: 'misconception' } });
+  assert.deepEqual([signedOut.status, signedOut.body], [401, { error: 'Sign in to see next steps for this canvas.', signIn: true }], 'a signed-out viewer gets no hooks, cached or new');
+  assert.equal(f.store.size, size, 'and the cache is untouched');
   const noEvidence = await hooks(f, token, 'ben', { origin: null, viewer_states: { [REG[0]]: 'not_yet_observed' } });
   assert.equal(noEvidence.body.set_id, a.body.set_id, 'not_yet_observed is no evidence: the content-only set');
 });
@@ -130,8 +133,8 @@ test('two signed-in viewers never share personalized HookSets; each is admitted 
   const { token } = await f.shareProject({ state: STATE });
   const ben = await hooks(f, token, 'ben', { origin: null, viewer_states: { [REG[0]]: 'uncertain' } });
   const cara = await hooks(f, token, 'cara', { origin: null });
-  const anonymous = await hooks(f, token, null);
-  assert.equal(cara.body.set_id, anonymous.body.set_id, 'without evidence a signed-in viewer gets the content-only set');
+  const owner = await hooks(f, token, 'ana');
+  assert.equal(cara.body.set_id, owner.body.set_id, 'without evidence every signed-in viewer gets the same content-only set');
   assert.notEqual(cara.body.set_id, ben.body.set_id);
   const caraOwn = await hooks(f, token, 'cara', { origin: null, viewer_states: { [REG[0]]: 'uncertain' } });
   assert.notEqual(caraOwn.body.set_id, ben.body.set_id, 'the same states from another viewer never reuse a reply');
@@ -140,19 +143,19 @@ test('two signed-in viewers never share personalized HookSets; each is admitted 
 });
 
 // Owner 2026-10-08 (learn-migrations/0012): a planned shared set keeps its telemetry under the one-way share key, with the
-// signed-in viewer's users.id (null when anonymous), never the sharer's; a cache hit keeps none.
-test('a planned shared set keeps its telemetry: the one-way share key and the viewer users.id or null; never the token, a hook or the sharer', async t => {
+// signed-in viewer's users.id (every viewer is signed in since the R3 decision), never the sharer's; a cache hit keeps none.
+test('a planned shared set keeps its telemetry: the one-way share key and the viewer users.id; never the token, a hook or the sharer', async t => {
   const f = world(t);
   const { token } = await f.shareProject({ state: STATE });
-  const anonymous = await hooks(f, token, null);
-  await hooks(f, token, null);
+  const cara = await hooks(f, token, 'cara');
+  await hooks(f, token, 'cara');
   const ben = await hooks(f, token, 'ben', { origin: null, viewer_states: { [REG[0]]: 'uncertain' } });
   const rows = f.sqlite.prepare('SELECT scope, user_id, board, telemetry_json FROM next_steps_telemetry ORDER BY id').all().map(r => ({ ...r }));
   const key = await shareKey(token);
-  assert.deepEqual(rows.map(({ telemetry_json, ...r }) => r), [{ scope: 'shared', user_id: null, board: key }, { scope: 'shared', user_id: 'u-ben-9a2b', board: key }], 'the cache hit keeps no row');
-  assert.deepEqual(rows.map(r => JSON.parse(r.telemetry_json)), [anonymous.body.telemetry, ben.body.telemetry]);
+  assert.deepEqual(rows.map(({ telemetry_json, ...r }) => r), [{ scope: 'shared', user_id: 'u-cara-71f0', board: key }, { scope: 'shared', user_id: 'u-ben-9a2b', board: key }], 'the cache hit keeps no row');
+  assert.deepEqual(rows.map(r => JSON.parse(r.telemetry_json)), [cara.body.telemetry, ben.body.telemetry]);
   const text = JSON.stringify(rows);
-  assert.equal([token, 'ana@test', 'u-ana-5d1e', 'ben@test', ...anonymous.body.options.map(o => o.hook)].some(s => text.includes(s)), false);
+  assert.equal([token, 'ana@test', 'u-ana-5d1e', 'ben@test', 'cara@test', ...cara.body.options.map(o => o.hook)].some(s => text.includes(s)), false);
 });
 
 test('hook to private Rabbit Hole never writes the source board: the step creates the hole with its goal, a second start resumes it, origin kept, no fork (privacy 6-10)', async t => {
@@ -214,21 +217,25 @@ test('shared hooks are capped under shared_canvas_hooks and never spend the shar
   assert.equal((await f.ask(token, 'ben', { message: 'Why scale by sqrt(d)?' })).status, 200, 'the shared-ask budget is untouched');
 });
 
-test('F7: anonymous planner calls (cache misses only) are capped per share link; a cache hit is never counted', async t => {
+test('F7: content-only planner calls (cache misses only) are capped per share link; a cache hit is never counted', async t => {
   const f = world(t, { SHARED_ASK_SHARE_HOUR: '1' });
   const { token } = await f.shareProject({ state: STATE });
-  assert.equal((await hooks(f, token, null)).status, 200);
-  assert.equal((await hooks(f, token, null)).status, 200, 'a hit');
-  const miss = await hooks(f, token, null, { origin: { block_id: 'b1' } });
+  assert.equal((await hooks(f, token, 'cara')).status, 200);
+  assert.equal((await hooks(f, token, 'cara')).status, 200, 'a hit');
+  const miss = await hooks(f, token, 'cara', { origin: { block_id: 'b1' } });
   assert.deepEqual([miss.status, miss.body.limited], [429, true]);
   assert.deepEqual(usage(f), [{ category: 'shared_canvas_hooks', viewer_email: '' }]);
 });
 
-test('the route checks its body: unknown card 404, oversized body 400; a private link needs sign-in', async t => {
-  const f = world(t);
+test('the route checks its body: unknown card 404, oversized body 400; every link needs sign-in, a public one too', async t => {
+  const f = world(t, { JOURNEY_MODEL_STUB: '' });
+  const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: STATE });
-  assert.equal((await hooks(f, token, null, { origin: { block_id: 'gone' } })).status, 404);
-  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { raw: JSON.stringify({ origin: null, pad: 'x'.repeat(17000) }) })).status, 400);
+  // Owner R3 decision: a signed-out viewer of a public link is asked to sign in before the cache, the limiter or the planner.
+  const signedOut = await hooks(f, token, null);
+  assert.deepEqual([signedOut.status, signedOut.body, inputs.length, usage(f), f.store.size], [401, { error: 'Sign in to see next steps for this canvas.', signIn: true }, 0, [], 0]);
+  assert.equal((await hooks(f, token, 'cara', { origin: { block_id: 'gone' } })).status, 404);
+  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as: 'cara', raw: JSON.stringify({ origin: null, pad: 'x'.repeat(17000) }) })).status, 400);
   assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}/next-steps`)).status, 405);
   const closed = await f.shareProject({ state: STATE, publicView: false });
   assert.equal((await hooks(f, closed.token, null)).status, 401);
@@ -267,7 +274,7 @@ test('real-size about 10-11k shared boards are trimmed to at most 9000 with Task
   const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: BIG });
   const selected = BIG.blocks.find((b, i) => claimsOf(b).length > 1 && i < 6);
-  for (const origin of [{ block_id: selected.id }, null]) assert.equal((await hooks(f, token, null, { origin })).status, 200);
+  for (const origin of [{ block_id: selected.id }, null]) assert.equal((await hooks(f, token, 'cara', { origin })).status, 200);
   const [card, root] = inputs;
   for (const input of [card, root]) {
     assert.ok(size(input) <= NEXT_STEPS_LIMITS.input_chars, `${size(input)} characters`);
@@ -306,7 +313,7 @@ test('an input over 12000 after trimming is refused with no planner call (an ess
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: STATE });
-  for (const [as, origin] of [['ben', { block_id: 'b1' }], [null, null]]) {
+  for (const [as, origin] of [['ben', { block_id: 'b1' }], ['cara', null]]) {
     const refused = await hooks(f, token, as, { origin });
     assert.deepEqual([refused.status, refused.body.error], [400, 'input_too_large'], refused.text);
   }
@@ -331,7 +338,7 @@ test('a chat card origin reads as the root: one content-only set and cache entry
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: STATE });
-  const root = await hooks(f, token, null);
+  const root = await hooks(f, token, 'cara');
   const chat = await hooks(f, token, 'ben', { origin: { block_id: 'q1' } });
   assert.deepEqual([chat.status, chat.body.set_id, inputs.length, f.store.size], [200, root.body.set_id, 1, 1], 'the root set, from the cache');
   const step = chat.body.options[0].selected_next_step;
@@ -345,20 +352,20 @@ test('a board rename invalidates the stale cache: hooks built on the old title a
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
   const { canvas, token } = await f.shareProject({ state: STATE });
-  const before = await hooks(f, token, null);
+  const before = await hooks(f, token, 'cara');
   f.sqlite.prepare('UPDATE canvases SET title = ? WHERE name = ?').run('Renamed board', canvas.name);
-  const after = await hooks(f, token, null), again = await hooks(f, token, null);
+  const after = await hooks(f, token, 'cara'), again = await hooks(f, token, 'cara');
   assert.notEqual(after.body.set_id, before.body.set_id);
   assert.equal(again.body.set_id, after.body.set_id, 'the new title has its own cache entry');
   assert.deepEqual(inputs.map(input => input.canvas.title), ['nanoGPT attention', 'Renamed board']);
   assert.equal(f.store.size, 2);
 });
 
-test('no raw share token appears in any cache key: root, card and chat origins, anonymous and signed in, and a personalized reply adds none', async t => {
+test('no raw share token appears in any cache key: root, card and chat origins, two signed-in viewers, and a personalized reply adds none', async t => {
   const f = world(t);
   const { token } = await f.shareProject({ state: STATE });
   for (const origin of [null, { block_id: 'b1' }, { block_id: 'q1' }]) {
-    assert.equal((await hooks(f, token, null, { origin })).status, 200);
+    assert.equal((await hooks(f, token, 'ana', { origin })).status, 200);
     assert.equal((await hooks(f, token, 'cara', { origin })).status, 200);
   }
   const entries = f.store.size;
@@ -427,7 +434,7 @@ test('the shared reply telemetry carries the server trim counts; the model input
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: BIG });
-  const got = await hooks(f, token, null);
+  const got = await hooks(f, token, 'cara');
   assert.equal(got.status, 200, got.text);
   const { trim } = sharedInput(BIG, { origin: { root: true }, key: 'f'.repeat(64), version: 1, title: 'nanoGPT attention' });
   const counts = c => ({ block_count: c.block_count, claim_count: c.claim_count });
@@ -453,35 +460,37 @@ function bridge(t) {
   t.after(() => { globalThis.fetch = original; });
   return hits;
 }
-test('A-I1: a SUBSCRIPTION_ONLY worker refuses shared hooks to an anonymous viewer and a non-owner as the shared ask does, with no bridge call; the owner is served', async t => {
+test('A-I1: a SUBSCRIPTION_ONLY worker refuses shared hooks to a non-owner as the shared ask does and asks a signed-out viewer to sign in, with no bridge call; the owner is served', async t => {
   t.mock.method(console, 'log', () => {});
   const f = world(t, { JOURNEY_MODEL_STUB: '', SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'ana@test', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 'bridge-token' });
   const hits = bridge(t);
   const { token } = await f.shareProject({ state: STATE });
   const asked = await f.ask(token, 'ben', { message: 'Why scale by sqrt(d)?' });
   assert.equal(asked.status, 403, 'the shared ask refuses a non-owner');
-  for (const as of [null, 'ben']) {
+  for (const as of ['ben', 'cara']) {
     const got = await hooks(f, token, as);
-    assert.deepEqual([got.status, got.body], [asked.status, asked.body], `${as ?? 'anonymous'}: the shared ask's status and body`);
+    assert.deepEqual([got.status, got.body], [asked.status, asked.body], `${as}: the shared ask's status and body`);
   }
+  assert.equal((await hooks(f, token, null)).status, 401, 'signed out: sign in first (owner R3 decision)');
   assert.deepEqual([hits, usage(f)], [[], []], 'no bridge call and no usage row before the owner asks');
   const owner = await hooks(f, token, 'ana');
   assert.equal(owner.status, 200, owner.text);
   assert.equal(owner.body.options.length, 3);
   assert.ok(hits.length >= 1, 'the owner is served through the bridge');
   const after = hits.length;
-  assert.equal((await hooks(f, token, null)).status, 403, 'refused before the cache: the owner set is never served to anyone else');
+  assert.equal((await hooks(f, token, 'cara')).status, 403, 'refused before the cache: the owner set is never served to anyone else');
   assert.deepEqual([hits.length, usage(f).length], [after, 1]);
   const normal = world(t);
   const open = await normal.shareProject({ state: STATE });
-  assert.equal((await hooks(normal, open.token, null)).status, 200, 'a normal worker is unchanged');
+  assert.equal((await hooks(normal, open.token, 'cara')).status, 200, 'a normal worker is unchanged');
 });
-test('A-I1 N1: a SUBSCRIPTION_ONLY worker with no owner email refuses an anonymous viewer, with no bridge call', async t => {
+test('A-I1 N1: a SUBSCRIPTION_ONLY worker with no owner email refuses every viewer, with no bridge call', async t => {
   t.mock.method(console, 'log', () => {});
   const f = world(t, { JOURNEY_MODEL_STUB: '', SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 'bridge-token' });
   const hits = bridge(t);
   const { token } = await f.shareProject({ state: STATE });
-  assert.equal((await hooks(f, token, null)).status, 403);
+  assert.equal((await hooks(f, token, 'cara')).status, 403);
+  assert.equal((await hooks(f, token, null)).status, 401);
   assert.deepEqual([hits, usage(f)], [[], []]);
 });
 
@@ -490,10 +499,10 @@ test('A-I1 N1: a SUBSCRIPTION_ONLY worker with no owner email refuses an anonymo
 test('shared route: Refresh has its own bounded cache identity, deduped on retry', async t => {
   const f = world(t);
   const { token } = await f.shareProject({ state: STATE });
-  const a = await hooks(f, token, null), again = await hooks(f, token, null);
+  const a = await hooks(f, token, 'cara'), again = await hooks(f, token, 'cara');
   assert.equal(again.body.set_id, a.body.set_id);
-  const r1 = await hooks(f, token, null, { origin: null, refresh: 'r1' });
+  const r1 = await hooks(f, token, 'cara', { origin: null, refresh: 'r1' });
   assert.notEqual(r1.body.set_id, a.body.set_id, 'a Refresh never gets the reply it replaces');
-  assert.equal((await hooks(f, token, null, { origin: null, refresh: 'r1' })).body.set_id, r1.body.set_id, 'a retry is the same operation');
-  assert.equal((await hooks(f, token, null, { origin: null, refresh: 'nope' })).status, 400);
+  assert.equal((await hooks(f, token, 'cara', { origin: null, refresh: 'r1' })).body.set_id, r1.body.set_id, 'a retry is the same operation');
+  assert.equal((await hooks(f, token, 'cara', { origin: null, refresh: 'nope' })).status, 400);
 });

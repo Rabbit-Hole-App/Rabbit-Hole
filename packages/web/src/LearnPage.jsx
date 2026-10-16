@@ -1228,15 +1228,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       else setShareError(error.message);
     } finally { setShareBusy(false); }
   };
-  // A private repository's code for this link's viewers: the owner's switch, decided and kept on the server
-  // (docs/features/shared-canvas-ask.md).
-  const changeRepositoryAccess = async allow => {
-    setShareBusy(true);
-    setShareError(null);
-    try { setSharing((await api(`${boardPath}/share/repository`, { method: 'POST', body: JSON.stringify({ allow }) })).sharing); }
-    catch (error) { setShareError(error.message); }
-    finally { setShareBusy(false); }
-  };
   // Challenge blocks ask the tutor to judge a committed answer. Jev grades the
   // same attempt side by side (docs/features/jev-grading.md). The learner only
   // ever sees Opus: the shadow promise is never awaited here, and the Opus
@@ -1889,7 +1880,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
                 disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40 ${sharing?.shared ? 'text-[#2383e2]' : 'text-ink-2'} ${shareOpen ? 'bg-hover' : 'hover:bg-hover hover:text-ink'}`}>
                 <Share2 size={15} strokeWidth={1.8} /></button>
-              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onRepository={changeRepositoryAccess} onPublish={isCanvas && !hole && !board ? changePublication : null} onClose={() => setShareOpen(false)}
+              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onPublish={isCanvas && !hole && !board ? changePublication : null} onClose={() => setShareOpen(false)}
                 comments={comments.active ? <><PeopleWithAccess base={memberBase(commentBoard)} /><CommentSettings base={memberBase(commentBoard)} published={!!sharing?.published} /></> : null} />}
               {choosingHandle && <div className="fixed inset-0 z-[70] overflow-y-auto bg-white"><ChooseHandle onDone={() => { setChoosingHandle(false); changePublication(true); }} /></div>}
             </span>

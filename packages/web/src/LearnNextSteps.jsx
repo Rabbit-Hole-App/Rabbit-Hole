@@ -148,9 +148,11 @@ export function sharedSteps(read, { post = sharedPost(read), ...timers } = {}) {
     ...timers,
   }));
   return {
+    // Owner R3 decision (2026-10-16): no AI generation for a signed-out viewer, so signed out asks nothing; the board's own
+    // saved content still shows. The server refuses a signed-out request the same way (learn-boards.js).
     state() {
       const { token, card, version, signedIn } = read();
-      return token ? { basis: JSON.stringify([token, card ?? null, version ?? null, !!signedIn]), stop: null } : { basis: null, stop: 'off' };
+      return token && signedIn ? { basis: JSON.stringify([token, card ?? null, version ?? null, true]), stop: null } : { basis: null, stop: 'off' };
     },
     update: ({ basis, stop }) => life.controller().update({ basis, stop, input: () => { const { card } = read(); return { input: { origin: card ? { block_id: card } : null } }; } }),
     view: life.view,

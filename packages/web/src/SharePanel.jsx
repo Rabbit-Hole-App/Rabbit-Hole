@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleAlert, Compass, Copy, Eye, FolderLock, Globe } from 'lucide-react';
+import { Check, CircleAlert, Compass, Copy, Eye, Globe } from 'lucide-react';
 
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
 // switch shares or stops sharing; the view link can be public (no sign-in).
@@ -79,11 +79,10 @@ function ExploreRow({ published, token, busy, onPublish }) {
   );
 }
 
-// onRepository(allow): the owner's switch for a private repository's code on this link (docs/features/shared-canvas-ask.md).
 // onPublish(publish): Publish to Explore / Remove from Explore - only for a top-level canvas.
 // `place`: where it sits - under the canvas top bar's Share button, or the Library's popup (LibraryViews.jsx).
 // comments: the canvas's comment settings (docs/features/canvas-comments.md section 4), rendered by the page that owns them.
-export default function SharePanel({ sharing, busy, error, onChange, onRepository, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null }) {
+export default function SharePanel({ sharing, busy, error, onChange, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null }) {
   const panel = useRef(null);
   useEffect(() => {
     const away = event => { if (!panel.current?.contains(event.target) && !event.target.closest?.('[data-share-button]')) onClose(); };
@@ -128,18 +127,8 @@ export default function SharePanel({ sharing, busy, error, onChange, onRepositor
                 <Switch on={current.public_view} label="Public view link" disabled={busy} onChange={on => set({ public_view: on })} />
               </label>
             )}
-            {/* Only for a private repository of yours, off for every new link; the server keeps and enforces it. Off,
-                viewers' questions use this canvas's cards, notes and sources only - never the repository's files. */}
-            {current.view && current.repository?.private && (
-              <label data-share-repository className="mt-2 flex items-start gap-2 text-xs text-ink-2">
-                <FolderLock size={13} className="mt-0.5 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block">Allow questions to use private repository code</span>
-                  <span className="block break-words text-ink-3">Signed-in viewers' questions can use code from {current.repository.repo} at {current.repository.commit.slice(0, 7)}, the revision pinned for this link. Off: only this canvas's cards, notes and sources.</span>
-                </span>
-                <Switch on={current.repository.repo_access} label="Allow questions to use private repository code" disabled={busy} onChange={onRepository} />
-              </label>
-            )}
+            {/* No private repository switch (owner decision A2, 2026-10-16): a link grants the canvas, never a private
+                repository's code, so there is nothing to allow here; the server enforces it (learn-shared-ask.js shareSource). */}
           </LinkRow>
         </div>
       )}

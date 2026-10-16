@@ -135,12 +135,13 @@ test('Remove from Explore kills /e and the listing, not the share link; archivin
   assert.deepEqual([(await f.call('GET', `/api/apps/${canvas.name}`, { as: 'ana' })).body.published, await explore(f)], [false, []], 'restored, still private to Explore');
 });
 
-test('a publication never shows private repository code, whatever the share link of the same board allows', async t => {
+// Owner decision A2 (2026-10-16): no link opens a private repository; a pin row the old per-link switch opened opens nothing.
+test('a publication never shows private repository code, whatever the share link of the same board once allowed', async t => {
   const f = setup(t, { visibility: 'private' }), sent = scriptModel(t);
   handle(f, 'ana@test', 'ana');
   const { canvas, token: shareToken } = await f.shareProject();
-  await f.call('POST', `/api/learn/boards/${canvas.name}/main/share/repository`, { as: 'ana', body: { allow: true } });
-  assert.deepEqual((await open(f, shareToken, 'ben')).body.context.repository, { repo: 'karpathy/nanoGPT', commit: SHA }, 'the owner opened it for the share link');
+  f.sqlite.exec('UPDATE board_repository_pins SET repo_access = 1');
+  assert.equal((await open(f, shareToken, 'ben')).body.context.repository, null, 'the share link shows ben nothing of it either');
   const token = tokenOf((await publish(f, 'ana', canvas.name)).body);
   const seen = await open(f, token);
   assert.equal(seen.body.context.repository, null);
