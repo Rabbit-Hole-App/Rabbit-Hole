@@ -7,7 +7,7 @@
 // Against the LOCAL stack only; no model calls; prints no secrets.
 // Usage: BASE=http://127.0.0.1:8931 SMALL_CP=http://127.0.0.1:8933 node e2e/provenance-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8931';
@@ -15,6 +15,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8933';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('provenance-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'provenance-shots';
 mkdirSync(SHOTS, { recursive: true });
+rmSync(`${SHOTS}/failure.json`, { force: true }); rmSync(`${SHOTS}/failure.png`, { force: true }); // only this run's
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const session = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prov-owner-${run}@example.com`, secret, handle: `prov_${run}` }) })).json()).session;
@@ -41,7 +42,16 @@ const browser = await chromium.launch();
 const errors = [], asked = [], external = [];
 let answer = { status: 200, body: { repository: null, fork: null } };
 const results = [];
-const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
+// The first failure leaves its evidence in the shots directory: the step, the error and the page as it was.
+const check = async (label, fn) => {
+  try { await fn(); } catch (error) {
+    writeFileSync(`${SHOTS}/failure.json`, JSON.stringify({ step: label, error: String(error?.stack || error), url: page?.url() || null, at: new Date().toISOString() }, null, 2));
+    await page?.screenshot({ path: `${SHOTS}/failure.png`, fullPage: true }).catch(() => {});
+    console.log(`FAIL ${label}: evidence in ${SHOTS}/failure.json and failure.png`);
+    throw error;
+  }
+  results.push(label); console.log(`ok ${label}`);
+};
 let context, page, provenanceRead;
 const open = async (path, { provenance = answer, width = 1440, height = 900, theme = 'light', signedIn = true } = {}) => {
   answer = provenance.status ? provenance : { status: 200, body: provenance };
