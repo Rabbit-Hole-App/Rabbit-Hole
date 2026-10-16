@@ -253,10 +253,13 @@ test('a ledger stream settles at the end; a cancelled stream keeps its reservati
   await reader.read();
   await reader.cancel('the learner left');
   const attempts = rows(sqlite, 'usage_attempts');
-  // The cancelled attempt settles as the ledger does (its read may see the end first: stream_incomplete, failed).
-  const ledgerStatus = rows(sqlite, 'usage_operations')[1].status;
-  assert.ok(['cancelled', 'failed'].includes(ledgerStatus));
-  assert.deepEqual(attempts.map(a => [a.status, a.cost_state, a.cost_micros === null]), [['settled', 'settled', false], [ledgerStatus, 'unknown', true]]);
+  // Which path finishes the attempt is a race: the cancel (ledger error stream_cancelled) records the attempt cancelled,
+  // which the ledger itself rewrites to failed once a call was made; a read that saw the end first (stream_incomplete)
+  // records it failed, and a read that fails after the cancel (stream_failed) too. Either way the cost stays unknown and the reservation is kept. (CI 38870757462 hit the cancel path.)
+  const ledger = rows(sqlite, 'usage_operations')[1];
+  assert.ok(['stream_cancelled', 'stream_incomplete', 'stream_failed'].includes(ledger.error), `ledger error ${ledger.error}`);
+  const attemptStatus = ledger.error === 'stream_cancelled' ? 'cancelled' : 'failed';
+  assert.deepEqual(attempts.map(a => [a.status, a.cost_state, a.cost_micros === null]), [['settled', 'settled', false], [attemptStatus, 'unknown', true]]);
   assert.equal(attempts[1].reserved_micros, toMicros(requestSpendBound({ ...body, stream: true }, MODEL)));
   assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.status, a.result]), [['completed', null], ['cancelled', 'partial']]);
   // An error status fails the action; a JSON reply completes it in full; no attempt, no row.
