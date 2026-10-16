@@ -7,7 +7,8 @@ import { askJev, JEV_TRANSPORTS } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
 import { hmacHex, sha256, sign, verify } from './token.js';
 import { MODEL_PRICES } from './learn-models.js';
-import { CAPABILITIES, DECISIONS, DECISION_CRITERIA, DEFAULT_ENABLED, MISSING, MISSING_CRITERIA, checkDecision, checkRequest, fixedRoute, settle, summaryOf } from '../../web/src/inline-ai-decide.js';
+import { CAPABILITIES, DECISIONS, DECISION_CRITERIA, DEFAULT_ENABLED, MISSING, MISSING_CRITERIA, checkDecision, checkRequest, fixedRoute, knownCapability, settle, summaryOf } from '../../web/src/inline-ai-decide.js';
+import { EXPLICIT_ROUTES } from '../../web/src/inline-ai-route.js';
 import { INLINE_DECIDE_SYSTEM, INLINE_DECIDE_TOOL } from './agents/learn-inline.js';
 
 export const DECIDE_PROTOCOL_VERSION = 'inline-decide-d1';
@@ -25,7 +26,7 @@ function view(request, fixed) {
   return {
     mode: request.mode, selected: request.kind === 'selection',
     request: (request.slash ? `/${request.slash} ${request.prompt}` : request.prompt).slice(0, 1000),
-    ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : CAPABILITIES[fixed.capability].label } : {}),
+    ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : (CAPABILITIES[fixed.capability] || EXPLICIT_ROUTES[fixed.capability]).label } : {}),
     material: summaryOf(request),
   };
 }
@@ -109,7 +110,7 @@ export async function decide(env, { app, requestId, request, enabled }, { valida
   const local = checkRequest(request);
   if (local?.error) return { status: 400, body: { error: local.error }, called: false };
   if (local) return { body: local, called: false };
-  const can = Array.isArray(enabled) ? enabled.filter(id => typeof id === 'string' && CAPABILITIES[id]) : DEFAULT_ENABLED;
+  const can = Array.isArray(enabled) ? enabled.filter(id => typeof id === 'string' && knownCapability(id)) : DEFAULT_ENABLED;
   const fixed = fixedRoute(request, can);
   if (fixed?.decision) return { body: fixed, called: false };
   const key = await signingKey(env);

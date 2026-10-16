@@ -2,12 +2,14 @@
 // below stands in for the worker, JEV and the model - its answers are scripted, its stream is real bytes through the
 // app's own SSE parser (readGeneration), and nothing leaves the machine. Vite dev serves it from disk; it is never a
 // vite.config.js entry, so it never ships. ?board=<key> picks the board; ?readonly=1 view-only; ?flush=<ms> the coalescing
-// window (0: render every chunk, the A2 baseline); ?motion=0 turns Motion off.
+// window (0: render every chunk, the A2 baseline); ?motion=0 turns Motion off. Ctrl+K's source commands open the real
+// SearchBar through config.openSearch, bound as LearnPage binds it; a picked result is recorded, never added.
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import AdaptiveCanvas from '../src/AdaptiveCanvas.jsx';
 import { ComposerHideButton } from '../src/ChatComposer.jsx';
 import { NextStepsCard } from '../src/ask.jsx';
+import SearchBar from '../src/SearchBar.jsx';
 import { readGeneration } from '../src/inline-ai-transport.js';
 import { checkDecision, checkRequest, fixedRoute, generationPrompt, INLINE_SLASH, settle } from '../src/inline-ai-decide.js';
 import { ERRORS, HANDLERS, MOTION } from './inline-ai-handler-fixtures.js';
@@ -138,17 +140,21 @@ const transport = {
     return HANDLERS[command](args);
   },
 };
-const enabled = ['note', 'explain', 'code', 'diagram', 'graph', 'walkthrough', 'compare', 'animate', 'image', 'video', '3d', ...(motionOn ? ['motion'] : [])];
+const enabled = ['note', 'explain', 'flashcards', 'code', 'diagram', 'graph', 'walkthrough', 'compare', 'animate', 'image', 'video', '3d', ...(motionOn ? ['motion'] : [])];
 const config = {
   transport, enabled, mocked: true, flushMs: params.has('flush') ? Number(params.get('flush')) : 50, prepareOnOpen: params.get('prep') !== '0',
   motion: motionOn ? MOTION : null,
   extras: () => ({ title: 'Inline AI test board' }),
   sendTelemetry: rows => { mock.telemetry.push(...rows); },
+  openSearch: seed => { mock.calls.push({ type: 'openSearch', source: seed.source, query: seed.query }); openSearch(seed); },
 };
+let openSearch = () => {};
 
 function Harness() {
   const [board, setBoard] = useState(params.get('board') || 'inline-ai');
   const [exchanges, setExchanges] = useState([]);
+  const [searchSeed, setSearchSeed] = useState(null);
+  openSearch = setSearchSeed;
   const api = useRef(null);
   window.canvasApi = api;
   window.__switchBoard = setBoard;
@@ -161,6 +167,9 @@ function Harness() {
         apiRef={api} storageKey={readOnly ? null : `harness:${board}`} boardState={state} readOnly={readOnly} inlineAi={config}
         hooks={<NextStepsCard steps={{ status: 'loading' }} onPick={() => {}} />}
         composer={<div data-composer-standin className="flex items-center gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-2"><textarea data-chat-composer aria-label="Composer stand-in" placeholder="Composer" className="h-10 min-w-0 flex-1 rounded border border-line px-2 text-sm" /><ComposerHideButton /></div>} />
+      {searchSeed && <SearchBar app="harness" initialSource={searchSeed.source} initialQuery={searchSeed.query}
+        onClose={() => { setSearchSeed(null); searchSeed.origin?.returnFocus?.(); }}
+        onPick={(source, item) => { mock.calls.push({ type: 'pick', source, item }); searchSeed.origin?.added?.(); }} />}
     </div>
   );
 }

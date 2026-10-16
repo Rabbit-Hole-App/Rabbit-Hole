@@ -46,8 +46,19 @@ Defaults taken within the spec:
   Rabbit Hole stay the ways down. Since 2026-10-13 (owner brief, selection-action-bar.md) the chord is the canvas's wherever it has the
   focus, with no eligible selection too (the "Select something" hint, never Search): Search moved to Ctrl/Cmd+Shift+F, and
   `shortcut-owner.js` decides who takes each chord.
-- Explain adds explanatory output, so /quiz, /practice and /flashcards are not inline (they stay direct commands);
+- Explain adds explanatory output, so /quiz and /practice are not inline (they stay direct commands);
   /simplify, /example and /deeper are the direct note path inline, never a chat message.
+- Ctrl+K / commands (Release B, owner decisions 1A, 2A, 4A, 2026-10-16; `inline-ai-command.js`): typing / at the
+  start of the prompt opens a picker over the registry's Ctrl+K commands (`commandsFor('ctrlk')`: explain, flashcards,
+  code, graph, diagram, walkthrough, animate, image, video, 3d, motion, youtube, arxiv, wikipedia), filtered as you
+  type; Up/Down, Enter or Tab, Esc closes only the list; a click picks too. A picked generation command selects Explain
+  and shows its CommandPill (/explain shows none, and is still sent); removing the pill keeps the words; switching to
+  Edit clears a generation command. Explain with no command is the automatic routing (Auto), unchanged. A typed command
+  submits exactly what the picked one does (`/name words`). /youtube, /arxiv and /wikipedia open the shared source
+  finder with their query, call no model and send nothing; the draft and selection survive cancelling it, and an add
+  clears the line. Any other typed command (Learn prompts such as /compare, /simplify, /quiz, dialog commands, /paper)
+  says it isn't available in Ctrl+K and sends nothing. /flashcards is an inline route reached only by its command
+  (`EXPLICIT_ROUTES`): automatic routing never offers it.
 - A paid result (Motion, maths animation, video, 3D) is accepted as its existing card, already confirmed: the job runs
   and keeps its durable record on that card, as the direct command's does. A finished video is not previewed before it
   is on the canvas.

@@ -450,8 +450,9 @@ await run('Motion: off is said and never substituted; a paid proposal starts not
 
 await run('every artifact handler (mocked, real schemas): the preview is that handler\'s card; paid ones wait for Generate', async () => {
   const { page, context } = await open('handlers');
-  // /diagram is the native diagram inline (owner brief 2026-10-13 §5): editable shapes and arrows, not a card.
-  const expect = { explain: 'explanation', code: 'snippet', diagram: 'diagram', graph: 'graph', walkthrough: 'scene', compare: 'table', image: 'image', animate: 'video', video: 'video', '3d': 'scene' };
+  // /diagram is the native diagram inline (owner brief 2026-10-13 §5): editable shapes and arrows, not a card. /compare is
+  // not a Ctrl+K command (owner decision 1A, 2026-10-16); /flashcards is, by its command only.
+  const expect = { explain: 'explanation', flashcards: 'flashcards', code: 'snippet', diagram: 'diagram', graph: 'graph', walkthrough: 'scene', image: 'image', animate: 'video', video: 'video', '3d': 'scene' };
   for (const [command, type] of Object.entries(expect)) {
     await clickShape(page, 'n4');
     await ctrlK(page);
@@ -474,14 +475,120 @@ await run('every artifact handler (mocked, real schemas): the preview is that ha
     check(`a ${answer} answer from the handler is shown as ${selector}, never as a card`, (await page.locator('[data-inline-preview]').count()) === 0);
     await page.keyboard.press('Escape');
   }
-  for (const name of ['dive', 'source', 'notebook', 'quiz']) {
+  // Typed commands Ctrl+K does not offer (owner decision 1A, 2026-10-16): said in the editor, nothing sent, nothing run.
+  const before = (await calls(page, 'decide')).length;
+  for (const name of ['dive', 'source', 'notebook', 'quiz', 'compare', 'simplify', 'paper']) {
     await clickShape(page, 'n4');
     await ctrlK(page);
-    await submitPrompt(page, `/${name}`);
-    await page.waitForSelector('[data-inline-decision="unsupported"]');
-    check(`/${name} is not reachable inline: the check says so, nothing runs`, /isn't part of inline Explain/.test(await page.locator('[data-inline-decision]').innerText()));
+    await submitPrompt(page, `/${name} x`);
+    await page.waitForSelector(`[data-inline-unsupported="${name}"]`);
+    check(`/${name} is not available in Ctrl+K: the editor says so, nothing runs`, (await page.locator('[data-inline-unsupported]').innerText()) === `/${name} isn't available in Ctrl+K.` && (await calls(page, 'decide')).length === before);
     await page.keyboard.press('Escape');
   }
+  await context.close();
+});
+
+// ---- Release B (contract B4; owner decisions 1A, 2A, 4A, 2026-10-16): the Ctrl+K / picker, pills, modes, source finder ----
+await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill removal, Edit clears, /explain, source finder keeps the draft', async () => {
+  const { page, context } = await open('ctrlk-commands');
+  await page.route('**/api/learn/search**', route => route.fulfill({ json: { results: [{ key: 'r1', title: 'Attention heads explained', subtitle: 'A result', why: 'It fits.', item: { id: 'r1' } }] } }));
+  const field = page.locator('[data-inline-prompt]');
+  const options = () => page.locator('[data-inline-command-option]').evaluateAll(nodes => nodes.map(node => node.dataset.inlineCommandOption));
+  const chosen = () => page.locator('[data-inline-command-option][aria-selected="true"]').getAttribute('data-inline-command-option');
+  const lastDecide = async () => { const call = (await calls(page, 'decide')).at(-1); return call && { mode: call.request.mode, prompt: call.request.prompt, kind: call.request.kind, targetIds: call.request.targetIds }; };
+  const focused = () => page.evaluate(() => !!document.activeElement?.matches('[data-inline-prompt]'));
+  const fresh = async () => {
+    if (await popover(page).count()) { await page.keyboard.press('Escape'); await popover(page).waitFor({ state: 'detached' }); }
+    await clickShape(page, 'n23'); await ctrlK(page); await popover(page).waitFor();
+  };
+  await fresh();
+  await pickMode(page, 'edit');
+  await field.focus();
+  await page.keyboard.type('/');
+  await page.locator('[data-inline-picker]').waitFor();
+  const all = await options();
+  check('"/" opens the list: exactly the registry\'s Ctrl+K commands this canvas runs', JSON.stringify(all) === JSON.stringify(['explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
+  await page.keyboard.type('gr');
+  check('typing filters the list; the first match is highlighted', JSON.stringify(await options()) === '["graph","diagram"]' && await chosen() === 'graph');
+  await page.keyboard.press('ArrowDown');
+  const down = await chosen();
+  await page.keyboard.press('ArrowDown');
+  check('Down moves through the list and wraps', down === 'diagram' && await chosen() === 'graph');
+  await page.keyboard.press('ArrowUp');
+  check('Up wraps to the last match', await chosen() === 'diagram');
+  await page.keyboard.press('Escape');
+  check('Esc closes the list, never Ctrl+K; the line stays', (await page.locator('[data-inline-picker]').count()) === 0 && (await popover(page).count()) === 1 && await field.inputValue() === '/gr');
+  await field.fill('');
+  await page.keyboard.type('/co');
+  await page.keyboard.press('Tab');
+  check('Tab picks: the /code pill, the line cleared for its words, Edit switched to Explain, focus kept', (await page.locator('[data-inline-ai] [data-command-pill="code"]').count()) === 1 && await field.inputValue() === '' && await modeOf(page) === 'explain' && await focused());
+  await page.keyboard.type('keep these words');
+  await page.getByRole('button', { name: 'Remove Code' }).click();
+  check('removing the pill keeps the words, the mode and the focus; no command is left', (await page.locator('[data-command-pill]').count()) === 0 && await field.inputValue() === 'keep these words' && await modeOf(page) === 'explain'
+    && (await popover(page).getAttribute('data-inline-command')) === null && await focused());
+  // Typed and picked: the same request reaches the check (each in its own editor, so neither reuses the other's result).
+  await field.fill('/code the leaves');
+  await page.keyboard.press('Enter');
+  await waitStatus(page, ['preview']);
+  const typed = await lastDecide();
+  await fresh();
+  await field.focus();
+  await page.keyboard.type('/');
+  await page.locator('[data-inline-command-option="code"]').click();
+  await page.keyboard.type('the leaves');
+  await page.locator('[data-inline-submit]').click();
+  await waitStatus(page, ['preview']);
+  const picked = await lastDecide();
+  check('typed "/code the leaves" and picked /code + "the leaves" (mouse) send the same request', JSON.stringify(typed) === JSON.stringify(picked) && picked.prompt === '/code the leaves' && picked.mode === 'explain', JSON.stringify({ typed, picked }));
+  // Switching to Edit clears a generation command from the editor and from what is sent.
+  await fresh();
+  await field.focus();
+  await page.keyboard.type('/graph');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('shorter words');
+  await pickMode(page, 'edit');
+  check('Edit clears the generation pill and keeps the words', (await page.locator('[data-command-pill]').count()) === 0 && await field.inputValue() === 'shorter words' && (await popover(page).getAttribute('data-inline-command')) === null);
+  await field.press('Enter');
+  await page.waitForFunction(() => window.__inlineMock.calls.some(call => call.type === 'decide' && call.request.mode === 'edit'));
+  const edit = await lastDecide();
+  check('what Edit sends has no command', edit.mode === 'edit' && edit.prompt === 'shorter words', JSON.stringify(edit));
+  // /explain: Explain with no pill, and the explicit command still sent.
+  await fresh();
+  await field.focus();
+  await page.keyboard.type('/expl');
+  await page.keyboard.press('Enter');
+  check('/explain selects Explain with no pill', (await page.locator('[data-command-pill]').count()) === 0 && (await popover(page).getAttribute('data-inline-command')) === 'explain' && await modeOf(page) === 'explain');
+  await page.keyboard.type('why it is a leaf');
+  await page.keyboard.press('Enter');
+  await waitStatus(page, ['preview']);
+  check('/explain is still sent to the check', (await lastDecide()).prompt === '/explain why it is a leaf');
+  // Source search: the finder opens with its query and runs it; no check, no model; the draft and selection survive Esc.
+  await fresh();
+  const decides = (await calls(page, 'decide')).length, made = (await calls(page, 'generate')).length + (await calls(page, 'artifact')).length;
+  await field.fill('/youtube attention heads');
+  await page.keyboard.press('Enter');
+  const finder = page.getByRole('searchbox', { name: 'Search YouTube' }).or(page.getByRole('textbox', { name: 'Search YouTube' }));
+  await finder.waitFor();
+  check('/youtube opens the source finder with its query; nothing is checked or generated', await finder.inputValue() === 'attention heads' && (await calls(page, 'decide')).length === decides
+    && JSON.stringify((await calls(page, 'openSearch')).at(-1)) === JSON.stringify({ type: 'openSearch', source: 'youtube', query: 'attention heads' }));
+  await page.getByRole('button', { name: /Attention heads explained/ }).waitFor({ timeout: 5000 });
+  check('a non-empty query runs the search at once: its results show, nothing added yet', (await calls(page, 'pick')).length === 0);
+  await page.keyboard.press('Escape');
+  await finder.waitFor({ state: 'detached' });
+  check('cancelling the finder keeps Ctrl+K, its line and its selection, and focus comes back to it', (await popover(page).count()) === 1 && await field.inputValue() === '/youtube attention heads'
+    && (await page.locator('[data-inline-target]').count()) > 0 && await focused());
+  await field.fill('/');
+  await page.locator('[data-inline-command-option="arxiv"]').click();
+  check('a picked source command shows its pill and leaves the mode', (await page.locator('[data-inline-ai] [data-command-pill="arxiv"]').count()) === 1 && await modeOf(page) === 'explain');
+  await page.keyboard.type('transformers');
+  await page.keyboard.press('Enter');
+  const arxiv = page.getByRole('searchbox', { name: 'Search arXiv' }).or(page.getByRole('textbox', { name: 'Search arXiv' }));
+  await arxiv.waitFor();
+  check('picked /arxiv + words opens the same finder as typed', JSON.stringify((await calls(page, 'openSearch')).at(-1)) === JSON.stringify({ type: 'openSearch', source: 'arxiv', query: 'transformers' }));
+  await page.getByRole('button', { name: /Attention heads explained/ }).click();
+  await arxiv.waitFor({ state: 'detached' });
+  check('after an explicit add the command line clears; Ctrl+K stays', (await calls(page, 'pick')).length === 1 && (await popover(page).count()) === 1 && await field.inputValue() === '' && (await page.locator('[data-command-pill]').count()) === 0);
+  check('no source command reached the check or a model', (await calls(page, 'decide')).length === decides && (await calls(page, 'generate')).length + (await calls(page, 'artifact')).length === made);
   await context.close();
 });
 
@@ -826,7 +933,8 @@ await run('prompt limit: the count shows the supported limit; over it nothing is
 await run('command input: bare /image, /diagram and /motion use the selection; a routed photo searches it; no subject asks', async () => {
   const { page, context, saved } = await open('command-input');
   await page.evaluate(() => { window.__inlineMock.routeAnswers = { 'Show me a real photo of this': { choice: 'image', confidence: 0.95, probabilities: { image: 0.95, note: 0.05 } } }; });
-  const send = async words => { await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, words); await waitStatus(page, ['preview', 'proposal', 'clarify']); };
+  // A bare /name: Enter picks it from the open list (its pill), Enter again sends it - the same request the typed line was.
+  const send = async words => { await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, words); if (words.startsWith('/')) await page.keyboard.press('Enter'); await waitStatus(page, ['preview', 'proposal', 'clarify']); };
   await send('/image');
   check('a bare /image searches the node\'s words, never "/image"', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
   await page.locator('[data-inline-reject]').click();
@@ -847,6 +955,7 @@ await run('command input: bare /image, /diagram and /motion use the selection; a
     await clickShape(blank.page, 'blank1');
     await ctrlK(blank.page);
     await submitPrompt(blank.page, command);
+    await blank.page.keyboard.press('Enter');
     await waitStatus(blank.page, ['clarify']);
     check(`${command} on a shape with no words asks for the missing input`, asks.test(await blank.page.locator('[data-inline-clarify]').innerText()));
     await blank.page.keyboard.press('Escape');
@@ -1078,7 +1187,7 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   const other = page.locator('[data-block-id="img1"]').first();
   await clickShape(page, 'n4');
   await ctrlK(page);
-  await submitPrompt(page, '/compare about this');
+  await submitPrompt(page, '/explain about this');
   await waitStatus(page, ['preview']);
   const ghost = page.locator('[data-ghost-kind="card"]');
   await ghost.waitFor({ timeout: 5000 });
@@ -1115,7 +1224,7 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   // Reject removes a card's ghost.
   await clickShape(page, 'n4');
   await ctrlK(page);
-  await submitPrompt(page, '/compare about this, again');
+  await submitPrompt(page, '/explain about this, again');
   await waitStatus(page, ['preview']);
   await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
   await page.locator('[data-inline-reject]').click();
@@ -1123,7 +1232,7 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   check('A7: Reject removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
   await clickShape(page, 'n4');
   await ctrlK(page);
-  await submitPrompt(page, '/compare about this, once more');
+  await submitPrompt(page, '/explain about this, once more');
   await waitStatus(page, ['preview']);
   await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
   await page.keyboard.press('Escape');

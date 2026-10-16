@@ -23,7 +23,7 @@ import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, motionProposal, parseSlash, runLearnCommand } from './learn-slash.js';
 import { commandsFor } from './agent/slash.js';
 import { httpTransport } from './inline-ai-transport.js';
-import { ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
+import { EXPLICIT_ROUTES, ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 // Lazy: it draws real cards, so it brings the card components with it.
@@ -210,6 +210,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const [searchOpen, setSearchOpen] = useState(false);
   // What a /paper <topic> command searches for; null for the plain search bar.
   const [searchSeed, setSearchSeed] = useState(null);
+  // The ONE source-search opener Chat's and Ctrl+K's /youtube, /arxiv and /wikipedia use (Release B; lane B3 swaps this
+  // binding for the shared finder): { source, query, origin? }. origin (Ctrl+K): returnFocus() when the search closes,
+  // added() after a result is added to the canvas.
+  const openSourceSearch = seed => { setSearchSeed(seed); setSearchOpen(true); };
   // Tool Performance v1: common tools fetched on idle, one per quiet moment (learn-warmup.js).
   useEffect(() => { warmLearnTools(app.name); }, [app.name]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -771,7 +775,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             return {};
           },
         },
-        openSearch: seed => { setSearchSeed(seed); setSearchOpen(true); },
+        openSearch: openSourceSearch,
         post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }),
       });
     },
@@ -809,9 +813,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
-    enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name])],
+    enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
     motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
     extras: () => ({ title: app.title || '' }),
+    openSearch: openSourceSearch,
     sendTelemetry: rows => { apiFetch('/api/learn/inline/telemetry', { method: 'POST', body: JSON.stringify({ app: app.name, ...(askScope.pending ? { pending: askScope.pending } : {}), rows }) }).catch(() => {}); },
   } : null;
   // The board revision the server last answered (boardVersion below, mirrored for render): Tutor decision telemetry only
@@ -1873,8 +1878,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           )}
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
-          {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
-            onPick={pickResult} />}
+          {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); searchSeed?.origin?.returnFocus?.(); }}
+            onPick={(source, item) => { pickResult(source, item); searchSeed?.origin?.added?.(); }} />}
           <div className="flex items-center gap-0.5">
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
             <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
