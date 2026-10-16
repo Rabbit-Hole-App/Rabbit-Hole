@@ -33,6 +33,7 @@ export function forkLabel(fork) {
   return first?.state === 'accessible' ? `Forked from ${first.title}` : first?.state === 'private' ? 'Forked from a private canvas' : 'Forked from an unavailable canvas';
 }
 
+const WIDTH = 288; // the popover's w-72
 const PART = 'flex h-full min-w-0 items-center gap-1.5 px-2 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:bg-hover focus-visible:text-ink focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-inset';
 
 // The canvas's repository and fork origin, top right of every canvas header (owner brief and decisions 1A-4A,
@@ -61,21 +62,33 @@ export default function ProvenanceGroup({ provenance }) {
 // ancestor this viewer may open is a plain link in a new tab (Ctrl/Cmd-click and the link menu keep working); a private
 // one carries no title or link, a missing one says so, and a history the server could not complete says that too.
 function ForkHistory({ fork, joined }) {
-  const [open, setOpen] = useState(false);
-  const button = useRef(null);
+  // { top, left } while open: pinned under the button and kept inside the window (a phone, or a group near either edge),
+  // portaled above the canvas and its toolbars.
+  const [open, setOpen] = useState(null);
+  const button = useRef(null), pressed = useRef(false), justClosed = useRef(false);
   const list = useId();
   const label = forkLabel(fork);
-  const close = () => { setOpen(false); button.current?.focus(); };
+  const close = () => {
+    setOpen(null); button.current?.focus();
+    justClosed.current = true; setTimeout(() => { justClosed.current = false; }, 0);
+  };
+  const toggle = () => {
+    // The press that closed it (Menu closes on any press outside itself) must not reopen it.
+    if (pressed.current) { pressed.current = false; return; }
+    if (open) { close(); return; }
+    const at = button.current.getBoundingClientRect();
+    setOpen({ top: at.bottom + 4, left: Math.max(8, Math.min(at.right - WIDTH, window.innerWidth - WIDTH - 8)) });
+  };
   return (
     <span className={`relative flex min-w-0 ${joined ? 'border-l border-line' : ''}`}>
-      <button ref={button} type="button" data-provenance-fork title={label} aria-label={label} aria-expanded={open} aria-controls={open ? list : undefined}
-        onClick={() => setOpen(value => !value)}
+      <button ref={button} type="button" data-provenance-fork title={label} aria-label={label} aria-expanded={!!open} aria-controls={open ? list : undefined}
+        onPointerDown={() => { pressed.current = justClosed.current; }} onClick={toggle}
         className={`${PART} ${joined ? '' : 'rounded-l-[7px]'} rounded-r-[7px] ${open ? 'bg-hover text-ink' : ''}`}>
         <GitFork size={14} strokeWidth={1.8} aria-hidden className="shrink-0" />
         <span className="max-w-52 truncate max-md:max-w-24"><span className="max-md:hidden">Forked from </span>{label.slice('Forked from '.length)}</span>
         <ChevronDown size={12} strokeWidth={1.8} aria-hidden className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      <Menu open={open} onClose={close} className="top-full right-0 mt-1 w-72 max-w-[calc(100vw-2rem)] p-2">
+      <Menu portal anchor={button.current} open={!!open} onClose={close} style={open || undefined} className="w-72 max-w-[calc(100vw-1rem)] p-2">
         <ForkHistoryList id={list} fork={fork} />
       </Menu>
     </span>
