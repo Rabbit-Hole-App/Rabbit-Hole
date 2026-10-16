@@ -1049,8 +1049,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         return { opened: true, section: shownWiki.sectionTitle || 'the top', note: WIKI_SHOWN_NOTE };
       }
       if (name !== OUTLINE_TOOL.name) throw new Error('Unknown Learn tool');
-      if (proposedOps) throw new Error('One outline proposal per answer; describe the rest in your reply');
-      proposedOps = validateOutlineOps(input?.ops, body.outline);
+      // A refused proposal is answered as not proposed, with its reason, never as an error the reply could gloss over:
+      // nothing reaches the learner, and the model may correct the change and call again in this answer.
+      const refused = reason => ({ proposed: 0, applied: false, error: `Not proposed: ${reason}`, note: 'Nothing was shown to the learner. Do not say you proposed this change.' });
+      if (proposedOps) return refused('one outline proposal per answer; describe the rest in your reply');
+      try { proposedOps = validateOutlineOps(input?.ops, body.outline); }
+      catch (error) { return refused(error.message); }
       return { proposed: proposedOps.length, applied: false, note: 'Shown to the learner for approval. Say what you proposed.' };
     },
     proposed: () => proposedOps,
