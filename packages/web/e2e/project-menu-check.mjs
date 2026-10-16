@@ -64,6 +64,9 @@ const contextFor = async (who, viewport = { width: 1440, height: 900 }) => {
 };
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
+// A part of a numbered step (1b, 12b): asserted and printed the same way (a failure ends the run), but not a step of its own,
+// so the run stays the 12 steps the release gate attests (r36-gate collect.mjs/run.mjs stageCount === 12).
+const part = async (label, fn) => { await fn(); console.log(`ok ${label}`); };
 const shot = async (page, dir, name) => { await page.waitForTimeout(400); await page.screenshot({ path: `${dir}/${name}.png` }); console.log('shot', name); };
 const { page } = await contextFor(owner);
 const libraryCard = (kind, title) => page.locator(`[data-library-card="${kind === 'repository' ? 'project' : 'canvas'}"]`).filter({ has: page.locator('[data-card-title]', { hasText: title }) });
@@ -94,7 +97,7 @@ await check('1 one menu: the canvas ⋮ and the project ⋮ show the same shared
   assert.deepEqual(shared(canvasMenu, ONLY.canvas), shared(projectMenu, ONLY.project), `${canvasMenu} | ${projectMenu}`);
   assert.deepEqual(shared(canvasMenu, ONLY.canvas), ['Open', 'Rename', 'Visibility', 'Share / Manage link', 'Copy link', 'Change thumbnail', 'Move to Trash']);
 });
-await check('1b card ⋮ menus near each window edge open inside it: the leftmost and rightmost card, and a phone\'s top and bottom', async () => {
+await part('1b card ⋮ menus near each window edge open inside it: the leftmost and rightmost card, and a phone\'s top and bottom', async () => {
   const cards = page.locator('[data-library-card]');
   const at = async (card, block, what) => { await card.evaluate((el, b) => el.scrollIntoView({ block: b }), block); await open(card); await inWindow(what); await close(); };
   const xs = await cards.evaluateAll(list => list.map(el => el.getBoundingClientRect().left));
@@ -155,7 +158,7 @@ await check('12 Main and nested Learn expose the same project menu as Map', asyn
 // Owner bug (2026-10-16): on minGPT's Main canvas, after the right panel was closed, the project ⋯ opened partly off-screen, its
 // labels and actions cut off. The short name puts the ⋯ near the window's left edge, and the menu's right edge on the button's
 // put it 100px past it (0005fbce). Each picture is taken before the assertion, so a failing run still shows the menu.
-await check('12b minGPT\'s Main canvas: the project ⋯ opens inside the window with the right panel closed, reopened and resized, the window resized, a phone; a row works', async () => {
+await part('12b minGPT\'s Main canvas: the project ⋯ opens inside the window with the right panel closed, reopened and resized, the window resized, a phone; a row works', async () => {
   const more = async (what, picture) => { await page.locator('[data-project-more]').click(); await page.locator('[data-menu-item]').first().waitFor(); if (picture) await shot(page, REVIEW, picture); await inWindow(what); };
   await page.goto(`${BASE}/apps/${SHORT}?tab=learn`);
   await page.locator('[data-project-more]').waitFor({ timeout: 60000 });
@@ -309,6 +312,6 @@ await check('11 no page errors, the provider tripwire at 0', async () => {
 console.log('canvas menu:  ', canvasMenu.join(' | '));
 console.log('project menu: ', projectMenu.join(' | '));
 await browser.close();
-const total = 14;
+const total = 12;
 console.log(results.length === total ? 'PASS' : 'FAIL', `${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);
