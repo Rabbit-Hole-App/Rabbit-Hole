@@ -144,26 +144,31 @@ export async function searchCanvasSource(source, query, env, { fetcher = fetch, 
   const cache = globalThis.caches?.default;
   const cacheKey = `https://search-cache.small.internal/${source}?q=${encodeURIComponent(query.trim().toLowerCase())}`;
   try { const hit = await cache?.match(cacheKey); if (hit) return await hit.json(); } catch { /* search live */ }
-  let response;
+  let response, data = null, ok = false;
   try {
-    response = await fetcher('https://api.exa.ai/search', {
-      method: 'POST',
-      signal: AbortSignal.timeout(20000),
-      headers: { 'Content-Type': 'application/json', 'x-api-key': env.EXA_API_KEY },
-      body: JSON.stringify({
-        query: query.trim(), type: 'auto', numResults: FETCH_LIMIT,
-        includeDomains: [SEARCH_SOURCES[source].domain],
-        // The "why this": a sentence written for THIS query, per result.
-        contents: { summary: { query: `In one sentence: why is this a good pick for someone looking for "${query.trim().slice(0, 200)}"?` } },
-      }),
-    });
-  } catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'Search did not answer in time. Try again.' : 'Search is unavailable right now. Try again.'); }
-  if (response.status === 401 || response.status === 403) throw new Error('The search key was refused.');
-  if (response.status === 429) throw new Error('Too many searches right now. Wait a moment and try again.');
-  const data = response.ok ? await response.json() : null;
-  // Usage accounting (ledger bypass): Exa's reported cost, else unknown (its per-result summaries are not priced here).
-  await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok: response.ok, costMicros: exaCost(data) });
-  if (!response.ok) throw new Error(`Search is unavailable right now (${response.status}). Try again.`);
+    try {
+      response = await fetcher('https://api.exa.ai/search', {
+        method: 'POST',
+        signal: AbortSignal.timeout(20000),
+        headers: { 'Content-Type': 'application/json', 'x-api-key': env.EXA_API_KEY },
+        body: JSON.stringify({
+          query: query.trim(), type: 'auto', numResults: FETCH_LIMIT,
+          includeDomains: [SEARCH_SOURCES[source].domain],
+          // The "why this": a sentence written for THIS query, per result.
+          contents: { summary: { query: `In one sentence: why is this a good pick for someone looking for "${query.trim().slice(0, 200)}"?` } },
+        }),
+      });
+    } catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'Search did not answer in time. Try again.' : 'Search is unavailable right now. Try again.'); }
+    if (response.status === 401 || response.status === 403) throw new Error('The search key was refused.');
+    if (response.status === 429) throw new Error('Too many searches right now. Wait a moment and try again.');
+    if (!response.ok) throw new Error(`Search is unavailable right now (${response.status}). Try again.`);
+    data = await response.json();
+    ok = true;
+  } finally {
+    // Usage accounting (ledger bypass), once per dispatched search whatever its outcome: Exa's reported cost, else unknown
+    // (its per-result summaries are not priced here); a failed one (timeout, refusal, 429, unreadable 200) is unknown, never 0.
+    await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data) });
+  }
   let results = resultsFromExa(source, data);
   if (source === 'arxiv') results = await enrichPapers(results, fetcher);
   const body = { results, exact: false };
