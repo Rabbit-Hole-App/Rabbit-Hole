@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { closeOnAnchorScroll } from './menu-scroll.js';
+import { closeOnAnchorScroll, menuShift } from './menu-scroll.js';
 
 const anchorAt = rect => ({ isConnected: true, rect, getBoundingClientRect() { return this.rect; } });
 
@@ -36,4 +36,16 @@ test('Menu uses it, and the card menus pass their ⋮ as the anchor', () => {
   assert.match(read('./ui.jsx'), /const onScroll = anchor \? closeOnAnchorScroll\(anchor, onClose\) : close;/);
   assert.match(read('./home/CardMenu.jsx'), /<Menu portal anchor=\{menu\?\.anchor\}/);
   assert.match(read('./home/PublicCards.jsx'), /<Menu portal anchor=\{menu\?\.anchor\}/);
+});
+
+// The owner's case (2026-10-16): the project ⋯ at x 96-124 beside a short name, menuAt putting the 240px menu's right edge
+// near the button's - 100px past the left edge.
+test('menuShift slides a menu back inside the window, 8px from each edge, and leaves one already inside alone', () => {
+  const box = (left, top, width, height) => ({ left, top, right: left + width, bottom: top + height });
+  assert.deepEqual(menuShift(box(-100, 46, 240, 334), 1440, 900), { x: 108, y: 0 }, 'past the left edge');
+  assert.deepEqual(menuShift(box(1300, 46, 240, 334), 1440, 900), { x: -108, y: 0 }, 'past the right edge');
+  assert.deepEqual(menuShift(box(500, 46, 240, 334), 1440, 900), { x: 0, y: 0 }, 'inside');
+  assert.deepEqual(menuShift(box(500, 700, 240, 334), 1440, 900), { x: 0, y: -142 }, 'below, past the bottom: slides up');
+  assert.deepEqual(menuShift(box(500, -40, 240, 334), 1440, 900), { x: 0, y: 48 }, 'above, past the top: slides down');
+  assert.deepEqual(menuShift(box(-84, 82, 400, 334), 360, 640), { x: 92, y: 0 }, 'wider than a phone: the left edge wins');
 });

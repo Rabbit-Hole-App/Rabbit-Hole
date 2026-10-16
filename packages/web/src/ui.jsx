@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
 import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Network, Play, Shapes, TriangleAlert, Upload, X } from 'lucide-react';
 import { learnPreview } from './flags.js';
 import { personLabel } from './session-display.js';
-import { closeOnAnchorScroll } from './menu-scroll.js';
+import { closeOnAnchorScroll, menuShift } from './menu-scroll.js';
 
 export { cn };
 
@@ -493,6 +493,25 @@ export function Menu({ open, onClose, className, style, portal = false, anchor =
     window.addEventListener('keydown', escape);
     return () => { clearTimeout(t); document.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', escape); if (portal) window.removeEventListener('scroll', onScroll, true); };
   }, [open]);
+  // A portaled menu stays inside the window, 8px from every edge (menu-scroll.js menuShift): measured before paint where its
+  // caller put it, then slid back in; one taller than the window scrolls. Again when its content grows (a submenu opening
+  // inside it) and when the window resizes.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!open || !portal || !el) return;
+    const fit = () => {
+      Object.assign(el.style, { translate: '', maxHeight: '', overflowY: '' });
+      const room = window.innerHeight - 16;
+      if (el.getBoundingClientRect().height > room) Object.assign(el.style, { maxHeight: `${room}px`, overflowY: 'auto' });
+      const { x, y } = menuShift(el.getBoundingClientRect(), window.innerWidth, window.innerHeight);
+      if (x || y) el.style.translate = `${x}px ${y}px`;
+    };
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(el);
+    window.addEventListener('resize', fit);
+    return () => { watch.disconnect(); window.removeEventListener('resize', fit); };
+  }, [open, portal, style?.left, style?.top, style?.bottom]);
   if (!open) return null;
   const node = (
     <div

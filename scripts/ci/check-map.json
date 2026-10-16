@@ -259,6 +259,7 @@
     "packages/web/src/learn-audio.js": ["nanogpt-audio-check.mjs","voice-tts-stream-check.mjs","voice-check.mjs"],
     "packages/web/src/nanogpt-audio.json": ["nanogpt-audio-check.mjs","voice-tts-stream-check.mjs","voice-check.mjs"],
     "packages/web/src/LibraryFolders.jsx": ["library-folders-check.mjs","card-redesign-check.mjs","project-menu-check.mjs","cross-device-check.mjs","card-thumbnails-check.mjs","visibility-check.mjs","sidebar-check.mjs","canvas-forking-check.mjs"],
+    "packages/web/src/menu-scroll.js": ["project-menu-check.mjs","library-folders-check.mjs","card-thumbnails-check.mjs","explore-check.mjs"],
     "packages/web/src/LibraryViews.jsx": ["library-folders-check.mjs","card-redesign-check.mjs","project-menu-check.mjs","cross-device-check.mjs","card-thumbnails-check.mjs","visibility-check.mjs","sidebar-check.mjs","canvas-forking-check.mjs","analytics-ui-check.mjs","card-context-menu-check.mjs","creator-profile-check.mjs","handle-check.mjs","naming-check.mjs","project-canvases-check.mjs","rabbit-hole-check.mjs","selected-pill-check.mjs","workspace-check.mjs"],
     "packages/web/src/library-*.js": ["library-folders-check.mjs","card-redesign-check.mjs","project-menu-check.mjs","cross-device-check.mjs","card-thumbnails-check.mjs","visibility-check.mjs","sidebar-check.mjs","canvas-forking-check.mjs"],
     "packages/web/src/CreatorProfile.jsx": ["creator-profile-check.mjs","analytics-ui-check.mjs","explore-check.mjs","handle-check.mjs","shared-canvas-ask-check.mjs"],
