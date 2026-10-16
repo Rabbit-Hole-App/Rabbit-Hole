@@ -81,7 +81,7 @@ import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsav
 import { editorClosed, editorOpened } from './chunk-reload.js';
 import { blockedStorage } from './storage-fallback.js';
 import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
-import { boardPending, boardText, serial, sharingOf } from './canvas-persist.js';
+import { boardPending, boardText, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
 import { codeRef, paperRef, wikiRef } from './chat-sources.js';
@@ -1052,7 +1052,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         const kept = JSON.parse(localStorage.getItem(docKeepKey) || 'null');
         const next = docOnServerCopy(state, { kept, replaced });
         if (next.replaced) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(next.replaced));
-        localStorage.setItem(boardStorageKey, JSON.stringify(next.state)); localStorage.setItem(versionKey, String(data.version));
+        // The canvas on screen is about to be remounted on the server's copy: nothing it still has pending may write over that
+        // copy or push it, and what was made on it while the board loaded is added to the server's copy and pushed, so neither
+        // the server's content nor that work is lost (board-empty-report).
+        const work = withPendingWork(next.state, canvas()?.retire?.());
+        localStorage.setItem(boardStorageKey, JSON.stringify(work.state)); localStorage.setItem(versionKey, String(data.version));
+        if (work.count) setTimeout(() => pushBoard(), 0);
+        if (work.conflicts) toast(`${work.conflicts === 1 ? 'A card you changed while this board loaded was' : `${work.conflicts} cards you changed while this board loaded were`} also changed elsewhere. Both versions are on the canvas.`);
         localStorage.removeItem(docKeepKey);
         if (next.push) setTimeout(() => pushBoard(), 0);
         if (next.offer) setDocRestore(next.offer);

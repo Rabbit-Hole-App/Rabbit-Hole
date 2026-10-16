@@ -43,7 +43,7 @@ import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
-import { lightBlocks, persistBoard } from './canvas-persist.js';
+import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { looksLikeCode, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
@@ -1633,10 +1633,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
   const boardRef = useRef(null);
   boardRef.current = { strokes, shapes, items, links, blocks, groups, areas, ...(doc ? { doc } : {}) };
+  // The board as this canvas first showed it, which retire() compares the live board against (pendingWork).
+  const mountedBoard = useRef(null);
+  if (!mountedBoard.current) mountedBoard.current = boardRef.current;
   // Final review B-C1: an unmounted canvas (Home, the sidebar, a Rabbit Hole remounting the page) neither inserts nor
   // saves, so a run still holding its canvasApi never reports a block drawn or overwrites the new canvas's saved copy.
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  // Retired (canvasApi.retire): the page is replacing this browser's copy with the server's and remounting the canvas on it,
+  // so nothing this canvas still has pending - its as-loaded save, an edit's save, a document flush - may write that copy or
+  // push it (board-empty-report). retire() answers the work made here since mount (pendingWork), which the page adds to
+  // the server's copy instead.
+  const retired = useRef(false);
   const firstSave = useRef(true);
   useEffect(() => {
     if (!storageKey && !onSaveRef.current) return;
@@ -1646,6 +1654,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const loaded = firstSave.current;
     firstSave.current = false;
     const timer = setTimeout(() => {
+      if (retired.current) return;
       // The first run only writes back the board as loaded, so it never goes over a copy that changed since this canvas read
       // it: the server's copy the page put there on open, about to remount this canvas with it. Written over, the remounted
       // canvas read this board back empty and the page's next push sent that over the server's copy (board-empty-report).
@@ -1673,6 +1682,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const flushDoc = () => {
     clearTimeout(docTimer.current);
     docTimer.current = null;
+    if (retired.current) return false;
     const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
     if (!live || !storageKey || JSON.stringify(live) === docWritten.current) return false;
     let saved = {};
@@ -2175,6 +2185,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return persistBoard({ state: { ...boardRef.current, ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
       },
       toggleLock: () => setLock(previous => !previous),
+      retire: () => { retired.current = true; return pendingWork(mountedBoard.current, boardRef.current); },
       // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400 in the light theme without its
       // chrome (card-thumbnail.js CHROME, data-thumbnail-hide here), or null when it is empty.
       thumbnail: () => (alive.current && worldRef.current ? drawThumbnail(worldRef.current, thumbnailRegion(contentBoxes())) : Promise.resolve(null)),
