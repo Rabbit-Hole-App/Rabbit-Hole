@@ -28,10 +28,12 @@ test('a repository opens on its canvas: no Files | Graph | Learn page; the badge
   assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{\/\*[\s\S]*?\*\/\}\s*\{switcher \? cloneElement\(switcher, \{ holes: dive\.titleHoles \}\) : <TitleHoles \{\.\.\.dive\.titleHoles\} \/>\}/);
   // In the switcher, the holes are a group under the current canvas, its own row left out (it is that canvas).
   assert.match(page, /\{e\.current&&holes\?\.rows\.length>1&&<div data-switcher-holes>[^\n]*<HoleRows rows=\{holes\.rows\.slice\(1\)\} onPick=\{row=>\{setOpen\(false\);holes\.onPick\(row\);\}\}\/>/);
-  // No Map icon on the canvas any more; the repository badge, its status and details instead.
+  // No Map icon on the canvas any more; the repository badge, its status and details instead. The GitHub link itself is the
+  // provenance group's repository button now (decision 2A, C:/s/spec/hdr-provenance.md; provenance-group.test.mjs), with the
+  // status and details beside it.
   assert.doesNotMatch(learn, /data-learn-map/);
-  assert.match(learn, /\{repository && <RepositoryBadge repository=\{repository\} \/>\}/);
-  assert.match(wired, /<a data-repo-badge href=\{githubUrl\} target="_blank" rel="noopener noreferrer"/);
+  assert.match(learn, /<ProvenanceGroup provenance=\{provenance\} \/>[\s\S]{0,400}\{repository && <RepositoryBadge repository=\{repository\} \/>\}/);
+  assert.doesNotMatch(wired, /data-repo-badge href/, 'one repository link in the header: the group');
   assert.match(wired, /data-repo-info aria-label="Repository details"/);
   assert.match(wired, /<div data-repo-details[\s\S]*?Refresh branch/);
   // A repository with no snapshot opens its canvas too: its status shows in the header and its viewers, never a separate page.

@@ -10,6 +10,7 @@ import CommentsPanel from './CommentsPanel.jsx';
 import { useCanvasComments } from './useCanvasComments.js';
 import { displayName, memberBase } from './comments-api.js';
 import { useCanvasLinks } from '../LinksPanel.jsx';
+import ProvenanceGroup, { useProvenance } from '../ProvenanceGroup.jsx';
 
 const AdaptiveCanvas = lazy(() => import('../AdaptiveCanvas.jsx'));
 
@@ -31,6 +32,7 @@ export default function MemberBoardPage({ boardId }) {
   // A full load: Root picks this page once from the path, so a pushState to another board would keep showing this one.
   const refLinks = useMemo(() => ({ resolve: links.resolve, go: href => window.location.assign(href) }), [links.resolve]);
   const openComments = useCallback(() => setCommentsOpen(true), []);
+  const provenance = useProvenance(`/api/learn/provenance/c/${encodeURIComponent(boardId)}`);
   useEffect(() => {
     const fileUrl = key => `${base}/assets/${encodeURIComponent(key)}`;
     setRemoteAssets(key => fetch(fileUrl(key)));
@@ -81,6 +83,8 @@ export default function MemberBoardPage({ boardId }) {
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />{about?.comments_enabled === false ? 'View only' : 'View and comment'}</span>
         <span data-member-owner className="truncate text-xs text-ink-3">Shared with you by {owner?.name || displayName(owner)}{owner?.name && owner?.handle ? ` · @${owner.handle}` : ''}</span>
         <span className="flex-1" />
+        {/* The canvas's repository and fork origin as this member may see them (decisions 1A-3A): no details menu here. */}
+        <ProvenanceGroup provenance={provenance} />
         {state.doc && !docIsEmpty(state.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>
         {/* The member's own monthly AI allowance (owner D4 section 2), never the owner's. */}

@@ -75,7 +75,7 @@ import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.j
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
-import { ForkedFrom } from './home/Provenance.jsx';
+import ProvenanceGroup, { useProvenance } from './ProvenanceGroup.jsx';
 import { cardModel } from './home/provenance.js';
 import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsavedKey } from './home/canvas-local.js';
 import { editorClosed, editorOpened } from './chunk-reload.js';
@@ -117,6 +117,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A canvas (smart-home's catalog) holds only what was put on it: never the
   // sample course, its lesson header, outline or progress.
   const isCanvas = /^canvas-[a-f0-9]{8}$/.test(app.name);
+  // The header's repository and fork origin for this viewer (C:/s/spec/hdr-provenance.md C2): canvases and repository canvases.
+  const provenance = useProvenance(isCanvas || isRepository ? `/api/learn/provenance/apps/${encodeURIComponent(app.name)}` : null);
   const course = useLearnCourse(app);
   const [courseView, setCourseView] = useState(false);
   // The canonical NanoGPT course is product content, so it ships wherever Rabbit Hole does (VITE_RABBIT_HOLE in
@@ -1840,8 +1842,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               switcher here already, so the holes are a group in that menu, never a second control. */}
           {switcher ? cloneElement(switcher, { holes: dive.titleHoles }) : <TitleHoles {...dive.titleHoles} />}
           </div>
-          {/* A fork names its source (docs/features/canvas-forking.md): the title it had when forked, kept through renames. */}
-          {isCanvas && <ForkedFrom m={cardModel(app)} className="max-w-80 items-center pr-1 [&_.line-clamp-3]:line-clamp-2" />}
           <CanvasMenubar menus={canvasMenus} />
           {/* The document's save status and the board's size (blocknote-canvas.md): Saved only once the server has it. A 409 or
               a document a newer server copy replaced are offered back here, never dropped. */}
@@ -1876,9 +1876,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
-          <div className="flex items-center gap-0.5">
-            {/* The repository's badge, status and details (owner, 2026-10-15): there is no repository page any more, so what it
-                showed lives here; its Files and Graph open beside Chat (PanelHeader, the composer's Explore codebase). */}
+          <div className="flex min-w-0 items-center gap-0.5">
+            {/* The canvas's repository and fork origin (decisions 1A-4A, C:/s/spec/hdr-provenance.md): one group, top right, from
+                the server's provenance for this viewer; the fork label beside the title is gone (4A). */}
+            <ProvenanceGroup provenance={provenance} />
+            {/* The repository's indexing status and details menu beside the group (decision 2A): there is no repository page any
+                more, so what it showed lives here; its Files and Graph open beside Chat (PanelHeader, Explore codebase). */}
             {repository && <RepositoryBadge repository={repository} />}
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
             <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"

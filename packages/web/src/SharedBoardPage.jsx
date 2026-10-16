@@ -4,6 +4,7 @@ import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Load
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { CardSourceScope } from './use-card-source.js';
 import ForkButton from './ForkButton.jsx';
+import ProvenanceGroup, { useProvenance } from './ProvenanceGroup.jsx';
 import UsageGauge, { goToUsageSettings } from './UsageGauge.jsx';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
@@ -37,6 +38,8 @@ const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // The composer at the bottom asks about this canvas (docs/features/shared-canvas-ask.md).
 export default function SharedBoardPage({ token }) {
   const [shared, setShared] = useState(null);
+  // A share link and a publication alike (C:/s/spec/hdr-provenance.md C2), signed out too.
+  const provenance = useProvenance(`/api/learn/provenance/link/${encodeURIComponent(token)}`);
   const [problem, setProblem] = useState(null);
   // Read once and dropped from the address, so Back to this page never forks a second time.
   const [forkRequested] = useState(() => {
@@ -147,6 +150,8 @@ export default function SharedBoardPage({ token }) {
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
+        {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here. */}
+        <ProvenanceGroup provenance={provenance} />
         {board.doc && !docIsEmpty(board.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
         <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
