@@ -5,6 +5,7 @@ import { setRemoteAssets, setWorkspaceStore } from '../learn-board-assets.js';
 import { Button, toast } from '../ui.jsx';
 import { CARD_GONE, cardParam, withoutCardParam } from '../canvas-refs-model.js';
 import { PRODUCT } from '../flags.js';
+import UsageGauge, { goToUsageSettings } from '../UsageGauge.jsx';
 import CommentsPanel from './CommentsPanel.jsx';
 import { useCanvasComments } from './useCanvasComments.js';
 import { displayName, memberBase } from './comments-api.js';
@@ -82,6 +83,8 @@ export default function MemberBoardPage({ boardId }) {
         <span className="flex-1" />
         {state.doc && !docIsEmpty(state.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>
+        {/* The member's own monthly AI allowance (owner D4 section 2), never the owner's. */}
+        <UsageGauge onViewUsage={goToUsageSettings} />
       </header>
       <div className="flex min-h-0 flex-1">
         <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">

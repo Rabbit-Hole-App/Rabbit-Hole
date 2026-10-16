@@ -4,6 +4,7 @@ import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Load
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { CardSourceScope } from './use-card-source.js';
 import ForkButton from './ForkButton.jsx';
+import UsageGauge, { goToUsageSettings } from './UsageGauge.jsx';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
 import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
@@ -11,7 +12,7 @@ import RabbitHoleChoice from './RabbitHoleChoice.jsx';
 import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.js';
 import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
-import { PRODUCT } from './flags.js';
+import { learnPreview, PRODUCT } from './flags.js';
 import { creatorLabel } from './home/provenance.js';
 import ChatComposer from './ChatComposer.jsx';
 import { MaterialIcon, Md, NextStepsCard } from './ask.jsx';
@@ -149,6 +150,8 @@ export default function SharedBoardPage({ token }) {
         {board.doc && !docIsEmpty(board.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
         {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
         <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
+        {/* The viewer's own monthly AI allowance (owner D4 section 2), never the owner's; signed out, no personal allowance. */}
+        {learnPreview && <UsageGauge signedIn={!!shared.viewer} onViewUsage={goToUsageSettings} />}
         <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
       </header>
       <div className="flex min-h-0 flex-1">

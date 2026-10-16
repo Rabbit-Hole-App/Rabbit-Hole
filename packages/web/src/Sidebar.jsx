@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Gauge, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -14,6 +14,7 @@ import { isLearnResource } from './library-filter.js';
 import { recentLaunch } from './sidebar-nav.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
+import { UsageSettings } from './UsageGauge.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 import { isInternalPrincipal, personLabel, saveProfile, useProfile, useSessionDisplay, useShownIdentity } from './session-display.js';
 import { fieldHandle } from '../../control-plane/src/handle.js';
@@ -100,6 +101,8 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           {learnPreview && <NavBtn id="profile" icon={CircleUser}>{profile?.name || session?.display?.name || 'Profile'}</NavBtn>}
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
+          {/* The person's own monthly AI allowance across every canvas (owner D4 section 1), from the server. */}
+          {learnPreview && <NavBtn id="usage" icon={Gauge}>AI usage</NavBtn>}
           {!learnPreview && <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>}
           <NavLabel>Workspace</NavLabel>
           <NavBtn id="general" icon={Settings}>General</NavBtn>
@@ -123,6 +126,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
           <div className={cn('mx-auto max-w-[920px] px-12 py-10', learnPreview && 'max-md:px-4 max-md:py-6')}>
           {tab === 'profile' && <ProfilePane session={session} shown={shown} profile={profile} Heading={Heading} />}
+          {tab === 'usage' && learnPreview && <UsageSettings Heading={Heading} />}
           {tab === 'preferences' && (
             <>
               <div className="text-2xl font-semibold">Preferences</div>
@@ -570,6 +574,14 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     // T02 §11: the Agent Bar and the Start dialog open Settings on a tab, optionally on one row.
     const on = (e) => setShowSettings({ tab: e.detail?.tab, focus: e.detail?.focus });
     window.addEventListener('small:settings', on);
+    // A page outside the Shell (a shared or member canvas's View usage, UsageGauge.jsx) arrives with ?settings=<tab>.
+    const params = new URLSearchParams(window.location.search), asked = params.get('settings');
+    if (asked && /^[a-z-]{1,32}$/.test(asked)) {
+      params.delete('settings');
+      const rest = params.toString();
+      window.history.replaceState(window.history.state, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash);
+      setShowSettings({ tab: asked });
+    }
     return () => window.removeEventListener('small:settings', on);
   }, []);
   const [grantNotice, setGrantNotice] = useState(null);
