@@ -267,8 +267,11 @@ export async function usageTotals(db, userId, period) {
   const row = await db.prepare(`SELECT
       COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros END), 0) AS used,
       COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'unknown') THEN t.reserved_micros END), 0) AS reserved,
-      COALESCE(SUM(CASE WHEN t.cost_state = 'estimated' THEN t.cost_micros END), 0) AS estimated
+      COALESCE(SUM(CASE WHEN t.cost_state = 'estimated' THEN t.cost_micros END), 0) AS estimated,
+      COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts,
+      COALESCE(SUM(CASE WHEN t.cost_state = 'unknown' THEN t.reserved_micros END), 0) AS unknown_reserved
     FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
     WHERE a.user_id = ? AND a.period = ? AND a.charge_class = 'would_charge'`).bind(userId, period).first();
-  return { used: Number(row?.used || 0), reserved: Number(row?.reserved || 0), estimated: Number(row?.estimated || 0) };
+  return { used: Number(row?.used || 0), reserved: Number(row?.reserved || 0), estimated: Number(row?.estimated || 0),
+    unknownAttempts: Number(row?.unknown_attempts || 0), unknownReserved: Number(row?.unknown_reserved || 0) };
 }
