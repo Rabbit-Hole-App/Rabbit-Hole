@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +13,7 @@ import { outlineFrom, outlineRevision, outlineTree } from './learn-outline-model
 
 const dir = mkdtempSync(join(tmpdir(), 'toc-')), outfile = join(dir, 'toc.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as TableOfContents } from './TableOfContents.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as TableOfContents } from './TableOfContents.jsx'; export { default as PanelHeader } from './PanelHeader.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -133,4 +133,22 @@ test('a stale proposal says so before Apply; an invalid one says why', () => {
 
 test('a bare ops array (an older emitter) still shows as a proposal', () => {
   assert.match(text(render({ proposal: [{ op: 'add', text: 'Plain', level: 1 }] })), /Proposed: 1 change \+ Plain/);
+});
+
+// R4 (lead, 2026-10-16): a Tutor proposal arrives unasked, so it only marks the tab; the learner reviews it when they choose.
+test('a pending proposal marks the Table of contents tab with a dot and says so in its name', () => {
+  const header = pending => B.renderToStaticMarkup(B.createElement(B.PanelHeader, { tab: 'chat', onTab: () => {}, pinned: true, onPin: () => {}, onClose: () => {}, tocPending: pending }));
+  assert.match(header(1), /data-panel-tab="toc" aria-label="Table of contents, 1 proposal to review" title="Table of contents"/);
+  assert.match(header(1), /data-toc-pending/);
+  assert.match(header(0), /data-panel-tab="toc" aria-label="Table of contents" title="Table of contents"/);
+  assert.doesNotMatch(header(0), /data-toc-pending/);
+  assert.match(header(1), /data-panel-tab="chat"[^>]*aria-selected="true"/, 'the marker never switches the tab');
+});
+
+test('the page: a syllabus proposal brings the contents forward, a Tutor one only marks the tab, and a view-only canvas takes none', () => {
+  const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(page, /onOutlineProposal: canEditCanvas \? proposal => \{ setProposal\(proposal\); if \(proposal\?\.source === 'syllabus'\) setPanelTab\('toc'\); \} : undefined,/);
+  assert.match(page, /tocPending=\{proposal && canEditCanvas \? 1 : 0\}/);
+  assert.match(page, /const canEditCanvas = !\(app\.kind === 'canvas' && app\.canEdit === false\);/);
+  assert.match(page, /<TableOfContents [^\n]*activeId=\{canvasState\.activeSection \?\? null\} readOnly=\{!canEditCanvas\}/);
 });

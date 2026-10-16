@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { presentSteps } from './learn-present.js';
+import { activeSection, presentSteps } from './learn-present.js';
 
 const heading = (id, text = '') => ({ id, type: 'heading', level: 1, text });
 const card = id => ({ id, type: 'explanation' });
@@ -65,4 +65,29 @@ test('sub-headings open their own step, so depth does not nest', () => {
   const blocks = [heading('h1', 'Big'), card('a'), { ...heading('h2', 'Small'), level: 2 }, card('b')];
   const steps = presentSteps(blocks, boxesFor('h1', 'a', 'h2', 'b'));
   assert.deepEqual(steps.map(step => step.ids), [['h1', 'a'], ['h2', 'b']]);
+});
+
+// R4 owner decision 7A: the section being viewed, by a deterministic rule.
+const at = (y, h = 100) => ({ x: 0, y, w: 400, h });
+const lesson = [heading('a', 'A'), { id: 'a1', type: 'card' }, heading('b', 'B'), { id: 'b1', type: 'card' }, heading('c', 'C')];
+const boxes = { a: at(0, 40), a1: at(40, 400), b: at(440, 40), b1: at(480, 300), c: at(780, 40) };
+
+test('the section with the most area in view is the one being viewed', () => {
+  assert.equal(activeSection(lesson, boxes, { x: 0, y: 0, w: 800, h: 300 }), 'a');
+  assert.equal(activeSection(lesson, boxes, { x: 0, y: 400, w: 800, h: 300 }), 'b', 'B shows 300 of its height, A only 40');
+  assert.equal(activeSection(lesson, boxes, { x: 0, y: 760, w: 800, h: 300 }), 'c');
+});
+
+test('a tie goes to the earlier section, and the answer never depends on anything but blocks, boxes and view', () => {
+  const even = { a: at(0, 100), b: at(100, 100) };
+  const pair = [heading('a'), heading('b')];
+  assert.equal(activeSection(pair, even, { x: 0, y: 0, w: 400, h: 200 }), 'a');
+  assert.equal(activeSection(pair, even, { x: 0, y: 0, w: 400, h: 200 }), activeSection(pair, even, { x: 0, y: 0, w: 400, h: 200 }));
+});
+
+test('nothing in view, no headings, unmeasured cards or no view: no active section', () => {
+  assert.equal(activeSection(lesson, boxes, { x: 0, y: 5000, w: 800, h: 300 }), null);
+  assert.equal(activeSection([{ id: 'x', type: 'card' }], { x: at(0) }, { x: 0, y: 0, w: 400, h: 400 }), null, 'cards before any heading belong to no section');
+  assert.equal(activeSection(lesson, {}, { x: 0, y: 0, w: 400, h: 400 }), null);
+  assert.equal(activeSection(lesson, boxes, null), null);
 });
