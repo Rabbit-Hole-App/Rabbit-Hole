@@ -393,3 +393,12 @@ test('attempt kinds: a repair is labelled at its call site, under the same actio
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => a.kind), ['generation', 'repair']);
   assert.equal(rows(sqlite, 'usage_actions').length, 1);
 });
+
+test('the dev/preview and stack configs carry a valid allowance; production does not in Phase 1', () => {
+  const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+  for (const path of ['../../web/wrangler.dev.jsonc', '../../../scripts/ci/config/integ-local.jsonc']) {
+    const value = read(path).match(/"AI_MONTHLY_ALLOWANCE_USD":\s*"([^"]*)"/)?.[1];
+    assert.equal(monthlyAllowanceMicros({ AI_MONTHLY_ALLOWANCE_USD: value }), 50_000_000, path);
+  }
+  for (const path of ['../../web/wrangler.rabbit-hole-prod.jsonc', '../wrangler.rabbit-hole-prod.jsonc']) assert.doesNotMatch(read(path), /AI_MONTHLY_ALLOWANCE_USD/, path);
+});

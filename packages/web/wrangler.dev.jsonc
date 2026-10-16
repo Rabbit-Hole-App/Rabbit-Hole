@@ -102,6 +102,7 @@
     "LEARN_VIDEO_RESOLUTION": "480p",
     "SUBSCRIPTION_ONLY": "false",
     "USAGE_PLATFORM_DAY_USD": "10",
+    "AI_MONTHLY_ALLOWANCE_USD": "50",
     "SUBSCRIPTION_OWNER_EMAIL": "yudhisteer.chin@gmail.com",
     "BYOC_REGION": "us-east-1",
     "BYOC_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-byoc-dev",
