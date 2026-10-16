@@ -100,6 +100,7 @@ async function pushRight(page, card, past, side = 'right') {
   }
 }
 // Probe points along the surface's right edge, level with the card: the card must be on top.
+// `title`: text the card shows, or { id } for a card known by its block id (a restricted repository card shows no title).
 async function probeEdge(page, card, title, label, side = 'right') {
   const g = await geometry(page), box = await card.boundingBox();
   let probes = 0, onCard = 0;
@@ -110,8 +111,8 @@ async function probeEdge(page, card, title, label, side = 'right') {
       const y = Math.max(g.surface.y + 4, Math.min(Math.min(g.surface.bottom, g.strip?.y ?? Infinity) - 4, box.y + box.height * f));
       probes += 1;
       const hit = await page.evaluate(([px, py, t, u]) => {
-        const el = document.elementFromPoint(px, py);
-        return { card: !!el?.closest('[data-block-id]')?.textContent?.includes(t), utility: !!el?.closest(u) };
+        const el = document.elementFromPoint(px, py), block = el?.closest('[data-block-id]');
+        return { card: t?.id ? block?.dataset.blockId === t.id : !!block?.textContent?.includes(t), utility: !!el?.closest(u) };
       }, [x, y, title, utilities]);
       if (hit.utility) fail(`${label}: a canvas utility is on top at (${Math.round(x)}, ${Math.round(y)})`);
       if (hit.card) onCard += 1;
@@ -211,7 +212,9 @@ async function probeEdge(page, card, title, label, side = 'right') {
 
 // --- repository cards (repo-graph Release 2): a code card and a graph card, pushed past each edge, stay on top of the canvas
 // edge and under no utility. LOCAL only: the canvas and its board are made here. The cards point at a repository this user
-// does not have, so they show their unavailable state at full size; their frames are what this check measures.
+// did not import and that is not confirmed public, so the server sends them as restricted placeholders, place and kind only,
+// no title (owner R3 decision, 2026-10-16, rel-a.md A3 item 2); they keep their full-size frames, which is what this check
+// measures, so the probes know each card by its block id.
 if (local) {
   const post = async (path, method, body) => (await fetch(`${base}${path}`, { method, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
   const repoCanvas = await post('/api/canvases', 'POST', { title: 'Toolbar check repository cards' });
@@ -228,7 +231,7 @@ if (local) {
   const canvas = page.locator('[aria-label="Lesson canvas"]');
   await canvas.waitFor({ timeout: 30000 });
   results.repositoryCards = {};
-  for (const [kind, selector, title] of [['code', '[data-code-card]', 'toolbar_probe.py'], ['graph', '[data-graph-card]', 'acme/toolbar-probe']]) {
+  for (const [kind, selector, title] of [['code', '[data-code-card]', { id: 'rc1' }], ['graph', '[data-graph-card]', { id: 'rg1' }]]) {
     const card = canvas.locator('[data-block-id]').filter({ has: page.locator(selector) }).first();
     if (!(await card.waitFor({ timeout: 20000 }).then(() => true, () => false))) { fail(`repository cards: no ${kind} card drawn`); continue; }
     await reveal(page, canvas, card);
