@@ -1645,6 +1645,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // push it (board-empty-report). retire() answers the work made here since mount (pendingWork), which the page adds to
   // the server's copy instead.
   const retired = useRef(false);
+  // The board as this browser's copy holds it (the debounced save's shape), and the last such board this canvas wrote or
+  // mounted with: the unmount flush below writes only a board that differs from it.
+  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.doc ? { doc: board.doc } : {}) });
+  const lastWritten = useRef(null);
+  if (lastWritten.current === null) lastWritten.current = JSON.stringify(savedShape(mountedBoard.current));
+  const storageKeyRef = useRef(storageKey);
+  storageKeyRef.current = storageKey;
   const firstSave = useRef(true);
   useEffect(() => {
     if (!storageKey && !onSaveRef.current) return;
@@ -1660,11 +1667,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // canvas read this board back empty and the page's next push sent that over the server's copy (board-empty-report).
       if (loaded && storageKey) { try { if (localStorage.getItem(storageKey) !== readCopy.current) return; } catch { /* blocked storage: nothing to write over */ } }
       const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(doc ? { doc } : {}) };
-      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); docWritten.current = JSON.stringify(state.doc ?? null); } catch { /* full or blocked storage loses drawings only */ } }
+      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
       if (!loaded) onSaveRef.current?.(state);
     }, 400);
     return () => clearTimeout(timer);
   }, [strokes, shapes, items, links, blocks, groups, areas, doc, storageKey]);
+  // Leaving the canvas (Home, the sidebar, a Rabbit Hole, a remount) cancels the pending save above, so an edit made less
+  // than 400 ms before is written here instead, once, on unmount: this browser's copy, then the board's push at once
+  // (owner: cancelling a pending save or remounting never discards work). Not for a retired canvas - the page has put its
+  // work on the server's copy - and not when the board is what this canvas last wrote or mounted with. Declared before the
+  // document's flush, which then adds the last words typed onto this copy.
+  useEffect(() => () => {
+    const key = storageKeyRef.current;
+    if (retired.current || (!key && !onSaveRef.current)) return;
+    const state = savedShape(boardRef.current), text = JSON.stringify(state);
+    if (text === lastWritten.current) return;
+    if (key) { try { localStorage.setItem(key, text); docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = text; } catch { /* full or blocked storage: the push below still carries it */ } }
+    onSaveRef.current?.(state, { now: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Typing goes to docLive at once and into the board after a pause (one canvas render per pause, not per key).
   const onDocDirtyRef = useRef(onDocDirty);
   onDocDirtyRef.current = onDocDirty;
@@ -2185,7 +2205,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return persistBoard({ state: { ...boardRef.current, ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
       },
       toggleLock: () => setLock(previous => !previous),
-      retire: () => { retired.current = true; return pendingWork(mountedBoard.current, boardRef.current); },
+      retire: () => {
+        retired.current = true;
+        const work = pendingWork(mountedBoard.current, boardRef.current);
+        // The document as typed, its words still in the editor's pause included: the page offers it back, never drops it.
+        const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
+        return live && JSON.stringify(live) !== JSON.stringify(mountedBoard.current.doc ?? null) ? { ...work, doc: live } : work;
+      },
       // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400 in the light theme without its
       // chrome (card-thumbnail.js CHROME, data-thumbnail-hide here), or null when it is empty.
       thumbnail: () => (alive.current && worldRef.current ? drawThumbnail(worldRef.current, thumbnailRegion(contentBoxes())) : Promise.resolve(null)),

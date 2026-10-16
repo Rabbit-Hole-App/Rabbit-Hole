@@ -1045,17 +1045,26 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // ponytail: what the server copy replaces is kept under :replaced when it held other content, so content that never
         // reached the server is recoverable by hand; only its document has a restore action (below), the rest has no UI.
         const copy = readBoardCopy(storage, boardStorageKey);
-        const replaced = hasLocal && copy && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
+        // The canvas on screen is about to be remounted on the server's copy: retired, nothing it still has pending may write
+        // over that copy or push it; it answers what was made on it since mount, the document as typed included
+        // (board-empty-report). Its board work goes onto the server's copy below; its document is this browser's document
+        // that the server's replaces, so docOnServerCopy keeps it aside and offers it back (Restore my unsaved document).
+        const mine = canvas()?.retire?.() || {};
+        const local = hasLocal && copy && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
+        // After Reload and keep my document, the document kept at that press goes over the server's board; words typed while
+        // that reload ran are newer still, so the canvas's live document is the one kept. Otherwise it is the document the
+        // server's replaces, kept aside and offered back.
+        const keptAtPress = JSON.parse(localStorage.getItem(docKeepKey) || 'null');
+        const replaced = mine.doc && !keptAtPress ? { ...(local || {}), doc: mine.doc } : local;
         // The document (blocknote-canvas.md): Reload and keep my document (after a 409) puts this browser's document over
         // the newer server copy as the newer edit, pushed below. Whatever document loses - the server's then, this
         // browser's on a plain open - is kept under :replaced and offered back (docOnServerCopy).
-        const kept = JSON.parse(localStorage.getItem(docKeepKey) || 'null');
+        const kept = keptAtPress && mine.doc ? mine.doc : keptAtPress;
         const next = docOnServerCopy(state, { kept, replaced });
         if (next.replaced) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(next.replaced));
-        // The canvas on screen is about to be remounted on the server's copy: nothing it still has pending may write over that
-        // copy or push it, and what was made on it while the board loaded is added to the server's copy and pushed, so neither
-        // the server's content nor that work is lost (board-empty-report).
-        const work = withPendingWork(next.state, canvas()?.retire?.());
+        // What was made on the canvas while the board loaded is added to the server's copy and pushed, so neither the server's
+        // content nor that work is lost.
+        const work = withPendingWork(next.state, mine);
         localStorage.setItem(boardStorageKey, JSON.stringify(work.state)); localStorage.setItem(versionKey, String(data.version));
         if (work.count) setTimeout(() => pushBoard(), 0);
         if (work.conflicts) toast(`${work.conflicts === 1 ? 'A card you changed while this board loaded was' : `${work.conflicts} cards you changed while this board loaded were`} also changed elsewhere. Both versions are on the canvas.`);
