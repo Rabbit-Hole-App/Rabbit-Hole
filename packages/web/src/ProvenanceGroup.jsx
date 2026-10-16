@@ -36,13 +36,29 @@ export function forkLabel(fork) {
 const WIDTH = 288; // the popover's w-72
 const PART = 'flex h-full min-w-0 items-center gap-1.5 px-2 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:bg-hover focus-visible:text-ink focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-inset';
 
+// The group and what sits beside it (`children`: the owner page's repository status and details), as the last item of a
+// wrapping header row (decision E2): its auto margin keeps it at the row's right edge, on the first row when everything fits
+// and alone at the right of the next row when the header wraps. Nothing at all when there is nothing to show, so a canvas
+// with no provenance keeps its header as it was.
+export function ProvenanceRow({ provenance, children = null }) {
+  if (!hasProvenance(provenance) && !children) return null;
+  return (
+    <div data-provenance-row className="ml-auto flex max-w-full min-w-0 items-center gap-0.5">
+      <ProvenanceGroup provenance={provenance} />
+      {children}
+    </div>
+  );
+}
+
+export const hasProvenance = provenance => !!(provenance?.repository || provenance?.fork?.ancestors?.length);
+
 // The canvas's repository and fork origin, top right of every canvas header (owner brief and decisions 1A-4A,
 // C:/s/spec/hdr-provenance.md): one connected group, repository first, each its own target. `provenance` is the server's
 // object for this viewer (contract C1); the browser never decides access - what the server left out is not shown.
 // Neither relationship: nothing at all, no empty placeholder.
 export default function ProvenanceGroup({ provenance }) {
-  const repository = provenance?.repository || null, fork = provenance?.fork?.ancestors?.length ? provenance.fork : null;
-  if (!repository && !fork) return null;
+  if (!hasProvenance(provenance)) return null;
+  const repository = provenance.repository || null, fork = provenance.fork?.ancestors?.length ? provenance.fork : null;
   return (
     <div data-provenance role="group" aria-label="Canvas provenance" className="flex h-8 min-w-0 shrink items-stretch rounded-lg border border-line bg-white">
       {repository && (
