@@ -534,3 +534,44 @@ test('a signed-in user without a workspace is still the payer by their user id, 
     ['u-solo', 'user', 'signed_in', 'would_charge'], ['u-solo', 'user', 'signed_in', 'would_charge']]);
   assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_actions WHERE payer_reason = 'anonymous_public'").get().n, 0);
 });
+
+test('one action key reused by an incompatible action: each is its own action and class; each retry finds its own action', async t => {
+  const { sqlite, LEARN_DB } = database(t);
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
+  const req = new Request('https://synthetic.test/api/learn/ask', { headers: { 'X-RH-Action-Key': 'k-0123456789abcdef' } });
+  // Grade then ask with the same browser key, then a retry of each: the ask never inherits the free grading class.
+  for (const feature of ['grade', 'ask', 'ask', 'grade']) await spendTransport(signedIn(base, feature, 'u-alice', { req }), body, MODEL, null, priced());
+  const totals = await usageTotals(LEARN_DB, 'u-alice', periodOf(Math.floor(Date.now() / 1000)));
+  assert.ok(totals.used > 0, `the ask attempts are chargeable usage, used ${totals.used}`);
+  const actions = rows(sqlite, 'usage_actions');
+  assert.deepEqual(actions.map(a => [a.feature, a.payer, a.payer_reason, a.charge_class]), [['grade', 'user', 'free_action', 'free'], ['ask', 'user', 'signed_in', 'would_charge']]);
+  const attempts = rows(sqlite, 'usage_attempts');
+  assert.equal(attempts.length, 4, 'one attempt per provider dispatch');
+  assert.deepEqual(actions.map(a => attempts.filter(x => x.action_id === a.action_id).length), [2, 2], 'each retry reuses its own action, never a third');
+  assert.equal(totals.used, attempts.filter(x => x.action_id === actions[1].action_id).reduce((sum, x) => sum + x.cost_micros, 0));
+  // The reverse order: a free action never takes a chargeable action's class either.
+  const other = new Request('https://synthetic.test/', { headers: { 'X-RH-Action-Key': 'k-fedcba9876543210' } });
+  for (const feature of ['ask', 'assess']) await spendTransport(signedIn(base, feature, 'u-alice', { req: other }), body, MODEL, null, priced());
+  assert.deepEqual(rows(sqlite, 'usage_actions').slice(2).map(a => [a.feature, a.charge_class]), [['ask', 'would_charge'], ['assess', 'free']]);
+});
+
+test('every dispatched Exa search is one attempt row on every failure path, unknown cost; a refusal before dispatch records none', async t => {
+  const { sqlite, LEARN_DB } = database(t);
+  const env = signedIn({ LEARN_DB, EXA_API_KEY: 'fixture' }, 'ask');
+  const timeout = () => { const error = new Error('timed out'); error.name = 'TimeoutError'; throw error; };
+  const failures = [timeout, async () => new Response('not json {', { status: 200 }), async () => new Response('', { status: 429 }),
+    async () => { throw new TypeError('network'); }, async () => new Response('', { status: 401 })];
+  for (const fetcher of failures) {
+    await assert.rejects(searchYouTube('sigmoid', env, fetcher));
+    await assert.rejects(searchCanvasSource('arxiv', 'attention', env, { fetcher, direct: async () => null }));
+  }
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.provider, a.status, a.cost_state, a.cost_micros]),
+    Array(failures.length * 2).fill(['tool', 'exa', 'failed', 'unknown', null]));
+  const before = rows(sqlite, 'usage_attempts').length;
+  const never = async () => { throw new Error('not dispatched'); };
+  await assert.rejects(searchYouTube('', env, never));
+  await assert.rejects(searchYouTube('sigmoid', signedIn({ LEARN_DB }, 'ask'), never));
+  await assert.rejects(searchCanvasSource('arxiv', ' ', env, { fetcher: never, direct: async () => null }));
+  await assert.rejects(searchCanvasSource('arxiv', 'attention', signedIn({ LEARN_DB }, 'ask'), { fetcher: never, direct: async () => null }));
+  assert.equal(rows(sqlite, 'usage_attempts').length, before, 'nothing was dispatched, nothing recorded');
+});

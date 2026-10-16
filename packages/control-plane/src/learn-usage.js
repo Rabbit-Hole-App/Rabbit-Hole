@@ -115,14 +115,23 @@ async function insertAction(db, ctx) {
   const clientKey = payer.userId && ctx?.clientKey ? ctx.clientKey : null; // an anonymous caller's key is ignored
   const final = ctx?.final;
   const actionId = `act-${crypto.randomUUID()}`;
-  await db.prepare(`INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, result, started_at, ended_at, client_key)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, client_key) DO NOTHING`)
-    .bind(actionId, payer.userId, payer.payer, payer.payerReason, payer.feature, payer.chargeClass, periodOf(startedAt),
-      final?.status || 'running', final?.result ?? null, startedAt, final ? nowSeconds() : null, clientKey).run();
-  if (!clientKey) return actionId;
-  // A repeated key (an automatic retry of the same action) finds the action it already made.
-  const row = await db.prepare('SELECT action_id FROM usage_actions WHERE user_id = ? AND client_key = ?').bind(payer.userId, clientKey).first();
-  return row?.action_id || actionId;
+  const claim = async key => {
+    await db.prepare(`INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, result, started_at, ended_at, client_key)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, client_key) DO NOTHING`)
+      .bind(actionId, payer.userId, payer.payer, payer.payerReason, payer.feature, payer.chargeClass, periodOf(startedAt),
+        final?.status || 'running', final?.result ?? null, startedAt, final ? nowSeconds() : null, key).run();
+    if (!key) return { action_id: actionId };
+    return db.prepare('SELECT action_id, payer, payer_reason, feature, charge_class FROM usage_actions WHERE user_id = ? AND client_key = ?').bind(payer.userId, key).first();
+  };
+  // A repeated key is an automatic retry of the same action only when the server derives the same identity for it
+  // (feature, payer, payer reason, charge class); then it finds the action it already made. The same key on a different
+  // identity (grade then ask) is a separate action under a key derived from both, so its own retries find it and it never
+  // takes the earlier action's class. '|' is outside CLIENT_KEY, so a derived key never meets a browser's key.
+  const identity = [payer.feature, payer.payer, payer.payerReason, payer.chargeClass];
+  const same = row => row && [row.feature, row.payer, row.payer_reason, row.charge_class].every((value, at) => value === identity[at]);
+  const row = await claim(clientKey);
+  if (!clientKey || same(row)) return row?.action_id || actionId;
+  return (await claim(`${clientKey}|${identity.join('|')}`))?.action_id || actionId;
 }
 
 function actionOf(env, db) {

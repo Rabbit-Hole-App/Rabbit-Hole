@@ -90,21 +90,26 @@ export const videoSearchAvailable = env => !!(env?.EXA_API_KEY || (env?.AI && en
 export async function searchYouTube(query, env, fetcher = fetch) {
   if (typeof query !== 'string' || !query.trim() || query.length > 200) throw new Error('Invalid video search');
   if (!env?.EXA_API_KEY) throw new Error('YouTube search is not connected on this deployment.');
-  let response;
+  let response, data = null, ok = false;
   try {
-    response = await fetcher('https://api.exa.ai/search', {
-      method: 'POST',
-      signal: AbortSignal.timeout(20000),
-      headers: { 'Content-Type': 'application/json', 'x-api-key': env.EXA_API_KEY },
-      body: JSON.stringify({ query: query.trim(), includeDomains: ['youtube.com'], numResults: 10, type: 'auto' }),
-    });
-  } catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'Video search did not answer in time. Try again.' : 'Video search is unavailable'); }
-  if (response.status === 401 || response.status === 403) throw new Error('The Exa search key was refused.');
-  if (response.status === 429) throw new Error('Video search is rate-limited. Wait a minute and try again.');
-  const data = response.ok ? await response.json() : null;
-  // Usage accounting (ledger bypass): Exa's reported cost when it gives one, else the documented per-search estimate.
-  await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok: response.ok, costMicros: exaCost(data), estimateMicros: EXA_SEARCH_ESTIMATE });
-  if (!response.ok) throw new Error(`Video search is unavailable (${response.status})`);
+    try {
+      response = await fetcher('https://api.exa.ai/search', {
+        method: 'POST',
+        signal: AbortSignal.timeout(20000),
+        headers: { 'Content-Type': 'application/json', 'x-api-key': env.EXA_API_KEY },
+        body: JSON.stringify({ query: query.trim(), includeDomains: ['youtube.com'], numResults: 10, type: 'auto' }),
+      });
+    } catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'Video search did not answer in time. Try again.' : 'Video search is unavailable'); }
+    if (response.status === 401 || response.status === 403) throw new Error('The Exa search key was refused.');
+    if (response.status === 429) throw new Error('Video search is rate-limited. Wait a minute and try again.');
+    if (!response.ok) throw new Error(`Video search is unavailable (${response.status})`);
+    data = await response.json();
+    ok = true;
+  } finally {
+    // Usage accounting (ledger bypass), once per dispatched search whatever its outcome: Exa's reported cost when it gives
+    // one, else the documented per-search estimate; a failed one (timeout, refusal, 429, unreadable 200) is unknown, never 0.
+    await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data), estimateMicros: EXA_SEARCH_ESTIMATE });
+  }
   return parseExaResults(data);
 }
 
