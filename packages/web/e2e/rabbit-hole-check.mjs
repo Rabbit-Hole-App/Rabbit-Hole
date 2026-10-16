@@ -1969,9 +1969,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  // No repository page: what its header showed lives in the canvas header (repository-canvas.jsx RepositoryBadge) - an icon
-  // link to GitHub, and the repository, branch, commit and status behind one info icon.
-  if (ready) await check('wp6-overview: an old ?tab=overview link opens the canvas with the Graph; the header names the project and links the repository on GitHub with an icon; repository, branch, commit and status sit behind one info icon, with no operational clutter at rest; nothing written', async () => {
+  // No repository page: what its header showed lives in the canvas header - the provenance group's repository button to GitHub,
+  // its icon and owner/repository (decision 2A, C:/s/spec/hdr-provenance.md; ProvenanceGroup.jsx), and the repository, branch,
+  // commit and status behind one info icon beside it (repository-canvas.jsx RepositoryBadge).
+  if (ready) await check('wp6-overview: an old ?tab=overview link opens the canvas with the Graph; the header names the project and links the repository on GitHub by its name; repository, branch, commit and status sit behind one info icon, with no operational clutter at rest; nothing written', async () => {
     const page = await open();
     await noAsks(page);
     await projectAt(page, `/apps/${ready.name}?tab=overview`);
@@ -1981,7 +1982,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const badge = page.locator('a[data-repo-badge]');
     must((await badge.getAttribute('aria-label')) === `Open ${ready.repo} on GitHub`, `the badge reads ${await badge.getAttribute('aria-label')}`);
     must((await badge.getAttribute('href') || '').toLowerCase().startsWith(`https://github.com/${ready.repo}`.toLowerCase()) && await badge.getAttribute('target') === '_blank', 'the badge does not open the repository on GitHub in a new tab');
-    must((await badge.innerText()).trim() === '', 'the badge shows text');
+    must((await badge.innerText()).trim() === ready.repo, `the badge reads ${await badge.innerText()}, not the repository name`);
     for (const clutter of ['Refresh branch', 'Last run']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on the canvas at rest`);
     must(await page.locator('[data-repo-details]').count() === 0, 'the repository details show before the info icon');
     await page.locator('[data-repo-info]').click();

@@ -70,6 +70,9 @@ export const routeRepository = (context, status = () => 'ready') => {
     if (p === `/api/apps/${REPO}`) return route.fulfill({ json: { ...row, status: status() } });
     if (p === `/api/repositories/${REPO}`) return route.fulfill({ json: { ...row, status: status() } });
     if (p === `/api/repositories/${REPO}/snapshot`) return route.fulfill({ json: SNAPSHOT });
+    // The header's provenance (C:/s/spec/hdr-provenance.md C2) for this owner's project, as the server answers its own: the
+    // repository it owns, no fork.
+    if (p === `/api/learn/provenance/apps/${REPO}`) return route.fulfill({ json: { repository: { label: SNAPSHOT.repo, url: `https://github.com/${SNAPSHOT.repo}` }, fork: null } });
     if (p === `/api/repositories/${REPO}/file`) { const { path } = JSON.parse(route.request().postData()); return route.fulfill({ json: { path, commit: COMMIT, content: content[path] } }); }
     return route.continue();
   }
