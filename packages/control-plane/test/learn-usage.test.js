@@ -397,6 +397,13 @@ test('attempt kinds: a repair is labelled at its call site, under the same actio
   assert.equal(out.result, 'validation_error');
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => a.kind), ['generation', 'repair']);
   assert.equal(rows(sqlite, 'usage_actions').length, 1);
+  // The route tells the boundary it delivered nothing: a 200 with a rejected artifact is result none, not full.
+  const { artifactFetch } = await import('../src/learn-artifact.js');
+  const routed = signedIn({ LEARN_DB, LEARN_MEDIA: memoryBucket(), CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo', email: 'u@test', org: 'team' }) } }, 'artifact', 'u-route');
+  const routedReply = await artifactFetch(new Request('https://dev.example/api/learn/artifact', { method: 'POST', headers: { cookie: 's' }, body: JSON.stringify({ app: 'demo', command: 'quiz' }) }), routed,
+    async scoped => { await beginAttempt(scoped, { reservedMicros: 1 }); return { result: 'validation_error', error: 'x' }; });
+  await finishWithResponse(routed, routedReply);
+  assert.deepEqual(rows(sqlite, 'usage_actions').slice(1).map(a => [a.user_id, a.status, a.result]), [['u-route', 'completed', 'none']]);
 });
 
 test('the dev/preview and stack configs carry a valid allowance; production does not in Phase 1', () => {

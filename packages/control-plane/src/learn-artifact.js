@@ -25,7 +25,7 @@ const lengths = schema => Object.entries(schema.properties || {}).filter(([, fie
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
 import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
-import { withAttemptKind } from './learn-usage.js';
+import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 export { ARTIFACT_SYSTEM };
 
 // What a command resolves to before any model runs. `ready` is the command's
@@ -105,6 +105,10 @@ export async function artifactFetch(req, env, generate = generateArtifact) {
   if (ownerRefused) return ownerRefused;
   let documents;
   try { documents = await contextDocumentBlocks(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
-  try { return json(await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) })); }
+  try {
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) });
+    noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
+    return json(out);
+  }
   catch (error) { return json({ error: error.message }, 502); }
 }

@@ -219,6 +219,12 @@ export async function finishAction(env, { status, result = null, now = nowSecond
   } catch (error) { warn(`action not finished: ${error?.message}`); }
 }
 
+// A route that can tell what it delivered says so: 'full', 'partial' or 'none'. The boundary uses it over its default.
+export function noteUsageResult(env, result) {
+  const ctx = env?.[USAGE];
+  if (ctx && ['full', 'partial', 'none'].includes(result)) ctx.result = result;
+}
+
 // The boundary's view of a response. An error status fails the action (result none). A JSON or other whole response
 // completes it with result full: its work finished before the response was made. An event stream is passed through
 // unchanged, byte for byte, and finishes when it ends (completed, result unknown: the stream's own events say what it
@@ -227,7 +233,7 @@ export async function finishWithResponse(env, response) {
   if (!usageContext(env) || !(response instanceof Response)) return response;
   const streamed = (response.headers.get('content-type') || '').includes('text/event-stream');
   if (!response.ok || !response.body || !streamed) {
-    await finishAction(env, response.ok ? { status: 'completed', result: 'full' } : { status: 'failed', result: 'none' });
+    await finishAction(env, response.ok ? { status: 'completed', result: usageContext(env).result || 'full' } : { status: 'failed', result: 'none' });
     return response;
   }
   const reader = response.body.getReader();
@@ -237,7 +243,7 @@ export async function finishWithResponse(env, response) {
     async pull(controller) {
       try {
         const { value, done } = await reader.read();
-        if (done) { await end({ status: 'completed', result: null }); controller.close(); }
+        if (done) { await end({ status: 'completed', result: usageContext(env).result || null }); controller.close(); }
         else { delivered = true; controller.enqueue(value); }
       } catch (error) { await end({ status: 'interrupted', result: delivered ? 'partial' : 'none' }); controller.error(error); }
     },
