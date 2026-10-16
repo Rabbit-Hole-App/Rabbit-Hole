@@ -28,6 +28,7 @@ import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
 import { spendTransport } from './learn-spend.js';
 import { journeyCallModel } from './learn-journey-planners.js';
+import { withAttemptKind } from './learn-usage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -116,7 +117,7 @@ export async function evaluateFreeText(env, spec, message, deps = {}) {
   const { telemetry: jevTelemetry, ...jev } = await jevRung(env, spec, message, deps);
   if (jev.status !== 'uncertain') return { ...jev, telemetry: { jev: jevTelemetry, larger: NOT_CALLED } };
   if (!jev.escalation.escalate) return { ...jev, telemetry: { jev: jevTelemetry, larger: { ...NOT_CALLED, reason: jev.escalation.reason } } };
-  const { telemetry: largerTelemetry, ...larger } = await largerRung(env, spec, message, deps);
+  const { telemetry: largerTelemetry, ...larger } = await largerRung(withAttemptKind(env, 'escalation'), spec, message, deps);
   const telemetry = { jev: jevTelemetry, larger: { ...largerTelemetry, reason: jev.escalation.reason } };
   // An errored larger rung keeps JEV's unsettled events (§3.3: stored unsettled, no state change).
   return larger.status === 'error' ? { ...jev, larger_error: larger.error, telemetry } : { ...larger, escalation: jev.escalation, telemetry };
@@ -396,7 +397,7 @@ export async function planTurn(env, context, deps = {}, documents = []) {
   const fast = FAST_PLANNER_MODELS.includes(fastName) ? fastName : null;
   const fastEffort = env.TUTOR_PLANNER_FAST_EFFORT == null ? (fast === PLANNER_DEFAULTS.fast_model ? PLANNER_DEFAULTS.fast_effort : null) : level('TUTOR_PLANNER_FAST_EFFORT');
   const tier = fast ? plannerTier(context) : null;
-  const opus = () => planOnce(env, context, LEARN_TASKS.tutor.model, level('TUTOR_PLANNER_EFFORT'), deps, documents);
+  const opus = (callEnv = env) => planOnce(callEnv, context, LEARN_TASKS.tutor.model, level('TUTOR_PLANNER_EFFORT'), deps, documents);
   if (!tier) return opus();
   const tagged = (plan, extra) => ({ ...plan, telemetry: { ...plan.telemetry, tier: tier.tier, tier_reason: tier.reason, ...extra } });
   if (tier.tier === 'opus') {
@@ -418,7 +419,7 @@ export async function planTurn(env, context, deps = {}, documents = []) {
   }
   const escalated = { tier: 'opus', tier_reason: tier.reason, escalated: problem, fast: first.telemetry ?? null };
   let plan;
-  try { plan = await opus(); } catch (error) { throw Object.assign(error, { telemetry: { ...error.telemetry, ...escalated } }); }
+  try { plan = await opus(withAttemptKind(env, 'escalation')); } catch (error) { throw Object.assign(error, { telemetry: { ...error.telemetry, ...escalated } }); }
   return { ...plan, telemetry: { ...plan.telemetry, ...escalated } };
 }
 

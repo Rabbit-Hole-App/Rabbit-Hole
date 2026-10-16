@@ -343,3 +343,53 @@ test('route boundary features: every paid /api/learn route is one feature from t
     assert.equal(usageFeature(method, path), null, `${method} ${path}`);
   assert.equal(usageContext({}), null);
 });
+
+test('the usage context reaches the provider attempts of the Tutor, board, artifact, Home, assess and Ctrl+K routing routes', async t => {
+  const worker = (await devWorker()).default;
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Mine')");
+  const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; }, batch: async s => Promise.all(s.map(x => x.run())) };
+  const env = { LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), ANTHROPIC_API_KEY: 'fixture', TYPESAFE_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', TUTOR_PLANNER_FAST_MODEL: 'off',
+    CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: 'owner@test', orgName: 'Team', user_id: 'u-owner-3c9f' }) } };
+  const original = globalThis.fetch;
+  globalThis.fetch = async url => String(url).includes('typesafe')
+    ? Response.json({ model: 'jev-1.13.0', usage: { input_tokens: 50 }, answers: {} })
+    : Response.json({ model: 'claude-opus-5-5', usage: { input_tokens: 10, output_tokens: 5 }, stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }] });
+  t.after(() => { globalThis.fetch = original; });
+  const send = (path, payload) => worker.fetch(new Request(`https://dev.example${path}`, { method: 'POST',
+    headers: { cookie: 'small_session=s', 'content-type': 'application/json' }, body: JSON.stringify(payload) }), env, { waitUntil() {} });
+  const app = 'canvas-0a1b2c3d';
+  const routes = [
+    ['/api/learn/tutor/plan', { app, context: { input: 'Explain this synthetic note.', allowed_actions: ['respond_text'] } }, 'tutor'],
+    ['/api/learn/board', { app, question: 'Why 0.5?', answer: 'exp(0) = 1', snapshot: { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: [] },
+      relatedObjects: [{ objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'y = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] }] } }, 'board'],
+    ['/api/learn/artifact', { app, command: 'graph', args: 'sigmoid' }, 'artifact'],
+    ['/api/learn/home-ask', { message: 'What is a sigmoid?' }, 'home_ask'],
+    ['/api/learn/assess', { app, mode: 'challenge', prompt: 'Why exp?', expects: ['positive'], answer: 'positive' }, 'assess'],
+    ['/api/learn/inline/route', { app, request_id: 'req-0123456789', prompt: 'Explain this with a diagram', selection: 'shape' }, 'inline_route'],
+  ];
+  for (const [path, payload, feature] of routes) {
+    const before = sqlite.prepare('SELECT COUNT(*) AS n FROM usage_attempts').get().n;
+    const response = await send(path, payload);
+    await response.text();
+    const attempts = sqlite.prepare('SELECT t.kind, a.user_id, a.feature, a.payer FROM usage_attempts t JOIN usage_actions a USING (action_id) ORDER BY t.rowid').all().slice(before);
+    assert.ok(attempts.length >= 1, `${path}: no attempt recorded (status ${response.status})`);
+    for (const attempt of attempts) assert.deepEqual([attempt.user_id, attempt.feature, attempt.payer], ['u-owner-3c9f', feature, 'user'], path);
+  }
+  // Every ledger row of these routes is one attempt, and no attempt fell back to a context-less 'system' action.
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM usage_operations').get().n, sqlite.prepare('SELECT COUNT(*) AS n FROM usage_attempts').get().n);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_actions WHERE payer_reason = 'system'").get().n, 0);
+});
+
+test('attempt kinds: a repair is labelled at its call site, under the same action', async t => {
+  const { generateArtifact } = await import('../src/learn-artifact.js');
+  const { sqlite, LEARN_DB } = database(t);
+  const env = signedIn({ LEARN_DB }, 'artifact');
+  const reply = { content: [{ type: 'tool_use', id: 't1', name: 'make_quiz', input: { question: 'Which?', options: [{ text: 'a', correct: true }, { text: 'b', correct: true }] } }] };
+  const callModel = async callEnv => { await beginAttempt(callEnv, { reservedMicros: 1 }); return Response.json(reply); };
+  const out = await generateArtifact(env, { command: 'quiz' }, { callModel });
+  assert.equal(out.result, 'validation_error');
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => a.kind), ['generation', 'repair']);
+  assert.equal(rows(sqlite, 'usage_actions').length, 1);
+});
