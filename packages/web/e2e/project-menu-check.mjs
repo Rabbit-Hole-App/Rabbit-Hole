@@ -309,6 +309,6 @@ await check('11 no page errors, the provider tripwire at 0', async () => {
 console.log('canvas menu:  ', canvasMenu.join(' | '));
 console.log('project menu: ', projectMenu.join(' | '));
 await browser.close();
-const total = 12;
+const total = 14;
 console.log(results.length === total ? 'PASS' : 'FAIL', `${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);
