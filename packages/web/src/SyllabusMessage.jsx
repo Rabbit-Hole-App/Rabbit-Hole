@@ -6,6 +6,8 @@
 // Use as table of contents (R4 owner decision 5B, contract C8): toContents { outline(), propose(proposal) } is the page's
 // existing Apply/Discard flow. The button proposes this syllabus, as saved, against the contents as they are now; the
 // learner reviews and applies it there, and this message stays a historical proposal.
+// A validated syllabus is at most 12 topics of 1 + 6 headings plus 12 descriptions: 96 ops, the page's cap for a syllabus
+// proposal (lead ruling C8 size A), so no size guard here; the card says why if Apply ever refuses.
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Check, ListTree, Loader2, Plus, Trash2 } from 'lucide-react';
 import { syllabusProposal } from './syllabus-outline.js';
@@ -14,8 +16,6 @@ const ICON = 'shrink-0 rounded p-1 text-ink-3 hover:bg-hover hover:text-ink disa
 const PILL = 'inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-hover disabled:opacity-50';
 // Server limits (web/src/learn-journey.js validatePath): a title is 1-80 characters, objectives together at most 240.
 const TITLE_MAX = 80, OBJECTIVES_MAX = 240, TOPICS_MAX = 12;
-// ponytail: Apply takes at most 24 ops until the PANEL lane lifts syllabus proposals to 96 (lead ruling, C8 size A).
-const APPLY_MAX = 24;
 const lines = text => text.split('\n').map(l => l.trim()).filter(Boolean);
 
 export default function SyllabusMessage({ syllabus, saveSyllabus = null, toContents = null }) {
@@ -25,7 +25,6 @@ export default function SyllabusMessage({ syllabus, saveSyllabus = null, toConte
   const useAsContents = () => {
     const proposal = syllabusProposal({ ...syllabus, topics: topics.map(({ objectivesText, ...t }) => t) }, toContents.outline());
     if (!proposal.ops.length) setAdopted('Already in the table of contents.');
-    else if (proposal.ops.length > APPLY_MAX) setAdopted(`Too many headings to add at once (${proposal.ops.length}; at most ${APPLY_MAX}).`);
     else { toContents.propose(proposal); setAdopted('Proposed in Table of contents: review it there, then Apply or Discard.'); }
   };
   const editable = !!saveSyllabus;

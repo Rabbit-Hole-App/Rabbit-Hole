@@ -74,3 +74,12 @@ test('an old syllabus without descriptions or subtopics adopts as plain level-1 
   assert.deepEqual(syllabusProposal(old, outline), { ops: [{ op: 'add', key: 'syllabus-1', text: 'Nodes', level: 1 }], base: outlineRevision(outline), source: 'syllabus' });
   assert.deepEqual(syllabusToOutlineOps({ topics: [] }, outline), []);
 });
+
+// The page caps a syllabus proposal at 96 ops (lead ruling C8 size A), so the button carries no size guard of its own.
+test('the largest valid syllabus (12 topics, 6 subtopics each) stays within the 96-op cap, on empty and on matching contents', () => {
+  const big = { topics: Array.from({ length: 12 }, (_, i) => ({ title: `Unit ${i + 1}`, description: 'd', objectives: ['o'], subtopics: Array.from({ length: 6 }, (_, j) => ({ title: `Part ${j + 1}` })) })) };
+  assert.equal(syllabusToOutlineOps(big, []).length, 84);
+  const titlesOnly = big.topics.map((t, i) => ({ id: `u${i}`, level: 1, label: t.title, done: false, description: '' }));
+  assert.equal(syllabusToOutlineOps(big, titlesOnly).length, 84, '12 describes and 72 subtopic adds');
+  // Applying 84 is the page's cap (PANEL 5b9343ef, table-of-contents tests) and toc-tutor-check step 8 on the release.
+});
