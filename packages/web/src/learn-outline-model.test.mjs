@@ -93,9 +93,16 @@ test('add with no anchor appends at the end', () => {
   assert.deepEqual(out[3], { id: 'new1', type: 'heading', dx: 0, dy: 0, level: 1, text: 'Training', done: false });
 });
 
-test('add after a heading lands directly after it, before its cards', () => {
+// R4 contract amendment C5a (lead, 2026-10-16) replaces the splice directly after the heading: an add after X lands
+// after X's whole section, so it never takes X's cards or children.
+test('add after a heading lands after its whole section, past its cards and sub-sections (C5a)', () => {
   const out = applyOutlineOps(blocks(), [{ op: 'add', text: 'Scaling', level: 2, after: 'h1' }], ids());
-  assert.deepEqual(out.map(b => b.id), ['h1', 'new1', 'c1', 'h2']);
+  assert.deepEqual(out.map(b => b.id), ['h1', 'c1', 'h2', 'new1']);
+  const list = [h('x', 1, 'X'), card('x1'), h('xa', 2, 'X.a'), card('xa1'), h('y', 1, 'Y'), card('y1')];
+  assert.deepEqual(applyOutlineOps(list, [{ op: 'add', text: 'After X', level: 1, after: 'x' }], ids()).map(b => b.id), ['x', 'x1', 'xa', 'xa1', 'new1', 'y', 'y1']);
+  assert.deepEqual(applyOutlineOps(list, [{ op: 'add', text: 'After X.a', level: 2, after: 'xa' }], ids()).map(b => b.id), ['x', 'x1', 'xa', 'xa1', 'new1', 'y', 'y1']);
+  assert.deepEqual(applyOutlineOps(list, [{ op: 'add', text: 'First child', level: 2, parent: 'x', after: 'x' }], ids()).map(b => b.id), ['x', 'x1', 'new1', 'xa', 'xa1', 'y', 'y1'], 'after its parent: first child heading, after the parent cards');
+  assert.deepEqual(applyOutlineOps(list, [{ op: 'add', text: 'First of Y', level: 2, parent: 'y', after: 'y' }], ids()).map(b => b.id), ['x', 'x1', 'xa', 'xa1', 'y', 'y1', 'new1'], 'a parent with no child heading: the end of its section');
 });
 
 test('a later op can build on a heading minted earlier in the same batch', () => {

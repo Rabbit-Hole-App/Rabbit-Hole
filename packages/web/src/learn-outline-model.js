@@ -146,7 +146,7 @@ function planOutline(blocks, ops, { newId = () => crypto.randomUUID(), strict = 
       } else if (op.parent != null && strict) return { error: 'a parent heading no longer exists.' };
       else if (op.after != null) {
         const anchor = indexOf(op.after);
-        if (anchor >= 0) at = anchor + 1;
+        if (anchor >= 0) at = sectionEnd(next, anchor);
         else if (strict) return { error: 'a heading it places a new one after no longer exists.' };
       }
       const text = strict ? trimmed(op.text) : op.text, description = trimmed(op.description).slice(0, DESCRIPTION_MAX);
