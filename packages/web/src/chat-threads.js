@@ -4,7 +4,7 @@ import { activeThread, rememberThread } from './chat-persist.js';
 
 // Sub-lane A2 (threads and History) owns this file. Contract: chat-workspace-CONTRACT.md A1-A5.
 // Shape every other sub-lane relies on:
-//   { id: string | null, title, mode: 'auto' | 'ask' | 'tutor', setMode(mode, { save = true }),
+//   { id: string | null, title, mode: 'auto' | 'ask' | 'tutor', setMode(mode), holdMode(mode | null),
 //     historyOpen, setHistoryOpen(open), newChat(), open(id) (a Promise; it rejects with the server's error), adopt(id, title) (the first send's done event names the new thread),
 //     restore: { key, mode, contextRefs, draft, messages } (a new key resets the draft and the attached refs; messages is the transcript to show),
 //     turnKey: string (changes whenever the open thread changes; a stream started under another key is dropped, contract A5),
@@ -34,13 +34,15 @@ export const withDone = (messages, replyId, { userMessageId, messageId }) => mes
 export const settle = (messages, replyId, status) => messages.map(m => (m.id === replyId && m.status === 'streaming' ? { ...m, status } : m));
 // A saved interrupted or stopped reply (a Stop, chat-persist.js) reads as the stopped reply it was, never as a spinner.
 export const restoredMessages = (messages = []) => messages.map(m => (['interrupted', 'stopped'].includes(m.status) ? { ...m, status: 'stopped', content: m.content || 'Stopped.' } : m));
+// The mode a restored thread shows: a held mode (holdMode) over the thread's saved one, which wins once the hold is released.
+export const restoredMode = (held, saved) => held || saved || 'auto';
 // The Chat header's title (owner brief section 6): never "New chat" while the conversation is loading or failed to load.
 export const chatTitle = ({ status, title }) => (status === 'loading' ? 'Loading chat…' : status === 'error' ? 'Chat not loaded' : title || 'New chat');
 
 export function useChatThread(canvas) {
   const [id, setId] = useState(null), [title, setTitle] = useState(''), [mode, setModeState] = useState('auto'), [historyOpen, setHistoryOpen] = useState(false);
   const [restore, setRestore] = useState(() => blank(`${canvas}:new:0`)), [status, setStatus] = useState('loading');
-  const idRef = useRef(null), pending = useRef(null), timer = useRef(null), request = useRef(0), shownCanvas = useRef(canvas), keyRef = useRef(restore.key);
+  const idRef = useRef(null), held = useRef(null), pending = useRef(null), timer = useRef(null), request = useRef(0), shownCanvas = useRef(canvas), keyRef = useRef(restore.key);
   const select = next => { idRef.current = next; setId(next); };
   const show = next => { keyRef.current = next.key; setRestore(next); };
   useEffect(() => { keyRef.current = restore.key; return () => { keyRef.current = null; }; }, [restore.key]);
@@ -74,8 +76,9 @@ export function useChatThread(canvas) {
   const load = useCallback(async (threadId, turn) => {
     const thread = await api(`/api/ask/threads/${encodeURIComponent(threadId)}`);
     if (turn !== request.current) return false;
-    select(thread.id); setTitle(thread.title || ''); setModeState(thread.mode || 'auto'); setHistoryOpen(false); setStatus('ready');
-    show({ key: `${canvas}:${thread.id}:${turn}`, mode: thread.mode || 'auto', contextRefs: thread.contextRefs || [], draft: thread.draft ?? null, messages: restoredMessages(thread.messages) });
+    const mode = restoredMode(held.current, thread.mode);
+    select(thread.id); setTitle(thread.title || ''); setModeState(mode); setHistoryOpen(false); setStatus('ready');
+    show({ key: `${canvas}:${thread.id}:${turn}`, mode, contextRefs: thread.contextRefs || [], draft: thread.draft ?? null, messages: restoredMessages(thread.messages) });
     return true;
   }, [canvas]);
   // History's open: the thread shown becomes this canvas's active one.
@@ -91,9 +94,11 @@ export function useChatThread(canvas) {
     if (idRef.current === threadId) return;
     select(threadId); setTitle(previous => previous || nextTitle || '');
   }, [remember]);
-  // save false: shown here only (the Table of contents selecting Tutor on entry, LearnPage.jsx), so opening a tab sends no
-  // request; the next turn records the mode, and a mode the learner picks is saved as before.
-  const setMode = useCallback((next, { save = true } = {}) => { setModeState(next); if (save) saveState({ mode: next }); }, [saveState]);
+  // A mode the learner picks is saved, and ends any hold.
+  const setMode = useCallback(next => { held.current = null; setModeState(next); saveState({ mode: next }); }, [saveState]);
+  // holdMode(mode): shown and not saved (the Table of contents selects Tutor on entry, LearnPage.jsx), so opening a tab sends
+  // no request, and a restore arriving later keeps it; the next turn records it. holdMode(null) releases the hold.
+  const holdMode = useCallback(next => { held.current = next; if (next) setModeState(next); }, []);
   const rename = useCallback(async nextTitle => {
     const threadId = idRef.current, clean = String(nextTitle ?? '').trim().slice(0, 120);
     if (!threadId || !clean) return;
@@ -128,6 +133,6 @@ export function useChatThread(canvas) {
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return useMemo(() => ({
-    id, title, mode, setMode, historyOpen, setHistoryOpen, restore, turnKey: restore.key, liveKey, status, retry: restoreActive, claim, newChat, open, adopt, saveState, rename, remove,
-  }), [id, title, mode, setMode, historyOpen, restore, liveKey, status, restoreActive, claim, newChat, open, adopt, saveState, rename, remove]);
+    id, title, mode, setMode, holdMode, historyOpen, setHistoryOpen, restore, turnKey: restore.key, liveKey, status, retry: restoreActive, claim, newChat, open, adopt, saveState, rename, remove,
+  }), [id, title, mode, setMode, holdMode, historyOpen, restore, liveKey, status, restoreActive, claim, newChat, open, adopt, saveState, rename, remove]);
 }

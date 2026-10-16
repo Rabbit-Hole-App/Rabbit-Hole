@@ -127,8 +127,10 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
 test('the Table of contents docks the same Chat pane under the contents: composer only, Tutor once per entry, Send opens Chat', () => {
   const pane = read('./ChatPane.jsx'), ask = read('./ask.jsx'), threads = read('./chat-threads.js');
   assert.match(page, /const composerDocked = panelTab === 'toc' && !setupChat;/, 'not under the course interview, which has its own composer');
-  assert.match(page, /useEffect\(\(\) => \{ if \(composerDocked\) chat\.thread\.setMode\('tutor', \{ save: false \}\); \}, \[composerDocked\]\);/, 'once per entry, not every render; shown, not saved');
-  assert.match(threads, /const setMode = useCallback\(\(next, \{ save = true \} = \{\}\) => \{ setModeState\(next\); if \(save\) saveState\(\{ mode: next \}\); \}, \[saveState\]\);/);
+  assert.match(page, /if \(!composerDocked\) return undefined;\n    chat\.thread\.holdMode\('tutor'\);\n    return \(\) => chat\.thread\.holdMode\(null\);\n  \}, \[composerDocked\]\);/, 'once per entry, not every render; held until the tab is left');
+  assert.match(threads, /const holdMode = useCallback\(next => \{ held\.current = next; if \(next\) setModeState\(next\); \}, \[\]\);/, 'shown, not saved');
+  assert.match(threads, /const setMode = useCallback\(next => \{ held\.current = null; setModeState\(next\); saveState\(\{ mode: next \}\); \}, \[saveState\]\);/, 'a pick is saved and ends the hold');
+  assert.match(threads, /const mode = restoredMode\(held\.current, thread\.mode\);\n    select\(thread\.id\); setTitle\(thread\.title \|\| ''\); setModeState\(mode\);/, 'a late restore keeps the held mode');
   assert.match(page, /onSent=\{\(\) => setPanelTab\(tab => \(tab === 'toc' \? 'chat' : tab\)\)\}/, 'a turn sent there shows its answer in Chat');
   const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
   assert.ok(toc > 0 && chatPane > toc && chatPane < page.indexOf('</ResizableSidePanel>', toc), 'one ChatPane, after the contents, in the same panel');
