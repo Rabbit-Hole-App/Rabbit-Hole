@@ -103,11 +103,15 @@ const profile = async (name, { hold = false, held = false, editor = false } = {}
     const request = route.request();
     if (request.method() === 'PUT') { try { puts.push((JSON.parse(request.postData()).state.blocks || []).map(block => block.id)); } catch { puts.push(null); } return route.fallback(); }
     if (request.method() !== 'GET' || !gate.held) return route.fallback();
-    const response = await route.fetch();
-    gate.pending = true; gate.answered = false;
-    for (let i = 0; i < 600; i += 1) if (await page.evaluate(() => !!(window.restoreMounted && window.releaseGet)).catch(() => false)) break; else await new Promise(done => setTimeout(done, 25));
-    gate.pending = false; gate.answered = true;
-    return route.fulfill({ response });
+    // A held GET can outlive its page or browser (a scenario closes them once it has asserted): then it is dropped, never an
+    // unhandled rejection that ends the whole run.
+    try {
+      const response = await route.fetch();
+      gate.pending = true; gate.answered = false;
+      for (let i = 0; i < 600; i += 1) if (await page.evaluate(() => !!(window.restoreMounted && window.releaseGet)).catch(() => false)) break; else await new Promise(done => setTimeout(done, 25));
+      gate.pending = false; gate.answered = true;
+      return await route.fulfill({ response });
+    } catch { return route.abort().catch(() => {}); }
   });
   page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
@@ -152,6 +156,7 @@ await check('1 the as-loaded save forced after the restore: the card stays in th
   const log = await one.page().evaluate(() => window.restoreLog);
   assert.ok(log.some(entry => entry.startsWith('forced')), `the interleaving was forced (${log.join(', ')})`);
   assert.equal(await one.page().locator('[data-block-id="c1"]').count(), 1, `the card is on the canvas (${log.join(', ')})`);
+  one.gate.held = false;
   await settle(one.page());
   console.log(`   log: ${log.join(', ')}; 1500 ms pushes sent: ${await one.page().evaluate(() => window.pushesSent())}; PUTs: ${JSON.stringify(one.puts)}`);
   await survives('as-loaded save', name, one);
@@ -168,6 +173,7 @@ await check('2 an edit made before the server copy arrives, its save forced afte
   const log = await two.page().evaluate(() => window.restoreLog);
   assert.ok(log.some(entry => entry.startsWith('forced')), `the edit's save was forced (${log.join(', ')})`);
   assert.equal(await two.page().locator('[data-block-id="c1"]').count(), 1, `the card is on the canvas (${log.join(', ')})`);
+  two.gate.held = false;
   await settle(two.page());
   console.log(`   log: ${log.join(', ')}; 1500 ms pushes sent: ${await two.page().evaluate(() => window.pushesSent())}; PUTs: ${JSON.stringify(two.puts)}`);
   // The edit made while the board loaded is pushed with the card: wait for the server to hold both.
