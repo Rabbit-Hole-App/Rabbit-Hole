@@ -1,20 +1,21 @@
 // Chart as a BlockNote block (flow.md §3a): /chart plots this app's runs or an
 // output file with nivo. Config lives in block props, so it rides the runbook
 // JSON autosave exactly like the Excalidraw block - no extra storage or routes.
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { createReactBlockSpec } from '@blocknote/react';
 import { BarChart3, Settings2 } from 'lucide-react';
 import { api, isDark, wsHeaders } from './api.js';
 import { IconBtn, Select } from './ui.jsx';
 import { flattenRuns, parseOutput, columns, toNivo } from './chart-data.js';
+import { lazyFeature } from './lazy-feature.jsx';
 
 // nivo is heavy - each chart type loads its chunk only when a chart of that type renders
-const Line = lazy(() => import('@nivo/line').then((m) => ({ default: m.ResponsiveLine })));
-const Bar = lazy(() => import('@nivo/bar').then((m) => ({ default: m.ResponsiveBar })));
-const Pie = lazy(() => import('@nivo/pie').then((m) => ({ default: m.ResponsivePie })));
-const Scatter = lazy(() => import('@nivo/scatterplot').then((m) => ({ default: m.ResponsiveScatterPlot })));
-const Calendar = lazy(() => import('@nivo/calendar').then((m) => ({ default: m.ResponsiveCalendar })));
+const Line = lazyFeature(() => import('@nivo/line').then((m) => ({ default: m.ResponsiveLine })), 'The chart');
+const Bar = lazyFeature(() => import('@nivo/bar').then((m) => ({ default: m.ResponsiveBar })), 'The chart');
+const Pie = lazyFeature(() => import('@nivo/pie').then((m) => ({ default: m.ResponsivePie })), 'The chart');
+const Scatter = lazyFeature(() => import('@nivo/scatterplot').then((m) => ({ default: m.ResponsiveScatterPlot })), 'The chart');
+const Calendar = lazyFeature(() => import('@nivo/calendar').then((m) => ({ default: m.ResponsiveCalendar })), 'The chart');
 
 const MARGIN = { top: 10, right: 20, bottom: 45, left: 45 };
 const TYPES = ['line', 'bar', 'pie', 'scatter', 'calendar'];

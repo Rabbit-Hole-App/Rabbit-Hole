@@ -1,4 +1,4 @@
-import { cloneElement, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cloneElement, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
@@ -25,7 +25,7 @@ import { ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 // Lazy: it draws real cards, so it brings the card components with it.
-const SlashCommandsSheet = lazy(() => import('./SlashCommandsSheet.jsx'));
+const SlashCommandsSheet = lazyFeature(() => import('./SlashCommandsSheet.jsx'), 'The slash commands');
 import FilesPanel from './FilesPanel.jsx';
 import FileImportDialog from './FileImportDialog.jsx';
 import PdfAddDialog from './PdfAddDialog.jsx';
@@ -75,17 +75,23 @@ import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
-import { hasLocalContent, unsavedKey } from './home/canvas-local.js';
+import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsavedKey } from './home/canvas-local.js';
+import { editorClosed, editorOpened } from './chunk-reload.js';
 import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
 import { boardText, serial, sharingOf } from './canvas-persist.js';
+import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
 import { codeRef, paperRef, wikiRef } from './chat-sources.js';
 
-const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
+const LearnNotes = lazyFeature(() => import('./LearnNotes.jsx'), 'Notes');
+// Follow-up R3 item 3: this browser's copy of a board cannot be read (blocked storage, a value that is not a board), so a save
+// sends nothing rather than an empty board; storage blocked outright keeps nothing at all, which the canvas says on open.
+const UNREADABLE_COPY = "Not saved: this browser can't read its copy of this canvas, so nothing was sent to replace the saved one.";
+const UNKEPT = "This browser is blocking storage, so this canvas can't be kept here and your edits won't be saved.";
 // A review board named main gets a slug of its own (owner decision 3, 2026-10-07): review boards stay apart from the learner's
 // real board, so ?board=main never shares its server row, journey or Tutor store.
 const boardSlug = name => { const slug = String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test'; return slug === 'main' ? 'review-main' : slug; };
-const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
+const AdaptiveCanvas = lazyFeature(() => import('./AdaptiveCanvas.jsx'), 'The canvas');
 const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
 // What a reserved research card says while the answer finishes (docs/features/canvas-skeleton-cards.md).
 const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…', video: 'Opening the video…' };
@@ -913,9 +919,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // canvas (owner decision B1); the save status of the board that holds it (Saving / Saved / Couldn't save, the server's
   // answer, never assumed); its size against the server's 1.9 MB; a 409 (this canvas changed elsewhere) and a document a
   // newer server copy replaced on open, both kept and offered back, never dropped.
-  const [docView, setDocViewState] = useState(() => readDocView(localStorage, canvasKey));
-  useEffect(() => { setDocViewState(readDocView(localStorage, canvasKey)); }, [canvasKey]);
-  const setDocView = view => { writeDocView(localStorage, canvasKey, view); setDocViewState(view === 'editor' ? 'editor' : 'canvas'); };
+  const [docView, setDocViewState] = useState(() => readDocView(browserStorage(), canvasKey));
+  useEffect(() => { setDocViewState(readDocView(browserStorage(), canvasKey)); }, [canvasKey]);
+  const setDocView = view => { writeDocView(browserStorage(), canvasKey, view); setDocViewState(view === 'editor' ? 'editor' : 'canvas'); };
   const [saveState, setSaveState] = useState(null);
   useEffect(() => {
     if (saveState?.state !== 'saved') return;
@@ -934,9 +940,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   sourcesRef.current = sources;
   const versionKey = `${boardStorageKey}:v`;
   // The sources list rides with the main board (canvas-persistence.md); a review board has none of its own.
+  // An unreadable copy (blocked storage, a value that is not a board) throws: it is never saved or shared as an empty board
+  // over the server's content (follow-up R3 item 3). The save says so instead (refused, below).
   const boardSnapshot = () => {
-    let state = {};
-    try { state = JSON.parse(localStorage.getItem(boardStorageKey) || '{}'); } catch { /* an unreadable copy shares as empty */ }
+    const state = readBoardCopy(browserStorage(), boardStorageKey);
+    if (!state) throw Object.assign(new Error(UNREADABLE_COPY), { unreadable: true });
     return { ...state, exchanges: exchangesRef.current, ...(board ? {} : { sources: sourcesRef.current }) };
   };
   // Board files follow the board: this page's cards read the server copy when
@@ -988,13 +996,18 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => {
     let live = true;
     boardLoaded.current = false; boardSynced.current = null; boardStopped.current = false;
+    // Read now, before the canvas writes its first copy over a value it could not read (AdaptiveCanvas, 400 ms after mount):
+    // an unreadable copy or version is never proof this browser's copy is current, so the server's copy decides.
+    const storage = browserStorage();
+    const unreadable = readBoardCopy(storage, boardStorageKey) === null || readBoardVersion(storage, versionKey) === null;
     api(boardPath).then(data => {
       if (!live) return;
       setSharing(data.sharing);
       setCommentBoard(data.board_id || null);
       boardLoaded.current = true;
       // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
-      const hasLocal = hasLocalContent(localStorage, { ink: boardStorageKey, chat: chatKey });
+      const hasLocal = hasLocalContent(storage, { ink: boardStorageKey, chat: chatKey });
+      if (!storage) toast(UNKEPT, { tone: 'error' });
       if (data.exists === false) {
         boardVersion.current = null; setCanvasVersion(null);
         if (hasLocal) pushBoard(null, { now: true });
@@ -1002,8 +1015,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       }
       boardVersion.current = data.version; setCanvasVersion(data.version);
       boardSynced.current = boardText(data.state);
-      const mine = Number(localStorage.getItem(versionKey) || 0);
-      if (data.version <= mine) {
+      const mine = readBoardVersion(storage, versionKey);
+      if (!unreadable && mine !== null && data.version <= mine) {
         try { localStorage.removeItem(docKeepKey); } catch { /* nothing to keep: this browser's copy is the newest */ }
         if (boardText(boardSnapshot()) !== boardSynced.current) pushBoard();
         return;
@@ -1012,7 +1025,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       try {
         // ponytail: what the server copy replaces is kept under :replaced when it held other content, so content that never
         // reached the server is recoverable by hand; only its document has a restore action (below), the rest has no UI.
-        const replaced = hasLocal && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
+        const copy = readBoardCopy(storage, boardStorageKey);
+        const replaced = hasLocal && copy && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
         // The document (blocknote-canvas.md): Reload and keep my document (after a 409) puts this browser's document over
         // the newer server copy as the newer edit, pushed below. Whatever document loses - the server's then, this
         // browser's on a plain open - is kept under :replaced and offered back (docOnServerCopy).
@@ -1094,9 +1108,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // server's own words, once, and the next edit tries again; Home and the Library keep calling it browser-only (step 8).
   const refused = error => {
     boardUnsynced.current = true;
-    setSaveState({ state: 'error', status: error.status || 0, message: error.status === 413 ? 'Not saved: this canvas is over the 1.9 MB limit. Remove large images or long content, then retry.' : error.status === 409 ? 'Not saved: this canvas changed elsewhere.' : error.status ? error.message : 'Not saved yet: offline. It saves when you are back online.' });
+    setSaveState({ state: 'error', status: error.status || 0, unreadable: !!error.unreadable, message: error.status === 413 ? 'Not saved: this canvas is over the 1.9 MB limit. Remove large images or long content, then retry.' : error.status === 409 ? 'Not saved: this canvas changed elsewhere.' : error.status || error.unreadable ? error.message : 'Not saved yet: offline. It saves when you are back online.' });
     if (error.status === 409) setDocConflict(true);
-    if (!error.status) return;
+    if (!error.status && !error.unreadable) return;
     if (error.status === 413) try { localStorage.setItem(unsavedKey({ ink: boardStorageKey }), '1'); } catch { /* not kept */ }
     if (error.status === 409) {
       boardStopped.current = true;
@@ -1143,6 +1157,23 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     window.addEventListener('online', online);
     return () => window.removeEventListener('online', online);
   }, [pushBoard]);
+  // An open board holds back the automatic reload for a new build, and Retry's reload while a reload could lose an edit
+  // (chunk-reload.js, follow-up R3 item 1): this browser's copy unreadable (boardSnapshot throws), words typed in the document
+  // not in that copy yet, a 409 (the server's copy would replace it), or that copy not what the server holds (a save waiting,
+  // in flight or refused). A board the server never answered for, or a review board that is not shared, has only this
+  // browser's copy, which a reload reads again.
+  const boardUnsaved = () => {
+    const state = boardSnapshot(), shown = canvas()?.liveBoard?.();
+    if (shown && !docSaved(state.doc, shown.doc)) return true;
+    if (boardStopped.current) return true;
+    if (!boardLoaded.current || (board && sharingOf(sharingRef.current) !== 'shared')) return false;
+    // The server holds no board yet: only content is worth a save (Load, above), not the keys the canvas writes on open.
+    if (boardSynced.current === null) return hasLocalContent(browserStorage(), { ink: boardStorageKey, chat: chatKey });
+    return boardText(state) !== boardSynced.current;
+  };
+  const unsavedRef = useRef(boardUnsaved);
+  unsavedRef.current = boardUnsaved;
+  useEffect(() => { editorOpened(boardPath, () => unsavedRef.current()); return () => editorClosed(boardPath); }, [boardPath]);
   const changeSharing = async next => {
     setShareBusy(true);
     setShareError(null);
@@ -1796,7 +1827,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               a document a newer server copy replaced are offered back here, never dropped. */}
           {docView === 'editor' && saveState && (
             <span data-doc-save-status data-state={saveState.state} className={`flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs ${saveState.state === 'error' ? 'text-red-700' : 'text-ink-3'}`} title={saveState.message || undefined}>
-              {saveState.state === 'saving' ? 'Saving…' : saveState.state === 'saved' ? 'Saved' : <>Couldn&apos;t save{saveState.status === 413 ? ' - Not saved: over 1.9 MB' : saveState.status ? '' : ' - offline'}
+              {saveState.state === 'saving' ? 'Saving…' : saveState.state === 'saved' ? 'Saved' : <>Couldn&apos;t save{saveState.status === 413 ? ' - Not saved: over 1.9 MB' : saveState.status || saveState.unreadable ? '' : ' - offline'}
                 <button type="button" onClick={() => (saveState.status === 409 ? keepMyDoc() : pushBoard(null, { now: true }))} className="ml-1 flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCw size={12} aria-hidden />Retry</button></>}
             </span>
           )}

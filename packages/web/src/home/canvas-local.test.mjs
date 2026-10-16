@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canvasKeys, deviceId, hasLocalContent, localBoard, opensHere } from './canvas-local.js';
+import { browserStorage, canvasKeys, deviceId, hasLocalContent, localBoard, opensHere, readBoardCopy, readBoardVersion } from './canvas-local.js';
+import { readDocView } from '../canvas-doc.js';
+import { fixturesOn } from './review-fixtures.js';
 
 const memory = (entries = {}) => { const items = new Map(Object.entries(entries)); return { getItem: (key) => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)) }; };
 const KEYS = canvasKeys({ org: 'gmail-com', email: 'a@gmail.com', slug: 'canvas-0f9e8d7c' });
@@ -72,4 +74,41 @@ test('an empty document is not local content; a document with words is', () => {
   assert.equal(hasLocalContent(memory(sheet([])), KEYS), false);
   assert.equal(hasLocalContent(memory(sheet([{ id: 'p', type: 'paragraph', content: [], children: [] }])), KEYS), false);
   assert.equal(hasLocalContent(memory(sheet([{ id: 'p', type: 'paragraph', content: [{ type: 'text', text: 'Draft', styles: {} }], children: [] }])), KEYS), true);
+});
+
+// Follow-up R3 item 3: blocked storage, where reading window.localStorage itself throws, and malformed stored values.
+test('browserStorage: null where reading window.localStorage throws, so no caller throws before its own try/catch', () => {
+  const had = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  try {
+    globalThis.window = {};
+    Object.defineProperty(globalThis.window, 'localStorage', { get() { throw new Error('SecurityError: access is denied'); } });
+    assert.equal(browserStorage(), null);
+    const store = memory();
+    globalThis.window = { localStorage: store };
+    assert.equal(browserStorage(), store);
+  } finally {
+    if (had) Object.defineProperty(globalThis, 'window', had); else delete globalThis.window;
+  }
+  // Every reader takes the null: view preferences fall back to their defaults, content reads as unknown, never as empty.
+  assert.equal(readDocView(null, KEYS.base), 'canvas');
+  assert.equal(fixturesOn(null, '', true), false);
+  assert.equal(hasLocalContent(null, KEYS), true, 'unreadable counts as content');
+  assert.equal(readBoardCopy(null, KEYS.ink), null);
+  assert.equal(readBoardVersion(null, `${KEYS.ink}:v`), null);
+});
+
+test('readBoardCopy: {} when there is no copy, null (never {}) when the copy cannot be read', () => {
+  const board = { strokes: [{ id: 's1' }], blocks: [] };
+  assert.deepEqual(readBoardCopy(memory(), KEYS.ink), {});
+  assert.deepEqual(readBoardCopy(memory({ [KEYS.ink]: JSON.stringify(board) }), KEYS.ink), board);
+  for (const bad of ['{not json', '[]', '"text"', '42', 'null']) assert.equal(readBoardCopy(memory({ [KEYS.ink]: bad }), KEYS.ink), null, bad);
+  assert.equal(readBoardCopy({ getItem: () => { throw new Error('blocked'); } }, KEYS.ink), null);
+});
+
+test('readBoardVersion: 0 when none is stored, null when the version cannot be read or is not one', () => {
+  const key = `${KEYS.ink}:v`;
+  assert.equal(readBoardVersion(memory(), key), 0);
+  assert.equal(readBoardVersion(memory({ [key]: '7' }), key), 7);
+  for (const bad of ['', ' ', 'seven', '1.5', '-1', 'NaN', 'Infinity', '{}']) assert.equal(readBoardVersion(memory({ [key]: bad }), key), null, JSON.stringify(bad));
+  assert.equal(readBoardVersion({ getItem: () => { throw new Error('blocked'); } }, key), null);
 });

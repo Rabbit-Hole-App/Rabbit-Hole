@@ -134,7 +134,7 @@ test('typing in an equation is typing: the canvas keys stand down for its field'
 
 test('MathLive loads with the first equation edited, never with the canvas', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.match(canvas, /const EquationEditor = lazy\(\(\) => import\('\.\/EquationEditor\.jsx'\)\);/);
+  assert.match(canvas, /const EquationEditor = lazyFeature\(\(\) => import\('\.\/EquationEditor\.jsx'\), 'The equation editor'\);/);
   assert.doesNotMatch(canvas, /from 'mathlive'/);
   for (const file of ['./LearnPage.jsx', './canvas-equation.js', './MathText.jsx', './ask.jsx', './Md.jsx', './ChatMessages.jsx']) assert.doesNotMatch(read(file), /from 'mathlive'|import\('mathlive'\)/, file);
   const editor = read('./EquationEditor.jsx');

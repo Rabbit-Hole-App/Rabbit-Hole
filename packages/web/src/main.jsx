@@ -25,7 +25,7 @@ import { getSurface, setSurface } from './agent/surface.js';
 import { sidebarEdge } from './home/pinned.js';
 import { learnPreview, PRODUCT } from './flags.js';
 import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
-import { reloadOnce } from './chunk-reload.js';
+import { editorOpen, reloadForNewBuild } from './chunk-reload.js';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
 // The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab, as v3: the same
@@ -149,13 +149,15 @@ function AppRoot() {
   );
 }
 
-// A lazy chunk gone after a deploy: reload once for the new shell (chunk-reload.js). If it still fails, React's uncaught
-// error would leave a blank page, so the root shows a plain message with Reload instead.
+// A lazy chunk gone after a deploy: reload once for the new shell (chunk-reload.js), but never offline (the browser's network
+// error page) and never with an editor open (an edit may still be on its way): there the feature says so in its place, with
+// Retry (lazy-feature.jsx). If a chunk still fails outside one, React's uncaught error would leave a blank page, so the root
+// shows a plain message with Reload instead.
 let reloading = false;
 window.addEventListener('vite:preloadError', (e) => {
   let store = null;
   try { store = window.sessionStorage; } catch { /* blocked: never reload */ }
-  if (!reloadOnce(store, Date.now())) return;
+  if (!reloadForNewBuild({ online: navigator.onLine, editing: editorOpen(), storage: store, now: Date.now() })) return;
   reloading = true;
   e.preventDefault();
   window.location.reload();

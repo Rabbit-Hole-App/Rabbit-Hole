@@ -2415,10 +2415,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
   // WP7 (user, 2026-09-29): a deploy replaces the hashed chunks, so a tab opened before it gets a 404 on its next lazy chunk.
   // Since Release 1 the project's own lazy chunk is the Graph view's, loaded when Explore codebase first shows it. A failed load
-  // is caught in the column (repository-canvas.jsx GraphPanel): The graph could not load, with Reload, never a page-wide failure.
-  // main.jsx may still reload the page once first (vite:preloadError, chunk-reload.js); that reload lands on the plain canvas,
-  // so Explore codebase is pressed again. Either way the page reloads at most once on its own and never loops.
-  if (ready) await check('wp7-stale-chunk: the Graph chunk gone after a deploy recovers after one reload and Explore codebase opens the Graph; a chunk that keeps failing shows The graph could not load with Reload in the column, the canvas stays, and nothing reloads in a loop', async () => {
+  // is caught in the column (repository-canvas.jsx GraphPanel, lazy-feature.jsx): The graph could not load, with Retry, never a
+  // page-wide failure. Since follow-up R3 item 1, main.jsx never reloads on its own while a canvas is open (an edit may be on its
+  // way); Retry reloads once every edit is on the server. A reload that does happen lands on the plain canvas, so Explore
+  // codebase is pressed again. Either way the page reloads at most once and never loops.
+  if (ready) await check('wp7-stale-chunk: the Graph chunk gone after a deploy recovers after one reload and Explore codebase opens the Graph; a chunk that keeps failing shows The graph could not load with Retry in the column, the canvas stays, and nothing reloads in a loop', async () => {
     for (const persistent of [false, true]) {
       const page = await open();
       await noAsks(page);
@@ -2427,15 +2428,15 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await projectAt(page, `/apps/${ready.name}`);
       page.on('load', () => reloads++); // full page loads only
       const explore = page.locator('button[aria-label="Explore codebase"]');
-      const missing = page.locator('[data-learn-graph] [data-graph-unavailable]', { hasText: 'The graph could not load. A newer version may be out.' });
+      const missing = page.locator('[data-learn-graph] [data-feature-unavailable]', { hasText: 'The graph could not load. A newer version may be out.' });
       const reloaded = page.waitForEvent('load', { timeout: 30000 }).then(() => 'reload', () => null);
       await explore.click();
       const first = await Promise.race([reloaded, missing.waitFor({ timeout: 30000 }).then(() => 'column', () => null)]); // the loser settles quietly: the harness crashes on an unhandled rejection
       if (first === 'reload') { await explore.waitFor({ timeout: 30000 }); await explore.click(); } // back on the plain canvas
       if (!persistent) {
-        if (first === 'column') { // React.lazy keeps the failed result: the column's Reload is the way back
+        if (first === 'column') { // the browser keeps the failed module: the column's Retry reloads, the canvas saved
           const back = page.waitForEvent('load', { timeout: 30000 });
-          await missing.getByRole('button', { name: 'Reload', exact: true }).click();
+          await missing.getByRole('button', { name: 'Retry', exact: true }).click();
           await back;
           await explore.waitFor({ timeout: 30000 });
           await explore.click();
@@ -2444,7 +2445,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         must(reloads === 1, `expected one reload, saw ${reloads}`);
       } else {
         await missing.waitFor({ timeout: 30000 });
-        await missing.getByRole('button', { name: 'Reload', exact: true }).waitFor({ timeout: 5000 });
+        await missing.getByRole('button', { name: 'Retry', exact: true }).waitFor({ timeout: 5000 });
         await page.waitForTimeout(4000);
         must(await page.getByText("This page couldn't load", { exact: false }).count() === 0, 'a missing Graph chunk failed the whole page');
         must(await page.getByLabel('Lesson canvas').isVisible(), 'the canvas went with the Graph chunk');
