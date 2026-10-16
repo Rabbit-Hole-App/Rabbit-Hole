@@ -2,6 +2,8 @@
 // board's server copy (LearnPage pushBoard; docs/features/canvas-persistence.md). Pure: the storage getter and onSave are
 // passed in.
 
+import { docIsEmpty } from './canvas-doc.js';
+
 // ponytail: generated images are large data URLs; keep the prompt, drop the bytes so one illustration cannot fill the
 // browser's storage quota.
 export const lightBlocks = blocks => blocks.map(block => block.src?.startsWith('data:') && block.src.length > 120000 ? { ...block, src: '' } : block);
@@ -42,3 +44,19 @@ export const sharingOf = sharing => (!sharing || sharing.unavailable ? 'unknown'
 // doc: the canvas's one document (docs/features/blocknote-canvas.md), an object; a board without one reads as [] like any key.
 const BOARD_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources', 'doc'];
 export const boardText = state => JSON.stringify(BOARD_KEYS.map(key => state?.[key] ?? []));
+// Any stroke, shape, item, link, card, group, area or chat card, or a document with words in it. Not the sources list: a
+// repository's canvas registers its repository there on open, and the list is kept apart from the board (LearnPage :sources).
+export const boardHasContent = state => BOARD_KEYS.some(key => key !== 'sources' && (key === 'doc' ? !docIsEmpty(state?.doc) : (state?.[key] ?? []).length > 0));
+
+// Whether a reload now could lose an edit on this board (offline-recovery brief 2026-10-16; lazy-feature.jsx Retry). `live`:
+// the board as the canvas holds it this moment, its document's unsaved words included - never only this browser's copy,
+// which the canvas writes 400 ms after a change. `copy`: this browser's copy, or null when it cannot outlive the page
+// (blocked storage keeps it in memory only). `answered`: the server answered for this board and holds it (a review board
+// that is not shared is held only here); `synced`: the boardText the server holds, or null when it holds no board yet.
+export function boardPending({ live, copy, answered, synced }) {
+  // Only this browser's copy is read again after a reload: everything live must be in a copy that survives one.
+  if (!answered) return copy ? boardText(live) !== boardText(copy) : boardHasContent(live);
+  // The server holds no board yet: only content is worth a save (LearnPage Load), not the keys the canvas writes on open.
+  if (synced === null) return boardHasContent(live);
+  return boardText(live) !== synced;
+}

@@ -2,7 +2,7 @@
 // board's server copy, awaited. Fake storage and a fake onSave: no browser, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boardText, lightBlocks, persistBoard, serial, sharingOf } from './canvas-persist.js';
+import { boardHasContent, boardPending, boardText, lightBlocks, persistBoard, serial, sharingOf } from './canvas-persist.js';
 
 const big = `data:image/png;base64,${'A'.repeat(120001)}`, small = 'data:image/png;base64,AAAA';
 const state = { strokes: [{ id: 's' }], shapes: [], items: [], links: [], blocks: [{ id: 'a', src: big }, { id: 'b', src: small }, { id: 'c' }], groups: [], areas: [] };
@@ -88,4 +88,41 @@ test('boardText counts the document: a doc-only edit differs, a missing doc equa
   assert.notEqual(boardText({ ...state, doc }), boardText({ ...state, doc: edited }));
   assert.equal(boardText(state), boardText({ ...state, doc: undefined }));
   assert.notEqual(boardText(state), boardText({ ...state, doc }));
+});
+
+// Offline-recovery brief (owner, 2026-10-16), issue 1: Retry's reload is decided on the live board, never only on this
+// browser's copy, which the canvas writes 400 ms after a change.
+const EMPTY_BOARD = { strokes: [], shapes: [], items: [], links: [], blocks: [], groups: [], areas: [], exchanges: [], sources: [] };
+const SERVER = { ...EMPTY_BOARD, blocks: [{ id: 'c1', type: 'explanation', title: 'Light' }] };
+test('check 1: a live edit before the 400 ms browser save is pending, though this browser copy still matches the server', () => {
+  const copy = SERVER, synced = boardText(SERVER);
+  for (const live of [
+    { ...SERVER, strokes: [{ id: 's1' }] }, // a stroke
+    { ...SERVER, blocks: [...SERVER.blocks, { id: 'c2', type: 'note' }] }, // a card
+    { ...SERVER, shapes: [{ id: 'r1' }] }, // a shape
+    { ...SERVER, links: [{ id: 'l1', from: 'c1', to: 'c2' }] }, // a connection
+    { ...SERVER, blocks: [] }, // a deletion
+    { ...SERVER, doc: { v: 1, blocks: [{ type: 'paragraph', content: 'typed' }] } }, // document words
+  ]) assert.equal(boardPending({ live, copy, answered: true, synced }), true, JSON.stringify(live));
+  assert.equal(boardPending({ live: SERVER, copy, answered: true, synced }), false, 'nothing pending: Retry may reload');
+});
+
+test('check 2: the board GET failed and storage is memory-only: any content is pending; a persistent copy holding it is not', () => {
+  const live = { ...EMPTY_BOARD, strokes: [{ id: 's1' }] };
+  assert.equal(boardPending({ live, copy: null, answered: false, synced: null }), true, 'memory-only: a reload keeps nothing');
+  assert.equal(boardPending({ live: EMPTY_BOARD, copy: null, answered: false, synced: null }), false, 'nothing to lose');
+  assert.equal(boardPending({ live, copy: live, answered: false, synced: null }), false, 'a persistent copy holds it, and a reload reads it again');
+  assert.equal(boardPending({ live, copy: EMPTY_BOARD, answered: false, synced: null }), true, 'the persistent copy is not written yet');
+});
+
+test('check 4: once the server holds the live board, nothing is pending; a server with no board waits only for content', () => {
+  const live = { ...SERVER, strokes: [{ id: 's1' }] };
+  assert.equal(boardPending({ live, copy: live, answered: true, synced: boardText(live) }), false);
+  assert.equal(boardPending({ live, copy: null, answered: true, synced: boardText(live) }), false, 'blocked storage, saved to the account');
+  assert.equal(boardPending({ live: EMPTY_BOARD, copy: EMPTY_BOARD, answered: true, synced: null }), false);
+  assert.equal(boardPending({ live, copy: live, answered: true, synced: null }), true);
+  assert.equal(boardHasContent({ doc: { v: 1, blocks: [] } }), false, 'an empty document sheet is not content');
+  // A repository's Main canvas registers its repository as a source on open: never content, or Retry would never reload there
+  // (rabbit-hole-check wp7-stale-chunk).
+  assert.equal(boardPending({ live: { ...EMPTY_BOARD, sources: [{ id: 'repo', kind: 'repository' }] }, copy: EMPTY_BOARD, answered: true, synced: null }), false);
 });

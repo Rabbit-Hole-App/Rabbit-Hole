@@ -4,7 +4,10 @@
 export const RELOAD_KEY = 'small.chunk-reload';
 export const RELOAD_WINDOW = 60_000;
 
+// The marker must outlive the reload it allows: a store held in memory (storage-fallback.js, where the browser blocks
+// sessionStorage) starts empty on every page load, so trusting it would reload on every load. No such store, no reload.
 export function reloadOnce(storage, now) {
+  if (!storage || storage.memory) return false;
   try {
     const last = Number(storage.getItem(RELOAD_KEY)) || 0;
     if (now - last < RELOAD_WINDOW) return false;
