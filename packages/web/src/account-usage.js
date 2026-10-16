@@ -25,14 +25,21 @@ export function readUsage(status, body) {
   if (status === 401) return { status: 'signed_out' };
   if (status !== 200 || !body || typeof body !== 'object') return { status: 'unavailable', reason: body?.unavailable || 'error' };
   if (body.unavailable) return { status: 'unavailable', reason: String(body.unavailable) };
+  // unknownAttempts: provider calls whose cost is not known yet (their bound, if any, is already inside reservedMicros). A missing
+  // count is 0, as from a server before the field; a present one must be a whole number like every other field.
+  const unknown = body.unknownAttempts ?? 0;
   const valid = AMOUNTS.every(key => Number.isSafeInteger(body[key]) && body[key] >= 0) && body.allowanceMicros > 0
+    && Number.isSafeInteger(unknown) && unknown >= 0
     && typeof body.resetsAt === 'string' && !Number.isNaN(Date.parse(body.resetsAt));
   if (!valid) return { status: 'unavailable', reason: 'malformed' };
   return { status: 'ready', usage: {
     allowance: body.allowanceMicros, used: body.usedMicros, reserved: body.reservedMicros, remaining: body.remainingMicros,
-    resetsAt: body.resetsAt, period: body.period ?? null, enforced: body.enforced === true,
+    resetsAt: body.resetsAt, period: body.period ?? null, enforced: body.enforced === true, unknownAttempts: unknown,
   } };
 }
+
+// The quiet line for requests whose cost is not known yet: a count, never an amount (unknown cost is never $0). Null at 0.
+export const unknownLine = count => (count > 0 ? `${count} AI request${count === 1 ? '' : 's'} with cost not yet known` : null);
 
 // What the gauge, its tooltip and its label say for a state. Red ('empty') only when the server reports remaining 0.
 export function usageView(state) {

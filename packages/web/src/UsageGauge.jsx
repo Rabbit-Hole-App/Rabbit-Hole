@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Gauge } from 'lucide-react';
-import { barParts, formatMicros, formatRemaining, formatReset, usageStore, usageView } from './account-usage.js';
+import { barParts, formatMicros, formatRemaining, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
 import { SettingsRow } from './ui.jsx';
 
 // The monthly AI allowance on screen (owner D4 sections 1-3): the canvas top bar's gauge and its popover, and Settings > AI usage.
@@ -56,6 +56,7 @@ export function UsageDetails({ state, onViewUsage }) {
           {view.tone === 'empty' && <p className="text-xs text-ink-2">No AI allowance remaining.</p>}
           <p data-usage-used className="text-xs text-ink-2 tabular-nums">{formatMicros(usage.used)} used of {formatMicros(usage.allowance)}</p>
           {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Reserved for processing: {formatMicros(usage.reserved)}</p>}
+          {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
           <div className="mt-2"><UsageBar usage={usage} /></div>
           <p data-usage-reset className="mt-2 text-xs text-ink-2">Resets {formatReset(usage.resetsAt, { year: false })} (00:00 UTC)</p>
           {view.note && <div className="mt-2"><Note>{view.note}</Note></div>}
@@ -135,6 +136,7 @@ export function UsageSettings({ Heading, store = usageStore }) {
               <Amount>{formatMicros(usage.reserved)}</Amount>
             </SettingsRow>
           )}
+          {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="pb-1 text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
           <SettingsRow title="Remaining" desc={view.tone === 'empty' ? 'No AI allowance remaining.' : null}>
             <Amount className={view.tone === 'empty' ? 'text-fail' : ''}>{formatRemaining(usage.remaining)}</Amount>
           </SettingsRow>
