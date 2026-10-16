@@ -548,6 +548,7 @@
     "canvas-editing-check.mjs": {"runner":"harness","seconds":105},
     "canvas-editing-stack-check.mjs": {"runner":"windows-only","why":"keyless journey-stack check: requires the stack .dev.vars (--vars or VARS) or its TEST_BYPASS_SECRET","seconds":120},
     "canvas-file-drop-check.mjs": {"runner":"fork","seconds":15},
+    "board-restore-check.mjs": {"runner":"windows-only","why":"a local-stack check (BASE, SMALL_CP; reads the control plane .dev.vars) that forces the restore-on-open interleaving (the canvas's pending first save run right after the page writes the server copy) and asserts the card stays and no PUT empties the board (C:/s/spec/board-empty-report.md); AdaptiveCanvas.jsx is a broad path, which lists every windows-only check as not covered; new, not yet passed three times on Linux, so it runs by hand on the local stack","seconds":20},
     "canvas-forking-check.mjs": {"runner":"fork","seconds":20},
     "canvas-shell-check.mjs": {"runner":"windows-only","why":"BASE is hardcoded to 127.0.0.1:8788 and cannot be overridden; the Linux stack serves another port","seconds":120},
     "canvas-skeleton-check.mjs": {"runner":"windows-only","why":"on Linux a Tutor plan request came before planNext was set (TypeError) and A5 camera pan failed (run 38501772960); not in the release gate","seconds":120},

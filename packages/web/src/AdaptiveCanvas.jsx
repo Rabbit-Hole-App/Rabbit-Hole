@@ -1532,9 +1532,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => { if (view !== autoView.current) manualMoves.current += 1; }, [view]);
   // Learner artifacts persist in this browser so a refresh keeps the canvas.
   const stored = useRef(null);
+  // This browser's copy exactly as this canvas read it at mount, for the first save below.
+  const readCopy = useRef(null);
   if (stored.current === null) {
     // A shared board arrives as state from the server instead (SharedBoardPage).
-    try { stored.current = boardState || (storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : {}); } catch { stored.current = {}; }
+    try { readCopy.current = storageKey ? localStorage.getItem(storageKey) : null; stored.current = boardState || (storageKey ? JSON.parse(readCopy.current || '{}') : {}); } catch { stored.current = {}; }
   }
   const [strokes, setStrokes] = useState(stored.current.strokes || []); // pen and highlighter ink, world coords
   const [live, setLive] = useState(null);
@@ -1644,6 +1646,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const loaded = firstSave.current;
     firstSave.current = false;
     const timer = setTimeout(() => {
+      // The first run only writes back the board as loaded, so it never goes over a copy that changed since this canvas read
+      // it: the server's copy the page put there on open, about to remount this canvas with it. Written over, the remounted
+      // canvas read this board back empty and the page's next push sent that over the server's copy (board-empty-report).
+      if (loaded && storageKey) { try { if (localStorage.getItem(storageKey) !== readCopy.current) return; } catch { /* blocked storage: nothing to write over */ } }
       const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(doc ? { doc } : {}) };
       if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); docWritten.current = JSON.stringify(state.doc ?? null); } catch { /* full or blocked storage loses drawings only */ } }
       if (!loaded) onSaveRef.current?.(state);
