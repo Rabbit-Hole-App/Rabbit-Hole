@@ -86,7 +86,9 @@ await page.locator('[data-block-id="k1"]').waitFor({ timeout: 60000 });
 await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
 
 const pane = () => page.locator('[data-chat-pane]');
-const tab = name => page.getByRole('tab', { name, exact: true });
+// The Table of contents tab's name also says how many proposals wait for review (PanelHeader tocPending, R4), so it is
+// matched by its start; every other tab by its exact name.
+const tab = name => page.getByRole('tab', { name: name === 'Table of contents' ? /^Table of contents(, \d+ proposals? to review)?$/ : name, exact: name !== 'Table of contents' });
 const contents = () => page.getByRole('tabpanel', { name: 'Table of contents' });
 const apply = () => contents().getByRole('button', { name: 'Apply', exact: true });
 const headings = () => page.evaluate(key => (JSON.parse(localStorage.getItem(key) || '{}').blocks || []).filter(b => b.type === 'heading')

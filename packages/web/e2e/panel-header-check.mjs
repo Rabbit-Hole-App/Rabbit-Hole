@@ -297,6 +297,8 @@ const panel2 = () => p2.locator('aside[aria-label="Learn agent chat"]');
 const field = () => p2.locator('[data-chat-pane] [data-chat-composer] textarea').first();
 const send2 = () => p2.locator('[data-chat-pane] [data-chat-composer] button[aria-label="Send"]');
 const mode2 = () => p2.locator('[data-chat-pane] [data-chat-mode]').getAttribute('data-chat-mode');
+// Entering the tab selects Tutor in an effect after the render that docks the composer: wait for it, never read it once.
+const modeIs = async (want, message) => { const end = Date.now() + 5000; let got; while ((got = await mode2()) !== want && Date.now() < end) await p2.waitForTimeout(50); assert.equal(got, want, message); };
 const pickMode = async id => { await p2.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click(); await p2.locator(`[data-chat-mode-option="${id}"]`).click(); };
 const tab2 = name => p2.getByRole('tab', { name, exact: true });
 const selected2 = async () => p2.locator('[role="tab"][aria-selected="true"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
@@ -344,7 +346,7 @@ await check('L2 opening the Table of contents: the same composer docks below the
   const mark = chatRequests.length;
   await tab2('Table of contents').click();
   await docked(p2).waitFor();
-  assert.equal(await mode2(), 'tutor', 'Tutor on entry');
+  await modeIs('tutor', 'Tutor on entry');
   assert.equal(await field().inputValue(), 'Which part should I review next?', 'the draft');
   assert.equal(await chip().count(), 1, 'the attached card');
   assert.equal(await p2.locator('[data-chat-pane]').getByText('Canned answer 1.', { exact: true }).isVisible(), false, 'the conversation stays in Chat');
@@ -363,7 +365,7 @@ await check('L3 Tutor once per entry: a mode picked under the contents stays, in
   assert.equal(await mode2(), 'ask', 'never reset on switching to Chat');
   await tab2('Table of contents').click();
   await docked(p2).waitFor();
-  assert.equal(await mode2(), 'tutor', 'a new entry');
+  await modeIs('tutor', 'a new entry');
   await tab2('Chat').click();
   assert.equal(await mode2(), 'tutor', 'never silently Auto');
 });
@@ -437,7 +439,7 @@ await check('L8 entered before the saved thread loads: Tutor stays when it arriv
   assert.equal(await p2.locator('[data-chat-pane]').getAttribute('data-chat-restore'), 'loading');
   await tab2('Table of contents').click();
   await docked(p2).waitFor();
-  assert.equal(await mode2(), 'tutor', 'Tutor on entry, the thread still loading');
+  await modeIs('tutor', 'Tutor on entry, the thread still loading');
   releaseThread();
   await p2.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
   assert.equal(await mode2(), 'tutor', 'the saved Ask mode did not replace Tutor');
