@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RELOAD_KEY, RELOAD_WINDOW, editorClosed, editorOpen, editorOpened, reloadForNewBuild, reloadOnce, retryMayReload, unsavedEdits } from './chunk-reload.js';
+import { memoryStorage } from './storage-fallback.js';
 
 const store = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; };
 
@@ -47,4 +48,16 @@ test('Retry reloads only online with every edit on the server; an editor whose c
   editorClosed('/api/learn/boards/a/main');
   assert.equal(editorOpen(), false);
   assert.equal(unsavedEdits(), false);
+});
+
+// Offline-recovery brief (owner, 2026-10-16), issue 2, check 3: where the browser blocks sessionStorage the page holds it in
+// memory (storage-fallback.js), which starts empty on every load. A chunk failing on every load must not reload every time.
+test('check 3: repeated page lifetimes with sessionStorage in memory never reload automatically, so they cannot loop', () => {
+  let reloads = 0;
+  for (let lifetime = 0, now = 1_000_000; lifetime < 5; lifetime += 1, now += 1_000) {
+    if (reloadForNewBuild({ online: true, editing: false, storage: memoryStorage(), now })) reloads += 1;
+  }
+  assert.equal(reloads, 0);
+  assert.equal(reloadOnce(memoryStorage(), 1_000_000), false);
+  assert.equal(reloadForNewBuild({ online: true, editing: false, storage: store(), now: 1_000_000 }), true, 'persistent session storage still reloads once');
 });

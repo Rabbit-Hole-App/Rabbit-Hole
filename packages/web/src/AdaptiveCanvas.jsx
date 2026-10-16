@@ -1846,6 +1846,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Whole-canvas context (chat-canvas-context.js), read when a chat turn is sent: the live lists with the open editor's
       // unsaved words, the freehand strokes, every object's measured box in world units, and the ids selected now.
       // doc: the document with the editor's unsaved words (docLive), in both views; boxes.doc its measured sheet in Editor view.
+      // The board as the canvas holds it now, in the shape its browser save writes (lightBlocks), with the document's unsaved
+      // words: what a reload would lose if no copy holds it yet (LearnPage boardUnsaved, offline-recovery brief).
+      boardNow: () => {
+        const b = boardRef.current, doc = liveDoc();
+        return { strokes: b.strokes, shapes: b.shapes, items: b.items, links: b.links, blocks: lightBlocks(b.blocks), groups: b.groups, areas: b.areas, ...(doc ? { doc } : {}) };
+      },
       liveBoard: () => {
         const doc = liveDoc(), box = docBoxRef.current;
         return { ...semanticBoard(), strokes: present.current.strokes, boxes: { ...inlineCanvas.layout(), ...(box ? { doc: box } : {}) }, doc };

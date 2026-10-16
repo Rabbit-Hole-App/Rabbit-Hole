@@ -81,7 +81,7 @@ import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsav
 import { editorClosed, editorOpened } from './chunk-reload.js';
 import { blockedStorage } from './storage-fallback.js';
 import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
-import { boardText, serial, sharingOf } from './canvas-persist.js';
+import { boardPending, boardText, serial, sharingOf } from './canvas-persist.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
 import { codeRef, paperRef, wikiRef } from './chat-sources.js';
@@ -1175,18 +1175,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return () => window.removeEventListener('online', online);
   }, [pushBoard]);
   // An open board holds back the automatic reload for a new build, and Retry's reload while a reload could lose an edit
-  // (chunk-reload.js, follow-up R3 item 1): this browser's copy unreadable (boardSnapshot throws), words typed in the document
-  // not in that copy yet, a 409 (the server's copy would replace it), or that copy not what the server holds (a save waiting,
-  // in flight or refused). A board the server never answered for, or a review board that is not shared, has only this
-  // browser's copy, which a reload reads again.
+  // (chunk-reload.js, follow-up R3 item 1; offline-recovery brief 2026-10-16): this browser's copy unreadable (boardSnapshot
+  // throws), a 409 (the server's copy would replace it), or the live canvas - every card, shape, stroke, connection, deletion
+  // and document word, including one still inside the canvas's 400 ms browser save - not what a reload would read back: the
+  // server's copy, or, for a board the server never answered for (or a review board that is not shared), this browser's copy,
+  // which survives a reload only when storage is not blocked (canvas-persist.js boardPending).
   const boardUnsaved = () => {
-    const state = boardSnapshot(), shown = canvas()?.liveBoard?.();
-    if (shown && !docSaved(state.doc, shown.doc)) return true;
+    const copy = boardSnapshot(), now = canvas()?.boardNow?.();
     if (boardStopped.current) return true;
-    if (!boardLoaded.current || (board && sharingOf(sharingRef.current) !== 'shared')) return false;
-    // The server holds no board yet: only content is worth a save (Load, above), not the keys the canvas writes on open.
-    if (boardSynced.current === null) return hasLocalContent(browserStorage(), { ink: boardStorageKey, chat: chatKey });
-    return boardText(state) !== boardSynced.current;
+    const live = now ? { ...now, exchanges: exchangesRef.current, ...(board ? {} : { sources: sourcesRef.current }) } : copy;
+    const answered = boardLoaded.current && !(board && sharingOf(sharingRef.current) !== 'shared');
+    return boardPending({ live, copy: blockedStorage.includes('localStorage') ? null : copy, answered, synced: boardSynced.current });
   };
   const unsavedRef = useRef(boardUnsaved);
   unsavedRef.current = boardUnsaved;

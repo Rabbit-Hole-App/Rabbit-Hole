@@ -8,6 +8,11 @@
 //   saved board, says nothing is kept in this browser, and an edit saves to the account on top of the saved board.
 // 3 A malformed saved copy at canvas open, with this browser's version current: never saved as an empty board over the
 //   server's content; the server's copy loads instead.
+// 4 Online, a feature whose code will not load (its chunk refused): an edit still inside the canvas's 400 ms browser save
+//   holds back Retry's reload (offline-recovery brief, issue 1, check 1); once the save lands, Retry reloads and the edit
+//   survives (check 4).
+// 5 Blocked storage and a board GET that failed: edits held only in memory hold back Retry's reload (issue 1, check 2).
+// 6 Blocked sessionStorage and a chunk that fails on every page load: no automatic reload, so no loop (issue 2, check 3).
 // Usage: BASE=http://127.0.0.1:8941 SMALL_CP=http://127.0.0.1:8943 VARS=<.dev.vars> OUT=<dir> node e2e/offline-edit-check.mjs
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -217,9 +222,110 @@ saved = await board();
   await context.close();
 }
 
+// ---------------------------------------------------------------- 4-6 offline-recovery (owner brief 2026-10-16)
+const BLOCK_STORES = () => {
+  for (const name of ['localStorage', 'sessionStorage']) Object.defineProperty(window, name, { configurable: true, get() { throw new DOMException(`Failed to read the '${name}' property from 'Window': Access is denied for this document.`, 'SecurityError'); } });
+};
+// The canvas's browser save (AdaptiveCanvas, 400 ms after a change) held until released: the window in which the live canvas
+// has an edit its browser copy does not, made as long as the check needs instead of raced. Cleared timers stay cleared.
+const HOLD_SAVES = () => {
+  const real = window.setTimeout.bind(window), clear = window.clearTimeout.bind(window), held = new Map();
+  let next = -1;
+  window.__holdSaves = false;
+  window.setTimeout = (fn, ms, ...args) => {
+    if (!window.__holdSaves || ms !== 400) return real(fn, ms, ...args);
+    const id = next--; held.set(id, () => fn(...args)); return id;
+  };
+  window.clearTimeout = id => (held.delete(id) ? undefined : clear(id));
+  window.__releaseSaves = () => { window.__holdSaves = false; const run = [...held.values()]; held.clear(); run.forEach(fn => fn()); };
+};
+const refuseEquationEditor = context => context.route(/\/EquationEditor-[^/]*\.js(\?|$)/, route => route.abort());
+const NOT_SAVED = 'Your latest edits are not saved yet, so the page was not reloaded. Retry once they are saved.';
+{
+  const D = await profile({ script: HOLD_SAVES });
+  const { page, context, navigations } = D;
+  await refuseEquationEditor(context);
+  const unavailable = page.locator('[data-feature-unavailable]');
+  const retry = unavailable.getByRole('button', { name: 'Retry', exact: true });
+  let edited;
+  await check('4a online, a live edit inside the 400 ms browser save: Retry does not reload, and says why', page, async () => {
+    await open(page);
+    await placeEquation(page, 4);
+    await unavailable.getByText('The equation editor could not load. A newer version may be out.').waitFor({ timeout: 15000 });
+    edited = await until('the placed equation on the server', async () => { const b = await board(); return summary(b.state).equations > summary(saved.state).equations && b; });
+    const at = navigations.length;
+    await page.evaluate(() => { window.__holdSaves = true; });
+    await draw(page, 8);
+    assert.equal((await local(page))?.strokes?.length, summary(edited.state).strokes, 'the stroke is on the canvas only: its browser copy is not written yet');
+    await retry.click();
+    await until('Retry decided: the message, or a reload', async () => navigations.length > at || await unavailable.getByText(NOT_SAVED).isVisible().catch(() => false));
+    assert.deepEqual(navigations.slice(at), [], 'no reload while the edit is only on the live canvas');
+    await unavailable.getByText(NOT_SAVED).waitFor({ timeout: 10000 });
+    await page.screenshot({ path: `${OUT}/4a-live-edit-retry.png` });
+  });
+  await check('4b once the edit is saved, Retry reloads and the edit survives', page, async () => {
+    await page.evaluate(() => window.__releaseSaves());
+    const now = await until('the stroke on the server', async () => { const b = await board(); return summary(b.state).strokes === summary(edited.state).strokes + 1 && b; });
+    const at = navigations.length;
+    await until('Retry ready', () => retry.isEnabled());
+    const loaded = page.waitForEvent('load', { timeout: 30000 });
+    await retry.click();
+    await loaded;
+    await page.locator('[data-block-id="c1"]').first().waitFor({ timeout: 60000 });
+    assert.deepEqual(navigations.slice(at), [`${BASE}/apps/${canvas.name}`], 'one reload, of the canvas');
+    assert.deepEqual(summary((await board()).state), summary(now.state), 'the edit is on the server after the reload');
+    await until('the edit in this browser after the reload', async () => summary(await local(page)).strokes === summary(now.state).strokes);
+  });
+  await context.close();
+}
+saved = await board();
+{
+  const E = await profile({ script: BLOCK_STORES });
+  const { page, context, navigations, puts } = E;
+  await refuseEquationEditor(context);
+  await context.route(url => url.pathname === BOARD, route => (route.request().method() === 'GET' ? route.abort() : route.fallback()));
+  const unavailable = page.locator('[data-feature-unavailable]');
+  await check('5 blocked storage and a failed board GET: edits held only in memory hold back Retry', page, async () => {
+    await page.goto(`${BASE}/apps/${canvas.name}`);
+    await page.getByLabel('Lesson canvas').waitFor({ timeout: 60000 });
+    await draw(page, 2);
+    await placeEquation(page, 7);
+    await unavailable.getByText('The equation editor could not load. A newer version may be out.').waitFor({ timeout: 15000 });
+    await until('the edits in the page memory copy', async () => { const s = summary(await local(page)); return s.strokes === 1 && s.equations === 1; });
+    const at = navigations.length;
+    await unavailable.getByRole('button', { name: 'Retry', exact: true }).click();
+    await until('Retry decided: the message, or a reload', async () => navigations.length > at || await unavailable.getByText(NOT_SAVED).isVisible().catch(() => false));
+    assert.deepEqual(navigations.slice(at), [], 'no reload: nothing of these edits would survive one');
+    await unavailable.getByText(NOT_SAVED).waitFor({ timeout: 10000 });
+    assert.equal(puts.length, 0, 'nothing was saved over the board the page never read');
+    assert.equal((await board()).version, saved.version);
+    await page.screenshot({ path: `${OUT}/5-memory-only-retry.png` });
+  });
+  await context.close();
+}
+{
+  // A chunk that fails on every page load (vite:preloadError, as main.jsx hears it) on a page with no editor open.
+  const F = await profile({ script: () => {
+    for (const name of ['localStorage', 'sessionStorage']) Object.defineProperty(window, name, { configurable: true, get() { throw new DOMException('Access is denied for this document.', 'SecurityError'); } });
+    window.addEventListener('load', () => setTimeout(() => {
+      const event = new Event('vite:preloadError', { cancelable: true });
+      window.dispatchEvent(event);
+      window.__preloadHandled = { reload: event.defaultPrevented };
+    }, 0));
+  } });
+  const { page, context, navigations } = F;
+  await check('6 blocked sessionStorage and a chunk failing on every load: no automatic reload, so no loop', page, async () => {
+    await page.goto(`${BASE}/apps`);
+    const outcome = await until('the first preload error handled, or a reload', async () => (navigations.length > 1 ? { reloads: navigations.length - 1 } : page.evaluate(() => window.__preloadHandled || null).catch(() => null)));
+    assert.deepEqual(outcome, { reload: false }, `no automatic reload when its marker cannot survive one (navigations: ${navigations.length})`);
+    assert.equal(navigations.length, 1, 'one page load only');
+  });
+  await context.close();
+}
+
 await browser.close();
 const unexpected = errors.filter(message => !/Failed to fetch|NetworkError|ERR_INTERNET_DISCONNECTED|ResizeObserver/.test(message));
 if (unexpected.length) console.log('page errors:', unexpected);
 const passed = results.filter(Boolean).length;
 console.log(`${passed}/${results.length} checks passed`);
-process.exitCode = passed === results.length && results.length === 5 && !unexpected.length ? 0 : 1;
+process.exitCode = passed === results.length && results.length === 9 && !unexpected.length ? 0 : 1;
