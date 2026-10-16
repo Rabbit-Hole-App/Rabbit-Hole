@@ -420,6 +420,37 @@ await check('L6 a narrow panel (its minimum width) and a phone: contents and com
   await shot2('09-toc-composer-phone');
 });
 
+// The canvas's saved thread (an Ask chat) answers only after the tab was entered: its saved mode must not replace Tutor.
+let releaseThread, threadAsked = false;
+const threadHeld = new Promise(resolve => { releaseThread = resolve; });
+await p2.route(/\/api\/learn\/chat\/active\?/, route => (route.request().method() === 'GET' ? route.fulfill({ json: { threadId: 'toc-thread-2' } }) : route.fallback()));
+await p2.route(/\/api\/ask\/threads\/toc-thread-2$/, async route => {
+  threadAsked = true;
+  await threadHeld;
+  return route.fulfill({ json: { id: 'toc-thread-2', title: 'Saved Ask chat', mode: 'ask', contextRefs: [], draft: null, messages: [{ role: 'user', content: 'An earlier Ask question', status: 'done' }, { role: 'assistant', content: 'An earlier Ask answer', status: 'done' }] } });
+});
+await check('L8 entered before the saved thread loads: Tutor stays when it arrives; a mode picked after entry still wins', async () => {
+  await p2.setViewportSize({ width: 1440, height: 900 });
+  await p2.reload();
+  await p2.locator('[data-block-id="t-card"]').waitFor({ timeout: 60000 });
+  for (const end = Date.now() + 30000; !threadAsked; await p2.waitForTimeout(50)) if (Date.now() > end) throw Error('the saved thread was never asked for');
+  assert.equal(await p2.locator('[data-chat-pane]').getAttribute('data-chat-restore'), 'loading');
+  await tab2('Table of contents').click();
+  await docked(p2).waitFor();
+  assert.equal(await mode2(), 'tutor', 'Tutor on entry, the thread still loading');
+  releaseThread();
+  await p2.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
+  assert.equal(await mode2(), 'tutor', 'the saved Ask mode did not replace Tutor');
+  await tab2('Chat').click();
+  await p2.locator('[data-chat-pane]').getByText('An earlier Ask answer', { exact: true }).waitFor();
+  assert.equal(await mode2(), 'tutor', 'the restored conversation, Tutor kept in Chat');
+  await tab2('Table of contents').click();
+  await docked(p2).waitFor();
+  await pickMode('auto');
+  await tab2('Chat').click();
+  assert.equal(await mode2(), 'auto', 'the mode picked after entry wins');
+});
+
 await check('L7 the long canvas: no other model route, no page error', async () => {
   assert.deepEqual(tocStray, []);
   assert.deepEqual(tocErrors, []);
@@ -444,5 +475,5 @@ await check('the canvas asked for hooks once on open, and nothing the panel did 
 });
 
 await browser.close();
-console.log(`${results.length}/24 checks passed`);
-process.exit(results.length === 24 ? 0 : 1);
+console.log(`${results.length}/25 checks passed`);
+process.exit(results.length === 25 ? 0 : 1);

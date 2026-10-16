@@ -2,7 +2,7 @@
 // late-response guard, and how answer_meta, done and the end of a turn change the streamed messages.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lateEvent, settle, threadsUrl, withAnswerMeta, withDone } from './chat-threads.js';
+import { lateEvent, restoredMode, settle, threadsUrl, withAnswerMeta, withDone } from './chat-threads.js';
 
 test('History asks for this canvas only, with a trimmed search and a limit', () => {
   assert.equal(threadsUrl('canvas-0a1b2c3d'), '/api/ask/threads?scope=learn&ref=canvas-0a1b2c3d&limit=30');
@@ -42,4 +42,11 @@ test('the end of a turn settles only a reply still streaming, and keeps its text
   assert.deepEqual([reply.status, reply.content], ['stopped', 'Because']);
   assert.equal(settle(settle(turn(), 'r1', 'error'), 'r1', 'done')[1].status, 'error');
   assert.equal(settle(turn(), 'r1', 'done')[2].status, 'done');
+});
+
+// R4 A3: entering the Table of contents holds Tutor; a thread restored after that keeps it until the hold ends (a pick or leaving).
+test('a restored thread shows the held mode over its saved one, and its saved mode once nothing is held', () => {
+  assert.equal(restoredMode('tutor', 'ask'), 'tutor');
+  assert.equal(restoredMode(null, 'ask'), 'ask');
+  assert.equal(restoredMode(null, undefined), 'auto');
 });

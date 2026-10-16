@@ -864,10 +864,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
   // R4 A3 (C:/s/spec/toc-r4.md): under the Table of contents the Chat pane docks, its composer only, below the contents (the
   // course interview has its own composer, so not then). Docking selects Tutor once per entry, shown and not saved, so opening
-  // the tab sends nothing; a mode picked after that stays, in Chat too. A turn sent from there opens Chat on its answer, and
+  // the tab sends nothing; a thread restored while docked keeps it (holdMode) until the learner picks a mode or leaves the tab,
+  // and a mode picked after that stays, in Chat too. A turn sent from there opens Chat on its answer, and
   // coming back puts the contents where they were scrolled (a hidden tab loses its scroll position).
   const composerDocked = panelTab === 'toc' && !setupChat;
-  useEffect(() => { if (composerDocked) chat.thread.setMode('tutor', { save: false }); }, [composerDocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!composerDocked) return undefined;
+    chat.thread.holdMode('tutor');
+    return () => chat.thread.holdMode(null);
+  }, [composerDocked]); // eslint-disable-line react-hooks/exhaustive-deps
   const tocPanel = useRef(null), tocScroll = useRef(0); // the tabpanel's onScrollCapture keeps the contents' scrollTop
   useLayoutEffect(() => {
     const list = panelOpen && panelTab === 'toc' && tocPanel.current?.querySelector('[data-toc]');
