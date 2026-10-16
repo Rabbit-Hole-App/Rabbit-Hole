@@ -21,7 +21,8 @@ export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evalu
 // PROVISIONAL until Phase 2 (owner D2.5, D2.7): practice grading is free to the user, its provider cost still recorded.
 const FREE_FEATURES = new Set(['assess', 'grade', 'tutor_evaluate']);
 // Entry points a signed-out visitor may reach on a public link (owner D2.4): platform-funded, never the canvas owner.
-const PUBLIC_FEATURES = new Set(['shared_ask', 'shared_next_steps']);
+// Not shared Next Steps: no AI generation for signed-out viewers (owner R3 decision, 2026-10-16; the route answers 401).
+const PUBLIC_FEATURES = new Set(['shared_ask']);
 // An attempt's kind when the caller names none.
 const DEFAULT_KIND = { inline_route: 'routing', inline_decide: 'evaluation', assess: 'evaluation', grade: 'evaluation', tutor_evaluate: 'evaluation' };
 
