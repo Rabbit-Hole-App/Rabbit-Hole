@@ -449,6 +449,8 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
       if (chars + length > limits.total) { omitted.sources += 1; continue; }
       metadata.sources.push(entry); chars += length;
     }
+    if (!metadata.conversation.length) delete metadata.conversation;
+    if (!metadata.sources.length) delete metadata.sources;
   }
   const image = targets.find(entry => entry.flattened);
   const imageEntity = image && look.entities.get(image.id)?.entity;
