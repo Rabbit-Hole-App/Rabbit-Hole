@@ -213,9 +213,13 @@ await fresh.close();
 // The server's cap on the real Worker, as a client that skips the page's check would send it: exactly 50 MiB with a
 // Content-Length (streamed to R2), one byte more refused, and one byte more with no Content-Length (chunked) refused too.
 const webmOf = size => { const bytes = new Uint8Array(size); bytes.set([0x1a, 0x45, 0xdf, 0xa3]); return bytes; };
-// Three paired local trials isolated cancellation-related proxy resets to reused PUT connections.
-// Close this local HTTP transport per raw upload; retain every strict status and no-stored-object assertion.
+// Keep independent format refusal before early length refusals: three complete reordered local trials passed.
+// Connection: close alone did not resolve the Linux proxy failure; retain all strict status/storage assertions.
 const raw = (key, body, extra = {}) => fetch(`${ownBoard}/assets/${encodeURIComponent(key)}`, { method: 'PUT', body, duplex: 'half', headers: { ...authed, 'Content-Type': 'video/webm', Connection: 'close', ...extra } });
+const notVideo = await raw(`bypass:${run}:fake`, new Uint8Array(30 * MiB));
+ok('30 MiB that only claims to be a video is refused', notVideo.status === 415, String(notVideo.status));
+const afterFake = (await (await fetch(`${ownBoard}/assets`, { headers: authed })).json()).keys || [];
+ok('the refused fake-video upload was not stored', !afterFake.includes(`bypass:${run}:fake`));
 const exact = await raw(`bypass:${run}:exact`, webmOf(50 * MiB));
 ok('exactly 50 MiB is accepted by the server', exact.status === 200 && (await exact.json()).size === 50 * MiB, String(exact.status));
 const over = await raw(`bypass:${run}:over`, webmOf(50 * MiB + 1));
@@ -231,10 +235,7 @@ ok('an upload without Content-Length requires a length past the fallback limit (
   (chunked.status === 411 && chunked.body?.error === 'Send this file with its Content-Length.') || !!chunked.closed, JSON.stringify(chunked));
 const listed = (await (await fetch(`${ownBoard}/assets`, { headers: authed })).json()).keys || [];
 ok('neither refused upload was stored', listed.includes(`bypass:${run}:exact`) && !listed.includes(`bypass:${run}:over`) && !listed.includes(`bypass:${run}:chunked`), listed.filter(key => key.startsWith('bypass:')).join(', '));
-const notVideo = await raw(`bypass:${run}:fake`, new Uint8Array(30 * MiB));
-ok('30 MiB that only claims to be a video is refused', notVideo.status === 415, String(notVideo.status));
-const afterFake = (await (await fetch(`${ownBoard}/assets`, { headers: authed })).json()).keys || [];
-ok('the refused fake-video upload was not stored', !afterFake.includes(`bypass:${run}:fake`));
+
 
 // --- nothing asked a model, uploaded media or ran a notebook ---
 ok('no ask, journey or course request', asks.length === 0, asks.join(', '));
