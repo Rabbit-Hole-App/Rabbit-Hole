@@ -1,3 +1,4 @@
+import { CAD_MODEL_TIMEOUT_MS } from './cad-model.js';
 // Ongoing global model admission, keyed by UTC calendar month. Reservations are
 // whole-job ceilings, not billed usage, and are never refunded after uncertainty.
 export const CAD_PRODUCTION_BUDGET_NAME = 'cad:production-budget';
@@ -57,10 +58,13 @@ export async function cadProductionBudgetStatus(storage,env,{now=Date.now()}={})
  const transferPaused=ledger.transferPause?.month===month;
  return{enabled:true,month,maxMicros:config.maxMicros,totals,transferPaused,paused:transferPaused||ledger.pause?.month===month||(totals[month]?.remainingMicros===0),reason:transferPaused?'monthly_transfer_limit':ledger.pause?.month===month?ledger.pause.reason:null,lastRefusal:ledger.pause||null,reservationsAreBilling:false};
 }
+// Include the entire bounded provider window even for a call admitted just before
+// the job deadline. Aborting locally does not prove provider billing stopped;
+// all reservations remain charged to this admission ledger without refunds.
 export async function reserveCadProductionJob(env,job){
  cadProductionConfig(env);
  if(!env.CAD_JOBS)throw problem('The global CAD model ledger is unavailable.');
- const response=await env.CAD_JOBS.get(env.CAD_JOBS.idFromName(CAD_PRODUCTION_BUDGET_NAME)).fetch('https://cad/production-model-reservation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:job.id,boardId:job.boardId,ownerOrg:job.owner.org,ownerEmail:job.owner.email,limitUsd:job.limits.usd,deadline:job.deadline})});
+ const response=await env.CAD_JOBS.get(env.CAD_JOBS.idFromName(CAD_PRODUCTION_BUDGET_NAME)).fetch('https://cad/production-model-reservation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:job.id,boardId:job.boardId,ownerOrg:job.owner.org,ownerEmail:job.owner.email,limitUsd:job.limits.usd,deadline:job.deadline+CAD_MODEL_TIMEOUT_MS})});
  const result=await response.json().catch(()=>null);if(!response.ok||result?.reserved!==true)throw problem(result?.error||'The global CAD model reservation failed.',response.ok?503:response.status);return result;
 }
 

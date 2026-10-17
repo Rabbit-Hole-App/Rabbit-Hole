@@ -108,3 +108,21 @@ test('transfer pause expires automatically in the next UTC month and preserves r
  await reserveCadProductionModel(s.storage,config,input('next',boundary),{now:boundary});
  assert.equal((await s.storage.get(CAD_PRODUCTION_BUDGET_KEY)).months['2027-01'].reservedMicros,200000);
 });
+
+test('a call admitted before midnight reserves the next month through its provider timeout window',async()=>{
+ let captured;const env={...config,CAD_JOBS:{idFromName:name=>name,get:()=>({fetch:async(url,options)=>{captured=JSON.parse(options.body);return Response.json({reserved:true});}})}};
+ const job={id:'near-midnight',boardId:'board',owner:{org:'org',email:'owner@test'},limits:{usd:0.2},deadline:boundary-30000};
+ await reserveCadProductionJob(env,job);assert.equal(captured.deadline,job.deadline+120000);
+ const s=state('test'),result=await reserveCadProductionModel(s.storage,config,captured,{now:boundary-60000});
+ assert.deepEqual(result.months,['2027-01','2027-02']);assert.deepEqual(result.totals,{'2027-01':200000,'2027-02':200000});
+});
+
+test('deadline expiry during external thumbnail I/O prevents provider admission and counter increments',async()=>{
+ const saved=state('board');let calls=0,release,entered;const paused=new Promise(r=>{release=r;}),started=new Promise(r=>{entered=r;});
+ const env={SMALL_ENV:'test',CAD_TEST_MODEL:async()=>{calls++;return{accepted:true};},LEARN_MEDIA:{get:async()=>{entered();await paused;return{arrayBuffer:async()=>new Uint8Array([137,80,78,71]).buffer};}}};
+ const actor=new CadJobs(saved,env),job={id:'deadline-job',boardId:'board',owner:{org:'test',email:'owner@test'},attempt:1,modelId:'model1',cardId:'card1',revisionId:'revision1',state:'checking',stage:'checking',modelPhase:'review',operation:'build',calls:1,reservedUsd:0.1,deadline:Date.now()+30000,limits:{calls:6,usd:0.2,elapsedMs:30000},brief:{title:'Plate',units:'mm',parameters:{},assumptions:[]},manifest:{artifacts:[{kind:'thumbnail',name:'thumbnail.png'}],validation:{baselinePassed:true}},limitations:[]};
+ await saved.storage.put('job:deadline-job',job);const advance=actor.advance(structuredClone(job)).catch(error=>error);await started;
+ const latest=await saved.storage.get('job:deadline-job');latest.deadline=Date.now()-1;await saved.storage.put('job:deadline-job',latest);
+ release();const result=await advance;assert.equal(result.status,409);assert.match(result.message,/time limit/);assert.equal(calls,0);
+ const current=await saved.storage.get('job:deadline-job');assert.equal(current.calls,1);assert.equal(current.reservedUsd,0.1);assert.equal(current.modelInFlight,undefined);
+});
