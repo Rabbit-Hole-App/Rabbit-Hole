@@ -11,6 +11,7 @@ import { memberContext } from './canvas-comments.js';
 import { repositoryIdentity } from './repositories.js';
 import { learnMedia } from './learn-storage.js';
 import { BOARD_FILE_LIMIT, family as familyById, formatBytes } from '../../web/src/file-capabilities.js';
+import { HEAD_BYTES, sniffUpload } from './file-sniff.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const SOURCE_ID = /^fs_[0-9a-f]{24}$/;
@@ -89,12 +90,12 @@ async function upload(req, env, id) {
   const fam = familyById(row.family), reader = (req.body || new Response(new Uint8Array(0)).body).getReader();
   const head = [];
   let headBytes = 0;
-  while (fam?.sniff && headBytes < 16) { const { done, value } = await reader.read(); if (done) break; head.push(value); headBytes += value.byteLength; }
-  if (fam?.sniff) {
-    const first = new Uint8Array(headBytes);
-    head.reduce((at, chunk) => { first.set(chunk, at); return at + chunk.byteLength; }, 0);
-    if (!fam.sniff(first)) { await reader.cancel().catch(() => {}); return json({ error: `This file is not a ${fam.label.toLowerCase()} file this importer reads.` }, 415); }
-  }
+  // The structure check (file-sniff.js) on the first HEAD_BYTES, or the whole body when smaller, before anything is stored.
+  while (headBytes < HEAD_BYTES) { const { done, value } = await reader.read(); if (done) break; head.push(value); headBytes += value.byteLength; }
+  const first = new Uint8Array(headBytes);
+  head.reduce((at, chunk) => { first.set(chunk, at); return at + chunk.byteLength; }, 0);
+  const sniffed = sniffUpload({ family: row.family, name: row.name, head: first, size: row.bytes });
+  if (!sniffed.ok) { await reader.cancel().catch(() => {}); return json({ error: `This file is not a ${fam?.label.toLowerCase() || 'supported'} file this importer reads: ${sniffed.reason}.` }, 415); }
   // Workers hash while streaming (crypto.DigestStream) and stream into R2 with a known length; elsewhere (tests) it is read
   // whole, bounded by the declared size.
   const digest = typeof crypto.DigestStream === 'function' ? new crypto.DigestStream('SHA-256') : null;

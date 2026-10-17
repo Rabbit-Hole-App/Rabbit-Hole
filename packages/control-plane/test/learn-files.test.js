@@ -107,6 +107,12 @@ test('an unfinished upload resumes under its id; wrong bytes, a wrong count or a
   const fake = new Uint8Array(1000);
   const notVideo = await call('POST', '/api/learn/files', { as: 'owner', body: { app: 'demo-app', name: 'b.webm', type: 'video/webm', size: 1000, sha256: sha(fake), family: 'video' } });
   assert.equal((await call('PUT', notVideo.body.upload.url, { as: 'owner', raw: fake })).status, 415);
+  // Lane 5's mislabelled not-a-video.mp4 (plain text, 860 bytes, C:/s/fi-fixtures/negative): refused by file-sniff.js, nothing stored.
+  const mislabelled = new TextEncoder().encode('This is plain text with a video extension.\n'.repeat(20));
+  const declared = await call('POST', '/api/learn/files', { as: 'owner', body: { app: 'demo-app', name: 'not-a-video.mp4', type: 'video/mp4', size: mislabelled.byteLength, sha256: sha(mislabelled), family: 'video' } });
+  const refused = await call('PUT', declared.body.upload.url, { as: 'owner', raw: mislabelled });
+  assert.equal(refused.status, 415); assert.match(refused.body.error, /not a \.mp4 file/);
+  assert.equal(objects.size, 1, 'nothing more is stored');
 });
 
 test('create refuses what the registry refuses, and needs the board owner', async t => {
