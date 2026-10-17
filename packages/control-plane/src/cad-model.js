@@ -6,6 +6,7 @@ import { tutorImageContext } from './learn-image-context.js';
 import { isUploadedMediaId } from './learn-media.js';
 
 export const CAD_MODEL = 'claude-sonnet-5-5';
+export const CAD_MODEL_TIMEOUT_MS = 120000;
 // Dedicated CAD credentials are an explicit pair. Never combine one half with
 // another feature's key/workspace, or silently select the subscription route.
 export function cadModelEnvironment(env) {
@@ -59,6 +60,9 @@ export async function runCadModel(env, job, prepared) {
   }
   // Parent admission carries the initiating user into the existing ledger. Its private
   // token is consumed by anthropic, so nested transport never reserves twice.
+  // Aborting the client does not prove provider billing stopped. Retain the
+  // reservation on timeout and require explicit recovery; never auto-resubmit.
+  modelEnv = {...modelEnv, CAD_MODEL_ABORT_SIGNAL: AbortSignal.timeout(CAD_MODEL_TIMEOUT_MS)};
   const response = await spendTransport(modelEnv, prepared.request, CAD_MODEL, job.owner.org,
     admitted => anthropic(admitted, prepared.request, CAD_MODEL, job.owner.org),
     {userId:job.owner.userId || job.owner.email, category:'cad', provider:'anthropic'});

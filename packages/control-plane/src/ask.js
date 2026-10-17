@@ -341,6 +341,7 @@ async function anthropicTransport(env, body, model, org, ai) {
   const beta = [...(chosen ? [] : ['server-side-fallback-2026-07-01']), ...betas].join(',');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
+    signal: env.CAD_MODEL_ABORT_SIGNAL,
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',

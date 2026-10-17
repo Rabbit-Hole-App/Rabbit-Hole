@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cadModelEnvironment, cadModelRequest, runCadModel } from '../src/cad-model.js';
+import { CAD_MODEL_TIMEOUT_MS, cadModelEnvironment, cadModelRequest, runCadModel } from '../src/cad-model.js';
 
 const job = () => ({ calls: 1, reservedUsd: 0.1, limits: {calls: 2, usd: 0.2},
   operationKey: 'credential-test', modelPhase: 'review', owner: {org: 'credential-test', email: 'owner@example.test'},
@@ -20,6 +20,7 @@ test('dedicated CAD transport sends its exact key and workspace without mutating
   await intercept(async calls => {
     assert.equal((await runCadModel(configuration, current, prepared(current))).accepted, true);
     assert.equal(calls.length, 1);
+    assert.ok(calls[0].options.signal instanceof AbortSignal);
     assert.equal(calls[0].url, 'https://api.anthropic.com/v1/messages');
     const headers = new Headers(calls[0].options.headers);
     assert.equal(headers.get('x-api-key'), 'fixture-cad-key');
@@ -73,6 +74,29 @@ test('without dedicated CAD settings the existing general or subscription config
   for (const configuration of [{ANTHROPIC_API_KEY: 'general', ANTHROPIC_WORKSPACE_ID: 'general-workspace'}, {SUBSCRIPTION_ONLY: 'true'}]) {
     assert.equal(cadModelEnvironment(configuration), configuration);
   }
+});
+
+test('CAD timeout uses the fixed two-minute ceiling and propagates abort without retry or refund', async () => {
+  assert.equal(CAD_MODEL_TIMEOUT_MS,120000);
+  const original=AbortSignal.timeout, controller=new AbortController(), limits=[];
+  AbortSignal.timeout=ms=>{limits.push(ms);return controller.signal;};
+  const current=job(), before=structuredClone(current);
+  try {
+    await intercept(async calls=>{
+      await assert.rejects(runCadModel(env(),current,prepared(current)),{name:'TimeoutError'});
+      assert.deepEqual(limits,[120000]);assert.equal(calls.length,1);
+      assert.equal(calls[0].options.signal,controller.signal);
+      assert.deepEqual(current,before);
+    },()=>{controller.abort(new DOMException('fixture timeout','TimeoutError'));throw controller.signal.reason;});
+  } finally {AbortSignal.timeout=original;}
+});
+
+test('general Anthropic inference has no CAD timeout signal', async () => {
+  const {anthropic}=await import('../src/ask.js');
+  await intercept(async calls=>{
+    await anthropic({SMALL_ENV:'test',ANTHROPIC_API_KEY:'fixture-general'}, {max_tokens:1,messages:[{role:'user',content:'fixture'}]},'claude-sonnet-5-5','general-timeout-test');
+    assert.equal(calls.length,1);assert.equal(calls[0].options.signal,undefined);
+  });
 });
 
 test('production dedicated-route requirement refuses missing secrets instead of spending general credits', async () => {
