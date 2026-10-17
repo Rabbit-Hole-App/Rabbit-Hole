@@ -42,7 +42,7 @@ function fixture(t, { concurrency = 2 } = {}) {
   const env = {
     LEARN_DB: db, LEARN_MEDIA: bucket, CONVERT_URL: 'https://convert.test', CONVERT_TOKEN: 'c'.repeat(40), FILE_JOB_SECRET: 's'.repeat(40),
     FILE_JOB_ORIGIN: 'https://app.test', FILE_JOB_CONCURRENCY: String(concurrency),
-    CONTROL_PLANE: { fetch: async req => req.headers.get('x-email') === 'none' ? new Response('', { status: 401 }) : Response.json({ org: 'team', email: req.headers.get('x-email') || 'owner@test', apps: [] }) },
+    CONTROL_PLANE: { fetch: async req => req.headers.get('x-email') === 'none' ? new Response('', { status: 401 }) : Response.json({ org: 'team', email: req.headers.get('x-email') || 'owner@test', user_id: req.headers.get('x-user') || null, apps: [] }) },
     FILE_JOBS: { idFromName: n => n, get: id => ({ fetch: async (url, init) => new FileJobs({ storage: memoFor(id) }, env).fetch(new Request(url, init)) }) },
   };
   const send = (path, { method = 'GET', body, headers = {}, now = T0 } = {}) => fileJobsRoute(new URL(path, 'https://app.test').pathname, new Request(`https://app.test${path}`, { method, headers,
@@ -347,9 +347,10 @@ test('retention: staged outputs of superseded and failed attempts go 24 h after 
   assert.deepEqual(keys(), before);
   assert.equal(await cleanupJob(f.env, job.id, done + RETENTION_MS), null);
   const after = keys();
-  assert.deepEqual(before.filter(k => !after.includes(k)), [`file-jobs/${job.id}/1/preview.pdf`], 'only the superseded attempt');
-  assert.ok(after.includes(`file-jobs/${job.id}/2/preview.pdf`) && after.includes(`file-jobs/${job.id}/2/slide-001.png`), 'the committed attempt is kept');
-  assert.ok(after.filter(k => k.startsWith('file-sources/')).length === 3, 'the original and both derivatives are untouched');
+  assert.deepEqual(before.filter(k => !after.includes(k)).sort(), [`file-jobs/${job.id}/1/preview.pdf`, `file-jobs/${job.id}/2/preview.pdf`, `file-jobs/${job.id}/2/slide-001.png`],
+    'the superseded attempt, and the committed attempt once its copies are verified');
+  assert.deepEqual(after.filter(k => k.startsWith('file-sources/')), before.filter(k => k.startsWith('file-sources/')), 'the original and both derivatives are untouched');
+  for (const d of derivatives(f)) assert.equal(sha(f.bucket.objects.get(d.r2_key).bytes), d.sha256);
   // A failed job loses its final attempt's staging too; an unsettled job is never cleaned.
   const { job: failing } = await (await f.submit({ card: 'card-f', idempotency_key: 'import:card-f:slides' })).json();
   await f.step(failing.id, T0);
@@ -360,6 +361,19 @@ test('retention: staged outputs of superseded and failed attempts go 24 h after 
   await cleanupJob(f.env, failing.id, T0 + RETENTION_MS + 1);
   assert.equal(keys().some(k => k.startsWith(`file-jobs/${failing.id}/`)), false);
   assert.ok(keys().includes(`file-sources/${SOURCE}/original`));
+});
+
+test('retention keeps a committed staged output whose derivative copy is missing or does not match', async t => {
+  const f = fixture(t);
+  const { job } = await (await f.submit()).json();
+  await f.step(job.id, T0);
+  await f.finish(job.id, 1);
+  const [pdf, png] = derivatives(f);
+  f.bucket.objects.delete(pdf.r2_key); // copy lost
+  f.bucket.objects.get(png.r2_key).customMetadata.sha256 = 'e'.repeat(64); // copy does not match D1
+  await cleanupJob(f.env, job.id, T0 + RETENTION_MS + 1);
+  assert.ok(f.bucket.objects.has(`file-jobs/${job.id}/1/preview.pdf`) && f.bucket.objects.has(`file-jobs/${job.id}/1/slide-001.png`), 'unverified copies keep their staging');
+  assert.ok(f.bucket.objects.has(`file-sources/${SOURCE}/original`));
 });
 
 test('derivatives by source revision: a fork and a link viewer see ready results; a stranger and a revoked link get 404', async t => {
@@ -395,4 +409,26 @@ test('derivatives by source revision: a fork and a link viewer see ready results
   // Another revision lists nothing; missing parameters are refused.
   assert.deepEqual((await (await f.send(path().replace(rev, 'b'.repeat(64)))).json()).derivatives, []);
   assert.equal((await f.send(`/api/learn/files/sources/${SOURCE}/derivatives?sha=${rev}`)).status, 400);
+});
+
+test('a canvas member reads job status and derivatives through membership; a removed member gets 404', async t => {
+  const f = fixture(t);
+  const boardId = '11111111-2222-4333-8444-555555555555', canvas = 'canvas-1234abcd', rev = sha(SOURCE_BYTES);
+  f.sqlite.prepare("INSERT INTO canvases(org, name, owner_email, title) VALUES('team', ?, 'owner@test', 'Deck canvas')").run(canvas);
+  f.sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, updated_at) VALUES(?, 'team', 'owner@test', ?, 'main', '{\"blocks\":[]}', datetime('now'))").run(boardId, canvas);
+  f.sqlite.prepare("INSERT INTO canvas_members(id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES('m1', 'team', ?, 'member@test', 'u-member', 'member@test', 'active', 'sent', 'u-owner', 1, 9999999999999)").run(canvas);
+  const { job } = await (await f.submit({ app: canvas })).json();
+  await f.step(job.id, T0); await f.finish(job.id, 1);
+  const card = { id: 'card-1', type: 'pdf', fileRef: { v: 1, source: { id: SOURCE, rev }, family: 'presentation', job: job.id } };
+  f.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ?').run(JSON.stringify({ blocks: [card] }), boardId);
+  const member = { 'x-email': 'member@test', 'x-user': 'u-member' };
+  const status = () => f.send(`/api/learn/files/jobs/${job.id}?member=${boardId}`, { headers: member });
+  const listed = async () => f.send(`/api/learn/files/sources/${SOURCE}/derivatives?sha=${rev}&converter=slides&options=${await optionsHash({})}&member=${boardId}`, { headers: member });
+  assert.equal((await (await status()).json()).job.state, 'ready');
+  assert.equal((await (await listed()).json()).derivatives.length, 2);
+  // Without membership the same requests are 404: no member row, and a removed member.
+  assert.equal((await f.send(`/api/learn/files/jobs/${job.id}?member=${boardId}`, { headers: { 'x-email': 'stranger@test', 'x-user': 'u-stranger' } })).status, 404);
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed', ended_at = 2 WHERE id = 'm1'").run();
+  assert.equal((await status()).status, 404);
+  assert.equal((await listed()).status, 404);
 });

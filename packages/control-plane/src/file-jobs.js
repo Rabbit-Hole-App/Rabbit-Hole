@@ -5,6 +5,7 @@
 // or cancelled result is a no-op. A job never writes board JSON: a card shows a job only while it still references it.
 import { repositoryIdentity } from './repositories.js';
 import { authorizeFileSource } from './file-access.js';
+import { memberContext } from './canvas-comments.js';
 import { learnMedia } from './learn-storage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -185,24 +186,37 @@ export async function stepJob(env, id, memo, now = Date.now()) {
   return delay;
 }
 
-// ---- retention: the staged outputs of failed or superseded attempts (file-jobs/<job>/<attempt>/*) are deleted once the job
-// has been settled for RETENTION; the committed attempt's staging is kept. Driven by the job's own alarm, never cron, and
-// limited to this job's staging prefix: file-sources/* is never listed or deleted here. Returns the delay to the next
-// look, or null when nothing is left to do.
+// ---- retention: 24 h after a job settles its staging (file-jobs/<job>/<attempt>/*) goes. Superseded attempts and a failed or
+// cancelled final attempt: always. The committed attempt: each staged output only once its derivative copy under
+// file-sources/<source>/d/<id> is verified present with the D1 sha256 (otherwise kept, never lost). Driven by the job's own
+// alarm, never cron, and limited to this job's staging prefix: file-sources/* is only read here, never deleted.
 export const RETENTION_MS = 24 * 60 * 60 * 1000;
+const checksumHex = object => (object?.checksums?.sha256 ? hex(object.checksums.sha256) : object?.customMetadata?.sha256);
 export async function cleanupJob(env, id, now = Date.now()) {
-  const row = await jobRow(env.LEARN_DB, id);
+  const db = env.LEARN_DB, row = await jobRow(db, id);
   if (!row || !TERMINAL.includes(row.state)) return null;
   const due = (row.finished_at || row.updated_at || now) + RETENTION_MS;
   if (now < due) return due - now;
   const prefix = `file-jobs/${row.id}/`, bucket = learnMedia(env), doomed = [];
-  const failedFinal = row.state === 'failed' || row.state === 'cancelled';
+  const committed = row.state === 'ready' || row.state === 'ready_with_limitations';
+  // The committed attempt's outputs by name, each with its verified copy (or none).
+  const copies = new Map();
+  if (committed) {
+    const ids = JSON.parse(row.derivative_ids_json || '[]');
+    const { results } = ids.length ? await db.prepare(`SELECT id, name, sha256, r2_key FROM file_derivatives WHERE source_id = ? AND status = 'ready' AND id IN (${ids.map(() => '?').join(',')})`).bind(row.source_id, ...ids).all() : { results: [] };
+    for (const d of results) {
+      const copy = d.r2_key?.startsWith(`file-sources/${row.source_id}/d/`) ? await bucket.head(d.r2_key) : null;
+      copies.set(d.name, !!copy && checksumHex(copy) === d.sha256);
+    }
+  }
   let cursor;
   do {
     const page = await bucket.list({ prefix, cursor });
     for (const { key } of page.objects) {
-      const attempt = Number(key.slice(prefix.length).split('/')[0]);
-      if (key.startsWith(prefix) && Number.isInteger(attempt) && (attempt < row.attempt || (attempt === row.attempt && failedFinal))) doomed.push(key);
+      if (!key.startsWith(prefix)) continue;
+      const [attempt, ...rest] = key.slice(prefix.length).split('/'), n = Number(attempt);
+      if (!Number.isInteger(n)) continue;
+      if (n < row.attempt || (n === row.attempt && !committed) || (n === row.attempt && copies.get(rest.join('/')) === true)) doomed.push(key);
     }
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
@@ -350,14 +364,34 @@ async function callback(env, req, row, attempt, action, name, now) {
   return action === 'complete' ? complete(env, row, attempt, body, now) : fail(env, row, attempt, body, now);
 }
 
-// ---- who may read a job's status (contract 4.1, file-access.js): the job's initiator, or a viewer the source check admits
-// through a share/publication link whose board is the job's own board and still holds a card on this job.
+// ---- the board a read comes through (contract 4.1): ?share=<token> a link; ?member=<board id> a canvas member's board, by
+// the comments/members check the member board routes use (canvas-comments.js memberContext: owner or active member, not in
+// Trash); ?app=<app>&board=<board> the requester's own board (theirs or their fork); none: the owner only.
+async function boardThrough(req, env) {
+  const q = new URL(req.url).searchParams;
+  if (q.get('share')) return { token: q.get('share') };
+  if (q.get('member')) {
+    const ctx = await memberContext(req, env, q.get('member'));
+    if (ctx instanceof Response) return ctx.status === 401 ? ctx : json({ error: 'Not available' }, 404);
+    return { row: await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE id = ?').bind(ctx.board.id).first() };
+  }
+  if (q.get('app')) {
+    const user = await repositoryIdentity(req, env);
+    if (user instanceof Response) return user;
+    const row = await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(user.org, user.email, q.get('app'), q.get('board') || 'main').first();
+    return row ? { row } : json({ error: 'Not available' }, 404);
+  }
+  return {};
+}
+
+// Who may read a job's status: its initiator, or a viewer admitted through a link or membership of the job's own board
+// whose saved state still has a card on this job (a fork reads its results by source revision instead, below).
 async function readable(req, env, row) {
   const user = await repositoryIdentity(req, env);
   if (!(user instanceof Response) && user.org === row.org && user.email === row.owner_email) return true;
-  const token = new URL(req.url).searchParams.get('share');
-  if (!token) return false;
-  const access = await authorizeFileSource(req, env, row.source_id, { token });
+  const through = await boardThrough(req, env);
+  if (through instanceof Response || (!through.token && !through.row)) return false;
+  const access = await authorizeFileSource(req, env, row.source_id, through);
   if (access instanceof Response || String(access.board?.id) !== String(row.board_id)) return false;
   const blocks = JSON.parse(access.board.state_json || '{}').blocks || [];
   return blocks.some(b => b?.fileRef?.job === row.id && b.fileRef.source?.id === row.source_id);
@@ -366,21 +400,13 @@ async function readable(req, env, row) {
 // ---- a card's results without its job (lead ruling 2026-10-16): the ready derivatives of a source revision for one
 // converter and options hash. A fork or a member reads them through its own board ({row}), a link viewer through the link
 // ({token}); the job's own board is never required, so a fork shows results the original's job made.
-// GET /api/learn/files/sources/<source>/derivatives?sha=<rev>&converter=<c>&options=<hash>[&app=<app>&board=<board> | &share=<token>]
+// GET /api/learn/files/sources/<source>/derivatives?sha=<rev>&converter=<c>&options=<hash>[&share= | &member= | &app=&board=]
 export const optionsHash = options => sha256(canonical(options || {}));
 async function derivativesOf(req, env, sourceId) {
   const q = new URL(req.url).searchParams, rev = q.get('sha'), name = q.get('converter'), options = q.get('options');
   if (!HEX64.test(rev || '') || !Object.hasOwn(CONVERTERS, name) || !HEX64.test(options || '')) return json({ error: 'sha, converter and options are required' }, 400);
-  let through = {};
-  if (q.get('share')) through = { token: q.get('share') };
-  else if (q.get('app')) {
-    const user = await repositoryIdentity(req, env);
-    if (user instanceof Response) return user;
-    // ponytail: the requester's own board (theirs or their fork); a member reads through the canvas's share link.
-    const row = await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(user.org, user.email, q.get('app'), q.get('board') || 'main').first();
-    if (!row) return json({ error: 'Not available' }, 404);
-    through = { row };
-  }
+  const through = await boardThrough(req, env);
+  if (through instanceof Response) return through;
   const access = await authorizeFileSource(req, env, sourceId, through);
   if (access instanceof Response) return access;
   if (access.source.sha256 !== rev) return json({ derivatives: [] });
