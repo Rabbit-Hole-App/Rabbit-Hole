@@ -99,7 +99,7 @@ export function splitBlocks(text) {
 // colorLine reads # as a comment, so languages where # means something else stay untinted.
 // ponytail: one Python-flavoured tokenizer for every language; a per-language grammar when answers need one.
 const UNTINTED = /^(css|scss|less|html|xml|svg|md|markdown|text|txt|plain|plaintext)$/i;
-function Code({ lang, lines }) {
+export function Code({ lang, lines }) {
   const [copied, setCopied] = useState(null);
   useEffect(() => {
     if (!copied) return;

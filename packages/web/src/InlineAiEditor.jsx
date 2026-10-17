@@ -1,4 +1,4 @@
-import { Md } from './Md.jsx';
+import { Md, Code } from './Md.jsx';
 import { cardEditSelectionReason } from './inline-card-edit.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
@@ -57,13 +57,13 @@ const selectionKind = (target, board) => {
 // initialMode: 'edit' | 'explain' from the opener (the selection action bar's Quick Edit); else Edit for selected words,
 // Explain for objects.
 // Structured cards use the shared Markdown renderer, not serialized storage JSON. Native text edits keep their diff.
-function CardEditPreview({ fields, proposedOnly = false }) {
-  const text = (value, code) => code ? `\`\`\`\n${value}\n\`\`\`` : value;
+export function CardEditPreview({ fields, proposedOnly = false }) {
+  const content = (value, code) => code ? <Code lang="text" lines={value.split('\n')} /> : <Md text={value} />;
   return <div data-card-edit-preview className="space-y-3 text-left text-sm">
     {fields.map(field => <section key={field.key} data-card-edit-field={field.key}>
       <p className="mb-1 text-xs font-semibold text-ink-2">{field.label}</p>
-      {!proposedOnly && field.before && (field.before !== field.after || field.previousLabel !== field.label) && <details className="mb-1 text-ink-2"><summary className="cursor-pointer text-xs">Previous {field.previousLabel || field.label}</summary><Md text={text(field.before, field.code)} /></details>}
-      {field.after ? <div data-card-edit-after><Md text={text(field.after, field.code)} /></div> : <p className="text-xs text-ink-2">Removed</p>}
+      {!proposedOnly && field.before && (field.before !== field.after || field.previousLabel !== field.label) && <details className="mb-1 text-ink-2"><summary className="cursor-pointer text-xs">Previous {field.previousLabel || field.label}</summary>{content(field.before, field.code)}</details>}
+      {field.after ? <div data-card-edit-after>{content(field.after, field.code)}</div> : <p className="text-xs text-ink-2">Removed</p>}
     </section>)}
   </div>;
 }
