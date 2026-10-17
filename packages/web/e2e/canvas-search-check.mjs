@@ -153,6 +153,33 @@ check('unsaved standalone text edits reindex immediately; deleting the object re
   await waitCount(1); assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-rich-editor]')), true);
   await page.keyboard.press('Escape'); await page.keyboard.press('Delete'); await waitCount(0);
 });
+check('live equation draft updates Search while focused; field undo removes it before Escape saves', async () => {
+  const original = 'q+314159', needle = '987654321';
+  await search(original); await waitCount(1); await activate('object:equation');
+  await search(needle); await waitCount(0);
+  const storedLatex = async () => (await request(`/api/learn/boards/${canvas.name}/main`)).state.items.find(item => item.id === 'equation')?.latex;
+  assert.equal(await storedLatex(), original);
+  await page.locator('[data-item-id="equation"][data-equation]').dblclick();
+  const field = page.locator('math-field[data-equation-field]'); await field.waitFor();
+  const initial = await field.evaluate(element => element.value);
+  await page.keyboard.type(needle);
+  await waitCount(1);
+  assert.equal(await result('object:equation').count(), 1);
+  assert.equal(await field.evaluate(element => document.activeElement === element || element.contains(document.activeElement)), true, 'Search must update before the math field loses focus');
+  assert.ok((await field.evaluate(element => element.value)).includes(needle), 'real math-field input contains the draft');
+  assert.equal(await storedLatex(), original, 'live draft is not saved before finishing');
+  await shot('equation-live-draft');
+  // Escape commits in the existing equation contract. Undo inside the field first; do not invent cancel behavior.
+  let undos = 0;
+  while (await field.evaluate(element => element.value) !== initial && undos < 20) { await page.keyboard.press('Control+z'); undos++; }
+  assert.equal(await field.evaluate(element => element.value), initial, 'field undo restores the original equation');
+  await waitCount(0);
+  assert.equal(await field.evaluate(element => document.activeElement === element || element.contains(document.activeElement)), true, 'undo reindexes before blur');
+  assert.equal(await storedLatex(), original);
+  await page.keyboard.press('Escape'); await field.waitFor({ state: 'detached' });
+  await waitCount(0); assert.equal(await storedLatex(), original, 'finishing restored source does not save the draft');
+  facts.equation = { beforeBlurMatched: true, draftPersisted: false, undoCount: undos, restoredBeforeEscape: true };
+});
 check('keyboard result focus and activation never sends Chat; panel close/reopen retains query/filter', async () => {
   await search('optimizer.step()', 'code'); await waitCount(1);
   await input().press('ArrowDown'); await until(() => page.evaluate(() => document.activeElement?.hasAttribute('data-search-index')), 'ArrowDown did not focus a result');
@@ -212,6 +239,7 @@ try {
     { id: 'unavailable-ref', type: 'canvas-ref', refs: [{ id: randomUUID(), target: unavailableBoard.board_id }], dx: 0, dy: 0 },
   ]);
   state.items = [{ id: 'text', kind: 'text', x: 1100, y: 700, w: 300, text: 'standalone zebra', size: 24, color: '#37352f', opacity: 1 }];
+  state.items.push({ id: 'equation', kind: 'equation', x: 900, y: 450, latex: 'q+314159', size: 24 });
   state.shapes = [{ id: 'shape', kind: 'rect', x1: 1000, y1: 100, x2: 1200, y2: 200, text: 'shape zebra', color: '#37352f' }];
   state.sources = [{ id: 'web:global', kind: 'web', label: 'GLOBAL_CONTEXT_ONLY', attached: true }];
   state.doc = { v: 1, x: 1800, y: 200, w: 800, blocks: [{ id: 'doc-p', type: 'paragraph', content: [{ type: 'text', text: 'hidden document zebra', styles: {} }], children: [] }] };
