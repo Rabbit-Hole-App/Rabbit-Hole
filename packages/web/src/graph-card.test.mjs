@@ -27,6 +27,14 @@ test('a block keeps a pinned reference, never the graph: repository, commit, sco
   assert.ok(JSON.stringify(sub).length < 400);
 });
 
+test('a panel view (owner brief 2026-10-16 item 5) is stored as its nodes and named a graph; a selection stays a subgraph', () => {
+  const shown = graphCardBlock(repository, ['forward', 'model_py'], 'view'), search = graphCardBlock(repository, ['forward'], 'search');
+  assert.deepEqual([shown.scope, shown.nodeIds, shown.view, shown.title], ['subgraph', ['forward', 'model_py'], 'view', 'karpathy/nanoGPT graph']);
+  assert.deepEqual([search.scope, search.view], ['subgraph', 'search']);
+  assert.equal(graphCardBlock(repository, ['forward']).view, undefined);
+  assert.equal(graphCardBlock(repository, [], 'view').scope, 'whole', 'no node list is the whole graph, never a view');
+});
+
 test('the same graph at the same commit and scope is one card; another commit or node set is another', () => {
   const a = graphCardBlock(repository, ['forward', 'model_py']);
   assert.ok(sameGraphCard({ ...graphCardBlock(repository, ['model_py', 'forward']), id: 'x' }, a), 'node order does not matter');

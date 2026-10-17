@@ -27,7 +27,8 @@ import { insertCodeCard, insertCodeCards, nodeCodeCard } from './code-card.js';
 // Graph information, Layers (review fixtures only), Open source (Files viewer, and GitHub), Ask about this, Ask why, Learn
 // this. Selecting is temporary chat context (repo-context.js); Add to chat pins it. Nothing here sends or calls a model.
 // Closing the companion column clears the temporary selection; pinned refs stay.
-// Add to canvas (clarification section 1, Release 2): "Add graph to canvas" (the whole indexed graph), and for a selection
+// Add to canvas (clarification section 1, Release 2; owner brief 2026-10-16 item 5): the header's add adds the graph shown
+// here (addGraph below), and for a selection
 // "Add selection as graph" (its nodes and only their indexed relationships) or "Add code card" (nodes with retrievable code),
 // from the selection row or a node's right-click menu. They place a card on this canvas and never touch Chat.
 const ICONS = { file: FileCode, symbol: Braces, external: Package };
@@ -56,7 +57,17 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   // Add to canvas: an equivalent card already on the canvas is revealed, not added again (graph-card.js sameGraphCard).
   const ops = chat?.canvasOps?.insertCard ? chat.canvasOps : null, [menu, setMenu] = useState(null);
   const indexed = ids => ids.filter(id => snapshot?.graph.nodes.some(n => n.id === id)); // fixture layer records stay out
-  const addGraph = (ids = []) => { const block = graphCardBlock(repository, ids); ops.insertCard(block, { same: other => sameGraphCard(other, block) }); };
+  // addGraph() with no ids (the header's Add to canvas) adds the graph shown here - the overview, a focus, a search or an
+  // answer view: exactly the indexed nodes on screen (RepositoryGraph onShown) and their relationships, never the whole
+  // repository behind a bounded or focused view (owner brief 2026-10-16 item 5, the mismatch the owner reported). Only a view
+  // of every node is the whole graph. addGraph(ids) adds that selection.
+  const onScreen = useRef([]);
+  const addGraph = (ids = []) => {
+    const shownIds = ids.length ? ids : indexed(onScreen.current), all = !ids.length && shownIds.length >= (snapshot?.graph.nodes.length ?? 0);
+    if (!shownIds.length) return; // a search with no match draws nothing to add
+    const block = all ? graphCardBlock(repository) : graphCardBlock(repository, shownIds, ids.length ? null : query.trim() ? 'search' : 'view');
+    ops.insertCard(block, { same: other => sameGraphCard(other, block) });
+  };
   const codeNodes = ids => ids.map(id => snapshot?.graph.nodes.find(n => n.id === id)).filter(n => n?.path);
   const addCode = nodes => insertCodeCards(ops, nodes.map(n => nodeCodeCard({ app: repository.name, repo: app.repo, commit: snapshot.commit }, n)));
   const canCode = !!insertCodeCard && !!ops && codeNodes(selected).length > 0;
@@ -89,7 +100,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
       </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
       {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
-        <RepositoryGraph key={snapshot.commit} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu}
+        <RepositoryGraph key={snapshot.commit} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
           camera={camera} onCamera={value => repository.graph.setCamera({ ...value, commit: snapshot.commit })} />
       </div> : <p data-graph-empty className="text-sm text-ink-2">This repository has no code graph. You can still ask about its code in Chat.</p>}
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>

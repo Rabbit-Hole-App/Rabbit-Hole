@@ -64,8 +64,18 @@ const geometry = page => page.evaluate(() => {
     zoomRow: box(document.querySelector('[data-zoom]')),
     strip: box(document.querySelector('[data-canvas-bottom]')),
     stack: box(document.querySelector('[data-zoom-stack]')),
+    minimapFrame: box(document.querySelector('[data-canvas-minimap] > div')),
   };
 });
+// Owner brief 2026-10-16 item 8 (aligned-minimap mockup): the minimap frame and the zoom row are one group, one outer width -
+// both edges aligned - with an 8px gap, at any zoom label.
+const aligned = (g, where) => {
+  const m = g.minimapFrame, z = g.zoomRow;
+  if (!m || !z) return fail(`${where}: no minimap frame or zoom row`);
+  const gap = z.y - m.bottom;
+  if (Math.abs(m.x - z.x) > 1 || Math.abs(m.right - z.right) > 1 || Math.abs(gap - 8) > 1.5) fail(`${where}: the minimap ${JSON.stringify(round(m))} and the zoom row ${JSON.stringify(round(z))} (zoom ${g.zoom}) are not one aligned group: left ${Math.round(m.x - z.x)}, right ${Math.round(m.right - z.right)}, gap ${Math.round(gap)}`);
+  else console.log(`${where}: minimap and zoom aligned, ${Math.round(m.w)}px wide, gap ${Math.round(gap)}px, zoom ${g.zoom}`);
+};
 const utilities = '[role="toolbar"],[data-tool-gutter],[data-dive-gutter],[data-dive-navigator],[data-canvas-minimap]';
 const disjoint = (a, b) => !a || !b || a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
 const round = box => box && Object.fromEntries(Object.entries(box).map(([k, v]) => [k, Math.round(v)]));
@@ -145,6 +155,7 @@ async function probeEdge(page, card, title, label, side = 'right') {
     if (!disjoint(g.minimap, g.pane) || g.minimap.right > g.surface.right) fail('desktop: the minimap is not on the canvas, clear of the Chat pane');
     if (!(g.minimap.bottom <= g.zoomRow.y + 0.5) || Math.abs(g.minimap.x - g.zoomRow.x) > 1.5 || g.zoomRow.y - g.minimap.bottom > 12) fail(`desktop: the minimap ${JSON.stringify(round(g.minimap))} is not directly above the zoom row ${JSON.stringify(round(g.zoomRow))} on its left edge`);
     if (g.minimap.w < 150) fail(`desktop: the minimap is only ${Math.round(g.minimap.w)}px wide`);
+    aligned(g, 'desktop');
   }
   if (g.overview) fail('desktop: the gutter overview is open; the desktop minimap is the bottom strip\'s');
   {
@@ -204,6 +215,10 @@ async function probeEdge(page, card, title, label, side = 'right') {
     const first = await page.evaluate(() => Math.min(...[...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => el.getBoundingClientRect().top)));
     if (scale > 0.2001 && under.length) fail(`desktop: after zoom to fit, card(s) under the minimap and zoom or the hooks: ${under.join('; ')}`);
     if (scale <= 0.2001 && first > fit.surface.y + 49) fail(`desktop: at the 20% floor the fit does not start at the top (${Math.round(first)})`);
+    aligned(fit, 'desktop, after zoom to fit');
+    // A longer zoom label: zoom in to 3 digits; the group keeps one width.
+    for (let i = 0; i < 12 && Number.parseInt((await geometry(page)).zoom, 10) < 100; i++) await page.locator('[data-zoom] [title="Zoom in"]').click();
+    aligned(await geometry(page), 'desktop, zoomed in');
   }
   results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, right, left: opened, penArmed: armed === 'true' };
   console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past both edges; tools left, navigator right, minimap lower left above the zoom row, all outside the canvas (right ${right.onCard}/${right.probes}, left ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);
@@ -259,6 +274,7 @@ if (local) {
   const g = await geometry(page);
   if (!g.minimap || !(g.surface.bottom >= g.strip.bottom - 2) || g.minimap.right > g.surface.right || !disjoint(g.minimap, g.pane) || !(g.minimap.bottom <= g.zoomRow.y + 0.5)) fail('wide: the canvas stops above the strip, or no minimap in the lower left above the zoom row, clear of the Chat pane');
   if (!g.pane || g.pane.x < g.surface.right - 0.5) fail('wide: the Chat pane is not right of the canvas');
+  aligned(g, 'wide');
   if (!disjoint(g.toolbar, g.surface) || (g.navigator && !disjoint(g.navigator, g.surface))) fail('wide: a utility overlaps the canvas');
   results.wide = { surface: round(g.surface), minimap: round(g.minimap), toolbar: round(g.toolbar), navigator: round(g.navigator) };
   console.log('wide: tools left, navigator right, minimap lower left above the zoom row, all outside the canvas');
