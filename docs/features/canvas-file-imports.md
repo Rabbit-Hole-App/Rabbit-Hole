@@ -135,8 +135,14 @@ Rules:
 ## 4. Records (LEARN_DB) and R2 layout
 
 Migration `packages/control-plane/learn-migrations/0023-file-imports.sql` (Lane 1), additive and re-runnable, mirrored
-into `repository-schema.sql`. Times are Unix milliseconds. Applied to the local stack only. Owner decision B allows shared
-learn-dev after local verification and the lead's review: the target is `rabbit-hole-learn-dev`
+into `repository-schema.sql`. Times are Unix milliseconds.
+
+**Applied:** the local stack (`C:/s/toc-fimport/local`), and shared learn-dev by the lead on 2026-10-16 at about 5:55 PM PT
+from 9d0d1b75 (migration id `0023-file-imports`). Learn-dev before: `learn_boards` present, no `file_*` tables. One
+attempt, `rows_written` 25. After: the 6 tables and 5 indexes present. **0023 is now frozen:** any change to these tables
+is a new migration (0024 or later). Not applied to production.
+
+Owner decision B allows shared learn-dev after local verification and the lead's review: the target is `rabbit-hole-learn-dev`
 (`028f800f-ce8e-4461-adb2-827f417492eb`, account `c08d3dbdc53a3afd3cb09a536ac42318`, bound as `LEARN_DB` in
 `packages/control-plane/wrangler.rabbit-hole-dev.jsonc`, `packages/web/wrangler.dev.jsonc` and `wrangler.parallel.jsonc`),
 applied the way `dev-auto-deploy.md` records for 0004-0010:
@@ -258,8 +264,24 @@ Cloudflare Containers are different products; neither is assumed here.
 
 In-Worker runners (conversion inside the Worker isolate) are **not built in this task**.
 
+JOBS lane additions (efc63ef0, approved by the lead):
+
+- `FILE_JOB_ORIGIN` (var): the control plane's own origin, used to build the source and callback URLs handed to the
+  converter.
+- `CONVERT_URL` must be https, except http on `127.0.0.1` or `localhost` for the local stub.
+- The job submit body carries `app` and `board`.
+- Share viewers read job status at `GET /api/learn/files/jobs/<id>?share=<token>`, only for a job of that link's own
+  board.
+- **Fork ruling:** a card never depends on its job to find its results. `GET
+  /api/learn/files/sources/<source>/derivatives?sha=&converter=&options=` returns the ready derivatives only, authorized
+  through `authorizeFileSource` (`{ row }` for the requester's own board, or `{ token }`). JOBS builds it. So a fork or a
+  copy finds the same derivatives by source revision, converter and options, without the original job.
+- Retry gives the job a fresh 3-attempt budget; `attempt` stays below 100.
+- Staged outputs under `file-jobs/<job>/<attempt>/` are deleted 24 hours after the attempt is terminal, by the
+  `FileJobs` alarm.
+
 Configuration (JOBS lane adds the dev and parallel configs; prod stays out until release): secrets `CONVERT_TOKEN`,
-`FILE_JOB_SECRET`; vars `CONVERT_URL`, `FILE_JOB_CONCURRENCY`; Durable Object binding `FILE_JOBS`, class `FileJobs`,
+`FILE_JOB_SECRET`; vars `CONVERT_URL`, `FILE_JOB_ORIGIN`, `FILE_JOB_CONCURRENCY`; Durable Object binding `FILE_JOBS`, class `FileJobs`,
 migration tag `file-jobs-1` (`new_sqlite_classes`).
 
 ### 5.4 Result rules
@@ -315,7 +337,8 @@ First release scope (owner decision E): this foundation and the 50 MiB video fix
 |---|---|
 | `file-capabilities.js` registry: families, `boardFileLimit`, `formatBytes`, `familyOf`, `acceptList` | built; unit-tested (`file-capabilities.test.mjs`) |
 | 50 MiB video: server cap on actual bytes, sniff, streamed R2 put, Range; client `syncAssets` on the same cap | built; unit-tested (`learn-boards.test.js`); browser-verified on the local stack (`canvas-file-drop-check.mjs`: 34 MiB WebM uploaded, checksum, range, fresh-browser play and seek; 50 MiB accepted, +1 and chunked +1 refused) |
-| Migration 0023 | built; applied to the local stack only |
+| Migration 0023 | built; applied to the local stack and to shared learn-dev (lead, 2026-10-16 ~5:55 PM PT, from 9d0d1b75); not production |
+| Registry in the picker, drop classifier and import limits | built: the picker `accept` is `acceptList()`, `learn-drop.js` and `learn-file-import.js` read their types and limits from the registry, and every size reads in MiB |
 | `file-access.js` `authorizeFileSource` | built; unit-tested (`file-access.test.js`) |
 | `/api/learn/files*`, `fileRef` in `assetKeysOf`, ContextRef kind `file` | contract only |
 | Job runner | JOBS lane |

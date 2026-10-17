@@ -31,8 +31,8 @@ export const FAMILIES = [
     card: 'pdf', chooser: 'pdf', route: 'pdf', can: { store: true, preview: true, edit: false, download: true, context: true }, limits: { bytes: 5 * MiB, pages: 100 },
     notes: 'download is the browser PDF viewer\'s own control; the tutor reads up to 100 pages' },
   planned('text', 'Text', 2, ['txt'], 'Context only today'),
-  // Shipped as Markdown source in a code card (codeLanguage maps .md); the rendered Markdown card is lane 2's.
-  { id: 'markdown', label: 'Markdown', lane: 2, status: 'shipped', extensions: ['md', 'markdown'], mime: ['text/markdown'], sniff: null,
+  // Shipped as Markdown source in a code card (codeLanguage maps .md; .markdown is not mapped yet); the rendered card is lane 2's.
+  { id: 'markdown', label: 'Markdown', lane: 2, status: 'shipped', extensions: ['md'], mime: ['text/markdown'], sniff: null,
     card: 'repo-code', chooser: 'import', route: 'import', can: { store: true, preview: true, edit: false, download: true, context: true }, limits: { bytes: 25 * MiB }, notes: 'shown as source, not rendered' },
   { id: 'notebook', label: 'Notebook', lane: 2, status: 'shipped', extensions: ['ipynb'], mime: ['application/x-ipynb+json'], sniff: null,
     card: 'notebook', chooser: 'import', route: 'import', can: { store: true, preview: true, edit: true, download: true, context: true }, limits: { bytes: 25 * MiB, cardChars: 1_900_000 }, notes: 'nbformat 4' },

@@ -44,3 +44,17 @@ test('families: only shipped ones are offered, and a planned one claims nothing'
   assert.equal(new Set(extensions).size, extensions.length, 'each extension belongs to one family');
   assert.ok(!extensions.includes('kspalt') && extensions.includes('ksplat'));
 });
+
+test('every shipped extension reaches a card today, and the picker offers exactly those', async () => {
+  const { importKind } = await import('./learn-file-import.js');
+  const { acceptList } = await import('./file-capabilities.js');
+  for (const f of FAMILIES.filter(f => f.status === 'shipped')) {
+    for (const ext of f.extensions) {
+      if (f.route === 'import') assert.ok(importKind(`file.${ext.toUpperCase()}`), `.${ext} opens the import dialog`);
+      else assert.ok(classifyDrop({ type: f.mime[0], size: 1, name: `file.${ext}` }).kind, `.${ext} is a ${f.id} drop`);
+    }
+  }
+  const offered = acceptList().split(',');
+  assert.ok(['.mp4', '.webm', '.pdf', '.ipynb', '.py', '.ts', '.png'].every(ext => offered.includes(ext)));
+  assert.ok(!offered.some(ext => ['.glb', '.csv', '.docx', '.svg', '.txt'].includes(ext)), 'planned formats are not offered');
+});
