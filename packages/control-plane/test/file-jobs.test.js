@@ -90,6 +90,18 @@ test('a submit is persisted before dispatch and a duplicate submit is the same j
   assert.equal((await f.submit({ converter: 'step-glb', idempotency_key: 'import:card-1:glb' })).status, 400, 'a converter that does not take this family');
 });
 
+test('office-pdf takes both Word families: a .docx and a legacy .doc', async t => {
+  const f = fixture(t);
+  for (const [family, name, n] of [['word', 'report.docx', 'b'], ['word-legacy', 'report.doc', 'c']]) {
+    const id = 'fs_' + n.repeat(24);
+    f.sqlite.prepare("INSERT INTO file_sources(id, org, owner_email, app, board_id, family, name, media_type, bytes, sha256, r2_key, status, created_at, stored_at) VALUES(?, 'team', 'owner@test', 'repo-x', '7', ?, ?, 'application/msword', 10, ?, ?, 'stored', 1, 1)")
+      .run(id, family, name, n.repeat(64), `file-sources/${id}/original`);
+    const r = await f.send(`/api/learn/files/${id}/jobs`, { method: 'POST', body: { converter: 'office-pdf', options: {}, card: `card-${n}`, app: 'repo-x', idempotency_key: `import:card-${n}:office-pdf` } });
+    assert.equal(r.status, 201, family);
+    assert.equal((await r.json()).job.converter, 'office-pdf');
+  }
+});
+
 test('one alarm step dispatches the current attempt with a scoped callback; busy keeps the same attempt queued', async t => {
   const f = fixture(t);
   const { job } = await (await f.submit()).json();

@@ -14,7 +14,7 @@ export const ACTIVE = ['validating', 'converting', 'preparing_preview'];
 export const TERMINAL = ['ready', 'ready_with_limitations', 'failed', 'cancelled'];
 const TERMINAL_SQL = `('${TERMINAL.join("','")}')`, ACTIVE_SQL = `('${ACTIVE.join("','")}')`;
 // The converter's own names (canvas-file-converter.md 1.6) and the families each may take.
-export const CONVERTERS = { 'office-pdf': ['word'], slides: ['presentation'], 'audio-playback': ['audio'], 'step-glb': ['cad'] };
+export const CONVERTERS = { 'office-pdf': ['word', 'word-legacy'], slides: ['presentation'], 'audio-playback': ['audio'], 'step-glb': ['cad'] };
 export const LIMITS = {
   leaseMs: 90_000,            // a heartbeat every 20 s extends it; three missed ones and the attempt is presumed dead
   maxAttempts: 3,             // automatic attempts per submit or Retry
