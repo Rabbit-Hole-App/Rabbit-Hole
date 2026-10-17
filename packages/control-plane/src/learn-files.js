@@ -3,10 +3,11 @@
 // authorizeFileSource (file-access.js); an id alone is never access. No model call, no conversion here.
 //   POST /api/learn/files                  { app, board, name, type, size, sha256, family } -> { source, upload }
 //   PUT  /api/learn/files/<source id>      the bytes; stored only when their count and sha256 match the declaration
-//   GET  /api/learn/files/<source id>      the original as an attachment, with Range; ?share=<token> or ?app=&board=
+//   GET  /api/learn/files/<source id>      the original as an attachment, with Range; ?share=<token>, ?member=<board id> or ?app=&board=
 // Any other /api/learn/files path is not this module's (null): the JOBS routes live beside it.
 import { boardOwner, byteRange, ownerRow } from './learn-boards.js';
 import { authorizeFileSource } from './file-access.js';
+import { memberContext } from './canvas-comments.js';
 import { repositoryIdentity } from './repositories.js';
 import { learnMedia } from './learn-storage.js';
 import { BOARD_FILE_LIMIT, family as familyById, formatBytes } from '../../web/src/file-capabilities.js';
@@ -42,7 +43,13 @@ export async function filesFetch(req, env) {
 async function create(req, env) {
   let body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
-  const { app, board = 'main', name, type, size, sha256, family } = body || {};
+  const { app, board = 'main', name, type, size, sha256, family, member } = body || {};
+  // A canvas member's board (?member= on reads): members view a canvas and never edit it, so they add no files to it.
+  if (member !== undefined) {
+    const ctx = await memberContext(req, env, String(member));
+    if (ctx instanceof Response) return ctx.status === 401 ? ctx : json({ error: 'Not available' }, 404);
+    if (!ctx.actor.owner) return json({ error: 'Canvas members can view this canvas but not add files to it.' }, 403);
+  }
   if (typeof app !== 'string' || !BOARD.test(String(board))) return json({ error: 'Name the canvas (app) and board' }, 400);
   const fam = familyById(String(family || ''));
   if (!fam) return json({ error: 'Unknown file family' }, 400);
@@ -138,7 +145,12 @@ async function download(req, env, id) {
   const params = new URL(req.url).searchParams;
   let through = {};
   if (params.get('share')) through = { token: params.get('share') };
-  else if (params.get('app')) {
+  else if (params.get('member')) {
+    // A canvas member (or its owner) reads through the member board, as the JOBS routes do: owner or active member, not in Trash.
+    const ctx = await memberContext(req, env, params.get('member'));
+    if (ctx instanceof Response) return ctx.status === 401 ? ctx : json({ error: 'Not available' }, 404);
+    through = { row: await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE id = ?').bind(ctx.board.id).first() };
+  } else if (params.get('app')) {
     const owner = await boardOwner(req, env, params.get('app'));
     if (owner instanceof Response) return owner.status === 401 ? owner : json({ error: 'Not available' }, 404);
     const row = await ownerRow(env, owner, params.get('app'), params.get('board') || 'main');
