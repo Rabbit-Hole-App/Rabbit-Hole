@@ -22,7 +22,7 @@ function Preview({ result, getPreview, canvasKey }) {
     return () => { cancelled = true; if (owned) URL.revokeObjectURL(owned); };
   }, [canvasKey, result.previewKey, getPreview]);
   const Icon = iconOf(result);
-  return <div className="flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-md bg-hover p-2" aria-hidden>
+  return <div className="flex aspect-square w-full max-w-40 self-center shrink-0 items-center justify-center overflow-hidden rounded-md bg-hover p-2" aria-hidden>
     {preview ? <img src={preview.src} alt="" className="h-full w-full object-contain" /> : <div className="flex min-w-0 flex-col items-center gap-2 text-ink-3"><Icon size={24} strokeWidth={1.4} /><span className="line-clamp-3 break-words text-center text-xs">{result.snippet?.hit || result.snippet?.after || result.title}</span></div>}
   </div>;
 }

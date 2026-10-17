@@ -3,7 +3,7 @@ export const SEARCH_FILTERS = [['all', 'All'], ['cards', 'Cards'], ['text', 'Tex
 // Fixed-height rows make scroll work proportional to the viewport, not board size.
 export function searchWindow({ count, width = 320, height = 400, scrollTop = 0, rows = false }) {
   const columns = !rows && width >= 340 ? 2 : 1;
-  const rowHeight = rows ? 164 : Math.floor((width - (columns - 1) * 8) / columns) + 120;
+  const rowHeight = rows ? 164 : Math.min(160, Math.floor((width - (columns - 1) * 8) / columns)) + 120;
   const totalHeight = Math.ceil(count / columns) * rowHeight;
   const top = Math.max(0, Math.min(scrollTop, Math.max(0, totalHeight - height)));
   const start = Math.max(0, Math.floor(top / rowHeight) - 2) * columns;

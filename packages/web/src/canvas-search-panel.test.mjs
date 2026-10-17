@@ -78,12 +78,12 @@ test('loading has no false empty result claim; errors expose retry and zero arro
 // The integrated screenshot exposed vertically centered, over-tall tiles. Reserve enough
 // for two snippet lines, title, badges, availability and a secondary action, without a blank lead-in.
 test('compact grid reserves 120px beyond its square and stays bounded at both widths', () => {
-  for (const width of [320, 420]) {
+  for (const width of [240, 320, 420, 800]) {
     const view = searchWindow({ count: 100, width, height: 600 });
-    assert.equal(view.rowHeight, Math.floor((width - (view.columns - 1) * 8) / view.columns) + 120);
+    assert.equal(view.rowHeight, Math.min(160, Math.floor((width - (view.columns - 1) * 8) / view.columns)) + 120);
     assert.ok(view.end - view.start < 20);
   }
   const html = render({ results: [{ id: 'object:a', objectId: 'a', title: 'Title', kind: 'card', snippet: { hit: 'match' } }] });
   assert.match(html, /flex-col items-stretch justify-start text-left/);
-  assert.match(html, /aspect-square w-full shrink-0/);
+  assert.match(html, /aspect-square w-full max-w-40 self-center shrink-0/);
 });
