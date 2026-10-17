@@ -156,7 +156,7 @@ const clearChat = async (...docs) => {
     await waitFor(async () => !(await pressed(doc, 'chat')), 5000, 'a chat attachment did not clear');
   }
 };
-const readerTitle = async () => (await page.locator('[data-sources-header] h2').innerText().catch(() => '')).trim();
+const readerTitle = () => page.evaluate(() => document.querySelector('[data-sources-header] h2')?.textContent?.trim() || '');
 // Context shows when the companion column is open on it (a collapsed column keeps its content's own width inside).
 const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
 // Chat and Context share the panel: a step on the composer or the selection pill shows the Chat tab first.
