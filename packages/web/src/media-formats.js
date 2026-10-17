@@ -2,7 +2,7 @@
 // file actually is, read from its bytes. Pure, no DOM: the drop path, the card and the tests share it. The extension picks
 // the family; these readers confirm the structure and pull out what the card needs before it renders (size, orientation,
 // codec), so the card reserves its shape and a wrong label is refused instead of shown as a broken player.
-import { AUDIO_EXTENSIONS } from './media-family.js';
+import { family } from './file-capabilities.js';
 
 const ascii = (b, at, text) => b.length >= at + text.length && [...text].every((c, i) => b[at + i] === c.charCodeAt(0));
 const u16be = (b, at) => (b[at] << 8) | b[at + 1];
@@ -16,12 +16,12 @@ const indexOf = (b, text, from = 0, to = b.length) => {
   return -1;
 };
 
-// Decoded-complexity limits, measured 2026-10-16 on this machine (Windows 11, Chrome 155, Playwright Chromium 1234,
-// Firefox 1538): a 20000 x 20000 PNG decodes in every engine but drawing it took 2.3-4.2 s in Chrome/Chromium; 11585 x
-// 11585 (134 MP) drew in 0.85-1.1 s. 100 MP (about 400 MB decoded RGBA) keeps a card under a second and still takes a
-// 48-50 MP phone photo. Byte caps stay the registry's (image 5 MiB, GIF 10 MiB, video 50 MiB).
-export const IMAGE_MAX_PIXELS = 100_000_000;
-export const IMAGE_MAX_SIDE = 16384;
+// Decoded-complexity limits live in the registry (file-capabilities.js image/gif limits.pixels and limits.side), measured
+// 2026-10-16 on this machine (Windows 11, Chrome 155, Playwright Chromium 1234, Firefox 1538): a 20000 x 20000 PNG decodes
+// in every engine but drawing it took 2.3-4.2 s in Chrome/Chromium; 11585 x 11585 (134 MP) drew in 0.85-1.1 s. 100 MP
+// (about 400 MB decoded RGBA) keeps a card under a second and still takes a 48-50 MP phone photo.
+export const IMAGE_MAX_PIXELS = family('image').limits.pixels;
+export const IMAGE_MAX_SIDE = family('image').limits.side;
 
 // ---- images -----------------------------------------------------------------------------------------------------------
 
@@ -209,18 +209,3 @@ export function playbackPlan({ canPlay = '', probe }) {
   if (probe === 'error') return 'derivative';
   return canPlay ? 'native' : 'derivative';
 }
-
-// ---- families ---------------------------------------------------------------------------------------------------------
-
-// Lane 3's rows for file-capabilities.js (contract section 2): the measured limits and what is true now. Lane 1 owns the
-// registry file; these are the values its svg and audio rows take, kept here until that file is on this branch.
-// ponytail: move into file-capabilities.js FAMILIES when Lane 1 commits it; nothing else should hold these numbers then.
-export const MEDIA_ROWS = {
-  svg: { extensions: ['svg'], mime: ['image/svg+xml'], card: 'file:svg', limits: { bytes: 2 * 1024 * 1024, elements: 20000, depth: 128 },
-    can: { store: true, preview: true, edit: false, download: true, context: false },
-    notes: 'sanitized copy rendered as <img> (no scripts, handlers, foreignObject or external fetches); original downloads as a file; .svgz refused' },
-  audio: { extensions: AUDIO_EXTENSIONS, mime: ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/flac', 'audio/x-flac'],
-    card: 'file:audio', limits: { bytes: 25 * 1024 * 1024, durationSec: 4 * 3600 },
-    can: { store: true, preview: true, edit: false, download: true, context: false },
-    notes: 'browser playback when a probe decodes it (MP3, PCM/float WAV, Ogg Vorbis/Opus/FLAC, FLAC, AAC M4A in Chrome and Firefox); ADPCM WAV, ALAC and AC-3 M4A need the audio-playback converter' },
-};

@@ -57,7 +57,7 @@ test('hostile and broken SVGs: refused when they cannot be parsed safely, cleane
 
 test('limits: exactly the cap is taken, one byte over is refused before any parse; empty is refused', async () => {
   const at = n => new File([new Uint8Array(n)], 'big.flac');
-  assert.match((await importMedia(at(MEDIA_LIMITS.audio + 1))).error, /^big\.flac: audio files up to 25 MiB \(this one is 25\.0 MiB\)/);
+  assert.match((await importMedia(at(MEDIA_LIMITS.audio + 1))).error, /^big\.flac: audio files up to 25 MiB \(this one is 26,214,401 bytes\)/);
   assert.doesNotMatch((await importMedia(at(MEDIA_LIMITS.audio))).error, /up to/, 'at the cap the bytes are checked instead (and these zeros are not FLAC)');
   assert.match((await importMedia(new File([], 'x.wav'))).error, /x\.wav: the file is empty/);
   assert.match((await importMedia(new File([new Uint8Array(MEDIA_LIMITS.image + 1)], 'big.png'))).error, /images up to 5 MiB/);

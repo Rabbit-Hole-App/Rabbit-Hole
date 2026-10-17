@@ -5,6 +5,8 @@
 // script, foreignObject, link and non-fragment reference, and re-serializes what is left. Anything it cannot parse as
 // well-formed XML is refused with a reason rather than guessed at.
 
+import { family } from './file-capabilities.js';
+
 const ELEMENTS = new Set([
   'svg', 'g', 'defs', 'symbol', 'use', 'switch', 'title', 'desc',
   'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon',
@@ -189,7 +191,7 @@ function serialize(node) {
 const UNITS = { '': 1, px: 1, pt: 4 / 3, pc: 16, mm: 96 / 25.4, cm: 96 / 2.54, in: 96 };
 const length = value => { const m = /^\s*([\d.]+(?:e[-+]?\d+)?)\s*(px|pt|pc|mm|cm|in)?\s*$/i.exec(value || ''); return m && m[2] !== '%' ? Number(m[1]) * UNITS[(m[2] || '').toLowerCase()] : null; };
 
-export const SVG_LIMITS = { bytes: 2 * 1024 * 1024, elements: 20000, depth: 128 };
+export const SVG_LIMITS = family('svg').limits; // { bytes, elements, depth }: measured, file-capabilities.js
 
 // text in, { svg, width, height, removed } out; throws SvgRefused with a one-line reason. width/height are the drawing's
 // aspect in CSS px (viewBox first, then width/height, else the 300 x 150 default every browser uses).

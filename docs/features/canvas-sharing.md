@@ -39,7 +39,7 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
 - Board files travel too. While shared, every file the board's cards use
   (dropped images, GIFs and clips, PDFs, generated illustrations) is uploaded
   to R2; a card reads this browser's cache first, then the board's copy. Over
-  25 MB, a file stays in the owner's browser, with a notice.
+  its cap (25 MiB; 50 MiB for an MP4/WebM video, canvas-file-imports.md), a file stays in the owner's browser, with a notice.
 - Each notebook card's whole workspace travels as one snapshot (text, base64
   for binary, notebooks as JSON; up to 10 MB), uploaded a few seconds after
   its files change. A shared link opens it fresh, in a workspace of its own

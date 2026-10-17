@@ -1,17 +1,17 @@
 // A dropped or picked image, GIF, SVG, audio or video file -> the card it becomes, decided from its bytes (Lane 3).
 // Loaded on the first media drop, never with the canvas. One file in, one decision out: { kind, meta } or { error } -
 // the error is the visible one-line reason, carrying the file's name. null: not a Lane 3 file (PDF, code...).
-import { DROP_LIMITS } from './learn-drop.js';
-import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, MEDIA_ROWS, imageInfo, mediaInfo } from './media-formats.js';
+import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, imageInfo, mediaInfo } from './media-formats.js';
+import { family, formatBytes } from './file-capabilities.js';
 import { mediaFamilyOf } from './media-family.js';
 import { SvgRefused, looksLikeSvg, sanitizeSvg } from './svg-sanitize.js';
 
-const MiB = 1024 * 1024;
-const mib = n => `${Number.isInteger(n / MiB) ? n / MiB : (n / MiB).toFixed(1)} MiB`;
-const HEAD = 2 * MiB;
+const HEAD = 2 * 1024 * 1024;
+const mib = formatBytes;
 const bytesOf = async (file, from = 0, to = file.size) => new Uint8Array(await file.slice(from, to).arrayBuffer());
 
-export const MEDIA_LIMITS = { image: DROP_LIMITS.image, gif: DROP_LIMITS.gif, svg: MEDIA_ROWS.svg.limits.bytes, audio: MEDIA_ROWS.audio.limits.bytes, video: DROP_LIMITS.clip };
+export const MEDIA_LIMITS = Object.fromEntries(['image', 'gif', 'svg', 'audio', 'video'].map(id => [id, family(id).limits.bytes]));
+const MAX_SECONDS = family('audio').limits.durationSec;
 const LABEL = { image: 'images', gif: 'GIFs', svg: 'SVGs', audio: 'audio files', video: 'videos' };
 
 // The head, and for an MP4 whose sample descriptions were not in it (moov at the end), the tail too.
@@ -32,7 +32,8 @@ export async function importMedia(file) {
   const name = file.name || 'That file';
   if (!file.size) return { error: `${name}: the file is empty` };
   const cap = MEDIA_LIMITS[family];
-  if (file.size > cap) return { error: `${name}: ${LABEL[family]} up to ${mib(cap)} (this one is ${mib(file.size)})` };
+  // Just over the cap rounds to the cap in MiB, so the size is then given in bytes.
+  if (file.size > cap) return { error: `${name}: ${LABEL[family]} up to ${mib(cap)} (this one is ${(file.size / 1048576).toFixed(1) === (cap / 1048576).toFixed(1) ? `${file.size.toLocaleString('en-US')} bytes` : mib(file.size)})` };
   const base = { name: file.name, size: file.size };
 
   if (family === 'image' || family === 'gif') {
@@ -70,6 +71,6 @@ export async function importMedia(file) {
   const expected = { mp3: ['mp3'], wav: ['wav'], ogg: ['ogg'], m4a: ['mp4'], flac: ['flac'] }[file.name.split('.').pop().toLowerCase()];
   if (!info || !expected.includes(info.container)) return { error: `${name}: its bytes are not ${file.name.split('.').pop().toUpperCase()} audio` };
   if (info.video) return { error: `${name}: this file holds video; add it as .mp4 to get a video card` };
-  if (info.duration > MEDIA_ROWS.audio.limits.durationSec) return { error: `${name}: audio up to ${MEDIA_ROWS.audio.limits.durationSec / 3600} hours` };
+  if (info.duration > MAX_SECONDS) return { error: `${name}: audio up to ${MAX_SECONDS / 3600} hours` };
   return { kind: 'audio', meta: { ...base, type: info.mime, container: info.container, ...(info.codec ? { codec: info.codec } : {}), ...(info.duration ? { duration: Math.round(info.duration * 100) / 100 } : {}) } };
 }

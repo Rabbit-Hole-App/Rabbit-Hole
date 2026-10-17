@@ -43,7 +43,7 @@ Owner decision 6A, 2026-10-15; contract `C:/s/spec/repo-graph-r2-plan.md`.
   the board holds no copy. It is placed through `insertCodeCard`.
 - Pasted code keeps its `snippet` Code card.
 - Binary content (a NUL byte) is refused in the dialog, naming the file and suggesting File attachment.
-- The 25 MB import limit applies.
+- The 25 MiB import limit applies (`file-capabilities.js` `BOARD_FILE_LIMIT`; limits for every format are in `canvas-file-imports.md`).
 - **Several files in one drop** are one dialog. It lists each file with its own choice and says what it will create
   (`Adds 2 code cards and 1 notebook.`, `importSummary`). Nothing is placed until every file reads. Cancel or Escape adds
   none of them.
@@ -73,7 +73,7 @@ Each error names the file, says the limit and stays visible. The dialog stays op
 choice can be made.
 
 - Empty file: refused.
-- Any import over 25 MB, the board's per-file cap: refused, in a toast.
+- Any import over 25 MiB, the board's per-file cap: refused, in a toast.
 - A notebook or code card over 1.90 MB of content, the board's own cap: refused in the dialog, suggesting File attachment.
 - Invalid notebook JSON, or not nbformat 4: refused in the dialog, suggesting File attachment.
 
