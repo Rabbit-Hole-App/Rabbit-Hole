@@ -57,7 +57,7 @@ function setup(t) {
     if (made.body.upload) assert.equal((await call('PUT', made.body.upload.url, { as: 'owner', raw: bytes, headers: { 'Content-Length': String(bytes.byteLength) } })).status, 200);
     return made;
   };
-  return { call, saveBoard, store, objects, sqlite };
+  return { call, saveBoard, store, objects, sqlite, env };
 }
 
 test('only /api/learn/files and /api/learn/files/fs_* are this module, so the JOBS routes sit beside it', () => {
@@ -189,4 +189,83 @@ test('a fileRef is not a board file: the browser never uploads it as one and a f
   const state = { blocks: [card('fs_0123456789abcdef01234567'), { id: 'v', type: 'file', kind: 'clip', assetKey: 'drop:1' }] };
   assert.deepEqual(assetKeysOf(state), ['drop:1']);
   assert.deepEqual(boardAssetKeys(state), ['drop:1']);
+});
+
+// ---- Owner acceptance points 1 and 2 (C:/s/spec/file-imports.md, 2026-10-16 ~7:00 PM PT; contract section 4.1) ----
+const CANVAS_X = 'canvas-0a1b2c3d', MAIN_X = `/api/learn/boards/${CANVAS_X}/main`;
+const refsOf = sqlite => sqlite.prepare('SELECT source_id, board_id FROM file_source_refs ORDER BY source_id, board_id').all().map(r => `${r.source_id}@${r.board_id}`);
+const MEMBER_ROW = "INSERT INTO canvas_members(id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES('m1', 'team', ?, 'member@test', 'u-member', 'member@test', 'active', 'sent', 'u-owner', 1, 9999999999999)";
+async function canvasWithFiles(f, sizes) {
+  f.sqlite.prepare("INSERT INTO canvases(org,name,owner_email,title) VALUES('team',?,'owner@test','Board X')").run(CANVAS_X);
+  await f.call('PUT', MAIN_X, { as: 'owner', body: { state: STATE } });
+  const ids = [];
+  for (const size of sizes) ids.push((await f.store(webm(size), { app: CANVAS_X })).body.source.id);
+  return { ids, boardId: f.sqlite.prepare('SELECT id FROM learn_boards WHERE app = ?').get(CANVAS_X).id };
+}
+const saveVersioned = async (f, path, as, state) => {
+  const version = (await f.call('GET', path, { as })).body.version;
+  return f.call('PUT', path, { as, body: { state, version } });
+};
+
+test('acceptance 1: a crafted save naming another user\u2019s private source, with or without its sha, creates no reference and no access', async t => {
+  const f = setup(t);
+  const { ids: [secret] } = await canvasWithFiles(f, [800]);
+  const rev = f.sqlite.prepare('SELECT sha256 FROM file_sources WHERE id = ?').get(secret).sha256;
+  const FRIEND = 'canvas-0f0f0f0f', path = `/api/learn/boards/${FRIEND}/main`;
+  f.sqlite.prepare("INSERT INTO canvases(org,name,owner_email,title) VALUES('elsewhere',?,'friend@elsewhere','Crafted')").run(FRIEND);
+  const before = refsOf(f.sqlite);
+  for (const fileRef of [{ v: 1, source: { id: secret } }, { v: 1, source: { id: secret, rev } }]) {
+    const label = fileRef.source.rev ? 'with the sha' : 'without the sha';
+    const saved = await f.call('PUT', path, { as: 'friend', body: { state: { ...STATE, blocks: [{ id: 'evil', type: 'file', kind: 'clip', fileRef }] } } });
+    assert.equal(saved.status, 200, 'the save itself is an ordinary save');
+    assert.deepEqual(refsOf(f.sqlite), before, `no reference row (${label})`);
+    assert.equal((await f.call('GET', `/api/learn/files/${secret}?app=${FRIEND}&board=main`, { as: 'friend' })).status, 404, `the original through the crafted board (${label})`);
+    const links = (await f.call('POST', `${path}/share`, { as: 'friend', body: { shared: true, view: true, public_view: true } })).body.sharing;
+    assert.equal((await f.call('GET', `/api/learn/files/${secret}?share=${links.view}`, { as: 'stranger' })).status, 404, `nor through a link the crafter shares (${label})`);
+    assert.equal((await f.call('GET', `/api/learn/files/${secret}?share=${links.view}`)).status, 404, `nor signed out on a public link (${label})`);
+    assert.equal((await f.call('GET', `/api/learn/files/${secret}`, { as: 'friend' })).status, 404, `nor by id (${label})`);
+  }
+});
+
+test('acceptance 1: a fork indexes only sources its source board held; a later save of the fork adds no foreign id', async t => {
+  const f = setup(t);
+  const { ids: [onX, offX, laterX], boardId } = await canvasWithFiles(f, [300, 400, 500]);
+  await saveVersioned(f, MAIN_X, 'owner', { ...STATE, blocks: [card(onX), card(laterX)] });
+  const links = (await f.call('POST', `${MAIN_X}/share`, { as: 'owner', body: { shared: true, view: true } })).body.sharing;
+  f.sqlite.prepare(MEMBER_ROW).run(CANVAS_X);
+  const forked = await f.call('POST', '/api/learn/boards/fork', { as: 'member', body: { source: { token: links.view } } });
+  assert.equal(forked.status, 201, JSON.stringify(forked.body));
+  const forkPath = `/api/learn/boards/${forked.body.name}/main`;
+  const forkId = f.sqlite.prepare('SELECT id FROM learn_boards WHERE app = ?').get(forked.body.name).id;
+  assert.deepEqual(refsOf(f.sqlite).filter(ref => ref.endsWith(`@${forkId}`)).sort(), [`${laterX}@${forkId}`, `${onX}@${forkId}`].sort(), 'inherited from X');
+  // The member edits the fork: drops laterX, adds offX (X never showed it), then re-adds laterX.
+  await saveVersioned(f, forkPath, 'member', { ...STATE, blocks: [card(onX), card(offX)] });
+  await saveVersioned(f, forkPath, 'member', { ...STATE, blocks: [card(onX), card(offX), card(laterX)] });
+  assert.deepEqual(refsOf(f.sqlite).filter(ref => ref.endsWith(`@${forkId}`)), [`${onX}@${forkId}`], 'no new foreign id, and a dropped one does not come back');
+  for (const [id, status] of [[onX, 200], [offX, 404], [laterX, 404]]) assert.equal((await f.call('GET', `/api/learn/files/${id}?app=${forked.body.name}&board=main`, { as: 'member' })).status, status, id);
+  assert.ok(refsOf(f.sqlite).includes(`${laterX}@${boardId}`), 'X keeps its own reference');
+});
+
+test('acceptance 2: a fork keeps its files after the link is revoked and after the original is deleted; a removed member keeps only the fork', async t => {
+  const f = setup(t);
+  const { ids: [shown], boardId } = await canvasWithFiles(f, [600]);
+  await saveVersioned(f, MAIN_X, 'owner', { ...STATE, blocks: [card(shown)] });
+  const links = (await f.call('POST', `${MAIN_X}/share`, { as: 'owner', body: { shared: true, view: true } })).body.sharing;
+  f.sqlite.prepare(MEMBER_ROW).run(CANVAS_X);
+  const forked = await f.call('POST', '/api/learn/boards/fork', { as: 'member', body: { source: { token: links.view } } });
+  const viaFork = () => f.call('GET', `/api/learn/files/${shown}?app=${forked.body.name}&board=main`, { as: 'member' });
+  const viaMember = () => f.call('GET', `/api/learn/files/${shown}?member=${boardId}`, { as: 'member' });
+  assert.deepEqual([(await viaFork()).status, (await viaMember()).status], [200, 200]);
+  await f.call('POST', `${MAIN_X}/share`, { as: 'owner', body: { shared: false } });
+  assert.equal((await f.call('GET', `/api/learn/files/${shown}?share=${links.view}`, { as: 'member' })).status, 404, 'the revoked link reads nothing');
+  assert.equal((await viaFork()).status, 200, 'the fork keeps its files after the link is revoked');
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed', ended_at = 2 WHERE id = 'm1'").run();
+  assert.equal((await viaMember()).status, 404, 'removing the member blocks the member path');
+  assert.equal((await viaFork()).status, 200, 'the same user\u2019s own fork still reads');
+  // Permanent delete of the original (an untouched canvas, canvases.js DELETE): its rows go, the fork still reads.
+  const { canvasesFetch } = await import('../src/canvases.js');
+  const deleted = await canvasesFetch(new Request(`https://dev.test/api/apps/${CANVAS_X}`, { method: 'DELETE', headers: { cookie: 'small_session=owner' } }), f.env);
+  assert.equal(deleted.status, 200, await deleted.clone().text());
+  assert.ok(!refsOf(f.sqlite).some(ref => ref.endsWith(`@${boardId}`)), 'the original rows are gone');
+  assert.equal((await viaFork()).status, 200, 'the fork still reads the immutable bytes');
 });

@@ -111,7 +111,8 @@ block = {
     source: { id: 'fs_<24 hex>', rev: '<sha256 hex of the original bytes>' },  // immutable identity
     family: 'workbook',
     meta: { name: 'sales.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', size: 48213, title: 'sales' },
-    view: { sheet: 'Q1', pages: [3, 5], slide: 2, language: 'python', camera: null }, // only the keys the card uses
+    view: { sheet: 'Q1', pages: [3, 5], slide: 2, language: 'python', camera: null, entry: 'model/scene.gltf' }, // only the keys the card uses; entry: the path inside a ZIP source
+    bundle: [{ path: 'scene.bin', source: { id: 'fs_…', rev: '<sha256>' } }],        // a model's dependency files (glTF .bin and textures, OBJ .mtl and textures), each its own source
     derivatives: { preview: 'fd_<24 hex>', text: 'fd_…', poster: 'fd_…' },          // a cache; D1 is the truth
     job: 'fj_<24 hex>' | null,
     doc: { id: 'fdoc_<24 hex>', rev: 3 } | null,   // the editable revision this card shows, when edited
@@ -222,7 +223,10 @@ tested in `test/file-access.test.js`), never because a card merely names an id:
 - Every board write rewrites the board's rows in the same batch as the write, guarded on the row that write produced (a
   rejected or stale save changes nothing): `saveOwn` (insert and update, so sharing too) and fork/duplicate.
 - A save indexes the sources its cards name **that the saver owns**, and keeps a row the board already held while a card
-  still names that source. A card naming another account's source id indexes nothing and reads nothing.
+  still names that source. A card naming another account's source id indexes nothing and reads nothing, with or without
+  that source's sha256. The sources a card names are its `fileRef.source` and every `fileRef.bundle[].source`
+  (`fileRefSources`), so a shared viewer can load a model's dependencies, and a foreign bundle id is refused like any
+  other (`file-access.test.js`, "a model card bundle ...").
 - A fork or duplicate inherits the rows of the board it was read from, for the sources its copied cards name, so it reads
   the same immutable bytes through its own reference. **A fork keeps that access after the original share link is
   revoked** (`file-access.test.js`, "a fork inherits ...").
@@ -232,6 +236,18 @@ tested in `test/file-access.test.js`), never because a card merely names an id:
   (`canvases.js`, tested in `canvases.test.js`) and a Rabbit Hole delete, subtree included (`dives.js`, tested in
   `dives.test.js`). No other board's rows change. Bytes and source records are never deleted here; cleanup decides with
   retention.
+
+**Owner acceptance points 1 and 2** (2026-10-16 ~7:00 PM PT), and the test that proves each:
+
+| Case | Test |
+|---|---|
+| A crafted save naming another user's private source id, with and without its sha, creates no row; the original through the crafted board, its link (signed in and signed out) and by id is 404 | `learn-files.test.js` "acceptance 1: a crafted save ..." |
+| The same crafted board on the JOBS routes (job status, derivative list, one derivative, a `text` derivative) is 404 | `file-access-acceptance.test.js` on the integration merge (`test/fi-acceptance`) |
+| A member's fork indexes only sources its source board held; a later save of the fork adds no foreign id and a dropped one does not come back | `learn-files.test.js` "acceptance 1: a fork indexes only ..." |
+| A fork keeps its files after the original link is revoked | `learn-files.test.js` "acceptance 2: ..."; `file-access.test.js` "a fork inherits ..." |
+| Removing the fork's card drops only the fork's row | `file-access.test.js` "a fork inherits ..."; `learn-files.test.js` "acceptance 1: a fork indexes only ..." |
+| Permanently deleting the original removes its rows and the fork still reads | `learn-files.test.js` "acceptance 2: ..."; `canvases.test.js` and `dives.test.js` (only that board's rows) |
+| Removing a member blocks the member path (404) while the same user's own fork still reads | `learn-files.test.js` "acceptance 2: ..." |
 
 **Canvas members** (lead ruling, 2026-10-16): reads accept `?member=<board id>`, the convention the JOBS routes use, checked
 by `canvas-comments.js` `memberContext` (the owner or an active member, board not in Trash); then `{ row }` is that board.

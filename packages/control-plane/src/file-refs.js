@@ -2,7 +2,9 @@
 // in the same batch as a board write (learn-migrations/0023). No imports, so canvases.js, dives.js and learn-boards.js can
 // use it without an import cycle; file-access.js reads the rows.
 // The source ids a board's saved state names through cards' fileRef.
-export const fileRefSources = state => [...new Set((state?.blocks || []).map(block => block?.fileRef?.source?.id).filter(id => typeof id === 'string'))];
+// The card's own source and, for a model, its dependency files (fileRef.bundle: glTF .bin and textures, OBJ .mtl and textures).
+export const fileRefSources = state => [...new Set((state?.blocks || []).flatMap(block => [block?.fileRef?.source?.id,
+  ...(Array.isArray(block?.fileRef?.bundle) ? block.fileRef.bundle.map(part => part?.source?.id) : [])]).filter(id => typeof id === 'string'))];
 
 // The board row exactly as this batch's write left it (canvas-refs.js GUARD): a rejected or stale save changes no reference.
 const GUARD = 'EXISTS (SELECT 1 FROM learn_boards g WHERE g.id = ? AND g.state_json = ? AND g.version = COALESCE(?, g.version))';
