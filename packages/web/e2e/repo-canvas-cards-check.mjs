@@ -144,7 +144,7 @@ const check = async (label, fn) => {
     // The crash screen catches render errors (no pageerror): the console says what broke.
     const crashed = page && await page.getByText('This page couldn\'t load').count().catch(() => 0);
     const message = `${lines[0]}${why ? ` (${why.replace(/\u001b\[[0-9;]*m/g, '').trim().slice(0, 240)})` : ''}${crashed ? ` [CRASH SCREEN; console: ${consoleErrors.slice(-2).join(' | ')}]` : ''}`.slice(0, 1200);
-    results.push({ label, ok: false, error: message });
+    results.push({ label, ok: false, error: message, detail: String(error?.message || error).slice(0, 12000), step: facts.c4Step });
     console.log(`FAIL ${label} - ${message}`);
     if (page) await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
     if (crashed) await openCanvas().catch(() => {}); // one crash fails one case, not every case after it
@@ -379,12 +379,20 @@ await check('3b a node right-click opens its menu with Add selection as graph, A
 });
 
 await check('4 three selected nodes, Add code card: one card per code node as a compact group, no neighbour added, no overlap; one Undo removes all, Redo restores all', async () => {
-  await openGraph();
-  await node(N.train).click();
-  for (const id of [N.sample, N.attn]) await node(id).click({ modifiers: ['Shift'] });
+  const step = async name => {
+    facts.c4Step = name;
+    const state = { step: name, companionOpen: await companionOpen(), view: await view(),
+      controlPressed: await page.locator('[data-panel-companion]').getAttribute('aria-pressed'),
+      selected: await selectedIn(graphPanel()), graphCount: await graphPanel().count() };
+    (facts.c4Timeline ||= []).push(state); console.log('POINTER_DIAGNOSTIC case4 ' + JSON.stringify(state));
+  };
+  await step('open graph'); await openGraph();
+  await step('select train'); await node(N.train).click();
+  for (const id of [N.sample, N.attn]) { await step(`shift select ${id}`); await node(id).click({ modifiers: ['Shift'] }); }
+  await step('verify three selected');
   await waitFor(async () => (await selectedIn(graphPanel())).length === 3, 3000, 'three selected');
   const before = (await ofType('repo-code')).map(b => b.id), q = await quiet();
-  await chooseAdd(SELECTORS.addCodeCard);
+  await step('add three code cards'); await chooseAdd(SELECTORS.addCodeCard);
   await waitCount('repo-code', before.length + 3, 'Add code card for three');
   const added = (await ofType('repo-code')).filter(b => !before.includes(b.id));
   assert.deepEqual(added.map(b => b.source.nodeId).sort(), [N.attn, N.sample, N.train].sort(), 'exactly the selected nodes');
@@ -488,6 +496,9 @@ await check('7 the Files viewer Add code card and a file dragged from Files make
   const dragged = (await ofType('repo-code')).find(b => b.source?.path === 'bench.py');
   assertRepositorySource(dragged, 'bench.py', 'the dragged card');
   const r = await box(cardEl(dragged.id));
+  facts.c7Drop = { beforeFrame: f, requested: at, afterFrame: await box(canvasFrame()), actual: r,
+    priorGroup: facts.c4 || null, savedCard: { x: dragged.x, y: dragged.y, dx: dragged.dx, dy: dragged.dy } };
+  console.log('POINTER_DIAGNOSTIC case7 ' + JSON.stringify(facts.c7Drop));
   assert.ok(Math.hypot(r.x - (f.x + at.x), r.y - (f.y + at.y)) < 260, 'placed at the drop point or nearby free space');
   await assertPlaced([dragged], 'the dragged card');
 });
