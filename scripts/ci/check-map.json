@@ -223,8 +223,7 @@
     "card-select-check.mjs",
     "workspace-check.mjs",
     "naming-check.mjs",
-    "home-ask-check.mjs",
-    "canvas-file-drop-check.mjs"
+    "home-ask-check.mjs"
   ],
   "defaultReason": "An unmapped executable path runs this conservative set (the app shell, navigation, selection, naming and the home ask, about 4 min of checks) and the run reports the missing mapping. It is neither the full broad set nor a failure.",
   "mapped": {
@@ -578,7 +577,7 @@
     "canvas-search-check.mjs": {"runner":"windows-only","why":"Actual-app Search acceptance against an authorized local stack, with isolated board/comment/reference/child fixtures and all model routes guarded. New check; Linux readiness has not yet been established by three unchanged runs. Run manually for Search release readiness; skipped CI registration is not integration coverage.","seconds":180},
     "canvas-editing-check.mjs": {"runner":"harness","seconds":105},
     "canvas-editing-stack-check.mjs": {"runner":"windows-only","why":"keyless journey-stack check: requires the stack .dev.vars (--vars or VARS) or its TEST_BYPASS_SECRET","seconds":120},
-    "canvas-file-drop-check.mjs": {"runner":"fork","seconds":180},
+    "canvas-file-drop-check.mjs": {"runner":"windows-only","seconds":180,"why":"Linux Wrangler 4.150.0 ProxyWorker repeatedly returns 500 Network connection lost instead of 415 for the malformed 30 MiB video (CI 39018455292). All 41 assertions remain required in the Windows release gate; deployed-edge 415 and no-storage checks pass. Linux coverage unavailable; proxy defect unresolved."},
     "file-edge-check.mjs": {"runner":"windows-only","why":"a session dev clone check (BASE=https://rabbit-hole-web-dev-<session>.tryrabbithole.workers.dev; rabbit-hole-cp-dev test sessions; no model routes) for the 50 MiB board-file cap and file sources on the real Cloudflare edge with the page bypassed, and a 25-50 MiB video reopened and seeked in a fresh browser (canvas-file-imports.md section 7, owner acceptance point 5); needs a deploy, so the release gate does not run it","seconds":180},
     "file-sources-check.mjs": {"runner":"windows-only","why":"a local-stack check (BASE, SMALL_CP, VARS; no model routes) for imported file sources on the real Worker (canvas-file-imports.md section 4.2): create, a 30 MiB upload streamed, counted and hashed, download, range, reuse, a tampered upload, a stranger and a revoked share; new, not yet passed three times on Linux (Task B4) and the release gate does not run it, so it runs by hand on the local stack","seconds":60},
     "board-restore-check.mjs": {"runner":"windows-only","why":"a local-stack check (BASE, SMALL_CP; reads the control plane .dev.vars) that forces the restore-on-open interleaving (the canvas's pending first save run right after the page writes the server copy) and asserts the card stays and no PUT empties the board (C:/s/spec/board-empty-report.md); AdaptiveCanvas.jsx is a broad path, which lists every windows-only check as not covered; new, not yet passed three times on Linux, so it runs by hand on the local stack","seconds":20},
