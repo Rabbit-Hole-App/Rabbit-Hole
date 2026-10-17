@@ -1,7 +1,6 @@
 import { createContext, useContext } from 'react';
 import { ArrowUp, ChevronDown, Loader2, Square } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
-import { useChatWorkspace } from './chat-workspace.jsx';
 
 // Every agent uses the same input, focus treatment, send control and sizing.
 // Optional controls belong in slots; they must not replace the composer itself.
@@ -38,9 +37,9 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // (about two lines, growing to a bound, then scrolling), the `chips` slot under it, then ONE toolbar row - leading,
 // a spacer, trailing, and Send (Stop while busy) at the far right. Its toolbar controls take COMPOSER_TOOL.
 export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null, stacked = false, chips = null }) {
-  // The Table of contents' own composer (TocWorkspace) is data-toc-composer, so [data-chat-composer] stays the one Chat composer.
-  const tocView = !!useChatWorkspace()?.tocView;
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null, stacked = false, chips = null, tocView = false }) {
+  // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
+  // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
   const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
   const keys = event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
