@@ -26,6 +26,7 @@ import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
+import { fileChatRef } from './file-chat-ref.js';
 import { objectKind, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
@@ -64,6 +65,7 @@ import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, dragSource, insertCodeCard, repoCodeCard } from './code-card.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { droppedFiles } from './model-drop.js';
+import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -74,6 +76,8 @@ const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document edi
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 const ModelCard = lazyFeature(() => import('./ModelCard.jsx'), 'The 3D viewer');
+// Text, Markdown, table, workbook, Word and presentation cards (file-doc-import.js; canvas-file-imports.md lane 2).
+const FileDocCard = lazyFeature(() => import('./FileDocCard.jsx'), 'The file preview');
 const noop = () => {};
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -779,6 +783,8 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   // An imported 3D model, point cloud, splat or CAD model (ModelCard.jsx): the header strip moves it, the viewer is explicit.
   if (block.type === 'file' && block.kind === 'model') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || 560} height={block.h || 460} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the 3D viewer…</p>}><ModelCard block={block} selected={selected} onChange={onChange} onSelect={onSelect} /></Suspense></CanvasNode>;
+  if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file…</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -3291,13 +3297,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const askedId = useRef(null);
   // The selected object's chat-context identity (pdf-materials-refinement.md section 6): a PDF card or page is its document and
   // page (pdfRef), anything else the ref Add to chat gives it. The composer shows a selection and an attachment of one ref once.
-  const chatRefOf = object => pdfRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
+  const chatRefOf = object => pdfRef(object) || fileChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
   const armTarget = block => {
     const described = describeObject(block);
     if (!described) return false;
     armedId.current = block.id;
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
-    const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material }, ref: chatRefOf(block), pdf: !!pdfRef(block) };
+    const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material }, ref: chatRefOf(block), pdf: !!(pdfRef(block) || fileChatRef(block)) };
     // A page sends the page itself, of its own source (pdf-source.js): an uploaded paper's page as paper_context, read by
     // the model as the reader's pages are, from its home canvas when it was copied here; a context document's page as its doc
     // ref at that page. The thumbnail only shows on the chip.
@@ -3367,8 +3373,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // A page is its own PDF at that page (pdf-to-canvas.md): a context document's ref, or an uploaded paper's (pageRef), the
       // chip a question about it sends; a whole PDF card is its document's ref (pdfRef), never a second card chip of one PDF.
       // Its selection chip steps aside, as a card's does below, so the page is one chip.
-      if (pdfRef(object)) {
-        chatWorkspace.addToChat(pdfRef(object));
+      // An imported file card is its file ref (file-chat-ref.js: source revision + scope), the selection chip's own identity.
+      const sourceRef = pdfRef(object) || fileChatRef(object);
+      if (sourceRef) {
+        chatWorkspace.addToChat(sourceRef);
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
         return true;
       }

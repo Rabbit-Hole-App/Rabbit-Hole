@@ -15,6 +15,9 @@ How should it be added?
 - **Add to canvas** places the card at the drop point: the column slot at that height (`AdaptiveCanvas` `insertImported`,
   `flowIndexAt`). An upload has no drop point, so its card goes where the learner is looking.
 - Images, GIFs, videos and PDFs keep their own drop path (`learn-drop.js`), with no dialog: they have one way in.
+- `.txt` and `.md`/`.markdown` open this dialog with **Text card** / **Markdown card** first; CSV, TSV, Excel, Word and
+  PowerPoint files have their own importer (`DocImport.jsx`). Both are described in `canvas-file-imports.md` section 10,
+  which holds the full format list and limits (the capability registry, `file-capabilities.js`).
 
 ## What each choice makes
 

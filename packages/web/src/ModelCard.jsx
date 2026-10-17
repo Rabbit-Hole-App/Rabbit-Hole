@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, FilePlus, Rotate3d, Scan, TriangleAlert } from 'lucide-react';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { formatLabel, modelKindLabel } from './model-import.js';
-import { addModelFiles, chooseModel, openModelFiles } from './model-storage.js';
+import { addModelFiles, chooseModel, openModelFiles, useModelUploads } from './model-storage.js';
 import { MODEL_ACCEPT } from './model-drop.js';
 import { headerCounts, overBudget, sizeLabel } from './model-formats.js';
 import { activateViewer, claimViewer, deactivateViewer, releaseViewer } from './viewer-slots.js';
@@ -40,6 +40,9 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
   const [info, setInfo] = useState(null), [poster, setPoster] = useState(null), [report, setReport] = useState({ missing: [], blocked: [] });
   const [cad, setCad] = useState(null), [clips, setClips] = useState([]);
   const [job, setJob] = useState(null);
+  // Each file's upload to the account (file-source-client.js); a stored source is written into the card as it lands.
+  // latest moves at once, so two uploads landing before a re-render both reach the card.
+  const uploads = useModelUploads(block, fn => { const next = fn(latest.current); if (next !== latest.current) { latest.current = next; onChange(next); } });
   const cadState = model.render === 'cad' ? cadCardState(block.fileRef, job) : null;
   // A STEP card with a job polls its status (read-only) until it ends; the derivative ids it reports are the card's own
   // cache of them, written only while the card still names that job (a late result never lands on another revision).
@@ -68,7 +71,9 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
     openModelFiles(latest.current).then(opened => { if (live) { setPkg(opened); setBlob(opened.download); } }, error => { if (live) setProblem(error.message); });
     cachedAsset(posterKey(block.id)).then(value => { if (live && typeof value === 'string') setPoster(value); }).catch(() => {});
     return () => { live = false; };
-  }, [block.assetKey, block.fileRef?.source?.id, block.fileRef?.bundle?.length]);
+  // Keyed by what the card holds (its paths), not by upload progress: a file moving from this browser's copy to its stored
+  // source is the same bytes, so the viewer does not reload.
+  }, [block.assetKey, block.fileRef?.view?.entry, (block.fileRef?.bundle || []).map(b => b.path).join('|')]);
 
   const entry = pkg?.plan.entries.find(e => e.path === model.entry) || null;
   const choices = !model.entry && model.entries?.length ? model.entries : null;
@@ -221,6 +226,11 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
         {cad?.parts != null && <span>{cad.parts} part{cad.parts === 1 ? '' : 's'}</span>}
         {cad && <span data-model-cad-note title={cad.limitations.join('\n') || 'Tessellated preview of the STEP file'}>Preview mesh: CAD features and tolerances are not kept</span>}
       </div>
+      {uploads.failed.length > 0 && <div data-model-not-saved className="mt-2 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800" onPointerDown={stop}>
+        <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden /><span className="min-w-0 flex-1">Not saved: {uploads.failed[0].name}: {uploads.failed[0].error}</span>
+        {uploads.failed.some(f => f.retryable !== false) && <button type="button" onClick={uploads.retry} className="shrink-0 rounded-md border border-red-300 bg-white px-2 py-0.5 text-red-800 hover:bg-red-100">Retry</button>}
+      </div>}
+      {uploads.pending > 0 && !uploads.failed.length && <p data-model-saving role="status" className="px-1 pt-1 text-[11px] text-ink-3">Saving {uploads.pending === 1 ? 'the file' : `${uploads.pending} files`} to your account…</p>}
       {(missing.length > 0 || blocked.length > 0) && <div data-model-missing className="mt-2 rounded-lg border border-line bg-hover px-3 py-2 text-xs text-ink-2" onPointerDown={stop}>
         {missing.length > 0 && <p>Missing from what was dropped: <span className="font-mono text-ink">{missing.join(', ')}</span></p>}
         {blocked.length > 0 && <p>Not loaded (outside the dropped files): <span className="font-mono break-all">{blocked.slice(0, 3).join(', ')}</span></p>}

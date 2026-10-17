@@ -32,11 +32,28 @@ for (const f of pick) {
   }
   const text = async sel => (id ? await card.locator(sel).first().textContent({ timeout: 300 }).catch(() => '') : '');
   const row = { fixture: f.path, role: f.role, cards: r.blocks.length, state: id ? await card.locator('[data-model-card]').getAttribute('data-model-state') : '-', counts: await text('[data-model-counts]'), missing: (await text('[data-model-missing]')).slice(0, 90), note: (r.errors[0] || await text('[data-model-error]') || await text('[data-model-limited]') || await text('[data-model-cad]')).slice(0, 90) };
-  const expect = f.role === 'import' ? (f.path.startsWith('cad/') ? row.cards === 1 && /Awaiting converter/.test(row.note) : row.state === 'ready' && !row.missing)
+  const expect = f.role === 'part' ? row.cards === 0 // a model's own file alone is no card
+    : f.role === 'import' ? (f.path.startsWith('cad/') ? row.cards === 1 && /Awaiting converter/.test(row.note) : row.state === 'ready' && !row.missing)
     : f.role === 'missing-deps' ? /Missing/.test(row.missing)
     : f.path.endsWith('.zip') ? row.cards === 0 && !!row.note : /Not loaded/.test(row.missing);
   row.ok = expect ? 'ok' : 'UNEXPECTED'; if (!expect) bad++;
   rows.push(row);
+}
+// fileRef mode: a failed upload says Not saved with Retry; Retry stores it and the card names every source.
+if (process.env.SOURCES) {
+  // The 3 first attempts fail, then the main file's retry when the card mounts: the card shows Not saved for it.
+  await page.evaluate(() => { window.__clear(); window.__failUploads = 4; window.__sources.uploads.length = 0; });
+  const f = manifest.fixtures.find(x => x.path === 'gltf/separate/cube.gltf');
+  const r = await page.evaluate(list => window.__drop(list), [f.path, ...f.deps]);
+  const card = page.locator(`[data-block-id="${r.blocks[0].id}"]`);
+  const notSaved = await card.locator('[data-model-not-saved]').textContent({ timeout: 10000 }).catch(() => '');
+  await card.getByRole('button', { name: 'Retry' }).click().catch(() => {});
+  const saved = await card.locator('[data-model-saving], [data-model-not-saved]').count().then(async n => { for (let i = 0; i < 50 && n; i++) { await page.waitForTimeout(100); n = await card.locator('[data-model-saving], [data-model-not-saved]').count(); } return n === 0; });
+  const last = await page.evaluate(id => window.__log.changes.filter(c => c.id === id).at(-1), r.blocks[0].id);
+  const named = !!last?.fileRef?.source?.id && (last.fileRef.bundle || []).every(b => b.source?.id);
+  const ok = /Not saved: .*network dropped/.test(notSaved) && saved && (await page.evaluate(() => window.__sources.uploads.length)) === 3 && named;
+  rows.push({ fixture: 'upload failure + Retry (fileRef)', role: 'storage', cards: 1, state: await card.locator('[data-model-card]').getAttribute('data-model-state'), counts: '', missing: '', note: notSaved.slice(0, 90), ok: ok ? 'ok' : 'UNEXPECTED' });
+  if (!ok) bad++;
 }
 console.table(rows);
 console.log(`requests outside the page: ${outside.length ? outside.join(', ') : 'none'}`);

@@ -7,4 +7,6 @@
 // - Auto keeps the active Tutor's workflow on a journey or Tutor canvas, and posts to /api/learn/ask everywhere else.
 // - pageTurn, a question about PDF pages the Tutor's plan does not read (pdf-to-canvas.md), posts to /api/learn/ask, as codeTurn
 //   does: only that route sends them all. A turn about exactly one page keeps the Tutor, which reads it (pdf-source.js tutorPage).
-export const tutorTurn = ({ tutor, codeTurn = false, pageTurn = false, chat = null, mode = 'auto' }) => !!tutor && !codeTurn && !pageTurn && (!chat || mode === 'auto');
+// - fileTurn, a question with an imported file attached (file-chat-ref.js), posts to /api/learn/ask too: the Tutor's plan does
+//   not read file refs, and dropping one silently would answer as if the file were read.
+export const tutorTurn = ({ tutor, codeTurn = false, pageTurn = false, fileTurn = false, chat = null, mode = 'auto' }) => !!tutor && !codeTurn && !pageTurn && !fileTurn && (!chat || mode === 'auto');

@@ -34,6 +34,7 @@
     "html-to-image": "^1.11.13",
     "katex": "^0.16.47",
     "lucide-react": "^1.41.0",
+    "mammoth": "1.13.0",
     "mathlive": "^0.111.0",
     "mermaid": "^11.17.2",
     "motion": "^13.4.0",
@@ -45,6 +46,7 @@
     "shiki": "^4.4.3",
     "three": "^0.186.0",
     "tldraw": "^5.4.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.5.4",
     "zustand": "^4.5.7"
   },

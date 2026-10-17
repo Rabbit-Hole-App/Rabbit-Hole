@@ -1,6 +1,9 @@
+import { describeFileCard } from './file-chat-ref.js';
 // The canvas target a Learn question is about (owner decision 2): the card, group or marked
 // region travels as canvas_target beside the learner's own words, never wrapped into the message.
 // The server bounds the text for the model (8000 characters, with a marker); this caps the request.
+import { describeFileCard as describeLocalFileCard } from './file-excerpts.js';
+
 export const CANVAS_TARGET_MAX = 32000;
 
 export function canvasTargetField(target) {
@@ -17,8 +20,10 @@ export function canvasTargetField(target) {
 // 2026-10-08: "when we click on a card meaning it is selected we should have a pill above the chat composer"): a chat
 // card, a text box or sticky note, an equation, and the Wikipedia, PDF, file and section cards. A divider has nothing to ask about.
 // material: the card's icon on the pill. image: an uploaded image's media id, which rides as image_context.
+
 export function describeCanvasObject(object) {
   if (!object) return null;
+  if (object.fileRef) return describeFileCard(object);
   if (!object.type) {
     if (typeof object.question === 'string') {
       const turns = [object, ...(object.replies || [])].map(turn => `Q: ${turn.question || ''}\nA: ${turn.answer || ''}`);
@@ -40,6 +45,9 @@ export function describeCanvasObject(object) {
   if (object.type === 'pdf') return { kind: 'PDF', title: object.label || 'PDF', text: `PDF on the canvas: ${object.label || 'untitled'}`, material: 'pdf' };
   // An imported model (ModelCard.jsx): its name, format and the counts its file declares - never the geometry itself.
   if (object.type === 'file' && object.kind === 'model') return { kind: '3D model', title: object.label || '3D model', text: modelText(object), material: 'file' };
+  // A text, table, workbook, Word or presentation card: its bounded excerpt and what it covers (file-excerpts.js).
+  const fileCard = describeLocalFileCard(object);
+  if (fileCard) return fileCard;
   if (object.type === 'file') {
     const image = object.kind === 'image';
     return { kind: image ? 'Image' : 'File', title: object.label || (image ? 'Image' : 'File'), text: `${image ? 'Image' : 'File'} on the canvas: ${object.label || 'untitled'}`, material: 'file', ...(image && object.mediaId ? { image: object.mediaId } : {}) };

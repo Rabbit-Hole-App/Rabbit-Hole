@@ -557,7 +557,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // A Tutor turn begins in its own branch below; every other turn begins here.
     // A turn about one PDF page keeps the Tutor, which reads that page (tutorPage, page_context); several pages go to /api/learn/ask.
     const pdfPage = tutorPage(target, chat?.context.attached);
-    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, chat?.context.attached) && !pdfPage, chat, mode: chat?.thread.mode });
+    const fileTurn = [...(chat?.context.attached || []), target?.ref].some(ref => ref?.kind === 'file');
+    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, chat?.context.attached) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
