@@ -3244,4 +3244,4 @@ successful dev deployment and is excluded from the r35 candidate.
 
 ### Canvas Search (2026-10-16, candidate)
 
-The existing right-panel Search now includes current-canvas browsing, seven filters, literal matching, cached previews, comment navigation and camera Back. It reuses the resizable panel and existing source/document viewers; it does not call models. See [the approved scope and coverage](canvas-search.md). Integrated release verification and isolated dev deployment are pending; this entry is not a deployment claim.
+The existing right-panel Search now includes current-canvas browsing, seven filters, literal matching, cached previews, comment navigation and camera Back. It reuses the resizable panel and existing source/document viewers; it does not call models. See [the approved scope and coverage](canvas-search.md). The isolated review target is `rabbit-hole-web-dev-search-int.tryrabbithole.workers.dev`; exact deployed SHA, browser evidence and release status belong to the coordination receipt and CI deployment notes. This feature entry alone is not a deployment claim.
