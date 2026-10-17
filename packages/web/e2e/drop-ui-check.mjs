@@ -47,22 +47,33 @@ await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(3000);
 
 // --- the strip: title, centered menubar, present/share/panel in it ---
-const strip = page.locator('input[aria-label="Canvas title"]');
+// Repository canvases use the approved canvas selector and Rename dialog (project-menu-check case 13).
+const strip = page.locator('[data-canvas-switcher]');
+const renameDialog = page.getByRole('dialog', { name: 'Rename canvas' });
+const openRename = async () => {
+  await strip.click();
+  await page.locator('[data-menu-button-open] [data-rename-canvas]').click();
+  await renameDialog.waitFor();
+  return renameDialog.getByRole('textbox', { name: 'Canvas name' });
+};
 ok('the page heading is gone - no Learn h1', (await page.locator('h1', { hasText: /^Learn$/ }).count()) === 0);
-ok('the strip holds an editable title', (await strip.count()) === 1);
+ok('the strip holds the canvas title selector', (await strip.count()) === 1);
 ok('share sits beside present in the strip', (await page.locator('[aria-label="Share"]').count()) === 1 && (await page.locator('[aria-label="Present"]').count()) === 1);
-await strip.fill('My lesson canvas');
-await strip.press('Enter');
+const titleField = await openRename();
+ok('Rename focuses an editable title field', await titleField.isEditable() && await titleField.evaluate(element => element === document.activeElement));
+await titleField.fill('My lesson canvas');
+await renameDialog.getByRole('button', { name: 'Save', exact: true }).click();
+await renameDialog.waitFor({ state: 'hidden' });
 await page.reload();
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
-await page.waitForTimeout(2500);
-ok('the title survives a reload', (await page.locator('input[aria-label="Canvas title"]').inputValue()) === 'My lesson canvas');
-await page.locator('input[aria-label="Canvas title"]').click({ position: { x: 4, y: 8 } });
-await page.waitForTimeout(150);
-await page.keyboard.type('!');
-ok('focusing the title puts the caret at the end', (await page.locator('input[aria-label="Canvas title"]').inputValue()) === 'My lesson canvas!');
-await page.keyboard.press('Backspace');
-await page.keyboard.press('Enter');
+await page.waitForFunction(() => document.querySelector('[data-canvas-switcher] [data-canvas-name]')?.textContent === 'My lesson canvas');
+ok('the renamed title survives a reload', (await strip.innerText()).trim() === 'My lesson canvas');
+const cancelledTitle = await openRename();
+ok('Rename opens with the persisted title', await cancelledTitle.inputValue() === 'My lesson canvas');
+await cancelledTitle.fill('Discard this rename');
+await renameDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+await renameDialog.waitFor({ state: 'hidden' });
+ok('Cancel preserves the canvas title', (await strip.innerText()).trim() === 'My lesson canvas');
 
 // --- present refuses an empty canvas without changing its chrome ---
 await page.locator('[aria-label="Present"]').click();
