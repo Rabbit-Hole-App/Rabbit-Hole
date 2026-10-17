@@ -1,4 +1,4 @@
-# Inactive preparation. No workflow uses this file. Activation needs owner approval.
+# Ongoing production authorized 2026-10-17; admission stays off until verification.
 # Build context is the repository root; do not run fly launch (it may create HA copies).
 app = "rabbit-hole-cad-prod"
 primary_region = "iad"
@@ -11,11 +11,11 @@ kill_timeout = "25s"
   PORT = "8080"
   CAD_ADMISSION_ENABLED = "false"
   CAD_ALLOWED_ORIGINS = "https://digrabbithole.com"
-  CAD_BUDGET_MODE = "pilot"
-  CAD_PILOT_LEDGER_FILE = "/var/cad/budget/usage.json"
-  CAD_PILOT_MAX_BYTES = "2147483648"
-  # Set approved CAD_PILOT_ID, CAD_PILOT_STARTED_AT, CAD_PILOT_DEADLINE
-  # and pinned CAD_IMAGE_VERSION only after approval. Missing values fail closed.
+  CAD_BUDGET_MODE = "production"
+  CAD_PRODUCTION_LEDGER_FILE = "/var/cad/budget/production.json"
+  CAD_PRODUCTION_MAX_BYTES = "2147483648"
+  # Set pinned CAD_IMAGE_VERSION and initialize the persistent ledger once.
+  # UTC calendar-month accounting has no expiry or automatic resource deletion.
 
 [[mounts]]
   source = "cad_budget"

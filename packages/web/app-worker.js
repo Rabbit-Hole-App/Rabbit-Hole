@@ -10,6 +10,8 @@ export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),
   fetch(req, env, ctx) {
     const url = new URL(req.url);
+    // Fixed recipient and dedicated bearer are validated by the private control plane.
+    if (url.pathname === '/internal/cad-budget-alert') return env.CONTROL_PLANE.fetch(req);
     // Auth errors, sign-out and the app's 401 handler all land on /login, the control plane's legacy page.
     if (url.pathname === '/login' && ['GET', 'HEAD'].includes(req.method)) { url.pathname = '/sign-in'; return Response.redirect(url, 302); }
     // No hosted apps here: an app's JS on this origin would be same-origin with the session and could call /api/*.
