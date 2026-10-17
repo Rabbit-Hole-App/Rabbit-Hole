@@ -42,4 +42,6 @@ window.__drop = async items => {
   return { blocks: cards.map(c => c.block), leftovers: leftovers.map(f => f.name), errors, importMs: Math.round(performance.now() - started) };
 };
 window.__clear = () => setCards([]);
+// A card as a later stage would leave it (e.g. a STEP card once its job has a GLB derivative).
+window.__patch = (id, patch) => setCards(list => list.map(b => (b.id === id ? { ...b, ...patch } : b)));
 window.__liveCount = liveCount;

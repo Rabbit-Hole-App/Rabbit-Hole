@@ -14,7 +14,7 @@ import { addFilesToPackage, formatLabel, modelKindLabel, openModelPackage } from
 import { MODEL_ACCEPT } from './model-drop.js';
 import { headerCounts, overBudget, sizeLabel } from './model-formats.js';
 import { activateViewer, claimViewer, deactivateViewer, releaseViewer } from './viewer-slots.js';
-import { cadCardState, cadFacts, fetchCadDerivatives } from './model-cad.js';
+import { TERMINAL, cadCardState, cadFacts, fetchCadDerivatives, fetchCadJob } from './model-cad.js';
 
 const OFFSCREEN_RELEASE_MS = 2000;
 const posterKey = id => `poster:${id}`;
@@ -39,7 +39,28 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
   const [active, setActive] = useState(false), [lost, setLost] = useState(false), [attempt, setAttempt] = useState(0);
   const [info, setInfo] = useState(null), [poster, setPoster] = useState(null), [report, setReport] = useState({ missing: [], blocked: [] });
   const [cad, setCad] = useState(null), [clips, setClips] = useState([]);
-  const cadState = model.render === 'cad' ? cadCardState(block.fileRef, null) : null;
+  const [job, setJob] = useState(null);
+  const cadState = model.render === 'cad' ? cadCardState(block.fileRef, job) : null;
+  // A STEP card with a job polls its status (read-only) until it ends; the derivative ids it reports are the card's own
+  // cache of them, written only while the card still names that job (a late result never lands on another revision).
+  useEffect(() => {
+    const jobId = block.fileRef?.job; if (model.render !== 'cad' || !jobId) return;
+    let stopped = false, timer = 0; const abort = new AbortController();
+    const poll = async () => {
+      try {
+        const next = await fetchCadJob(jobId, board, abort.signal); if (stopped) return;
+        setJob(next);
+        if (TERMINAL.includes(next.state)) {
+          const current = latest.current;
+          if (next.derivatives?.mesh && current.fileRef?.job === jobId && !current.fileRef.derivatives?.mesh) onChange({ ...current, fileRef: { ...current.fileRef, derivatives: { ...current.fileRef.derivatives, ...next.derivatives } } });
+          return;
+        }
+      } catch (error) { if (stopped) return; setJob(previous => previous || { state: 'queued' }); }
+      timer = setTimeout(poll, 3000);
+    };
+    poll();
+    return () => { stopped = true; clearTimeout(timer); abort.abort(); };
+  }, [block.fileRef?.job]);
 
   // The stored original (this browser's cache, else the board's server copy), then what it holds.
   useEffect(() => {
@@ -93,7 +114,7 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
       if (current.model?.render === 'cad') {
         const { mesh, structure } = await fetchCadDerivatives(current.fileRef, board);
         files = new Map([['model.glb', mesh]]); target = { path: 'model.glb', format: 'glb', render: 'mesh', deps: [] };
-        facts = cadFacts(structure); units = facts.units; setCad(facts);
+        facts = cadFacts(structure, job?.limitations); units = facts.units; setCad(facts);
       }
       const result = await loadModel({ files, entry: target, ...context });
       const over = overBudget(result.stats);
@@ -160,7 +181,8 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
   useEffect(() => { engine.current?.update({ modelUrl: '', camera: engine.current.camera() || latest.current.camera || {}, animation, animationTime: undefined, autoRotate: false }); }, [animation.autoplay, animation.clipName, ready]);
 
   const counts = info?.stats ? { ...known, ...info.stats } : known;
-  const size = sizeLabel(info?.size, info?.units || model.units);
+  // A CAD mesh is in metres; its size is shown in the STEP file's declared unit, and only when it declared one.
+  const size = cad ? (cad.units && info?.size ? sizeLabel(info.size.map(v => v * cad.perMetre), cad.units) : null) : sizeLabel(info?.size, info?.units || model.units);
   const kind = modelKindLabel(entry ? { render: entry.render } : model);
   const status = problem || (lost ? 'The graphics context was lost, so this viewer paused. The card is unchanged.' : '');
   return (
@@ -203,7 +225,7 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
           {clips.length > 1 && <select aria-label="Animation clip" value={clips.includes(animation.clipName) ? animation.clipName : clips[0]} onChange={event => onChange({ ...block, animation: { ...animation, clipName: event.target.value } })} className="rounded border border-line px-1 py-0.5">{clips.map((name, index) => <option key={index} value={name}>{name || `Clip ${index + 1}`}</option>)}</select>}
         </span>}
         {cad?.parts != null && <span>{cad.parts} part{cad.parts === 1 ? '' : 's'}</span>}
-        {cad?.limitations?.length > 0 && <span title={cad.limitations.join('\n')}>Preview mesh: CAD features and tolerances are not kept</span>}
+        {cad && <span data-model-cad-note title={cad.limitations.join('\n') || 'Tessellated preview of the STEP file'}>Preview mesh: CAD features and tolerances are not kept</span>}
       </div>
       {(missing.length > 0 || blocked.length > 0) && <div data-model-missing className="mt-2 rounded-lg border border-line bg-hover px-3 py-2 text-xs text-ink-2" onPointerDown={stop}>
         {missing.length > 0 && <p>Missing from what was dropped: <span className="font-mono text-ink">{missing.join(', ')}</span></p>}

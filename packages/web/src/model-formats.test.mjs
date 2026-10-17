@@ -9,7 +9,7 @@ const F = allFixtures();
 const enc = s => new TextEncoder().encode(s);
 
 test('every model fixture sniffs as its own format and not as the others', () => {
-  const cases = { 'cube.glb': 'glb', 'gltf-separate/cube.gltf': 'gltf', 'cube-binary.stl': 'stl', 'cube-ascii.stl': 'stl', 'obj/cube.obj': 'obj', 'cube.3mf': '3mf', 'cube-ascii.fbx': 'fbx', 'cube-header-only.step': 'step', 'mesh-ascii.ply': 'ply', 'ring.splat': 'splat', 'ring.ksplat': 'ksplat', 'ring.spz': 'spz' };
+  const cases = { 'cube.glb': 'glb', 'gltf-separate/cube.gltf': 'gltf', 'cube-binary.stl': 'stl', 'cube-ascii.stl': 'stl', 'obj/cube.obj': 'obj', 'cube.3mf': '3mf', 'cube-ascii.fbx': 'fbx', 'cube-binary.fbx': 'fbx', 'cube-header-only.step': 'step', 'mesh-ascii.ply': 'ply', 'ring.splat': 'splat', 'ring.ksplat': 'ksplat', 'ring.spz': 'spz' };
   for (const [name, format] of Object.entries(cases)) assert.equal(sniffModel(name, F[name]).format, format, name);
   // The bytes must agree with the name.
   assert.match(sniffModel('cube.glb', F['cube-ascii.stl']).error, /valid \.glb/);

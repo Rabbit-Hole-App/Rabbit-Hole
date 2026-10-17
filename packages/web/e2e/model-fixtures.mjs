@@ -179,6 +179,49 @@ Connections:  {
 `);
 }
 
+// ---- FBX (binary 7.4) ------------------------------------------------------------------------------------------------------
+// Node records (u32 end offset, property count, property bytes, name), typed properties, a 13-byte null record after
+// children, and the 160-byte footer readers expect. Same cube and material as the ASCII file.
+export function fbxBinary() {
+  const prop = v => {
+    if (typeof v === 'bigint') { const b = new DataView(new ArrayBuffer(9)); b.setUint8(0, 76); b.setBigInt64(1, v, true); return new Uint8Array(b.buffer); }
+    if (typeof v === 'string') { const t = enc(v), b = new DataView(new ArrayBuffer(5)); b.setUint8(0, 83); b.setUint32(1, t.length, true); return cat([new Uint8Array(b.buffer), t]); }
+    if (v?.ints) { const b = new DataView(new ArrayBuffer(13 + v.ints.length * 4)); b.setUint8(0, 105); b.setUint32(1, v.ints.length, true); b.setUint32(5, 0, true); b.setUint32(9, v.ints.length * 4, true); v.ints.forEach((x, i) => b.setInt32(13 + i * 4, x, true)); return new Uint8Array(b.buffer); }
+    if (v?.doubles) { const b = new DataView(new ArrayBuffer(13 + v.doubles.length * 8)); b.setUint8(0, 100); b.setUint32(1, v.doubles.length, true); b.setUint32(5, 0, true); b.setUint32(9, v.doubles.length * 8, true); v.doubles.forEach((x, i) => b.setFloat64(13 + i * 8, x, true)); return new Uint8Array(b.buffer); }
+    if (v?.double !== undefined) { const b = new DataView(new ArrayBuffer(9)); b.setUint8(0, 68); b.setFloat64(1, v.double, true); return new Uint8Array(b.buffer); }
+    const b = new DataView(new ArrayBuffer(5)); b.setUint8(0, 73); b.setInt32(1, v, true); return new Uint8Array(b.buffer);
+  };
+  const node = (name, props = [], children = []) => ({ name, props, children });
+  const write = (n, offset) => {
+    const props = cat(n.props.map(prop)), name = enc(n.name), headLen = 13 + name.length;
+    let at = offset + headLen + props.length; const kids = [];
+    for (const child of n.children) { const bytes = write(child, at); kids.push(bytes); at += bytes.length; }
+    if (n.children.length) { kids.push(new Uint8Array(13)); at += 13; }
+    const head = new DataView(new ArrayBuffer(13)); head.setUint32(0, at, true); head.setUint32(4, n.props.length, true); head.setUint32(8, props.length, true); head.setUint8(12, name.length);
+    return cat([new Uint8Array(head.buffer), name, props, ...kids]);
+  };
+  const P = (...values) => node('P', values);
+  const verts = Array.from({ length: 8 }, (_, i) => [(i & 1) - 0.5, ((i >> 1) & 1) - 0.5, ((i >> 2) & 1) - 0.5]).flat();
+  const quads = [[0, 2, 3, 1], [4, 5, 7, 6], [0, 1, 5, 4], [2, 6, 7, 3], [0, 4, 6, 2], [1, 3, 7, 5]];
+  const tree = [
+    node('FBXHeaderExtension', [], [node('FBXHeaderVersion', [1003]), node('FBXVersion', [7400]), node('Creator', ['rabbit-hole model-fixtures'])]),
+    node('GlobalSettings', [], [node('Version', [1000]), node('Properties70', [], [P('UpAxis', 'int', 'Integer', '', 1), P('UnitScaleFactor', 'double', 'Number', '', { double: 1 })])]),
+    node('Objects', [], [
+      node('Geometry', [1001n, 'Cube\x00\x01Geometry', 'Mesh'], [node('Vertices', [{ doubles: verts }]), node('PolygonVertexIndex', [{ ints: quads.flatMap(q => [q[0], q[1], q[2], -(q[3] + 1)]) }]), node('GeometryVersion', [124])]),
+      node('Model', [1002n, 'Cube\x00\x01Model', 'Mesh'], [node('Version', [232])]),
+      node('Material', [1003n, 'Green\x00\x01Material', ''], [node('Version', [102]), node('ShadingModel', ['phong']), node('Properties70', [], [P('DiffuseColor', 'Color', '', 'A', { double: 0.2 }, { double: 0.7 }, { double: 0.3 })])]),
+    ]),
+    node('Connections', [], [node('C', ['OO', 1002n, 0n]), node('C', ['OO', 1001n, 1002n]), node('C', ['OO', 1003n, 1002n])]),
+  ];
+  const magic = cat([enc('Kaydara FBX Binary  '), new Uint8Array([0, 0x1a, 0])]);
+  const version = new DataView(new ArrayBuffer(4)); version.setUint32(0, 7400, true);
+  let at = magic.length + 4; const body = [];
+  for (const n of tree) { const bytes = write(n, at); body.push(bytes); at += bytes.length; }
+  body.push(new Uint8Array(13)); at += 13; // the top-level null record
+  const footer = new Uint8Array(160 + ((at + 160) % 16 === 0 ? 1 : 0));
+  return cat([magic, new Uint8Array(version.buffer), ...body, footer]);
+}
+
 // ---- STEP (a header and a point: enough for detection; a real solid comes from the converter lane's fixtures) ---------
 export const stepHeaderOnly = () => enc(`ISO-10303-21;
 HEADER;
@@ -354,7 +397,7 @@ export function allFixtures() {
     'cube-embedded.gltf': gltfEmbedded(), 'cube-external-refs.gltf': external.gltf,
     'cube-binary.stl': stlBinary(), 'cube-ascii.stl': stlAscii(),
     'obj/cube.obj': obj(), 'obj/cube.mtl': mtl(), 'obj/checker.png': png(), 'cube-no-mtl.obj': obj(null),
-    'cube.3mf': threeMf(), 'cube-ascii.fbx': fbxAscii(), 'cube-header-only.step': stepHeaderOnly(),
+    'cube.3mf': threeMf(), 'cube-ascii.fbx': fbxAscii(), 'cube-binary.fbx': fbxBinary(), 'cube-header-only.step': stepHeaderOnly(),
     'mesh-ascii.ply': plyMesh('ascii'), 'mesh-binary.ply': plyMesh('binary_little_endian'), 'points.ply': plyPoints(),
     'splat-3dgs.ply': plySplat(), 'splat-3dgs-sh1.ply': plySplat({ rest: 9 }), 'bad-splat-missing-rot.ply': plySplat({ drop: 'rot_3' }),
     'ring.splat': splatFile(), 'ring.ksplat': ksplatFile(), 'ring.spz': spzFile(), 'ring.sog': zip(sogFiles()),

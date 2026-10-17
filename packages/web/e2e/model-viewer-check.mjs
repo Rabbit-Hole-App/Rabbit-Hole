@@ -17,7 +17,7 @@ const extra = existsSync(khronos) ? { 'khronos/Fox.glb': 'Fox.glb', 'khronos/Dam
 for (const [key, rel] of Object.entries(extra)) F[key] = new Uint8Array(readFileSync(join(khronos, rel)));
 
 let step = 0, failed = 0;
-const total = 14;
+const total = 16;
 const ok = (cond, label, detail = '') => { step++; if (cond) console.log(`✓ ${step}/${total} ${label}`); else { failed++; console.log(`✗ ${step}/${total} ${label} ${detail}`); } };
 
 // PNG -> share of pixels that differ from the background.
@@ -50,6 +50,13 @@ page.on('request', request => { const url = request.url(); if (!url.startsWith(o
 page.on('pageerror', error => console.log('  page error:', error.message));
 await page.route('**/__fixtures/**', route => { const name = decodeURIComponent(new URL(route.request().url()).pathname.replace(/^\/__fixtures\//, '')); const body = F[name]; return body ? route.fulfill({ body: Buffer.from(body) }) : route.fulfill({ status: 404 }); });
 // A cold Vite start optimises dependencies first (and may reload once): wait for the harness, not the load event.
+// The STEP card's derivatives, as the file routes will serve them (canvas-file-imports.md 4.2; converter output shape).
+await page.route('**/api/learn/files/**', route => {
+  const path = new URL(route.request().url()).pathname;
+  if (path.endsWith('/d/fd_mesh')) return route.fulfill({ body: Buffer.from(F['cube.glb']), contentType: 'model/gltf-binary' });
+  if (path.endsWith('/d/fd_structure')) return route.fulfill({ json: { source_unit: 'millimetre', unit: 'metre', quality: 'normal', parts: 1, meshes: 1, tree: { name: 'cube', meshes: 1 } } });
+  return route.fulfill({ status: 404 });
+});
 await page.goto(`${origin}/e2e/model-viewer.html`, { waitUntil: 'commit', timeout: 180000 });
 await page.waitForFunction(() => window.__drop, null, { timeout: 300000 });
 
@@ -74,7 +81,7 @@ const timings = [];
 
 try {
   // 1-2. Every renderable fixture becomes a ready card with visible pixels.
-  const singles = ['cube.glb', 'cube-textured.glb', 'cube-animated.glb', 'cube-embedded.gltf', 'cube-binary.stl', 'cube-ascii.stl', 'cube-no-mtl.obj', 'cube.3mf', 'cube-ascii.fbx', 'mesh-ascii.ply', 'mesh-binary.ply', 'points.ply', 'splat-3dgs.ply', 'splat-3dgs-sh1.ply', 'ring.splat', 'ring.ksplat', 'ring.spz', 'ring.sog', ...(extra['khronos/Fox.glb'] ? ['khronos/Fox.glb', 'khronos/DamagedHelmet.glb'] : [])];
+  const singles = ['cube.glb', 'cube-textured.glb', 'cube-animated.glb', 'cube-embedded.gltf', 'cube-binary.stl', 'cube-ascii.stl', 'cube-no-mtl.obj', 'cube.3mf', 'cube-ascii.fbx', 'cube-binary.fbx', 'mesh-ascii.ply', 'mesh-binary.ply', 'points.ply', 'splat-3dgs.ply', 'splat-3dgs-sh1.ply', 'ring.splat', 'ring.ksplat', 'ring.spz', 'ring.sog', ...(extra['khronos/Fox.glb'] ? ['khronos/Fox.glb', 'khronos/DamagedHelmet.glb'] : [])];
   const bad = [];
   for (const name of singles) {
     const r = await dropOne([name]);
@@ -179,6 +186,18 @@ try {
   const unsafe = [];
   for (const name of ['traversal.zip', 'symlink.zip', 'bomb.zip', 'bad-splat-missing-rot.ply']) { const r = await page.evaluate(list => window.__drop(list), [name]); unsafe.push([name, r.blocks.length, r.errors[0]]); }
   ok(unsafe.every(([, n, e]) => n === 0 && e), 'traversal, symlink and bomb ZIPs and an inconsistent splat PLY are refused with a reason', JSON.stringify(unsafe));
+  await clear();
+
+  // 15-16. STEP: awaiting the converter, then its GLB derivative in the same viewer, sized in the file's unit.
+  const step = await dropOne(['cube-header-only.step'], { wait: null });
+  const awaiting = await card(step.id).locator('[data-model-cad]').getAttribute('data-model-cad', { timeout: 10000 }).catch(() => null);
+  const download = await card(step.id).locator('[data-model-download]').isEnabled();
+  ok(awaiting === 'awaiting' && download, 'a STEP card says it awaits the converter and keeps Download original', String(awaiting));
+  await page.evaluate(id => window.__patch(id, { fileRef: { v: 1, source: { id: 'fs_test', rev: 'x' }, family: 'cad', job: null, derivatives: { mesh: 'fd_mesh', structure: 'fd_structure' } } }), step.id);
+  await card(step.id).locator('[data-model-card][data-model-state="ready"]').waitFor({ timeout: 30000 }).catch(() => {});
+  const cadSize = await card(step.id).locator('[data-model-size]').textContent({ timeout: 2000 }).catch(() => '');
+  const cadNote = await card(step.id).locator('[data-model-cad-note]').count();
+  ok(cadSize === '1000 × 1000 × 1000 mm' && cadNote === 1 && (await viewerInk(step.id, 'step-derivative')) > 0.01, 'with its GLB derivative the STEP card renders, sized in the declared millimetres, marked a preview mesh', cadSize);
 } finally {
   if (process.env.MEASURE) console.table(timings);
   await browser.close(); await server.close();

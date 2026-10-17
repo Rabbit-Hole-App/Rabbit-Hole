@@ -3,11 +3,13 @@
 // the shared viewer. This module is the card's half: the job-to-card state map and reading the derivatives. It never
 // dispatches to the converter itself.
 //
-// Derivatives the card expects on the source (file_derivatives.kind):
-//   mesh       model.glb       glTF 2.0 binary, metres, glTF Y-up; one node per assembly part, named after it; within
-//                              the viewer's bounds (20 MiB, 5,000,000 accessor elements)
-//   structure  structure.json  { units, unit_scale_to_m, parts, solids, tree: [{ name, children?: [...] }], bbox: { min, max } (source units), limitations? }
-//   poster     poster.png      optional; when absent the card draws one from the mesh on first view
+// Derivatives the card expects on the source (file_derivatives.kind), as file-convert's step-glb writes them
+// (packages/file-convert/converters/step.mjs on feature/file-convert):
+//   mesh       model.glb       glTF 2.0 binary, metres, source Z-up turned to glTF Y-up at the root; one node per
+//                              assembly part, named after it; within the viewer's bounds (20 MiB, 5,000,000 elements)
+//   structure  structure.json  { source_unit: 'millimetre' | 'inch' | ... | null, unit: 'metre', quality, parts, meshes,
+//                              nodes, triangles, vertices, tree: { name, meshes, children? }, read_ms }
+//   (no poster: the card draws one from the mesh on first view; job `limitations` are shown in the card's details)
 // ponytail: the /api/learn/files routes are Lane 1's contract (canvas-file-imports.md 4.2); not built yet, so a STEP card
 // shows "awaiting converter" until the card carries a fileRef with a job.
 
@@ -25,12 +27,25 @@ export function cadCardState(fileRef, job = null) {
   return { state: 'working', label: STAGE.queued, retry: false };
 }
 
-// structure.json -> what the card shows: units only when the converter reported them, part count, limitations.
-export function cadFacts(structure) {
-  if (!structure || typeof structure !== 'object') return { units: null, parts: null, limitations: [] };
-  const units = typeof structure.units === 'string' && /^(mm|cm|m|in|ft|µm)$/.test(structure.units) ? structure.units : null;
-  return { units, parts: Number.isInteger(structure.parts) ? structure.parts : null, limitations: Array.isArray(structure.limitations) ? structure.limitations.filter(l => typeof l === 'string').slice(0, 5) : [] };
+// The STEP length units the converter reports, as the card shows them, and how many of each make a metre (the mesh is
+// in metres; a size is shown back in the file's own unit).
+const UNITS = { millimetre: ['mm', 1000], centimetre: ['cm', 100], decimetre: ['dm', 10], metre: ['m', 1], kilometre: ['km', 0.001], micrometre: ['µm', 1e6], inch: ['in', 39.37007874015748], foot: ['ft', 3.280839895013123] };
+// structure.json (+ the job's limitations) -> what the card shows: units only when the file declared one, part count.
+export function cadFacts(structure, limitations = []) {
+  if (!structure || typeof structure !== 'object') return { units: null, perMetre: null, parts: null, limitations: [] };
+  const unit = UNITS[String(structure.source_unit || '').toLowerCase()] || null;
+  const notes = [...(Array.isArray(limitations) ? limitations : []), ...(Array.isArray(structure.limitations) ? structure.limitations : [])].filter(l => typeof l === 'string');
+  return { units: unit?.[0] || null, perMetre: unit?.[1] || null, parts: Number.isInteger(structure.parts) ? structure.parts : null, limitations: [...new Set(notes)].slice(0, 5) };
 }
+
+// The job record (canvas-file-imports.md 4.2: GET /api/learn/files/jobs/<id>); read-only - polling never advances a job.
+// Expected: { state, stage?, error?, derivatives?: { mesh, structure }, limitations? } (Lane 1 / JOBS lane own the shape).
+export async function fetchCadJob(jobId, board, signal) {
+  const response = await fetch(`/api/learn/files/jobs/${encodeURIComponent(jobId)}${board ? `?board=${encodeURIComponent(board)}` : ''}`, { credentials: 'same-origin', redirect: 'error', signal });
+  if (!response.ok) throw new Error(`The conversion status could not be read (${response.status})`);
+  return response.json();
+}
+export const TERMINAL = ['ready', 'ready_with_limitations', 'failed', 'cancelled'];
 
 const derivativeUrl = (fileRef, id, board) => `/api/learn/files/${encodeURIComponent(fileRef.source.id)}/d/${encodeURIComponent(id)}${board ? `?board=${encodeURIComponent(board)}` : ''}`;
 // The mesh and structure derivatives, authorised through the board (section 4.1); same-origin credentials, no redirects.

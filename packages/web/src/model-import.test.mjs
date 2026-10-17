@@ -131,8 +131,11 @@ test('CAD card states follow the job; units are shown only when the converter re
   assert.deepEqual(cadCardState(ref, { state: 'failed', error: 'too_complex' }), { state: 'failed', label: 'The STEP preview could not be made: too_complex. The original STEP file is kept.', retry: true });
   assert.equal(cadCardState({ ...ref, derivatives: { mesh: 'fd_1' } }, { state: 'ready_with_limitations' }).state, 'limited');
   assert.equal(cadCardState(ref, { state: 'cancelled' }).retry, true);
-  assert.deepEqual(cadFacts({ units: 'mm', parts: 3, limitations: ['Colours approximated'] }), { units: 'mm', parts: 3, limitations: ['Colours approximated'] });
-  assert.equal(cadFacts({ units: 'furlongs' }).units, null);
+  // The converter's structure.json (file-convert step.mjs): source_unit long names, the mesh in metres.
+  assert.deepEqual(cadFacts({ source_unit: 'millimetre', unit: 'metre', parts: 3 }, ['Tessellated preview: no B-rep, parametric features or PMI']), { units: 'mm', perMetre: 1000, parts: 3, limitations: ['Tessellated preview: no B-rep, parametric features or PMI'] });
+  assert.equal(cadFacts({ source_unit: 'inch' }).units, 'in');
+  assert.equal(cadFacts({ source_unit: null, unit: 'metre' }).units, null); // no declared unit: no measurement
+  assert.equal(cadFacts({ source_unit: 'furlong' }).units, null);
   assert.equal(cadFacts(null).units, null);
 });
 
