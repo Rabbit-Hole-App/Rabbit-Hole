@@ -7,7 +7,7 @@ import { cachedAsset } from './learn-asset-cache.js';
 
 const EMPTY = { revision: 0, board: {} };
 const EMPTY_COMMENTS = [];
-const initial = () => ({ query: '', filter: 'all', includeResolved: false, activeId: null, back: null });
+const initial = () => ({ query: '', filter: 'all', includeResolved: false, activeId: null, back: null, scrollPositions: new Map() });
 // Session-only preferences; no result/source content is retained between canvases.
 const sessions = new Map();
 export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBase, links, children, onComment, revealDocument }) {
@@ -125,5 +125,5 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
     : commentCurrent.state === 'partial' || links?.status === 'error' ? { state: 'partial', message: 'Some comments or references are unavailable. Retry to refresh them.' }
     : found.availability.status !== 'ready' ? { state: found.availability.status, message: 'Some sources are only partially searchable. Result badges describe the available content.' }
     : { state: 'ready' };
-  return { registry, scopeKey, panel: { canvasKey: scopeKey, query: current.query, onQueryChange: query => patch({ query, activeId: null }), filter: current.filter, onFilterChange: filter => patch({ filter, activeId: null }), includeResolved: current.includeResolved, onIncludeResolvedChange: includeResolved => patch({ includeResolved }), results: found.results, counts: found.counts, status: notice?.scopeKey === scopeKey ? { ...status, ...notice } : status, onRetry: () => { setRetry(value => value + 1); links?.refresh?.(); for (const entry of loadedContent.values()) entry.retry?.(); }, activeId: current.activeId, onActiveIdChange: activeId => patch({ activeId }), onActivate: activate, canGoBack: !!current.back, onGoBack: goBack, getPreview } };
+  return { registry, scopeKey, panel: { canvasKey: scopeKey, scrollPositions: current.scrollPositions, query: current.query, onQueryChange: query => patch({ query, activeId: null }), filter: current.filter, onFilterChange: filter => patch({ filter, activeId: null }), includeResolved: current.includeResolved, onIncludeResolvedChange: includeResolved => patch({ includeResolved }), results: found.results, counts: found.counts, status: notice?.scopeKey === scopeKey ? { ...status, ...notice } : status, onRetry: () => { setRetry(value => value + 1); links?.refresh?.(); for (const entry of loadedContent.values()) entry.retry?.(); }, activeId: current.activeId, onActiveIdChange: activeId => patch({ activeId }), onActivate: activate, canGoBack: !!current.back, onGoBack: goBack, getPreview } };
 }

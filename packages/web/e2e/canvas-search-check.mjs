@@ -177,6 +177,23 @@ check('large browse virtualizes results, keyboard reaches the last object, drag 
   await shot('large-narrow'); facts.large = { total: 320, mounted };
 });
 
+check('mobile Search close and reopen retains its scrolled current-canvas results', async () => {
+  await page.setViewportSize({ width: 800, height: 900 });
+  await go(large.name); await search('', 'cards'); await waitCount(320);
+  const scroll = () => panel().locator('[data-search-scroll]');
+  await scroll().evaluate(element => { element.scrollTop = 1200; element.dispatchEvent(new Event('scroll')); });
+  await until(async () => await scroll().evaluate(element => element.scrollTop) > 1000, 'mobile results did not scroll');
+  const before = await scroll().evaluate(element => element.scrollTop);
+  await page.locator('[data-companion-back]:visible,[data-companion-close]:visible,[data-panel-close]:visible').first().click();
+  await until(async () => await page.locator('[data-canvas-search]').count() === 0, 'mobile close did not unmount Search');
+  await page.locator('[data-canvas-surface]').click({ position: { x: 20, y: 20 } }); await page.keyboard.press('/');
+  await panel().waitFor();
+  await until(async () => Math.abs(await scroll().evaluate(element => element.scrollTop) - before) < 2, 'mobile reopen lost result scroll');
+  assert.equal(await panel().locator('[data-search-filter="cards"]').getAttribute('aria-pressed'), 'true');
+  await shot('mobile-retained-scroll');
+  await page.setViewportSize({ width: 1440, height: 950 });
+});
+
 try {
   session = await makeSession(`search-${run}@example.com`);
   await request('/api/profile', 'PUT', { handle: `search_${run}` });

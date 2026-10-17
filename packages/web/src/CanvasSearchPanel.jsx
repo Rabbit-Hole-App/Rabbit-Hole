@@ -27,10 +27,11 @@ function Preview({ result, getPreview, canvasKey }) {
   </div>;
 }
 
-export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query = '', onQueryChange, filter = 'all', onFilterChange,
+export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, scrollPositions, query = '', onQueryChange, filter = 'all', onFilterChange,
   includeResolved = false, onIncludeResolvedChange, results = [], counts = {}, status = {}, onRetry,
   activeId, onActiveIdChange, onActivate, onOpenAction, canGoBack, onGoBack, getPreview }) {
-  const scroller = useRef(null), positions = useRef(new Map()), pendingFocus = useRef(null);
+  const scroller = useRef(null), fallbackPositions = useRef(new Map()), pendingFocus = useRef(null);
+  const positions = scrollPositions || fallbackPositions.current;
   const [viewport, setViewport] = useState({ width: 320, height: 400, scrollTop: 0 });
   const rows = filter === 'comments' || filter === 'text';
   const layout = searchWindow({ count: results.length, ...viewport, rows });
@@ -40,12 +41,12 @@ export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query =
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element || hidden) return;
-    element.scrollTop = positions.current.get(session) || 0;
+    element.scrollTop = positions.get(session) || 0;
     const measure = () => setViewport({ width: element.clientWidth || 320, height: element.clientHeight || 400, scrollTop: element.scrollTop });
     measure();
     const observer = new ResizeObserver(measure); observer.observe(element);
-    return () => { positions.current.set(session, element.scrollTop); observer.disconnect(); };
-  }, [session, hidden]);
+    return () => { positions.set(session, element.scrollTop); observer.disconnect(); };
+  }, [session, hidden, positions]);
   useLayoutEffect(() => {
     if (pendingFocus.current == null) return;
     scroller.current?.querySelector(`[data-search-index="${pendingFocus.current}"]`)?.focus({ preventScroll: true });
@@ -80,7 +81,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query =
     {canGoBack && <button type="button" onClick={onGoBack} className={`${button} mb-2 flex items-center gap-1 self-start px-1 py-1 text-xs text-ink-2 hover:bg-hover`}><ArrowLeft size={13} aria-hidden />Back to previous view</button>}
     {(state !== 'ready' || status.message) && <div role="status" className="mb-2 text-xs text-ink-2">{status.message || (state === 'loading' ? 'Loading searchable content…' : state === 'error' ? 'Some content could not be loaded.' : 'Some content is not available to Search.')}{onRetry && (state === 'error' || state === 'partial') && <button type="button" onClick={onRetry} className={`${button} ml-2 underline`}>Retry</button>}</div>}
     {!results.length && <p className="py-4 text-sm text-ink-2">{searchEmptyMessage(state, query, filter)}</p>}
-    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto" data-search-scroll onScroll={event => { positions.current.set(session, event.currentTarget.scrollTop); setViewport(previous => ({ ...previous, scrollTop: event.currentTarget.scrollTop })); }}>
+    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto" data-search-scroll onScroll={event => { const scrollTop = event.currentTarget.scrollTop; positions.set(session, scrollTop); setViewport(previous => ({ ...previous, scrollTop })); }}>
       <ol aria-label="Search results" className="relative m-0 list-none p-0" style={{ height: layout.totalHeight }}>
         {results.slice(layout.start, layout.end).map((result, offset) => {
           const index = layout.start + offset, selected = result.id === activeId, snippet = result.snippet || {}, location = searchLocation(result.location);
