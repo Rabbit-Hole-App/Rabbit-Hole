@@ -43,20 +43,31 @@ await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator('[data-block-id="c-c"]').waitFor({ timeout: 60000 });
 await page.waitForTimeout(1200);
 
-const composer = () => page.locator('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea').first();
-const chips = () => page.locator('[data-canvas-target]');
+const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
+const chips = () => page.locator('[data-chat-pane] [data-context-chip]');
 const strip = id => page.locator(`[data-block-id="${id}"] [data-drag-zone]`).last();
 const selectedCards = () => page.$$eval('[data-block-id][aria-current="true"]', nodes => nodes.map(node => node.dataset.blockId));
 const settle = () => page.waitForTimeout(350);
-const clearAll = async () => { await page.keyboard.press('Escape'); await page.mouse.click(1350, 330); await settle(); };
+const clearChips = async () => {
+  while (await chips().count()) await chips().first().getByRole('button', { name: /^Remove .* from this chat$/ }).click();
+};
+const barePoint = () => page.locator('[aria-label="Lesson canvas"]').evaluate(canvas => {
+  const b = canvas.getBoundingClientRect();
+  for (let y = b.top + 150; y < b.bottom - 100; y += 50) for (let x = b.left + 150; x < b.right - 100; x += 50) {
+    const node = document.elementFromPoint(x, y);
+    if (canvas.contains(node) && !node.closest('[data-block-id], [data-shape-id], [data-item-id], [data-group-id], button, textarea, input')) return { x, y };
+  }
+  throw Error('No unobstructed canvas point found');
+});
+const clearAll = async () => { await page.keyboard.press('Escape'); const p = await barePoint(); await page.mouse.click(p.x, p.y); await settle(); };
 // Pan (wheel) until the thing sits in the open middle of the canvas, clear of the composer and the tools.
 const reveal = async locator => {
-  const view = page.viewportSize();
+  const view = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
   for (let i = 0; i < 8; i += 1) {
     const b = await locator.boundingBox();
-    if (b && b.y > 120 && b.y + b.height < view.height - 220 && b.x > 120 && b.x + b.width < view.width - 120) return b;
-    const dy = b ? b.y + b.height / 2 - view.height * 0.4 : 0, dx = b ? b.x + b.width / 2 - view.width * 0.5 : 0;
-    await page.mouse.move(view.width * 0.88, view.height * 0.5); await page.mouse.wheel(Math.round(dx), Math.round(dy)); // over empty canvas: over a card the wheel scrolls the card
+    if (b && b.y > 120 && b.y + b.height < view.height - 220 && b.x > 120 && b.x + b.width < view.x + view.width - 120) return b;
+    const dy = b ? b.y + b.height / 2 - view.height * 0.4 : 0, dx = b ? b.x + b.width / 2 - view.x - view.width * 0.5 : 0;
+    const p = await barePoint(); await page.mouse.move(p.x, p.y); await page.mouse.wheel(Math.round(dx), Math.round(dy)); // over empty canvas: over a card the wheel scrolls the card
     await page.waitForTimeout(150);
   }
   return locator.boundingBox();
@@ -73,7 +84,7 @@ await check('a typed draft, a selected card: Add to chat gives one chip, keeps t
   await addToChat().click();
   await settle();
   assert.equal(await chips().count(), 1, 'one chip');
-  assert.equal(await page.locator('[data-selected-card="c-c"]').count(), 1, 'the chip is the card\'s');
+  assert.match(await chips().first().getAttribute('data-ref-key'), /^card:c-c\|/, 'the chip is the card\'s');
   assert.equal(await composer().inputValue(), 'my own words, unsent', 'the draft is exactly what it was: no question written');
   assert.deepEqual(await selectedCards(), ['c-c'], 'the selection stays');
   assert.ok(await composer().evaluate(node => node === document.activeElement), 'the composer has the focus');
@@ -82,19 +93,20 @@ await check('a typed draft, a selected card: Add to chat gives one chip, keeps t
 await shot('01-card-chip-and-draft');
 
 await check('the chip is removable', async () => {
-  await page.getByRole('button', { name: 'Remove selected card context' }).click();
+  await chips().first().getByRole('button', { name: /^Remove .* from this chat$/ }).click();
   await settle();
   assert.equal(await chips().count(), 0);
 });
 
 await check('a hidden composer comes back, with its draft, when Add to chat is pressed', async () => {
   await clickCard('c-a');
-  await page.locator('[data-composer-hide]').click();
-  assert.equal(await page.locator('[data-canvas-composer][data-composer-hidden]').count(), 1, 'hidden');
+  await page.locator('[data-panel-close]').click();
+  await page.waitForFunction(() => document.querySelector('aside[aria-label="Learn agent chat"]')?.getBoundingClientRect().width < 1);
+  assert.equal(await page.locator('aside[aria-label="Learn agent chat"]').getAttribute('inert'), '', 'hidden panel cannot receive input');
   await clickShape('s-1');
   await addToChat().click();
   await settle();
-  assert.equal(await page.locator('[data-canvas-composer][data-composer-hidden]').count(), 0, 'revealed');
+  assert.ok((await page.locator('aside[aria-label="Learn agent chat"]').boundingBox()).width > 300, 'revealed');
   assert.equal(await composer().inputValue(), 'my own words, unsent');
   assert.ok(await composer().evaluate(node => node === document.activeElement), 'and focused');
   assert.equal(await chips().count(), 1, 'one chip for the shape');
@@ -103,6 +115,7 @@ await check('a hidden composer comes back, with its draft, when Add to chat is p
 await shot('02-shape-chip-composer-revealed');
 
 await check('a group is ONE chip, named Group: <name>; several objects are ONE chip with their count', async () => {
+  await clearChips();
   await clearAll();
   await clickCard('c-a');
   assert.deepEqual((await selectedCards()).sort(), ['c-a', 'c-b'], 'a plain click picks the group');
@@ -112,6 +125,7 @@ await check('a group is ONE chip, named Group: <name>; several objects are ONE c
   assert.equal(await chips().count(), 1);
   assert.match(await chips().innerText(), /Group: Pair/);
   await shot('03-group-chip');
+  await clearChips();
   await clearAll();
   await clickShape('s-1');
   await clickShape('s-2', ['Shift']);
@@ -127,8 +141,8 @@ await check('a group is ONE chip, named Group: <name>; several objects are ONE c
 // Ctrl/Cmd+L: with a selection and the focus on the canvas it is Add to chat (the browser's own Ctrl+L is prevented only then); in the
 // composer's field, or with nothing selected, it is left alone.
 await check('Ctrl+L adds the selection from the keyboard; inside the composer it does nothing', async () => {
+  await clearChips();
   await clearAll();
-  await page.getByRole('button', { name: 'Clear block selection' }).click().catch(() => {});
   await clickShape('s-2');
   await composer().evaluate(node => node.blur());
   const press = init => page.evaluate(init => { const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }); (document.activeElement || document.body).dispatchEvent(event); return event.defaultPrevented; }, init);
