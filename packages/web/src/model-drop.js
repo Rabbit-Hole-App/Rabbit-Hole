@@ -1,9 +1,12 @@
 // The small part of model import the canvas page loads eagerly (file-imports Lane 4): which dropped names go to the
 // lazily imported model importer (model-import.js), and reading a dropped folder's files.
-// ponytail: MODEL_DROP becomes the registry's familyOf() for the gltf/mesh/cad/ply/splat families when file-capabilities.js lands.
-export const MODEL_DROP = /\.(glb|gltf|obj|fbx|stl|3mf|step|stp|ply|splat|ksplat|spz|sog|zip)$/i;
-export const MODEL_ACCEPT = '.glb,.gltf,.bin,.obj,.mtl,.fbx,.stl,.3mf,.step,.stp,.ply,.splat,.ksplat,.spz,.sog,.zip';
-export const isModelDrop = files => files.some(file => file.bundleRoot || MODEL_DROP.test(file.name || ''));
+import { FAMILIES, familyOf } from './file-capabilities.js';
+
+// A drop goes to the model importer when it holds a model, a package or a folder (a lone .bin or .mtl does not).
+const isEntry = file => { const f = familyOf({ name: file.name }); return f?.route === 'model' && f.card === 'file:model'; };
+export const isModelDrop = files => files.some(file => file.bundleRoot || isEntry(file));
+// What "Add the missing files" offers: the model families' extensions and the image types a model's textures use.
+export const MODEL_ACCEPT = [...FAMILIES.filter(f => f.route === 'model').flatMap(f => f.extensions), 'png', 'jpg', 'jpeg', 'webp'].map(e => `.${e}`).join(',');
 
 // A drop's files, a dropped folder's included: each file from a folder carries `bundleRoot` (the folder) and
 // `bundlePath` (its path inside it). The entries are taken now, while the drop event is live; reading them is async.

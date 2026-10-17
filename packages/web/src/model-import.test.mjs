@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { allFixtures, png } from '../e2e/model-fixtures.mjs';
 import { importModelFiles, openModelPackage, addFilesToPackage } from './model-import.js';
 import { ENTRY_FORMATS } from './model-formats.js';
-import { MODEL_DROP, MODEL_ACCEPT, isModelDrop } from './model-drop.js';
+import { MODEL_ACCEPT, isModelDrop } from './model-drop.js';
+import { FAMILIES, acceptList, familyOf } from './file-capabilities.js';
 import { MAX_LIVE, claimViewer, releaseViewer, activateViewer, deactivateViewer, activeViewer, isLive, liveCount, resetViewers } from './viewer-slots.js';
 import { cadCardState, cadFacts } from './model-cad.js';
 import { describeCanvasObject } from './learn-ask-target.js';
@@ -13,13 +14,19 @@ import { describeCanvasObject } from './learn-ask-target.js';
 const F = allFixtures();
 const file = (path, extra = {}) => Object.assign(new File([F[path]], path.split('/').pop()), extra);
 
-test('the drop pattern and picker list cover every model extension and ZIP', () => {
-  for (const ext of [...Object.keys(ENTRY_FORMATS), 'zip']) { assert.ok(MODEL_DROP.test(`a.${ext.toUpperCase()}`), ext); assert.ok(MODEL_ACCEPT.split(',').includes(`.${ext}`), ext); }
+test('the registry offers every model format, package and part; the drop routes exactly the model cards', () => {
+  const lane4 = FAMILIES.filter(f => f.lane === 4);
+  assert.ok(lane4.every(f => f.status === 'shipped' && f.route === 'model'));
+  assert.deepEqual(lane4.flatMap(f => f.extensions).filter(e => !['bin', 'mtl', 'zip'].includes(e)).sort(), Object.keys(ENTRY_FORMATS).sort(), 'registry and detector name the same formats');
+  const offered = acceptList().split(',');
+  for (const ext of [...Object.keys(ENTRY_FORMATS), 'zip', 'bin', 'mtl']) { assert.ok(offered.includes(`.${ext}`), ext); assert.ok(MODEL_ACCEPT.split(',').includes(`.${ext}`), ext); }
+  for (const ext of [...Object.keys(ENTRY_FORMATS), 'zip']) assert.ok(isModelDrop([new File(['x'], `a.${ext.toUpperCase()}`)]), ext);
+  assert.equal(isModelDrop([new File(['x'], 'cube.bin')]), false, 'a lone part is not a model');
   assert.equal(isModelDrop([new File(['x'], 'photo.png')]), false);
-  // Insert > Upload a file offers the same model files as a drop (LearnPage's picker; Lane 1's acceptList() replaces both).
-  const picker = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').match(/type="file" multiple accept="([^"]*)"/)[1].split(',');
-  for (const ext of MODEL_ACCEPT.split(',')) assert.ok(picker.includes(ext), ext);
   assert.equal(isModelDrop([Object.assign(new File(['x'], 'a.png'), { bundleRoot: 'scan' })]), true);
+  assert.equal(familyOf({ name: 'scene.GLB' }).id, 'gltf');
+  assert.equal(familyOf({ name: 'scan.ply' }).can.context, false, 'Ask lists a model; it does not understand it');
+  assert.equal(familyOf({ name: 'part.step' }).can.preview, false, 'STEP preview awaits the converter');
 });
 
 test('a GLB drop is one card; the board keeps a compact record, the bytes go to the asset', async () => {

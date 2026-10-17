@@ -17,6 +17,8 @@ import { NO_CAP, admitUsage, askShared, boardRevision, boardSources, importerOf,
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
+import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js';
+import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -26,39 +28,103 @@ const TOKEN = /^[A-Za-z0-9_-]{20,64}$/;
 export const MAX_STATE = 1_900_000;
 
 // Board files (images, PDFs, clips, generated illustrations) live in R2 under
-// the board's row, keyed by a hash of the canvas's own asset key.
-export const MAX_ASSET = 25 * 1024 * 1024;
+// the board's row, keyed by a hash of the canvas's own asset key. The cap per file is the capability registry's
+// (file-capabilities.js boardFileLimit): 25 MiB, or 50 MiB for a body that sniffs as an MP4 or WebM video.
 const ASSET_KEY = /^[\x20-\x7e]{1,500}$/;
 // Served types: anything else is stored as opaque bytes, so an upload can never
 // come back as a page on this origin.
 const SAFE_TYPE = /^(image\/(png|jpeg|gif|webp|avif)|application\/pdf|video\/(mp4|webm|quicktime)|audio\/(mpeg|wav|ogg|webm)|text\/x-cached-string)$/;
 const assetObject = async (row, key) => `learn-boards/${row.id}/${await sha256Hex(key)}`;
 
+// The request body as a stream that errors once more than `cap` bytes have arrived: the cap holds on actual bytes,
+// whatever Content-Length said. `head` holds chunks already read for the sniff.
+function cappedBody(reader, head, cap, state) {
+  return new ReadableStream({
+    async pull(controller) {
+      const { done, value } = head.length ? { done: false, value: head.shift() } : await reader.read();
+      if (done) { controller.close(); return; }
+      state.seen += value.byteLength;
+      if (state.seen > cap) { state.over = true; await reader.cancel().catch(() => {}); controller.error(new RangeError('over the file cap')); return; }
+      controller.enqueue(value);
+    },
+    cancel: reason => reader.cancel(reason),
+  });
+}
+
 async function putAsset(req, env, row, key) {
   if (!learnMedia(env)) return json({ error: 'Board files need the R2 bucket on this worker.' }, 503);
   if (!ASSET_KEY.test(key)) return json({ error: 'Bad asset key' }, 400);
-  if (Number(req.headers.get('content-length') || 0) > MAX_ASSET) return json({ error: 'This file is over 25 MB and stays in your browser.' }, 413);
-  const bytes = await req.arrayBuffer();
-  if (bytes.byteLength > MAX_ASSET) return json({ error: 'This file is over 25 MB and stays in your browser.' }, 413);
   const type = (req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-  await learnMedia(env).put(await assetObject(row, key), bytes, {
-    httpMetadata: { contentType: SAFE_TYPE.test(type) ? type : 'application/octet-stream' },
-    customMetadata: { key, kind: req.headers.get('x-asset-kind') === 'string' ? 'string' : 'blob' },
-  });
-  return json({ key, size: bytes.byteLength });
+  const { bytes: cap, sniff } = boardFileLimit(type);
+  const over = () => json({ error: `This file is over ${formatBytes(cap)}, so it was not saved to your account and stays in your browser.` }, 413);
+  const declared = req.headers.get('content-length');
+  // Refused before reading; the body is cancelled, not left open, so the connection answers at once.
+  if (declared !== null && !(Number(declared) <= cap)) { await req.body?.cancel().catch(() => {}); return over(); }
+  const reader = (req.body || new Response(new Uint8Array(0)).body).getReader();
+  // Enough leading bytes to check the type a larger cap was claimed for, before anything is stored.
+  const head = [];
+  let headBytes = 0;
+  while (sniff && headBytes < 16) { const { done, value } = await reader.read(); if (done) break; head.push(value); headBytes += value.byteLength; }
+  if (sniff) {
+    const first = new Uint8Array(headBytes);
+    head.reduce((at, chunk) => { first.set(chunk, at); return at + chunk.byteLength; }, 0);
+    if (!sniff(first)) { await reader.cancel().catch(() => {}); return json({ error: 'This file is not an MP4 or WebM video.' }, 415); }
+  }
+  const state = { seen: 0, over: false };
+  const stream = cappedBody(reader, head, cap, state);
+  let body = stream;
+  // R2 takes a stream only with a known length: with Content-Length the body streams through a FixedLengthStream (no
+  // copy held in the isolate); without it (chunked) it is read whole, already bounded by the cap.
+  if (declared !== null && typeof FixedLengthStream === 'function') {
+    const fixed = new FixedLengthStream(Number(declared));
+    stream.pipeTo(fixed.writable).catch(() => {});
+    body = fixed.readable;
+  } else {
+    try { body = await new Response(stream).arrayBuffer(); } catch (error) { if (state.over) return over(); throw error; }
+  }
+  try {
+    await learnMedia(env).put(await assetObject(row, key), body, {
+      httpMetadata: { contentType: SAFE_TYPE.test(type) ? type : 'application/octet-stream' },
+      customMetadata: { key, kind: req.headers.get('x-asset-kind') === 'string' ? 'string' : 'blob' },
+    });
+  } catch (error) { if (state.over) return over(); throw error; }
+  return json({ key, size: state.seen });
 }
 
-export async function getAsset(env, row, key) {
+// One satisfiable `bytes=` range as R2's { offset, length }; null to serve the whole file (none, several, or malformed:
+// RFC 9110 lets a server ignore those); false when it cannot be satisfied (416).
+export function byteRange(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || '').trim());
+  if (!m || (!m[1] && !m[2])) return null;
+  if (!m[1]) { const suffix = Number(m[2]); return suffix > 0 && size > 0 ? { offset: Math.max(0, size - suffix), length: Math.min(suffix, size) } : false; }
+  const start = Number(m[1]), end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  return start < size && end >= start ? { offset: start, length: end - start + 1 } : false;
+}
+
+// `req`, when given, may ask for one byte range (a video seeking): 206 with Content-Range, for every reader of this file.
+export async function getAsset(env, row, key, req = null) {
   if (!learnMedia(env) || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
-  const object = await learnMedia(env).get(await assetObject(row, key));
+  const bucket = learnMedia(env), objectKey = await assetObject(row, key);
+  const asked = req?.headers.get('range');
+  let range = null;
+  if (asked) {
+    const found = await bucket.head(objectKey);
+    if (!found) return json({ error: 'No such file on this board' }, 404);
+    range = byteRange(asked, found.size);
+    if (range === false) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${found.size}`, 'Cache-Control': 'private, no-cache' } });
+  }
+  const object = await bucket.get(objectKey, range ? { range } : undefined);
   if (!object) return json({ error: 'No such file on this board' }, 404);
   return new Response(object.body, {
+    status: range ? 206 : 200,
     headers: {
       'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
       'X-Asset-Kind': object.customMetadata?.kind || 'blob',
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "sandbox; default-src 'none'",
       'Content-Disposition': 'attachment',
+      'Accept-Ranges': 'bytes',
+      ...(range ? { 'Content-Range': `bytes ${range.offset}-${range.offset + range.length - 1}/${object.size}`, 'Content-Length': String(range.length) } : {}),
       // A notebook's workspace copy changes under the same key: always revalidate.
       'Cache-Control': 'private, no-cache',
     },
@@ -72,10 +138,10 @@ export const boardAssetKeys = state => [...assetKeysOf(state),
   ...(state?.blocks || []).filter(block => block.type === 'notebook' && block.notebook_id).map(block => `notebook:${block.notebook_id}`)];
 
 // A board file for a share or publication link, or a member: a key the board does not use now is 404, as a missing one is.
-export async function boardAsset(env, row, key) {
+export async function boardAsset(env, row, key, req = null) {
   const text = row.state_json ?? (await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(row.id).first())?.state_json;
   if (!boardAssetKeys(JSON.parse(text || '{}')).includes(key)) return json({ error: 'No such file on this board' }, 404);
-  return getAsset(env, row, key);
+  return getAsset(env, row, key, req);
 }
 
 async function listAssets(env, row) {
@@ -192,6 +258,8 @@ async function saveOwn(env, owner, app, board, body) {
   if (!refs) return tooManyRefs();
   // A canvas's main board keeps its canvas-reference index in the same batch as the write (canvas-refs.js).
   const indexed = CANVAS.test(app) && board === 'main';
+  // Imported files' references (file-access.js), on every board: rewritten whenever this board names or named a source.
+  const files = fileRefSources(body.state).length > 0 || !!row?.state_json.includes('"fileRef"');
   const db = env.LEARN_DB;
   const write = async (statement, index) => (index.length ? (await db.batch([statement, ...index]))[0] : await statement.run());
   const now = new Date().toISOString();
@@ -199,7 +267,7 @@ async function saveOwn(env, owner, app, board, body) {
   if (!row) {
     const id = crypto.randomUUID();
     const { meta } = await write(db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT DO NOTHING')
-      .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now), indexed && refs.length ? indexStatements(db, id, state.text, 1, refs, owner) : []);
+      .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now), [...(indexed && refs.length ? indexStatements(db, id, state.text, 1, refs, owner) : []), ...(files ? fileRefStatements(db, id, state.text, 1, body.state, owner) : [])]);
     return meta.changes ? json({ version: 1, board_id: id, sharing: sharingOf(null) }) : stale();
   }
   const checked = Number.isInteger(body.version);
@@ -208,7 +276,7 @@ async function saveOwn(env, owner, app, board, body) {
   // The index is rewritten whenever this board has or had references (an unversioned save cannot know what it replaces).
   const reindex = indexed && (refs.length || !checked || row.state_json.includes('"refs"'));
   const { meta } = await write(db.prepare(`UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?${checked ? ' AND version = ?' : ''}`)
-    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])), reindex ? indexStatements(db, row.id, state.text, checked ? body.version + 1 : null, refs, owner) : []);
+    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])), [...(reindex ? indexStatements(db, row.id, state.text, checked ? body.version + 1 : null, refs, owner) : []), ...(files ? fileRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : [])]);
   if (!meta.changes) return stale();
   // A change to a canvas's saved content is a meaningful change (canvas-metadata.md); a save of the same content, or a
   // board's first server copy (a sync of what the browser already had: sharing, publishing; over a canvas's empty
@@ -491,6 +559,8 @@ async function fork(req, env, body, { duplicate = false } = {}) {
       db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title, forked_from) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)')
         .bind(id, user.org, user.email, name, 'main', text, user.email, now, title, forkedFrom ? JSON.stringify(forkedFrom) : null),
       ...(refs.length ? indexStatements(db, id, text, 1, refs, user) : []),
+      // The copy reads its files through its own references: those of the board it was read from, and the forker's own.
+      ...(fileRefSources(state).length ? [...(source.row?.id ? [inheritFileRefs(db, id, source.row.id, state)] : []), ...fileRefStatements(db, id, text, 1, state, user)] : []),
       ...(duplicate ? [] : [db.prepare('INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share, forked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .bind(user.org, name, user.email, key, source.canvas ? source.org : null, source.canvas, root[0], root[1], source.owner, sourceTitle, source.share, now)]),
       // The repository revision the source was read at; the fork's share answers from it (docs/features/shared-canvas-ask.md).
@@ -624,7 +694,7 @@ async function startRabbitHole(req, env, token, body) {
 
 // The owner of a board: someone with access to its app - or, for a canvas
 // (smart-home catalog), the canvas's owner, checked against LEARN_DB.
-async function boardOwner(req, env, app) {
+export async function boardOwner(req, env, app) {
   if (!CANVAS.test(app)) {
     const access = await authorizedBoardApp(req, env, app);
     return access instanceof Response ? access : { org: access.org, email: access.email };
@@ -818,7 +888,7 @@ export async function learnBoardsRoute(path, req, env) {
     const found = await sharedAccess(req, env, decodeURIComponent(sharedFile[1]));
     if (found instanceof Response) return found;
     const key = decodeURIComponent(sharedFile[2]);
-    if (req.method === 'GET') return boardAsset(env, found.row, key);
+    if (req.method === 'GET') return boardAsset(env, found.row, key, req);
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
@@ -878,7 +948,7 @@ export async function learnBoardsRoute(path, req, env) {
     if (!row) return json({ error: 'Save or share this board first.' }, 404);
     if (!rawKey) return req.method === 'GET' ? listAssets(env, row) : json({ error: 'Method not allowed' }, 405);
     const key = decodeURIComponent(rawKey);
-    if (req.method === 'GET') return getAsset(env, row, key);
+    if (req.method === 'GET') return getAsset(env, row, key, req);
     if (req.method === 'PUT') return putAsset(req, env, row, key);
     return json({ error: 'Method not allowed' }, 405);
   }

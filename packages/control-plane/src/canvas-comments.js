@@ -89,7 +89,7 @@ async function actorOn(env, board, viewer) {
 }
 const settingsOf = board => ({ mode: board.published ? board.public_mode : 'off', enabled: !!board.comments_enabled });
 
-async function memberContext(req, env, boardId) {
+export async function memberContext(req, env, boardId) {
   if (!BOARD_ID.test(boardId)) return notFound();
   const board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND b.id = ?`).bind(boardId).first();
   if (!board) return notFound();
@@ -622,7 +622,7 @@ async function commentsRoute(path, req, env) {
   if (rest === '' || rest === '/') return method === 'GET' ? about(ctx) : not();
   let part;
   if (family === 'member' && rest === '/board') return method === 'GET' ? readBoard(env, ctx) : not();
-  if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? boardAsset(env, ctx.board, decodeURIComponent(part[1])) : not();
+  if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? boardAsset(env, ctx.board, decodeURIComponent(part[1]), req) : not();
   if (rest === '/threads') return method === 'GET' ? listThreads(env, ctx, url.searchParams) : method === 'POST' ? startThread(req, env, ctx) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)$/))) return method === 'GET' ? readThread(env, ctx, part[1], url.searchParams) : method === 'DELETE' ? deleteThread(env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/color$/))) return method === 'PUT' ? setColor(req, env, ctx, part[1]) : not();
