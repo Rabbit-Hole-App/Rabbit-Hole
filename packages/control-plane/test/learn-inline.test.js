@@ -212,3 +212,9 @@ test('structured card output must match complete target schema, never identity o
  assert.match(checkEdit({ops:[op]},['a']).error,/complete/);
  assert.ok(checkEdit({ops:[{...op,content:{...op.content,id:'other'}}]},['a'],target).error);
 });
+
+test('untrusted structured tool card types cannot use inherited adapter properties', () => {
+ const op={op:'replace_card_content',id:'a',content:{title:'T'}};
+ for(const type of ['__proto__','constructor','toString']) assert.ok(checkEdit({ops:[op]},['a'],{target:{objects:[{id:'a',editable:{type,content:{title:'T'}}}]}}).error);
+ assert.ok(checkEdit({ops:[op]},['different'],{target:{objects:[{id:'a',editable:{type:'explanation',content:{title:'T'}}}]}}).error);
+});

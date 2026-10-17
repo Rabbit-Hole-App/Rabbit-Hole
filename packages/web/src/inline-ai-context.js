@@ -25,7 +25,7 @@ export function hash(text) {
   for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(16).padStart(8, '0');
 }
-const clip = (text, max) => (text.length > max ? { text: `${text.slice(0, max)}…`, truncated: true } : { text, truncated: false });
+const clip = (text, max) => (text.length > max ? { text: max > 0 ? `${text.slice(0, max - 1)}\u2026` : '', truncated: true } : { text, truncated: false });
 const sameContent = (a, b) => {
   if (a === b) return true;
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
@@ -318,7 +318,12 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     // The complete structured representation replaces a lossy description, and counts against the same budget.
     if (editable?.ok) base = { ...base, text: JSON.stringify(editable.content) };
     const taken = take(base, 'target', {}, limits.targetChars);
-    if (taken && editable?.ok && !taken.truncated) taken.editable = { type: editable.type, fields: editable.fields, content: editable.content };
+    if (taken && editable?.ok && !taken.truncated) {
+      const representation = { type: editable.type, fields: editable.fields, content: editable.content };
+      const length = JSON.stringify(representation).length;
+      if (chars + length <= limits.total) { taken.editable = representation; chars += length; }
+      else { taken.truncated = true; omitted.truncated += 1; }
+    }
     if (taken && editable && !editable.ok) taken.editLimitation = editable.reason;
     if (taken && target.range && target.range.id === id) {
       const whole = base.text, { from, to } = target.range;
@@ -404,10 +409,16 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     }
   }
   // 8. Metadata: the canvas's title and goal, which may be out of date or name another topic than the selection's.
-  const metadata = {
-    ...(extras.title ? { canvasTitle: String(extras.title).slice(0, 200) } : {}),
-    ...(extras.goal ? { learningGoal: String(extras.goal).slice(0, 300) } : {}),
-  };
+  const metadata = {};
+  omitted.metadata = 0;
+  for (const [key, value, max] of [['canvasTitle', extras.title, 200], ['learningGoal', extras.goal, 300]]) {
+    if (!value) continue;
+    const text = String(value);
+    const room = Math.min(max, Math.max(0, limits.total - chars - JSON.stringify({ [key]: '' }).length));
+    const selected = text.slice(0, room), length = JSON.stringify({ [key]: selected }).length;
+    if (room > 0 && chars + length <= limits.total) { metadata[key] = selected; chars += length; }
+    if (!Object.hasOwn(metadata, key) || room < text.length) omitted.metadata += 1;
+  }
   // Available conversation and intentionally attached references only; never claim listed sources were read.
   if (!selectionOnly) {
     const conversation = Array.isArray(extras.conversation) ? extras.conversation : [];
@@ -417,12 +428,16 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     omitted.conversation = 0; omitted.sources = 0;
     for (const turn of conversation.slice().reverse()) {
       if (!turn || !['user', 'assistant'].includes(turn.role) || typeof turn.text !== 'string') continue;
-      const room = Math.min(1000, Math.max(0, limits.total - chars));
+      const overhead = JSON.stringify({ role: turn.role, text: '', truncated: true }).length;
+      const room = Math.min(1000, Math.max(0, limits.total - chars - overhead));
       if (!room) { omitted.conversation += 1; continue; }
       const text = turn.text.slice(0, room);
       const truncated = text.length !== turn.text.length;
-      metadata.conversation.unshift({ role: turn.role, text, ...(truncated ? { truncated: true } : {}) });
-      chars += text.length;
+      const entry = { role: turn.role, text, ...(truncated ? { truncated: true } : {}) };
+      const length = JSON.stringify(entry).length;
+      if (chars + length > limits.total) { omitted.conversation += 1; continue; }
+      metadata.conversation.unshift(entry);
+      chars += length;
       if (truncated) omitted.conversation += 1;
     }
     for (const source of sources) {

@@ -11,7 +11,7 @@ const structureSafe = content => Object.entries(content).every(([key, value]) =>
 });
 const fail = reason => ({ ok: false, reason, error: reason });
 export function cardEditSpec(block) {
-  if (!block || !FIELDS[block.type]) return fail('This card has no safe structured editing path. Explain is available.');
+  if (!block || typeof block.type !== 'string' || !Object.hasOwn(FIELDS, block.type)) return fail('This card has no safe structured editing path. Explain is available.');
   if (block.locked) return fail('This card is locked.');
   if (block.fileRef || block.source || block.anchor) return fail('This source-backed card cannot be rewritten in place. Its original source stays unchanged.');
   // Existing SourcesDisclosure combines evidence and provenance without claim spans or stable citation IDs.

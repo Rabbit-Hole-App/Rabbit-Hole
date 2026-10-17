@@ -71,3 +71,23 @@ test('complete-content preflight refusal invokes no transport and changes no boa
  assert.equal(await session.submit({mode:'edit',prompt:'Improve',prepare:()=>({error:'Too large'})}),'unsupported');
  assert.equal(calls,0); assert.equal(session.state.error,'Too large');
 });
+
+test('untrusted inherited card types are refused rather than crashing', () => {
+ for (const type of ['__proto__','constructor','toString','hasOwnProperty']) {
+   assert.equal(cardEditSpec({type}).ok,false);
+   assert.equal(validateCardContent({type},{body:'bad'}).ok,false);
+ }
+});
+test('structured representation and metadata share the declared total context budget', () => {
+ const board=boardOf({id:'a',type:'explanation',title:'T',body:'x'.repeat(1000)});
+ const context=buildContext(board,freezeTarget(board,['a']),{cache:createContextCache(),boardKey:'b',limits:{objects:24,targetChars:4000,chars:400,total:2200,connections:40,relevant:0.35,hops:3,flowGap:48},extras:{title:'t'.repeat(200),goal:'g'.repeat(300),conversation:[{role:'user',text:'q'.repeat(1000)}],sources:[{kind:'paper',title:'p'.repeat(200)}]}});
+ assert.ok(context.size.chars<=2200);
+ assert.ok(context.omitted.metadata+context.omitted.conversation+context.omitted.sources>0);
+ assert.ok(context.target.objects[0].editable);
+});
+
+test('a clipped target includes its ellipsis inside the total character budget', () => {
+ const board=boardOf({id:'a',type:'explanation',title:'T',body:'x'.repeat(5000)});
+ const context=buildContext(board,freezeTarget(board,['a']),{cache:createContextCache(),boardKey:'b',limits:{objects:24,targetChars:4000,chars:400,total:100,connections:40,relevant:0.35,hops:3,flowGap:48}});
+ assert.ok(context.size.chars<=100); assert.equal(context.target.objects[0].truncated,true);
+});
