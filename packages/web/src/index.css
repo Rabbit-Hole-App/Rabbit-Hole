@@ -288,6 +288,9 @@ html {
   --cmd-video-bg: #fdecfb;
   --cmd-video-fg: #761e6a;
   --cmd-video-line: #f1b1e9;
+  --cmd-cad-bg: #eaf7f3;
+  --cmd-cad-fg: #185b57;
+  --cmd-cad-line: #aed8ce;
   --cmd-3d-bg: #fdecf9;
   --cmd-3d-fg: #701054;
   --cmd-3d-line: #f1b1df;
@@ -337,6 +340,7 @@ html {
 [data-command-tone="paper"] { --cmd-bg: var(--cmd-paper-bg); --cmd-fg: var(--cmd-paper-fg); --cmd-line: var(--cmd-paper-line); }
 [data-command-tone="image"] { --cmd-bg: var(--cmd-image-bg); --cmd-fg: var(--cmd-image-fg); --cmd-line: var(--cmd-image-line); }
 [data-command-tone="video"] { --cmd-bg: var(--cmd-video-bg); --cmd-fg: var(--cmd-video-fg); --cmd-line: var(--cmd-video-line); }
+[data-command-tone="cad"] { --cmd-bg: var(--cmd-cad-bg); --cmd-fg: var(--cmd-cad-fg); --cmd-line: var(--cmd-cad-line); }
 [data-command-tone="3d"] { --cmd-bg: var(--cmd-3d-bg); --cmd-fg: var(--cmd-3d-fg); --cmd-line: var(--cmd-3d-line); }
 [data-command-tone="notebook"] { --cmd-bg: var(--cmd-notebook-bg); --cmd-fg: var(--cmd-notebook-fg); --cmd-line: var(--cmd-notebook-line); }
 [data-command-tone="more"] { --cmd-bg: var(--cmd-more-bg); --cmd-fg: var(--cmd-more-fg); --cmd-line: var(--cmd-more-line); }
@@ -472,6 +476,9 @@ html {
   --cmd-video-bg: #34142f;
   --cmd-video-fg: #f7a1ec;
   --cmd-video-line: #822676;
+  --cmd-cad-bg: #132e2a;
+  --cmd-cad-fg: #a7e3d6;
+  --cmd-cad-line: #356b60;
   --cmd-3d-bg: #34142b;
   --cmd-3d-fg: #f9b4e5;
   --cmd-3d-line: #822668;

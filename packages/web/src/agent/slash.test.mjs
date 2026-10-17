@@ -9,7 +9,7 @@ test('one command list: the four modes on Home and projects, /ask and /teach on 
   assert.deepEqual(names(commandsFor('home', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'new', 'connect', 'run']); // solo v1: no /share
   assert.deepEqual(names(commandsFor('project', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'connect', 'run']);
   assert.deepEqual(names(commandsFor('learn', { catalog: JOB })), ['ask', 'teach', 'deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source',
-    'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'whiteboard', 'image', 'video', '3d', 'notebook', 'youtube', 'arxiv', 'wikipedia', 'more']);
+    'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'whiteboard', 'image', 'video', 'cad', '3d', 'notebook', 'youtube', 'arxiv', 'wikipedia', 'more']);
   assert.deepEqual(names(commandsFor('home', { catalog: [] })).includes('run'), false); // /run needs a runnable job
   assert.equal(new Set(names(SLASH)).size, SLASH.length);
 });
@@ -116,7 +116,7 @@ test('the Learn picker stays short: LEARN then CREATE; the rest only through /mo
   const desc = (name) => descFor(SLASH.find((c) => c.name === name), 'learn');
   assert.deepEqual(LEARN_MENU.learn.map(desc), ['Go deeper', 'Go down a Rabbit Hole', 'Explain more simply', 'Show a concrete example', 'Let me try it', 'Test me', 'Compare ideas']);
   assert.deepEqual(LEARN_MENU.create.map(desc), ['Add an explanation', 'Add code', 'Add a graph or plot', 'Add a diagram', 'Add an animation', 'Add flashcards', 'Add a notebook', 'More learning tools']);
-  for (const hidden of ['walkthrough', 'whiteboard', 'paper', 'image', 'video', '3d', 'source', 'research', 'do']) assert.ok(![...LEARN_MENU.learn, ...LEARN_MENU.create].includes(hidden), hidden);
+  for (const hidden of ['walkthrough', 'whiteboard', 'paper', 'image', 'video', 'cad', '3d', 'source', 'research', 'do']) assert.ok(![...LEARN_MENU.learn, ...LEARN_MENU.create].includes(hidden), hidden);
 });
 
 test('/teach on an app is off on this preview: Learn is off for apps there (D7); projects and canvases teach', () => {
@@ -125,7 +125,7 @@ test('/teach on an app is off on this preview: Learn is off for apps there (D7);
 });
 
 // Release B (owner decisions 1A, 2A, 4A and A4, 2026-10-16): one registry with surface capabilities.
-const CTRLK_SET = ['explain', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'flashcards', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia'];
+const CTRLK_SET = ['explain', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'flashcards', 'image', 'video', 'cad', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia'];
 
 test('surfaces: Ctrl+K offers exactly the owner set; Chat is the Learn list; Insert offers the three source searches', () => {
   assert.deepEqual(names(commandsFor('ctrlk', { motionDev: true })).sort(), [...CTRLK_SET].sort());
@@ -144,7 +144,7 @@ test('surfaces: Ctrl+K offers exactly the owner set; Chat is the Learn list; Ins
 
 test('every command has a kind; the generate ones are what Ctrl+K picks Explain for, the source ones open the finder', () => {
   for (const c of SLASH) assert.ok(['generate', 'source', 'prompt', 'dialog'].includes(c.kind), c.name);
-  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: true }).filter((c) => c.kind === 'generate')), ['explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'image', 'video', '3d', 'motion']);
+  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: true }).filter((c) => c.kind === 'generate')), ['explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'image', 'video', 'cad', '3d', 'motion']);
   for (const name of ['youtube', 'arxiv', 'wikipedia']) {
     const c = SLASH.find((entry) => entry.name === name);
     assert.equal(c.kind, 'source');

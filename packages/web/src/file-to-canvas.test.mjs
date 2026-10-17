@@ -79,8 +79,9 @@ test('Ctrl+K preserves file-family restrictions and additionally requires a safe
   assert.equal(fileEditLocked(['e'], board), false);
   assert.equal(fileEditLocked(['v'], null), false);
   const editor = readFileSync(new URL('./InlineAiEditor.jsx', import.meta.url), 'utf8');
-  assert.match(editor, /const cardEditReason = !target\.creation && cardEditSelectionReason\(target\.ids \|\| \[\], canvas\.board\?\.\(\) \|\| \{\}\);/, 'the same runtime eligibility guard controls the editor');
-  assert.match(editor, /const fileLocked = !target\.creation && fileEditLocked\(target\.ids \|\| \[\], canvas\.board\?\.\(\)\);/);
+  assert.match(editor, /block\.type === 'cad' && block\.revisionId && !block\.locked && cadCanMutate\(block,readOnly\)/, 'only mutable accepted CAD revisions use the separate CAD edit route');
+  assert.match(editor, /const cardEditReason = !cadTarget && !target\.creation && cardEditSelectionReason\(target\.ids \|\| \[\], canvas\.board\?\.\(\) \|\| \{\}\);/, 'the same runtime eligibility guard controls the editor');
+  assert.match(editor, /const fileLocked = !cadTarget && !target\.creation && fileEditLocked\(target\.ids \|\| \[\], canvas\.board\?\.\(\)\);/);
   assert.match(editor, /useState\(target\.creation \|\| fileLocked \|\| cardEditReason \? 'explain'/, 'opens in Explain');
   assert.match(editor, /disabled=\{\(target\.creation \|\| fileLocked \|\| cardEditReason\) && value === 'edit'\}/, 'Edit is disabled in the mode menu');
   assert.match(editor, /if \(mode === 'edit' && fileLocked\) \{ setRefused\(FILE_EDIT_LOCKED\); return; \}/, 'and refused at send');

@@ -16,7 +16,8 @@ const names = sections => sections.flatMap(section => section.items.map(item => 
 const asset = path => existsSync(new URL(`../public${path}`, import.meta.url));
 
 test('every command in the sheet has a demo: a card, the card /source opens, or an example exchange', () => {
-  assert.equal(commands.length, 25);
+  assert.equal(commands.length, 26);
+  assert.equal(demoOf('cad'), 'cad', 'CAD describes its workflow without fabricated artifacts');
   assert.deepEqual(devCommands.map(({ name }) => name).filter(name => !commands.some(command => command.name === name)), ['motion']);
   for (const { name } of devCommands) {
     const demo = demoOf(name);

@@ -67,6 +67,7 @@ export const SLASH = [
   { name: 'paper', kind: 'source', hidden: true, group: 'create', places: ['learn'], desc: 'Open a paper', family: ['paper'], action: 'insert_paper', deterministic: true },
   { name: 'image', kind: 'generate', group: 'create', places: CTRLK, desc: 'Add an image', family: ['image', 'image_generate'] },
   { name: 'video', kind: 'generate', group: 'create', places: CTRLK, label: 'Generate video', desc: 'Generate video', family: ['video', 'video_generate'] },
+  { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD', pillLabel: 'CAD', desc: 'Create a parametric CAD model', action: 'cad', deterministic: true },
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D', desc: 'Add a 3D model', family: ['3d_model', 'blender_scene'] },
   // Development only (needs motion_dev): a paid proposal with no model call before Generate.
   { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, desc: 'Make a Motion explainer (dev)', action: 'motion', deterministic: true, needs: 'motion_dev' },

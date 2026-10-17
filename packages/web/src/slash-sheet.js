@@ -37,7 +37,7 @@ export const sheetCards = name => SHEET_CARDS[name] || cardsFor(name);
 
 // What the right pane shows: the cards a command makes, the card /source opens, what a source search does, or an example
 // exchange.
-export const demoOf = name => (sheetCards(name).length ? 'cards' : name === 'source' ? 'sources' : FINDER_NOTES[name] ? 'finder' : CHAT_EXAMPLES[name] ? 'chat' : null);
+export const demoOf = name => (name === 'cad' ? 'cad' : sheetCards(name).length ? 'cards' : name === 'source' ? 'sources' : FINDER_NOTES[name] ? 'finder' : CHAT_EXAMPLES[name] ? 'chat' : null);
 
 const XS = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
 const round = value => Math.round(value * 1000) / 1000;

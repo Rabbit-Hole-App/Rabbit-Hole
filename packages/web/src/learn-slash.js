@@ -47,6 +47,7 @@ export const searchSections = query => filterSections(pickerSections('/'), query
 // One use per command for the View > Slash commands sheet. Each one asks for
 // exactly the card or answer the sheet previews beside it, and works as typed.
 export const EXAMPLES = {
+  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate',
   deeper: '/deeper into the maths', dive: '/dive softmax', simplify: '/simplify', example: '/example with real numbers',
   practice: '/practice explain it back', quiz: '/quiz the derivative of the sigmoid', compare: '/compare sigmoid vs tanh',
   explain: '/explain why a token id is only an index', code: '/code build a character vocabulary', graph: '/graph sigmoid',
@@ -149,6 +150,13 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   const { command: { name, source }, arg: args } = resolved;
   const selection = target?.id ? { kind: 'card', id: target.id, title: String(target.title || '').slice(0, 200) } : null;
   const request = learnRequest(name, { args, selection });
+  if (request.action === 'cad') {
+    if (!args.trim()) return { notice: { tone: 'question', text: 'What would you like to create? Include dimensions or explain its purpose.' }, keep: '/cad ' };
+    if (!canvas.startCad) return { notice: { tone: 'error', text: 'CAD generation is not available on this canvas.' } };
+    let started;
+    return { proposal: { message: 'Generate this CAD model? Bounded generation includes model and executor work.',
+      generate: () => started ||= Promise.resolve().then(() => canvas.startCad(args)) } };
+  }
   if (request.action === 'open_tool_catalog') return { catalog: true };
   // /youtube, /arxiv, /wikipedia: the source finder opens on its source and query (searching at once when there is one);
   // nothing reaches the Tutor or a model, and nothing is added until the learner adds a result. The finder says the rest.

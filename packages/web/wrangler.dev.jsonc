@@ -30,7 +30,8 @@
       {
         "name": "FILE_JOBS",
         "class_name": "FileJobs"
-      }
+      },
+      { "name": "CAD_JOBS", "class_name": "CadJobs" }
     ]
   },
   "migrations": [
@@ -57,7 +58,8 @@
       "new_sqlite_classes": [
         "FileJobs"
       ]
-    }
+    },
+    { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] }
   ],
   "assets": {
     "directory": "./dist-dev",

@@ -1,3 +1,4 @@
+import { cadContext } from './cad-client.js';
 // The canvas semantic snapshot (agent-coordination/tasks/2026-10-13-shared-canvas-semantics.md): one read-only view of what
 // is on a canvas, for inline Explain/Edit context and the Curious planner. Pure: no React, no network.
 //
@@ -18,6 +19,7 @@ const LABEL_MAX = 60; // a free text box this short can be a label; longer text 
 // exercise's solution, a challenge's expected ideas).
 const VISIBLE = ['title', 'question', 'prompt', 'body', 'brief', 'text', 'caption', 'label', 'alt', 'code', 'setup'];
 export function cardText(block) {
+  if (block.type === 'cad') return cadContext(block).text;
   if (block.type === 'notebook') { try { return describeNotebook(block).text; } catch { return String(block.title || ''); } }
   const parts = VISIBLE.filter(key => typeof block[key] === 'string' && block[key].trim()).map(key => block[key]);
   const own = typeof block.draft === 'string' ? block.draft : block.starter;

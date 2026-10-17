@@ -1,3 +1,5 @@
+import CadCard from './CadCard.jsx';
+import { cadContext } from './cad-client.js';
 import { createContext, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -758,6 +760,7 @@ export const BLOCK_TYPES = {
       status: 'idle',
     }),
   },
+  cad: { label: 'CAD', width: 560, height: 480, autoMax: 900, sample: () => ({ id: crypto.randomUUID(), type: 'cad', title: 'CAD model', status: 'queued', dx: 0, dy: 0 }) },
   model3d: {
     label: '3D model',
     width: 560,
@@ -1071,7 +1074,7 @@ function QuizBody({ block, onChange, onFile }) {
 // The first press on an unselected card selects it - so its Ask selection
 // pill appears - and only then do presses belong to the paper. Highlights are
 // saved on the block with their page; highlighter mode is a moment, not saved.
-function PaperBody({ block, appName, onChange, onAskRegion, selected = true }) {
+function PaperBody({ block, appName, onChange, onAskRegion, selected = true, readOnly = false, onCadEdit, onCadExplain }) {
   const [highlighting, setHighlighting] = useState(false);
   return (
     <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
@@ -1752,6 +1755,7 @@ const NEWLINE = String.fromCharCode(10);
 
 // Serialize a block for the tutor prompt when the learner asks about it.
 export function describeBlock(block) {
+  if (block.type === 'cad') return cadContext(block);
   if (block.type === 'notebook') return describeNotebook(block);
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
@@ -1782,7 +1786,7 @@ export function describeBlock(block) {
   return null;
 }
 
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true }) {
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true, readOnly = false, onCadEdit, onCadExplain }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1790,6 +1794,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'snippet') return <SnippetBody block={block} onFile={onFile} />;
   if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} />;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
+  if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} onExplain={onCadExplain} />;
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;

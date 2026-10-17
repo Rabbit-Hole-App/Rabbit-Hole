@@ -1,3 +1,4 @@
+import { cadClient, submitCadOnce } from './cad-client.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
@@ -822,6 +823,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // The canvas is the learner's current location: its title names the concept (/motion's resolver).
         location: { concept: app.title || null },
         canvas: {
+          startCad: (prompt) => startCad(prompt),
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           reserve: slot => canvasApi.current?.reserve(slot),
@@ -875,7 +877,25 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const boardName = board || 'main';
   // The inline AI editor (docs/features/inline-ai-editor.md): this canvas's routes - the registry's commands available
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
+  const cadRequests = useRef(new Map());
+  const startCad = async (prompt, { context = null, cardId = null, baseRevisionId = null } = {}) => {
+    if (!prompt.trim()) throw new Error('What would you like to create? Include dimensions or explain its purpose.');
+    const destination = canvasApi.current;
+    const payload={prompt,cardId,context:context || destination?.cadContext(prompt,askTarget?.id) || null,...(baseRevisionId?{baseRevisionId}:{})};
+    const key=JSON.stringify({app:app.name,board:boardName,...payload});
+    const result=await submitCadOnce(cadRequests.current,key,cadClient(api,app.name,boardName).start,payload);
+    destination?.reconcileCad(result.block);
+    return result;
+  };
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
+    cad: startCad,
+    cadRead: id => cadClient(api,app.name,boardName).get(id),
+    cadAction: async (id,action,body) => {
+      const destination=canvasApi.current;
+      const result=await cadClient(api,app.name,boardName).action(id,action,body);
+      destination?.reconcileCad(result.block);
+      return result;
+    },
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
     enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
     motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
@@ -1171,6 +1191,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // board is restored and the canvas has reported (onCanvasState runs after it published canvasApi), never an empty
   // canvas before the restore, which would get a second heading. canvasReady acts once per board.
   useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
+  // Accepted jobs survive a tab closing before the pending card's first board save.
+  useEffect(() => {
+    if(restoredBoard!==boardPath || !canvasApi.current)return;
+    let live=true;
+    cadClient(api,app.name,boardName).list().then(result=>{if(live)for(const block of result.blocks || [])canvasApi.current?.reconcileCad(block);}).catch(problem=>{if(live && problem.status!==503)toast(`CAD status could not be restored: ${problem.message}`);});
+    return()=>{live=false;};
+  },[restoredBoard,boardPath]);
   // card=<objectId>, a backlink's origin card (C:/s/spec/references-plan.md, URLs): once the final board is on the canvas
   // (as above), that card is shown - in Canvas view, the document kept - or, gone, a toast and nothing selected; the param
   // is dropped either way.

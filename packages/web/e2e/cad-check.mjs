@@ -1,0 +1,67 @@
+// Actual app with deterministic CAD responses. No geometry execution or model-quality claim.
+import { chromium } from '@playwright/test';
+import assert from 'node:assert/strict';
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+const BASE=process.env.BASE||'http://127.0.0.1:5441',CP=process.env.SMALL_CP||'http://127.0.0.1:9093';
+const loopback=value=>/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(value);
+assert.ok(loopback(BASE)||BASE==='https://rabbit-hole-web-dev-cad-integration.tryrabbithole.workers.dev','BASE must be loopback or the exact authorized CAD dev clone');
+assert.ok(loopback(CP)||CP==='https://rabbit-hole-cp-dev.tryrabbithole.workers.dev','CP must be loopback or the existing authorized dev control plane');
+const secret=process.env.TEST_BYPASS_SECRET||(process.env.VARS&&readFileSync(process.env.VARS,'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1]?.trim().replace(/^(['"])(.*)\1$/,'$2'));
+assert.ok(secret,'Set named TEST_BYPASS_SECRET or VARS');
+const OUT=resolve(process.env.OUT||'e2e/shots/cad');mkdirSync(OUT,{recursive:true});
+const run=Date.now().toString(36),results=[],errors=[],consoleErrors=[],networkFailures=[],unexpected=[],calls=[];
+let browser,page,session,canvas,setupError;
+const until=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,80));}throw Error(label);};
+const api=async(path,method='GET',body)=>{const response=await fetch(BASE+path,{method,headers:{cookie:`small_session=${session}`,origin:BASE,'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.ok(response.ok,`${method} ${path}: ${response.status}`);return response.json();};
+const state=async()=>(await api(`/api/learn/boards/${canvas.name}/main`)).state;
+const saved=async()=>(await state()).blocks.find(block=>block.id==='cad-fixture');
+const card=()=>page.locator('[data-block-id="cad-fixture"]');
+const editor=()=>page.locator('[data-inline-ai]');
+const manifest=revisionId=>({schema:'cad-model/1',revisionId,title:'Fixture plate',units:'mm',parameters:{length:40,width:20,height:5},assumptions:['Deterministic fixture; not generated CAD.'],validation:{baselinePassed:true,checks:[],unchecked:['Fixture preview only']},artifacts:[
+  {kind:'glb',name:'model.glb',url:'/api/learn/files/fs_fixture/d/fd_glb'},
+  {kind:'step',name:'model.step',url:'/api/learn/files/fs_fixture/d/fd_step'},
+  {kind:'thumbnail',name:'thumbnail.png',url:'/api/learn/files/fs_fixture/d/fd_thumbnail'},
+]});
+let block={type:'cad',id:'cad-fixture',jobId:'fixture-job',modelId:'fixture-model',revisionId:null,status:'queued',title:'Fixture plate',units:'mm',w:540,h:440,dx:0,dy:0,briefSummary:'Educational plate fixture.'};
+let job={id:block.jobId,cardId:block.id,modelId:block.modelId,state:'queued',stage:'queued',attempt:1,createdAt:Date.now(),updatedAt:Date.now()};
+function setState(status){block={...block,status};job={...job,state:status,stage:status};if(status==='ready'){const current=manifest('revision-1');block={...block,revisionId:'revision-1',manifest:current,acceptedManifest:current};job={...job,revisionId:'revision-1',manifest:current};}}
+function triangleGlb(){
+  const json={asset:{version:'2.0'},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],meshes:[{primitives:[{attributes:{POSITION:0}}]}],buffers:[{byteLength:36}],bufferViews:[{buffer:0,byteOffset:0,byteLength:36}],accessors:[{bufferView:0,componentType:5126,count:3,type:'VEC3',min:[0,0,0],max:[0.04,0.02,0]}]};
+  const text=Buffer.from(JSON.stringify(json)),length=Math.ceil(text.length/4)*4,bin=Buffer.alloc(36);[0,0,0,0.04,0,0,0,0.02,0].forEach((v,i)=>bin.writeFloatLE(v,i*4));
+  const bytes=Buffer.alloc(12+8+length+8+bin.length,32);bytes.writeUInt32LE(0x46546c67,0);bytes.writeUInt32LE(2,4);bytes.writeUInt32LE(bytes.length,8);bytes.writeUInt32LE(length,12);bytes.writeUInt32LE(0x4e4f534a,16);text.copy(bytes,20);bytes.writeUInt32LE(bin.length,20+length);bytes.writeUInt32LE(0x004e4942,24+length);bin.copy(bytes,28+length);return bytes;
+}
+const checks=[];const check=(name,fn)=>checks.push({name,fn});
+check('pending card shows its real stage and cancellation control',async()=>{await card().locator('[data-cad-state="queued"]').waitFor();assert.equal(await card().locator('[data-cad-action="cancel"]').count(),1);await page.screenshot({path:resolve(OUT,'pending.png')});});
+check('failed state preserves the card and shows a useful error',async()=>{setState('failed');job.error='Fixture executor stopped; retained artifacts are available.';await page.reload();await card().locator('[data-cad-state="failed"]').waitFor();assert.match(await card().innerText(),/Fixture executor stopped/);await page.screenshot({path:resolve(OUT,'failed.png')});delete job.error;});
+check('ready card renders a stored GLB using the shared viewer and exposes only saved downloads',async()=>{setState('ready');await page.reload();await card().locator('[data-cad-state="ready"]').waitFor();await until(async()=>(await saved()).revisionId==='revision-1','First accepted revision must persist to the board');await card().locator('[data-drag-zone]').first().click();await card().locator('[data-cad-viewer] canvas').waitFor();await until(()=>card().getByRole('button',{name:'Interact',exact:true}).isEnabled(),'GLB did not load into an interactive viewer');assert.equal(await card().getByRole('alert').count(),0);await card().locator('[data-cad-action="download"]').click();assert.equal(await card().getByRole('button',{name:'STEP',exact:true}).count(),1);assert.equal(await card().getByRole('button',{name:'GLB',exact:true}).count(),1);assert.equal(await card().getByRole('button',{name:'STL',exact:true}).count(),0);await page.screenshot({path:resolve(OUT,'ready.png')});});
+check('Ctrl+K picker selects CAD without submitting generation',async()=>{const before=calls.length;await page.keyboard.press('Control+k');await editor().waitFor();await editor().locator('[data-inline-prompt]').fill('/cad');await editor().locator('[data-inline-command-option="cad"]').click();assert.equal((await editor().locator('[data-command-pill="cad"]').innerText()).trim(),'CAD');assert.equal(calls.length,before);await page.keyboard.press('Escape');});
+check('Chat picker also selects the CAD pill without submitting generation',async()=>{const before=calls.length,pane=page.locator('[data-chat-pane]'),composer=pane.locator('[data-chat-composer] textarea').first();await composer.fill('/cad');await pane.locator('[data-slash-command="cad"]').click();const pill=pane.locator('[data-command-pill="cad"]');assert.equal((await pill.innerText()).trim(),'CAD');assert.equal(calls.length,before);await pill.getByRole('button',{name:/^Remove /}).click();await composer.fill('');});
+check('viewer orbit leaves card and canvas framing unchanged, and Escape exits interaction',async()=>{await card().locator('[data-drag-zone]').first().click();const viewer=card().locator('[data-cad-viewer]'),before=await card().boundingBox();await until(()=>viewer.getByRole('button',{name:'Interact',exact:true}).isEnabled(),'Viewer not ready');await viewer.getByRole('button',{name:'Interact',exact:true}).click();const box=await viewer.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+65,box.y+box.height/2+25,{steps:8});await page.mouse.up();const after=await card().boundingBox();for(const key of ['x','y','width','height'])assert.ok(Math.abs(before[key]-after[key])<2,`${key} changed during orbit`);await viewer.getByRole('button',{name:'Done',exact:true}).focus();await page.keyboard.press('Escape');assert.equal(await viewer.getByRole('button',{name:'Interact',exact:true}).count(),1);});
+check('CAD edit follows its dedicated path and preserves current revision before Accept',async()=>{const original=await saved();await card().locator('[data-cad-action="edit"]').click();await editor().waitFor();await editor().locator('[data-inline-prompt]').fill('Change only the plate height to 6 mm.');const before=calls.length;await editor().locator('[data-inline-submit]').click();await editor().locator('[data-paid-generate]').waitFor();assert.equal(calls.length,before,'confirmation itself must not submit');await editor().locator('[data-paid-generate]').click();await editor().locator('[data-inline-accept]').waitFor();assert.deepEqual(await saved(),original,'preview must not change persisted card');assert.equal(calls.at(-1).body.baseRevisionId,'revision-1');assert.equal(calls.at(-1).body.cardId,'cad-fixture');await page.screenshot({path:resolve(OUT,'editing.png')});});
+check('Accept preserves identity and layout; reload does not submit another generation',async()=>{const before=await saved();await editor().locator('[data-inline-accept]').click();await until(async()=>(await saved()).revisionId==='revision-2','Accepted revision not persisted');const after=await saved();for(const key of ['id','dx','dy','w','h'])assert.equal(after[key],before[key],key);const count=calls.filter(call=>call.path==='/api/learn/cad/jobs').length;await page.reload();await card().waitFor();assert.equal((await saved()).revisionId,'revision-2');assert.equal(calls.filter(call=>call.path==='/api/learn/cad/jobs').length,count);});
+check('no browser errors or nonfixture model requests escaped',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);});
+try{
+  const auth=await fetch(CP+'/test/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:`cad-${run}@example.com`,secret})});assert.ok(auth.ok);session=(await auth.json()).session;
+  await api('/api/profile','PUT',{handle:`cad_${run}`});canvas=await api('/api/canvases','POST',{title:`Unrelated biology lesson ${run}`});
+  await api(`/api/learn/boards/${canvas.name}/main`,'PUT',{state:{strokes:[],shapes:[],items:[],links:[],groups:[],areas:[],exchanges:[],blocks:[block,{id:'neighbour',type:'explanation',title:'Unchanged neighbour',body:'Preserve this card.',dx:700,dy:0}]}});
+  browser=await chromium.launch();const context=await browser.newContext({viewport:{width:1500,height:1000}});await context.addCookies([{name:'small_session',value:session,url:BASE}]);
+  await context.route('**/*',route=>{
+    const req=route.request(),url=new URL(req.url());if(![BASE,CP].includes(url.origin)&&!['data:','blob:'].includes(url.protocol))return route.abort();
+    if(url.pathname==='/api/learn/files/fs_fixture/d/fd_glb')return route.fulfill({contentType:'model/gltf-binary',body:triangleGlb()});
+    if(url.pathname==='/api/learn/files/fs_fixture/d/fd_thumbnail')return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect x="20" y="50" width="120" height="60" fill="#999"/></svg>'});
+    if(url.pathname.startsWith('/api/learn/cad/jobs')){
+      if(req.method()==='POST'){
+        const body=req.postDataJSON()||{};calls.push({path:url.pathname,body});
+        if(url.pathname==='/api/learn/cad/jobs'){job={...job,id:'fixture-edit',state:'ready',stage:'ready',baseRevisionId:'revision-1',revisionId:'revision-2',awaitingAccept:true,manifest:manifest('revision-2')};block={...block,jobId:job.id,proposedRevisionId:'revision-2'};}
+        else if(url.pathname.endsWith('/accept')){assert.equal(body.expectedRevisionId,'revision-1');job={...job,awaitingAccept:false};block={...block,revisionId:'revision-2',manifest:job.manifest,acceptedManifest:job.manifest};delete block.proposedRevisionId;}
+      }
+      return route.fulfill({json:url.pathname==='/api/learn/cad/jobs'&&req.method()==='GET'?{jobs:[job],blocks:[block]}:{job,block}});
+    }
+    if(['/api/learn/tutor/next-steps','/api/learn/next-steps'].includes(url.pathname))return route.fulfill({json:{options:[],suggestions:[],fingerprint:null}});
+    if(!['GET','HEAD','OPTIONS'].includes(req.method())&&/^\/api\/(ask$|learn\/(ask|selection|tutor|plan|artifact|assess|grade|home-ask|course|image|media|inline|journey|scene|transcribe|tts|voice|dive|explore))/.test(url.pathname)){unexpected.push(url.pathname);return route.abort();}return route.continue();
+  });
+  page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.message));page.on('console',message=>{if(message.type()==='error')consoleErrors.push(message.text());});page.on('requestfailed',request=>networkFailures.push({path:new URL(request.url()).pathname,error:request.failure()?.errorText}));await page.goto(BASE+'/apps/'+canvas.name);await card().waitFor();
+  for(const item of checks){try{await item.fn();results.push({name:item.name,status:'passed'});console.log('PASS '+item.name);}catch(error){results.push({name:item.name,status:'failed',error:error.message});throw error;}}
+}catch(error){setupError=error.stack;process.exitCode=1;console.error(error.message);await page?.screenshot({path:resolve(OUT,'failure.png')}).catch(()=>{});}
+finally{await browser?.close();const counts={passed:results.filter(r=>r.status==='passed').length,failed:results.filter(r=>r.status==='failed').length,skipped:0,interrupted:checks.length-results.length};writeFileSync(resolve(OUT,'results.json'),JSON.stringify({candidate:process.env.CANDIDATE_SHA||'working tree',base:BASE,counts,results,errors,consoleErrors,networkFailures,unexpected,calls,setupError,limitation:'Scripted CAD responses and a synthetic triangle GLB prove UI wiring only. No CAD execution or model-quality coverage.'},null,2));console.log(JSON.stringify(counts));}

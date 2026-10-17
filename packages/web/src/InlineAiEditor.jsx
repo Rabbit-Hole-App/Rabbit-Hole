@@ -1,3 +1,6 @@
+import PaidConfirm from './PaidConfirm.jsx';
+import { CadPreview, cadCanMutate } from './CadCard.jsx';
+import { cadRunning, cadStage } from './cad-client.js';
 import { Md, Code } from './Md.jsx';
 import { cardEditSelectionReason } from './inline-card-edit.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -70,8 +73,21 @@ export function CardEditPreview({ fields, proposedOnly = false }) {
 export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
-  const cardEditReason = !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
-  const fileLocked = !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
+  const cadTarget = !target.creation && target.ids?.length === 1 && canvas.board?.().blocks?.find(block => block.id === target.ids[0] && block.type === 'cad' && block.revisionId && !block.locked && cadCanMutate(block,readOnly));
+  const [cadPending,setCadPending] = useState(false), [cadError,setCadError] = useState(''), [cadJob,setCadJob] = useState(null);
+  const [cadConfirmation,setCadConfirmation] = useState(null);
+  const cadSubmitting=useRef(false);
+  const cadLive=useRef(true);
+  useEffect(()=>()=>{cadLive.current=false;},[]);
+  useEffect(()=>{
+    if(!cadJob?.id || !cadRunning(cadJob.state))return;
+    let live=true,timer;
+    const read=async()=>{try{const result=await config.cadRead(cadJob.id);if(!live)return;setCadJob(result.job);if(cadRunning(result.job.state))timer=setTimeout(read,2500);}catch(problem){if(live)setCadError(problem.message);}};
+    timer=setTimeout(read,1500);return()=>{live=false;clearTimeout(timer);};
+  },[cadJob?.id,cadJob?.state]);
+  const cadAccept=async(action)=>{setCadPending(true);setCadError('');try{await config.cadAction(cadJob.id,action,action==='accept'?{expectedRevisionId:cadJob.baseRevisionId}:{});if(cadLive.current)onClose();}catch(problem){if(cadLive.current)setCadError(problem.message);}finally{if(cadLive.current)setCadPending(false);}};
+  const cardEditReason = !cadTarget && !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
+  const fileLocked = !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
@@ -200,7 +216,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const pickerOpen = query !== null && !pickerShut;
   const matches = pickerOpen ? filterCommands(offered, query) : [];
   const focusField = () => field.current?.focus({ preventScroll: true });
-  const typing = value => { setPrompt(value); setActive(0); setRefused(null); if (pickerQuery(value) === null) setPickerShut(false); };
+  const typing = value => { setCadConfirmation(null); setPrompt(value); setActive(0); setRefused(null); if (pickerQuery(value) === null) setPickerShut(false); };
   // Picked: the command and its mode (a generation command selects Explain); the line is then its words.
   const choose = entry => { const next = pick({ mode, text: '' }, entry); setMode(next.mode); setCommand(next.command); setPrompt(next.text); setRefused(null); focusField(); };
   const changeMode = value => { const next = switchMode({ command, text: prompt }, value); setMode(next.mode); setCommand(next.command); };
@@ -213,14 +229,32 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     focusField();
   });
   // One Send: a typed command resolves through the registry exactly as a picked one, so both submit the same request.
-  const send = () => {
+  const send = async () => {
+    if(readOnly || cadPending || cadJob)return;
     if (mode === 'edit' && fileLocked) { setRefused(FILE_EDIT_LOCKED); return; }
     const out = submission({ mode, command, text: prompt });
     // A source search where no finder can open (an embed without one) is said like any command Ctrl+K lacks here.
     if (out.unsupported || (out.source && !config.openSearch)) { setRefused(out.unsupported || out.source.source); return; }
     if (out.source) { openFinder(out.source); return; }
     if (out.mode !== mode) setMode(out.mode);
+    if(out.command==='cad' || (out.mode==='edit' && cadTarget)) {
+      if(!out.text.trim()){setCadError('What would you like to create or change?');return;}
+      setCadError('');
+      if(!config.cad){setCadError('CAD generation is not available on this canvas.');return;}
+      const made=prepare(selectionOnly,out.text);
+      setCadConfirmation({text:out.text, editing:!!(out.mode==='edit' && cadTarget), options:{context:made.context,...(out.mode==='edit' && cadTarget ? {cardId:cadTarget.id,baseRevisionId:cadTarget.revisionId} : {})}});
+      return;
+    }
     submit(out.prompt, out.mode);
+  };
+  const generateCad = async () => {
+    if(!cadConfirmation || cadSubmitting.current || readOnly)return;
+    const request=cadConfirmation;cadSubmitting.current=true;setCadConfirmation(null);setCadPending(true);setCadError('');
+    try {
+      const result=await config.cad(request.text,request.options);
+      if(cadLive.current){if(request.editing)setCadJob(result.job);else onClose();}
+    } catch(problem){if(cadLive.current)setCadError(problem.message);}
+    finally{cadSubmitting.current=false;if(cadLive.current)setCadPending(false);}
   };
   // What Send would send, for the limit and the Send button.
   const outgoing = command ? `/${command}${prompt.trim() ? ` ${prompt.trim()}` : ''}` : prompt;
@@ -379,6 +413,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       close();
       return;
     }
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && cadJob?.awaitingAccept && !cadPending && !readOnly) { event.preventDefault(); cadAccept('accept'); return; }
     // Ctrl/Cmd+Enter accepts a preview; a paid proposal starts only from its own Generate button.
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && state.status === 'preview' && state.preview?.kind !== 'proposal') { event.preventDefault(); accept(); }
   };
@@ -638,6 +673,15 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <p data-inline-stale role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.stale.text} <button type="button" onClick={send} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Regenerate</button></p>
         )}
         {/* A request the check did not let through: one short message, the prompt kept, nothing on the canvas. */}
+        {cadJob && <div data-cad-inline-review className="mt-2 flex flex-col gap-2">
+          <p role="status" className="text-xs text-ink-2">{cadJob.awaitingAccept ? 'Proposed CAD revision. Your current model stays unchanged until Accept.' : cadStage(cadJob.state)}{cadJob.error ? `: ${cadJob.error}` : ''}</p>
+          {cadJob.awaitingAccept && <div className="flex h-56 flex-col"><CadPreview manifest={cadJob.manifest} active/></div>}
+          <div className="flex justify-end gap-1.5"><button type="button" data-inline-reject onClick={()=>cadAccept('cancel')} disabled={cadPending} className="h-6 rounded-md border border-line px-2 text-xs">{cadJob.awaitingAccept ? 'Reject' : 'Cancel job'}</button>
+          {cadJob.awaitingAccept && <button type="button" data-inline-accept onClick={()=>cadAccept('accept')} disabled={cadPending || readOnly} className="h-6 rounded-md bg-ink px-2 text-xs text-white">Accept</button>}</div>
+          <p className="text-xs text-ink-2">Closing this editor keeps the saved job running. You can review it on the CAD card later.</p>
+        </div>}
+        {cadConfirmation && <PaidConfirm message="Generate this CAD revision? Bounded generation includes model and executor work." onCancel={()=>setCadConfirmation(null)} onGenerate={generateCad} />}
+        {(cadPending || cadError) && <p data-cad-submit-status role="status" className="mt-2 text-xs text-ink-2">{cadPending ? 'Saving the CAD job...' : cadError}</p>}
         {refused && <p data-inline-unsupported={refused} role="status" className="mt-2 text-xs text-ink-2">{unsupportedText(refused)}</p>}
         {state.declined && <p data-inline-decision={state.declined.decision} role="status" className="mt-2 text-xs text-ink-2">{state.declined.message}</p>}
         {state.error && <p data-inline-error role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.error}
@@ -682,7 +726,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
             ) : (
               <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
-                disabled={readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}
+                disabled={!!cadJob || cadPending || readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
             )}
           </div>

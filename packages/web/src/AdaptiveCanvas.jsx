@@ -1,3 +1,5 @@
+import { cadPersistenceChanged } from './CadCard.jsx';
+import { cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
@@ -6,7 +8,7 @@ import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEdi
 import './card-layout.css';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
-import { wsHeaders } from './api.js';
+import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
@@ -55,7 +57,7 @@ import { anchorAt, objectLabel } from './comments/anchors.js';
 import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
-import { createContextCache, freezeTarget } from './inline-ai-context.js';
+import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
@@ -814,6 +816,8 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
 }
 
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null }) {
+  const cadPermissions = useContext(CanvasEdit);
+  const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // Tool Performance v1: visible on first paint; simple cards are complete then (learn-perf.js).
   usePaintedMarks(block.id, block.type);
   // A block that declares its evidence carries it collapsed at its foot; the
@@ -876,7 +880,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={selected} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} onCadExplain={() => cadOpen('explain')} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
     </CanvasNode>
@@ -2090,6 +2094,32 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
         return revealAfter(added.id);
       },
+      reconcileCad: (incoming, { insert = true } = {}) => {
+        if (!alive.current || readOnlyRef.current || !incoming?.id || incoming.type !== 'cad') return null;
+        const previous = blocksRef.current.find(block => block.id === incoming.id);
+        if (previous) {
+          const next = mergeCadBlock(previous,incoming);
+          if(JSON.stringify(previous)!==JSON.stringify(next)){
+            if(cadPersistenceChanged(previous,next))snapshot();
+            // Job-list recovery can win the race with card polling. Keep the
+            // ref current so that either observer persists the accepted revision once.
+            blocksRef.current=blocksRef.current.map(block=>block.id===incoming.id?next:block);
+            setBlocks(list => list.map(block => block.id === incoming.id ? mergeCadBlock(block,incoming) : block));
+          }
+          return incoming.id;
+        }
+        if (!insert) return null;
+        snapshot();
+        const added = { ...incoming, dx: incoming.dx || 0, dy: incoming.dy || 0 };
+        // Track immediately so two completions in one turn cannot insert duplicate cards.
+        blocksRef.current = [...blocksRef.current,added];
+        return insertAtView(added);
+      },
+      cadContext: (prompt, id = null) => {
+        const live = { ...semanticBoard(), boxes: inlineCanvas.layout() }, ids = id ? [id] : selectedRef.current;
+        const options = { cache: inlineCache.current, boardKey: inlineKey.current, describeCard: describeObject, request: prompt, extras: inlineAiRef.current?.extras?.() || {} };
+        return ids.length ? buildContext(live,freezeTarget(live,ids),options) : buildCreationContext(live,viewCenter(),options);
+      },
       // A skeleton where a card on its way will land (docs/features/canvas-skeleton-cards.md): the slot
       // insertAtView would use now - or the nearest one nothing drawn covers (freeSlot: a dragged card keeps its
       // offset) - the card's size (slotSize: `card` names its BLOCK_TYPES entry, `samples` the cards it can be),
@@ -2149,7 +2179,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (revealRef.current?.id === id) return;
         cameraRef.current = { id, smooth: true, moves: slotsRef.current.find(slot => slot.id === slotId)?.moves ?? manualMoves.current };
       },
-      removeBlock: id => {
+      removeBlock: async id => {
+        const cad=blocksRef.current.find(block=>block.id===id && block.type==='cad' && block.jobId && !block.cadDetached);
+        if(cad){if(cadRunning(cad.status) && !window.confirm('Removing this CAD card cancels its running job. Undo does not restart generation. Remove it?'))return;try{await cadClient(api,appName).action(cad.jobId,'placement',{hidden:true});}catch(problem){toast(problem.message);return;}}
         if (!blocksRef.current.some(block => block.id === id)) return;
         snapshot();
         setBlocks(previous => previous.filter(block => block.id !== id));
@@ -2766,11 +2798,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: viewing, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
-  const deleteSelection = () => {
+  const deleteSelection = async () => {
     // A locked object is never deleted by accident: it stays, selected, and says so.
     const ids = selectedRef.current.filter(id => !lockedRef.current.has(id));
     if (ids.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
     if (!ids.length) return;
+    const cad = blocksRef.current.filter(block=>ids.includes(block.id) && block.type==='cad' && block.jobId && !block.cadDetached);
+    if(cad.some(block=>cadRunning(block.status)) && !window.confirm('Removing this CAD card cancels its running job. Undo restores the card but does not restart generation. Remove it?'))return;
+    try { if(cad.length)await Promise.all(cad.map(block=>cadClient(api,appName).action(block.jobId,'placement',{hidden:true}))); } catch(problem) { toast(`CAD card was kept: ${problem.message}`); return; }
     const chats = ids.filter(id => exchangesRef.current.some(exchange => exchange.id === id));
     snapshot(chats.length > 0);
     // Selected nodes delete with their attached connections.
@@ -2925,6 +2960,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (was === now && history.current[history.current.length - 1] === step.entry) history.current.pop();
   };
   const restore = state => {
+    const before = blocksRef.current.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached), after = state.blocks.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached);
+    for(const block of before.filter(block=>!after.some(next=>next.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:true}).catch(problem=>toast(problem.message));
+    for(const block of after.filter(block=>!before.some(old=>old.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:false}).catch(problem=>toast(problem.message));
     setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); setSelected(null);
     if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
@@ -3098,6 +3136,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return () => stops.forEach(stop => stop());
   }, []);
   // Quick Edit opens the existing inline editor with Edit selection active (the bar's action, the menus' row and the chord).
+  useEffect(() => {
+    const open = event => { if(event.detail?.appName !== appName || !blocksRef.current.some(block=>block.id===event.detail.id))return; selectedRef.current=[event.detail.id];setSelection([event.detail.id]);openInline(performance.now(),false,event.detail.mode); };
+    window.addEventListener('learn:cad-inline',open);return()=>window.removeEventListener('learn:cad-inline',open);
+  },[appName]);
   const quickEdit = () => openInline(performance.now(), false, 'edit');
   useEffect(() => { if (!inlineHint) return undefined; const timer = setTimeout(() => setInlineHint(0), 2200); return () => clearTimeout(timer); }, [inlineHint]);
   // The accepted result as one transaction and one undo step, applied to the lists as they are now: an unrelated edit made

@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+mount --make-rprivate /
+mount -t tmpfs -o size=512m,mode=1777,nosuid,nodev tmpfs /tmp
+mount -t tmpfs -o size=128m,mode=1777,nosuid,nodev tmpfs /dev/shm
+mkdir /tmp/job
+mount --bind /var/cad/jobs/$1 /tmp/job
+mount --bind /tmp/job/out /tmp/job/out
+mount -o remount,bind,ro /tmp/job
+mount --bind /tmp/job/in /tmp/job/in
+mount -o remount,bind,ro /tmp/job/in
+mount -t tmpfs -o size=1m,mode=755 tmpfs /var/cad
+mount -t tmpfs -o size=1m,mode=755 tmpfs /home
+mount -t tmpfs -o size=1m,mode=700 tmpfs /root
+if [ -d /.fly ]; then mount -t tmpfs -o size=1m,mode=700 tmpfs /.fly; fi
+mount --bind /app /app
+mount -o remount,bind,ro /app
+# Snapshot browser can reach its private loopback only. Namespace has no external interfaces/routes.
+ip link set lo up
+umask 007
+exec setpriv --reuid=cad-run0 --regid=cad --clear-groups --no-new-privs --inh-caps=-all --bounding-set=-all -- env -i HOME=/tmp TMPDIR=/tmp PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8 DO_NOT_TRACK=1 CADGEN_TELEMETRY=0 CADGEN_UPDATE_CHECK=0 CADGEN_DAEMON=0 CI=1 PLAYWRIGHT_BROWSERS_PATH=/opt/browsers prlimit --fsize=52428800 --nofile=1024 --nproc=512 -- /opt/venv/bin/python -I /app/phase.py

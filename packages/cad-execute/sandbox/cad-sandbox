@@ -1,0 +1,17 @@
+#!/bin/sh
+# Root-owned narrow helper. No shell commands or arbitrary paths accepted.
+set -eu
+ID=${1:-}
+case "$ID" in ''|*[!0-9a-f]*) exit 64;; esac
+[ "${#ID}" -eq 32 ] || exit 64
+[ -d /var/cad/jobs/$ID ] && [ ! -L /var/cad/jobs/$ID ] || exit 66
+RC='/usr/local/bin/node /app/sandbox/resource-control.mjs'
+$RC prepare "$ID" "$$"
+timeout --kill-after=5s 305s unshare --net --pid --mount --ipc --uts --fork --kill-child --mount-proc /app/sandbox/sandbox-init "$ID" &
+CHILD=$!
+trap 'kill -TERM "$CHILD" 2>/dev/null || true' TERM INT HUP
+STATUS=0
+wait "$CHILD" || STATUS=$?
+while kill -0 "$CHILD" 2>/dev/null; do wait "$CHILD" || STATUS=$?; done
+$RC finish "$ID" "$$" "$STATUS" 0
+exit "$STATUS"

@@ -1,5 +1,13 @@
 # Coaching: product, ideas, tasks, and results
 
+### CAD isolated dev candidate (2026-10-17)
+
+The existing Chat and Ctrl+K command pickers expose CAD generation and a saved
+interactive model card on the isolated CAD dev clone. This candidate reuses the
+shared card shell, viewer and confirmation flow; it does not promote production.
+Architecture, bounded verification and remaining scope are tracked in
+[Canvas CAD](cad.md), [verification](cad-verification.md) and [scope](cad-scope.md).
+
 ### Compact landing Guided graph (2026-09-30)
 
 Guided now matches Overview's canvas height and uses one Score A control with

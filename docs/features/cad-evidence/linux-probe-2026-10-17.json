@@ -1,0 +1,342 @@
+{
+  "reports": [
+    {
+      "phase": "build",
+      "elapsed_ms": 26359,
+      "exit": 0,
+      "resources": {
+        "exit_status": 0,
+        "backend": "cgroup-v1",
+        "memory_bytes": 2147483648,
+        "swap_bytes": 0,
+        "memsw_limit": 2147483648,
+        "pids_max": 512,
+        "cpu_period_us": 100000,
+        "cpu_quota_us": 100000,
+        "oom_kills": 0,
+        "memory_peak": 730439680,
+        "memory_failcnt": 0,
+        "memsw_peak": 730439680,
+        "pids_peak": 9,
+        "pids_limit_hits": 0,
+        "cpu_nr_periods": 263,
+        "cpu_throttled": 1,
+        "cpu_throttled_time_us": 2343,
+        "cpu_usage_us": 6368717,
+        "cpu_quota": 1,
+        "controllers": [
+          "memory",
+          "memsw",
+          "pids",
+          "cpu",
+          "cpuacct",
+          "freezer"
+        ],
+        "cleanup": {
+          "freezer": "used",
+          "terminated": 0,
+          "killed": 0,
+          "remaining": 0,
+          "settle_ms": 3,
+          "groups_removed": true,
+          "render_user_processes": 0,
+          "ok": true
+        }
+      },
+      "bytes": 16937,
+      "sha256": "81f63ff9a8a228872e183f02742417bc57ffbe06c5e6895e06a885bd5f9524cc"
+    },
+    {
+      "phase": "check",
+      "elapsed_ms": 8124,
+      "exit": 0,
+      "resources": {
+        "exit_status": 0,
+        "backend": "cgroup-v1",
+        "memory_bytes": 2147483648,
+        "swap_bytes": 0,
+        "memsw_limit": 2147483648,
+        "pids_max": 512,
+        "cpu_period_us": 100000,
+        "cpu_quota_us": 100000,
+        "oom_kills": 0,
+        "memory_peak": 389763072,
+        "memory_failcnt": 0,
+        "memsw_peak": 389763072,
+        "pids_peak": 12,
+        "pids_limit_hits": 0,
+        "cpu_nr_periods": 81,
+        "cpu_throttled": 12,
+        "cpu_throttled_time_us": 499609,
+        "cpu_usage_us": 8001227,
+        "cpu_quota": 1,
+        "controllers": [
+          "memory",
+          "memsw",
+          "pids",
+          "cpu",
+          "cpuacct",
+          "freezer"
+        ],
+        "cleanup": {
+          "freezer": "used",
+          "terminated": 0,
+          "killed": 0,
+          "remaining": 0,
+          "settle_ms": 2,
+          "groups_removed": true,
+          "render_user_processes": 0,
+          "ok": true
+        }
+      },
+      "bytes": 944,
+      "sha256": "7e5f6876e384166a472556d8623afdfd79bb7d3b16d7588cc4554afe3a36fc22"
+    },
+    {
+      "phase": "glb",
+      "elapsed_ms": 9866,
+      "exit": 0,
+      "resources": {
+        "exit_status": 0,
+        "backend": "cgroup-v1",
+        "memory_bytes": 2147483648,
+        "swap_bytes": 0,
+        "memsw_limit": 2147483648,
+        "pids_max": 512,
+        "cpu_period_us": 100000,
+        "cpu_quota_us": 100000,
+        "oom_kills": 0,
+        "memory_peak": 392114176,
+        "memory_failcnt": 0,
+        "memsw_peak": 392114176,
+        "pids_peak": 13,
+        "pids_limit_hits": 0,
+        "cpu_nr_periods": 98,
+        "cpu_throttled": 14,
+        "cpu_throttled_time_us": 527358,
+        "cpu_usage_us": 9665478,
+        "cpu_quota": 1,
+        "controllers": [
+          "memory",
+          "memsw",
+          "pids",
+          "cpu",
+          "cpuacct",
+          "freezer"
+        ],
+        "cleanup": {
+          "freezer": "used",
+          "terminated": 0,
+          "killed": 0,
+          "remaining": 0,
+          "settle_ms": 3,
+          "groups_removed": true,
+          "render_user_processes": 0,
+          "ok": true
+        }
+      },
+      "bytes": 1860,
+      "sha256": "f8dc4d1844ff43e78418c26c500d83f03aed7a9d29509ff8f7e9e940b1591b4d"
+    },
+    {
+      "phase": "thumbnail",
+      "elapsed_ms": 21125,
+      "exit": 0,
+      "resources": {
+        "exit_status": 0,
+        "backend": "cgroup-v1",
+        "memory_bytes": 2147483648,
+        "swap_bytes": 0,
+        "memsw_limit": 2147483648,
+        "pids_max": 512,
+        "cpu_period_us": 100000,
+        "cpu_quota_us": 100000,
+        "oom_kills": 0,
+        "memory_peak": 624914432,
+        "memory_failcnt": 0,
+        "memsw_peak": 624914432,
+        "pids_peak": 71,
+        "pids_limit_hits": 0,
+        "cpu_nr_periods": 209,
+        "cpu_throttled": 27,
+        "cpu_throttled_time_us": 1238092,
+        "cpu_usage_us": 11416101,
+        "cpu_quota": 1,
+        "controllers": [
+          "memory",
+          "memsw",
+          "pids",
+          "cpu",
+          "cpuacct",
+          "freezer"
+        ],
+        "cleanup": {
+          "freezer": "used",
+          "terminated": 0,
+          "killed": 0,
+          "remaining": 0,
+          "settle_ms": 3,
+          "groups_removed": true,
+          "render_user_processes": 0,
+          "ok": true
+        }
+      },
+      "bytes": 113961,
+      "sha256": "1b44a0052fa5211b796775dd548230986afc551c5a47b451ab045a0a193414b7"
+    },
+    {
+      "phase": "stl",
+      "elapsed_ms": 9904,
+      "exit": 0,
+      "resources": {
+        "exit_status": 0,
+        "backend": "cgroup-v1",
+        "memory_bytes": 2147483648,
+        "swap_bytes": 0,
+        "memsw_limit": 2147483648,
+        "pids_max": 512,
+        "cpu_period_us": 100000,
+        "cpu_quota_us": 100000,
+        "oom_kills": 0,
+        "memory_peak": 392237056,
+        "memory_failcnt": 0,
+        "memsw_peak": 392237056,
+        "pids_peak": 13,
+        "pids_limit_hits": 0,
+        "cpu_nr_periods": 98,
+        "cpu_throttled": 17,
+        "cpu_throttled_time_us": 532467,
+        "cpu_usage_us": 9703328,
+        "cpu_quota": 1,
+        "controllers": [
+          "memory",
+          "memsw",
+          "pids",
+          "cpu",
+          "cpuacct",
+          "freezer"
+        ],
+        "cleanup": {
+          "freezer": "used",
+          "terminated": 0,
+          "killed": 0,
+          "remaining": 0,
+          "settle_ms": 3,
+          "groups_removed": true,
+          "render_user_processes": 0,
+          "ok": true
+        }
+      },
+      "bytes": 684,
+      "sha256": "ea8937e29504fb1cd329b3d733d4da9f0c8fe989ff90f430fc4a46f0ac2d6676"
+    },
+    {
+      "phase": "3mf",
+      "elapsed_ms": 10096,
+      "exit": 0,
+      "resources": {
+        "exit_status": 0,
+        "backend": "cgroup-v1",
+        "memory_bytes": 2147483648,
+        "swap_bytes": 0,
+        "memsw_limit": 2147483648,
+        "pids_max": 512,
+        "cpu_period_us": 100000,
+        "cpu_quota_us": 100000,
+        "oom_kills": 0,
+        "memory_peak": 392077312,
+        "memory_failcnt": 0,
+        "memsw_peak": 392077312,
+        "pids_peak": 13,
+        "pids_limit_hits": 0,
+        "cpu_nr_periods": 101,
+        "cpu_throttled": 12,
+        "cpu_throttled_time_us": 578485,
+        "cpu_usage_us": 9897305,
+        "cpu_quota": 1,
+        "controllers": [
+          "memory",
+          "memsw",
+          "pids",
+          "cpu",
+          "cpuacct",
+          "freezer"
+        ],
+        "cleanup": {
+          "freezer": "used",
+          "terminated": 0,
+          "killed": 0,
+          "remaining": 0,
+          "settle_ms": 3,
+          "groups_removed": true,
+          "render_user_processes": 0,
+          "ok": true
+        }
+      },
+      "bytes": 2365,
+      "sha256": "3e592fbf8860729013ec162ed2e28639dbd35efd9a1263db79c760013a730cbc"
+    }
+  ],
+  "validation": {
+    "baselinePassed": true,
+    "passed": true,
+    "facts": {
+      "bounds_mm": {
+        "x": 40,
+        "y": 20,
+        "z": 6
+      },
+      "solid_count": 1,
+      "volume_mm3": 4799.999999999999,
+      "circular_diameters_mm": []
+    },
+    "checks": [
+      {
+        "id": "width",
+        "status": "passed",
+        "passed": true,
+        "actual": 40,
+        "expected": 40,
+        "tolerance": 0.001
+      },
+      {
+        "id": "height",
+        "status": "passed",
+        "passed": true,
+        "actual": 20,
+        "expected": 20,
+        "tolerance": 0.001
+      },
+      {
+        "id": "thickness",
+        "status": "passed",
+        "passed": true,
+        "actual": 6,
+        "expected": 6,
+        "tolerance": 0.001
+      },
+      {
+        "id": "solid",
+        "status": "passed",
+        "passed": true,
+        "actual": 1,
+        "expected": 1,
+        "tolerance": 0.001
+      },
+      {
+        "id": "volume",
+        "status": "passed",
+        "passed": true,
+        "actual": 4799.999999999999,
+        "expected": 4800,
+        "tolerance": 0.01
+      }
+    ],
+    "units": "mm",
+    "geometry_units": "mm",
+    "limitations": [
+      "Circular diameter check establishes an edge diameter, not hole depth or placement.",
+      "Unlisted requirements and manufacturing suitability are not verified."
+    ]
+  }
+}

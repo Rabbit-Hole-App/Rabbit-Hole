@@ -84,7 +84,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   const tone = { error: 'text-red-700', question: 'text-ink', done: 'text-ink-2', info: 'text-ink-2', busy: 'text-ink-2' };
   // The full Slash commands view (View > Slash commands), one click from the palette.
   const help = onHelp && <button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-slash-help onMouseDown={event => event.preventDefault()} onClick={onHelp}
-    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button>;
+    className="pointer-events-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button>;
   let index = -1;
   return (
     <>
@@ -100,7 +100,12 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
               : <p className={tone[notice.tone] || 'text-ink-2'}>{notice.text}</p>)}
             {proposal && <PaidConfirm message={proposal.message}
               onCancel={() => setProposal(null)}
-              onGenerate={() => { proposal.generate(); setProposal(null); setNotice({ tone: 'done', text: 'Generating on the canvas.' }); }} />}
+              onGenerate={async () => {
+                const chosen = proposal; setProposal(null); setBusy(true);
+                try { await chosen.generate(); setNotice({ tone: 'done', text: 'Generating on the canvas.' }); }
+                catch (error) { setNotice({ tone: 'error', text: error.message }); }
+                finally { setBusy(false); }
+              }} />}
           </div>
           {!busy && <button type="button" aria-label="Dismiss" onClick={() => { setNotice(null); setProposal(null); }} className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-hover hover:text-ink"><X size={12} /></button>}
         </div>
@@ -120,7 +125,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
           </div>}
           <div role="listbox" aria-label="Commands" data-slash-picker className="min-h-0 flex-1 overflow-y-auto p-1"
             onScroll={event => { const box = event.currentTarget; if (!moreOpen && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setMoreOpen(true); }}>
-          {query === null && help && <div className="sticky top-0 z-10 -mb-7 flex justify-end">{help}</div>}
+          {query === null && help && <div className="pointer-events-none sticky top-0 z-10 -mb-7 flex justify-end">{help}</div>}
           {items.length ? sections.map((section, sectionIndex) => (
             <div key={section.title || sectionIndex}>
               {sectionIndex > 0 && <div className="mx-2 my-1 border-t border-line" />}

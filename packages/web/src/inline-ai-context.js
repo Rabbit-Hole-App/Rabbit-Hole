@@ -506,7 +506,7 @@ export function boardObjects(board) {
       // An imported file card (fileRef, canvas-file-imports.md section 3) is listed by its name with what was extracted from it
       // (file-chat-ref.js fileCoverage); its content never rides in the canvas package, only through its attached file ref,
       // which the server reads from the extracted text. A picture or player never makes it read.
-      if (block?.fileRef && !(MEDIA.has(type) && type !== 'file')) {
+      if (block?.fileRef && block.type !== 'cad' && !(MEDIA.has(type) && type !== 'file')) {
         return { id: card.id, type: 'file', ...(block.fileRef.family ? { kind: String(block.fileRef.family) } : {}), text: '', label: String(block.fileRef.meta?.name || card.title || 'File'),
           ...place(card.id), ...ties(card), file: fileCoverage(block.fileRef) };
       }

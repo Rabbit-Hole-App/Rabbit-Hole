@@ -115,7 +115,13 @@ test('every example runs as typed: it names its own command and never hits an un
     const parsed = parseSlash(text);
     assert.equal(parsed.name, name, text);
     // /image never reaches the planner: runLearnCommand runs it as a photo search.
-    if (name !== 'image') assert.notEqual(artifactPlan(name, { args: parsed.args }).result, 'unsupported', `${text} would say not available`);
+    if (name === 'cad') {
+      let request;
+      const result=await runLearnCommand(text,{ app:'canvas-test',canvas:{startCad: async prompt => {request=prompt;}},post:()=>{throw Error('CAD must use its durable job flow');} });
+      assert.equal(request,undefined);
+      await result.proposal.generate();
+      assert.equal(request,parsed.args);
+    } else if (name !== 'image') assert.notEqual(artifactPlan(name, { args: parsed.args }).result, 'unsupported', `${text} would say not available`);
   }
 });
 
@@ -322,4 +328,15 @@ test('/youtube, /arxiv and /wikipedia open the source finder with the query; not
   assert.deepEqual(await Promise.all(outs.map(out => out.finder)), [{ added: false }, { added: false }, { added: false }, { added: false }]);
   const added = await runLearnCommand('/arxiv attention', { app: 'demo', canvas: {}, post: null, openSearch: async () => ({ added: true }) });
   assert.deepEqual(await added.finder, { added: true });
+});
+
+// CAD dispatch owns no model call; the backend records a durable job on explicit submit.
+test('CAD command selection is inert; empty submit clarifies and a detailed submit enters the durable path once', async()=>{
+ let starts=0;
+ const options={app:'canvas-test',canvas:{startCad:async()=>{starts++;}},post:()=>{throw Error('generic artifact route must not receive CAD');}};
+ assert.ok(pickerSections('/cad')[0].items.some(item=>item.name==='cad'));
+ assert.equal(starts,0);
+ assert.equal((await runLearnCommand('/cad',options)).notice.tone,'question');assert.equal(starts,0);
+ const result=await runLearnCommand('/cad a 40 mm plate',options);assert.equal(starts,0);
+ await Promise.all([result.proposal.generate(),result.proposal.generate()]);assert.equal(starts,1);
 });

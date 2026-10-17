@@ -14,6 +14,13 @@ import { forkState, learnBoardsRoute } from '../src/learn-boards.js';
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../learn-migrations/0004-canvas-forks.sql', import.meta.url), 'utf8');
 const PEOPLE = { ana: { email: 'ana@test', org: 'ana-ws' }, ben: { email: 'ben@test', org: 'ben-ws' }, cara: { email: 'cara@test', org: 'cara-ws' } };
+test('CAD copies retain saved artifacts without authority over their original job',()=>{
+  const source={blocks:[{id:'cad-one',type:'cad',jobId:'private-job',modelId:'private-model',manifestUrl:'/private-job',proposedRevisionId:'pending',revisionId:'accepted',manifest:{revisionId:'accepted'},fileRef:{source:{id:'fs_accepted'}}}]};
+  const copy=forkState(source).blocks[0];
+  assert.equal(copy.cadDetached,true);assert.equal(copy.jobId,undefined);assert.equal(copy.modelId,undefined);assert.equal(copy.proposedRevisionId,undefined);
+  assert.equal(copy.revisionId,'accepted');assert.deepEqual(copy.fileRef,source.blocks[0].fileRef);
+  assert.equal(source.blocks[0].jobId,'private-job');
+});
 
 function setup(t) {
   const { LEARN_DB, sqlite } = learnDb(t);

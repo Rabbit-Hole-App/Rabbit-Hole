@@ -423,6 +423,13 @@ export function forkState(state, canvas = null) {
   // The canvas's one document (docs/features/blocknote-canvas.md) is an object: the copy gets its own, never a shared one.
   if (state?.doc && typeof state.doc === 'object' && !Array.isArray(state.doc)) out.doc = structuredClone(state.doc);
   if (out.exchanges) out.exchanges = out.exchanges.map(exchange => ({ ...exchange, status: 'done' }));
+  // A copied CAD artifact is an immutable snapshot, not control of the source
+  // canvas's durable job. Retain its indexed file references for authorized reads.
+  if (out.blocks) out.blocks = out.blocks.map(block => {
+    if (block?.type !== 'cad') return block;
+    const { jobId, modelId, manifestUrl, proposedRevisionId, ...copy } = block;
+    return { ...copy, cadDetached: true, status: copy.manifest ? 'ready' : 'failed' };
+  });
   if (canvas && out.blocks) out.blocks = out.blocks.map(block => ((block?.type === 'pdf' || block?.type === 'slide') && !block.home ? { ...block, home: canvas } : block));
   return out;
 }

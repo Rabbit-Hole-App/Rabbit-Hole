@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+# One slot; total job storage is kernel-capped, including malicious output trees.
+mount -t tmpfs -o size=512m,mode=2770,nosuid,nodev tmpfs /var/cad/jobs
+chown cad-svc:cad /var/cad/jobs
+exec setpriv --reuid=cad-svc --regid=cad --clear-groups -- /usr/local/bin/node /app/server.mjs

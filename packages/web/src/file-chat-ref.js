@@ -55,6 +55,8 @@ export function fileScope(view) {
 // A card's chat identity, or null when it has no stored source revision (an upload not finished, an older card without
 // fileRef). The same ref for the selection chip and for Add to chat.
 export function fileChatRef(block, range = fileScope(block?.fileRef?.view)) {
+  // A generated CAD source is retained for parametric edits, not attached wholesale to ordinary Chat.
+  if (block?.type === 'cad') return null;
   const ref = block?.fileRef, id = ref?.source?.id, rev = ref?.source?.rev;
   if (!ref || !FILE_SOURCE.test(`file:${id}@${rev}`)) return null;
   let scope = null;

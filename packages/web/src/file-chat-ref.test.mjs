@@ -60,3 +60,7 @@ test('coverage is what was extracted, never what renders', () => {
   assert.doesNotMatch(described.text, /readable when|can be read/, 'not described as readable');
   assert.match(describeFileCard(card({}, { context: 'extracted' })).text, /its extracted text can be read when the file is attached/);
 });
+
+test('generated CAD context never attaches its executable source project as an ordinary file',()=>{
+ assert.equal(fileChatRef({type:'cad',fileRef:{source:{id:'fs-123',rev:1}}}),null);
+});

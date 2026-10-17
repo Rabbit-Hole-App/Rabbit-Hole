@@ -1,0 +1,43 @@
+{
+  "revision": "24573128ceaab564f497d7c12f995c41784c9539",
+  "cadgen": "0.7.21",
+  "wheel_sha256": "94a408268c22f8e0a7ef7dd216f38005c54d9ad750bb2a2a63b690052486cd8a",
+  "files": [
+    {
+      "path": "upstream/SKILL.md",
+      "sha256": "4902c0acc4491dfd06180ec9efc931ee8390cd366620965f0a9d3f843454497a"
+    },
+    {
+      "path": "upstream/LICENSE",
+      "sha256": "c11168234f932c4a39bb640571079e73b178b4459682a5507e5944ad723058b3"
+    },
+    {
+      "path": "upstream/references/cad-brief.md",
+      "sha256": "8a2e55d6a67c1e0982f5fe2a59011b08915451534478f9488c7907e2081115ce"
+    },
+    {
+      "path": "upstream/references/step-generation.md",
+      "sha256": "7f45eb57e6b65b7680f02b46b985d93a2cbe17029010c7ff194d2ec0e700f002"
+    },
+    {
+      "path": "upstream/references/supported-exports.md",
+      "sha256": "adbe347cedc6451f7c6d2d408fd056ba5ac336191bdec7ce7507eaf339ffa2a8"
+    },
+    {
+      "path": "upstream/references/inspection-and-validation.md",
+      "sha256": "39538c65835a6f6dae00d9648fc1d2f938c1ebb93369e00433b2b0c412106e59"
+    },
+    {
+      "path": "upstream/references/repair-loop.md",
+      "sha256": "4a5f7a2e8767436d3b3a0ae9ce45e76b442bd04b6bce4e7968b104cd9b7dbd10"
+    },
+    {
+      "path": "upstream/references/build123d-modeling.md",
+      "sha256": "0e32f3a8c8da993f2c04a50e13ffe4476a74a684ed3d6ce4c54233b1bb3a1d8d"
+    },
+    {
+      "path": "upstream/references/snapshot-review.md",
+      "sha256": "d2692a8d9c0e789222a0a1508e8e23812d234e0349e5acf3c22f379e7bf6475c"
+    }
+  ]
+}
