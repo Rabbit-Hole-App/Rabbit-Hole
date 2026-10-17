@@ -2,6 +2,8 @@ import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutE
 import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
 import { Md } from './ask.jsx';
+import { supportsCardLayout, switchCardLayout, resizeCardLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
+import './card-layout.css';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
@@ -258,21 +260,54 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
   // Open (card-open.js): double-click, Enter, or the Open pill on the one selected card. A chat card never opens.
   const opener = useContext(CardOpen);
   const opens = !chat && opener ? opener.can(id) : null;
-  const edit = useContext(CanvasEdit), locked = edit.locked.has(id);
+  const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
+  const full = cardLayout?.mode === 'full';
+  const [minimum, setMinimum] = useState(320), [layoutDrag, setLayoutDrag] = useState(null);
+  const limits = widthLimits(minimum);
   // Whether the card was already selected when this double-click's first press landed: a selected PDF, video or
   // article body keeps its own pointer (data-pointer-body), so a double-click there is the reader's, not Open.
   const selectedAtPress = useRef(false), lastPress = useRef(-Infinity);
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
+  const [cornerDrag, setCornerDrag] = useState(null);
   const [refsHeight, setRefsHeight] = useState(0); // the canvas-reference chips under the content (CanvasRefChips)
   const card = useRef(null);
+  useEffect(() => { setSize({ w: saved?.w || null, h: saved?.h || null }); }, [saved?.w, saved?.h]);
+  const displayWidth = full ? fitWidth(layoutDrag?.w ?? cardLayout.fullWidth, limits) : cornerDrag?.w || cardLayout?.scrollableSize?.w || size.w || width;
+  useLayoutEffect(() => {
+    if (!full || !card.current) return;
+    let frame, dead = false;
+    const measure = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+      if (dead || !card.current) return;
+      const next = contentMinimum(card.current); setMinimum(old => old === next ? old : next);
+      if (!locked && !layoutDrag && fitWidth(cardLayout.fullWidth, widthLimits(next)) !== cardLayout.fullWidth) edit.resizeCard?.(id, fitWidth(cardLayout.fullWidth, widthLimits(next)), null, null, next, true);
+      onLayout?.();
+    }); };
+    const observer = new ResizeObserver(measure); observer.observe(card.current);
+    const content = new MutationObserver(measure); content.observe(card.current, { childList: true, subtree: true, characterData: true });
+    card.current.addEventListener('load', measure, true); document.fonts?.addEventListener('loadingdone', measure); measure();
+    return () => { dead = true; cancelAnimationFrame(frame); observer.disconnect(); content.disconnect(); card.current?.removeEventListener('load', measure, true); document.fonts?.removeEventListener('loadingdone', measure); };
+  }, [full, cardLayout?.fullWidth, locked, layoutDrag, id, onLayout]);
+  const resizeWidth = (event, side) => {
+    if (event.button !== 0 || locked || edit.selectionCount > 1) return;
+    const start = card.current.offsetWidth, originX = dx; let last, cancelled = false;
+    const apply = value => { const w = fitWidth(side === 'left' ? start * 2 - value : value, limits); last = { w, dx: side === 'left' ? originX + start - w : originX }; setLayoutDrag(last); };
+    apply.cancel = () => { cancelled = true; setLayoutDrag(null); };
+    apply.done = () => { if (last && !cancelled) edit.resizeCard?.(id, last.w, null, last.dx, minimum); setLayoutDrag(null); };
+    startDrag(event, { x: start, y: 0 }, apply, zoom);
+  };
+  const resizeWidthKey = (event, side) => {
+    if (!['ArrowLeft','ArrowRight'].includes(event.key) || locked || edit.selectionCount > 1) return;
+    event.preventDefault(); event.stopPropagation(); const start = card.current.offsetWidth, w = fitWidth(start + (event.key === 'ArrowRight' ? 24 : -24), limits);
+    if (w !== start) edit.resizeCard?.(id, w, null, side === 'left' ? dx + start - w : dx, minimum);
+  };
   useEffect(() => { if (nodeRef) nodeRef.current = card.current; });
   useEffect(() => {
     const observer = new ResizeObserver(onLayout);
@@ -291,19 +326,19 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     startDrag(event, { x: dx, y: dy }, apply, zoom, onSnap?.(id));
   };
   const resize = event => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || locked || full) return;
     const element = card.current;
     let last = null;
-    const apply = (w, h) => { last = { w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) }; setSize(last); };
-    apply.done = () => { if (last) onSize?.(id, last.w, last.h); };
+    const apply = (w, h) => { last = { w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) }; setSize(last); setCornerDrag(last); };
+    apply.done = () => { if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h); else onSize?.(id, last.w, last.h); } setCornerDrag(null); };
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight }, apply, zoom);
   };
-  return (
+  const node = (
     // A selected card rises above a group's box (painted after the column, over the cards): the selection actions in its row above
     // may lie over the box of the group just above it, and must stay pressable (z-[5]: still under text, notes and the chrome).
     // A card is reachable with Tab (Space selects it, Enter opens it: the canvas's key handler); its selection is
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
-    <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
+    <div ref={card} data-block data-block-id={id} data-card-layout={full ? 'full' : 'scrollable'} {...(chat ? { 'data-chat-block': true } : {})}
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
@@ -317,7 +352,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined, maxHeight: size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
+      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, height: full ? undefined : cornerDrag?.h || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), maxHeight: full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
       {selected && opens && opener.single === id && (
@@ -342,10 +377,12 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         data-node-tool
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, id, side)} />)}
-      {!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
+      {full && !locked && edit.selectionCount <= 1 && ['left','right'].map(side => <button key={side} type="button" role="slider" aria-orientation="horizontal" aria-label={`Resize card width from ${side}`} aria-valuemin={limits.min} aria-valuemax={limits.max} aria-valuenow={Math.round(displayWidth)} data-node-tool className={`absolute top-6 bottom-2 z-20 w-2 cursor-ew-resize focus-visible:bg-accent/30 ${side === 'left' ? '-left-1' : '-right-1'}`} onPointerDown={event => resizeWidth(event, side)} onKeyDown={event => resizeWidthKey(event, side)} />)}
+      {!full && !locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
     </div>
   );
+  return cardLayout?.slot ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: cardLayout.slot.w, height: cardLayout.slot.h, marginTop: space || undefined }}>{node}</div> : node;
 }
 
 // A reserved slot (canvas-slots.js): the coming card's frame - its size, and CanvasNode's border, radius,
@@ -812,7 +849,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
-      extraHeight={sourcesHeight + practiceHeight + controlsHeight} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
+      extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
         <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
@@ -2532,7 +2569,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const next = {};
     for (const element of column.current?.querySelectorAll('[data-block-id]') || []) {
       const owner = exchangesRef.current.find(item => item.id === element.dataset.blockId) || blocksRef.current.find(item => item.id === element.dataset.blockId);
-      if (owner) next[owner.id] = { x: element.offsetLeft + owner.dx, y: element.offsetTop + owner.dy, w: element.offsetWidth, h: element.offsetHeight };
+      if (owner) { const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null; next[owner.id] = { x: element.offsetLeft + (slot?.offsetLeft || 0) + owner.dx, y: element.offsetTop + (slot?.offsetTop || 0) + owner.dy, w: element.offsetWidth, h: element.offsetHeight }; }
     }
     return next;
   };
@@ -2918,7 +2955,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     };
     const wheel = event => {
       // Scrollable card bodies keep native wheel scrolling.
-      if (!(event.ctrlKey || event.metaKey) && event.target.closest?.('[data-scroll]')) return;
+      if (!(event.ctrlKey || event.metaKey) && event.target.closest?.('[data-scroll]') && !event.target.closest?.('[data-card-layout="full"]')) return;
       // A graph card zooms its own graph; the wheel never also moves the canvas (repo-canvas-graph.md Clarification 5).
       if (event.target.closest?.('[data-graph-card]')) return;
       // The document's own menus scroll themselves, and a wide code block or table its own sideways overflow; reading down
@@ -4279,6 +4316,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const item = itemsRef.current.find(entry => entry.id === id);
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
+  const resizeCard = (id, w, h, x, minimum, quiet = false) => {
+    if (readOnly || lockedRef.current.has(id)) return;
+    if (!quiet) snapshot();
+    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum) : block));
+  };
+  const setCardLayout = (id, mode) => {
+    if (readOnly || lockedRef.current.has(id) || selection.length !== 1) return;
+    const block = blocksRef.current.find(value => value.id === id); if (!supportsCardLayout(block) || (block.cardLayout?.mode || 'scrollable') === mode) return;
+    const box = measureNow()[id]; if (!box) return;
+    snapshot(); setBlocks(previous => previous.map(value => value.id === id ? switchCardLayout(value, mode, box) : value));
+  };
   const changeBlock = updated => {
     snapshot();
     setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
@@ -4850,7 +4898,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // shape or a note and pressing Delete silently did nothing. Any pointer press
     // outside the focused field hands focus back to the canvas. Pressing inside
     // the field it belongs to is left alone, so typing still works.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, resizeCard, selectionCount: selection.length }}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
@@ -5233,6 +5281,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {!readOnly && onLinkCanvas && (block ? block.type !== 'canvas-ref' : !menuAt.id && !menuAt.group) && <MenuRow icon={Link2} data-menu-link-canvas onClick={act(() => onLinkCanvas(block ? { blockId: block.id } : { point: { x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z } }))}>Link to canvas…</MenuRow>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
+              {block && (supportsCardLayout(block) ? <details data-card-layout-menu className="rounded text-sm">
+                <summary role="menuitem" aria-haspopup="menu" className="cursor-pointer rounded px-2 py-1.5 hover:bg-hover">Layout</summary>
+                <div role="menu" aria-label="Card layout" className="pl-3">{[['scrollable','Scrollable'],['full','Full content']].map(([mode,label]) => <MenuRow key={mode} role="menuitemradio" aria-checked={(block.cardLayout?.mode || 'scrollable') === mode} disabled={lockedIds.has(block.id) || selection.length !== 1} onClick={act(() => setCardLayout(block.id, mode))}><span aria-hidden="true" className="inline-block w-4">{(block.cardLayout?.mode || 'scrollable') === mode ? '✓' : ''}</span>{label}</MenuRow>)}</div>
+              </details> : <MenuRow disabled title="Full content is not supported for this interactive or source viewer.">Layout unavailable for this card</MenuRow>)}
               {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline(performance.now(), false, 'edit'))}>Quick Edit</MenuRow>}
               {described && <MenuRow icon={MessageSquarePlus} data-menu-add-to-chat hint="Ctrl L" onClick={act(() => addToChat())}>Add to chat</MenuRow>}
               {typed}
