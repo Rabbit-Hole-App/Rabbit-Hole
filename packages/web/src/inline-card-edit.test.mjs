@@ -91,3 +91,21 @@ test('a clipped target includes its ellipsis inside the total character budget',
  const context=buildContext(board,freezeTarget(board,['a']),{cache:createContextCache(),boardKey:'b',limits:{objects:24,targetChars:4000,chars:400,total:100,connections:40,relevant:0.35,hops:3,flowGap:48}});
  assert.ok(context.size.chars<=100); assert.equal(context.target.objects[0].truncated,true);
 });
+
+test('prose source links and footnotes cannot be rewritten or introduced without grounding', () => {
+ for (const body of ['A [claim](https://example.com/paper).','Claim [source][paper].','Claim[^1].','[paper]: https://example.com/paper']) {
+  assert.equal(cardEditSpec({type:'explanation',body}).ok,false,body);
+  assert.equal(validateCardContent({type:'explanation',body:'Plain'},{body}).ok,false,body);
+ }
+ assert.equal(cardEditSpec({type:'explanation',body:'See https://example.com as plain text.'}).ok,true,'ordinary URL is not a structured reference');
+});
+test('Markdown examples in snippet code, fenced code and inline code remain editable', () => {
+ const code='[label](https://example.com)\n[^1]';
+ assert.equal(cardEditSpec({type:'snippet',code}).ok,true);
+ assert.equal(validateCardContent({type:'snippet',code:'old'},{code}).ok,true);
+ for (const body of ['```md\n[label](https://example.com)\n```','~~~md\n[^1]\n~~~','Use `[label](url)` syntax.']) {
+  assert.equal(cardEditSpec({type:'explanation',body}).ok,true,body);
+  assert.equal(validateCardContent({type:'explanation',body:'Plain'},{body}).ok,true,body);
+ }
+ assert.equal(cardEditSpec({type:'explanation',body:'```md\n[label](url)\n```\nActual [claim](https://example.com)'}).ok,false);
+});

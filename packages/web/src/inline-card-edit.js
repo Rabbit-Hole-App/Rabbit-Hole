@@ -9,6 +9,28 @@ const structureSafe = content => Object.entries(content).every(([key, value]) =>
   if (key === 'rows') return Array.isArray(value) && Array.isArray(content.columns) && value.every(row => strings(row) && row.length === content.columns.length);
   return typeof value === 'string';
 });
+// Existing Markdown links/footnotes have no claim-level association schema. Code examples are data,
+// not citations: ignore fenced and inline code, and never inspect the snippet's code field.
+export function hasCardCitations(content) {
+  const prose = Object.entries(content || {}).filter(([key]) => key !== 'code').flatMap(([key, value]) => {
+    if (key === 'more') return (Array.isArray(value) ? value : []).flatMap(section => [section?.label, section?.text]);
+    if (key === 'rows') return (Array.isArray(value) ? value : []).flat();
+    return Array.isArray(value) ? value : [value];
+  }).filter(value => typeof value === 'string');
+  return prose.some(text => {
+    let fence = null;
+    const visible = text.split('\n').filter(line => {
+      const marker = line.trimStart().match(/^(`{3,}|~{3,})/);
+      if (fence) {
+        if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && !line.trim().slice(marker[1].length).trim()) fence = null;
+        return false;
+      }
+      if (marker) { fence = marker[1]; return false; }
+      return true;
+    }).join('\n').replace(/(`+)[\s\S]*?\1(?!`)/g, '');
+    return /(?<!!)\[[^\]\n]*\]\s*(?:\([^\n]*\)|\[[^\]\n]*\])|\[\^[^\]\n]+\]|^\s{0,3}\[[^\]\n]+\]:\s*\S/m.test(visible.replace(/\x5c\[/g, ''));
+  });
+}
 const fail = reason => ({ ok: false, reason, error: reason });
 export function cardEditSpec(block) {
   if (!block || typeof block.type !== 'string' || !Object.hasOwn(FIELDS, block.type)) return fail('This card has no safe structured editing path. Explain is available.');
@@ -19,6 +41,7 @@ export function cardEditSpec(block) {
   if ((block.sources?.length || block.citations?.length)) return fail('This card has citations whose statement associations cannot be preserved safely. Explain is available.');
   const fields = FIELDS[block.type];
   const content = Object.fromEntries(fields.filter(key => Object.hasOwn(block, key)).map(key => [key, block[key]]));
+  if (hasCardCitations(content)) return fail('This card contains linked references or footnote citations whose statement associations cannot be preserved safely. Explain is available.');
   if (!Object.keys(content).length || !structureSafe(content)) return fail('This card has content structure that cannot be rewritten safely. Explain is available.');
   return { ok: true, type: block.type, fields: Object.keys(content), content };
 }
@@ -27,6 +50,7 @@ export function validateCardContent(block, content) {
   const spec = cardEditSpec(block);
   if (!spec.ok) return spec;
   if (!plain(content) || Object.keys(content).length !== spec.fields.length || Object.keys(content).some(key => !spec.fields.includes(key))) return fail('The edit must preserve the card content fields and cannot change its identity, sources or layout.');
+  if (hasCardCitations(content)) return fail('The revision introduces linked references or footnote citations that cannot be grounded safely.');
   if (JSON.stringify(content).length > CARD_EDIT_MAX) return fail(`The revised card exceeds the ${CARD_EDIT_MAX}-character structured edit budget. Shorten the requested revision.`);
   for (const [key, value] of Object.entries(content)) {
     if (key === 'more') {
