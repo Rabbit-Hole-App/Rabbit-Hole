@@ -11,7 +11,7 @@ import { saveCadSource, putCadOutput, publishCadArtifacts, validateCadManifest, 
 import { cadModelRequest, runCadModel, cadReferenceImages } from './cad-model.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { notifyCadBudget } from './cad-budget-alert.js';
-import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus, pauseCadProductionTransfer, reportCadProductionTransferPause } from './cad-production-budget.js';
+import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus, pauseCadProductionTransfer, reportCadProductionTransferPause, recordCadInfrastructureExtras, reserveCadLifetimeBytes } from './cad-production-budget.js';
 
 const PREFIX = '/api/learn/cad/jobs';
 const LEASE = 90000;
@@ -85,15 +85,15 @@ export class CadJobs {
   async notifyModelBudget(){
     const status=await this.locked(()=>cadProductionBudgetStatus(this.state.storage,this.env));
     if(status.transferPaused)return;
-    const month=status.lastRefusal?.month;
-    if(!month||this.budgetAlerts.has(month))return;
-    this.budgetAlerts.add(month);
+    const month=status.lastRefusal?status.month:null,kind=status.lastRefusal?.reason==='infra_limit'?'infrastructure':'model',alertId=`${kind}:${month}`;
+    if(!month||this.budgetAlerts.has(alertId))return;
+    this.budgetAlerts.add(alertId);
     try {
-      const key=`production:model-alert:${month}`;
+      const key=`production:${kind}-alert:${month}`;
       if(await this.state.storage.get(key))return;
       // No external request runs inside the global reservation mutex.
-      if(await notifyCadBudget(this.env,{month,kind:'model'}))await this.state.storage.put(key,true);
-    } finally {this.budgetAlerts.delete(month);}
+      if(await notifyCadBudget(this.env,{month,kind}))await this.state.storage.put(key,true);
+    } finally {this.budgetAlerts.delete(alertId);}
   }
   async fetch(req){
     try {
@@ -106,6 +106,10 @@ export class CadJobs {
           if(error.status===429)try{await this.notifyModelBudget();}catch{/* Notification cannot change admission or expose private errors. */}
           throw error;
         }
+      }
+      if(path==='/production-infrastructure-adjustment'){
+        if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
+        const input=await req.json();return cadJson(await this.locked(()=>recordCadInfrastructureExtras(this.state.storage,this.env,input)));
       }
       if(path==='/production-transfer-pause'){
         if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
@@ -276,6 +280,14 @@ export class CadJobs {
       }
       const design=validateDesign(result);
       if(design.question){job.question=design.question;job.state='waiting_for_answer';job.stage=job.state;await this.save(job);return;}
+      if(cadProductionEnforced(this.env)){
+        const current=await this.locked(async()=>{
+          const saved=await this.state.storage.get(jobKey(job.id));
+          if(saved.state==='cancelled'||saved.attempt!==job.attempt)return null;
+          reserveCadLifetimeBytes(saved,`source:${job.revisionId}`,new TextEncoder().encode(design.source).length);await this.save(saved);return saved;
+        });
+        if(!current)return;job.retainedStorage=current.retainedStorage;
+      }
       job.brief=design.brief;job.checks=design.checks;job.sourceText=design.source;job.source=await saveCadSource(this.env,job,design.source);
       const afterSource=await this.state.storage.get(jobKey(job.id));if(afterSource.state==='cancelled'||afterSource.attempt!==job.attempt)return;
       job.state='building';job.stage='building';await this.save(job);return;
@@ -306,6 +318,12 @@ export class CadJobs {
     if(this.publications.has(snapshot.id))return;
     this.publications.add(snapshot.id);
     try{
+      if(cadProductionEnforced(this.env)){
+        await reserveCadProductionJob(this.env,snapshot);
+        for(const output of snapshot.pendingResult?.outputs||[]){
+          if(snapshot.retainedStorage?.objects?.[`output:${snapshot.attempt}:${output.name}`]!==output.bytes*2)throw cadError('CAD artifact storage was not reserved before publication.',409);
+        }
+      }
       // R2 stream copies and D1 writes must never hold the 30-second DO gate.
       const body=snapshot.pendingResult,manifest=await publishCadArtifacts(this.env,snapshot,body);
       return await this.locked(async()=>{
@@ -344,6 +362,7 @@ export class CadJobs {
       if(job.completedAttempt===attempt||CAD_TERMINAL.has(job.state)&&job.exportState!=='preparing')throw cadError('Stale CAD attempt',409);
       const length=Number(req.headers.get('content-length'));
       if(!Number.isSafeInteger(length)||length<1||length>job.limits.artifactBytes)throw cadError('Artifact exceeds its size limit',413);
+      if(cadProductionEnforced(this.env))await reserveCadProductionJob(this.env,job);
       // Reserve output names/bytes before streaming so parallel callbacks cannot
       // exceed aggregate disk/storage limits with individually valid artifacts.
       await this.locked(async()=>{
@@ -352,6 +371,7 @@ export class CadJobs {
         const uploads=current.uploads?.attempt===attempt?current.uploads:{attempt,files:{}};
         if(!uploads.files[name]&&(Object.keys(uploads.files).length>=12||Object.values(uploads.files).reduce((n,x)=>n+x,0)+length>job.limits.totalBytes))throw cadError('CAD staging limit reached',413);
         if(uploads.files[name]&&uploads.files[name]!==length)throw cadError('Artifact length changed',409);
+        if(cadProductionEnforced(this.env))reserveCadLifetimeBytes(current,`output:${attempt}:${name}`,length*2);
         uploads.files[name]=length;current.uploads=uploads;await this.save(current);
       });
       return cadJson(await putCadOutput(this.env,job,name,req),201);

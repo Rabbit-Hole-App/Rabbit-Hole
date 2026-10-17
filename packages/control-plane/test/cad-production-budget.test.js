@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CadJobs} from '../src/cad-jobs.js';
 import {cadProductionConfig,cadProductionEnforced,CAD_PRODUCTION_BUDGET_NAME,CAD_PRODUCTION_BUDGET_KEY,reserveCadProductionModel,reserveCadProductionJob,cadProductionBudgetStatus} from '../src/cad-production-budget.js';
-const config={CAD_PRODUCTION_REQUIRED:'true',CAD_PRODUCTION_ENABLED:'true',CAD_PRODUCTION_MONTHLY_MODEL_USD:'10'};
+const config={CAD_PRODUCTION_REQUIRED:'true',CAD_PRODUCTION_ENABLED:'true',CAD_PRODUCTION_MONTHLY_MODEL_USD:'10',CAD_PRODUCTION_FIXED_INFRA_USD:'10',CAD_PRODUCTION_STORAGE_USD_PER_GB_MONTH:'1',CAD_PRODUCTION_SETUP_INFRA_USD:'0',CAD_PRODUCTION_SETUP_INFRA_MONTH:'2027-01'};
 const jan=Date.parse('2027-01-15T12:00:00Z'),boundary=Date.parse('2027-02-01T00:00:00Z');
 function state(id){const data=new Map();let chain=Promise.resolve();return{id,data,storage:{get:async key=>structuredClone(data.get(key)),put:async(key,value)=>data.set(key,structuredClone(value)),setAlarm:async()=>{},getAlarm:async()=>null},blockConcurrencyWhile(fn){const run=chain.then(fn);chain=run.catch(()=>{});return run;}};}
-const input=(id='job',now=jan,extra={})=>({jobId:id,boardId:'board-'+id,ownerOrg:'org-'+id,ownerEmail:id+'@test',limitUsd:0.2,deadline:now+600000,...extra});
+const input=(id='job',now=jan,extra={})=>({jobId:id,boardId:'board-'+id,ownerOrg:'org-'+id,ownerEmail:id+'@test',limitUsd:0.2,artifactBytes:1000000,deadline:now+600000,...extra});
 function fixture(){const saved=state(CAD_PRODUCTION_BUDGET_NAME),env={...config};let actor;env.CAD_JOBS={idFromName:name=>name,get:id=>{assert.equal(id,CAD_PRODUCTION_BUDGET_NAME);return{fetch:(url,options)=>actor.fetch(new Request(url,options))};}};actor=new CadJobs(saved,env);return{saved,env,restart:()=>{actor=new CadJobs(saved,env);},request:value=>actor.fetch(new Request('https://cad/production-model-reservation',{method:'POST',body:JSON.stringify(value)})),status:()=>actor.fetch(new Request('https://cad/production-budget-status'))};}
 test('concurrent users and boards reserve no more than fifty .20 whole jobs globally',async()=>{
  const f=fixture(),now=Date.now(),responses=await Promise.all(Array.from({length:55},(_,i)=>f.request(input('job'+i,now))));
@@ -111,7 +111,7 @@ test('transfer pause expires automatically in the next UTC month and preserves r
 
 test('a call admitted before midnight reserves the next month through its provider timeout window',async()=>{
  let captured;const env={...config,CAD_JOBS:{idFromName:name=>name,get:()=>({fetch:async(url,options)=>{captured=JSON.parse(options.body);return Response.json({reserved:true});}})}};
- const job={id:'near-midnight',boardId:'board',owner:{org:'org',email:'owner@test'},limits:{usd:0.2},deadline:boundary-30000};
+ const job={id:'near-midnight',boardId:'board',owner:{org:'org',email:'owner@test'},limits:{usd:0.2,totalBytes:1000000},deadline:boundary-30000};
  await reserveCadProductionJob(env,job);assert.equal(captured.deadline,job.deadline+120000);
  const s=state('test'),result=await reserveCadProductionModel(s.storage,config,captured,{now:boundary-60000});
  assert.deepEqual(result.months,['2027-01','2027-02']);assert.deepEqual(result.totals,{'2027-01':200000,'2027-02':200000});
@@ -125,4 +125,83 @@ test('deadline expiry during external thumbnail I/O prevents provider admission 
  const latest=await saved.storage.get('job:deadline-job');latest.deadline=Date.now()-1;await saved.storage.put('job:deadline-job',latest);
  release();const result=await advance;assert.equal(result.status,409);assert.match(result.message,/time limit/);assert.equal(calls,0);
  const current=await saved.storage.get('job:deadline-job');assert.equal(current.calls,1);assert.equal(current.reservedUsd,0.1);assert.equal(current.modelInFlight,undefined);
+});
+
+test('infrastructure requires a verified fixed envelope, storage rate and explicit dated setup cost',()=>{
+ for(const key of ['CAD_PRODUCTION_FIXED_INFRA_USD','CAD_PRODUCTION_STORAGE_USD_PER_GB_MONTH','CAD_PRODUCTION_SETUP_INFRA_USD','CAD_PRODUCTION_SETUP_INFRA_MONTH'])assert.throws(()=>cadProductionConfig({...config,[key]:undefined}));
+ assert.throws(()=>cadProductionConfig({...config,CAD_PRODUCTION_FIXED_INFRA_USD:'35.01'}));
+});
+
+test('retained capacity is global across boards, survives restart/month changes, and refuses atomically',async()=>{
+ const s=state('test'),env={...config,CAD_PRODUCTION_FIXED_INFRA_USD:'34',CAD_PRODUCTION_STORAGE_USD_PER_GB_MONTH:'1'};
+ await reserveCadProductionModel(s.storage,env,input('board-a',jan,{artifactBytes:600000000}),{now:jan});
+ await assert.rejects(reserveCadProductionModel(s.storage,env,input('board-b',jan,{artifactBytes:500000000}),{now:jan}),error=>error.status===429);
+ let ledger=await s.storage.get(CAD_PRODUCTION_BUDGET_KEY);assert.equal(ledger.infrastructure.retainedBytes,600000000);assert.equal(ledger.months['2027-01'].reservedMicros,200000);assert.equal(ledger.pause.reason,'infra_limit');
+ await reserveCadProductionModel(s.storage,env,input('board-c',boundary,{artifactBytes:400000000}),{now:boundary});
+ ledger=await s.storage.get(CAD_PRODUCTION_BUDGET_KEY);assert.equal(ledger.infrastructure.retainedBytes,1000000000);
+ assert.equal((await cadProductionBudgetStatus(s.storage,env,{now:boundary})).infrastructure.projectedMicros,35000000);
+ await assert.rejects(reserveCadProductionModel(s.storage,env,input('board-d',boundary,{artifactBytes:1}),{now:boundary}),error=>error.status===429);
+ await reserveCadProductionModel(s.storage,env,input('board-c',boundary,{artifactBytes:400000000}),{now:boundary});
+ assert.equal((await s.storage.get(CAD_PRODUCTION_BUDGET_KEY)).infrastructure.retainedBytes,1000000000);
+});
+
+test('next-month recorded costs and current setup costs are checked before any cross-month reservation',async()=>{
+ const {recordCadInfrastructureExtras}=await import('../src/cad-production-budget.js'),s=state('test');
+ await recordCadInfrastructureExtras(s.storage,config,{month:'2027-02',micros:25000000});
+ await assert.rejects(reserveCadProductionModel(s.storage,config,input('cross',boundary-60000),{now:boundary-60000}),error=>error.status===429);
+ let ledger=await s.storage.get(CAD_PRODUCTION_BUDGET_KEY);assert.deepEqual(ledger.months,{});assert.equal(ledger.infrastructure.retainedBytes,0);
+ await assert.rejects(recordCadInfrastructureExtras(s.storage,config,{month:'2027-02',micros:1}),error=>error.status===409);
+ const fresh=state('test');await assert.rejects(reserveCadProductionModel(fresh.storage,{...config,CAD_PRODUCTION_SETUP_INFRA_USD:'25'},input(),{now:jan}),error=>error.status===429);
+ ledger=await fresh.storage.get(CAD_PRODUCTION_BUDGET_KEY);assert.deepEqual(ledger.months,{});assert.equal(ledger.infrastructure,undefined);
+});
+
+test('lifetime retained cap counts staging and publication across Retry/export and does not refund failed uploads',async()=>{
+ const {reserveCadLifetimeBytes}=await import('../src/cad-production-budget.js'),job={limits:{totalBytes:100}};
+ reserveCadLifetimeBytes(job,'source:revision1',10);reserveCadLifetimeBytes(job,'output:1:part.step',40);
+ reserveCadLifetimeBytes(job,'output:1:part.step',40);assert.equal(job.retainedStorage.bytes,50);
+ const restarted=structuredClone(job);reserveCadLifetimeBytes(restarted,'output:2:export.stl',40);assert.equal(restarted.retainedStorage.bytes,90);
+ assert.throws(()=>reserveCadLifetimeBytes(restarted,'output:3:retry.step',12),error=>error.status===413);
+ assert.throws(()=>reserveCadLifetimeBytes(restarted,'output:2:export.stl',38),error=>error.status===409);
+ assert.equal(restarted.retainedStorage.bytes,90);assert.equal(restarted.retainedStorage.objects['output:3:retry.step'],undefined);
+});
+
+test('infrastructure denial sends the distinct owner notification without admitting the job',async()=>{
+ const f=fixture(),now=Date.now(),month=new Date(now).toISOString().slice(0,7);f.env.CAD_PRODUCTION_FIXED_INFRA_USD='35';let payload;
+ f.env.CAD_BUDGET_ALERT_TOKEN='fixture-only-token-with-at-least-32-characters';f.env.CONTROL_PLANE={fetch:async req=>{payload=await req.json();return Response.json({ok:true});}};
+ assert.equal((await f.request(input('over',now))).status,429);assert.deepEqual(payload,{month,kind:'infrastructure'});
+ assert.equal(await f.saved.storage.get(`production:infrastructure-alert:${month}`),true);
+ assert.equal((await f.saved.storage.get(CAD_PRODUCTION_BUDGET_KEY)).months[month],undefined);
+});
+
+test('production callback retains failed-write reservations and enforces lifetime bytes on later export attempts',async()=>{
+ const saved=state('board');let storageAttempts=0,reservations=0;
+ const env={...config,SMALL_ENV:'test',CAD_JOBS:{idFromName:name=>name,get:()=>({fetch:async()=>{reservations++;return Response.json({reserved:true});}})},LEARN_MEDIA:{head:async()=>{storageAttempts++;throw Error('fixture interrupted write');}}};
+ const actor=new CadJobs(saved,env),job={id:'job1',boardId:'board',owner:{org:'org',email:'owner@test'},attempt:1,state:'building',stage:'building',deadline:Date.now()+30000,limits:{usd:.2,totalBytes:100,artifactBytes:100},source:{id:'source'},retainedStorage:{bytes:10,objects:{'source:revision1':10}}};
+ await saved.storage.put('job:job1',job);
+ const callback=(attempt,length)=>actor.callback(new Request(`https://cad/callback?id=job1&attempt=${attempt}&action=outputs&name=part.step`,{method:'PUT',headers:{'content-length':String(length),'x-content-sha256':'a'.repeat(64)},body:'x'.repeat(length)}));
+ await assert.rejects(callback(1,20),/fixture interrupted write/);await assert.rejects(callback(1,20),/fixture interrupted write/);
+ let current=await saved.storage.get('job:job1');assert.equal(current.retainedStorage.bytes,50);assert.equal(storageAttempts,2);
+ current.attempt=2;current.operation='export';current.exportState='preparing';await saved.storage.put('job:job1',current);
+ await assert.rejects(callback(2,30),error=>error.status===413);assert.equal(storageAttempts,2);assert.equal(reservations,3);
+ current=await saved.storage.get('job:job1');assert.equal(current.retainedStorage.bytes,50);assert.equal(current.retainedStorage.objects['output:2:part.step'],undefined);
+});
+
+test('previous artifacts without retained accounting fail closed before any new global admission',async()=>{
+ let requests=0;const env={...config,CAD_JOBS:{idFromName:name=>name,get:()=>({fetch:async()=>{requests++;return Response.json({reserved:true});}})}};
+ await assert.rejects(reserveCadProductionJob(env,{source:{id:'legacy'}}),error=>error.status===409);assert.equal(requests,0);
+});
+
+test('retained bytes include recorded infrastructure expenses even beyond the next job month',async()=>{
+ const {recordCadInfrastructureExtras}=await import('../src/cad-production-budget.js'),s=state('test');
+ await recordCadInfrastructureExtras(s.storage,config,{month:'2027-09',micros:25000000});
+ await assert.rejects(reserveCadProductionModel(s.storage,config,input('old-storage',jan),{now:jan}),error=>error.status===429);
+ const ledger=await s.storage.get(CAD_PRODUCTION_BUDGET_KEY);assert.equal(ledger.pause.month,'2027-09');assert.equal(ledger.infrastructure.retainedBytes,0);
+});
+
+test('future-month infrastructure refusals alert the current operational month while retaining the blocked month',async()=>{
+ const f=fixture(),now=Date.now(),month=new Date(now).toISOString().slice(0,7),future='2099-12';let payload;
+ f.env.CAD_PRODUCTION_SETUP_INFRA_MONTH=future;f.env.CAD_PRODUCTION_SETUP_INFRA_USD='25';
+ f.env.CAD_BUDGET_ALERT_TOKEN='fixture-only-token-with-at-least-32-characters';f.env.CONTROL_PLANE={fetch:async req=>{payload=await req.json();return Response.json({ok:true});}};
+ assert.equal((await f.request(input('future-cost',now))).status,429);assert.deepEqual(payload,{month,kind:'infrastructure'});
+ assert.equal((await f.saved.storage.get(CAD_PRODUCTION_BUDGET_KEY)).pause.month,future);
 });
