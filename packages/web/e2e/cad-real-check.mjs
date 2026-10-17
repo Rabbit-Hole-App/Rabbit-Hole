@@ -14,23 +14,28 @@ for(const value of [app,boardId,session,env.CANDIDATE_SHA])assert.ok(value,'Requ
 const out=resolve(env.OUT||'e2e/shots/cad-real');mkdirSync(out,{recursive:true});
 const receipt=resolve(out,'results.json');assert.ok(!existsSync(receipt),'Existing receipt: stop rather than rerun paid scenarios');
 const resumeId=env.CAD_RESUME_JOB_ID,expectedResumeId='cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac';
+const resumeReady=env.CAD_RESUME_MODE==='resume-ready-first';
+if(resumeReady)assert.equal(resumeId,expectedResumeId,'Ready resume requires the exact existing job');
 let priorReceipt;
 if(resumeId){
- assert.equal(env.CAD_RESUME_MODE,'retry-saved-source-once');assert.equal(resumeId,expectedResumeId);
- assert.equal(env.CAD_RESUME_EXECUTOR_ATTEMPTS,'3','Confirm capacity for three remaining executor attempts');
+ assert.ok(['retry-saved-source-once','resume-ready-first'].includes(env.CAD_RESUME_MODE));assert.equal(resumeId,expectedResumeId);
+ assert.equal(env.CAD_RESUME_EXECUTOR_ATTEMPTS,resumeReady?'2':'3','Confirm remaining executor capacity');
  assert.equal(env.CAD_REPAIRS_DISABLED_VERIFIED,'true','Verify automatic repairs disabled for existing and new jobs');
  assert.ok(env.CAD_PRIOR_RECEIPT,'Prior failed receipt is required');assert.notEqual(resolve(env.CAD_PRIOR_RECEIPT),receipt);
  priorReceipt=JSON.parse(readFileSync(env.CAD_PRIOR_RECEIPT,'utf8'));
  assert.equal(priorReceipt.app,app);assert.equal(priorReceipt.boardId,boardId);assert.equal(priorReceipt.base,base);
- assert.equal(priorReceipt.jobsCreated,1);assert.equal(priorReceipt.results.length,1);
+ assert.equal(priorReceipt.jobsCreated,resumeReady?0:1);assert.equal(priorReceipt.results.length,1);
  assert.equal(priorReceipt.results[0].name,'simple dimensioned part');assert.equal(priorReceipt.results[0].status,'failed');
- assert.ok(priorReceipt.results[0].error.includes(expectedResumeId));assert.equal(priorReceipt.usageAfter.usedMicros,14210);
+ if(resumeReady){assert.equal(priorReceipt.results[0].error,'step download 404');assert.equal(priorReceipt.resume.jobId,resumeId);assert.equal(priorReceipt.resume.retryIssued,true);assert.equal(priorReceipt.cumulativeJobsCreated,1);}
+ else assert.ok(priorReceipt.results[0].error.includes(expectedResumeId));
+ assert.equal(priorReceipt.usageAfter.usedMicros,resumeReady?22130:14210);
  assert.equal(priorReceipt.usageAfter.reservedMicros,0);assert.equal(priorReceipt.usageAfter.unknownAttempts,0);
- assert.equal(env.CAD_PRIOR_PROVIDER_REQUESTS,'1','Confirm reconciled first-run provider request count');
+ assert.equal(env.CAD_PRIOR_PROVIDER_REQUESTS,resumeReady?'2':'1','Confirm reconciled provider request count');
 }
 const results=[],started=Date.now(),scope=`?app=${encodeURIComponent(app)}&board=${encodeURIComponent(board)}`;
 const report={sha:env.CANDIDATE_SHA,base,app,boardId,startedAt:new Date().toISOString(),expectedProviderRequests:7,maximumProviderRequests:11,maximumUsd:1.10,providerRequestCount:null,actualCostUsd:null,results,limits:['No automatic scenario retry or new jobs beyond four.','Actual provider count/cost require per-operation ledger reconciliation; monthly usage is not attributed cost.','Hole count, centers, pocket depth and feature preservation require additional trusted inspection; current validator cannot establish them.','This API harness does not substitute for deployed UI placement/preview/reload browser evidence.']};
 if(priorReceipt)report.resume={jobId:resumeId,priorSha:priorReceipt.sha,priorReceiptSha256:createHash('sha256').update(readFileSync(env.CAD_PRIOR_RECEIPT)).digest('hex'),startingProviderRequests:1,startingActualCostUsd:0.01421,expectedAdditionalProviderRequests:6,maximumAdditionalProviderRequests:10,remainingProviderCeilingUsd:1.08579,remainingExecutorAttempts:3,automaticRepairsDisabled:true,countsScope:'Current resume pass only; prior failed run is retained separately',globalGuard:'Existing persisted eleven-request/$1.10 guard is not reset',retryIssued:false};
+if(resumeReady)Object.assign(report.resume,{mode:'resume-ready-first',startingProviderRequests:2,startingActualCostUsd:0.02213,expectedAdditionalProviderRequests:5,maximumAdditionalProviderRequests:9,remainingProviderCeilingUsd:1.07787,remainingExecutorAttempts:2});
 const save=()=>writeFileSync(receipt,JSON.stringify(report,null,2));save();
 const api=async(path,method='GET',body)=>{
  const response=await fetch(base+path,{method,headers:{cookie:`small_session=${session}`,origin:base,'content-type':'application/json'},redirect:'error',signal:AbortSignal.timeout(30000),...(body===undefined?{}:{body:JSON.stringify(body)})});
@@ -50,7 +55,9 @@ async function inspect(result,expected){
  const artifacts=[];
  for(const kind of ['step','glb','thumbnail']){
   const artifact=m.artifacts.find(a=>a.kind===kind);assert.ok(artifact,`${kind} retained`);
-  const url=new URL(artifact.url,base);assert.equal(url.origin,base);assert.match(url.pathname,/^\/api\/learn\/files\//);for(const [key,value] of new URLSearchParams(scope.slice(1)))url.searchParams.set(key,value);
+  const url=new URL(artifact.url,base);assert.equal(url.origin,base);assert.match(url.pathname,/^\/api\/learn\/files\//);
+  // Owner-direct authorization works before UI board recovery and before edit acceptance.
+  // Board-scoped permissions are independently checked after saving in the runtime browser.
   const response=await fetch(url,{headers:{cookie:`small_session=${session}`},redirect:'error',signal:AbortSignal.timeout(30000)});assert.ok(response.ok,`${kind} download ${response.status}`);
   const data=Buffer.from(await response.arrayBuffer());assert.equal(data.length,artifact.bytes);assert.equal(createHash('sha256').update(data).digest('hex'),artifact.sha256);
   if(kind==='glb')assert.equal(data.readUInt32LE(0),0x46546c67);if(kind==='step')assert.match(data.subarray(0,100).toString(),/ISO-10303-21/);
@@ -62,12 +69,13 @@ async function scenario(name,fn){const row={name,status:'running',startedAt:new 
 try{
  const current=await api(`/api/learn/boards/${encodeURIComponent(app)}/${encodeURIComponent(board)}`);assert.equal(current.board_id,boardId,'Exact approved board required');
  const prior=await api('/api/learn/cad/jobs'+scope);
- if(resumeId){assert.equal(prior.jobs.length,1,'Resume refuses any already-started later scenario');assert.equal(prior.jobs[0].id,resumeId);assert.equal(prior.jobs[0].state,'failed','Only explicitly failed first job may retry');}
+ if(resumeId){assert.equal(prior.jobs.length,1,'Resume refuses any already-started later scenario');assert.equal(prior.jobs[0].id,resumeId);assert.equal(prior.jobs[0].state,resumeReady?'ready':'failed','Existing job must match the explicit resume mode');}
  else assert.equal(prior.jobs.length,0,'Use the approved fresh board; existing jobs require owner reconciliation');
  report.usageBefore=await usage();save();let featured;
  await scenario('simple dimensioned part',async()=>{
   let accepted;
-  if(resumeId){
+  if(resumeReady){accepted=await api(jobPath(resumeId)+scope);assert.equal(accepted.job.state,'ready');assert.ok(!accepted.job.awaitingAccept);}
+  else if(resumeId){
    assert.equal(env.CAD_SAVED_SOURCE_VERIFIED,'true','Coordinator must confirm stored source exists before retry');
    report.resume.retryIssued=true;save(); // Persistent receipt prevents a second invocation after uncertainty.
    accepted=await api(jobPath(resumeId)+'/retry','POST',{app,board,confirmed:true});

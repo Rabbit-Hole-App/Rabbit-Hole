@@ -1,0 +1,20 @@
+# CAD remaining acceptance gaps
+
+Review: 2026-10-17, implementation `0d7234d5f6031c13c1db441ee9edcf1f55f4c2e7`. This is a focused spec reconciliation, not an execution receipt. The coordinator's in-progress resume and later receipts supersede pending statuses below. See [scope](cad-scope.md), [runtime receipt](cad-evidence/runtime-receipt-2026-10-17.md) and [original generated artifact inspection](cad-evidence/first-generated-plate.md).
+
+| Requirement | Classification | Remaining action |
+| --- | --- | --- |
+| Owner preview and downloads before first autosave / proposed revision Accept | Concrete defect at reviewed SHA; targeted frontend correction prepared separately | Mutable owner reads must use source-owner file authorization before board refs exist. Keep shared/member/detached scopes. Six focused scope/persistence checks pass on the correction; deploy and exercise actual preview before Accept. |
+| Explain measurements (§13) | Unimplemented | No authorized interactive STEP measurement tool is wired to Explain. Do not claim measured answers from metadata or a rendered image. Implement the tool separately or explicitly mark this requirement blocked. |
+| CAD context (§13) | Partial implementation | Selection/Add to chat includes identity, accepted revision, units, brief, parameters and validation. CAD preview and reference provenance are not automatically attached to ordinary Chat. Document this limitation; no generic source ingestion is implied. |
+| Request-specific geometry proof (§7,17) | Limited checker coverage | Bounds, solids, volume and matching circular edge diameter are supported. Hole count/centres/depth, pocket depth, preserved topology, mating clearance and interference are not established. Report these assertions blocked; a matching circular edge is not a verified through-hole. |
+| Four real-model scenarios (§17) | In-progress / unverified in this review | Preserve original simple-plate integrated failure at bec995e1 separately from five passing staged artifact inspections. Record resume outcome, featured part, invariant-preserving edit and clarification with actual requests/cost and exact candidate. Do not count fixture outcomes as generation quality. |
+| Saved interactive artifacts and recovery (§10,17) | Implemented with focused fixtures; final deployed proof pending | Confirm publication recovery, authorized downloads, proposed preview, Accept, reload and another session on final deployed SHA. Publication regression tests do not model Cloudflare's 30-second gate reset. |
+| Runtime termination/recovery (§14,17) | Remaining execution evidence | Existing Linux receipt proves six runtime phases and five geometry assertions at its own image/source identity. It explicitly leaves hostile fork/timeout/cancellation recovery unverified. Retain that distinction. |
+| Performance (§16) | Partial measured evidence | Runtime receipt records one 26.359-second geometry build. Original integrated attempt failed at108.661 seconds. Neither establishes a successful warm/cold end-to-end timing distribution; report sample size and latest actual observations without promising latency. |
+
+The following are intentional limitations, not newly discovered failures: detached copied/forked cards permit viewing/download/Explain but cannot edit the original job; accepted assumptions can be refined through the normal CAD Edit action, without a separate editable pre-build form; shared snapshots do not expose live private job history. If these prevent acceptance, treat them as explicit scope gaps rather than marking them verified.
+
+Selected-image wiring is present: the shared context builder passes the first explicitly selected supported image to the authorized image adapter; nearby images and prior Chat state are not implicitly inherited. CAD metadata selection also works through `describeBlock` before the generic object helper. Neither is a missing implementation. Real-model image understanding remains unverified.
+
+No additional model requests, runtime executions, deployments or broad suites were run for this review. Main and production remain untouched.

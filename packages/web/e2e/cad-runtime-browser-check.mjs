@@ -13,6 +13,7 @@ assert.equal(board,'main');
 assert.ok(session);
 assert.equal(process.env.CAD_RUNTIME_READY,'yes','Coordinator must confirm completed runtime jobs before running');
 const OUT=resolve(process.env.OUT||'cad-runtime-browser-evidence');mkdirSync(OUT,{recursive:true});
+const minimumReady=process.env.CAD_RUNTIME_MIN_READY==='1'?1:2;
 const results=[],errors=[],blocked=[],artifactReads=[];
 let browser,page,setupError,identities=[];
 const boardPath=`/api/learn/boards/${app}/${board}`;
@@ -27,7 +28,7 @@ const checks=[];const check=(name,fn)=>checks.push({name,fn});
 let ready,initialLayout;
 check('completed real jobs restore their saved CAD cards',async()=>{
   const data=await json(jobsPath);ready=data.jobs.filter(job=>job.state==='ready'&&!job.awaitingAccept);
-  assert.ok(ready.length>=2,'Expected at least the completed simple and featured models');
+  assert.ok(ready.length>=minimumReady,`Expected at least ${minimumReady} completed model(s)`);
   identities=ready.map(({id,cardId,revisionId,attempt})=>({id,cardId,revisionId,attempt}));
   await page.goto(`${base}/apps/${app}`,{waitUntil:'domcontentloaded'});
   for(const job of ready)await page.locator(`[data-block-id="${job.cardId}"] [data-cad-card]`).waitFor();
@@ -56,7 +57,9 @@ check('stored artifacts allow owner reads and reject anonymous reads',async()=>{
       const response=await get(artifact.url);assert.equal(response.status,200,`${artifact.kind} owner read`);
       const bytes=await response.arrayBuffer();assert.ok(bytes.byteLength>0);
       const denied=await get(artifact.url,false);assert.ok([401,403,404].includes(denied.status),`${artifact.kind} anonymous read: ${denied.status}`);
-      artifactReads.push({jobId:job.id,kind:artifact.kind,bytes:bytes.byteLength,ownerStatus:response.status,anonymousStatus:denied.status});
+      const scoped=new URL(artifact.url,base);scoped.searchParams.set('app',app);scoped.searchParams.set('board',board);
+      const scopedResponse=await get(scoped.href);assert.equal(scopedResponse.status,200,`${artifact.kind} board-scoped read after recovery`);await scopedResponse.arrayBuffer();
+      artifactReads.push({jobId:job.id,kind:artifact.kind,bytes:bytes.byteLength,ownerStatus:response.status,boardScopedStatus:scopedResponse.status,anonymousStatus:denied.status});
     }
     for(const kind of ['step','glb','thumbnail'])assert.ok(artifactReads.some(item=>item.jobId===job.id&&item.kind===kind),`Missing ${kind}`);
   }

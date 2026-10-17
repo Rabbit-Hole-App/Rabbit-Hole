@@ -8,12 +8,17 @@ import { cadArtifact, cadClient, cadRunning, cadStage, mergeCadBlock } from './c
 
 // Use the existing file scope for shared/member reads. Never forward its token
 // or workspace headers to an artifact URL outside Rabbit Hole.
-const readUrl = path => {
-  const url=new URL(path,window.location.origin);
-  if(url.origin!==window.location.origin || !/^\/api\/learn\/(files|cad\/jobs)\//.test(url.pathname))throw new Error('This CAD artifact has an invalid delivery URL.');
-  for(const [key,value] of new URLSearchParams(scopeQuery(fileScope()).slice(1)))url.searchParams.set(key,value);
+export function cadReadUrl(path, { ownerRead = false, scope = fileScope(), origin = window.location.origin } = {}) {
+  const url=new URL(path,origin);
+  if(url.origin!==origin || !/^\/api\/learn\/(files|cad\/jobs)\//.test(url.pathname))throw new Error('This CAD artifact has an invalid delivery URL.');
+  // Unsaved proposed artifacts are readable by their source owner before board refs exist.
+  // Shared/member pages and detached copies must retain reference-scoped authorization.
+  const directOwner = ownerRead && !scope?.share && !scope?.member && url.pathname.startsWith('/api/learn/files/');
+  if(directOwner){url.searchParams.delete('app');url.searchParams.delete('board');}
+  for(const [key,value] of new URLSearchParams(scopeQuery(directOwner ? null : scope).slice(1)))url.searchParams.set(key,value);
   return `${url.pathname}${url.search}`;
-};
+}
+const readUrl = cadReadUrl;
 export function cadCanMutate(block, readOnly = false) {
   return !readOnly && !block?.cadDetached && !!block?.jobId;
 }
@@ -26,7 +31,7 @@ export function cadPersistenceChanged(previous, next) {
 }
 const button = 'rounded-md border border-line px-2 py-1 text-xs hover:bg-hover disabled:opacity-50';
 // The shared GLB renderer only exists while this card is active; its observer pauses offscreen work.
-export function CadPreview({ manifest, active = false }) {
+export function CadPreview({ manifest, active = false, ownerRead = false }) {
   const host = useRef(null), engine = useRef(null), viewerId = useRef(`cad-viewer:${crypto.randomUUID()}`);
   const [visible,setVisible] = useState(false), [slot,setSlot] = useState(false), [interacting,setInteracting] = useState(false);
   useEffect(()=>{if(!active)setInteracting(false);},[active]);
@@ -38,9 +43,9 @@ export function CadPreview({ manifest, active = false }) {
   useEffect(()=>{
     if(!thumb?.url){setPoster(null);return;}
     let live=true,url;const abort=new AbortController();
-    Promise.resolve().then(()=>apiFetch(readUrl(thumb.url),{signal:abort.signal})).then(response=>{if(!response.ok)throw Error('Preview image is unavailable.');return response.blob();}).then(blob=>{if(!live)return;url=URL.createObjectURL(blob);setPoster(url);}).catch(problem=>{if(live)setError(problem.message);});
+    Promise.resolve().then(()=>apiFetch(readUrl(thumb.url,{ownerRead}),{signal:abort.signal})).then(response=>{if(!response.ok)throw Error('Preview image is unavailable.');return response.blob();}).then(blob=>{if(!live)return;url=URL.createObjectURL(blob);setPoster(url);}).catch(problem=>{if(live)setError(problem.message);});
     return()=>{live=false;abort.abort();if(url)URL.revokeObjectURL(url);};
-  },[thumb?.url]);
+  },[thumb?.url,ownerRead]);
   useEffect(() => {
     setReady(false);
     if (!active || !slot || !glb) return;
@@ -48,7 +53,7 @@ export function CadPreview({ manifest, active = false }) {
     import('./three-d-renderer.js').then(({createThreeDRenderer})=>{
       if(disposed) return;
       const load=async context=>{
-        const response=await apiFetch(readUrl(glb.url),{signal:abort.signal});
+        const response=await apiFetch(readUrl(glb.url,{ownerRead}),{signal:abort.signal});
         if(!response.ok)throw new Error(`Model download failed (${response.status})`);
         if(Number(response.headers.get('content-length'))>MAX_MODEL_BYTES){await response.body?.cancel();throw new Error('Preview exceeds the 20 MB viewer limit. Download STEP to inspect the model.');}
         const chunks=[],reader=response.body.getReader();let size=0;
@@ -61,7 +66,7 @@ export function CadPreview({ manifest, active = false }) {
       engine.current=instance; instance.interact(interacting);
     }).catch(problem=>{if(!disposed)setError(problem.message);});
     return ()=>{disposed=true;abort.abort();instance?.destroy();engine.current=null;};
-  },[active,slot,glb?.url]);
+  },[active,slot,glb?.url,ownerRead]);
   return <div data-cad-viewer data-viewer-active={interacting || undefined} className="relative min-h-40 flex-1 overflow-hidden rounded-lg border border-line bg-hover" onPointerDown={event=>event.stopPropagation()} onWheel={event=>event.stopPropagation()} tabIndex={0} onKeyDown={event=>{if(interacting){event.stopPropagation();if(event.key==='Escape'){event.preventDefault();setInteracting(false);}}}}>
     <div ref={host} className="absolute inset-0"/>{active && glb ? <><button disabled={!ready} className={`${button} absolute left-2 top-2 bg-surface`} onClick={()=>setInteracting(value=>!value)}>{interacting?'Done':'Interact'}</button><button disabled={!ready} className={`${button} absolute right-2 top-2 bg-surface`} onClick={()=>engine.current?.fit()}>Fit view</button></> : poster ? <img src={poster} alt={manifest?.title || 'CAD model preview'} className="absolute inset-0 h-full w-full object-contain"/> : <p className="p-5 text-center text-xs text-ink-2">{glb ? 'Select the card to explore the model.' : 'The interactive preview is not available yet.'}</p>}
     {error && <p role="alert" className="absolute inset-x-0 bottom-0 bg-surface p-2 text-xs">{error}</p>}
@@ -104,12 +109,12 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
   const action=async(name,body)=>{if(!mutable)return;setBusy(true);setError('');try{const result=await client.action(block.jobId,name,body);apply(result,name==='accept');setRefresh(value=>value+1);if(name==='accept'){setPreview(false);setManifest(result.job?.manifest || manifest);}}catch(problem){setError(problem.message);}finally{setBusy(false);}};
   const proposed=job?.awaitingAccept || block.proposedRevisionId;
   const shown=preview && proposed ? job?.manifest : manifest;
-  const download=async artifact=>{setError('');try{const response=await apiFetch(readUrl(artifact.url));if(!response.ok)throw new Error(`Download failed (${response.status})`);const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=artifact.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(problem){setError(problem.message);}};
+  const download=async artifact=>{setError('');try{const response=await apiFetch(readUrl(artifact.url,{ownerRead:mutable}));if(!response.ok)throw new Error(`Download failed (${response.status})`);const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=artifact.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(problem){setError(problem.message);}};
   return <div data-cad-card data-cad-state={state} className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
     <p data-drag-zone className="cursor-grab text-sm font-medium">{block.title || 'CAD model'}</p>
     <div role="status" className="flex flex-wrap gap-2 text-xs text-ink-2"><span>{proposed?'Revision ready for review':cadStage(state)}</span><span>{block.units || 'Units pending'}</span>{running && !!job?.createdAt && <span>{elapsed}s elapsed</span>}</div>
     {block.cadDetached && <p data-cad-detached className="text-xs text-ink-2">Saved model copy. Explore, Explain and download existing artifacts; generation, edits and new exports are unavailable for this copy.</p>}
-    <CadPreview manifest={shown} active={selected && !expanded}/>
+    <CadPreview manifest={shown} active={selected && !expanded} ownerRead={mutable}/>
     <div className="flex flex-wrap gap-1" onPointerDown={event=>event.stopPropagation()}>
       <button className={button} disabled={!cadArtifact(shown,'glb')} onClick={()=>setExpanded(true)}>Expand</button>
       {mutable && <button data-cad-action="edit" className={button} disabled={!block.revisionId || running} onClick={()=>onEdit?.()}>Edit</button>}
@@ -123,6 +128,6 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
     {job?.exportState && <p className="text-xs text-ink-2">Export: {job.exportState}{job.exportError ? ` - ${job.exportError}` : ''}</p>}
     {(error || job?.error) && <p role="alert" className="text-xs text-red-700">{error || job.error}{error && <button className={button} onClick={()=>setRefresh(value=>value+1)}>Retry status</button>}</p>}
     <details className="overflow-auto text-xs text-ink-2" onPointerDown={event=>event.stopPropagation()}><summary data-cad-action="details" className="cursor-pointer">Brief, parameters & checks</summary><p>{typeof block.briefSummary==='string' ? block.briefSummary : job?.brief?.object || 'Design brief is being prepared.'}</p>{(shown?.assumptions || []).map((text,index)=><p key={index}>{typeof text==='string'?text:JSON.stringify(text)}</p>)}<pre className="whitespace-pre-wrap">{JSON.stringify({parameters:shown?.parameters || {},validation:shown?.validation || [],limitations:job?.limitations || []},null,2)}</pre><p>Preview supports visual exploration, not exact face selection or measurements.</p>{mutable && block.revisionId && <button className={button} disabled={running} onClick={()=>onEdit?.()}>Refine assumptions</button>}</details>
-    {expanded && <SlidePanel title={block.title || 'CAD model'} width={720} z={60} expandable onClose={()=>setExpanded(false)}><div className="flex min-h-0 flex-1 flex-col p-4"><CadPreview manifest={shown} active/></div></SlidePanel>}
+    {expanded && <SlidePanel title={block.title || 'CAD model'} width={720} z={60} expandable onClose={()=>setExpanded(false)}><div className="flex min-h-0 flex-1 flex-col p-4"><CadPreview manifest={shown} active ownerRead={mutable}/></div></SlidePanel>}
   </div>;
 }

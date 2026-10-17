@@ -216,7 +216,7 @@ export class CadJobs {
       const current=await this.state.storage.get(jobKey(job.id));if(current.state==='cancelled'||current.attempt!==job.attempt)return;
       job=current;job.modelInFlight=null;
       if(review){
-        if(result?.accepted!==true){if(job.repairs>=job.limits.repairs)return this.fail(job,'The model did not pass visual review within the repair limit.');job.repairs++;job.repairReason=JSON.stringify(result.problems||[]).slice(0,2000);job.previousSource=job.sourceText;job.previousBrief=job.brief;job.attempt++;job.revisionId=`cr_${crypto.randomUUID().replaceAll('-','')}`;job.state='repairing';job.modelPhase=null;job.dispatchAt=null;job.leaseUntil=null;await this.save(job);return;}
+        if(result?.accepted!==true){if(job.repairs>=Math.min(job.limits.repairs,cadLimits(this.env).repairs))return this.fail(job,'The model did not pass visual review within the repair limit.');job.repairs++;job.repairReason=JSON.stringify(result.problems||[]).slice(0,2000);job.previousSource=job.sourceText;job.previousBrief=job.brief;job.attempt++;job.revisionId=`cr_${crypto.randomUUID().replaceAll('-','')}`;job.state='repairing';job.modelPhase=null;job.dispatchAt=null;job.leaseUntil=null;await this.save(job);return;}
         job.modelPhase=null;job.state='ready';job.stage='ready';job.awaitingAccept=!!job.baseRevisionId;
         if(!job.awaitingAccept)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));await this.save(job);return;
       }
