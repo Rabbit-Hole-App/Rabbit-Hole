@@ -193,3 +193,16 @@ test('a canvas cannot be created inside another person\'s project', async t => {
   assert.equal(refused.status, 404);
   assert.equal((await f.send('POST', '/api/canvases', { title: 'Mine', project: 'repo-example' })).status, 201);
 });
+
+// Imported files (canvas-file-imports.md section 4.1): a permanent delete drops every file_source_refs row of that board in
+// its batch, and no other board's; the bytes and source records stay for retention-aware cleanup.
+test('DELETE of an untouched canvas drops its board\'s file references, and only those', async t => {
+  const f = fixture(t);
+  const { name } = await (await f.send('POST', '/api/canvases', { title: 'With files' })).json();
+  f.sqlite.prepare("INSERT OR IGNORE INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_at) VALUES ('b-del', 'team', 'owner@test', ?, 'main', '{}', 1, 'now')").run(name);
+  const board = f.sqlite.prepare("SELECT id FROM learn_boards WHERE app = ? AND board = 'main'").get(name).id;
+  for (const source of ['fs_a', 'fs_b']) f.sqlite.prepare('INSERT INTO file_source_refs (source_id, board_id) VALUES (?, ?)').run(source, board);
+  f.sqlite.exec("INSERT INTO file_source_refs (source_id, board_id) VALUES ('fs_a', 'b-other')");
+  assert.equal((await f.send('DELETE', `/api/apps/${name}`)).status, 200);
+  assert.deepEqual(f.sqlite.prepare('SELECT source_id, board_id FROM file_source_refs').all().map(r => `${r.source_id}@${r.board_id}`), ['fs_a@b-other']);
+});

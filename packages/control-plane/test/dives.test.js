@@ -104,10 +104,16 @@ test('delete: a leaf goes; a hole with holes inside answers 409 with them listed
   assert.equal(guarded.status, 409);
   assert.deepEqual(guarded.body.descendants.map(hole => hole.name), [b, c2]);
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_dives').get().n, 3);
+  // Imported files (canvas-file-imports.md section 4.1): every deleted hole's board drops its file references, no other board's.
+  for (const hole of [a, b, c2]) f.sqlite.prepare("INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_at) VALUES (?, 'team', 'owner@test', ?, 'main', '{}', 1, 'now') ON CONFLICT DO NOTHING").run(`b-${hole}`, hole);
+  const boardIds = f.sqlite.prepare('SELECT id FROM learn_boards WHERE app IN (?, ?, ?)').all(a, b, c2).map(row => row.id);
+  for (const id of boardIds) f.sqlite.prepare("INSERT INTO file_source_refs (source_id, board_id) VALUES ('fs_x', ?)").run(id);
+  f.sqlite.exec("INSERT INTO file_source_refs (source_id, board_id) VALUES ('fs_x', 'b-elsewhere')");
   const all = await f.send('DELETE', `/api/canvases/dives/${a}?subtree=1`);
   assert.deepEqual(all.body.deleted, [a, b, c2]);
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_dives').get().n, 0);
   assert.deepEqual(f.sqlite.prepare('SELECT name FROM canvases').all().map(row => row.name), ['canvas-00000000']);
+  assert.deepEqual(f.sqlite.prepare('SELECT board_id FROM file_source_refs').all().map(row => row.board_id), ['b-elsewhere']);
   assert.deepEqual((await f.where(ROOT.app, ROOT.board)).body.children, []);
   // A root canvas is not a hole: the dive DELETE never removes it.
   assert.equal((await f.send('DELETE', '/api/canvases/dives/canvas-00000000')).status, 404);

@@ -224,9 +224,14 @@ tested in `test/file-access.test.js`), never because a card merely names an id:
 - A save indexes the sources its cards name **that the saver owns**, and keeps a row the board already held while a card
   still names that source. A card naming another account's source id indexes nothing and reads nothing.
 - A fork or duplicate inherits the rows of the board it was read from, for the sources its copied cards name, so it reads
-  the same immutable bytes through its own reference; revoking the original link later does not take it back.
-- Removing the card removes that board's row only; another board's row for the same source stays. A permanent board
-  delete (`canvases.js`, `dives.js`) drops its rows in the same batch (`dropFileRefs`). Bytes are never deleted here.
+  the same immutable bytes through its own reference. **A fork keeps that access after the original share link is
+  revoked** (`file-access.test.js`, "a fork inherits ...").
+- **Removing the card in the fork drops only the fork's row**; the source board's row for the same source stays
+  (`file-access.test.js`, same test). The same holds for any board.
+- **A permanent delete drops every row for that board** in the delete's batch (`dropFileRefs`): a canvas delete
+  (`canvases.js`, tested in `canvases.test.js`) and a Rabbit Hole delete, subtree included (`dives.js`, tested in
+  `dives.test.js`). No other board's rows change. Bytes and source records are never deleted here; cleanup decides with
+  retention.
 
 **Canvas members** (lead ruling, 2026-10-16): reads accept `?member=<board id>`, the convention the JOBS routes use, checked
 by `canvas-comments.js` `memberContext` (the owner or an active member, board not in Trash); then `{ row }` is that board.
@@ -247,9 +252,12 @@ it (no member board write exists today), so a member's create is 403 and the own
 - `GET /api/learn/files/<source id>` the original as an attachment (`filename*`), with Range; `?share=<token>` for a link
   viewer, `?member=<board id>` for a canvas member, `?app=&board=` through the requester's own board (a fork), else the
   owner only; all via
-  `authorizeFileSource`. Derivatives: the JOBS lane's `GET /api/learn/files/sources/<source>/derivatives` (section 5.3).
-- Mounted in `dev-worker.js`; `filesFetch` answers only `/api/learn/files` and `/api/learn/files/fs_*` and returns null
-  for every other `/api/learn/files` path, so the JOBS routes mount beside it.
+  `authorizeFileSource`. Derivatives (JOBS lane): `GET /api/learn/files/sources/<source>/derivatives` lists the ready ones
+  (section 5.3), and `GET /api/learn/files/<source>/d/<derivative>` (2bdb8e77 on `feature/fi-jobs`) serves one ready
+  derivative through `authorizeFileSource`, returning its D1 sha256.
+- Mounted in `dev-worker.js`; `filesFetch` answers only `/api/learn/files` and `/api/learn/files/fs_<id>` (no further
+  segment) and returns null for every other `/api/learn/files` path, `/fs_<id>/d/<derivative>` included, so the JOBS
+  routes mount beside it.
 - `POST /api/learn/files/<source id>/jobs` `{ converter, options, card, idempotency_key }`; `GET /api/learn/files/jobs/<job id>`;
   `POST …/jobs/<job id>/cancel`; `POST …/jobs/<job id>/retry`.
 - `PUT /api/learn/files/docs/<document id>` `{ base_rev, content }` → 409 when `base_rev` is not the head.
