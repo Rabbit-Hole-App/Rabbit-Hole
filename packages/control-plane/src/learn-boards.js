@@ -17,6 +17,8 @@ import { NO_CAP, admitUsage, askShared, boardRevision, boardSources, importerOf,
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
+import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js';
+import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -26,8 +28,8 @@ const TOKEN = /^[A-Za-z0-9_-]{20,64}$/;
 export const MAX_STATE = 1_900_000;
 
 // Board files (images, PDFs, clips, generated illustrations) live in R2 under
-// the board's row, keyed by a hash of the canvas's own asset key.
-export const MAX_ASSET = 25 * 1024 * 1024;
+// the board's row, keyed by a hash of the canvas's own asset key. The cap per file is the capability registry's
+// (file-capabilities.js boardFileLimit): 25 MiB, or 50 MiB for a body that sniffs as an MP4 or WebM video.
 const ASSET_KEY = /^[\x20-\x7e]{1,500}$/;
 // Served types: anything else is stored as opaque bytes, so an upload can never
 // come back as a page on this origin.
@@ -37,28 +39,60 @@ const assetObject = async (row, key) => `learn-boards/${row.id}/${await sha256He
 async function putAsset(req, env, row, key) {
   if (!learnMedia(env)) return json({ error: 'Board files need the R2 bucket on this worker.' }, 503);
   if (!ASSET_KEY.test(key)) return json({ error: 'Bad asset key' }, 400);
-  if (Number(req.headers.get('content-length') || 0) > MAX_ASSET) return json({ error: 'This file is over 25 MB and stays in your browser.' }, 413);
-  const bytes = await req.arrayBuffer();
-  if (bytes.byteLength > MAX_ASSET) return json({ error: 'This file is over 25 MB and stays in your browser.' }, 413);
   const type = (req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-  await learnMedia(env).put(await assetObject(row, key), bytes, {
-    httpMetadata: { contentType: SAFE_TYPE.test(type) ? type : 'application/octet-stream' },
-    customMetadata: { key, kind: req.headers.get('x-asset-kind') === 'string' ? 'string' : 'blob' },
-  });
-  return json({ key, size: bytes.byteLength });
+  const { bytes: cap, sniff } = boardFileLimit(type);
+  // Streamed natively to R2 with bounded memory and CPU (upload-body.js); the cap is checked on the declared length before a
+  // byte is read, and HTTP framing plus FixedLengthStream make the stored bytes exactly that length.
+  const got = await uploadBody(req, { cap, sniffBytes: sniff ? 16 : 0 });
+  if (got.refused === 'over') return json({ error: `This file is over ${formatBytes(cap)}, so it was not saved to your account and stays in your browser.` }, 413);
+  if (got.refused === 'length') return json({ error: 'Send this file with its Content-Length.' }, 411);
+  if (sniff && !sniff(got.head)) { await got.body.cancel?.().catch(() => {}); return json({ error: 'This file is not an MP4 or WebM video.' }, 415); }
+  try {
+    await learnMedia(env).put(await assetObject(row, key), got.body, {
+      httpMetadata: { contentType: SAFE_TYPE.test(type) ? type : 'application/octet-stream' },
+      customMetadata: { key, kind: req.headers.get('x-asset-kind') === 'string' ? 'string' : 'blob' },
+    });
+  } catch (error) {
+    if (await clientMismatch(got, error)) return json({ error: `Send exactly the ${got.length} bytes this upload declared.` }, 400);
+    throw error;
+  }
+  return json({ key, size: got.length });
 }
 
-export async function getAsset(env, row, key) {
+// One satisfiable `bytes=` range as R2's { offset, length }; null to serve the whole file (none, several, or malformed:
+// RFC 9110 lets a server ignore those); false when it cannot be satisfied (416).
+export function byteRange(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || '').trim());
+  if (!m || (!m[1] && !m[2])) return null;
+  if (!m[1]) { const suffix = Number(m[2]); return suffix > 0 && size > 0 ? { offset: Math.max(0, size - suffix), length: Math.min(suffix, size) } : false; }
+  const start = Number(m[1]), end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  return start < size && end >= start ? { offset: start, length: end - start + 1 } : false;
+}
+
+// `req`, when given, may ask for one byte range (a video seeking): 206 with Content-Range, for every reader of this file.
+export async function getAsset(env, row, key, req = null) {
   if (!learnMedia(env) || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
-  const object = await learnMedia(env).get(await assetObject(row, key));
+  const bucket = learnMedia(env), objectKey = await assetObject(row, key);
+  const asked = req?.headers.get('range');
+  let range = null;
+  if (asked) {
+    const found = await bucket.head(objectKey);
+    if (!found) return json({ error: 'No such file on this board' }, 404);
+    range = byteRange(asked, found.size);
+    if (range === false) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${found.size}`, 'Cache-Control': 'private, no-cache' } });
+  }
+  const object = await bucket.get(objectKey, range ? { range } : undefined);
   if (!object) return json({ error: 'No such file on this board' }, 404);
   return new Response(object.body, {
+    status: range ? 206 : 200,
     headers: {
       'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
       'X-Asset-Kind': object.customMetadata?.kind || 'blob',
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "sandbox; default-src 'none'",
       'Content-Disposition': 'attachment',
+      'Accept-Ranges': 'bytes',
+      ...(range ? { 'Content-Range': `bytes ${range.offset}-${range.offset + range.length - 1}/${object.size}`, 'Content-Length': String(range.length) } : {}),
       // A notebook's workspace copy changes under the same key: always revalidate.
       'Cache-Control': 'private, no-cache',
     },
@@ -72,10 +106,10 @@ export const boardAssetKeys = state => [...assetKeysOf(state),
   ...(state?.blocks || []).filter(block => block.type === 'notebook' && block.notebook_id).map(block => `notebook:${block.notebook_id}`)];
 
 // A board file for a share or publication link, or a member: a key the board does not use now is 404, as a missing one is.
-export async function boardAsset(env, row, key) {
+export async function boardAsset(env, row, key, req = null) {
   const text = row.state_json ?? (await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(row.id).first())?.state_json;
   if (!boardAssetKeys(JSON.parse(text || '{}')).includes(key)) return json({ error: 'No such file on this board' }, 404);
-  return getAsset(env, row, key);
+  return getAsset(env, row, key, req);
 }
 
 async function listAssets(env, row) {
@@ -818,7 +852,7 @@ export async function learnBoardsRoute(path, req, env) {
     const found = await sharedAccess(req, env, decodeURIComponent(sharedFile[1]));
     if (found instanceof Response) return found;
     const key = decodeURIComponent(sharedFile[2]);
-    if (req.method === 'GET') return boardAsset(env, found.row, key);
+    if (req.method === 'GET') return boardAsset(env, found.row, key, req);
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
@@ -878,7 +912,7 @@ export async function learnBoardsRoute(path, req, env) {
     if (!row) return json({ error: 'Save or share this board first.' }, 404);
     if (!rawKey) return req.method === 'GET' ? listAssets(env, row) : json({ error: 'Method not allowed' }, 405);
     const key = decodeURIComponent(rawKey);
-    if (req.method === 'GET') return getAsset(env, row, key);
+    if (req.method === 'GET') return getAsset(env, row, key, req);
     if (req.method === 'PUT') return putAsset(req, env, row, key);
     return json({ error: 'Method not allowed' }, 405);
   }

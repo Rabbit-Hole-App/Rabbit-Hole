@@ -4,14 +4,18 @@ import { chromium } from '@playwright/test';
 // LOCAL stack only: a real session on a fresh canvas. Every drop opens "Add to canvas" with the file name and its choices;
 // Cancel and Escape add nothing; each choice places its card; an invalid notebook says so and keeps the dialog; nothing
 // asks a model or uploads to /api/learn/media; a notebook card never runs on its own. Prints no secrets.
-// Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/canvas-file-drop-check.mjs
+// A video over 25 MiB is uploaded, saved, reopened and seeked in a fresh browser, and the server's 50 MiB cap is sent past
+// the page's check (canvas-file-imports.md section 7; the fixture is generated, large-video-fixture.mjs).
+// Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 [VARS=<.dev.vars>] node e2e/canvas-file-drop-check.mjs
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { largeVideo } from './large-video-fixture.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('canvas-file-drop-check runs against the local stack only');
 const run = Date.now().toString(36).slice(-6);
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const session = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `drop-${run}@example.com`, secret, handle: `drop_${run}` }) })).json()).session;
 const made = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify({ title: `File drop ${run}` }) })).json();
 
@@ -153,6 +157,80 @@ await page.locator('input[type="file"][accept*=".ipynb"]').setInputFiles({ name:
 await page.waitForTimeout(500);
 ok('Upload a file opens the same dialog', await dialog.count() === 1 && (await dialog.locator('[data-import-file]').innerText()).trim() === 'upload.py');
 await dialog.getByRole('button', { name: 'Cancel' }).click();
+
+// --- A video over 25 MiB (canvas-file-imports.md section 7): Upload a file, saved to the account, reopened and seeked in a
+// fresh browser; the server's own 50 MiB cap on the real Worker, with the page's check bypassed ---
+const MiB = 1024 * 1024;
+const big = await largeVideo(browser);
+const ownBoard = `${BASE}/api/learn/boards/${encodeURIComponent(made.name)}/main`;
+const authed = { cookie: `small_session=${session}` };
+const uploaded = page.waitForResponse(response => response.request().method() === 'PUT' && /\/assets\/drop%3A/.test(response.url()), { timeout: 120000 });
+const clipsBefore = await canvas.locator('video[controls]').count();
+await page.locator('input[type="file"][accept*=".ipynb"]').setInputFiles(big.path);
+// Caching 34 MiB in IndexedDB comes first: wait for the card, at most 30 s.
+await canvas.locator('video[controls]').nth(clipsBefore).waitFor({ timeout: 30000 }).catch(() => {});
+ok(`Upload a file places a ${(big.size / MiB).toFixed(1)} MiB WebM as a video card, with no dialog`, await dialog.count() === 0 && await canvas.locator('video[controls]').count() === clipsBefore + 1);
+const put = await uploaded.catch(() => null);
+ok('the board saves the video to the account (the page no longer keeps it back over 25 MiB)', put?.status() === 200, put ? `PUT ${put.status()}` : 'no PUT within 120 s');
+const savedState = (await (await fetch(ownBoard, { headers: authed })).json()).state;
+const clipKey = (savedState?.blocks || []).find(block => block.type === 'file' && block.kind === 'clip')?.assetKey;
+ok('the saved board keeps the clip as an asset key, not its bytes', !!clipKey && JSON.stringify(savedState).length < 200000, `${clipKey}, board ${JSON.stringify(savedState || {}).length} chars`);
+const stored = clipKey ? await fetch(`${ownBoard}/assets/${encodeURIComponent(clipKey)}`, { headers: authed }) : null;
+const storedHash = stored?.ok ? createHash('sha256').update(Buffer.from(await stored.arrayBuffer())).digest('hex') : null;
+ok('the stored file is the original, byte for byte', storedHash === big.sha256, `${stored?.status} ${storedHash?.slice(0, 12)} vs ${big.sha256.slice(0, 12)}`);
+const ranged = clipKey ? await fetch(`${ownBoard}/assets/${encodeURIComponent(clipKey)}`, { headers: { ...authed, Range: 'bytes=1000-1999' } }) : null;
+ok('the server answers a byte range', ranged?.status === 206 && ranged.headers.get('content-range') === `bytes 1000-1999/${big.size}` && (await ranged.arrayBuffer()).byteLength === 1000, `${ranged?.status} ${ranged?.headers.get('content-range')}`);
+
+// A fresh browser: nothing cached, the same account.
+const fresh = await browser.newContext({ viewport: { width: 1500, height: 950 } });
+await fresh.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+await fresh.route(/canvas-notebook/, route => route.fulfill({ contentType: 'text/html', body: '<html></html>' }));
+const other = await fresh.newPage();
+await other.goto(`${BASE}/apps/${made.name}`);
+const video = other.locator('[aria-label="Lesson canvas"] video[controls]').first();
+await video.waitFor({ timeout: 90000 }).catch(() => {});
+const played = await video.evaluate(async element => {
+  const when = (name, ms = 30000) => new Promise((resolve, reject) => { element.addEventListener(name, resolve, { once: true }); setTimeout(() => reject(Error(`no ${name}`)), ms); });
+  if (element.readyState < 1) await when('loadedmetadata');
+  const duration = element.duration;
+  element.muted = true;
+  await element.play();
+  // Playing: the clock passes half a second (10 s at most).
+  for (let waited = 0; element.currentTime < 0.5 && waited < 10000; waited += 100) await new Promise(resolve => setTimeout(resolve, 100));
+  const advanced = element.currentTime;
+  element.pause();
+  const target = duration * 0.75;
+  const seeked = when('seeked');
+  element.currentTime = target;
+  await seeked;
+  return { duration, advanced, target, at: element.currentTime };
+}).catch(error => ({ error: error.message }));
+ok('a fresh browser on the same account loads the video from the account', Number.isFinite(played.duration) && played.duration > 7, JSON.stringify(played));
+ok('it plays there', played.advanced >= 0.5, String(played.advanced));
+ok('and seeks to three quarters', Math.abs(played.at - played.target) < 0.5, `${played.at} of ${played.duration}`);
+await fresh.close();
+
+// The server's cap on the real Worker, as a client that skips the page's check would send it: exactly 50 MiB with a
+// Content-Length (streamed to R2), one byte more refused, and one byte more with no Content-Length (chunked) refused too.
+const webmOf = size => { const bytes = new Uint8Array(size); bytes.set([0x1a, 0x45, 0xdf, 0xa3]); return bytes; };
+const raw = (key, body, extra = {}) => fetch(`${ownBoard}/assets/${encodeURIComponent(key)}`, { method: 'PUT', body, duplex: 'half', headers: { ...authed, 'Content-Type': 'video/webm', ...extra } });
+const exact = await raw(`bypass:${run}:exact`, webmOf(50 * MiB));
+ok('exactly 50 MiB is accepted by the server', exact.status === 200 && (await exact.json()).size === 50 * MiB, String(exact.status));
+const over = await raw(`bypass:${run}:over`, webmOf(50 * MiB + 1));
+ok('50 MiB + 1 byte is refused by the server', over.status === 413 && /over 50 MiB/.test((await over.json()).error), String(over.status));
+const chunks = webmOf(50 * MiB + 1);
+// Without a length the Worker stops at its separate 1 MiB fallback limit and returns 411. Some local transports reset
+// the connection while this larger body is still being sent; that proves no status contract, only refusal plus the
+// no-stored-object assertion below. The isolated workerd boundary check covers the exact fallback independently.
+const chunked = await raw(`bypass:${run}:chunked`, new ReadableStream({ start(controller) { for (let at = 0; at < chunks.length; at += 4 * MiB) controller.enqueue(chunks.slice(at, at + 4 * MiB)); controller.close(); } }))
+  .then(async response => ({ status: response.status, body: await response.json() }), error => ({ closed: error.cause?.code || error.message }));
+if (chunked.closed) console.log(`info no-length transport closed (${chunked.closed}); fallback status unobserved, checking no stored object`);
+ok('an upload without Content-Length requires a length past the fallback limit (or closes without storing)',
+  (chunked.status === 411 && chunked.body?.error === 'Send this file with its Content-Length.') || !!chunked.closed, JSON.stringify(chunked));
+const listed = (await (await fetch(`${ownBoard}/assets`, { headers: authed })).json()).keys || [];
+ok('neither refused upload was stored', listed.includes(`bypass:${run}:exact`) && !listed.includes(`bypass:${run}:over`) && !listed.includes(`bypass:${run}:chunked`), listed.filter(key => key.startsWith('bypass:')).join(', '));
+const notVideo = await raw(`bypass:${run}:fake`, new Uint8Array(30 * MiB));
+ok('30 MiB that only claims to be a video is refused', notVideo.status === 415, String(notVideo.status));
 
 // --- nothing asked a model, uploaded media or ran a notebook ---
 ok('no ask, journey or course request', asks.length === 0, asks.join(', '));
