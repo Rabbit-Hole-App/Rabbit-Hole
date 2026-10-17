@@ -879,7 +879,18 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
     enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
     motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
-    extras: () => ({ title: app.title || '' }),
+    // Current Chat's live transcript and deliberately attached source metadata support the selected edit.
+    // The existing context builder budgets these separately from the complete editable target. A listed reference
+    // is not source-text coverage; TOC has its own conversation and is never inherited here.
+    extras: () => ({
+      title: app.title || '',
+      conversation: (chat?.thread?.restore.messages || [])
+        .filter(message => ['user', 'assistant'].includes(message.role) && typeof message.content === 'string')
+        .map(message => ({ role: message.role, text: message.content })),
+      sources: (chat?.context?.attached || []).map(ref => ({
+        kind: ref.kind, title: ref.name || '', sourceId: ref.sourceId, range: ref.range || null, coverage: 'listed',
+      })),
+    }),
     // Ctrl+K's /youtube /arxiv /wikipedia: the shared source finder (B3), origin from the editor so focus returns there.
     openSearch: ({ source, query, origin }) => openSourceFinder({ source, query, origin }),
     sendTelemetry: rows => { apiFetch('/api/learn/inline/telemetry', { method: 'POST', body: JSON.stringify({ app: app.name, ...(askScope.pending ? { pending: askScope.pending } : {}), rows }) }).catch(() => {}); },
