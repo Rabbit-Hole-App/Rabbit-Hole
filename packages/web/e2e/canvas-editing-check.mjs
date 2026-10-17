@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
 // Browser acceptance for canvas editing (docs/features/canvas-editing.md), run against the real AdaptiveCanvas mounted
@@ -299,16 +299,33 @@ await run('open in notebook', async () => {
     const [made] = await notebooks();
     check(`${label}: one notebook card, cells as expected`, !!made && JSON.stringify(made.ipynb.cells.map(cell => cell.source)) === JSON.stringify(cells), JSON.stringify(made?.ipynb?.cells?.map(cell => cell.source)));
     if (!made) return;
-    await page.locator(`[data-block-id="${made.id}"]`).waitFor();
-    await page.waitForTimeout(600);
+    const notebook = page.locator(`[data-block-id="${made.id}"]`);
+    await notebook.waitFor();
+    // The loaded protocol enables Run all and releases Jupyter startup autofocus.
+    // A fixed delay can send canvas Undo into the still-starting iframe.
+    try {
+      await expect(notebook.getByRole('button', { name: 'Run all', exact: true })).toBeEnabled({ timeout: 60000 });
+    } catch (error) {
+      console.log('NOTEBOOK_READY_FAILURE', JSON.stringify(await page.evaluate(() => ({ activeTag: document.activeElement?.tagName, activeRole: document.activeElement?.getAttribute('role'), starting: [...document.querySelectorAll('[data-block-id]')].some(e => e.textContent.includes('Starting Python')) }))));
+      throw error;
+    }
     const hits = await overlaps(made.id);
     check(`${label}: it covers nothing`, !hits.length, hits.join());
     await shot(`open-notebook-${label.replace(/\W+/g, '-')}`);
     check(`${label}: it is selected and in view`, (await page.locator(`[data-block-id="${made.id}"]`).getAttribute('aria-current')) === 'true' && await inView(made.id));
     await page.keyboard.press('Escape');
     await page.mouse.click(1300, 880);
+    const focus = () => page.evaluate(() => {
+      const active = document.activeElement;
+      return { tag: active?.tagName, role: active?.getAttribute('role'), canvasKeys: !!active && active.tagName !== 'IFRAME' && !active.closest('input,textarea,[contenteditable="true"]') && (active === document.body || !!active.closest('[data-canvas-surface]')) };
+    });
+    const beforeUndo = await focus();
+    if (!beforeUndo.canvasKeys) console.log('NOTEBOOK_UNDO_FOCUS_FAILURE', JSON.stringify({ label, ...beforeUndo }));
+    expect(beforeUndo.canvasKeys, `${label}: canvas owns Undo keyboard focus`).toBe(true);
     await page.keyboard.press('Control+z');
-    check(`${label}: one Ctrl+Z removes it`, !(await notebooks()).length);
+    const remaining = await notebooks();
+    if (remaining.length) console.log('NOTEBOOK_UNDO_FAILURE', JSON.stringify({ label, beforeUndo, afterUndo: await focus(), remaining: remaining.map(entry => entry.id) }));
+    check(`${label}: one Ctrl+Z removes it`, !remaining.length);
   };
 
   await page.locator('[data-item-id="js"]').click();
