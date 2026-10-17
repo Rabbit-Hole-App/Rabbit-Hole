@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Eye, FileText, MessageCircle, X } from 'lucide-react';
 import { docIsEmpty } from '../canvas-doc.js';
 import { setRemoteAssets, setWorkspaceStore } from '../learn-board-assets.js';
+import { setFileScope } from '../file-source-client.js';
 import { Button, toast } from '../ui.jsx';
 import { CARD_GONE, cardParam, withoutCardParam } from '../canvas-refs-model.js';
 import { PRODUCT } from '../flags.js';
@@ -36,8 +37,9 @@ export default function MemberBoardPage({ boardId }) {
   useEffect(() => {
     const fileUrl = key => `${base}/assets/${encodeURIComponent(key)}`;
     setRemoteAssets(key => fetch(fileUrl(key)));
+    setFileScope({ member: boardId }); // imported files read as a canvas member (file-source-client.js)
     setWorkspaceStore({ load: id => fetch(fileUrl(`notebook:${id}`)).then(response => (response.ok ? response.json() : null)).catch(() => null), fresh: true, workspaceId: id => `${id}-member` });
-    return () => { setRemoteAssets(null); setWorkspaceStore(null); };
+    return () => { setRemoteAssets(null); setWorkspaceStore(null); setFileScope(null); };
   }, [base]);
   useEffect(() => {
     const get = path => fetch(path, { headers: { 'Content-Type': 'application/json' } }).then(async response => ({ status: response.status, body: await response.json().catch(() => ({})) }));

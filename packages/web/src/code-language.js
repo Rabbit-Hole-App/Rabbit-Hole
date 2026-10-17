@@ -4,7 +4,8 @@ const BY_EXTENSION = {
   py: 'python', pyi: 'python', js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'jsx', ts: 'typescript', mts: 'typescript',
   tsx: 'tsx', json: 'json', sh: 'bash', bash: 'bash', zsh: 'bash', sql: 'sql', html: 'html', htm: 'html', css: 'css', scss: 'scss',
   c: 'c', h: 'c', cc: 'cpp', cpp: 'cpp', cxx: 'cpp', hpp: 'cpp', hh: 'cpp', java: 'java', kt: 'kotlin', go: 'go', rs: 'rust',
-  rb: 'ruby', php: 'php', cs: 'csharp', swift: 'swift', scala: 'scala', r: 'r', jl: 'julia', lua: 'lua', md: 'markdown',
+  rb: 'ruby', php: 'php', cs: 'csharp', swift: 'swift', scala: 'scala', r: 'r', jl: 'julia', lua: 'lua', md: 'markdown', markdown: 'markdown',
+  jsonl: 'jsonl', ini: 'ini', kts: 'kotlin',
   yaml: 'yaml', yml: 'yaml', toml: 'toml', xml: 'xml', dockerfile: 'docker', makefile: 'make', ipynb: 'json', txt: 'text',
 };
 

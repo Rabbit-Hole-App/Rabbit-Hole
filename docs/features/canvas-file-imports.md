@@ -408,3 +408,45 @@ First release scope (owner decision E): this foundation and the 50 MiB video fix
 | `file_source_refs` on every board write; references-only authorization; members through `?member=` | built; unit-tested (`file-access.test.js`, `learn-files.test.js`); real D1 on the local stack (`file-sources-check.mjs`) |
 | ContextRef kind `file` | CHAT lane (`feature/fi-chat`) |
 | Job runner | JOBS lane |
+
+## 10. Lane 2: text, Markdown, code, tables, workbooks, Word, PowerPoint (built on `feature/fi-docs`)
+
+Report and per-format matrix: `C:/s/spec/fi-lane2-report.md`. Registry rows (section 2) are lane 2's: `text`, `markdown`
+(`.md`, `.markdown`), `code` (+ `jsonl`, `ini`, `kts`), `delimited`, `workbook`, `word` (`.docx`), `word-legacy` (`.doc`,
+planned: awaiting the `office-pdf` job), `presentation` (`.pptx`, `can.preview` false until slide images exist).
+
+| Piece | Where |
+|---|---|
+| Entry | `.txt`/`.md` through the Add to canvas dialog (`IMPORT_CHOICES.text`: Text card or File attachment; `.markdown`: Markdown card, Code card or File attachment). CSV/TSV/XLSX/XLS/DOCX/PPTX through `DocImport.jsx` (`useDocImport`, registry route `doc`), called from `LearnPage` `takeDrop` for drop and Upload alike. A workbook with several sheets asks which sheets and One workbook card / A card per sheet; a presentation asks Whole presentation / Selected slides (validated From-To, at most 50). |
+| Sniffing | `file-doc-import.js` `checkDocFile` on the first 64 KiB and last 64 KiB before any parser: ZIP part names (`word/document.xml`, `xl/workbook.xml`, `ppt/presentation.xml`), OLE stream names (`WordDocument`, `Workbook`/`Book`), binary bytes for CSV/TSV. Text: BOM or strict UTF-8, else an encoding choice (Windows-1252, UTF-16); NUL bytes refuse a binary file. JSON is a code file; a notebook card needs nbformat 4 structure. |
+| Card | `type: 'file'`, `kind: text | markdown | table | workbook | document | presentation`, the original under `assetKey` (today's board-file path, `assetKeysOf`), view state only (`sheet`, `sheets`, `slide`, `slides: [from, to]`, `delimiter`, `encoding`). Rendered by the lazily loaded `FileDocCard.jsx`; parsed in `file-parse.worker.js` (module worker; `vite.config.js` `worker.format: 'es'`). |
+| Bounds | Text drawn in 64 KiB chunks up to 2 MiB of characters; tables and sheets keep 10,000 rows x 200 columns (virtualized grid, sticky header and row numbers); Word preview 50,000 nodes, 60 images, 20 MiB of images; 500 slides. Each card says how much it shows. |
+| Chat | `file-excerpts.js`: the card leaves a bounded excerpt (6,000 characters) with its coverage; `learn-ask-target.js` `describeCanvasObject` reads it for selection context and Add to chat (one `card:<id>` ref, so select + Add to chat is one attachment). `file-text-units.js` builds the `text` derivative body (`{ v: 1, units: [{ loc, text }], complete, limited }`: line blocks of 200, CSV row ranges of 100, sheet A1 ranges of 100 rows with formula text after the cached value, one unit per slide with notes labelled, one per notebook cell); storing it waits for a client derivative route. |
+| Converter | `file-job.js`: `office-pdf { poster: true }` for `.doc`, `slides { width: 1280, from?, to? }` for `.pptx`, expected kinds `preview`/`text`/`poster` and `preview`/`slide`/`text`, idempotency key per card + revision + converter + options, card lines for Queued, Checking the file, Converting, Preparing the preview, Ready, Ready with limitations, Failed, Cancelled. Awaiting the source upload on import (`fileRef`) and the job runner. |
+
+Libraries (pinned, exact): SheetJS CE `xlsx` 0.20.3 from `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`
+(Apache-2.0, integrity in `package-lock.json`; read with `bookVBA: false`, no formulas evaluated, its CFB reader also opens
+the `.pptx` ZIP); `mammoth` 1.13.0 (BSD-2-Clause; brings `jszip` MIT/GPLv3 dual, used under MIT, `@xmldom/xmldom` MIT,
+`lop` 0.4.2 BSD-2-Clause, `underscore` MIT, `base64-js` MIT, `xmlbuilder` MIT, `dingbat-to-unicode` BSD-2-Clause; `externalFileAccess: false`; its HTML is turned into an allowlisted tree by
+`file-docx.js` `htmlTree` and rendered as React elements, never `innerHTML`). Neither is in the initial canvas bundle:
+both load from the worker (or the main-thread fallback) when a card of that format opens.
+
+### 10.1 fileRef cards and stored text (lane 2, after lane 1 7f85b0d4, fi-chat 22e1f521, fi-jobs)
+
+- `packages/web/src/file-source-client.js` (shared with lanes 3 and 4): `uploadSource(file, { app, board, family, onProgress })`
+  (sha256, `POST /api/learn/files`, `PUT` with byte progress; stored identical bytes are not sent again), `loadSource(block)`
+  (a stored source through the page scope `setFileScope({ app, board } | { share } | { member })`, a pending card's local
+  copy, or an older card's `assetKey`), and `startUpload(localKey, { family })`, one upload per local key: it waits for an
+  unsaved board, resumes after a reload from this browser's copy, and fails visibly with Retry.
+- Lane 2's new cards are fileRef cards with no block `assetKey` (never also a board file). While uploading, `fileRef.source`
+  is null and `fileRef.local` names this browser's copy; once stored the card writes `source: { id, rev }`, drops `local`,
+  and the normal board save writes `file_source_refs`. `fileRef.view` mirrors the card's `sheet` / `slide`.
+- `PUT /api/learn/files/<source>/text` (`packages/control-plane/src/learn-file-text.js`, owner only, mounted in
+  `dev-worker.js`): body `{ v: 1, units, complete, limited?, extractor?, options? }`, every `loc` checked by `file-chat-ref.js`
+  `fileRange`, at most 2 MiB; a ready `file_derivatives` row kind `text`, name `text.json`, converter `browser-extract`,
+  version `browser-extract/<extractor>`, `options_hash` of the options, `sha256` of the stored body, R2
+  `file-sources/<source>/d/<id>`; one row per source revision + version + options. The card then sets
+  `fileRef.status.context` (`extracted` / `partial`) and `status.extraction` (its options), so a delimiter or encoding change
+  stores a new extraction.
+- A presentation submits the `slides` job once stored (`file-jobs-client.js submitFileJob`, `fileRef.job`), shows its stage,
+  and shows the `slide-NNN.png` derivatives when ready; otherwise its slide text, saying why.
