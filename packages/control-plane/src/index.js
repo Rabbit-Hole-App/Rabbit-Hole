@@ -1,4 +1,5 @@
 import { readArxivPaper } from './arxiv.js';
+import { cadBudgetAlert } from './cad-budget-alert.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
@@ -44,12 +45,12 @@ const html = (body, status = 200, headers = {}) =>
   });
 
 // false when there is no provider or the send fails/throws. Never logs the body - it holds codes and links.
-async function sendEmail(env, to, subject, text) {
+async function sendEmail(env, to, subject, text, {idempotencyKey} = {}) {
   if (!env.RESEND_API_KEY) return false;
   try {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json', ...(idempotencyKey ? {'Idempotency-Key':idempotencyKey} : {}) },
       body: JSON.stringify({ from: env.EMAIL_FROM || 'small <onboarding@resend.dev>', to: [to], subject, text }),
     });
     if (!resp.ok) console.error(`email send failed: status ${resp.status}`);
@@ -2402,6 +2403,7 @@ export default {
       if (path === '/api/cli/verify' && req.method === 'POST') return await apiVerify(req, env);
       if (path === '/api/runtime/aws-creds' && req.method === 'POST') return await apiAwsCreds(req, env);
       // Canvas invitations and members (docs/features/canvas-comments.md section 6): session only, before any /api user resolution.
+      if (path === '/internal/cad-budget-alert') return await cadBudgetAlert(req, env, {sendEmail});
       if (membersPath(path)) return await canvasMembersRoute(req, env, path, { sendEmail });
       if (path.startsWith('/api/')) {
         const runLog = path.match(/^\/api\/runs\/([\w-]+)\/log$/);
