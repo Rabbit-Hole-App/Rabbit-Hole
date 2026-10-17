@@ -12,7 +12,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8889';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('panel-header-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'panel-header-shots';
 mkdirSync(SHOTS, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, handle }) })).json()).session;
 const owner = { session: await sessionFor(`panel-owner-${run}@example.com`, `panel_${run}`) };
@@ -77,8 +77,25 @@ const inCanvas = async id => {
 };
 // A press on the canvas surface beside the cards: no card, no chrome.
 const pressCanvas = async () => {
-  const box = await card('k-exp').boundingBox();
-  await page.mouse.click(box.x + box.width + 120, box.y + 20);
+  const point = await page.evaluate(() => {
+    const surface = document.querySelector('[data-canvas-surface]'), frame = surface.getBoundingClientRect();
+    const card = document.querySelector('[data-block-id="k-exp"]').getBoundingClientRect();
+    const describe = hit => ({ tag: hit?.tagName, label: hit?.getAttribute('aria-label'), canvas: !!hit?.closest('[data-canvas-surface]'), panel: !!hit?.closest('aside') });
+    const oldPoint = { x: card.right + 120, y: card.top + 20 }, oldHit = describe(document.elementFromPoint(oldPoint.x, oldPoint.y));
+    const excluded = '[data-block-id],[data-item-id],[data-shape-id],[data-group-box],[data-group-chip],[data-connection],button,a,input,textarea,[role="toolbar"],[role="menu"],[data-zoom],[data-canvas-doc]';
+    for (let y = Math.max(0, frame.top) + 80; y < Math.min(innerHeight, frame.bottom) - 80; y += 48) {
+      for (let x = Math.max(0, frame.left) + 80; x < Math.min(innerWidth, frame.right) - 40; x += 48) {
+        const hit = document.elementFromPoint(x, y);
+        if (hit?.closest('[data-canvas-surface]') === surface && !hit.closest(excluded)) return { x, y, hit: describe(hit), oldPoint, oldHit };
+      }
+    }
+    return { oldPoint, oldHit };
+  });
+  console.log('CANVAS_PRESS_HIT', JSON.stringify(point));
+  assert.ok(Number.isFinite(point.x), 'a real blank canvas point exists');
+  // The Search camera centers comfortably with panel space accounted for. A guessed offset
+  // beside a card can land in the panel; press only a hit-tested canvas background instead.
+  await page.mouse.click(point.x, point.y);
   await page.waitForTimeout(500);
 };
 
