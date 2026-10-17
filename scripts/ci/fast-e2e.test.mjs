@@ -57,9 +57,9 @@ test('artifact names carry the run attempt, so re-running failed jobs cannot col
   assert.match(y, /name: fast-e2e-\$\{\{ github\.sha \}\}-\$\{\{ matrix\.part \}\}-\$\{\{ github\.run_attempt \}\}/));
 test('only the real repository runs it, and not for a deleted branch; the verdict follows', () => {
   const guard = "github\\.repository == 'Rabbit-Hole-App/Rabbit-Hole' && github\\.event\\.deleted != true";
-  assert.match(plan.slice(0, plan.indexOf('steps:')), new RegExp(`^ {4}if: ${guard}$`, 'm'));
+  assert.match(plan.slice(0, plan.indexOf('steps:')), new RegExp(`^ {4}if: ${guard} && inputs\\.upload_diagnostic != '1'$`, 'm'));
   assert.match(e2e.slice(0, e2e.indexOf('steps:')), new RegExp(`^ {4}if: ${guard} && needs\\.plan\\.outputs\\.parts != '\\[\\]'$`, 'm'));
-  assert.match(y.slice(y.search(/^ {2}verdict:/m)), new RegExp(`if: \\$\\{\\{ !cancelled\\(\\) && ${guard} \\}\\}`));
+  assert.match(y.slice(y.search(/^ {2}verdict:/m)), new RegExp(`if: \\$\\{\\{ inputs\\.upload_diagnostic != '1' && !cancelled\\(\\) && ${guard} \\}\\}`));
 });
 
 test('the matrix comes from the plan, which selects parts 1..N with the --of N each part passes to affected.mjs', () => {
@@ -167,4 +167,16 @@ test('every harness check has a server rule that matches the port its source har
 test('no workflow line escapes its block: only top-level keys and comments start at column 1', () => {
   const stray = y.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => l && !/^\s/.test(l) && !/^(#|[A-Za-z_-]+:)/.test(l));
   assert.deepEqual(stray, [], 'lines at column 1 that are not a top-level key');
+});
+
+test('isolated upload diagnostic cannot select ordinary checks or deploy',()=>{
+ const diagnostic=y.slice(y.indexOf('  upload-diagnostic:'));
+ assert.match(diagnostic,/github.event_name == 'workflow_dispatch'/);
+ assert.match(diagnostic,/inputs.upload_diagnostic == '1'/);
+ assert.match(diagnostic,/refs\/heads\/fix\/linux-upload-followup/);
+ assert.match(diagnostic,/timeout-minutes: 15/);
+ assert.match(diagnostic,/timeout 480 node --import .*linux-upload-trace.mjs e2e\/canvas-file-drop-check.mjs/);
+ assert.match(diagnostic,/stack.sh start/);assert.match(diagnostic,/stack.sh stop/);
+ assert.doesNotMatch(diagnostic,/wrangler deploy|workflow run|git push|run-part.sh|READINESS:/);
+ assert.match(diagnostic,/path: \$\{\{ runner.temp \}\}\/upload-diagnostic\//);
 });
