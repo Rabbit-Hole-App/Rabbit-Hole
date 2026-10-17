@@ -90,11 +90,16 @@ async function upload(req, env, id) {
   const fam = familyById(row.family), reader = (req.body || new Response(new Uint8Array(0)).body).getReader();
   const head = [];
   let headBytes = 0;
-  // The structure check (file-sniff.js) on the first HEAD_BYTES, or the whole body when smaller, before anything is stored.
-  while (headBytes < HEAD_BYTES) { const { done, value } = await reader.read(); if (done) break; head.push(value); headBytes += value.byteLength; }
+  // The structure check (file-sniff.js) on the first HEAD_BYTES, or the whole body when smaller, before anything is stored. A
+  // model package (.zip, within its 25 MiB cap) is checked on the whole archive: its body is read and counted first.
+  const whole = row.family === 'model-package';
+  while (whole || headBytes < HEAD_BYTES) {
+    const { done, value } = await reader.read(); if (done) break; head.push(value); headBytes += value.byteLength;
+    if (headBytes > row.bytes) { await reader.cancel().catch(() => {}); return json({ error: `Send exactly ${row.bytes} bytes.` }, 413); }
+  }
   const first = new Uint8Array(headBytes);
   head.reduce((at, chunk) => { first.set(chunk, at); return at + chunk.byteLength; }, 0);
-  const sniffed = sniffUpload({ family: row.family, name: row.name, head: first, size: row.bytes });
+  const sniffed = sniffUpload({ family: row.family, name: row.name, head: first.subarray(0, HEAD_BYTES), size: row.bytes, body: whole ? first : null });
   if (!sniffed.ok) { await reader.cancel().catch(() => {}); return json({ error: `This file is not a ${fam?.label.toLowerCase() || 'supported'} file this importer reads: ${sniffed.reason}.` }, 415); }
   // Workers hash while streaming (crypto.DigestStream) and stream into R2 with a known length; elsewhere (tests) it is read
   // whole, bounded by the declared size.

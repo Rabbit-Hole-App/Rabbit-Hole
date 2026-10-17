@@ -1,6 +1,7 @@
 // Imported file sources (learn-files.js; canvas-file-imports.md sections 4.1-4.2) on node:sqlite with the 0023 tables and an
 // in-memory R2, behind the stub control plane learn-boards.test.js uses.
 import test from 'node:test';
+import { existsSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { learnDb } from './learn-grade-fixture.js';
@@ -112,6 +113,24 @@ test('an unfinished upload resumes under its id; wrong bytes, a wrong count or a
   const declared = await call('POST', '/api/learn/files', { as: 'owner', body: { app: 'demo-app', name: 'not-a-video.mp4', type: 'video/mp4', size: mislabelled.byteLength, sha256: sha(mislabelled), family: 'video' } });
   const refused = await call('PUT', declared.body.upload.url, { as: 'owner', raw: mislabelled });
   assert.equal(refused.status, 415); assert.match(refused.body.error, /not a \.mp4 file/);
+  assert.equal(objects.size, 1, 'nothing more is stored');
+});
+
+// A model package is sniffed on its whole archive (file-sniff.js modelPackageCheck): Lane 5's bundles, when present here.
+const FIX = 'C:/s/fi-fixtures';
+test('a model package (.zip) is checked on its whole body: a glTF bundle is stored, a traversal archive is 415', { skip: !existsSync(`${FIX}/bundle/gltf-bundle.zip`) && `no fixtures at ${FIX}` }, async t => {
+  const { call, saveBoard, objects } = setup(t);
+  await saveBoard(STATE);
+  const upload = async name => {
+    const bytes = new Uint8Array(readFileSync(`${FIX}/${name}`));
+    const made = await call('POST', '/api/learn/files', { as: 'owner', body: { app: 'demo-app', name: name.split('/').pop(), type: 'application/zip', size: bytes.byteLength, sha256: sha(bytes), family: 'model-package' } });
+    assert.equal(made.status, 201, made.body.error);
+    return call('PUT', made.body.upload.url, { as: 'owner', raw: bytes, headers: { 'Content-Length': String(bytes.byteLength) } });
+  };
+  assert.equal((await upload('bundle/gltf-bundle.zip')).status, 200);
+  assert.equal(objects.size, 1);
+  const refused = await upload('negative/zip-traversal.zip');
+  assert.equal(refused.status, 415); assert.match(refused.body.error, /outside the package/);
   assert.equal(objects.size, 1, 'nothing more is stored');
 });
 
