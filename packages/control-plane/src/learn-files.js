@@ -10,6 +10,7 @@ import { authorizeFileSource } from './file-access.js';
 import { memberContext } from './canvas-comments.js';
 import { repositoryIdentity } from './repositories.js';
 import { learnMedia } from './learn-storage.js';
+import { clientMismatch, uploadBody } from './upload-body.js';
 import { BOARD_FILE_LIMIT, family as familyById, formatBytes } from '../../web/src/file-capabilities.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -84,55 +85,23 @@ async function upload(req, env, id) {
   if (!row) return json({ error: 'Not available' }, 404);
   if (row.status === 'stored') { await req.body?.cancel().catch(() => {}); return json({ source: publicSource(row) }); }
   if (row.status !== 'uploading') return json({ error: 'This upload has ended. Start it again.' }, 409);
+  const fam = familyById(row.family);
+  // Streamed natively to its own staging key with bounded memory and CPU (upload-body.js); R2 verifies the declared sha256
+  // as it stores (the put's sha256 option), so no byte is hashed in JavaScript and a mismatch stores nothing.
   const declared = req.headers.get('content-length');
   if (declared !== null && Number(declared) !== row.bytes) { await req.body?.cancel().catch(() => {}); return json({ error: `Send exactly ${row.bytes} bytes.` }, Number(declared) > row.bytes ? 413 : 400); }
-  const fam = familyById(row.family), reader = (req.body || new Response(new Uint8Array(0)).body).getReader();
-  const head = [];
-  let headBytes = 0;
-  while (fam?.sniff && headBytes < 16) { const { done, value } = await reader.read(); if (done) break; head.push(value); headBytes += value.byteLength; }
-  if (fam?.sniff) {
-    const first = new Uint8Array(headBytes);
-    head.reduce((at, chunk) => { first.set(chunk, at); return at + chunk.byteLength; }, 0);
-    if (!fam.sniff(first)) { await reader.cancel().catch(() => {}); return json({ error: `This file is not a ${fam.label.toLowerCase()} file this importer reads.` }, 415); }
-  }
-  // Workers hash while streaming (crypto.DigestStream) and stream into R2 with a known length; elsewhere (tests) it is read
-  // whole, bounded by the declared size.
-  const digest = typeof crypto.DigestStream === 'function' ? new crypto.DigestStream('SHA-256') : null;
-  const hashing = digest?.getWriter();
-  const state = { seen: 0, over: false };
-  const stream = new ReadableStream({
-    async pull(controller) {
-      const { done, value } = head.length ? { done: false, value: head.shift() } : await reader.read();
-      if (done) { await hashing?.close(); controller.close(); return; }
-      state.seen += value.byteLength;
-      if (state.seen > row.bytes) { state.over = true; await reader.cancel().catch(() => {}); controller.error(new RangeError('more bytes than declared')); return; }
-      await hashing?.write(value);
-      controller.enqueue(value);
-    },
-    cancel: reason => reader.cancel(reason),
-  });
+  const got = await uploadBody(req, { cap: row.bytes, sniffBytes: fam?.sniff ? 16 : 0 });
+  if (got.refused === 'over') return json({ error: `Send exactly ${row.bytes} bytes.` }, 413);
+  if (got.refused === 'length') return json({ error: 'Send this file with its Content-Length.' }, 411);
+  if (got.length !== row.bytes) return json({ error: `Send exactly ${row.bytes} bytes.` }, 400);
+  if (fam?.sniff && !fam.sniff(got.head)) { await got.body.cancel?.().catch(() => {}); return json({ error: `This file is not a ${fam.label.toLowerCase()} file this importer reads.` }, 415); }
+  if (!got.streamed && hex(await crypto.subtle.digest('SHA-256', got.body)) !== row.sha256) return json({ error: 'These bytes do not match the sha256 this upload declared.' }, 400);
   const key = `file-sources/${id}/original/${hex(crypto.getRandomValues(new Uint8Array(8)))}`;
-  let body = stream, bufferHash = null;
-  if (digest && typeof FixedLengthStream === 'function') {
-    const fixed = new FixedLengthStream(row.bytes);
-    stream.pipeTo(fixed.writable).catch(() => {});
-    body = fixed.readable;
-  } else {
-    try { body = await new Response(stream).arrayBuffer(); } catch { return json({ error: `Send exactly ${row.bytes} bytes.` }, 413); }
-    bufferHash = hex(await crypto.subtle.digest('SHA-256', body));
-    if (state.seen !== row.bytes) return json({ error: `Send exactly ${row.bytes} bytes.` }, 400);
-    if (bufferHash !== row.sha256) return json({ error: 'These bytes do not match the sha256 this upload declared.' }, 400);
-  }
   try {
-    await bucket.put(key, body, { httpMetadata: { contentType: SAFE_TYPE.test(row.media_type) ? row.media_type : 'application/octet-stream' }, customMetadata: { source: id } });
+    await bucket.put(key, got.body, { httpMetadata: { contentType: SAFE_TYPE.test(row.media_type) ? row.media_type : 'application/octet-stream' }, customMetadata: { source: id }, sha256: row.sha256 });
   } catch (error) {
-    if (state.over || state.seen !== row.bytes) return json({ error: `Send exactly ${row.bytes} bytes.` }, state.over ? 413 : 400);
+    if (await clientMismatch(got, error)) return json({ error: 'These bytes do not match the size and sha256 this upload declared.' }, 400);
     throw error;
-  }
-  const sha = bufferHash || hex(await digest.digest);
-  if (state.seen !== row.bytes || sha !== row.sha256) {
-    await bucket.delete(key);
-    return json({ error: state.seen !== row.bytes ? `Send exactly ${row.bytes} bytes.` : 'These bytes do not match the sha256 this upload declared.' }, 400);
   }
   const done = await db.prepare("UPDATE file_sources SET status = 'stored', r2_key = ?, stored_at = ? WHERE id = ? AND status = 'uploading'").bind(key, Date.now(), id).run();
   if (!done.meta?.changes) await bucket.delete(key); // another upload of the same bytes finished first: keep that one
