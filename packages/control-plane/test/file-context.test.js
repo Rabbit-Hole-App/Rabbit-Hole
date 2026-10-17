@@ -181,3 +181,31 @@ test('truncation at exactly 4,000 per ref and 12,000 per turn, and one over each
   assert.equal(files.blocks[2].split('\n')[1].length, 2000);
   assert.match(files.blocks[2], /partial: the first 2000 of 4001 characters/);
 });
+
+// Owner acceptance 3a: Context -> Add to canvas puts the card on the board through the ordinary board save, which records the
+// file_source_refs row; after a reopen the card is still there and still resolves; taking the card off removes that access.
+test('a card added from a Context row saves normally, records its reference, and resolves after a reopen', async t => {
+  const { env, request, source, derivative, store, sqlite, call } = setup(t);
+  source();
+  store.set(derivative(), UNITS);
+  const { canvasFamilyOf, fileCardFromSource } = await import('../../web/src/file-to-canvas.js');
+  const fam = canvasFamilyOf({ ...ref(), name: 'clip.mp4' });
+  const card = { id: 'c-added', dx: 0, dy: 0, ...fileCardFromSource({ id: SRC, rev: REV, name: 'clip.mp4', type: 'video/mp4', size: 10 }, fam) };
+  assert.ok(JSON.stringify(card.fileRef).length < 2048, 'a compact fileRef');
+  const STATE = { blocks: [card], shapes: [], items: [], links: [], strokes: [], exchanges: [] };
+  const saved = await call('PUT', '/api/learn/boards/demo-app/main', 'owner', { state: STATE });
+  assert.ok(saved.status < 300, `the ordinary board save (${saved.status})`);
+  const board = sqlite.prepare("SELECT id FROM learn_boards WHERE app = 'demo-app' AND board = 'main'").get();
+  assert.deepEqual(sqlite.prepare('SELECT source_id FROM file_source_refs WHERE board_id = ?').all(board.id).map(r => r.source_id), [SRC], 'the save recorded the reference');
+  // Reopen: the saved board still holds the card, and a member of that board reads the excerpt through it.
+  const reopened = await (await call('GET', '/api/learn/boards/demo-app/main', 'owner')).json();
+  assert.deepEqual((reopened.state || reopened).blocks.map(b => b.fileRef?.source), [{ id: SRC, rev: REV }]);
+  sqlite.prepare("INSERT INTO canvases (org, name, owner_email, title) VALUES ('team', 'demo-app', 'owner@test', 'Demo')").run();
+  sqlite.prepare(`INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at)
+    VALUES ('m1', 'team', 'demo-app', 'friend@elsewhere', 'u-friend', 'friend@elsewhere', 'active', 'sent', 'owner@test', 1, 9999999999999)`).run();
+  assert.equal([...(await fileContext(request('friend'), env, [ref({ sheet: 'Q1' })], { user: PEOPLE.friend, member: board.id })).coverage.values()][0], 'extracted');
+  // The card taken off and saved: the reference row goes, and the board no longer grants the file.
+  await call('PUT', '/api/learn/boards/demo-app/main', 'owner', { state: { ...STATE, blocks: [] } });
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM file_source_refs WHERE board_id = ?').get(board.id).n, 0);
+  assert.equal([...(await fileContext(request('friend'), env, [ref({ sheet: 'Q1' })], { user: PEOPLE.friend, member: board.id })).coverage.values()][0], 'unavailable');
+});

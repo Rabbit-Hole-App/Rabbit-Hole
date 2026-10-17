@@ -7,6 +7,8 @@ import { CONTEXT_ACCEPT } from './context-docs.js';
 import { RefIcon } from './ContextChips.jsx';
 import SourceReader from './SourceReader.jsx';
 import { pdfKeyOfRef } from './pdf-source.js';
+import { addFileToCanvas, canvasFamilyOf } from './file-to-canvas.js';
+import { wsHeaders } from './api.js';
 
 // Sub-lane A4a owns this file: the Sources pane left of Chat (brief section 6). A1 mounts it, unpadded, as the
 // Sources ResizableSidePanel's child. A compact header (the active source's icon and title, Back, All sources, Open
@@ -91,6 +93,9 @@ export default function SourcesPane() {
           const toggle = () => { if (isActive) setFolded(open ? active : null); else chat.openSource(ref); };
           const name = ref.name, doc = item.doc, row = rows[ref.sourceId] || {};
           const canAdd = ready && !!pdfKeyOfRef(ref) && (ref.kind !== 'doc' || doc?.kind === 'pdf');
+          // An imported file (file-to-canvas.js): its stored source becomes a card through the canvas's own insert, so the board
+          // save records its reference; this row's chat and context state stay as they are.
+          const canAddFile = ready && !canAdd && !!canvasFamilyOf(ref) && !!chat.canvasOps?.insertCard;
           const onCanvas = !!doc?.attached;
           return (
             <section key={key} data-source-section={isActive ? 'active' : ''} className={open ? 'flex min-h-80 flex-1 flex-col' : 'shrink-0'}>
@@ -112,6 +117,9 @@ export default function SourcesPane() {
                       className={rowAction(onCanvas)}>{row.busy === 'context' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Paperclip size={14} aria-hidden />}</button>}
                     {canAdd && <button type="button" data-material-action="canvas" onClick={act(() => addToCanvas(ref))}
                       aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={rowAction()}><SquarePlus size={14} aria-hidden /></button>}
+                    {canAddFile && <button type="button" data-material-action="canvas" disabled={!!row.busy}
+                      onClick={act(() => run(item, 'canvas', () => addFileToCanvas({ ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() })))}
+                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={rowAction()}>{row.busy === 'canvas' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <SquarePlus size={14} aria-hidden />}</button>}
                     {ready && <button type="button" data-material-action="chat" aria-pressed={!!item.attached}
                       onClick={act(() => (item.attached ? context.detach(item.ref) : context.attach(item.ref)))}
                       aria-label={item.attached ? `Remove ${name} from this chat` : `Attach ${name} to this chat`} title={item.attached ? `Remove ${name} from this chat` : `Attach ${name} to this chat`}

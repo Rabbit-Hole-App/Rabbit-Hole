@@ -79,6 +79,14 @@ const SAYS = {
   unavailable: 'its content could not be read',
 };
 
+// Ctrl+K Edit (owner spec section 9): a file card whose family has no semantic editing path (registry can.edit) takes no Edit,
+// so a request can never rewrite or replace it as if its content were text. ids: the target's; board: the live lists.
+export function fileEditLocked(ids = [], board = null) {
+  const blocks = new Map((board?.blocks || []).map(block => [block.id, block]));
+  return ids.some(id => { const fileRef = blocks.get(id)?.fileRef; return !!fileRef && !family(fileRef.family)?.can?.edit; });
+}
+export const FILE_EDIT_LOCKED = 'This file has no editing path yet: Edit would replace it, not change its content. Explain works.';
+
 // The selected-card description (learn-ask-target.js describeCanvasObject) of a file card: its name, type and size, and
 // what an AI turn can honestly read of it. Never the file's text: that comes only through its attached ref.
 export function describeFileCard(block) {
