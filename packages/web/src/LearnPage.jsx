@@ -708,6 +708,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const { kind, error } = media || classifyDrop(file);
       if (error) { toast(error); continue; }
       if (kind === 'pdf') { await takePdf(file); continue; }
+      // SVG and audio: a stored source once the file client is injected (media-storage.js); everything else a board asset.
+      if (kind === 'svg' || kind === 'audio') {
+        try { canvas()?.insertFile(await (await import('./media-storage.js')).storeMedia(file, media)); } catch (problem) { toast(`${file.name}: ${problem.message}`); }
+        continue;
+      }
       const assetKey = `drop:${crypto.randomUUID()}`;
       await cacheAsset(assetKey, file);
       if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name, meta: media?.meta }); continue; }

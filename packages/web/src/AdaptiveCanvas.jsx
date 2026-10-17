@@ -552,7 +552,8 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
 function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
   const [url, setUrl] = useState(null);
   const [missing, setMissing] = useState(false);
-  const media = MEDIA_BODY[block.kind];
+  // A stored-source card (fileRef: an SVG or audio import, or Context Add to canvas for any media) reads through MediaBody too.
+  const media = MEDIA_BODY[block.kind] || (block.fileRef ? 'Image' : null);
   useEffect(() => {
     if (media) return undefined; // MediaBody reads its own original
     let revoke = null;
@@ -1964,9 +1965,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
-      insertFile: ({ assetKey, kind, label, mediaId = null, meta = null }) => {
+      insertFile: ({ assetKey = null, kind, label, mediaId = null, meta = null, fileRef = null }) => {
         snapshot();
-        return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, assetKey, label, ...(mediaId ? { mediaId } : {}), ...(meta ? { meta } : {}) });
+        return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, ...(assetKey ? { assetKey } : {}), label, ...(mediaId ? { mediaId } : {}), ...(meta ? { meta } : {}), ...(fileRef ? { fileRef } : {}) });
       },
       // An arXiv paper as a card: the full reader - pages, zoom, Ask selection -
       // on the canvas. One card per paper; pointing at it again turns the page.

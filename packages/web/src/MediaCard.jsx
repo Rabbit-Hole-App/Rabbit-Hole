@@ -3,7 +3,7 @@
 // Every state says what is true: a preview that cannot be shown says why, and the original stays downloadable.
 import { useEffect, useRef, useState } from 'react';
 import { Download, Loader2, RotateCcw, TriangleAlert, X } from 'lucide-react';
-import { loadAsset } from './learn-board-assets.js';
+import { loadMediaOriginal, mediaMeta } from './media-storage.js';
 import { wsHeaders } from './api.js';
 import { SvgRefused, sanitizeSvg } from './svg-sanitize.js';
 import { derivativeState, probeMedia, requestPlayback, retryPlayback, watchPlayback } from './media-playback.js';
@@ -20,18 +20,19 @@ const codecName = codec => (codec || '').split(',').map(c => CODEC[c.trim()] || 
 // as application/octet-stream), plus a download URL that can never render in the page.
 function useOriginal(block) {
   const [state, setState] = useState({ blob: null, download: null, missing: false });
+  const meta = mediaMeta(block);
   useEffect(() => {
     let live = true, download = null;
-    loadAsset(block.assetKey).then(value => {
+    loadMediaOriginal(block).then(value => {
       if (!live) return;
       if (!value || typeof value === 'string') { setState({ blob: null, download: null, missing: true }); return; }
-      const type = block.meta?.type || value.type;
+      const type = meta.type || value.type;
       const blob = value.type === type ? value : new Blob([value], { type });
       download = URL.createObjectURL(new Blob([value], { type: 'application/octet-stream' }));
       setState({ blob, download, missing: false });
     }).catch(() => live && setState({ blob: null, download: null, missing: true }));
     return () => { live = false; if (download) URL.revokeObjectURL(download); };
-  }, [block.assetKey, block.meta?.type]);
+  }, [block.assetKey, block.fileRef?.source?.id, block.fileRef?.source?.rev, meta.type]); // eslint-disable-line react-hooks/exhaustive-deps
   return state;
 }
 const useObjectUrl = blob => {
@@ -53,11 +54,12 @@ function Notice({ state, children, action }) {
     </div>
   );
 }
-const Missing = () => <p className="p-2 text-sm text-ink-2">This file is not in this browser or saved with the board yet.</p>;
+const Missing = ({ stored }) => <p data-media-state="missing" className="p-2 text-sm text-ink-2">{stored ? 'This stored file could not be read here.' : 'This file is not in this browser or saved with the board yet.'}</p>;
 
 // ---- SVG --------------------------------------------------------------------------------------------------------------
 
 function SvgBody({ block, original }) {
+  const meta = mediaMeta(block);
   const [view, setView] = useState({ state: 'checking' });
   useEffect(() => {
     if (!original.blob) return undefined;
@@ -74,7 +76,7 @@ function SvgBody({ block, original }) {
     });
     return () => { live = false; if (url) URL.revokeObjectURL(url); };
   }, [original.blob]);
-  const w = block.meta?.width || view.width, h = block.meta?.height || view.height;
+  const w = meta.width || view.width, h = meta.height || view.height;
   return (
     <>
       {view.state === 'ready'
@@ -92,6 +94,7 @@ function SvgBody({ block, original }) {
 // ---- audio ------------------------------------------------------------------------------------------------------------
 
 function PlaybackCopy({ block, onChange }) {
+  const meta = mediaMeta(block);
   const [job, setJob] = useState(null);
   const [problem, setProblem] = useState(null);
   const blockRef = useRef(block); blockRef.current = block;
@@ -122,7 +125,7 @@ function PlaybackCopy({ block, onChange }) {
     })();
     return () => abort.abort();
   }, [fileRef?.source?.id, rev, fileRef?.job, fileRef?.derivatives?.playback]); // eslint-disable-line react-hooks/exhaustive-deps
-  const codec = codecName(block.meta?.codec) || 'this encoding';
+  const codec = codecName(meta.codec) || 'this encoding';
   if (shown.state === 'ready') return (
     <>
       <audio controls preload="metadata" src={shown.url} aria-label={`Play ${block.label || 'audio'} (converted copy)`} className="w-full" />
@@ -148,18 +151,19 @@ function PlaybackCopy({ block, onChange }) {
 }
 
 function AudioBody({ block, original, onChange }) {
+  const meta = mediaMeta(block);
   const url = useObjectUrl(original.blob);
   const [check, setCheck] = useState({ plan: null });
   useEffect(() => {
     if (!original.blob) return undefined;
     let live = true;
-    const type = block.meta?.codec && block.meta.container !== 'wav' && block.meta.codec !== 'mp3' ? `${block.meta.type}; codecs="${block.meta.codec}"` : block.meta?.type || original.blob.type;
+    const type = meta.codec && meta.container !== 'wav' && meta.codec !== 'mp3' ? `${meta.type}; codecs="${meta.codec}"` : meta.type || original.blob.type;
     probeMedia(original.blob, { kind: 'audio', type }).then(result => live && setCheck(result));
     return () => { live = false; };
   }, [original.blob]); // eslint-disable-line react-hooks/exhaustive-deps
   const [failed, setFailed] = useState(false);
   const plan = failed ? 'derivative' : check.plan;
-  const duration = check.duration ?? block.meta?.duration;
+  const duration = check.duration ?? meta.duration;
   return (
     <>
       {plan === 'native'
@@ -167,7 +171,7 @@ function AudioBody({ block, original, onChange }) {
         ? <audio controls preload="metadata" src={url} onError={() => setFailed(true)} aria-label={`Play ${block.label || 'audio'}`} className="w-full" />
         : plan === 'derivative' ? <PlaybackCopy block={block} onChange={onChange} />
           : <Notice state="checking">Checking this browser can play it…</Notice>}
-      <p data-media-facts className="pt-1 text-[11px] text-ink-3">{[clock(duration), codecName(block.meta?.codec), block.meta?.container === 'wav' ? 'WAV' : null].filter(Boolean).join(' · ')}</p>
+      <p data-media-facts className="pt-1 text-[11px] text-ink-3">{[clock(duration), codecName(meta.codec), meta.container === 'wav' ? 'WAV' : null].filter(Boolean).join(' · ')}</p>
     </>
   );
 }
@@ -175,11 +179,12 @@ function AudioBody({ block, original, onChange }) {
 // ---- video ------------------------------------------------------------------------------------------------------------
 
 function VideoBody({ block, original }) {
+  const meta = mediaMeta(block);
   const url = useObjectUrl(original.blob);
   const [facts, setFacts] = useState(null);
   const [failed, setFailed] = useState(false);
   if (failed) return (
-    <Notice state="unsupported">This browser cannot play this video{block.meta?.codec ? ` (${codecName(block.meta.codec)})` : ''}. The original file is kept: download it to play it in another app or browser.</Notice>
+    <Notice state="unsupported">This browser cannot play this video{meta.codec ? ` (${codecName(meta.codec)})` : ''}. The original file is kept: download it to play it in another app or browser.</Notice>
   );
   return (
     <>
@@ -191,15 +196,29 @@ function VideoBody({ block, original }) {
         onError={() => url && setFailed(true)}
         style={{ aspectRatio: facts?.width && facts?.height ? `${facts.width} / ${facts.height}` : '16 / 9' }}
         aria-label={`Play ${block.label || 'video'}`} className="w-full rounded-lg border border-line bg-black" />
-      {facts && <p data-media-facts className="pt-1 text-[11px] text-ink-3">{[clock(facts.duration), facts.width && `${facts.width} x ${facts.height}`, codecName(block.meta?.codec)].filter(Boolean).join(' · ')}</p>}
+      {facts && <p data-media-facts className="pt-1 text-[11px] text-ink-3">{[clock(facts.duration), facts.width && `${facts.width} x ${facts.height}`, codecName(meta.codec)].filter(Boolean).join(' · ')}</p>}
     </>
   );
 }
 
+// ---- image (a stored-source image or GIF card; dropped ones keep AdaptiveCanvas's own <img>) -----------------------------
+
+function ImageBody({ block, original }) {
+  const meta = mediaMeta(block);
+  const url = useObjectUrl(original.blob);
+  const [size, setSize] = useState(meta.width && meta.height ? [meta.width, meta.height] : null);
+  return url
+    ? <img src={url} alt={block.label || meta.name || 'Image'} draggable={false} data-image-preview onLoad={event => !size && setSize([event.currentTarget.naturalWidth, event.currentTarget.naturalHeight])}
+      style={size ? { aspectRatio: `${size[0]} / ${size[1]}` } : undefined} className="w-full rounded-lg border border-line bg-white object-contain" />
+    : <div style={size ? { aspectRatio: `${size[0]} / ${size[1]}` } : undefined} className="w-full rounded-lg border border-line bg-white" />;
+}
+
+const BODY = { svg: SvgBody, audio: AudioBody, clip: VideoBody, image: ImageBody };
+
 export default function MediaBody({ block, onChange }) {
   const original = useOriginal(block);
-  if (original.missing) return <Missing />;
-  const Body = block.kind === 'svg' ? SvgBody : block.kind === 'audio' ? AudioBody : VideoBody;
+  if (original.missing) return <Missing stored={!!block.fileRef?.source?.id} />;
+  const Body = BODY[block.kind] || ImageBody;
   return (
     <div data-media-card={block.kind}>
       <Body block={block} original={original} onChange={onChange} />
