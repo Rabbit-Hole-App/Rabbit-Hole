@@ -36,8 +36,8 @@ test('sizes read in MiB', () => {
 test('families: only shipped ones are offered, and a planned one claims nothing', () => {
   assert.equal(familyOf({ name: 'clip.MP4' }).id, 'video');
   assert.equal(familyOf({ name: '', type: 'video/webm' }).id, 'video');
-  assert.equal(familyOf({ name: 'scene.glb' }), null, 'planned');
-  assert.equal(familyOf({ name: 'part.step' }), null, 'planned');
+  assert.equal(familyOf({ name: 'scene.glb' }).id, 'gltf', 'shipped by Lane 4 (model cards)');
+  assert.equal(familyOf({ name: 'part.step' }).id, 'cad', 'shipped by Lane 4');
   assert.equal(familyOf({ name: 'old.doc' }), null, 'planned until its converter (lane 2)');
   assert.equal(familyOf({ name: 'data.csv' }).id, 'delimited', 'shipped by lane 2');
   for (const f of FAMILIES.filter(f => f.status === 'planned')) assert.deepEqual(Object.values(f.can), [false, false, false, false, false], f.id);
@@ -51,15 +51,18 @@ test('every shipped extension reaches a card today, and the picker offers exactl
   const { importKind } = await import('./learn-file-import.js');
   const { acceptList } = await import('./file-capabilities.js');
   const { docKind } = await import('./file-doc-import.js');
+  const { isModelDrop } = await import('./model-drop.js');
   for (const f of FAMILIES.filter(f => f.status === 'shipped')) {
     for (const ext of f.extensions) {
       if (f.route === 'import') assert.ok(importKind(`file.${ext.toUpperCase()}`), `.${ext} opens the import dialog`);
       else if (f.route === 'doc') assert.ok(docKind(`file.${ext.toUpperCase()}`), `.${ext} goes to the lane 2 importer (DocImport.jsx)`);
+      else if (f.route === 'model') assert.ok(f.card === null || isModelDrop([{ name: `file.${ext}` }]), `.${ext} goes to the model importer`);
       else assert.ok(classifyDrop({ type: f.mime[0], size: 1, name: `file.${ext}` }).kind, `.${ext} is a ${f.id} drop`);
     }
   }
   const offered = acceptList().split(',');
   assert.ok(['.mp4', '.webm', '.pdf', '.ipynb', '.py', '.ts', '.png'].every(ext => offered.includes(ext)));
-  assert.ok(!offered.some(ext => ['.glb', '.doc', '.svg', '.step'].includes(ext)), 'planned formats are not offered');
+  assert.ok(!offered.some(ext => ['.doc', '.svg'].includes(ext)), 'planned formats are not offered');
   assert.ok(['.txt', '.md', '.markdown', '.csv', '.tsv', '.xlsx', '.xls', '.docx', '.pptx', '.jsonl', '.ini', '.kts'].every(ext => offered.includes(ext)), 'lane 2 formats are offered');
+  assert.ok(['.glb', '.stl', '.ply', '.spz', '.zip'].every(ext => offered.includes(ext)), 'Lane 4 model formats are offered');
 });

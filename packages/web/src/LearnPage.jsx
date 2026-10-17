@@ -64,6 +64,7 @@ import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
 import { readPanelPin, savePanelPin } from './canvas-find.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
+import { isModelDrop } from './model-drop.js';
 import { acceptList, boardFileLimit, formatBytes } from './file-capabilities.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
@@ -699,6 +700,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return () => window.removeEventListener('small:code-card', place);
   }, []);
   const takeDrop = async (files, at = null) => {
+    // 3D models, splats, CAD, ZIP and folder packages (model-import.js, lazily loaded): one card per model, placed in
+    // input order; files no model uses (a photo alongside) carry on below as ordinary drops.
+    if (isModelDrop(files)) {
+      const [{ importModelFiles }, { storeModelCard }] = await Promise.all([import('./model-import.js'), import('./model-storage.js')]);
+      const { cards, leftovers, errors } = await importModelFiles(files);
+      for (const error of errors) toast(error, { tone: 'error' });
+      for (const card of cards) {
+        try { canvas()?.insertImported(await storeModelCard(card, { app: app.name, board: boardName }), at); } catch (problem) { toast(`${card.block.label}: ${problem.message}`, { tone: 'error' }); }
+      }
+      files = leftovers;
+    }
     const asked = [];
     for (const file of files) {
       if (importKind(file.name)) {

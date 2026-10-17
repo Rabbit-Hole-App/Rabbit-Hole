@@ -39,6 +39,13 @@ test('an over-the-cap boundary file and a mislabelled file of an offered family 
   assert.equal(expectation(fixture('negative/not-a-video.mp4', 'video', { role: 'negative', attack: 'mislabelled' }), registry).mustRefuse, true);
 });
 
+test('a file no family takes is refused without a family; a family that makes no card refuses the file on its own', () => {
+  const docm = expectation(fixture('negative/macro-enabled.docm', null, { role: 'negative', attack: 'macro' }), registry);
+  assert.deepEqual([docm.known, docm.offered, docm.detected, docm.misdetected], [true, false, null, false]);
+  const cardless = { ...registry, family: id => (id === 'part' ? { id: 'part', status: 'shipped', card: null, limits: {} } : registry.family(id)), familyOf: () => ({ id: 'part' }) };
+  assert.equal(expectation(fixture('cube.mtl', 'part', { role: 'part' }), cardless).mustRefuse, true);
+});
+
 test('sniff: the family\'s structure check on the first bytes, or null when it has none', () => {
   const ftyp = Buffer.from([0, 0, 0, 24, ...Buffer.from('ftypisom')]);
   assert.equal(sniffs(registry, fixture('a.mp4', 'video'), ftyp), true);

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, openSync, readSync, closeSync, readFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { FORMATS, HEAD_BYTES, sniffUpload } from '../src/file-sniff.js';
+import { family as familyById } from '../../web/src/file-capabilities.js';
 
 const b = (...parts) => new Uint8Array(Buffer.concat(parts.map(p => (typeof p === 'string' ? Buffer.from(p, 'latin1') : Buffer.from(p)))));
 const pad = (bytes, n) => b(bytes, new Uint8Array(Math.max(0, n - bytes.length)));
@@ -68,17 +69,42 @@ test('Lane 5 fixtures: every real file matches its name and family; every mislab
   const head = file => { const fd = openSync(file, 'r'); const out = Buffer.alloc(HEAD_BYTES); const n = readSync(fd, out, 0, HEAD_BYTES, 0); closeSync(fd); return new Uint8Array(out.subarray(0, n)); };
   const wrong = [];
   let checked = 0;
+  const REFUSED = new Set(['mislabelled', 'zip-traversal', 'zip-symlink', 'zip-bomb', 'macro']);
   for (const f of fixtures) {
-    if (f.attack && f.attack !== 'mislabelled') continue;              // the attacks are about content, not names
+    if (f.attack && !REFUSED.has(f.attack)) continue;                  // the other attacks are about content the sniff does not judge
+    if (f.family !== null && !familyById(f.family)) continue;           // a family this branch's registry does not have yet
     const file = join(dirname(MANIFEST), f.path);
-    const verdict = sniffUpload({ family: f.family, name: f.path, head: head(file), size: statSync(file).size });
-    const want = f.attack !== 'mislabelled';
+    const body = f.family === 'model-package' ? new Uint8Array(readFileSync(file)) : null;
+    const verdict = sniffUpload({ family: f.family, name: f.path, head: head(file), size: statSync(file).size, body });
+    const want = !REFUSED.has(f.attack);
     checked++;
     if (verdict.ok !== want) wrong.push(`${f.path}: ${JSON.stringify(verdict)}`);
   }
-  // The registry does not list .markdown, .ini, .jsonl or .kts yet (Lane 2 adds them), nor any family for zip containers
-  // (spec section 3: model and splat packages): those refusals are the registry's, not this module's.
-  const registryGaps = wrong.filter(w => /does not take \.(markdown|ini|jsonl|kts|zip)"/.test(w));
+  // This branch's registry does not list .markdown, .ini, .jsonl or .kts yet (Lane 2 adds them): those refusals are the
+  // registry's, not this module's.
+  const registryGaps = wrong.filter(w => /does not take \.(markdown|ini|jsonl|kts)"/.test(w));
   assert.deepEqual(wrong.filter(w => !registryGaps.includes(w)), [], `of ${checked}`);
   assert.ok(checked >= 95, `${checked} fixtures checked`);
+});
+
+// Model packages and parts (Lane 4: model-formats.js modelPackageCheck runs on the whole archive).
+const FIX = dirname(MANIFEST);
+const whole = rel => new Uint8Array(readFileSync(join(FIX, rel)));
+const pkg = rel => sniffUpload({ family: 'model-package', name: rel, head: whole(rel).subarray(0, HEAD_BYTES), size: whole(rel).length, body: whole(rel) });
+test('model packages: a model bundle is accepted; traversal, symlink and bomb archives are refused (the route answers 415)', { skip: !existsSync(MANIFEST) && `no fixtures at ${FIX}` }, () => {
+  for (const rel of ['bundle/gltf-bundle.zip', 'bundle/obj-bundle.zip', 'bundle/two-models.zip']) assert.equal(pkg(rel).ok, true, rel);
+  assert.deepEqual(pkg('bundle/two-models.zip').entries.sort(), ['box/cube.obj', 'cube/cube.gltf']);
+  assert.match(pkg('negative/zip-traversal.zip').reason, /outside the package/);
+  assert.match(pkg('negative/zip-symlink.zip').reason, /symbolic link/);
+  assert.match(pkg('negative/zip-bomb-1gib.zip').reason, /expands past|decompression bomb/);
+  assert.match(sniffUpload({ family: 'model-package', name: 'cube.zip', head: whole('bundle/gltf-bundle.zip').subarray(0, HEAD_BYTES) }).reason, /whole archive/, 'no body, no verdict');
+  assert.equal(sniffUpload({ family: 'model-package', name: 'x.zip', head: b('not a zip') }).ok, false);
+  assert.equal(sniffUpload({ family: 'splat', name: 'torus.sog', head: whole('splat/torus.sog').subarray(0, HEAD_BYTES) }).ok, true, 'a .sog keeps its own check under splat');
+});
+test('model parts: .bin is any non-empty bytes, .mtl is text, a .mtl with NUL bytes is refused', () => {
+  assert.equal(sniffUpload({ family: 'model-part', name: 'cube.bin', head: b([0, 1, 2]), size: 3 }).ok, true);
+  assert.equal(sniffUpload({ family: 'model-part', name: 'cube.bin', head: b(), size: 0 }).ok, false);
+  assert.equal(sniffUpload({ family: 'model-part', name: 'cube.mtl', head: b('newmtl a\nKd 1 1 1\n') }).ok, true);
+  assert.equal(sniffUpload({ family: 'model-part', name: 'cube.mtl', head: b('newmtl a', [0, 0, 1]) }).ok, false);
+  if (existsSync(MANIFEST)) assert.equal(sniffUpload({ family: 'model-part', name: 'binary.mtl', head: whole('negative/binary.mtl') }).ok, false, 'the NUL fixture');
 });

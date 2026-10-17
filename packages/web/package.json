@@ -25,6 +25,7 @@
     "@nivo/scatterplot": "^0.99.0",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-tabs": "^1.1.21",
+    "@sparkjsdev/spark": "2.3.1",
     "@xyflow/react": "^12.11.6",
     "clsx": "^2.1.1",
     "d3-force": "^3.0.0",
