@@ -471,11 +471,17 @@ bundled FFmpeg) and Chrome 155 MediaRecorder; they are generated test data, and 
 | HEVC MP4 | plays (hardware) | unsupported notice | unsupported notice |
 | MPEG-4 Part 2 MP4 | unsupported notice | unsupported notice | unsupported notice |
 
-- Audio that this browser cannot decode asks for the `audio-playback` derivative: `POST /api/learn/files/<source>/jobs`
-  with `{ converter: 'audio-playback', options: { bitrate_kbps: 128 }, card, idempotency_key:
-  'audio-playback:<sha256>:128' }`, then reads `GET /api/learn/files/jobs/<id>` until the job settles. Ready plays
-  `…/d/<derivative>` and stores it in `fileRef.derivatives.playback`. Failed says why and offers Retry. The original
-  stays downloadable in every state. A card without `fileRef.source` shows "awaiting converter". No video conversion.
+- Storage: new SVG and audio imports are fileRef cards at once. The copy waits under `fileRef.local` while
+  `file-source-client.js` `startUpload` stores it; the card shows "Saving to your account…" or "Not saved: <reason>"
+  with Retry, then writes `fileRef.source`. Image, GIF and video drops keep their board-file `assetKey` (lead ruling).
+  MediaBody also renders Context "Add to canvas" fileRef cards of any media family (`file-to-canvas.js`), read through
+  `loadSource`.
+- Audio that this browser cannot decode first looks for an existing copy (`file-jobs-client.js` `fetchDerivatives`,
+  `audio-playback`, `{ bitrate_kbps: 128 }`). If there is none and the page can write, it submits one job
+  (`submitFileJob`, keyed per card, converter and revision) and reads its status until the job settles. Ready plays
+  `…/d/<derivative>` in the page scope and records `fileRef.derivatives.playback`. Failed says why and offers Retry. A
+  viewer or a fork never starts a job. Before the file is saved, the card says the copy will be made once it is. The
+  original stays downloadable in every state. No video conversion.
 - Media cards never autoplay. Native controls give play/pause, seek, volume, time and fullscreen. `preload=metadata`
   paints the first frame as the poster (measured in all three engines). Import creates no `text` or `transcript`
   derivative, so chat lists a media card as `listed`.
