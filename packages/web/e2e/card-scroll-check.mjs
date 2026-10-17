@@ -100,7 +100,9 @@ check('opening a wide matrix disclosure raises readable width and height without
   const state = layoutBoard();
   state.blocks[0].body = 'A compact explanation before opening the complete matrix.';
   const row = Array.from({ length: 56 }, (_, i) => `x_{${i}}`).join(' & ');
-  state.blocks[0].more = [{ label: 'Show the complete matrix', text: `$$\begin{bmatrix}${row}\\${row}\end{bmatrix}$$` + '\n\n' + 'Additional explanation. '.repeat(60) }];
+  state.blocks[0].more = [{ label: 'Show the complete matrix', text: String.raw`$$\begin{bmatrix}${row}\\${row}\end{bmatrix}$$` + '\n\n' + 'Additional explanation. '.repeat(60) }];
+  assert.ok(state.blocks[0].more[0].text.includes(String.raw`\begin{bmatrix}`), 'fixture contains literal LaTeX begin');
+  assert.ok(!/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(state.blocks[0].more[0].text), 'fixture has no escaped control characters');
   const f = await fixture('explanation', { state }); try {
     await f.setLayout('Full content'); await f.waitSaved('full'); const before = await f.geometry();
     await f.card.getByRole('button', { name: 'Show the complete matrix', exact: true }).click();
@@ -211,9 +213,16 @@ check('shared reader sees Full content but cannot resize or persist layout', asy
     const card = page.locator('[data-block-id="subject"]'); await card.waitFor({ timeout: 60000 }); assert.equal(await card.getAttribute('data-card-layout'), 'full');
     assert.equal(await card.getByRole('slider', { name: /Resize card width/ }).count(), 0);
     const before = await f.saved();
-    await page.getByRole('button', { name: 'Select and move', exact: true }).click();
-    const header = card.locator('[data-drag-handle]').first(); await header.scrollIntoViewIfNeeded();
-    await header.click({ button: 'right' });
+    const point = await card.evaluate(e => {
+      const r = e.getBoundingClientRect(), viewport = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
+      const left = Math.max(r.left, viewport.left, 0), top = Math.max(r.top, viewport.top, 0);
+      const right = Math.min(r.right, viewport.right, innerWidth), bottom = Math.min(r.bottom, viewport.bottom, innerHeight);
+      if (right - left < 30 || bottom - top < 30) throw Error('Shared card has no visible mouse target');
+      return { x: left + 15, y: top + 15 };
+    });
+    await page.mouse.click(point.x, point.y);
+    await page.locator('[data-view-selection="subject"]').waitFor();
+    await page.mouse.click(point.x, point.y, { button: 'right' });
     assert.equal(await page.getByRole('menuitem', { name: 'Layout', exact: true }).count(), 0); assert.deepEqual(await f.saved(), before);
   } finally { await viewer?.close(); await f.context.close(); }
 });

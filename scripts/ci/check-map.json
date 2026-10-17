@@ -227,6 +227,10 @@
   ],
   "defaultReason": "An unmapped executable path runs this conservative set (the app shell, navigation, selection, naming and the home ask, about 4 min of checks) and the run reports the missing mapping. It is neither the full broad set nor a failure.",
   "mapped": {
+    "packages/web/src/card-layout.js": ["card-scroll-check.mjs", "card-edit-check.mjs", "canvas-editing-check.mjs", "card-context-menu-check.mjs", "canvas-forking-check.mjs"],
+    "packages/web/src/card-layout.css": ["card-scroll-check.mjs", "card-edit-check.mjs", "card-context-menu-check.mjs"],
+    "packages/web/src/inline-card-edit.js": ["card-edit-check.mjs", "inline-ai-check.mjs"],
+    "packages/web/e2e/card-scroll-fixtures.mjs": ["card-scroll-check.mjs"],
     "packages/web/src/file-doc-read.js": ["canvas-search-files-check.mjs", "file-doc-cards-check.mjs"],
     "packages/web/src/canvas-search-content.js": ["canvas-search-check.mjs", "canvas-search-viewers-check.mjs", "canvas-search-files-check.mjs"],
     "packages/web/src/canvas-search-content.jsx": ["canvas-search-check.mjs", "canvas-search-viewers-check.mjs", "canvas-search-files-check.mjs"],
@@ -547,6 +551,8 @@
   ],
   "secondsSource": "Linux checks: their own run time in fast-e2e run 38501772960 (Task B4), rounded up to 5 s, at least 10; windows-only: placeholder",
   "checks": {
+    "card-scroll-check.mjs": {"runner":"windows-only","why":"Actual-app card layout, persistence and shared-reader acceptance on an authorized local stack (BASE, SMALL_CP, VARS); model requests blocked. New check without three unchanged Linux readiness runs. Required manual Task4 release evidence; registration is not coverage.","seconds":180},
+    "card-edit-check.mjs": {"runner":"windows-only","why":"Actual-app structured card editing and layout acceptance on an authorized local stack with deterministic inline proposal fixtures and all real model routes blocked. New check without three unchanged Linux readiness runs. Required manual Task4 release evidence, not real-model verification.","seconds":90},
     "file-bundle-context-check.mjs": {"runner":"windows-only","why":"local Workers stack with VARS and C:/s/fi-fixtures bundle inputs plus C:/s/spec screenshot output; owner and FORK=1 acceptance run separately; not provisioned or proven three times on Linux; explicit local release evidence, not fast-tier or automatic gate coverage","seconds":60},
     "file-context-add-check.mjs": {"runner":"windows-only","why":"local Workers stack with VARS, six-family C:/s/fi-fixtures inputs and C:/s/spec screenshot output; not provisioned or proven three times on Linux; explicit local release evidence, not fast-tier or automatic gate coverage","seconds":60},
     "file-converter-ui-check.mjs": {"runner":"windows-only","why":"real authorized rabbit-hole-web-dev-fi-jobs clone and Fly dev converter with DEV_TEST_BYPASS; C:/s/fi-fixtures inputs and C:/s/spec screenshots; no local/mock-converter mode and no Linux CI credential authorization; separate deployed release acceptance only","seconds":180},
