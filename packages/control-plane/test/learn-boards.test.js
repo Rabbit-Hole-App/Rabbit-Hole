@@ -30,8 +30,15 @@ function setup(t) {
   // beside a live DB and RUNS that record and throw (C1, docs/features/learn-cleanup.md).
   const objects = new Map();
   const LEARN_MEDIA = {
-    put: async (key, bytes, { httpMetadata, customMetadata }) => { objects.set(key, { bytes: new Uint8Array(bytes), httpMetadata, customMetadata }); },
-    get: async key => { const object = objects.get(key); return object ? { body: object.bytes, httpMetadata: object.httpMetadata, customMetadata: object.customMetadata } : null; },
+    // A stream body is read whole, as R2 does; a stream that errors (over the cap) stores nothing.
+    put: async (key, bytes, { httpMetadata, customMetadata }) => { const data = bytes instanceof ReadableStream ? await new Response(bytes).arrayBuffer() : bytes; objects.set(key, { bytes: new Uint8Array(data), httpMetadata, customMetadata }); },
+    head: async key => (objects.has(key) ? { size: objects.get(key).bytes.byteLength } : null),
+    get: async (key, options) => {
+      const object = objects.get(key);
+      if (!object) return null;
+      const { offset = 0, length = object.bytes.byteLength - offset } = options?.range || {};
+      return { body: object.bytes.slice(offset, offset + length), size: object.bytes.byteLength, httpMetadata: object.httpMetadata, customMetadata: object.customMetadata };
+    },
     list: async ({ prefix }) => ({ objects: [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, object]) => ({ key, customMetadata: object.customMetadata })), truncated: false }),
   };
   const DB = liveDb(), RUNS = liveRuns();
@@ -43,7 +50,7 @@ function setup(t) {
     const type = response.headers.get('content-type') || '';
     return { status: response.status, headers: response.headers, body: type.includes('json') ? await response.json() : new Uint8Array(await response.arrayBuffer()) };
   };
-  return { call, LEARN_DB, sqlite };
+  return { call, LEARN_DB, sqlite, objects };
 }
 
 const STATE = { blocks: [{ id: 'b1', type: 'explanation', title: 'Softmax' }], shapes: [], items: [], links: [], strokes: [], exchanges: [] };
@@ -166,6 +173,93 @@ test('an uploaded file is never served as a page on this origin', async t => {
   assert.equal(served.headers.get('x-content-type-options'), 'nosniff');
   assert.match(served.headers.get('content-security-policy'), /sandbox/);
   assert.equal(served.headers.get('content-disposition'), 'attachment');
+});
+
+// The capability registry's caps (file-capabilities.js, docs/features/canvas-file-imports.md section 7): a video that sniffs as
+// MP4 or WebM may be 50 MiB, anything else 25 MiB, counted on the bytes that arrive whatever Content-Length says.
+const MiB = 1024 * 1024;
+const mp4 = size => { const bytes = new Uint8Array(size); bytes.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]); return bytes; };
+const webm = size => { const bytes = new Uint8Array(size); bytes.set([0x1a, 0x45, 0xdf, 0xa3]); return bytes; };
+const asVideo = (bytes, type = 'video/mp4', declared = bytes.byteLength) => ({ as: 'owner', raw: bytes, headers: { 'Content-Type': type, ...(declared === null ? {} : { 'Content-Length': String(declared) }) } });
+async function savedBoard(call, keys) {
+  await call('PUT', OWN, { as: 'owner', body: { state: { ...STATE, blocks: [...STATE.blocks, ...keys.map((assetKey, i) => ({ id: `v${i}`, type: 'file', kind: 'clip', assetKey }))] } } });
+}
+
+test('a video of exactly 50 MiB is stored whole and read back; one byte more is refused', async t => {
+  const { call, objects } = setup(t);
+  await savedBoard(call, ['drop:max', 'drop:over']);
+  const stored = await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:max')}`, asVideo(mp4(50 * MiB)));
+  assert.equal(stored.status, 200);
+  assert.equal(stored.body.size, 50 * MiB);
+  const read = await call('GET', `${OWN}/assets/${encodeURIComponent('drop:max')}`, { as: 'owner' });
+  assert.equal(read.status, 200);
+  assert.equal(read.body.byteLength, 50 * MiB);
+  assert.equal(read.headers.get('content-type'), 'video/mp4');
+  assert.equal(read.headers.get('accept-ranges'), 'bytes');
+  const over = await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:over')}`, asVideo(mp4(50 * MiB + 1)));
+  assert.equal(over.status, 413);
+  assert.equal(over.body.error, 'This file is over 50 MiB, so it was not saved to your account and stays in your browser.');
+  assert.equal(objects.size, 1, 'nothing stored for the refused one');
+  assert.equal((await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:over')}`, asVideo(webm(30 * MiB), 'video/webm'))).status, 200, 'a WebM between 25 and 50 MiB is stored');
+});
+
+test('the cap holds on actual bytes when the client bypasses its own check: no Content-Length, or a false one', async t => {
+  const { call, objects } = setup(t);
+  await savedBoard(call, ['drop:a']);
+  const key = `${OWN}/assets/${encodeURIComponent('drop:a')}`;
+  assert.equal((await call('PUT', key, asVideo(mp4(50 * MiB + 1), 'video/mp4', null))).status, 413, 'no Content-Length: counted');
+  assert.equal((await call('PUT', key, asVideo(mp4(50 * MiB + 1), 'video/mp4', 1000))).status, 413, 'a Content-Length smaller than the body: counted');
+  assert.equal((await call('PUT', key, asVideo(mp4(16), 'video/mp4', 50 * MiB + 1))).status, 413, 'a declared size over the cap is refused before reading');
+  assert.equal(objects.size, 0);
+});
+
+test('only a body that sniffs as a video gets the video cap; everything else keeps 25 MiB', async t => {
+  const { call, objects } = setup(t);
+  await savedBoard(call, ['drop:fake', 'drop:small-fake', 'import:max', 'import:over']);
+  const fake = await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:fake')}`, asVideo(new Uint8Array(30 * MiB)));
+  assert.equal(fake.status, 415, 'video/mp4 that is not an MP4');
+  assert.equal(fake.body.error, 'This file is not an MP4 or WebM video.');
+  assert.equal((await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:small-fake')}`, asVideo(new Uint8Array(100)))).status, 415);
+  assert.equal((await call('PUT', `${OWN}/assets/${encodeURIComponent('import:max')}`, asVideo(new Uint8Array(25 * MiB), 'application/octet-stream'))).status, 200, 'exactly 25 MiB of anything else');
+  const over = await call('PUT', `${OWN}/assets/${encodeURIComponent('import:over')}`, asVideo(mp4(25 * MiB + 1), 'application/octet-stream'));
+  assert.equal(over.status, 413, 'video bytes declared as something else get the general cap');
+  assert.match(over.body.error, /over 25 MiB/);
+  assert.equal(objects.size, 1);
+});
+
+test('with Content-Length the body streams to R2 through a FixedLengthStream, still counted', async t => {
+  const { call, objects } = setup(t);
+  // The Workers runtime has FixedLengthStream (a pass-through whose readable has a known length); Node does not: a stand-in.
+  globalThis.FixedLengthStream = class extends TransformStream { constructor(length) { super(); this.expectedLength = length; } };
+  t.after(() => { delete globalThis.FixedLengthStream; });
+  await savedBoard(call, ['drop:s', 'drop:t']);
+  const ok = await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:s')}`, asVideo(mp4(30 * MiB)));
+  assert.equal(ok.status, 200);
+  assert.equal([...objects.values()][0].bytes.byteLength, 30 * MiB);
+  assert.equal((await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:t')}`, asVideo(mp4(50 * MiB + 1), 'video/mp4', 1000))).status, 413, 'more bytes than declared, past the cap');
+  assert.equal(objects.size, 1);
+});
+
+test('board files answer one byte range, for the owner and a link viewer alike', async t => {
+  const { call } = setup(t);
+  const state = { ...STATE, blocks: [...STATE.blocks, { id: 'v', type: 'file', kind: 'clip', assetKey: 'drop:clip' }] };
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, state } })).body.sharing;
+  const bytes = mp4(1000).map((b, i) => (i < 12 ? b : i % 251));
+  await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:clip')}`, asVideo(bytes));
+  for (const [path, as] of [[`${OWN}/assets/${encodeURIComponent('drop:clip')}`, 'owner'], [`/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('drop:clip')}`, 'friend']]) {
+    const part = await call('GET', path, { as, headers: { Range: 'bytes=100-199' } });
+    assert.equal(part.status, 206, as);
+    assert.equal(part.headers.get('content-range'), 'bytes 100-199/1000');
+    assert.deepEqual([...part.body], [...bytes.slice(100, 200)]);
+    const tail = await call('GET', path, { as, headers: { Range: 'bytes=-10' } });
+    assert.equal(tail.headers.get('content-range'), 'bytes 990-999/1000');
+    const open = await call('GET', path, { as, headers: { Range: 'bytes=900-' } });
+    assert.deepEqual([open.status, open.body.byteLength], [206, 100]);
+    const past = await call('GET', path, { as, headers: { Range: 'bytes=1000-' } });
+    assert.deepEqual([past.status, past.headers.get('content-range')], [416, 'bytes */1000']);
+    assert.equal((await call('GET', path, { as, headers: { Range: 'bytes=0-1,5-9' } })).status, 200, 'several ranges: the whole file');
+  }
+  assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('drop:clip')}`, { headers: { Range: 'bytes=0-9' } })).status, 401, 'a range is no way around sign-in');
 });
 
 test('a link serves only the files its board uses now: a removed file, an old notebook workspace or any other key is 404; a fork copies only those', async t => {

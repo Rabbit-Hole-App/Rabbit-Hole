@@ -5,9 +5,11 @@ import { newNotebookBlock, trimOutputs } from './learn-notebook.js';
 import { codeLanguage } from './code-language.js';
 import { textBlock } from './file-doc-import.js';
 
+import { BOARD_FILE_LIMIT, formatBytes } from './file-capabilities.js';
+
 const MB = 1024 * 1024;
-// A File attachment is a board file: the board's server copy takes files up to 25 MB (LearnPage syncAssets).
-export const IMPORT_LIMIT = 25 * MB;
+// A File attachment is a board file: the board's server copy takes files up to 25 MiB (file-capabilities.js BOARD_FILE_LIMIT).
+export const IMPORT_LIMIT = BOARD_FILE_LIMIT;
 // A notebook or code card keeps its content in the canvas itself, whose saved copy is capped at 1.9 MB (learn-boards.js MAX_STATE).
 export const CARD_LIMIT = 1_900_000;
 
@@ -19,15 +21,12 @@ export const IMPORT_CHOICES = {
   // Plain text and Markdown (canvas-file-imports.md lane 2): their own card first; Markdown can also stay source in a Code card.
   text: [['text', 'Text card'], ['attachment', 'File attachment']],
   markdown: [['markdown', 'Markdown card'], ['code', 'Code card'], ['attachment', 'File attachment']],
-  // ponytail: awaiting converter. A Word 97-2003 .doc has no preview until the office-pdf conversion job is wired (file-job.js),
-  // so it is offered only as the file itself, said as such.
-  doc: [['attachment', 'File attachment (no preview yet)']],
   // Code pasted onto the canvas (docs/features/repository-browser.md "Files in Learn"): the same dialog, these two choices only.
   paste: [['code', 'Code card'], ['notebook', 'Jupyter notebook']],
 };
 export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : /\.txt$/i.test(name || '') ? 'text'
-  : /\.(md|markdown)$/i.test(name || '') ? 'markdown' : /\.doc$/i.test(name || '') ? 'doc' : codeLanguage(name) !== 'text' ? 'code' : null);
-const mb = (n) => `${(n / MB).toFixed(1)} MB`;
+  : /\.(md|markdown)$/i.test(name || '') ? 'markdown' : codeLanguage(name) !== 'text' ? 'code' : null);
+const mb = (n) => `${(n / MB).toFixed(1)} MiB`;
 // A file name as the notebook workspace keeps it: one file at its top level.
 const fileName = (name) => String(name || 'file').replace(/[/\\]/g, '_');
 
@@ -36,7 +35,7 @@ export function checkImport(file) {
   const kind = importKind(file.name);
   if (!kind) return { error: `${file.name || 'That file'}: add a .ipynb notebook, a .py file, a text or Markdown file or another code file` };
   if (!file.size) return { error: `${file.name}: the file is empty` };
-  if (file.size > IMPORT_LIMIT) return { error: `${file.name} is ${mb(file.size)}; files up to 25 MB can be added to a canvas` };
+  if (file.size > IMPORT_LIMIT) return { error: `${file.name} is ${mb(file.size)}; files up to ${formatBytes(IMPORT_LIMIT)} can be added to a canvas` };
   return { kind };
 }
 

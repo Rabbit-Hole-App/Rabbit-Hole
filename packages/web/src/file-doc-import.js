@@ -4,20 +4,21 @@
 // path every dropped file takes) and only compact view state; parsed rows, text and images are never written into the board.
 import { looksBinary } from './file-text.js';
 import { officeKind } from './file-office.js';
+import { FAMILIES, family, formatBytes } from './file-capabilities.js';
 
 const MiB = 1024 * 1024;
-// The board's server copy takes files up to 25 MiB (learn-boards.js, BOARD_FILE_LIMIT in the capability registry).
-export const DOC_IMPORT_LIMIT = 25 * MiB;
 // The card sizes the canvas gives each kind (resizable).
 export const DOC_CARD = { table: { w: 640, h: 420 }, workbook: { w: 680, h: 460 }, document: { w: 560, h: 560 }, presentation: { w: 640, h: 480 }, text: { w: 520, h: 420 }, markdown: { w: 560, h: 480 } };
 export const DOC_KINDS = new Set(Object.keys(DOC_CARD));
 
-const BY_EXTENSION = { csv: 'table', tsv: 'table', xlsx: 'workbook', xls: 'workbook', docx: 'document', doc: 'document', pptx: 'presentation' };
+// The registry's families this importer takes (route 'doc'), and the card kind each makes. A planned family (the .doc, until
+// its converter) is still recognised, so its drop is refused with its own reason rather than the generic one.
+const KIND_OF_FAMILY = { delimited: 'table', workbook: 'workbook', word: 'document', 'word-legacy': 'document', presentation: 'presentation' };
 const extensionOf = name => { const base = String(name || '').split(/[/\\]/).pop().toLowerCase(); return base.includes('.') ? base.split('.').pop() : ''; };
-export const docKind = name => BY_EXTENSION[extensionOf(name)] || null;
-export const docFormat = name => (BY_EXTENSION[extensionOf(name)] ? extensionOf(name) : null);
-// The Upload/Insert picker's extensions for these kinds.
-export const DOC_ACCEPT = Object.keys(BY_EXTENSION).filter(ext => ext !== 'doc').map(ext => `.${ext}`).join(',');
+const familyByExtension = name => FAMILIES.find(f => KIND_OF_FAMILY[f.id] && f.extensions.includes(extensionOf(name))) || null;
+export const docKind = name => KIND_OF_FAMILY[familyByExtension(name)?.id] || null;
+export const docFormat = name => (familyByExtension(name) ? extensionOf(name) : null);
+const limitOf = name => familyByExtension(name)?.limits.bytes || family('word').limits.bytes;
 
 const LABEL = { table: 'table', workbook: 'Excel workbook', document: 'Word document', presentation: 'PowerPoint presentation' };
 // Before a parser runs: { kind, format } or { error } (a visible line naming the file). `head` is the file's first bytes
@@ -26,7 +27,7 @@ export function checkDocFile({ name, size }, head) {
   const kind = docKind(name), format = docFormat(name);
   if (!kind) return { error: `${name || 'That file'}: not a table, workbook, Word document or presentation` };
   if (!size) return { error: `${name}: the file is empty` };
-  if (size > DOC_IMPORT_LIMIT) return { error: `${name} is ${(size / MiB).toFixed(1)} MiB; files up to 25 MiB can be added to a canvas` };
+  if (size > limitOf(name)) return { error: `${name} is ${(size / MiB).toFixed(1)} MiB; files up to ${formatBytes(limitOf(name))} can be added to a canvas` };
   if (kind === 'table') return looksBinary(head) && !(head[0] === 0xff && head[1] === 0xfe) && !(head[0] === 0xfe && head[1] === 0xff)
     ? { error: `${name} looks like a binary file, not ${format.toUpperCase()} text. Add it as a File attachment to keep it as it is.` }
     : { kind, format };

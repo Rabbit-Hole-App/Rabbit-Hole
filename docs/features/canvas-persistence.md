@@ -26,7 +26,7 @@ The canvas becomes canonical on the server. The browser keeps only transient sta
 | Cards, links, groups, areas, strokes, shapes, whiteboard snapshot, Explain Back sketch, layout positions (`:ink`) | localStorage | `learn_boards.state_json`, already this shape (`boardSnapshot()`) |
 | Canvas chat cards (`exchanges`) | localStorage `:chat`; the board snapshot carries them | `state_json.exchanges`, as for shared boards today |
 | Sources list (`:sources`) | localStorage | `state_json.sources` (a new key in the same object) |
-| Generated and dropped images, GIFs, PDFs, slides | IndexedDB | R2 board assets (`syncAssets`, already built), 25 MB per file |
+| Generated and dropped images, GIFs, PDFs, slides | IndexedDB | R2 board assets (`syncAssets`, already built), 25 MiB per file, 50 MiB for an MP4/WebM video (`canvas-file-imports.md` section 7) |
 | Notebook files | browser workspace | R2 `notebook:<id>` board asset (already built for shared boards) |
 | Nested Rabbit Holes | link on the server, content in the browser | each hole's own board row, same path |
 | Title, description, `updated_at`, visibility, trash | server | unchanged (canvases, 0009, 0007, 0010) |
@@ -89,7 +89,7 @@ Tests prove three things:
 ## Not changed by this work (separate decisions)
 
 - **Large boards:** the 1.9 MB cap stays. R2-chunked state is later work.
-- **Storage quota:** none beyond the existing 25 MB per file.
+- **Storage quota:** none beyond the per-file cap (25 MiB; 50 MiB for an MP4/WebM video).
 - **Deletion:** none. Trash never hard-deletes (library-trash.md), and permanent delete is its own decision.
 - **The temporary `/ask` payload** (`{id, kind, title, text}`) stays until a later step resolves card ids on the server (canvas-card-selection.md).
 
@@ -111,7 +111,7 @@ Two fresh browser profiles, one account, on the local stack:
   - No PUT at all when the server already holds this content. `boardText` (canvas-persist.js) compares the content keys, with a missing key read as empty, so opening a board never re-saves it or moves `updated_at`.
   - The sources list rides as `state_json.sources` on the main board.
 - **Files** (`syncAssets`) go up after every PUT. Notebook workspaces are saved once the board has its server row, and the first server copy asks loaded notebooks for theirs.
-- **Over 1.9 MB.** `stateText` now says "This board is over 1.9 MB, so it was not saved to your account and stays only in this browser." It is shown once per open (the next edit retries quietly). The 25 MB file notice says the same.
+- **Over 1.9 MB.** `stateText` now says "This board is over 1.9 MB, so it was not saved to your account and stays only in this browser." It is shown once per open (the next edit retries quietly). The over-the-cap file notice says the same.
 - **Load** is the table above, in the board GET.
   - A pending Rabbit Hole asks again once its first object keeps it.
   - When the server copy replaces local content that differs from it, the replaced copy is kept under `<ink key>:replaced`, with no UI, so content that never reached the server is recoverable by hand. A restore action would be a product choice.
@@ -151,7 +151,7 @@ Built after step 7 passed, on top of the #54 card redesign (owner §5 D, §19). 
   - Another browser cannot know about a refused over-cap copy, because the server keeps no record of a refusal. There the card shows no note and opens the last saved copy. The refusing browser said so when it happened.
   - An empty canvas had no board row until its first content, so another browser showed "On another device" and NOT_HERE for it. Since 2026-10-08 a new canvas has its board from creation (below); this holds only for a canvas made before then and never opened since.
   - A project's Learn says "Content in this browser" only on Home's Continue, and only while its main board is not on the server (`browserOnly` covers projects). A project is never "On another device".
-  - A file over 25 MB keeps its own notice and stays in its browser; the card does not say so.
+  - A file over its cap (25 MiB; 50 MiB for an MP4/WebM video) keeps its own notice and stays in its browser; the card does not say so. A file the server refuses (413, 415) says the server's reason once per open.
 - **Tests:**
   - `control-plane/test/canvas-persistence.test.js`: `board_saved` is false for a new canvas, after an over-cap refusal and for a board other than main, and true after the first save, in the list and the single row. A project's row is the same, for its main board only.
   - `web/src/home/continue.test.mjs`: `browserOnly`, `onAnotherDevice` and `recentCard` with a saved board and with the unsaved marker.
