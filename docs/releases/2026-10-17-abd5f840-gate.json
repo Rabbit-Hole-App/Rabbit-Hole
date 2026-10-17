@@ -1,0 +1,118 @@
+{
+  "applicationSha": "abd5f840cd701b072630e6405f93a78978875acc",
+  "applicationTree": "3b76cca77c19df12c6f4ee0a3abaf8d52a7b3d15",
+  "harnessSha": "971994fb1f7eea6b19c5e78a17655727c5ca15d2",
+  "gateVerdict": null,
+  "extraPassed": true,
+  "pass": true,
+  "attempts": {
+    "units": 1,
+    "checkpoints": 1,
+    "shard-1": 1,
+    "shard-2": 1,
+    "shard-3": 1,
+    "shard-4": 1,
+    "shard-5": 1,
+    "shard-6": 1,
+    "shard-7": 2
+  },
+  "retried": [],
+  "sharded": {
+    "units": {
+      "part": "units",
+      "stages": [
+        "make test-unit",
+        "fixture regression"
+      ],
+      "pass": true
+    },
+    "shards": [
+      {
+        "part": "shard-1",
+        "stages": [
+          "journey J1-J8",
+          "tutor-slice",
+          "blank-hooks",
+          "practice-card",
+          "canvas-chrome"
+        ],
+        "pass": true
+      },
+      {
+        "part": "shard-2",
+        "stages": [
+          "rh-app",
+          "comments",
+          "comments-invite",
+          "project-canvases",
+          "explore",
+          "explore-holes",
+          "naming",
+          "repo-browser"
+        ],
+        "pass": true
+      },
+      {
+        "part": "shard-3",
+        "stages": [
+          "sketch",
+          "fork",
+          "dive",
+          "handle",
+          "card-select"
+        ],
+        "pass": true
+      },
+      {
+        "part": "shard-4",
+        "stages": [
+          "rh-dev",
+          "selected-pill",
+          "analytics-ui",
+          "card-context-menu",
+          "slash-sheet",
+          "library-folders",
+          "share-revocation"
+        ],
+        "pass": true
+      },
+      {
+        "part": "shard-5",
+        "stages": [
+          "answer-routing",
+          "visibility",
+          "card-redesign",
+          "creator-profile",
+          "panel-header",
+          "cross-device"
+        ],
+        "pass": true
+      },
+      {
+        "part": "shard-6",
+        "stages": [
+          "sidebar",
+          "project-menu",
+          "canvas-shell",
+          "canvas-toolbar",
+          "bundle(dist)",
+          "bundle(dist-dev)"
+        ],
+        "pass": true
+      },
+      {
+        "part": "shard-7",
+        "stages": [
+          "sca",
+          "workspace",
+          "equation",
+          "thumbnails",
+          "rh-local",
+          "filedrop"
+        ],
+        "pass": true
+      }
+    ],
+    "failures": []
+  }
+}
