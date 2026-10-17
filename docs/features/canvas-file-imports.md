@@ -372,8 +372,14 @@ lane, `feature/fi-chat`):
 
 Server: `PUT …/assets/<key>` caps by `boardFileLimit(declared type)`: 50 MiB for `video/mp4` and `video/webm` after the
 first bytes sniff as MP4 (`ftyp` at offset 4) or WebM (EBML `1A 45 DF A3`), 25 MiB for everything else. The cap holds on
-actual bytes: a declared Content-Length over the cap is refused at once, and the body is counted while it streams into
-R2, so a missing or false header cannot pass. `GET` answers a single `Range: bytes=` request with 206 and
+actual bytes (`upload-body.js`): a declared Content-Length over the cap is refused at once (413); a body with a
+Content-Length pipes natively into a `FixedLengthStream` of that length and on into R2, so HTTP framing and the stream make
+the stored bytes exactly the declared length, no chunk passes through JavaScript and nothing is held in the isolate (a
+Content-Length larger than the bytes sent errors the stream: 400, nothing stored). The sniff reads 16 bytes from one tee
+branch. A body with no Content-Length is counted up to 1 MiB, and past it refused with 411 until it says its length; the
+browser always sends one for a Blob. Measured on the dev clone (2026-10-16): the earlier JavaScript pass-through used
+0.9-1.9 s of CPU per 50 MiB and was stopped with `exceededCpu` (503) on 2 of 10 board-file PUTs; the native pipe uses
+2-16 ms and passed 10 of 10. `GET` answers a single `Range: bytes=` request with 206 and
 `Content-Range` (416 when unsatisfiable), for the owner, members and share links alike. Client: `syncAssets` uses the
 same `boardFileLimit`, so a supported video is uploaded with the board; a file the server refuses shows its reason once.
 
