@@ -164,14 +164,25 @@ await check('inspector §4, dock §4: a graph node selects - a node named like i
   assert.equal((await codeChips()).length, 1, 'a plain click selects one');
   assert.match((await codeChips())[0], new RegExp(`^code:karpathy/nanoGPT@${COMMIT}:model\\.py#model_gpt\\|`));
   // A click on the graph's white space deselects (owner, 2026-10-08): no node lit, no details, no chip.
-  const graph = graphPanel().getByRole('img', { name: 'Repository dependency graph' }), g = await box(graph);
+  const graph = graphPanel().getByRole('img', { name: 'Repository dependency graph' });
+  // A fixed corner can contain a node on Linux's layout. Choose actual SVG
+  // background, then use a real pointer click; selecting a node is not this case.
+  const point = await graph.evaluate(svg => {
+    const r = svg.getBoundingClientRect();
+    for (const fy of [0.95, 0.05, 0.5, 0.25, 0.75]) for (const fx of [0.05, 0.95, 0.5, 0.25, 0.75]) {
+      const x = r.left + r.width * fx, y = r.top + r.height * fy;
+      if (document.elementFromPoint(x, y) === svg) return {x,y};
+    }
+    return null;
+  });
+  assert.ok(point, 'the visible graph has empty background to deselect on');
   try {
-    await graph.click({ position: { x: 8, y: g.height - 8 } });
+    await page.mouse.click(point.x, point.y);
     await waitFor(async () => (await details().count()) === 0, 3000, 'white space did not deselect');
     assert.equal(await graphPanel().locator('[data-graph-node][data-selected]').count(), 0);
     assert.deepEqual(await codeChips(), []);
   } catch(error) {
-    await reportPointerFailure(page, `${SHOTS}/graph-whitespace-failed.png`, 'graph white-space deselection', {measuredGraph:g,relativePoint:{x:8,y:g.height-8}});
+    await reportPointerFailure(page, `${SHOTS}/graph-whitespace-failed.png`, 'graph white-space deselection', point);
     throw error;
   }
 });
