@@ -74,7 +74,7 @@ test('3MF units come from the file; STEP becomes a CAD card awaiting the convert
   const { cards } = await importModelFiles([file('cube.3mf'), file('cube-header-only.step')]);
   assert.equal(cards[0].block.model.units, 'mm');
   assert.equal(cards[1].block.model.render, 'cad');
-  assert.equal(cadCardState(cards[1].block.fileRef).state, 'awaiting');
+  assert.equal(cadCardState(cards[1].block.fileRef).state, 'awaiting', 'an asset card (no fileRef) never converts');
 });
 
 test('a ZIP is one package card; several models inside ask for a choice; unsafe ZIPs are refused', async () => {
@@ -134,14 +134,17 @@ test('viewer slots: at most MAX_LIVE renderers; the least recently used gives wa
   resetViewers();
 });
 
-test('CAD card states follow the job; units are shown only when the converter reported them', () => {
-  const ref = { source: { id: 'fs_1' }, job: 'fj_1', derivatives: {} };
+test('CAD card states follow the source, the job and its derivatives; units only when the converter reported them', () => {
+  const stored = { source: { id: 'fs_1', rev: 'r' }, job: null };
   assert.equal(cadCardState(null).state, 'awaiting');
-  assert.match(cadCardState(null).label, /Awaiting converter/);
-  assert.equal(cadCardState(ref, { state: 'converting', stage: 'converting' }).label, 'Converting to a viewing mesh');
-  assert.deepEqual(cadCardState(ref, { state: 'failed', error: 'too_complex' }), { state: 'failed', label: 'The STEP preview could not be made: too_complex. The original STEP file is kept.', retry: true });
-  assert.equal(cadCardState({ ...ref, derivatives: { mesh: 'fd_1' } }, { state: 'ready_with_limitations' }).state, 'limited');
-  assert.equal(cadCardState(ref, { state: 'cancelled' }).retry, true);
+  assert.equal(cadCardState({ source: null, local: 'model:x' }).state, 'saving');
+  assert.equal(cadCardState(stored, { owner: true }).label, 'Queued for conversion');
+  assert.match(cadCardState(stored, { owner: false }).label, /Converting in the original canvas/, 'a shared or forked card never starts a job');
+  assert.equal(cadCardState({ ...stored, job: 'fj_1' }, { job: { state: 'converting', stage: 'converting' } }).label, 'Converting to a viewing mesh');
+  assert.deepEqual(cadCardState({ ...stored, job: 'fj_1' }, { job: { state: 'failed', error: 'too_complex' } }), { state: 'failed', label: 'The STEP preview could not be made: too_complex. The original STEP file is kept.', retry: true });
+  assert.equal(cadCardState({ ...stored, job: 'fj_1' }, { job: { state: 'ready_with_limitations' }, mesh: true }).state, 'limited');
+  assert.equal(cadCardState({ ...stored, job: 'fj_1' }, { job: { state: 'cancelled' } }).retry, true);
+  assert.match(cadCardState(stored, { error: 'The cad converter does not take mesh files' }).label, /could not be started/);
   // The converter's structure.json (file-convert step.mjs): source_unit long names, the mesh in metres.
   assert.deepEqual(cadFacts({ source_unit: 'millimetre', unit: 'metre', parts: 3 }, ['Tessellated preview: no B-rep, parametric features or PMI']), { units: 'mm', perMetre: 1000, parts: 3, limitations: ['Tessellated preview: no B-rep, parametric features or PMI'] });
   assert.equal(cadFacts({ source_unit: 'inch' }).units, 'in');

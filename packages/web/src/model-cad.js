@@ -10,21 +10,65 @@
 //   structure  structure.json  { source_unit: 'millimetre' | 'inch' | ... | null, unit: 'metre', quality, parts, meshes,
 //                              nodes, triangles, vertices, tree: { name, meshes, children? }, read_ms }
 //   (no poster: the card draws one from the mesh on first view; job `limitations` are shown in the card's details)
-// ponytail: the /api/learn/files routes are Lane 1's contract (canvas-file-imports.md 4.2); not built yet, so a STEP card
-// shows "awaiting converter" until the card carries a fileRef with a job.
+// The job goes through file-jobs-client.js (JOBS lane): the owner's canvas submits step-glb once the STEP original is
+// stored (one idempotency key per card, converter and revision), every page reads the job's state, and once ready the
+// card reads the mesh and structure derivatives of that revision; a shared or forked card with no job of its own reads
+// the ready derivatives of its source revision and never starts a job.
+import { useEffect, useState } from 'react';
+import { canWrite, fileScope, scopeQuery } from './file-source-client.js';
+import { FORK_PENDING_LABEL, fetchDerivatives, isTerminal, stageLabel, submitFileJob, watchFileJobs } from './file-jobs-client.js';
 
+export const CAD_CONVERTER = { converter: 'step-glb', options: {} };
 const STAGE = { queued: 'Queued for conversion', validating: 'Checking the STEP file', converting: 'Converting to a viewing mesh', preparing_preview: 'Preparing the preview' };
+const KEPT = 'The original STEP file is kept.';
 
-// The card's state from its fileRef and the job record (GET /api/learn/files/jobs/<id>): { state, label, retry }.
-export function cadCardState(fileRef, job = null) {
-  if (fileRef?.derivatives?.mesh && (!job || ['ready', 'ready_with_limitations'].includes(job.state))) return { state: job?.state === 'ready_with_limitations' ? 'limited' : 'ready', label: '', retry: false };
-  if (!fileRef?.job) return { state: 'awaiting', label: 'Awaiting converter: a STEP preview needs the CAD converter, which is not connected yet. The original STEP file is kept.', retry: false };
-  if (!job) return { state: 'queued', label: STAGE.queued, retry: false };
-  if (STAGE[job.state]) return { state: 'working', label: STAGE[job.stage] || STAGE[job.state], retry: false };
-  if (job.state === 'cancelled') return { state: 'cancelled', label: 'Conversion cancelled. The original STEP file is kept.', retry: true };
-  if (job.state === 'failed') return { state: 'failed', label: `The STEP preview could not be made${job.error ? `: ${job.error}` : ''}. The original STEP file is kept.`, retry: true };
-  if (['ready', 'ready_with_limitations'].includes(job.state)) return { state: job.state === 'ready' ? 'ready' : 'limited', label: '', retry: false };
-  return { state: 'working', label: STAGE.queued, retry: false };
+// The card's state: { state, label, retry }. Inputs: the card's fileRef, its job record, whether the mesh derivative was
+// found, whether this page may submit, and a submit error.
+export function cadCardState(fileRef, { job = null, mesh = false, owner = true, error = '' } = {}) {
+  if (!fileRef) return { state: 'awaiting', label: `Awaiting converter: this card was made before STEP previews were stored. ${KEPT}`, retry: false };
+  if (mesh) return { state: job?.state === 'ready_with_limitations' ? 'limited' : 'ready', label: '', retry: false };
+  if (!fileRef.source?.id) return { state: 'saving', label: 'The STEP file is saving; its preview starts once it is stored.', retry: false };
+  if (error) return { state: 'failed', label: `The STEP preview could not be started: ${error}. ${KEPT}`, retry: true };
+  if (!fileRef.job) return owner ? { state: 'working', label: STAGE.queued, retry: false } : { state: 'pending', label: `${FORK_PENDING_LABEL}. ${KEPT}`, retry: false };
+  if (!job || STAGE[job.state]) return { state: 'working', label: STAGE[job?.stage] || STAGE[job?.state] || stageLabel(job), retry: false };
+  if (job.state === 'cancelled') return { state: 'cancelled', label: `Conversion cancelled. ${KEPT}`, retry: true };
+  if (job.state === 'failed') return { state: 'failed', label: `The STEP preview could not be made${job.error ? `: ${job.error}` : ''}. ${KEPT}`, retry: true };
+  return { state: 'working', label: STAGE.preparing_preview, retry: false }; // ready: reading the derivatives
+}
+
+// The STEP card's preview: submit (owner, once), watch the job, find the derivatives. update(fn) writes the job id in.
+// Returns { ...cadCardState, meshUrl, structureUrl, limitations }.
+export function useCadPreview(block, update) {
+  const ref = block.fileRef, source = ref?.source, cad = block.model?.render === 'cad';
+  const [found, setFound] = useState({ job: null, meshUrl: null, structureUrl: null, error: '' });
+  const owner = canWrite();
+  useEffect(() => {
+    if (!cad || !source?.id || ref.job || !owner) return;
+    const at = fileScope();
+    submitFileJob(globalThis.fetch, { sourceId: source.id, sourceRev: source.rev, cardId: block.id, ...CAD_CONVERTER, app: at.app, board: at.board })
+      .then(job => update(current => (current.fileRef?.job ? current : { ...current, fileRef: { ...current.fileRef, job: job.id } })),
+        error => setFound(previous => ({ ...previous, error: error.message })));
+  }, [cad, source?.id, ref?.job]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!cad || !source?.id) return undefined;
+    const at = fileScope();
+    let live = true;
+    const read = async job => {
+      const list = await fetchDerivatives(globalThis.fetch, { sourceId: source.id, rev: source.rev, ...CAD_CONVERTER, app: at?.app || null, board: at?.board || 'main', share: at?.share || null }).catch(() => null);
+      if (!live || !list) return;
+      const url = name => { const d = list.find(x => x.name === name); return d ? `/api/learn/files/${source.id}/d/${d.id}${scopeQuery(at)}` : null; };
+      setFound(previous => ({ ...previous, job: job || previous.job, meshUrl: url('model.glb'), structureUrl: url('structure.json') }));
+    };
+    if (!ref.job) { read(null); return () => { live = false; }; } // a shared or forked card: the ready results of its revision
+    const watch = watchFileJobs({ blocks: [block], fetchImpl: (u, init) => globalThis.fetch(u, init), share: at?.share || null, onJob: (_, job) => {
+      if (!live) return;
+      setFound(previous => ({ ...previous, job }));
+      if (isTerminal(job) && (job.state === 'ready' || job.state === 'ready_with_limitations')) read(job);
+    } });
+    return () => { live = false; watch.stop(); };
+  }, [cad, source?.id, ref?.job]); // eslint-disable-line react-hooks/exhaustive-deps
+  const state = cadCardState(ref, { job: found.job, mesh: !!found.meshUrl, owner, error: found.error });
+  return { ...state, meshUrl: found.meshUrl, structureUrl: found.structureUrl, limitations: found.job?.limitations || [] };
 }
 
 // The STEP length units the converter reports, as the card shows them, and how many of each make a metre (the mesh is
@@ -38,20 +82,10 @@ export function cadFacts(structure, limitations = []) {
   return { units: unit?.[0] || null, perMetre: unit?.[1] || null, parts: Number.isInteger(structure.parts) ? structure.parts : null, limitations: [...new Set(notes)].slice(0, 5) };
 }
 
-// The job record (canvas-file-imports.md 4.2: GET /api/learn/files/jobs/<id>); read-only - polling never advances a job.
-// Expected: { state, stage?, error?, derivatives?: { mesh, structure }, limitations? } (Lane 1 / JOBS lane own the shape).
-export async function fetchCadJob(jobId, board, signal) {
-  const response = await fetch(`/api/learn/files/jobs/${encodeURIComponent(jobId)}${board ? `?board=${encodeURIComponent(board)}` : ''}`, { credentials: 'same-origin', redirect: 'error', signal });
-  if (!response.ok) throw new Error(`The conversion status could not be read (${response.status})`);
-  return response.json();
-}
-export const TERMINAL = ['ready', 'ready_with_limitations', 'failed', 'cancelled'];
-
-const derivativeUrl = (fileRef, id, board) => `/api/learn/files/${encodeURIComponent(fileRef.source.id)}/d/${encodeURIComponent(id)}${board ? `?board=${encodeURIComponent(board)}` : ''}`;
-// The mesh and structure derivatives, authorised through the board (section 4.1); same-origin credentials, no redirects.
-export async function fetchCadDerivatives(fileRef, board, signal) {
-  const get = async id => { const response = await fetch(derivativeUrl(fileRef, id, board), { credentials: 'same-origin', redirect: 'error', signal }); if (!response.ok) throw new Error(`The CAD preview could not be read (${response.status})`); return response; };
-  const mesh = new Uint8Array(await (await get(fileRef.derivatives.mesh)).arrayBuffer());
-  const structure = fileRef.derivatives.structure ? await (await get(fileRef.derivatives.structure)).json().catch(() => null) : null;
+// The mesh and structure derivatives (URLs from useCadPreview, authorised through this page's scope); no redirects.
+export async function fetchCadDerivatives({ meshUrl, structureUrl }, signal) {
+  const get = async url => { const response = await fetch(url, { credentials: 'same-origin', redirect: 'error', signal }); if (!response.ok) throw new Error(`The CAD preview could not be read (${response.status})`); return response; };
+  const mesh = new Uint8Array(await (await get(meshUrl)).arrayBuffer());
+  const structure = structureUrl ? await (await get(structureUrl)).json().catch(() => null) : null;
   return { mesh, structure };
 }

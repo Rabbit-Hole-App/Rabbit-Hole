@@ -18,6 +18,8 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 1600 } });
 const outside = [];
 page.on('request', r => { const u = r.url(); if (!u.startsWith(origin) && !/^(data|blob):/.test(u)) outside.push(u); });
 await page.route('**/__fixtures/**', route => { const p = decodeURIComponent(new URL(route.request().url()).pathname.replace(/^\/__fixtures\//, '')); return existsSync(`${root}/${p}`) ? route.fulfill({ body: readFileSync(`${root}/${p}`) }) : route.fulfill({ status: 404 }); });
+// No file route reaches a real server from here (the Vite proxy would forward /api): jobs and derivatives answer 404.
+await page.route('**/api/**', route => route.fulfill({ status: 404, json: { error: 'not in this check' } }));
 await page.goto(`${origin}/e2e/model-viewer.html${process.env.SOURCES ? '?sources=1' : ''}`, { waitUntil: 'commit', timeout: 180000 });
 await page.waitForFunction(() => window.__drop, null, { timeout: 300000 });
 const rows = []; let bad = 0;
@@ -33,7 +35,7 @@ for (const f of pick) {
   const text = async sel => (id ? await card.locator(sel).first().textContent({ timeout: 300 }).catch(() => '') : '');
   const row = { fixture: f.path, role: f.role, cards: r.blocks.length, state: id ? await card.locator('[data-model-card]').getAttribute('data-model-state') : '-', counts: await text('[data-model-counts]'), missing: (await text('[data-model-missing]')).slice(0, 90), note: (r.errors[0] || await text('[data-model-error]') || await text('[data-model-limited]') || await text('[data-model-cad]')).slice(0, 90) };
   const expect = f.role === 'part' ? row.cards === 0 // a model's own file alone is no card
-    : f.role === 'import' ? (f.path.startsWith('cad/') ? row.cards === 1 && /Awaiting converter/.test(row.note) : row.state === 'ready' && !row.missing)
+    : f.role === 'import' ? (f.path.startsWith('cad/') ? row.cards === 1 && /Awaiting converter|Converting in the original canvas|saving/.test(row.note) : row.state === 'ready' && !row.missing)
     : f.role === 'missing-deps' ? /Missing/.test(row.missing)
     : f.path.endsWith('.zip') ? row.cards === 0 && !!row.note : /Not loaded/.test(row.missing);
   row.ok = expect ? 'ok' : 'UNEXPECTED'; if (!expect) bad++;

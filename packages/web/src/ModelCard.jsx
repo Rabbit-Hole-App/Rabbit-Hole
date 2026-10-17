@@ -14,7 +14,7 @@ import { addModelFiles, chooseModel, openModelFiles, useModelUploads } from './m
 import { MODEL_ACCEPT } from './model-drop.js';
 import { headerCounts, overBudget, sizeLabel } from './model-formats.js';
 import { activateViewer, claimViewer, deactivateViewer, releaseViewer } from './viewer-slots.js';
-import { TERMINAL, cadCardState, cadFacts, fetchCadDerivatives, fetchCadJob } from './model-cad.js';
+import { cadFacts, fetchCadDerivatives, useCadPreview } from './model-cad.js';
 
 const OFFSCREEN_RELEASE_MS = 2000;
 const posterKey = id => `poster:${id}`;
@@ -30,7 +30,7 @@ function countLine(counts = {}) {
   return parts.join(' · ');
 }
 
-export default function ModelCard({ block, selected, onChange, onSelect = null, board = null }) {
+export default function ModelCard({ block, selected, onChange, onSelect = null }) {
   const model = block.model || {};
   const root = useRef(null), host = useRef(null), engine = useRef(null), latest = useRef(block);
   latest.current = block;
@@ -39,31 +39,12 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
   const [active, setActive] = useState(false), [lost, setLost] = useState(false), [attempt, setAttempt] = useState(0);
   const [info, setInfo] = useState(null), [poster, setPoster] = useState(null), [report, setReport] = useState({ missing: [], blocked: [] });
   const [cad, setCad] = useState(null), [clips, setClips] = useState([]);
-  const [job, setJob] = useState(null);
   // Each file's upload to the account (file-source-client.js); a stored source is written into the card as it lands.
   // latest moves at once, so two uploads landing before a re-render both reach the card.
   const uploads = useModelUploads(block, fn => { const next = fn(latest.current); if (next !== latest.current) { latest.current = next; onChange(next); } });
-  const cadState = model.render === 'cad' ? cadCardState(block.fileRef, job) : null;
-  // A STEP card with a job polls its status (read-only) until it ends; the derivative ids it reports are the card's own
-  // cache of them, written only while the card still names that job (a late result never lands on another revision).
-  useEffect(() => {
-    const jobId = block.fileRef?.job; if (model.render !== 'cad' || !jobId) return;
-    let stopped = false, timer = 0; const abort = new AbortController();
-    const poll = async () => {
-      try {
-        const next = await fetchCadJob(jobId, board, abort.signal); if (stopped) return;
-        setJob(next);
-        if (TERMINAL.includes(next.state)) {
-          const current = latest.current;
-          if (next.derivatives?.mesh && current.fileRef?.job === jobId && !current.fileRef.derivatives?.mesh) onChange({ ...current, fileRef: { ...current.fileRef, derivatives: { ...current.fileRef.derivatives, ...next.derivatives } } });
-          return;
-        }
-      } catch (error) { if (stopped) return; setJob(previous => previous || { state: 'queued' }); }
-      timer = setTimeout(poll, 3000);
-    };
-    poll();
-    return () => { stopped = true; clearTimeout(timer); abort.abort(); };
-  }, [block.fileRef?.job]);
+  // A STEP card: its step-glb job (submitted once the original is stored) and the GLB derivative it renders.
+  const cadPreview = useCadPreview(block, fn => { const next = fn(latest.current); if (next !== latest.current) { latest.current = next; onChange(next); } });
+  const cadState = model.render === 'cad' ? cadPreview : null;
 
   // The card's own files (model-storage.js: its fileRef sources, or the board asset), then what they hold.
   useEffect(() => {
@@ -110,9 +91,9 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
       const { loadModel } = await import('./model-loaders.js');
       let files = pkg?.files, target = entry, units = model.units || null, facts = null;
       if (current.model?.render === 'cad') {
-        const { mesh, structure } = await fetchCadDerivatives(current.fileRef, board);
+        const { mesh, structure } = await fetchCadDerivatives(cadPreview);
         files = new Map([['model.glb', mesh]]); target = { path: 'model.glb', format: 'glb', render: 'mesh', deps: [] };
-        facts = cadFacts(structure, job?.limitations); units = facts.units; setCad(facts);
+        facts = cadFacts(structure, cadPreview.limitations); units = facts.units; setCad(facts);
       }
       const result = await loadModel({ files, entry: target, ...context });
       const over = overBudget(result.stats);
