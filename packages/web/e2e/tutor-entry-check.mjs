@@ -76,7 +76,7 @@ for (const [index, [email, app]] of PEOPLE.entries()) {
   assert.equal(await page.locator('[data-project-tabs]').count(), 0, `${who}: no Overview/Learn/Map pill on the canvas`);
   assert.equal(await page.locator('[data-learn-tutor], [data-learn-practice]').count(), 0, `${who}: no Tutor or Practice button`);
   assert.equal(await page.locator('[data-learn-map]').count(), 0, `${who}: no Map icon: there is no Map page`);
-  assert.equal(await page.locator('[data-repo-badge]').count(), 1, `${who}: the repository badge`);
+  assert.equal(await page.locator('[data-repo-menu]').count(), 1, `${who}: the repository dropdown`);
   await shot(page, `${who}-1-learn`);
 
   // A typed turn is a Tutor turn: /api/learn/tutor, for this repository, never /api/learn/ask.

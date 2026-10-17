@@ -2,7 +2,6 @@ import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMem
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
-import { canvasHref } from './project-canvases.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel, NextStepsCard } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
@@ -105,19 +104,6 @@ const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…',
 // A pending Rabbit Hole (Dive.jsx) opens in its parent's place until its first canvas object keeps it.
 // The right-side Chat workspace (chat-workspace.jsx, owner brief 2026-10-13) wraps the canvas and its panels; the
 // canvas's name scopes its threads.
-// The canvas header's centred layout with Chat closed (owner, Release B A3 item 2), from a frame of this width; below it the
-// header is the wrapping row. Three columns: the menubar after Back (lead ruling: it is not an action cluster), the title
-// group in the middle, the one-press actions and the provenance group at the right. The side columns are equal while both
-// fit, so the title is at the header's centre; the menubar's column never shrinks below the menubar, and the right column
-// never below its widest item, so a long title truncates before anything overlaps. The right column wraps: when the
-// provenance group does not fit beside the actions it takes its own line, right-aligned (as E2). Literal class names, for
-// Tailwind.
-const TITLE_CENTRED = {
-  header: '@min-[1100px]/frame:grid @min-[1100px]/frame:grid-cols-[minmax(max-content,1fr)_auto_minmax(min-content,1fr)] @min-[1100px]/frame:items-start',
-  left: 'contents @min-[1100px]/frame:col-start-1 @min-[1100px]/frame:row-start-1 @min-[1100px]/frame:flex @min-[1100px]/frame:items-center',
-  title: '@min-[1100px]/frame:col-start-2 @min-[1100px]/frame:row-start-1 @min-[1100px]/frame:min-w-min',
-  right: 'contents @min-[1100px]/frame:col-start-3 @min-[1100px]/frame:row-start-1 @min-[1100px]/frame:flex @min-[1100px]/frame:flex-wrap @min-[1100px]/frame:items-center @min-[1100px]/frame:justify-end @min-[1100px]/frame:gap-1 @min-[1100px]/frame:gap-y-0.5 @min-[1100px]/frame:[&>[data-provenance-row]]:ml-0',
-};
 
 export default function LearnPage(props) {
   const hole = usePendingHole(props.app);
@@ -129,7 +115,7 @@ export default function LearnPage(props) {
 // repository (repository-canvas.jsx): the canvas's attached repository, for its header badge and the composer's code chips;
 // files and graph: its companion viewers; openViewer: 'files' | 'graph' opens that viewer once on mount (an old ?tab= link,
 // routes.js repositoryView).
-function LearnSurface({ app, onBack, repository = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, files = null, graph = null, openViewer = null, hole = null, switcher = null, project = null, projectMenu = null }) {
+function LearnSurface({ app, onBack, repository = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, files = null, graph = null, openViewer = null, hole = null, switcher = null, project = null }) {
   const isRepository = app.kind === 'repository';
   // A canvas (smart-home's catalog) holds only what was put on it: never the
   // sample course, its lesson header, outline or progress.
@@ -1850,31 +1836,31 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {/* One centered strip is all the chrome the canvas gets: an editable
             title, the menubar, and the three one-press actions. No page
             heading, no rule underneath - the canvas has no boundary. */}
-        {/* A row narrower than its content (the canvas beside the companion column and Chat) wraps instead of clipping its
-            start; not a scroller, which would clip the menus' dropdowns. Centred only while it fits (safe), and it starts
-            after the absolute Back button, so the crumbs never run under it or off screen.
-            With Chat closed on a wide frame (owner, Release B A3 item 2) a three-column grid (TITLE_CENTRED): the menubar after
-            Back, the title group at the centre, the actions and the provenance group at the right. With Chat open, or on a
-            narrower frame, the column boxes dissolve (contents) into the wrapping row above, in the same order, the group
-            right-aligned on the next row when it wraps (E2). */}
-        {!canvasState.presenting && <div data-canvas-header className={`relative flex shrink-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5 pt-3 pr-3 pb-1 pl-12 max-md:px-2 max-md:pt-2 ${panelOpen ? '' : TITLE_CENTRED.header}`}>
+        {/* Home alone at the far left, and everything else ONE centred group (owner brief 2026-10-16 item 2; the approved
+            centred-menubar mockup): the project name and canvas selector, Files to View, the one-press actions and save
+            status, the right-panel toggle, then the repository dropdown. With the right panel open or closed the group
+            centres in the canvas column; a row narrower than the group wraps it (centred while it fits: justify-center-safe)
+            instead of clipping or overlapping, never a scroller, which would clip the dropdowns. Equal side padding (px-12)
+            clears the absolute Home button on the left and balances it on the right, so Home never shifts the group off the
+            canvas area's centre (owner header correction, 2026-10-16). */}
+        {!canvasState.presenting && <div data-canvas-header className="relative flex shrink-0 items-center justify-center-safe px-12 pt-3 pb-1 max-md:px-2 max-md:pt-2">
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
             onClick={() => goBack('/apps')}
             className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
-          {/* One line, never wrapped (owner r35): in a project, [project] › [canvas], the project part to its Main canvas,
-              kept whole on a desktop (the canvas narrows beside the Chat pane) and on a phone shrinking first down to its
-              minimum; then the canvas title (renamable) and what hangs off it. The project's
-              name is the one its card shows (cardModel), never the repository's own. */}
-          <div data-title-crumbs className={`flex max-w-full min-w-0 items-center ${panelOpen ? '' : TITLE_CENTRED.title}`}>
+          <div data-header-group className="flex max-w-full min-w-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5">
+          {/* One line, never wrapped (owner r35): in a project, [project] › [canvas selector]. The project name is plain text
+              (owner brief 2026-10-16 item 2: project management lives in Home and the Library, which rename it); the name is
+              the one its card shows (cardModel), never the repository's own. A canvas outside a project keeps its editable
+              title here. */}
+          <div data-title-crumbs className="flex max-w-full min-w-0 items-center">
           {project && <>
-            <button type="button" data-project-crumb title={cardModel(project).title} onClick={() => navigate(canvasHref(project.name))}
-              className="h-8 max-w-60 min-w-12 shrink-[50] truncate rounded-lg md:shrink-0 px-1.5 text-sm text-ink-2 hover:bg-hover hover:text-ink">{cardModel(project).title}</button>
-            {projectMenu}
+            <span data-project-crumb title={cardModel(project).title}
+              className="block h-8 max-w-60 min-w-12 shrink-[50] truncate px-1.5 text-sm leading-8 text-ink-2 md:shrink-0">{cardModel(project).title}</span>
             <span aria-hidden="true" className="shrink-0 px-0.5 text-ink-3">›</span>
           </>}
-          <input aria-label="Canvas title" title={canvasTitle || fallbackTitle}
+          {switcher ? cloneElement(switcher, { holes: dive.titleHoles, title: canvasTitle || fallbackTitle, onRename: renameTitle }) : <><input aria-label="Canvas title" title={canvasTitle || fallbackTitle}
             // The name on screen is always the value - editing edits IT, via a
             // focus-scoped draft so the fallback never fights the keystrokes.
             // Saving the fallback verbatim stores nothing, so an untouched
@@ -1893,12 +1879,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               });
             }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
-          {/* A canvas with kept Rabbit Holes: a chevron and the hole tree (owner r35). A project canvas has its canvas
-              switcher here already, so the holes are a group in that menu, never a second control. */}
-          {switcher ? cloneElement(switcher, { holes: dive.titleHoles }) : <TitleHoles {...dive.titleHoles} />}
+          {/* A canvas with kept Rabbit Holes: a chevron and the hole tree (owner r35). A project canvas's selector holds them as
+              a group in its menu, never a second control. */}
+          <TitleHoles {...dive.titleHoles} /></>}
           </div>
-          <div data-header-left className={panelOpen ? 'contents' : TITLE_CENTRED.left}><CanvasMenubar menus={canvasMenus} /></div>
-          <div data-header-right className={panelOpen ? 'contents' : TITLE_CENTRED.right}>
+          <CanvasMenubar menus={canvasMenus} />
           {/* The document's save status and the board's size (blocknote-canvas.md): Saved only once the server has it. A 409 or
               a document a newer server copy replaced are offered back here, never dropped. */}
           {docView === 'editor' && saveState && (
@@ -1959,10 +1944,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             </button>
           </div>
           {/* The canvas's repository and fork origin (decisions 1A-4A, C:/s/spec/hdr-provenance.md), from the server's provenance for
-              this viewer; the fork label beside the title is gone (4A). Last in the row, at its right edge, and right-aligned on
-              the next row when the header wraps (E2). The repository's indexing status and details menu stay beside it (2A):
-              there is no repository page any more; its Files and Graph open beside Chat (PanelHeader, Explore codebase). */}
-          <ProvenanceRow provenance={provenance}>{repository && <RepositoryBadge repository={repository} />}</ProvenanceRow>
+              this viewer, last in the centred group: the repository is one named dropdown (owner brief 2026-10-16 item 1) with
+              its branch, commit, status and Refresh branch; its indexing state shows beside it while there is no snapshot. */}
+          <ProvenanceRow provenance={provenance} repository={repository} end={false}>{repository && <RepositoryBadge repository={repository} />}</ProvenanceRow>
           </div>
         </div>}
         {learningView === 'curriculum' && canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}

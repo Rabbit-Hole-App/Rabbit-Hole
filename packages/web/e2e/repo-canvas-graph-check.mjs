@@ -186,9 +186,12 @@ await check('1 /apps/<repo> opens the canvas, no repository page; Chat and the c
   await explore().waitFor({ timeout: 10000 });
   assert.equal(await explore().getAttribute('title'), 'Explore codebase');
   assert.ok(await pane().locator('[data-chat-composer]').locator('button[aria-label="Explore codebase"]').count() === 1, 'the icon is in the composer controls');
-  const badge = page.locator('[data-repo-badge]');
-  assert.equal(await badge.getAttribute('target'), '_blank', 'the repository badge opens GitHub in a new tab');
+  // The repository is one named dropdown (owner brief 2026-10-16 item 1): its GitHub link is the dropdown's first row.
+  await page.locator('[data-repo-menu]').click();
+  const badge = page.locator('[data-menu-button-open] a[data-repo-badge]');
+  assert.equal(await badge.getAttribute('target'), '_blank', 'the repository link opens GitHub in a new tab');
   assert.match(await badge.getAttribute('href'), /^https:\/\/github\.com\/karpathy\/nanoGPT/);
+  await page.keyboard.press('Escape');
   facts.opened = { asks: asked(), hooks: hooks.length };
 });
 

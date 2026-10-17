@@ -527,6 +527,40 @@ export function Menu({ open, onClose, className, style, portal = false, anchor =
   return portal ? createPortal(node, document.body) : node;
 }
 
+// A header button's portaled dropdown (owner brief 2026-10-16 items 1-2): pinned under the button's left edge, then kept inside
+// the window by Menu (menuShift), and placed again from the button when the window resizes. The press that closed it never
+// reopens it; Escape or a pick returns focus to the button (close()), and opening moves focus to the first row.
+// Returns { open, close, onClose, buttonProps (spread on the button), button (its ref), style } for
+// <Menu portal anchor={button.current} open={open} onClose={onClose} style={style}>, its content marked data-menu-button-open.
+export function useMenuButton() {
+  const [open, setOpen] = useState(false), [at, setAt] = useState(null);
+  const button = useRef(null), pressed = useRef(false), justClosed = useRef(false), byKey = useRef(false);
+  const place = () => { const r = button.current?.getBoundingClientRect(); if (r) setAt({ left: Math.max(8, r.left), top: r.bottom + 4 }); };
+  useEffect(() => {
+    if (!open) return undefined;
+    byKey.current = false;
+    const key = event => { if (event.key === 'Escape') byKey.current = true; };
+    window.addEventListener('resize', place);
+    window.addEventListener('keydown', key, true);
+    const first = requestAnimationFrame(() => document.querySelector('[data-menu-button-open] [role^="menuitem"]:not(:disabled), [data-menu-button-open] a[href]')?.focus({ preventScroll: true }));
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('keydown', key, true); cancelAnimationFrame(first); };
+  }, [open]);
+  const close = (focus = true) => {
+    setOpen(false);
+    if (focus) button.current?.focus({ preventScroll: true });
+    justClosed.current = true; setTimeout(() => { justClosed.current = false; }, 0);
+  };
+  const toggle = () => {
+    if (pressed.current) { pressed.current = false; return; }
+    if (open) { close(); return; }
+    place(); setOpen(true);
+  };
+  const buttonProps = { ref: button, 'aria-haspopup': 'menu', 'aria-expanded': open, onPointerDown: () => { pressed.current = justClosed.current; }, onClick: toggle };
+  // Menu's onClose: Escape returns focus to the button, a press elsewhere leaves it where the press put it.
+  const onClose = () => close(byKey.current);
+  return { open, close, onClose, button, buttonProps, style: at || undefined };
+}
+
 // ─── Form controls (design/components.html "Inputs"). One field row: label 200px,
 // control 320px, help under in text-2. ───
 export function Field({ label, help, error, children }) {

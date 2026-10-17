@@ -1,14 +1,19 @@
 // A project's ⋮ (owner, 2026-10-09; docs/features/visibility-menu.md "Projects"), against the LOCAL stack only: local D1
 // and fresh browser profiles; nothing is sent to a model (the canvas page's model routes are refused in the page, and the
 // stack runs through the provider tripwire). Prints no secrets.
-//   - one menu for canvases and projects: their labels compared, on the card and in the open project's header;
-//   - Rename from the card and from the header: it stays on reload, and the repository stays the subtitle;
+//   - one menu for canvases and projects, on their cards (project management lives in Home and the Library: owner brief
+//     2026-10-16 item 2; the open project's canvas header names the project as plain text and has no project menu);
+//   - Rename from the project card: it stays on reload, the repository stays the subtitle, and the header follows;
 //   - Visibility for the whole project: confirm with the count, every canvas set, Mixed, a new canvas inheriting, a private
 //     repository never Public; the project link working signed out and never listing a private canvas;
 //   - the cards: the picture's inset above equals its inset below, and the footer ends on the picture's bottom edge;
-//   - every ⋮ menu on screen (owner bug, 2026-10-16): inside the window with an 8px margin and every row answering a press at
-//     its centre - card menus at each window edge, and the open project's ⋯ beside a short name with the right panel hidden,
-//     reopened and resized, the window resized, and on a phone.
+//   - every menu on screen (owner bug, 2026-10-16): inside the window with an 8px margin and every row answering a press at
+//     its centre - card menus at each window edge, and the header's canvas selector and repository dropdown on minGPT's
+//     short-named Main canvas with the right panel hidden, reopened and resized, the window resized, and on a phone;
+//   - the header (owner brief 2026-10-16 items 1-2): Home alone at the far left and the rest one centred group; the canvas
+//     selector switches canvases, makes a New canvas and renames the canvas (Save, Cancel), the new name shown in the
+//     selector, its list and the Library; the repository dropdown links GitHub in a new tab with branch, commit and status;
+//     Escape and an outside press close the dropdowns, Escape returning focus to the button; Home goes Home.
 // The projects are repository rows seeded in local D1 (importing needs the indexer), as project-canvases-check.mjs does.
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 PERSIST=<lane>/local D1_CONFIG=<lane>/cfg/cp/wrangler.jsonc \
 //        node e2e/project-menu-check.mjs [shotsDir] [reviewShotsDir]
@@ -72,6 +77,18 @@ const { page } = await contextFor(owner);
 const libraryCard = (kind, title) => page.locator(`[data-library-card="${kind === 'repository' ? 'project' : 'canvas'}"]`).filter({ has: page.locator('[data-card-title]', { hasText: title }) });
 const library = async () => { await page.goto(`${BASE}/library`); await page.locator('[data-library-card="project"]').first().waitFor({ timeout: 60000 }); await page.waitForTimeout(800); };
 const labels = () => page.locator('[data-menu-item]').evaluateAll(els => els.map(el => el.textContent.trim()));
+// A header dropdown (ui.jsx useMenuButton): its portaled box and its rows, the same way.
+const inWindowHeader = async (what, rows = '[role^="menuitem"]') => {
+  const m = await page.evaluate(sel => {
+    let menu = document.querySelector('[data-menu-button-open]'); while (menu && !menu.classList.contains('fixed')) menu = menu.parentElement;
+    const r = menu.getBoundingClientRect();
+    const blocked = [...menu.querySelectorAll(sel)].filter(row => { const b = row.getBoundingClientRect(), hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !hit || !row.contains(hit); }).map(row => row.textContent.trim());
+    return { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom), width: innerWidth, height: innerHeight, rows: menu.querySelectorAll(sel).length, blocked };
+  }, rows);
+  assert.ok(m.left >= 8 && m.right <= m.width - 8 && m.top >= 8 && m.bottom <= m.height - 8, `${what}: the menu ${JSON.stringify(m)} is inside the window, 8px from each edge`);
+  assert.ok(m.rows > 0, `${what}: it has rows`);
+  assert.deepEqual(m.blocked, [], `${what}: every row answers a press at its centre`);
+};
 const open = async card => { await card.hover(); await card.getByTitle('More').click(); await page.locator('[data-menu-item]').first().waitFor({ timeout: 5000 }); await page.waitForTimeout(300); };
 const close = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(200); };
 // The open menu as it is on screen: its box inside the window with the 8px margin, and every row the element a press at its
@@ -88,7 +105,7 @@ const inWindow = async what => {
 };
 
 await library();
-let canvasMenu, projectMenu, headerMenu;
+let canvasMenu, projectMenu;
 await check('1 one menu: the canvas ⋮ and the project ⋮ show the same shared rows in the same order, the type-only rows in their slots', async () => {
   await open(libraryCard('canvas', 'Attention heads')); canvasMenu = await labels(); await shot(page, REVIEW, 'project-menu-01-canvas-menu'); await close();
   await open(libraryCard('repository', `acme/attention-${run}`.split('/')[1])); projectMenu = await labels(); await shot(page, REVIEW, 'project-menu-02-project-menu'); await close();
@@ -124,71 +141,155 @@ await check('2 Rename from the project card: the card shows the new name, the re
   assert.equal(await libraryCard('repository', NAME).count(), 1, 'kept on reload');
   assert.equal((await row(PUB)).repo, `acme/attention-${run}`);
 });
-// The repository opens on its canvas (repo-canvas-graph.md, correction to decision 2): the project's name is the crumb in the
-// canvas header with the ⋮ beside it, and the repository is the GitHub badge in the same header.
-await check('3 the open project\'s header: its name with the repository beside it, and the same ⋮; Rename there stays on reload', async () => {
+// The repository opens on its canvas (repo-canvas-graph.md, correction to decision 2). Owner brief 2026-10-16 items 1-2 (the
+// approved centred-menubar and named-repository mockups): the project's name is plain text with no menu (Rename, Visibility
+// and the rest are the card's, steps 1-2), the canvas name is the canvas selector, and the repository is one named dropdown.
+await check('3 the open project\'s header: Home alone at the far left, then one centred group - the project as plain text (the Library rename), the canvas selector, the menubar and the repository dropdown; no project menu', async () => {
+  // Renaming is the Library's (the card's Rename, as step 2): a second rename there, then the open project shows it.
+  await library();
+  await open(libraryCard('repository', NAME));
+  await page.locator('[data-menu-rename]').click();
+  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(NAME2); await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await libraryCard('repository', NAME2).waitFor({ timeout: 10000 });
   await page.goto(`${BASE}/apps/${PUB}`);
   await page.locator('[data-project-crumb]').waitFor({ timeout: 60000 });
-  assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), NAME);
-  assert.equal(await page.locator('[data-repo-badge]').getAttribute('aria-label'), `Open acme/attention-${run} on GitHub`); // an icon link
-  await page.locator('[data-project-more]').click(); await page.locator('[data-menu-item]').first().waitFor();
-  headerMenu = await labels();
-  assert.deepEqual(headerMenu, projectMenu, 'the card\'s menu');
-  await shot(page, REVIEW, 'project-menu-03-header-menu');
-  await page.locator('[data-menu-rename]').click();
-  // exact: the canvas header's own Canvas title field is on this page now.
-  await page.getByRole('textbox', { name: 'Title', exact: true }).fill(NAME2); await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await page.locator('[data-project-crumb]', { hasText: NAME2 }).waitFor({ timeout: 10000 });
-  await page.reload(); await page.locator('[data-project-crumb]').waitFor({ timeout: 60000 });
-  assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), NAME2, 'kept on reload');
-  assert.equal(await page.locator('[data-repo-badge]').getAttribute('aria-label'), `Open acme/attention-${run} on GitHub`, 'the repository stays');
-  await shot(page, REVIEW, 'rename-02-header-renamed');
+  assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), NAME2, 'the name the Library gave it');
+  assert.equal(await page.locator('[data-project-crumb]').evaluate(el => el.tagName), 'SPAN', 'plain text, not a button or link');
+  assert.equal(await page.locator('[data-canvas-header] [data-project-more], [data-canvas-header] [title="More"]').count(), 0, 'no project menu in the header');
+  assert.equal((await page.locator('[data-canvas-switcher]').innerText()).trim(), 'Main canvas');
+  assert.equal(await page.locator('[data-repo-menu]').getAttribute('aria-label'), `Repository acme/attention-${run}`);
+  assert.equal(await page.locator('[data-canvas-header] a[href*="github.com"]').count(), 0, 'the repository is a dropdown button, not a link in the header');
+  const g = await page.evaluate(() => {
+    const box = el => el.getBoundingClientRect(), header = box(document.querySelector('[data-canvas-header]')), group = box(document.querySelector('[data-header-group]')), home = box(document.querySelector('[data-learn-home]'));
+    const inGroup = ['[data-project-crumb]', '[data-canvas-switcher]', '[data-canvas-menubar], [role="menubar"]', 'button[aria-label="Present"]', '[data-repo-menu]'].map(sel => !!document.querySelector(`[data-header-group] ${sel.split(', ').join(', [data-header-group] ')}`));
+    return { homeLeft: home.left - header.left, homeRight: home.right, groupLeft: group.left, centre: Math.abs((group.left + group.right) / 2 - (header.left + header.right) / 2), inGroup };
+  });
+  assert.ok(g.homeLeft <= 16, `Home at the far left (${g.homeLeft}px in)`);
+  assert.ok(g.groupLeft > g.homeRight, 'the group starts after Home');
+  assert.deepEqual(g.inGroup, [true, true, true, true, true], 'project, canvas selector, menubar, actions and repository in the one group');
+  assert.ok(g.centre <= 2, `the group is centred in the header (${g.centre}px off)`);
+  await shot(page, REVIEW, 'project-menu-03-header');
 });
-await check('12 Main and nested Learn expose the same project menu as Map', async () => {
-  for (const query of ['tab=learn', `tab=learn&canvas=${heads.name}`]) {
-    await page.goto(`${BASE}/apps/${PUB}?${query}`);
-    await page.locator('[data-project-more]').waitFor({ timeout: 60000 });
-    assert.equal(await page.locator('[data-project-more]').count(), 1, 'one project menu');
-    await page.locator('[data-project-more]').click();
-    await page.locator('[data-menu-item]').first().waitFor();
-    assert.deepEqual(await labels(), projectMenu, query);
-    await close();
-  }
-});
-// Owner bug (2026-10-16): on minGPT's Main canvas, after the right panel was closed, the project ⋯ opened partly off-screen, its
-// labels and actions cut off. The short name puts the ⋯ near the window's left edge, and the menu's right edge on the button's
-// put it 100px past it (0005fbce). Each picture is taken before the assertion, so a failing run still shows the menu.
-await part('12b minGPT\'s Main canvas: the project ⋯ opens inside the window with the right panel closed, reopened and resized, the window resized, a phone; a row works', async () => {
-  const more = async (what, picture) => { await page.locator('[data-project-more]').click(); await page.locator('[data-menu-item]').first().waitFor(); if (picture) await shot(page, REVIEW, picture); await inWindow(what); };
+// A canvas selector and the repository dropdown on minGPT's Main canvas (the owner's report was the project ⋯ there opening
+// off-screen after the right panel closed; the project menu is gone, these are the header's dropdowns now). Each picture is
+// taken before the assertion, so a failing run still shows the menu.
+const SELECTOR = '[data-canvas-switcher]', REPO = '[data-repo-menu]';
+const dropdown = async (button, what, picture) => {
+  await page.locator(button).click(); await page.locator('[data-menu-button-open]').waitFor();
+  if (picture) await shot(page, REVIEW, picture);
+  await inWindowHeader(what);
+  await page.keyboard.press('Escape'); await page.locator('[data-menu-button-open]').waitFor({ state: 'detached' });
+};
+await check('12 minGPT\'s Main canvas: the canvas selector and the repository dropdown open inside the window with the right panel closed, reopened and resized, the window resized and on a phone, every row reachable', async () => {
   await page.goto(`${BASE}/apps/${SHORT}?tab=learn`);
-  await page.locator('[data-project-more]').waitFor({ timeout: 60000 });
+  await page.locator(SELECTOR).waitFor({ timeout: 60000 });
   assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), 'minGPT');
   const toggle = page.locator('button[aria-label="Hide the right panel"], button[aria-label="Show the right panel"]').first();
   await toggle.waitFor({ timeout: 30000 });
   await toggle.click(); await page.locator('button[aria-label="Show the right panel"]').waitFor();
-  await more('the right panel closed', 'project-menu-12b-1-panel-closed'); await close();
+  await dropdown(SELECTOR, 'canvas selector, the right panel closed', 'header-12-1-canvas-panel-closed');
+  await dropdown(REPO, 'repository, the right panel closed', 'header-12-1-repo-panel-closed');
   await toggle.click(); await page.locator('button[aria-label="Hide the right panel"]').waitFor();
-  await more('the right panel reopened', 'project-menu-12b-2-panel-reopened'); await close();
+  await dropdown(SELECTOR, 'canvas selector, the right panel reopened', 'header-12-2-canvas-panel-reopened');
+  await dropdown(REPO, 'repository, the right panel reopened', 'header-12-2-repo-panel-reopened');
   const handle = await page.getByRole('separator', { name: 'Resize Learn panel' }).boundingBox();
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down();
   await page.mouse.move(handle.x - 200, handle.y + handle.height / 2, { steps: 6 }); await page.mouse.up();
-  await more('the right panel resized', 'project-menu-12b-3-panel-resized'); await close();
+  await dropdown(SELECTOR, 'canvas selector, the right panel resized', 'header-12-3-canvas-panel-resized');
+  await dropdown(REPO, 'repository, the right panel resized', 'header-12-3-repo-panel-resized');
   for (const [width, height] of [[1100, 760], [390, 760], [360, 640]]) {
     await page.setViewportSize({ width, height });
-    await more(`the window at ${width}x${height}`, `project-menu-12b-4-window-${width}x${height}`);
-    if (width === 360) {
-      // Visibility opens its rows inside the same menu, which grows after it opened: it is placed again.
-      await page.locator('[data-menu-visibility]').click(); await page.locator('[data-access]').first().waitFor();
-      await shot(page, REVIEW, 'project-menu-12b-5-phone-visibility');
-      await inWindow('a phone, Visibility open');
-    }
-    await close();
+    await dropdown(SELECTOR, `canvas selector, the window at ${width}x${height}`, `header-12-4-canvas-${width}x${height}`);
+    await dropdown(REPO, `repository, the window at ${width}x${height}`, `header-12-4-repo-${width}x${height}`);
   }
-  // A real press on a row: Rename opens its dialog with the project's name.
-  await page.locator('[data-project-more]').click(); await page.locator('[data-menu-rename]').click();
-  assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), 'minGPT');
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  // Open, then the window resizes: the dropdown is placed again from its button and stays inside.
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator(REPO).click(); await page.locator('[data-menu-button-open]').waitFor();
+  await page.setViewportSize({ width: 900, height: 700 }); await page.waitForTimeout(300);
+  await inWindowHeader('repository, the window resized while it is open');
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+await part('12b the dropdowns by keyboard and pointer: Enter opens with focus on the first row, the arrows move, Escape closes and returns focus to the button, an outside press closes; the repository link opens GitHub in a new tab with the real branch, commit and status', async () => {
+  for (const button of [SELECTOR, REPO]) {
+    await page.locator(button).focus(); await page.keyboard.press('Enter');
+    await page.locator('[data-menu-button-open]').waitFor();
+    await page.waitForFunction(() => document.querySelector('[data-menu-button-open]')?.contains(document.activeElement), null, { timeout: 3000 });
+    const first = await page.evaluate(() => document.activeElement.textContent.trim());
+    await page.keyboard.press('ArrowDown');
+    assert.notEqual(await page.evaluate(() => document.activeElement.textContent.trim()), first, `${button}: ArrowDown moves`);
+    await page.keyboard.press('Escape');
+    await page.locator('[data-menu-button-open]').waitFor({ state: 'detached' });
+    assert.equal(await page.evaluate(sel => document.activeElement === document.querySelector(sel), button), true, `${button}: focus back on the button`);
+    await page.locator(button).click(); await page.locator('[data-menu-button-open]').waitFor();
+    await page.mouse.click(700, 500);
+    await page.locator('[data-menu-button-open]').waitFor({ state: 'detached', timeout: 3000 });
+    assert.equal(await page.locator(button).getAttribute('aria-expanded'), 'false', `${button}: an outside press closes it`);
+  }
+  await page.locator(REPO).click();
+  const link = page.locator('[data-menu-button-open] a[data-repo-badge]');
+  assert.deepEqual([await link.getAttribute('href'), await link.getAttribute('target'), await link.getAttribute('rel')], ['https://github.com/acme/minGPT', '_blank', 'noopener noreferrer']);
+  const details = (await page.locator('[data-repo-details]').innerText()).replace(/\s+/g, ' ');
+  assert.match(details, /Branch main/); assert.match(details, new RegExp(`Commit ${SHA.slice(0, 7)}`)); assert.match(details, /Status Ready/);
+  assert.match(details, /Refresh branch/, 'the owner may refresh');
+  const [tab] = await Promise.all([page.context().waitForEvent('page', { timeout: 5000 }).catch(() => null), link.click()]);
+  assert.ok(tab, 'a new tab opened');
+  assert.equal(page.url().includes(`/apps/${SHORT}`), true, 'this tab stays on the canvas');
+  await tab?.close();
+});
+// The canvas selector (owner brief item 2): the project's canvases with the open one checked, switching, New canvas through
+// the existing create flow, and Rename canvas with Save and Cancel, the name updated in the selector, its list and the Library.
+await check('13 the canvas selector: the project\'s canvases, the open one checked; a pick switches; New canvas makes and opens one; Rename canvas saves (selector, list, Library) and Cancel keeps the name', async () => {
+  // On minGPT's project, so the visibility steps below keep their own project's canvas count.
+  const first = await canvasIn('Attention heads', SHORT), second = await canvasIn('Causal masks', SHORT);
+  await page.goto(`${BASE}/apps/${SHORT}?tab=learn&canvas=${first.name}`);
+  await page.locator(SELECTOR, { hasText: 'Attention heads' }).waitFor({ timeout: 60000 });
+  assert.equal((await page.locator(SELECTOR).innerText()).trim(), 'Attention heads');
+  await page.locator(SELECTOR).click();
+  const options = page.locator('[data-menu-button-open] [data-canvas-option]');
+  const rows = await options.evaluateAll(els => els.map(el => [el.textContent.trim(), el.getAttribute('aria-checked')]));
+  assert.deepEqual(rows[0], ['Main canvas', 'false'], 'the Main canvas first');
+  assert.deepEqual(rows.slice(1).sort(), [['Attention heads', 'true'], ['Causal masks', 'false']], JSON.stringify(rows));
+  assert.deepEqual(await page.locator('[data-menu-button-open] [data-new-canvas], [data-menu-button-open] [data-rename-canvas]').allInnerTexts(), ['New canvas', 'Rename canvas']);
+  await shot(page, REVIEW, 'header-13-1-canvas-selector');
+  await page.locator(`[data-menu-button-open] [data-canvas-option="${second.name}"]`).click();
+  await page.waitForURL(new RegExp(`canvas=${second.name}$`), { timeout: 15000 });
+  await page.locator(SELECTOR, { hasText: 'Causal masks' }).waitFor({ timeout: 30000 });
+  // Rename: Cancel keeps the name; Save renames it everywhere.
+  await page.locator(SELECTOR).click(); await page.locator('[data-menu-button-open] [data-rename-canvas]').click();
+  const field = page.getByRole('dialog', { name: 'Rename canvas' }).getByRole('textbox', { name: 'Canvas name' });
+  assert.equal(await field.inputValue(), 'Causal masks');
+  await field.fill('Will not stick'); await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  assert.equal((await page.locator(SELECTOR).innerText()).trim(), 'Causal masks', 'Cancel keeps the name');
+  const RENAMED = `Masked attention ${run}`;
+  await page.locator(SELECTOR).click(); await page.locator('[data-menu-button-open] [data-rename-canvas]').click();
+  await field.fill(RENAMED); await shot(page, REVIEW, 'header-13-2-rename');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.locator(SELECTOR, { hasText: RENAMED }).waitFor({ timeout: 10000 });
+  for (let i = 0; i < 40 && (await row(second.name)).title !== RENAMED; i++) await page.waitForTimeout(250);
+  assert.equal((await row(second.name)).title, RENAMED, 'saved on the server');
+  await page.locator(SELECTOR).click();
+  assert.equal((await page.locator(`[data-menu-button-open] [data-canvas-option="${second.name}"]`).innerText()).trim(), RENAMED, 'the list shows it');
+  await page.keyboard.press('Escape');
+  await page.reload(); await page.locator(SELECTOR, { hasText: RENAMED }).waitFor({ timeout: 60000 });
+  await library(); assert.equal(await libraryCard('canvas', RENAMED).count(), 1, 'the Library card shows the new name');
+  // New canvas: the existing create flow, opened in this project.
+  await page.goto(`${BASE}/apps/${SHORT}?tab=learn`);
+  await page.locator(SELECTOR).waitFor({ timeout: 60000 });
+  await page.locator(SELECTOR).click(); await page.locator('[data-menu-button-open] [data-new-canvas]').click();
+  const name = page.getByRole('textbox', { name: 'Canvas name' });
+  assert.match(await name.inputValue(), /^Canvas \d+$/);
+  await name.fill(`Selector canvas ${run}`); await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.waitForURL(new RegExp(`/apps/${SHORT}\\?tab=learn&canvas=canvas-[a-f0-9]{8}$`), { timeout: 15000 });
+  await page.locator(SELECTOR, { hasText: `Selector canvas ${run}` }).waitFor({ timeout: 30000 });
+  assert.equal((await apps()).find(a => a.kind === 'canvas' && a.title === `Selector canvas ${run}`)?.project, SHORT, 'in this project');
+});
+await check('14 Home is its own button at the far left and goes Home; the canvas header carries no project actions', async () => {
+  await page.goto(`${BASE}/apps/${PUB}?tab=learn`);
+  await page.locator('[data-learn-home]').waitFor({ timeout: 60000 });
+  assert.equal(await page.locator('[data-header-group] [data-learn-home]').count(), 0, 'Home is not in the centred group');
+  await page.locator('[data-learn-home]').click();
+  await page.waitForURL(url => new URL(url).pathname === '/apps', { timeout: 15000 });
 });
 const visibility = async (card, to) => { await open(card); await page.locator('[data-menu-visibility]').click(); await page.locator(`[data-access="${to}"]`).click(); };
 await check('4 Visibility on the project: "Make 3 canvases public?", then every canvas and the project are Public', async () => {
@@ -312,6 +413,6 @@ await check('11 no page errors, the provider tripwire at 0', async () => {
 console.log('canvas menu:  ', canvasMenu.join(' | '));
 console.log('project menu: ', projectMenu.join(' | '));
 await browser.close();
-const total = 12;
+const total = 14;
 console.log(results.length === total ? 'PASS' : 'FAIL', `${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);

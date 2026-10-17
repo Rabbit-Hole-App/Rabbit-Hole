@@ -31,11 +31,12 @@ test('the full lists, as the owner sees them, and what a card you do not own kee
   assert.deepEqual(ids(menuRows({ kind: 'job', canEdit: true })), [], 'no menu for an app');
 });
 
-test('CardMenu renders the list, and the open project\'s header opens the same menu', () => {
+// Owner brief 2026-10-16 item 2: project management (this menu) lives in Home and the Library; the open project's canvas
+// header names the project as plain text and has no project menu.
+test('CardMenu renders the list; the open project\'s header has no project menu', () => {
   const menu = readFileSync(new URL('./CardMenu.jsx', import.meta.url), 'utf8');
   assert.match(menu, /\{menu && menuRows\(menu\.a, rowShown\(menu\.a\)\)\.map\(\(item, i\) => \{/);
   assert.doesNotMatch(menu, /menu\?\.a\.kind === 'repository' \? \(/, 'no second hand-built menu');
   const header = readFileSync(new URL('../RepositoryPage.jsx', import.meta.url), 'utf8');
-  assert.match(header, /const headerMenu=useCardMenu\(/);
-  assert.match(header, /<IconBtn data-project-more title="More" aria-label="More" onClick=\{e=>headerMenu\.onMore\(app\)\(e\)\}>/);
+  assert.doesNotMatch(header, /useCardMenu|data-project-more|projectMenu/);
 });
