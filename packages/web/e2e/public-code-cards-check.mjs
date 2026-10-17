@@ -35,6 +35,12 @@ const api = async (path, init = {}, as = owner) => {
   try { body = JSON.parse(text); } catch { body = null; }
   return { status: response.status, text, body };
 };
+// Session minting may use an older local CP; complete the actual handle prerequisite only when absent.
+for (const [as, suffix] of [[owner, 'owner'], [viewer, 'viewer']]) {
+  const profile = await api('/api/profile', {}, as);
+  assert.equal(profile.status, 200, 'local profile read');
+  if (!profile.body?.handle) assert.equal((await api('/api/profile', { method: 'PUT', body: JSON.stringify({ handle: `pcc_${suffix}_${run}` }) }, as)).status, 200, 'local handle setup');
+}
 const me = (await api('/api/apps')).body;
 
 // ---------------------------------------------------------------- real stored code, in the stack's own stores
@@ -117,6 +123,11 @@ const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() =>
 const fresh = async (as = null) => {
   await context?.close();
   context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  // Observe attempted calls below, but never allow a model/provider request to leave this context.
+  await context.route('**/*', route => {
+    const url = new URL(route.request().url());
+    return url.origin !== BASE || MODEL.test(url.pathname) ? route.abort() : route.continue();
+  });
   if (as) await context.addCookies([{ name: 'small_session', value: as, url: BASE }]);
   page = await context.newPage();
   page.on('request', request => { const url = new URL(request.url()); if (url.origin === BASE && MODEL.test(url.pathname)) facts.model.push(`${request.method()} ${url.pathname}`); });
@@ -255,6 +266,48 @@ await check('4b a sign-in-required link sends a signed-out visitor to sign in an
   assert.equal((await fetch(`${BASE}/api/learn/boards/${hidden.name}/main`)).status, 401);
 });
 
+await check('a failed source read retries through the real route and publishes its text to Search', async () => {
+  await fresh();
+  let reads = 0;
+  await context.route(`**/api/learn/boards/shared/${PUBLIC}/cards/pcc-code/source`, route => {
+    reads++;
+    return reads === 1 ? route.fulfill({ status: 503, json: { error: 'Temporary fixture failure' } }) : route.fallback();
+  });
+  await open(`/b/${PUBLIC}`);
+  await codeIn('pcc-code').locator('[data-code-card-retry]').waitFor({ timeout: 20000 });
+  await page.locator('[data-search-button]').click();
+  const panel = page.locator('[data-canvas-search]:visible');
+  await panel.getByRole('textbox', { name: 'Find text on canvas', exact: true }).fill('scaled_dot_product_attention');
+  await page.waitForFunction(() => document.querySelector('[data-canvas-search] [data-find-count]')?.textContent === '0 results');
+  await codeIn('pcc-code').locator('[data-code-card-retry]').click();
+  await ready('pcc-code');
+  await panel.locator('[data-search-result="object:pcc-code"]').waitFor({ timeout: 15000 });
+  assert.equal(reads, 2, 'Retry made one new source request, then used the real stored source');
+  assert.match(await panel.locator('[data-search-result="object:pcc-code"]').innerText(), /Source text/);
+});
+
+await check('Search reads loaded source beyond the collapsed preview and excludes inaccessible private source', async () => {
+  await fresh(); await open(`/b/${PUBLIC}`); await ready('pcc-code');
+  await codeIn('pcc-private').locator('[data-code-card-unavailable]').waitFor({ timeout: 20000 });
+  const query = 'att.masked_fill';
+  assert.ok(RANGE.slice(40).some(line => line.includes(query)), 'needle is beyond the collapsed 40-line preview');
+  assert.ok(!RANGE.slice(0, 40).some(line => line.includes(query)), 'needle is absent from the collapsed preview');
+  assert.equal((await lineNumbers('pcc-code')).length, 40);
+  await page.locator('[data-search-button]').click();
+  const panel = page.locator('[data-canvas-search]:visible');
+  const input = panel.getByRole('textbox', { name: 'Find text on canvas', exact: true });
+  await input.fill(query);
+  const result = panel.locator('[data-search-result="object:pcc-code"]');
+  await result.waitFor({ timeout: 15000 });
+  assert.match(await result.innerText(), /Source text/);
+  assert.equal((await lineNumbers('pcc-code')).length, 40, 'searching does not expand or alter the card');
+  await input.fill(SECRET);
+  await page.waitForFunction(() => document.querySelector('[data-canvas-search] [data-find-count]')?.textContent === '0 results');
+  assert.equal(await panel.locator('[data-search-result]').count(), 0, 'inaccessible private source has no Search result');
+  assert.ok(!(await panel.innerText()).includes(SECRET));
+  await shot('search-full-source-private-excluded');
+});
+
 // 6. Signed in: another organization's viewer on the sign-in-required link, and the owner on her own link and her canvas.
 await check('6 signed in, a viewer of another organization reads the cards on the sign-in-required link, and the private repository card stays unavailable to them', async () => {
   await fresh(viewer);
@@ -296,6 +349,7 @@ await check('4c revoking the share and removing the publication refuse every lat
   await page.reload();
   await page.getByText('This link is not shared any more, or never was.').waitFor({ timeout: 20000 });
   assert.equal(await page.locator('[data-code-card]').count(), 0);
+  assert.equal(await page.locator('[data-search-result]').count(), 0, 'revoked view exposes no Search results');
   await shot('04-revoked');
 });
 

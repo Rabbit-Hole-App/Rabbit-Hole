@@ -56,6 +56,12 @@ const api = async (path, init = {}, as = session) => {
   return { status: response.status, text: await response.text() };
 };
 const json = async (...args) => JSON.parse((await api(...args)).text || 'null');
+// An older local session service may not create handles; satisfy the same prerequisite as the real app.
+for (const [as, suffix] of [[session, 'owner'], [viewerSession, 'viewer']]) {
+  const profile = await api('/api/profile', {}, as);
+  assert.equal(profile.status, 200, 'local profile read');
+  if (!JSON.parse(profile.text)?.handle) assert.equal((await api('/api/profile', { method: 'PUT', body: JSON.stringify({ handle: `rcc_${suffix}_${run}` }) }, as)).status, 200, 'local handle setup');
+}
 const catalog = await json('/api/apps');
 
 // The project's row in local D1 for the whole run: board saves and share links are served only for a repository the server
@@ -97,7 +103,7 @@ const line = (path, n) => content[path].split('\n')[n - 1].trim();
 const captured = [], hooks = [], refused = [], outside = [], errors = [], sourceReads = [], consoleErrors = [];
 let replies = 0, holdSource = null, served = SNAPSHOT; // served: the snapshot both the companion and the cards read
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/(ask|learn-course)$|learn\/(artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/(plan|handoff)|dive|explore))/;
+const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/(ask|learn-course)$|learn\/(ask|artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore|board$)|learn\/boards\/shared\/[^/]+\/(ask|next-steps)$)/;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   // Anything elsewhere is aborted; a write elsewhere (a notebook kernel, an upload host) is counted and fails the run.
@@ -113,7 +119,6 @@ const router = async route => {
     return route.fulfill({ json: ask.path ? { path: ask.path, commit: COMMIT, content: content[ask.path] ?? '' } : served });
   }
   if (path === `/api/repositories/${REPO}/snapshot`) return route.fulfill({ json: served });
-  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.fallback();
   if (path === '/api/learn/ask') {
     const reply = ++replies, messageId = `m-${reply}`;
     captured.push({ body, reply });
@@ -508,16 +513,30 @@ await check('9 inside a graph card: click and Shift-click select nodes, backgrou
   await revealGraphCard();
   const card = (await ofType('repo-graph'))[0], outer = cardEl(card.id), el = outer.locator(SELECTORS.graphCard);
   const note0 = await box(cardEl('rcc-note')), card0 = await box(outer);
+  const outerCamera = () => cardEl('rcc-note').evaluate(element => {
+    const transforms = [];
+    for (let node = element; node; node = node.parentElement) if (node.style.transform) transforms.push(node.style.transform);
+    return transforms;
+  });
+  facts.c9Pointer = { note0, beforeClicks: await outerCamera() };
   await node(N.train, el).click();
   await node(N.model, el).click({ modifiers: ['Shift'] });
   await waitFor(async () => (await selectedIn(el)).length === 2, 3000, 'two nodes selected in the card');
   const svg = await box(el.locator('svg[aria-label="Repository dependency graph"]').first());
   const empty = await page.evaluate(([x0, y0, w, h]) => { for (let y = y0 + 12; y < y0 + h - 12; y += 10) for (let x = x0 + 12; x < x0 + w - 12; x += 10) { const e = document.elementFromPoint(x, y); if (e?.closest('svg') && !e.closest('[data-graph-node]') && !e.closest('button')) return { x, y }; } return null; }, [svg.x, svg.y, svg.width, svg.height]);
   assert.ok(empty, 'an empty point of the card graph');
+  facts.c9Pointer.afterClicks = { note: await box(cardEl('rcc-note')), camera: await outerCamera() };
+  facts.c9Pointer.target = await page.evaluate(({ x, y }) => {
+    const element = document.elementFromPoint(x, y);
+    return { x, y, tag: element?.tagName, card: element?.closest('[data-block-id]')?.dataset.blockId,
+      svg: element?.closest('svg')?.getAttribute('aria-label'), graphCard: !!element?.closest('[data-graph-card]') };
+  }, empty);
   const cam0 = await cameraOf(el);
   await page.mouse.move(empty.x, empty.y); await page.mouse.down();
   await page.mouse.move(empty.x + 50, empty.y + 30, { steps: 6 }); await page.mouse.up();
   await page.waitForTimeout(300);
+  facts.c9Pointer.afterDrag = { note: await box(cardEl('rcc-note')), camera: await outerCamera(), innerBefore: cam0, innerAfter: await cameraOf(el) };
+  console.log('POINTER_DIAGNOSTIC case9 ' + JSON.stringify(facts.c9Pointer));
   assert.notEqual(await cameraOf(el), cam0, 'a background drag did not pan the card graph');
   assert.deepEqual(await box(cardEl('rcc-note')), note0, 'a background drag in the card graph moved the outer canvas');
   const cam1 = await cameraOf(el);
