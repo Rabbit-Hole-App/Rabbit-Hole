@@ -4,7 +4,7 @@
 // route fails the run. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 node e2e/panel-header-check.mjs [shotsDir]
 import { chromium, expect } from '@playwright/test';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8888';
@@ -50,6 +50,11 @@ await context.route(/\/api\/learn\/tutor\/next-steps$/, route => { hookBases.pus
 const page = await context.newPage();
 page.on('domcontentloaded', () => { load++; }); // full document loads only, never an in-app route change
 page.on('pageerror', error => errors.push(error.message));
+const startupResponses = [];
+page.on('response', response => {
+  const path = new URL(response.url()).pathname;
+  if (path === '/api/apps' || path === '/api/profile' || path.startsWith('/api/learn/boards/')) startupResponses.push({ path, status: response.status() });
+});
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const panel = () => page.locator('aside[aria-label="Learn agent chat"]');
@@ -77,8 +82,26 @@ const pressCanvas = async () => {
   await page.waitForTimeout(500);
 };
 
-await page.goto(`${BASE}/apps/${canvas.name}`);
-await card('k-exp').waitFor({ timeout: 60000 });
+try {
+  await page.goto(`${BASE}/apps/${canvas.name}`);
+  await card('k-exp').waitFor({ timeout: 60000 });
+} catch (error) {
+  // Preserve the failed startup, including an access/onboarding/error screen, before closing the browser.
+  // Only fixture object IDs and response paths/statuses: no cookies, token-bearing queries or storage dump.
+  const visible = await page.evaluate(key => {
+    let seed = null;
+    try { seed = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* diagnostic only */ }
+    return { pathname: location.pathname, text: document.body?.innerText.slice(0, 1800),
+      seedBlockIds: seed?.blocks?.map(block => block.id) || [],
+      renderedBlockIds: [...document.querySelectorAll('[data-block-id]')].map(node => node.dataset.blockId) };
+  }, inkKey).catch(() => ({ unavailable: true }));
+  const diagnostic = { ...visible, pageErrors: errors, responses: startupResponses };
+  writeFileSync(`${SHOTS}/startup-failure.json`, JSON.stringify(diagnostic, null, 2));
+  console.error('PANEL_STARTUP_FAILURE', JSON.stringify(diagnostic));
+  await page.screenshot({ path: `${SHOTS}/startup-failure.png` }).catch(() => {});
+  await browser.close();
+  throw error;
+}
 await page.waitForTimeout(2500); // past the 1200 ms hook debounce
 const hooksAtOpen = hookBases.length;
 
