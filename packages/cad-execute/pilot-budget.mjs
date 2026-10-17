@@ -52,7 +52,7 @@ export function requirePersistentMount(
   if (lstatSync(directory).isSymbolicLink())
     throw Error('CAD pilot ledger directory must not be a symlink');
 }
-function durableWrite(file, state, { exclusive = false } = {}) {
+export function durableWrite(file, state, { exclusive = false } = {}) {
   const next = exclusive ? file : file + '.next';
   let fd;
   try {

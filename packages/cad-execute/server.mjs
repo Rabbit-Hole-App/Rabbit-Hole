@@ -7,6 +7,7 @@ import { validateJob, effectiveLimits, RESULT_SCHEMA, RUNTIME } from './contract
 import { detect } from './sandbox/resource-control.mjs';
 import { inspectGlb } from '../web/src/three-d-asset.js';
 import { configuredBudget } from './pilot-budget.mjs';
+import { ProductionBudget } from './production-budget.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const fail = code => Object.assign(new Error(code), { code });
@@ -159,7 +160,9 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
   return { server, isIdle: () => !active && Date.now() - idleSince > 300000, stop: () => { if (active) { active.cancelled = true; active.abort.abort(); } server.close(); } };
 }
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
-  const budget = configuredBudget(process.env);
+  const budget = process.env.CAD_BUDGET_MODE === 'production'
+    ? new ProductionBudget(process.env)
+    : configuredBudget(process.env);
   const executor = createExecutor({ token: process.env.CAD_EXECUTOR_TOKEN, origins: (process.env.CAD_ALLOWED_ORIGINS || '').split(',').filter(Boolean), image: process.env.CAD_IMAGE_VERSION, budget, admission: process.env.CAD_ADMISSION_ENABLED === 'true' });
   executor.server.listen(Number(process.env.PORT || 8080));
   setInterval(() => { if (executor.isIdle() || budget.expired()) { executor.stop(); process.exitCode = 0; } }, 10000).unref();
