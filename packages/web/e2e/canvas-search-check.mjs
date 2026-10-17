@@ -26,7 +26,10 @@ const request = async (path, method = 'GET', body, cookie = session, allowFailur
 };
 const makeSession = async email => {
   const response = await fetch(CP + '/test/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) });
-  const data = await response.json(); assert.ok(response.ok && data.session, 'local test session'); return data.session;
+  const data = await response.json().catch(() => null);
+  const failure = typeof data?.error === 'string' ? data.error.replaceAll(secret, '[redacted]').replaceAll(String(data?.session || '__no_session_value__'), '[redacted]').slice(0, 200) : data ? 'missing session or unsuccessful status' : 'non-JSON response';
+  assert.ok(response.ok && data?.session, `local test session: HTTP ${response.status}; ${failure}`);
+  return data.session;
 };
 const empty = blocks => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks });
 const card = (id, title, body, extra = {}) => ({ id, type: 'explanation', title, body, dx: 0, dy: 0, ...extra });
