@@ -575,7 +575,7 @@ Only sanitized file provenance copies on fork; unrelated private Chat/context re
 
 ## Integrated acceptance update (2026-10-16)
 
-This update supersedes the pending browser/converter statements in the historical lane milestones above. Cumulative runtime candidate `9a7eb93f` includes final Release C and UI ancestry. Required full units pass: 5,080 passed, 0 failed, 38 skipped; production build and bundle validation pass. The integration target exits successfully with 40 skipped tests, which provides no integration coverage.
+This update supersedes the pending browser/converter statements in the historical lane milestones above. Cumulative runtime candidate `9a7eb93f` includes final Release C and UI ancestry. Required full units pass: 5,080 passed, 0 failed, 38 skipped; production build and bundle validation pass. The integration target exits successfully with 37 skipped cases plus three module-level skips (pytest reports 40 skips, not 40 executed tests), which provides no integration coverage. These legacy app/Ask/Fly/AWS suites do not directly cover canvas features; the separately attributed worker/browser/converter acceptance below supplies the actual feature-specific evidence.
 
 Actual dev converter acceptance on `4b599d84` verifies visible STEP geometry, original-FLAC AAC recovery and PPTX slide images, original checksums and fresh-browser reload. That converter/source code is unchanged in the cumulative candidate. Converter v9 browser-close recovery passes 6/6; interrupted-job recovery passes 7/7, validating 42 derivatives and the same job/card after attempt 2. Local failed STEP Retry passes with intentionally unconfigured conversion; it proves Retry identity and no reupload, separately from successful dev conversion.
 

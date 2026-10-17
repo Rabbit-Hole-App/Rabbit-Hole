@@ -16,9 +16,11 @@ This is the sanitized repository copy of the coordinator's CARD-SCROLL-RECEIPT.m
 | [Production](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39056178155) | Exact released SHA; released; smoke **5 passed / 0 failed / 0 skipped / 0 interrupted** |
 | Isolated deployed acceptance | Runtime `e902b16a13655227e70e909f5c1fac2a96c67b5f`, harness `abd5f840`; layout 11, Full editing 8, automatic Scrollable editing 7: **26 passed / 0 failed / 0 skipped / 0 interrupted**; fixture model responses |
 | Local unit/build readiness reused | `e902b16a`: **5,150 passed / 0 failed / 38 skipped / 0 cancelled**; production build 13.272 seconds and bundle check 0.782 seconds passed |
-| Local integration collection | `e902b16a`: **0 passed / 0 failed / 40 skipped / 0 interrupted**; no behavioral integration coverage |
+| Local integration collection | `e902b16a`: **0 passed / 0 failed / 37 skipped cases + 3 module-level skips / 0 interrupted**; pytest reports 40 skips, not 40 executed tests |
 
 Runtime from `e902b16a` to `abd5f840` is unchanged: only canvas-editing-check.mjs, canvas-search-check.mjs and drop-ui-check.mjs changed. Reused evidence above retains its original SHA; it is not represented as a new exact-abd5 run. Counts from overlapping suites must not be added as unique coverage.
+
+The skipped Python suites cover legacy app deployment, Ask, Fly jobs and AWS examples, not these canvas features. Three module-level skips hide 11 additional test functions. Actual feature-specific integration evidence is the Windows upload gate (41/41 at abd5f840), deployed card layout/editing acceptance (26/26, runtime e902b16a), and the separately attributed Context/bundle/Retry, picker/drop, converter and recovery checks in the [related evidence](2026-10-17-related-evidence.md). Those results are not Python integration-suite passes.
 
 Production build: `32af51ae8a826b88`; control plane version `0fd168d4-852b-4c04-a586-dd6b739e6c5a`; app version `1547d013-ef17-4948-a677-3521f66ff27e`. See the [sanitized production receipt](2026-10-17-abd5f840-production.json), [gate receipt](2026-10-17-abd5f840-gate.json), [migration evidence](2026-10-17-abd5f840-migration.json), and [related lane receipts and verification limits](2026-10-17-related-evidence.md).
 
@@ -64,7 +66,7 @@ Source contracts: [structured editing](../../packages/web/src/inline-card-edit.j
 | Equation Undo | First attempt failed, unchanged rerun passed; cause unresolved | Focused timing/focus/state reproduction and regression fix in next release. |
 | Card Edit model behavior | Fixture wiring/validation/persistence verified; real-model instruction quality and structured-output behavior unverified | Verify subscription authentication and run a separately authorized real-model scenario; no paid fallback without new authorization. |
 | TOC model behavior | Request isolation/intentional context verified with canned responses; real-model behavior unverified | Run focused real-model TOC scenario when authorized access is available; retain fixture and real-model evidence separately. |
-| Integration collection | All 40 tests skipped; no integration coverage | Provision the required authorized test environment and run applicable tests, recording pass/fail/skip/interrupted separately. |
+| Integration collection | 37 skipped cases plus 3 module-level skips; no integration coverage | Provision the required authorized test environment and run applicable tests, recording pass/fail/skip/interrupted separately. |
 | Legacy .doc, production converter hosting, Pinned Study | Explicitly deferred | Revisit only on owner request; dev converter acceptance does not establish production converter availability. |
 
 No implementation, migration, deployment, paid call or broad test rerun was performed to prepare this documentation.
