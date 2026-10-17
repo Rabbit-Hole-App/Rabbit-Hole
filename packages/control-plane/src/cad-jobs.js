@@ -7,7 +7,7 @@ import { paidRefusal } from './learn-paid.js';
 import { callbackToken, tokenValid } from './file-jobs.js';
 import { learnMedia } from './learn-storage.js';
 import { CAD_LIMITS, CAD_TERMINAL, cadLimits, cadJson, cadError, cadBody, cadHash, newCadId, decodeCadId, validateCadRequest, publicCadJob, cadBlock, validateDesign } from './cad-contract.js';
-import { saveCadSource, putCadOutput, publishCadArtifacts, cadStageKey } from './cad-artifacts.js';
+import { saveCadSource, putCadOutput, publishCadArtifacts, validateCadManifest, cadStageKey } from './cad-artifacts.js';
 import { cadModelRequest, runCadModel, cadReferenceImages } from './cad-model.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 
@@ -68,7 +68,14 @@ export async function cadRoute(path, req, env) {
 }
 
 export class CadJobs {
-  constructor(state,env){this.state=state;this.env=env;this.activeModels=new Set();}
+  constructor(state,env){this.state=state;this.env=env;this.activeModels=new Set();this.publications=new Set();}
+  async locked(fn){
+    // Cloudflare resets an object when an exception escapes this callback.
+    // Expected conflicts must leave the short gate before being rethrown.
+    const outcome=await this.state.blockConcurrencyWhile(async()=>{try{return {value:await fn()};}catch(error){return {error:{message:error.message,status:error.status}};}});
+    if(outcome.error)throw Object.assign(new Error(outcome.error.message),{status:outcome.error.status});
+    return outcome.value;
+  }
   async save(job){job.updatedAt=Date.now();await this.state.storage.put(jobKey(job.id),job);}
   async wake(delay=50){const at=Date.now()+delay,current=await this.state.storage.getAlarm();if(!current||current>at)await this.state.storage.setAlarm(at);}
   async accepted(job){return this.state.storage.get(`model:${job.modelId}`);}
@@ -78,7 +85,7 @@ export class CadJobs {
       if(new URL(req.url).pathname==='/callback')return await this.callback(req);
       const input=await req.json();
       // Only short persisted mutations are serialized. Network/model work runs from alarms.
-      return await this.state.blockConcurrencyWhile(()=>this.action(input));
+      return await this.locked(()=>this.action(input));
     } catch(error){return cadJson({error:error.status?error.message:'CAD operation could not complete.'},error.status||503);}
   }
   async action({action,id,payload={},board,user,origin}) {
@@ -117,13 +124,13 @@ export class CadJobs {
       job.hidden=payload.hidden;
       // Hide every revision job so an older card cannot be resurrected by listing.
       for(const [key,other] of await this.state.storage.list({prefix:'job:'}))if(other.cardId===job.cardId){other.hidden=payload.hidden;await this.state.storage.put(key,other);}
-      if(payload.hidden&&(!CAD_TERMINAL.has(job.state)||job.exportState==='preparing')){job.state='cancelled';job.stage='cancelled';job.cancelPending=true;job.exportState=job.exportState==='preparing'?'failed':job.exportState;}
+      if(payload.hidden&&(!CAD_TERMINAL.has(job.state)||job.exportState==='preparing')){job.state='cancelled';job.stage='cancelled';job.cancelPending=true;job.pendingResult=null;job.exportState=job.exportState==='preparing'?'failed':job.exportState;}
       await this.save(job);await this.wake();return this.response(job);
     }
     if(action==='cancel'){
-      if(job.exportState==='preparing'){job.exportState='failed';job.exportError='Export cancelled.';job.cancelPending=true;await this.save(job);await this.wake();return this.response(job);}
+      if(job.exportState==='preparing'){job.exportState='failed';job.exportError='Export cancelled.';job.cancelPending=true;job.pendingResult=null;await this.save(job);await this.wake();return this.response(job);}
       if(job.state==='ready'&&job.awaitingAccept){job.awaitingAccept=false;job.state='cancelled';job.stage='cancelled';await this.save(job);return this.response(job);}
-      if(!CAD_TERMINAL.has(job.state)){job.state='cancelled';job.stage='cancelled';job.cancelPending=true;await this.save(job);await this.wake();}
+      if(!CAD_TERMINAL.has(job.state)){job.state='cancelled';job.stage='cancelled';job.cancelPending=true;job.pendingResult=null;await this.save(job);await this.wake();}
       return this.response(job);
     }
     if(action==='accept'){
@@ -137,12 +144,16 @@ export class CadJobs {
     }
     if(action==='retry'){
       if(!['failed','cancelled'].includes(job.state))throw cadError('Only a failed or cancelled job can be retried.',409);
+      if(job.pendingResult&&job.state==='failed'){
+        job.state='checking';job.stage='publishing';job.error=null;job.deadline=Date.now()+job.limits.elapsedMs;
+        await this.wake();await this.save(job);return this.response(job,202);
+      }
       if(job.calls>=job.limits.calls||job.reservedUsd>=job.limits.usd)throw cadError('This job reached its accepted budget. Start a new explicitly confirmed request.',429);
       if(job.manifest?.artifacts.some(a=>a.kind==='step')){
         const missing=['glb','thumbnail'].find(kind=>!job.manifest.artifacts.some(a=>a.kind===kind));
         if(missing){job.operation='export';job.exportFormat=missing;job.previewRecovery=true;}
       }
-      job.attempt++;job.state=job.source?'building':'queued';job.stage=job.state;job.error=null;job.modelInFlight=null;job.dispatchAt=null;job.leaseUntil=null;job.deadline=Date.now()+job.limits.elapsedMs;job.hidden=false;await this.wake();await this.save(job);return this.response(job,202);
+      job.pendingResult=null;job.attempt++;job.state=job.source?'building':'queued';job.stage=job.state;job.error=null;job.modelInFlight=null;job.dispatchAt=null;job.leaseUntil=null;job.deadline=Date.now()+job.limits.elapsedMs;job.hidden=false;await this.wake();await this.save(job);return this.response(job,202);
     }
     if(action==='exports'){
       if(!['stl','3mf'].includes(payload.format))throw cadError('Choose STL or 3MF.');
@@ -176,6 +187,7 @@ export class CadJobs {
   }
   async advance(job){
     if(Date.now()>job.deadline)return this.fail(job,'CAD reached its accepted time limit.');
+    if(job.pendingResult)return this.publish(job);
     if(job.dispatchAfter>Date.now())return;
     if(job.modelInFlight){if(this.activeModels.has(job.id))return;return this.fail(job,'A model request was interrupted; its cost may be unknown. Retry explicitly to continue.');}
     if(job.state==='queued'||job.state==='repairing'||job.modelPhase==='review'){
@@ -189,7 +201,7 @@ export class CadJobs {
       // all four scenarios, failures and restarts. Never refund uncertain requests.
       if(this.env.CAD_VERIFICATION_BOARD_ID){
         if(job.boardId!==this.env.CAD_VERIFICATION_BOARD_ID)throw cadError('CAD verification canvas does not match.',403);
-        await this.state.blockConcurrencyWhile(async()=>{
+        await this.locked(async()=>{
           const usage=await this.state.storage.get('verification:usage')||{calls:0,reservedUsd:0};
           const maxCalls=Number(this.env.CAD_VERIFICATION_MAX_CALLS),maxUsd=Number(this.env.CAD_VERIFICATION_MAX_USD);
           if(!Number.isInteger(maxCalls)||maxCalls<1||maxCalls>11||!Number.isFinite(maxUsd)||maxUsd<=0||maxUsd>1.10)throw cadError('CAD verification allowance is not configured.',503);
@@ -229,6 +241,33 @@ export class CadJobs {
     if(response.status===429){current.dispatchAt=null;current.leaseUntil=null;current.dispatchAfter=Date.now()+10000;current.stage='queued';await this.save(current);return;}
     if(!response.ok)await this.fail(current,'The isolated CAD executor did not accept this attempt. Retry explicitly.');
   }
+  async publish(snapshot){
+    if(this.publications.has(snapshot.id))return;
+    this.publications.add(snapshot.id);
+    try{
+      // R2 stream copies and D1 writes must never hold the 30-second DO gate.
+      const body=snapshot.pendingResult,manifest=await publishCadArtifacts(this.env,snapshot,body);
+      return await this.locked(async()=>{
+        const job=await this.state.storage.get(jobKey(snapshot.id));
+        if(job.attempt!==snapshot.attempt||job.state==='cancelled'||job.hidden||(snapshot.operation==='export'&&!snapshot.previewRecovery&&job.exportState!=='preparing'))throw cadError('Stale CAD publication',409);
+        if(job.completedAttempt===job.attempt)return cadJson({committed:true,repeat:true});
+        job.manifest=manifest;job.completedAttempt=job.attempt;job.pendingResult=null;
+        job.limitations=body.validation?.unchecked||body.validation?.checks?.filter(c=>c.status==='unchecked').map(c=>c.reason||c.id||c.kind)||[];
+        if(job.operation==='export'&&!job.previewRecovery){
+          job.exportState='ready';job.operation='build';
+          if((await this.accepted(job))?.revisionId===job.revisionId)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));
+        }else{
+          job.operation='build';job.previewRecovery=false;
+          const missing=['glb','thumbnail'].filter(kind=>!job.manifest.artifacts.some(a=>a.kind===kind));
+          if(missing.length){job.state='failed';job.stage='failed';job.error=`Geometry was saved; ${missing.join(' and ')} is unavailable. Retry prepares missing previews from the saved STEP without generating another design.`;}
+          else{job.modelPhase='review';job.state='checking';job.stage='checking';}
+        }
+        await this.wake();await this.save(job);return cadJson({committed:true});
+      });
+    }catch(error){
+      console.warn('CAD artifact publication failed',JSON.stringify({job:snapshot.id,attempt:snapshot.attempt,status:error.status||503,message:String(error.message).replace(/https?:\/\/\S+/g,'[url]').slice(0,300)}));throw error;
+    }finally{this.publications.delete(snapshot.id);}
+  }
   async callback(req){
     const url=new URL(req.url),id=url.searchParams.get('id'),attempt=Number(url.searchParams.get('attempt')),action=url.searchParams.get('action'),name=url.searchParams.get('name');
     let job=await this.state.storage.get(jobKey(id));
@@ -246,7 +285,7 @@ export class CadJobs {
       if(!Number.isSafeInteger(length)||length<1||length>job.limits.artifactBytes)throw cadError('Artifact exceeds its size limit',413);
       // Reserve output names/bytes before streaming so parallel callbacks cannot
       // exceed aggregate disk/storage limits with individually valid artifacts.
-      await this.state.blockConcurrencyWhile(async()=>{
+      await this.locked(async()=>{
         const current=await this.state.storage.get(jobKey(id));
         if(current.attempt!==attempt||current.state==='cancelled')throw cadError('Stale CAD attempt',409);
         const uploads=current.uploads?.attempt===attempt?current.uploads:{attempt,files:{}};
@@ -258,7 +297,18 @@ export class CadJobs {
     }
     if(req.method!=='POST')throw cadError('Method not allowed',405);
     const body=await cadBody(req,128000);
-    return this.state.blockConcurrencyWhile(async()=>{
+    if(action==='complete'){
+      const reserved=await this.locked(async()=>{
+        const current=await this.state.storage.get(jobKey(id));
+        if(current.attempt!==attempt||current.state==='cancelled'||current.hidden)throw cadError('Stale CAD attempt',409);
+        if(current.completedAttempt===attempt)return {done:true};
+        validateCadManifest(current,body);current.pendingResult=body;current.stage='publishing';
+        await this.wake();await this.save(current);return {job:current};
+      });
+      if(reserved.done)return cadJson({committed:true,repeat:true});
+      return await this.publish(reserved.job)||cadJson({publishing:true},202);
+    }
+    return this.locked(async()=>{
       job=await this.state.storage.get(jobKey(id));if(job.attempt!==attempt||job.state==='cancelled'||job.hidden)throw cadError('Stale CAD attempt',409);
       if(action==='complete'&&job.completedAttempt===attempt)return cadJson({committed:true,repeat:true});
       if(CAD_TERMINAL.has(job.state)&&job.exportState!=='preparing')throw cadError('Stale CAD attempt',409);
@@ -268,26 +318,14 @@ export class CadJobs {
         if(job.operation!=='export'){job.stage=body.stage;job.state=body.stage;}job.leaseUntil=Date.now()+LEASE;await this.save(job);return cadJson({lease_until:job.leaseUntil});
       }
       if(action==='fail'){
-        if(job.operation==='build'&&['execution_failed','validation_failed'].includes(body.error)&&typeof body.diagnostics==='string'&&body.diagnostics.trim()&&job.repairs<job.limits.repairs){
+        job.failureCode=typeof body.error==='string'&&/^[a-z_]{1,80}$/.test(body.error)?body.error:'executor_failed';
+        // A delayed transport failure cannot erase a durably accepted completion.
+        if(job.pendingResult){await this.save(job);await this.wake();return cadJson({publishing:true},202);}
+        if(job.operation==='build'&&['execution_failed','validation_failed'].includes(body.error)&&typeof body.diagnostics==='string'&&body.diagnostics.trim()&&job.repairs<Math.min(job.limits.repairs,cadLimits(this.env).repairs)){
           job.repairs++;job.repairReason=body.diagnostics.slice(0,8000);job.previousSource=job.sourceText;job.previousBrief=job.brief;
           job.attempt++;job.revisionId=`cr_${crypto.randomUUID().replaceAll('-','')}`;job.state='repairing';job.stage='repairing';job.dispatchAt=null;job.leaseUntil=null;await this.wake();await this.save(job);return cadJson({repairing:true});
         }
         await this.fail(job,'The CAD executor could not complete this attempt. Valid saved artifacts are retained.');return cadJson({failed:true});
-      }
-      if(action==='complete'){
-        job.manifest=await publishCadArtifacts(this.env,job,body);job.completedAttempt=attempt;job.limitations=body.validation?.unchecked||body.validation?.checks?.filter(c=>c.status==='unchecked').map(c=>c.reason||c.id||c.kind)||[];
-        if(job.operation==='export'&&!job.previewRecovery){
-          job.exportState='ready';job.operation='build';
-          // A slow export of an older revision must never roll back an edit.
-          if((await this.accepted(job))?.revisionId===job.revisionId)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));
-        }
-        else {
-          job.operation='build';job.previewRecovery=false;
-          const missing=['glb','thumbnail'].filter(kind=>!job.manifest.artifacts.some(a=>a.kind===kind));
-          if(missing.length){job.state='failed';job.stage='failed';job.error=`Geometry was saved; ${missing.join(' and ')} is unavailable. Retry prepares missing previews from the saved STEP without generating another design.`;}
-          else {job.modelPhase='review';job.state='checking';job.stage='checking';}
-        }
-        await this.wake();await this.save(job);return cadJson({committed:true});
       }
       throw cadError('Unknown callback',404);
     });
