@@ -101,8 +101,8 @@ await check('2 Chat is the default tab; Table of contents selects violet with a 
   assert.deepEqual([bg, fg], ['rgb(91, 33, 182)', 'rgb(255, 255, 255)']);
   assert.equal(await tab('Find text on canvas').evaluate(node => getComputedStyle(node).color) === 'rgb(255, 255, 255)', false, 'inactive icons are neutral');
   assert.ok(await panel().locator('[data-toc]').isVisible());
-  // R4 (owner decision 1A): a top-level section reads "Topic 1: <title>", the number inside its title button.
-  assert.ok(await panel().getByRole('button', { name: 'Topic 1: Kitchen chemistry', exact: true }).isVisible(), 'the canvas heading is listed');
+  // Owner brief 2026-10-16 item 7 (replaces R4 decision 1A's "Topic 1:"): the title button is the title, its number beside it.
+  assert.ok(await panel().getByRole('button', { name: 'Kitchen chemistry', exact: true }).isVisible(), 'the canvas heading is listed');
   assert.equal(await panel().locator('[data-canvas-find]').isVisible(), false);
 });
 await shot('01-header-toc-active', panel());

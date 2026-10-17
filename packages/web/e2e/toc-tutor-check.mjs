@@ -231,6 +231,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   assert.equal(await tocBox().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no Auto / Ask / Tutor menu');
   assert.equal(await tocField().getAttribute('placeholder'), 'Describe your goal or refine the outline…');
   assert.equal(await tocField().inputValue(), '', 'Chat\'s draft stays in Chat');
+  assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'no TOC request yet, no goal line - never sample text');
   const before = await headings(), tops = before.filter(h => h.level === 1), tides = tops.find(h => h.text === 'Tides');
   const n = captured.length;
   next.push({ threadId: TOC_THREAD, outline: () => [{ op: 'add', text: 'Tidal bores', level: 1, after: tides.id, description: 'A wave that runs up a river.' }] });
@@ -245,8 +246,11 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   const at = after.findIndex(h => h.text === 'Tidal bores');
   assert.equal(after[at + 1]?.id, tops[tops.indexOf(tides) + 1].id, 'in place: after Tides, before the next topic');
   assert.equal(await apply().count(), 0, 'applied at once, no Apply card');
-  assert.match(await contents().locator(`[data-toc-entry="${after[at].id}"]`).innerText(), /Topic 2: Tidal bores/);
-  assert.match(await contents().locator(`[data-toc-entry="${after[at + 1].id}"]`).innerText(), /^Topic 3: /m, 'the next topic renumbered');
+  const numberOf = id => contents().locator(`[data-toc-entry="${id}"] [data-toc-number]`).innerText();
+  assert.equal(await numberOf(after[at].id), '2', 'Tidal bores is section 2');
+  assert.equal(await numberOf(after[at + 1].id), '3', 'the next section renumbered');
+  // The goal under the heading is the TOC conversation's latest request (lead ruling 2026-10-16), two lines at most.
+  assert.equal((await contents().locator('[data-toc-goal]').innerText()).replace(/\s+/g, ' ').trim(), `Goal · ${ask}`);
   assert.ok(await contents().isVisible(), 'the Table of contents stays open');
   await contents().screenshot({ path: `${OUT}/9-toc-conversation.png` });
   await tab('Chat').click();
@@ -262,6 +266,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await tab('Table of contents').click();
   await tocBox().getByText('The saved TOC reply.', { exact: true }).waitFor({ timeout: 15000 });
   assert.equal(await tocField().inputValue(), 'A TOC draft', 'the TOC draft survives the reload');
+  assert.equal((await contents().locator('[data-toc-goal]').innerText()).replace(/\s+/g, ' ').trim(), `Goal · ${ask}`, 'the goal from the restored TOC thread');
   assert.ok((await headings()).some(h => h.text === 'Tidal bores'), 'the outline change survives the reload');
   await tab('Chat').click();
   await page.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');

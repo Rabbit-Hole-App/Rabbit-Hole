@@ -482,7 +482,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
     if (guardedHistory) historyRequest.current++;
     chatThread?.claim(); // a restore still on its way never replaces this turn
-    onSent?.();
+    onSent?.(message);
     if (contentPanel) { setFilePeek(null); onCloseContentPanel?.(); setView('chat'); }
     setChoices(null);
     setBusy(true);

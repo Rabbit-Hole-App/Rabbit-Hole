@@ -1,11 +1,12 @@
 // The Table of contents tab (R4 redesign, owner decisions 2026-10-15 1A, 2A, 3A, 6A, 7A). The table of contents IS the
 // lesson's structure, not a view onto another document: its sections are the canvas headings, and the learner and the
-// Tutor both author them. It reads as a numbered syllabus - Topic 1, 1.1, 1.1.1 - with an optional description under
+// Tutor both author them. It reads as a numbered syllabus - 1, 1.1, 1.1.1 (owner brief 2026-10-16 item 7, mockup reference 4;
+// it was "Topic 1") - each section expanding and collapsing its sub-sections, with an optional description under
 // each title and a thin guide line through the topic markers. The round controls are checkboxes: completion changes only
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its section,
 // cards and sub-sections with it; clicking a title frames it on the canvas.
 import { useRef, useState } from 'react';
-import { Check, GripVertical, Heading1, Heading2, Heading3, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem } from './learn-outline-model.js';
 
@@ -17,8 +18,9 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // emitter reads as ops with no base), cleared through onProposal(null). activeId: the section being viewed (the canvas
 // decides which). readOnly: a viewer - titles navigate, nothing edits, drags or ticks. className: the scroll container's
 // sizing, owned by the page.
-// subtitle: the project's repository (owner brief 2026-10-16 item 7), beside the heading.
-export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null }) {
+// subtitle: the project or repository the contents belong to; goal: the learning goal (LearnPage: the TOC conversation's latest
+// request), clamped to two lines, or null for none. Both under the heading (owner brief 2026-10-16 item 7).
+export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null }) {
   // Which level is being added, the section being edited, the section being dragged, and the heading it lands before
   // (null: the end).
   const [adding, setAdding] = useState(null);
@@ -26,6 +28,9 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
   const [drag, setDrag] = useState(null);
   const [drop, setDrop] = useState(undefined);
   const pressed = useRef(null);
+  // The sections whose sub-sections are folded away. The tab stays mounted while hidden, so this survives view switches.
+  const [folded, setFolded] = useState(() => new Set());
+  const fold = id => setFolded(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const tree = outlineTree(outline);
   const shown = proposal && !readOnly ? (Array.isArray(proposal) ? { ops: proposal, base: null } : proposal) : null;
   const endDrag = () => { setDrag(null); setDrop(undefined); };
@@ -61,13 +66,13 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
         className={`group relative flex items-start gap-3 rounded-sm ${drag === entry.id ? 'opacity-40' : ''} ${drag && drop === entry.id ? 'shadow-[0_-2px_0_0_var(--color-accent)]' : ''} ${drag && drop === null && index === outline.length - 1 ? 'shadow-[0_2px_0_0_var(--color-accent)]' : ''}`}>
         {!readOnly && <GripVertical size={14} aria-hidden className={`absolute -left-4 ${topic ? 'top-[5px]' : 'top-[3px]'} cursor-grab text-ink-3 opacity-0 group-hover:opacity-100`} />}
         <Circle entry={entry} topic={topic} active={active} readOnly={readOnly} onToggle={() => canvasApi.current?.toggleSectionDone(entry.id)} />
-        {!topic && number && <span className={`${entry.level === 3 ? 'min-w-12' : 'min-w-9'} -mr-1 shrink-0 pt-px text-[13px] leading-5 text-ink-2 tabular-nums`}>{number}</span>}
+        {number && <span data-toc-number className={`${topic ? 'min-w-[18px] pt-[3px] text-xs' : `${entry.level === 3 ? 'min-w-12' : 'min-w-9'} pt-px text-[13px]`} -mr-1 shrink-0 leading-5 text-ink-2 tabular-nums`}>{number}</span>}
         {editing === entry.id ? <Editor entry={entry} topic={topic} onSave={(title, description) => save(entry, title, description)} onCancel={() => setEditing(null)} /> : (
           <div className="min-w-0 flex-1">
             <button type="button" title={readOnly ? undefined : 'Double-click to edit'} aria-current={active ? 'location' : undefined}
               onClick={() => onShow?.(entry.id)} onDoubleClick={readOnly ? undefined : () => setEditing(entry.id)}
               className={`rounded-sm text-left break-words hover:text-accent ${topic || entry.level === 1 ? 'text-base leading-6 font-semibold' : 'text-sm leading-5 font-medium'} ${active ? 'text-accent' : 'text-ink'}`}>
-              {topic && <span className="tabular-nums">Topic {number}: </span>}{entry.label}
+              {entry.label}
             </button>
             {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
           </div>
@@ -81,6 +86,11 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>
           </div>
         )}
+        {node.children.length > 0 && (
+          <button type="button" data-no-drag data-toc-fold aria-expanded={!folded.has(entry.id)} aria-label={`${folded.has(entry.id) ? 'Expand' : 'Collapse'} ${entry.label}`}
+            onClick={() => fold(entry.id)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink">
+            <ChevronRight size={16} aria-hidden className={folded.has(entry.id) ? '' : 'rotate-90'} /></button>
+        )}
       </div>
     );
   };
@@ -93,7 +103,7 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
       {nodes.map((node, at) => (
         <li key={node.entry.id} className={!depth && at < nodes.length - 1 ? 'relative before:absolute before:top-3 before:-bottom-10 before:left-[11.5px] before:w-px before:bg-line' : undefined}>
           {row(node)}
-          {node.children.length > 0 && list(node.children, depth + 1)}
+          {node.children.length > 0 && !folded.has(node.entry.id) && list(node.children, depth + 1)}
         </li>
       ))}
     </ol>
@@ -102,7 +112,7 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
   return (
     <div data-toc className={className} onDragEnd={endDrag}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <div className="flex min-w-0 items-baseline gap-2"><h2 className="text-base font-semibold text-ink">Table of contents</h2>{subtitle && <span data-toc-subtitle className="truncate text-xs text-ink-3">{subtitle}</span>}</div>
+        <h2 className="text-base font-semibold text-ink">Table of contents</h2>
         {!readOnly && (
           <div className="flex items-center gap-0.5 text-ink-2">
             <Plus size={15} aria-hidden className="mr-0.5 text-ink-3" />
@@ -113,6 +123,8 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
           </div>
         )}
       </div>
+      {subtitle && <p data-toc-subtitle className="-mt-2 mb-2 truncate text-xs text-ink-3">{subtitle}</p>}
+      {goal && <p data-toc-goal title={goal} className="mb-4 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
       {shown && <ProposalCard proposal={shown} outline={outline} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
       {list(tree, 0)}
       {adding && (

@@ -913,6 +913,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
   // Owner brief 2026-10-16 item 7: the Table of contents has its own conversation (TocConversation, TocWorkspace's thread), not
   // Chat's composer docked. Coming back to the tab puts the contents where they were scrolled (a hidden tab loses its scroll).
+  // The learning goal under the contents' heading (lead ruling 2026-10-16: the outline has no goal field, so the TOC
+  // conversation's most recent request - the one sent now, else the restored thread's last; none, nothing shown).
+  const [tocAsked, setTocAsked] = useState(null);
+  const tocGoal = tocAsked || [...(chat?.toc?.thread.restore.messages || [])].reverse().find(message => message.role === 'user')?.content || null;
   const tocPanel = useRef(null), tocScroll = useRef(0); // the tabpanel's onScrollCapture keeps the contents' scrollTop
   useLayoutEffect(() => {
     const list = panelOpen && panelTab === 'toc' && tocPanel.current?.querySelector('[data-toc]');
@@ -2036,7 +2040,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
-      <TableOfContents subtitle={(repository?.app || app).repo || null} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+      <TableOfContents subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
@@ -2045,7 +2049,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {/* The TOC conversation (owner brief item 7): its own thread, always Tutor. An outline change the Tutor proposes here is
           the learner's own request, so it applies to the contents at once (the outline renumbers itself); one that cannot
           apply (stale or refused) waits as the Apply/Discard card with its reason. */}
-      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline…"
+      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} onSent={setTocAsked} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline…"
         codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository}
         boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>
