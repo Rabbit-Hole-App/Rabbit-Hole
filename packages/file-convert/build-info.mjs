@@ -2,7 +2,7 @@
 // evidence into /app/build-info.json, and FAILS the build when the FFmpeg binary is not an LGPL
 // build, links anything beyond the C library, or lacks the encoder the audio converter uses.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const sh = (cmd, args) => { const r = spawnSync(cmd, args, { encoding: 'utf8' }); return `${r.stdout || ''}${r.stderr || ''}`.trim(); };
 const dpkg = pkgs => Object.fromEntries(sh('dpkg-query', ['-W', '-f=${Package} ${Version}\n', ...pkgs]).split('\n').map(l => l.split(' ')));
@@ -23,6 +23,12 @@ if (!encoders.includes('aac')) fail('the aac encoder is missing');
 const allowedLibs = /^(linux-vdso\.so\.1|libm\.so\.6|libc\.so\.6|\/lib64\/ld-linux-x86-64\.so\.2|libpthread\.so\.0|libdl\.so\.2)$/;
 for (const l of [...ldd, ...lddProbe]) if (!allowedLibs.test(l)) fail(`ffmpeg links ${l}`);
 
+// poppler-utils is approved (owner 2026-10-16) as separate GPL-2.0+ programs only: its copyright and
+// licence notices, and those of the libpoppler it runs on, must stay in the image.
+const popplerNotices = ['poppler-utils', ...readdirSync('/usr/share/doc').filter(d => /^libpoppler\d+$/.test(d))].map(d => `/usr/share/doc/${d}/copyright`);
+if (popplerNotices.length < 2) fail('libpoppler is not installed beside poppler-utils');
+for (const f of popplerNotices) if (!existsSync(f) || !/GPL/.test(readFileSync(f, 'utf8'))) fail(`poppler licence notice missing or without its GPL terms: ${f}`);
+
 const lo = sh('soffice', ['--headless', '--version']).split('\n').find(l => /LibreOffice/.test(l)) || '';
 const occt = JSON.parse(readFileSync('/app/vendor/occt-import-js/package.json', 'utf8'));
 const pkgs = dpkg(['libreoffice-core-nogui', 'libreoffice-writer-nogui', 'libreoffice-impress-nogui', 'poppler-utils', 'fonts-liberation', 'fonts-crosextra-carlito', 'fonts-crosextra-caladea', 'fonts-dejavu-core', 'util-linux', 'sudo']);
@@ -38,6 +44,7 @@ const info = {
     node: process.versions.node,
   },
   libreoffice_version_line: lo,
+  poppler_notices: popplerNotices,
   debian_packages: pkgs,
   ffmpeg: { version_line: ffVersion, licence, buildconf: buildconf.split('\n').map(s => s.trim()).filter(s => s.startsWith('--')), linked_libraries: [...new Set([...ldd, ...lddProbe])], encoders, decoders, demuxers },
 };

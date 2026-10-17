@@ -173,7 +173,7 @@ FAILS if FFmpeg is not LGPL, links anything beyond the C library or lacks the `a
 | Base | `node:24.19.0-trixie-slim@sha256:ab3eebe934147fee049b5eb83c570f68c849a13c930bdfa482de99fcdfa3b3de` (Debian 13, Node 24.19.0) | - | |
 | Debian packages | `snapshot.debian.org` at `20261016T000000Z` (main, updates, security) AND exact versions | per package | a rebuild installs the same bytes |
 | LibreOffice | `libreoffice-{core,writer,impress}-nogui 4:25.2.3-2+deb13u8` (reports 25.2.3.2) | MPL-2.0 | server-side only, headless, no GUI, no Java, no Python |
-| poppler-utils | `25.03.0-5+deb13u4` (`pdfinfo`, `pdftotext`, `pdftoppm`) | GPL-2.0-or-later | separate programs run on the server; not linked into or shipped with our code (decision 3 below) |
+| poppler-utils | 25.03.0, Debian package `poppler-utils=25.03.0-5+deb13u4` from the pinned snapshot (`pdfinfo`, `pdftotext`, `pdftoppm`) | GPL-2.0-or-later | **approved dependency (owner, 2026-10-16)**: run server-side only, as separate processes; never linked into application code. Its notices stay in the image and the build fails without them (below) |
 | Fonts | `fonts-liberation 1:2.1.5-3`, `fonts-crosextra-carlito 20230309-2`, `fonts-crosextra-caladea 20200211-2`, `fonts-dejavu-core 2.37-8` | OFL-1.1 / Apache-2.0 / Bitstream Vera | metric-compatible Arial/Times/Courier, Calibri, Cambria; no CJK fonts |
 | FFmpeg | 8.1.3 release tarball, sha256 `7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3`; its `.asc` verified against the FFmpeg release key `FCF9 86EA 15E6 E293 A564 4F10 B432 2F04 D676 58D8` when pinned | LGPL-2.1-or-later | built from source in the image's first stage; configure flags below |
 | occt-import-js | 0.0.23, npm tarball sha512 `4457d841...65809` (integrity `sha512-RFfYQXYF...oZYCQ==`), `dist/` only | LGPL-2.1 (`LICENSE.md`, shipped in the image) | WebAssembly build of OpenCascade Technology 7.6.1 (submodule commit `d2abb6d844231cb8f29be6894440874a4700e4a5`, "Update version up to 7.6.1"), LGPL-2.1 with the OCCT exception (`dist/license.occt.txt`); compiled with Emscripten (runtime MIT / University of Illinois NCSA) |
@@ -192,6 +192,13 @@ FFmpeg configure (from `ffmpeg -buildconf` on the built binary, section 3 record
 No `--enable-gpl`, `--enable-nonfree` or `--enable-version3`, and `--disable-autodetect` links no external library
 (no x264/x265, fdk-aac, zlib, iconv). Only the native `aac` and `opus` encoders exist; the playback copy uses `aac`.
 Untrusted input meets only the listed demuxers and decoders; no network protocol exists in the binary.
+
+poppler-utils approval (owner, 2026-10-16): `pdfinfo`, `pdftotext` and `pdftoppm` are approved as separate command-line
+programs in the dev converter, in the existing architecture (the sandboxed child spawns them; no code links libpoppler).
+The image keeps `/usr/share/doc/poppler-utils/copyright` and the `libpoppler*` copyright file; `build-info.mjs` fails
+the build if either is missing or lacks its GPL terms, and lists them in `/app/build-info.json` as `poppler_notices`.
+Owner's note: **reassess the licence obligations if the converter image is ever distributed or packaged for customers**
+(GPL-2.0+ obligations attach to distributing poppler's binaries, not to running them on our servers).
 
 Notices: the LGPL texts ship in the image (`/opt/ffmpeg/COPYING.LGPLv2.1`, `/app/vendor/occt-import-js/LICENSE.md`,
 `dist/license.occt.txt`, Debian's `/usr/share/doc/*/copyright`). The image is not distributed to users; derivatives
