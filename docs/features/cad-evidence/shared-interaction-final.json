@@ -1,0 +1,223 @@
+{
+  "candidate": "08becb70f90b1596999a0a4173043186e44ccdca",
+  "url": "https://rabbit-hole-web-dev-cad-integration.tryrabbithole.workers.dev/b/JSRg5NetvfwU0cnLtELO6h6FNtQmTC0X",
+  "counts": {
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "interrupted": 0
+  },
+  "results": [
+    {
+      "name": "anonymous share access requires sign-in",
+      "status": "passed"
+    },
+    {
+      "name": "signed-in nonowner sees saved models with mutation controls absent",
+      "status": "passed"
+    },
+    {
+      "name": "shared model activation supports rotate pan and zoom without moving canvas card",
+      "status": "passed"
+    },
+    {
+      "name": "shared Expand remains accessible and read-only",
+      "status": "passed"
+    },
+    {
+      "name": "owner interaction retains rotate pan zoom and framing",
+      "status": "passed"
+    },
+    {
+      "name": "no saved geometry mutation or model request",
+      "status": "passed"
+    }
+  ],
+  "gestures": [
+    {
+      "label": "nonowner-shared-model",
+      "gesture": "rotate",
+      "beforeSha256": "60156612496245e935cc6beede747be704c56f63f9fb0a8730a40e8427e752e9",
+      "afterSha256": "5650659df3e37ad6ca714c78d4d8a1f60b365ef95fb356fe2a7aca55edb857a4",
+      "beforeBounds": {
+        "x": 512,
+        "y": 73,
+        "width": 560,
+        "height": 480
+      },
+      "afterBounds": {
+        "x": 512,
+        "y": 73,
+        "width": 560,
+        "height": 480
+      }
+    },
+    {
+      "label": "nonowner-shared-model",
+      "gesture": "pan",
+      "beforeSha256": "5650659df3e37ad6ca714c78d4d8a1f60b365ef95fb356fe2a7aca55edb857a4",
+      "afterSha256": "7803b9f83ecede9fea0b3d56499d03eebad99a74c4e13e9d6104becb70d0ec0e",
+      "beforeBounds": {
+        "x": 512,
+        "y": 73,
+        "width": 560,
+        "height": 480
+      },
+      "afterBounds": {
+        "x": 512,
+        "y": 73,
+        "width": 560,
+        "height": 480
+      }
+    },
+    {
+      "label": "nonowner-shared-model",
+      "gesture": "zoom",
+      "beforeSha256": "7803b9f83ecede9fea0b3d56499d03eebad99a74c4e13e9d6104becb70d0ec0e",
+      "afterSha256": "4252a2472488d2050beb5e0af6472b9a96d25f6886f93b34fe682547cdeae9e1",
+      "beforeBounds": {
+        "x": 512,
+        "y": 73,
+        "width": 560,
+        "height": 480
+      },
+      "afterBounds": {
+        "x": 512,
+        "y": 73,
+        "width": 560,
+        "height": 480
+      }
+    },
+    {
+      "label": "owner-model",
+      "gesture": "rotate",
+      "beforeSha256": "e05b26ec5244563745b3dfd6bba12b070c6e613e805ed9f6f0b3729bcf1e200a",
+      "afterSha256": "24b99f9ae2c2820a3bde31ac14713016be728ac810f1a9e1dc06b31b1ea26d9a",
+      "beforeBounds": {
+        "x": 372.0540466308594,
+        "y": 96,
+        "width": 323.8918762207031,
+        "height": 277.6216125488281
+      },
+      "afterBounds": {
+        "x": 372.0540466308594,
+        "y": 96,
+        "width": 323.8918762207031,
+        "height": 277.6216125488281
+      }
+    },
+    {
+      "label": "owner-model",
+      "gesture": "pan",
+      "beforeSha256": "24b99f9ae2c2820a3bde31ac14713016be728ac810f1a9e1dc06b31b1ea26d9a",
+      "afterSha256": "7eecc0632c6ebfe3111258572eae97b4a26c98a754a9dbd69567e0d6f4b4f174",
+      "beforeBounds": {
+        "x": 372.0540466308594,
+        "y": 96,
+        "width": 323.8918762207031,
+        "height": 277.6216125488281
+      },
+      "afterBounds": {
+        "x": 372.0540466308594,
+        "y": 96,
+        "width": 323.8918762207031,
+        "height": 277.6216125488281
+      }
+    },
+    {
+      "label": "owner-model",
+      "gesture": "zoom",
+      "beforeSha256": "7eecc0632c6ebfe3111258572eae97b4a26c98a754a9dbd69567e0d6f4b4f174",
+      "afterSha256": "952e0a866dfdf4cad1a2f6631879118b8dc40866c7b02132f67920c41f855893",
+      "beforeBounds": {
+        "x": 372.0540466308594,
+        "y": 96,
+        "width": 323.8918762207031,
+        "height": 277.6216125488281
+      },
+      "afterBounds": {
+        "x": 372.0540466308594,
+        "y": 96,
+        "width": 323.8918762207031,
+        "height": 277.6216125488281
+      }
+    }
+  ],
+  "blocked": [
+    {
+      "path": "/api/learn/boards/shared/JSRg5NetvfwU0cnLtELO6h6FNtQmTC0X/next-steps",
+      "method": "POST"
+    },
+    {
+      "path": "/api/learn/tutor/next-steps",
+      "method": "POST"
+    },
+    {
+      "path": "/api/learn/boards/canvas-0da4df73/main/thumbnail",
+      "method": "PUT"
+    }
+  ],
+  "errors": [],
+  "artifactRequests": [
+    {
+      "path": "/api/learn/files/fs_185bf9ab6ca3476e463020e3/d/fd_fa22ee8475964dac53a786e4",
+      "share": true
+    },
+    {
+      "path": "/api/learn/files/fs_d73cfff643ed94ad3a5c87f6/d/fd_54d3408dcc3b4ce15aec7faf",
+      "share": true
+    },
+    {
+      "path": "/api/learn/files/fs_185bf9ab6ca3476e463020e3/d/fd_38da239fc8d2cd9ef43fae3b",
+      "share": true
+    },
+    {
+      "path": "/api/learn/files/fs_185bf9ab6ca3476e463020e3/d/fd_fa22ee8475964dac53a786e4",
+      "share": true
+    },
+    {
+      "path": "/api/learn/files/fs_185bf9ab6ca3476e463020e3/d/fd_38da239fc8d2cd9ef43fae3b",
+      "share": true
+    },
+    {
+      "path": "/api/learn/files/fs_185bf9ab6ca3476e463020e3/d/fd_fa22ee8475964dac53a786e4",
+      "share": false
+    },
+    {
+      "path": "/api/learn/files/fs_d73cfff643ed94ad3a5c87f6/d/fd_54d3408dcc3b4ce15aec7faf",
+      "share": false
+    },
+    {
+      "path": "/api/learn/files/fs_185bf9ab6ca3476e463020e3/d/fd_38da239fc8d2cd9ef43fae3b",
+      "share": false
+    }
+  ],
+  "permissionReads": [
+    {
+      "kind": "step",
+      "anonymousStatus": 401,
+      "anonymousSharedStatus": 401,
+      "nonownerUnscopedStatus": 404,
+      "nonownerSharedStatus": 200,
+      "bytes": 16920
+    },
+    {
+      "kind": "glb",
+      "anonymousStatus": 401,
+      "anonymousSharedStatus": 401,
+      "nonownerUnscopedStatus": 404,
+      "nonownerSharedStatus": 200,
+      "bytes": 1840
+    },
+    {
+      "kind": "thumbnail",
+      "anonymousStatus": 401,
+      "anonymousSharedStatus": 401,
+      "nonownerUnscopedStatus": 404,
+      "nonownerSharedStatus": 200,
+      "bytes": 112155
+    }
+  ],
+  "nonownerSessionCreated": true,
+  "limitation": "Read-only existing artifacts; no generation or executor execution. Gesture proof compares settled renderer pixels, not camera internals."
+}

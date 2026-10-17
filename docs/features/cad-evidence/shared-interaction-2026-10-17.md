@@ -1,0 +1,20 @@
+# Shared CAD interaction follow-up ? 2026-10-17
+
+Runtime fix: `08becb70f90b1596999a0a4173043186e44ccdca` (following selection fix `091abcebac139ae825cfc676a87893b6c6333fb2`). Isolated dev version `5d48d148-839f-4bdb-b420-3f2da8f0959f`. The previous deployed `049f2845` and former PR head `0dc75503` have identical application code: the latter added receipts and a browser harness camera correction, not a runtime fix.
+
+Owner selection activated CAD, but shared read-only selection was deliberately suppressed for editing; CAD incorrectly used that same state for viewing. Shared hand-mode also disabled pointer targeting. The fix passes CAD viewing selection separately and enables pointer input only in the selected read-only CAD subtree. Mutation eligibility, edit selection, handles and scoped downloads are unchanged. Active CAD now uses the existing ModelCard native wheel pattern and contains context-menu events, keeping zoom/pan inside the viewer.
+
+## Focused verification
+
+- Original `049f2845`: **2 passed / 1 failed / 0 skipped / 3 interrupted**; signed-in nonowner could not activate the GLB.
+- First correction `091abceb`: **2 passed / 1 failed / 0 skipped / 3 interrupted**; activation/rotate/pan worked, but wheel also moved the canvas and right-pan opened its context menu.
+- Final `08becb70`: **6 passed / 0 failed / 0 skipped / 0 interrupted**. Signed-in nonowner and owner rotate/pan/zoom each changed settled rendered pixels while preserving card framing; shared Expand worked; saved geometry stayed unchanged; no CAD mutations, model calls or page errors occurred. Anonymous direct/share and unscoped nonowner artifact reads were denied; scoped nonowner STEP/GLB/thumbnail reads succeeded. See the [focused browser receipt](shared-interaction-final.md). Expanded-panel accessibility was checked; its screenshot captured loading, not completed expanded rendering.
+- Full local unit command exit 0; Python31 passed, Node5180 passed/38 skipped. Focused CAD permission/persistence17/17; CAD registration3/3. Production build/bundle and dev build passed after restoring tracked static inputs.
+- The general check-map suite reported12 passed/1 failed:69 pre-existing unmapped paths are identical at `0dc75503` and this candidate. No classification assertions were weakened. A sandboxed attempt could not spawn test processes and was rerun with the required process permission.
+- Legacy `make test-integration`: **37 collected cases skipped plus three module-level skips**; no executed integration coverage. Initial collection lacked `.env`, then an import-time `S3_BUCKET` name. A temporary empty keyless collection file and nonfunctional bucket placeholder allowed the unchanged unconditional skip guard to run; the temporary file was removed. These tests require separately enabled dev deployment infrastructure and are not CAD coverage.
+
+## Release prerequisites and scope
+
+No executor was provisioned and no model request was made for this follow-up. New CAD generation remains unavailable after executor removal. Production lacks `CAD_JOBS`/its Durable Object migration, executor configuration and CAD-specific credentials; none are introduced here. Existing production storage routes can display authorized saved CAD artifacts, but deploying code does not transfer the dev sample models into production.
+
+Existing required production secret names were confirmed present; no forbidden names were found. This branch adds no D1 migration. Production schema checks and the normal full release gate/dev-preview smoke remain release prerequisites; no safeguards are bypassed. Final-head CI, gate and deployment outcomes belong to PR #2 and its linked workflow receipts. Fine-grained geometry proof, real-model Explain/image interpretation and the original broader CAD limitations remain as documented in the previous handoff; this follow-up changes only shared viewing interaction.

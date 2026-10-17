@@ -1,5 +1,7 @@
 # CAD dev handoff — 2026-10-17
 
+Follow-up: [shared CAD interaction fix and exact-SHA verification](shared-interaction-2026-10-17.md) supersedes the original runtime identity for viewing behavior.
+
 Implementation: **`049f284549596f10f7aa904710340edc030ea827`**. [Review PR #2](https://github.com/Rabbit-Hole-App/Rabbit-Hole/pull/2) remains unmerged. [Isolated dev app](https://rabbit-hole-web-dev-cad-integration.tryrabbithole.workers.dev), Worker version `8088d472-d32e-4a2c-9c3d-dc32b36eab84`, runs that implementation. Later documentation commits do not change the deployed implementation. Main remains `abd5f840`; no production deployment or production D1 command was performed.
 
 The dev deployment is now for reviewing saved artifacts. The approved model checks finished, its `CAD_MODEL_API_KEY` was deleted, generation/executor variables were removed, and the dedicated Fly executor was destroyed at **13:24:25 Pacific**. Creating new geometry requires separately authorized executor configuration. Existing cards, downloads and saved measurements do not require the executor or a model call.
