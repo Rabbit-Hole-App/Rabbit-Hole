@@ -25,7 +25,7 @@ import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
 import { MODEL_CHOICES } from './model-choices.js';
-import { canvasTargetField } from './learn-ask-target.js';
+import { NO_REFS, canvasTargetField, tocAskProps } from './learn-ask-target.js';
 import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
@@ -253,14 +253,20 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // card's follow-up composer. Its thread, History, New chat and resume (A2), and its draft, / command and mode (A3a) live
   // in the chat workspace, so menus, mode changes and resizing never clear them. Every other chat (chat === null) keeps its own state.
   const workspace = useChatWorkspace();
+  // The Table of contents' conversation (TocWorkspace, tocView) renders only its messages, the Tutor label, its composer and
+  // its own progress and errors; none of the canvas selection and none of Chat's extras (learn-ask-target.js tocAskProps,
+  // TOC_HIDDEN; lead ruling 2026-10-16 on owner brief item 7).
+  const tocView = !!workspace?.tocView;
+  if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor }));
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
   // A canvas with a repository (codebase: use-repository.js's object, the Main canvas or a project canvas; repo-canvas-graph.md
   // section 6): what the graph and Files viewers hold now is temporary context beside this chat's pinned refs - one chip and
   // one sent ref each, pinned first, up to the server's 20 (repo-context.js turnRefs). The Files selection is one of these
   // chips, so the older "Asking about" box is not shown beside it.
   // Nodes selected inside graph cards on the canvas (graph-card.js) are temporary context of the same kind, on any canvas.
-  const cardRefs = useCardRefs();
-  const temporaryCode = chat ? [...(codebase ? selectionRefs(codebase) : []), ...cardRefs] : [];
+  const graphCardRefs = useCardRefs();
+  const cardRefs = tocView ? NO_REFS : graphCardRefs;
+  const temporaryCode = chat && !tocView ? [...(codebase ? selectionRefs(codebase) : []), ...cardRefs] : NO_REFS;
   const codeTurnRefs = turnRefs(chat?.context.attached || [], temporaryCode);
 
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
@@ -1006,7 +1012,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
       <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
-        {atHits.length > 0 && (
+        {!tocView && atHits.length > 0 && (
           <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
             {atHits.map((a) => (
               <button
@@ -1047,7 +1053,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         </button>}
         {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
             first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
-        {repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
+        {!tocView && repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
           <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
           {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
           {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
@@ -1063,8 +1069,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
         </div>}
         {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
-        {boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
-        {boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>
+        {!tocView && boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
+        {!tocView && boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
@@ -1075,11 +1081,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} tocView={!!workspace?.tocView} chips={chat ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null}
+          stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null}
             selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => { if (codebase) dropRef(codebase, ref); dropCardRef(ref); } } : null} /> : null}
           leading={<>
-          <div className="relative shrink-0">
+          {!tocView && <div className="relative shrink-0">
             <button
               type="button"
               aria-label="Add"
@@ -1106,7 +1112,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               className="hidden"
               onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
             />
-          </div>
+          </div>}
           {contextDocs.enabled && !chat && (
             <div className="relative shrink-0">
               <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
