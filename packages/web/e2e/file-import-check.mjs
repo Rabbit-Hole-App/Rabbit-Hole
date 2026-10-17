@@ -39,11 +39,11 @@ for (const fixture of fixtures) {
   if (sniff !== null && fixture.attack !== 'mislabelled' && fixture.role !== 'negative' && !sniff) problems.push('the sniff refuses a real file');
   check(`registry  ${fixture.path}`, !problems.length, { family: fixture.family, status: fixture.family === null ? 'no family' : want.offered ? 'shipped' : 'planned', detected: want.detected, sniff, ...(problems.length ? { problems } : {}) });
 }
-// Every extension the spec lists belongs to exactly one registry family (the picker, drop and server read only the registry).
+// Each spec extension has one standalone family; model-part intentionally shares image extensions for bundled textures (the picker, drop and server read only the registry).
 const SPEC = 'png jpg jpeg webp gif svg mp4 webm mp3 wav ogg m4a flac pdf txt md markdown ipynb py js mjs cjs ts jsx tsx java go rs c h cpp cc cxx hpp cs rb php swift kt kts sh bash sql r jl lua scala html css scss json jsonl yaml yml toml ini xml csv tsv xlsx xls docx doc pptx glb gltf obj fbx stl 3mf step stp ply splat ksplat spz sog'.split(' ');
-const owners = ext => registry.FAMILIES.filter(f => f.extensions.includes(ext)).map(f => f.id);
+const owners = ext => registry.FAMILIES.filter(f => f.id !== 'model-part' && f.extensions.includes(ext)).map(f => f.id);
 const unowned = SPEC.filter(ext => owners(ext).length !== 1);
-check('registry  every spec extension has exactly one family', !unowned.length, unowned.length ? { extensions: Object.fromEntries(unowned.map(ext => [ext, owners(ext)])) } : {});
+check('registry  every spec extension has exactly one standalone family', !unowned.length, unowned.length ? { extensions: Object.fromEntries(unowned.map(ext => [ext, owners(ext)])) } : {});
 const boundary = fixtures.filter(f => f.role === 'boundary');
 if (boundary.length) {
   const cap = registry.boardFileLimit('video/mp4');
