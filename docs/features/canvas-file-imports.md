@@ -414,3 +414,23 @@ the `.pptx` ZIP); `mammoth` 1.13.0 (BSD-2-Clause; brings `jszip` MIT/GPLv3 dual,
 `lop` 0.4.2 BSD-2-Clause, `underscore` MIT, `base64-js` MIT, `xmlbuilder` MIT, `dingbat-to-unicode` BSD-2-Clause; `externalFileAccess: false`; its HTML is turned into an allowlisted tree by
 `file-docx.js` `htmlTree` and rendered as React elements, never `innerHTML`). Neither is in the initial canvas bundle:
 both load from the worker (or the main-thread fallback) when a card of that format opens.
+
+### 10.1 fileRef cards and stored text (lane 2, after lane 1 7f85b0d4, fi-chat 22e1f521, fi-jobs)
+
+- `packages/web/src/file-source-client.js` (shared with lanes 3 and 4): `uploadSource(file, { app, board, family, onProgress })`
+  (sha256, `POST /api/learn/files`, `PUT` with byte progress; stored identical bytes are not sent again), `loadSource(block)`
+  (a stored source through the page scope `setFileScope({ app, board } | { share } | { member })`, a pending card's local
+  copy, or an older card's `assetKey`), and `startUpload(localKey, { family })`, one upload per local key: it waits for an
+  unsaved board, resumes after a reload from this browser's copy, and fails visibly with Retry.
+- Lane 2's new cards are fileRef cards with no block `assetKey` (never also a board file). While uploading, `fileRef.source`
+  is null and `fileRef.local` names this browser's copy; once stored the card writes `source: { id, rev }`, drops `local`,
+  and the normal board save writes `file_source_refs`. `fileRef.view` mirrors the card's `sheet` / `slide`.
+- `PUT /api/learn/files/<source>/text` (`packages/control-plane/src/learn-file-text.js`, owner only, mounted in
+  `dev-worker.js`): body `{ v: 1, units, complete, limited?, extractor?, options? }`, every `loc` checked by `file-chat-ref.js`
+  `fileRange`, at most 2 MiB; a ready `file_derivatives` row kind `text`, name `text.json`, converter `browser-extract`,
+  version `browser-extract/<extractor>`, `options_hash` of the options, `sha256` of the stored body, R2
+  `file-sources/<source>/d/<id>`; one row per source revision + version + options. The card then sets
+  `fileRef.status.context` (`extracted` / `partial`) and `status.extraction` (its options), so a delimiter or encoding change
+  stores a new extraction.
+- A presentation submits the `slides` job once stored (`file-jobs-client.js submitFileJob`, `fileRef.job`), shows its stage,
+  and shows the `slide-NNN.png` derivatives when ready; otherwise its slide text, saying why.
