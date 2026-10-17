@@ -157,6 +157,24 @@ test('the open thread per canvas: round trip, null clears, a late answer never m
   assert.equal(await active(), B);
 });
 
+test('the Table of contents keeps its own open thread (slot toc), apart from Chat\'s; History lists both threads', async t => {
+  const f = fixture(t);
+  const active = async slot => (await (await f.send('GET', `/api/learn/chat/active?app=${CANVAS}${slot ? `&slot=${slot}` : ''}`)).json()).threadId;
+  const put = (thread_id, slot) => f.send('PUT', '/api/learn/chat/active', { app: CANVAS, thread_id, ...(slot ? { slot } : {}) });
+  for (const [thread, client] of [[A, 'u-a'], [B, 'u-b']]) assert.equal((await f.post(thread, { client_id: client, role: 'user', content: `question ${client}` })).status, 201);
+  assert.equal((await put(A)).status, 200);
+  assert.equal(await active('toc'), null, 'Chat\'s choice is not the TOC\'s');
+  assert.deepEqual(await (await put(B, 'toc')).json(), { threadId: B });
+  assert.equal(await active(), A);
+  assert.equal(await active('toc'), B);
+  assert.equal(f.count('chat_thread_state', "thread_id LIKE 'active:%'"), 2);
+  assert.equal((await put(ELSEWHERE, 'toc')).status, 409, 'the same thread checks as Chat\'s pointer');
+  assert.equal((await put(A, 'chat')).status, 400);
+  assert.equal((await f.send('GET', `/api/learn/chat/active?app=${CANVAS}&slot=other`)).status, 400);
+  const { threads } = await (await f.send('GET', `/api/ask/threads?scope=learn&ref=${CANVAS}`)).json();
+  assert.deepEqual(threads.map(x => x.id).sort(), [A, B]);
+});
+
 test('canvasRoute sends the new chat paths to canvasesFetch and nothing near them', () => {
   for (const path of [`/api/learn/chat/threads/${A}/messages`, '/api/learn/chat/threads/canvaschat-a/messages', '/api/learn/chat/active', `/api/learn/chat/active?app=${CANVAS}`])
     assert.ok(canvasRoute(new URL(`https://dev.test${path}`)), path);

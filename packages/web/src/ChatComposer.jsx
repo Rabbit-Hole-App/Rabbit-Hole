@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import { ArrowUp, ChevronDown, Loader2, Square } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
+import { useChatWorkspace } from './chat-workspace.jsx';
 
 // Every agent uses the same input, focus treatment, send control and sizing.
 // Optional controls belong in slots; they must not replace the composer itself.
@@ -38,6 +39,8 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // a spacer, trailing, and Send (Stop while busy) at the far right. Its toolbar controls take COMPOSER_TOOL.
 export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
 export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null, stacked = false, chips = null }) {
+  // The Table of contents' own composer (TocWorkspace) is data-toc-composer, so [data-chat-composer] stays the one Chat composer.
+  const tocView = !!useChatWorkspace()?.tocView;
   const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
   const keys = event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
@@ -56,7 +59,7 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
       {busy ? <Loader2 size={dock || stacked ? 16 : 13} className="animate-spin" /> : <ArrowUp size={dock ? 17 : stacked ? 16 : 13} strokeWidth={2} />}
     </button>
   );
-  if (stacked) return <form data-chat-composer data-composer-stacked className="flex flex-col gap-1.5 rounded-xl border border-line bg-white p-2.5 focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]" onSubmit={event => { event.preventDefault(); submit(); }}>
+  if (stacked) return <form {...{ [tocView ? 'data-toc-composer' : 'data-chat-composer']: true }} data-composer-stacked className="flex flex-col gap-1.5 rounded-xl border border-line bg-white p-2.5 focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]" onSubmit={event => { event.preventDefault(); submit(); }}>
     {voice || field}
     {chips}
     <div data-composer-toolbar className="flex min-w-0 items-center gap-0.5">

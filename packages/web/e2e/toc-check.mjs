@@ -61,8 +61,9 @@ let reply = null, lastProposal = null;
 const tutorTurn = proposal => `event: chunk\ndata: ${JSON.stringify({ text: 'Here is a place for that in your contents.' })}\n\nevent: outline\ndata: ${JSON.stringify(proposal)}\n\nevent: done\ndata: {}\n\n`;
 const send = async text => {
   await page.getByRole('tab', { name: /^Chat$/ }).click();
-  // Tutor mode, which posts to /api/learn/ask (answered above); Auto would plan with the live Tutor first.
-  const pane = page.locator('aside[aria-label="Learn agent chat"]');
+  // Tutor mode, which posts to /api/learn/ask (answered above); Auto would plan with the live Tutor first. The Chat pane's own
+  // composer: the Table of contents has its own (owner brief 2026-10-16 item 7).
+  const pane = page.locator('aside[aria-label="Learn agent chat"] [data-chat-pane]');
   if (await pane.locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'tutor') {
     await pane.getByRole('button', { name: 'Mode', exact: true }).click();
     await page.locator('[data-chat-mode-option="tutor"]').click();

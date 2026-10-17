@@ -5,7 +5,9 @@
 // Apply/Discard flow, and Apply makes the headings (descriptions kept, nothing completed); 3 pressing it again proposes nothing;
 // 4 a Tutor turn sends the current headings with ids, descriptions and outlineRevision, and its outline event { ops, base }
 // becomes a proposal whose Apply adds the subtopic at the end of its topic, completion untouched; 5 an ordinary Tutor question
-// proposes nothing.
+// proposes nothing; 9 the TOC conversation (owner brief 2026-10-16 item 7): a request sent from the Table of contents, Tutor its
+// only mode, applies its outline change at once in place, numbered; the reply stays in TOC, never Chat; Chat's draft and New
+// chat leave it alone; a reload restores the TOC's own thread.
 // The headings are read from the canvas's saved blocks (localStorage), so the check does not depend on the panel's markup.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Usage: BASE=http://127.0.0.1:8911 SMALL_CP=http://127.0.0.1:8913 VARS=<cp .dev.vars> OUT=<dir> node e2e/toc-tutor-check.mjs
@@ -53,7 +55,7 @@ const router = async route => {
     return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body:
       frame('chunk', { text: `Canned reply ${reply}.` }) + outline
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: plan.syllabus ? 'syllabus' : 'clarify', syllabus: plan.syllabus || null })
-      + frame('done', { ok: true, threadId: body.thread_id || 'toc-thread-1', userMessageId: `u-${reply}`, messageId }) });
+      + frame('done', { ok: true, threadId: plan.threadId || body.thread_id || 'toc-thread-1', userMessageId: `u-${reply}`, messageId }) });
   }
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } });
   // The Curious hook: the stack answers it from fixtures (JOURNEY_MODEL_STUB), never a model.
@@ -211,6 +213,59 @@ if (panel) await check('8 a full syllabus (12 topics, 6 subtopics each: 84 adds)
   await tab('Table of contents').click();
   await apply().click();
   await waitFor(async () => (await headings()).length === before + 84, 15000);
+});
+
+// Owner brief 2026-10-16 item 7. The TOC's thread is a real one on the server, as /api/learn/ask (canned here) would leave it,
+// so a reload restores it through the TOC's own open-thread pointer (slot 'toc').
+const tocBox = () => contents().locator('[data-toc-conversation]');
+const tocField = () => tocBox().locator('[data-toc-composer] textarea').first();
+await check('9 the TOC conversation: Tutor only; a request there applies its outline change at once, numbered in place; the reply stays in TOC; Chat\'s draft and New chat leave it; a reload restores it', async () => {
+  const TOC_THREAD = `canvaschat-${crypto.randomUUID()}`, ask = 'Add a section on tidal bores after Tides';
+  for (const [role, content, client_id] of [['user', ask, 'toc-u'], ['assistant', 'The saved TOC reply.', 'toc-a']])
+    await api(`/api/learn/chat/threads/${TOC_THREAD}/messages`, { method: 'POST', body: JSON.stringify({ app: canvas.name, client_id, role, content, mode: 'tutor' }) });
+  await tab('Chat').click();
+  await pane().locator('[data-chat-composer] textarea').first().fill('A Chat draft');
+  await tab('Table of contents').click();
+  await tocField().waitFor();
+  assert.equal(await tocBox().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
+  assert.equal(await tocBox().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no Auto / Ask / Tutor menu');
+  assert.equal(await tocField().getAttribute('placeholder'), 'Describe your goal or refine the outline…');
+  assert.equal(await tocField().inputValue(), '', 'Chat\'s draft stays in Chat');
+  const before = await headings(), tops = before.filter(h => h.level === 1), tides = tops.find(h => h.text === 'Tides');
+  const n = captured.length;
+  next.push({ threadId: TOC_THREAD, outline: () => [{ op: 'add', text: 'Tidal bores', level: 1, after: tides.id, description: 'A wave that runs up a river.' }] });
+  await tocField().fill(ask);
+  await tocBox().locator('[data-toc-composer] button[aria-label="Send"]').click();
+  await waitFor(() => captured.length > n, 20000);
+  const { body, reply } = captured[n];
+  assert.equal(body.mode, 'tutor');
+  assert.equal(body.thread_id ?? null, null, 'a new TOC thread, never Chat\'s');
+  await tocBox().getByText(`Canned reply ${reply}.`, { exact: true }).waitFor({ timeout: 15000 });
+  const after = await waitFor(async () => { const h = await headings(); return h.some(x => x.text === 'Tidal bores') && h; });
+  const at = after.findIndex(h => h.text === 'Tidal bores');
+  assert.equal(after[at + 1]?.id, tops[tops.indexOf(tides) + 1].id, 'in place: after Tides, before the next topic');
+  assert.equal(await apply().count(), 0, 'applied at once, no Apply card');
+  assert.match(await contents().locator(`[data-toc-entry="${after[at].id}"]`).innerText(), /Topic 2: Tidal bores/);
+  assert.match(await contents().locator(`[data-toc-entry="${after[at + 1].id}"]`).innerText(), /^Topic 3: /m, 'the next topic renumbered');
+  assert.ok(await contents().isVisible(), 'the Table of contents stays open');
+  await contents().screenshot({ path: `${OUT}/9-toc-conversation.png` });
+  await tab('Chat').click();
+  assert.equal(await pane().getByText(`Canned reply ${reply}.`, { exact: true }).count(), 0, 'the TOC reply is not in Chat');
+  assert.equal(await pane().locator('[data-chat-composer] textarea').first().inputValue(), 'A Chat draft', 'Chat\'s draft kept');
+  await pane().getByRole('button', { name: 'New chat', exact: true }).click();
+  await tab('Table of contents').click();
+  assert.ok(await tocBox().getByText(`Canned reply ${reply}.`, { exact: true }).isVisible(), 'New chat leaves the TOC conversation');
+  await tocField().fill('A TOC draft');
+  await page.waitForTimeout(1000); // past the 800 ms thread-state save of the draft (chat-threads.js SAVE_DELAY)
+  await page.reload();
+  await page.locator('[data-block-id="k1"]').waitFor({ timeout: 60000 });
+  await tab('Table of contents').click();
+  await tocBox().getByText('The saved TOC reply.', { exact: true }).waitFor({ timeout: 15000 });
+  assert.equal(await tocField().inputValue(), 'A TOC draft', 'the TOC draft survives the reload');
+  assert.ok((await headings()).some(h => h.text === 'Tidal bores'), 'the outline change survives the reload');
+  await tab('Chat').click();
+  await page.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
+  assert.equal(await pane().getByText('The saved TOC reply.', { exact: true }).count(), 0, 'Chat never restores the TOC\'s thread');
 });
 
 await check('6 no model route was reached and the page raised no error', async () => {

@@ -5,18 +5,19 @@ import { api } from './api.js';
 //   POST /api/learn/chat/threads/<threadId>/messages { app, client_id, role, content, status?, mode?, title? }
 //     -> { threadId, messageId, clientId, duplicate }. An unknown canvaschat- id is created for this user and canvas; the
 //     same client_id in the same thread again writes nothing (duplicate). 404/409: not this user's canvas or thread.
-//   GET /api/learn/chat/active?app= -> { threadId | null };  PUT /api/learn/chat/active { app, thread_id }.
+//   GET /api/learn/chat/active?app=[&slot=toc] -> { threadId | null };  PUT /api/learn/chat/active { app, thread_id, slot? }.
+//   slot 'toc': the Table of contents' own conversation (owner brief 2026-10-16 item 7), its open thread kept apart from Chat's.
 // app is the canvas name, the ref History lists by (chat-threads.js threadsUrl).
 export const newThreadId = () => `canvaschat-${crypto.randomUUID()}`;
-export const activeUrl = app => `/api/learn/chat/active?app=${encodeURIComponent(app)}`;
+export const activeUrl = (app, slot = null) => `/api/learn/chat/active?app=${encodeURIComponent(app)}${slot ? `&slot=${slot}` : ''}`;
 
 // The canvas's active thread, or null: none set, deleted, or a canvas the route does not keep one for (404, e.g. a hole
 // that has no canvas row yet), where the caller falls back to its default. Any other failure throws.
-export async function activeThread(app, call = api) {
-  try { return (await call(activeUrl(app))).threadId ?? null; }
+export async function activeThread(app, call = api, slot = null) {
+  try { return (await call(activeUrl(app, slot))).threadId ?? null; }
   catch (error) { if (error.status === 404) return null; throw error; }
 }
-export const rememberThread = (app, threadId, call = api) => call('/api/learn/chat/active', { method: 'PUT', body: JSON.stringify({ app, thread_id: threadId }) });
+export const rememberThread = (app, threadId, call = api, slot = null) => call('/api/learn/chat/active', { method: 'PUT', body: JSON.stringify({ app, thread_id: threadId, ...(slot ? { slot } : {}) }) });
 
 // A failed save is sent again with the same body, so the same client_id: the server writes it once. A 4xx is final.
 // ponytail: retries live in this tab only; a reload while a save is failing loses it. Add an outbox if saves fail in practice.

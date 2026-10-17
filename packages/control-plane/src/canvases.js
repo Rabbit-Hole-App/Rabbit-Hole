@@ -219,21 +219,25 @@ async function saveChatMessage(req, env, user, id) {
 // canvas, workspace and person - no real thread id starts with 'active:', so History's join and a thread's delete never meet
 // it - and context_json holds { threadId }. Only PUT /api/learn/chat/active writes it, never a message save, so a late answer
 // finishing in thread A cannot make A the open thread after the person opened B.
-const activeKey = (user, app) => `active:${app}:${user.org}:${user.email}`;
+// slot 'toc' (owner brief 2026-10-16 item 7): the Table of contents' own conversation keeps its own open thread, a second key
+// beside Chat's, so the two never restore each other's thread. Its threads are ordinary threads of the canvas.
+const activeKey = (user, app, slot = null) => `active:${slot ? `${slot}:` : ''}${app}:${user.org}:${user.email}`;
+const activeSlot = slot => { if (slot == null || slot === 'toc') return slot ?? null; throw Error('slot must be toc'); };
 async function activeChat(req, env, user, url) {
   const db = env.LEARN_DB;
   if (req.method === 'GET') {
-    const app = url.searchParams.get('app');
+    const app = url.searchParams.get('app'), slot = activeSlot(url.searchParams.get('slot'));
     const refused = await canvasRefusal(env, user, app); if (refused) return refused;
     let saved = null;
-    try { saved = JSON.parse((await db.prepare('SELECT context_json FROM chat_thread_state WHERE thread_id=?').bind(activeKey(user, app)).first())?.context_json ?? 'null')?.threadId; }
+    try { saved = JSON.parse((await db.prepare('SELECT context_json FROM chat_thread_state WHERE thread_id=?').bind(activeKey(user, app, slot)).first())?.context_json ?? 'null')?.threadId; }
     catch (error) { if (!noChatTables(error) && !(error instanceof SyntaxError)) throw error; }
     // A thread since deleted, or no longer this person's on this canvas, is none.
     const thread = typeof saved === 'string' ? await canvasThread(db, user, saved, app) : null;
     return json({ threadId: thread && !(thread instanceof Response) ? saved : null });
   }
   if (req.method !== 'PUT') return json({ error: 'GET or PUT required' }, 405);
-  const { app, thread_id: threadId } = await jsonObject(req);
+  const { app, thread_id: threadId, slot: rawSlot } = await jsonObject(req);
+  const slot = activeSlot(rawSlot);
   if (threadId !== null && !(typeof threadId === 'string' && CHAT_ID.test(threadId))) throw Error('thread_id must be a chat id or null');
   const refused = await canvasRefusal(env, user, app); if (refused) return refused;
   if (threadId) {
@@ -244,7 +248,7 @@ async function activeChat(req, env, user, url) {
   const at = new Date().toISOString();
   try {
     await db.prepare('INSERT INTO chat_thread_state(thread_id,context_json,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET context_json=excluded.context_json, updated_at=excluded.updated_at')
-      .bind(activeKey(user, app), JSON.stringify({ threadId }), at).run();
+      .bind(activeKey(user, app, slot), JSON.stringify({ threadId }), at).run();
   } catch (error) { if (noChatTables(error)) return unavailable(); throw error; }
   return json({ threadId });
 }

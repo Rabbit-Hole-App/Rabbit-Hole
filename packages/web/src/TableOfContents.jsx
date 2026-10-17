@@ -17,7 +17,8 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // emitter reads as ops with no base), cleared through onProposal(null). activeId: the section being viewed (the canvas
 // decides which). readOnly: a viewer - titles navigate, nothing edits, drags or ticks. className: the scroll container's
 // sizing, owned by the page.
-export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '' }) {
+// subtitle: the project's repository (owner brief 2026-10-16 item 7), beside the heading.
+export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null }) {
   // Which level is being added, the section being edited, the section being dragged, and the heading it lands before
   // (null: the end).
   const [adding, setAdding] = useState(null);
@@ -101,7 +102,7 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
   return (
     <div data-toc className={className} onDragEnd={endDrag}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <h2 className="text-base font-semibold text-ink">Table of contents</h2>
+        <div className="flex min-w-0 items-baseline gap-2"><h2 className="text-base font-semibold text-ink">Table of contents</h2>{subtitle && <span data-toc-subtitle className="truncate text-xs text-ink-3">{subtitle}</span>}</div>
         {!readOnly && (
           <div className="flex items-center gap-0.5 text-ink-2">
             <Plus size={15} aria-hidden className="mr-0.5 text-ink-3" />
