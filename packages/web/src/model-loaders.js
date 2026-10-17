@@ -21,7 +21,8 @@ export function bundleManager(files, report = { missing: [], blocked: [] }) {
     const rest = url.startsWith(BASE) ? url.slice(BASE.length) : null;
     if (rest == null) { if (!report.blocked.includes(url)) report.blocked.push(url); return EMPTY; }
     const ref = referenceOf('', rest);
-    const hit = ref.blocked === undefined && !ref.embedded ? findInBundle(paths, ref) : null;
+    if (ref.blocked !== undefined) { if (!report.blocked.includes(rest)) report.blocked.push(rest); return EMPTY; }
+    const hit = !ref.embedded ? findInBundle(paths, ref) : null;
     if (!hit) { const name = ref.name || baseName(ref.path || rest); if (!report.missing.includes(name)) report.missing.push(name); return EMPTY; }
     if (!urls.has(hit)) urls.set(hit, URL.createObjectURL(new Blob([files.get(hit)], { type: MIME[hit.split('.').pop().toLowerCase()] || 'application/octet-stream' })));
     return urls.get(hit);

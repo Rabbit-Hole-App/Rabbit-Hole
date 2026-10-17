@@ -4,47 +4,11 @@
 // inflated in small slices with its output counted, so a lying header cannot expand past its declared size.
 // fflate is the copy three.js ships (three/addons/libs), already used by its 3MF and FBX loaders.
 import { Inflate, zipSync } from 'three/addons/libs/fflate.module.js';
-import { MODEL_LIMITS, bundlePath, isModelEntryName, isDependencyName, isContainerName } from './model-formats.js';
+import { MODEL_LIMITS, isModelEntryName, isDependencyName, isContainerName, zipEntries } from './model-formats.js';
 
+export { zipEntries };
 const u16 = (b, o) => b[o] | (b[o + 1] << 8);
 const u32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
-
-// The archive's entries from its central directory: [{ name, path, method, compressed, size, offset }]. Throws the
-// visible reason when the archive is unsafe or unsupported.
-export function zipEntries(bytes, limits = MODEL_LIMITS) {
-  let eocd = -1;
-  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65535); i--) if (u32(bytes, i) === 0x06054b50) { eocd = i; break; }
-  if (eocd < 0) throw new Error('This ZIP has no central directory (damaged or not a ZIP)');
-  const count = u16(bytes, eocd + 10), dirSize = u32(bytes, eocd + 12), dirOffset = u32(bytes, eocd + 16);
-  if (count === 0xffff || dirOffset === 0xffffffff || dirSize === 0xffffffff) throw new Error('ZIP64 archives are not supported');
-  if (count > limits.archiveEntries) throw new Error(`This ZIP has ${count} entries; a model package may have at most ${limits.archiveEntries}`);
-  if (dirOffset + dirSize > bytes.length) throw new Error('This ZIP is truncated');
-  const entries = [], seen = new Set();
-  let at = dirOffset, total = 0;
-  for (let n = 0; n < count; n++) {
-    if (u32(bytes, at) !== 0x02014b50) throw new Error('This ZIP has a damaged central directory');
-    const madeBy = u16(bytes, at + 4) >> 8, flags = u16(bytes, at + 8), method = u16(bytes, at + 10);
-    const compressed = u32(bytes, at + 20), size = u32(bytes, at + 24);
-    const nameLength = u16(bytes, at + 28), extraLength = u16(bytes, at + 30), commentLength = u16(bytes, at + 32);
-    const external = u32(bytes, at + 38), offset = u32(bytes, at + 42);
-    const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLength));
-    at += 46 + nameLength + extraLength + commentLength;
-    if (name.endsWith('/') || name.endsWith('\\')) continue; // a directory
-    const path = bundlePath(name);
-    if (!path) throw new Error(`This ZIP has an entry outside the package (${name}); it was not opened`);
-    if ((madeBy === 3 || madeBy === 19) && ((external >>> 16) & 0xf000) === 0xa000) throw new Error(`This ZIP has a symbolic link (${name}); it was not opened`);
-    if (flags & 1) throw new Error('Encrypted ZIP entries are not supported');
-    if (method !== 0 && method !== 8) throw new Error(`${name}: ZIP compression method ${method} is not supported`);
-    if (seen.has(path.toLowerCase())) throw new Error(`This ZIP has two entries named ${path}`);
-    seen.add(path.toLowerCase());
-    if (path.split('/').some(part => part === '__MACOSX') || path.split('/').pop().startsWith('._')) continue; // Finder metadata
-    total += size;
-    if (total > limits.archiveBytes) throw new Error(`This ZIP expands past ${Math.round(limits.archiveBytes / 1048576)} MiB; a model package must be smaller`);
-    if (compressed && size / compressed > limits.archiveRatio && size > 1048576) throw new Error(`${name} expands ${Math.round(size / compressed)}x; that looks like a decompression bomb`);
-    entries.push({ name, path, method, compressed, size, offset });
-  }
-  return entries;
-}
 
 // One entry's bytes, inflated in 16 KiB slices with its output bounded by the declared size.
 export function zipEntryBytes(bytes, entry) {

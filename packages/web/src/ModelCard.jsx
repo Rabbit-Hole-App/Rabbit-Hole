@@ -8,9 +8,9 @@
 // pauses the viewer and never writes the card.
 import { useEffect, useRef, useState } from 'react';
 import { Download, FilePlus, Rotate3d, Scan, TriangleAlert } from 'lucide-react';
-import { loadAsset } from './learn-board-assets.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
-import { addFilesToPackage, formatLabel, modelKindLabel, openModelPackage } from './model-import.js';
+import { formatLabel, modelKindLabel } from './model-import.js';
+import { addModelFiles, chooseModel, openModelFiles } from './model-storage.js';
 import { MODEL_ACCEPT } from './model-drop.js';
 import { headerCounts, overBudget, sizeLabel } from './model-formats.js';
 import { activateViewer, claimViewer, deactivateViewer, releaseViewer } from './viewer-slots.js';
@@ -62,27 +62,20 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
     return () => { stopped = true; clearTimeout(timer); abort.abort(); };
   }, [block.fileRef?.job]);
 
-  // The stored original (this browser's cache, else the board's server copy), then what it holds.
+  // The card's own files (model-storage.js: its fileRef sources, or the board asset), then what they hold.
   useEffect(() => {
     let live = true; setProblem(''); setPkg(null); setBlob(null);
-    loadAsset(block.assetKey).then(async value => {
-      if (!live) return;
-      if (!value) { setProblem('This model is not in this browser or saved with the board yet.'); return; }
-      const file = value instanceof Blob ? value : new Blob([value]);
-      setBlob(file);
-      if (model.render === 'cad') return;
-      try { const opened = await openModelPackage(latest.current, file); if (live) setPkg(opened); } catch (error) { if (live) setProblem(error.message); }
-    });
+    openModelFiles(latest.current).then(opened => { if (live) { setPkg(opened); setBlob(opened.download); } }, error => { if (live) setProblem(error.message); });
     cachedAsset(posterKey(block.id)).then(value => { if (live && typeof value === 'string') setPoster(value); }).catch(() => {});
     return () => { live = false; };
-  }, [block.assetKey]);
+  }, [block.assetKey, block.fileRef?.source?.id, block.fileRef?.bundle?.length]);
 
   const entry = pkg?.plan.entries.find(e => e.path === model.entry) || null;
   const choices = !model.entry && model.entries?.length ? model.entries : null;
   const known = entry ? headerCounts(entry, pkg.files.get(entry.path)) : {};
   const limitation = entry?.limitation || overBudget(known) || null;
   const missing = [...new Set([...(entry?.missing || []), ...report.missing])], blocked = [...new Set([...(entry?.blocked || []), ...report.blocked])];
-  const viewable = !!(entry && !entry.error && !limitation) || cadState?.state === 'ready' || cadState?.state === 'limited';
+  const viewable = model.render === 'cad' ? ['ready', 'limited'].includes(cadState?.state) : !!(entry && !entry.error && !limitation);
 
   // Visible on screen (with a margin) -> ask for a renderer slot; off-screen for a while -> poster and give it back.
   useEffect(() => {
@@ -172,9 +165,9 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
 
   const download = () => { if (!blob) return; const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = model.download || block.label || 'model'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
   const addFiles = async list => {
-    try { const next = await addFilesToPackage(latest.current, blob, list); await cacheAsset(next.block.assetKey, next.blob); onChange(next.block); } catch (error) { setProblem(error.message); }
+    try { onChange(await addModelFiles(latest.current, list, { blob })); } catch (error) { setProblem(error.message); }
   };
-  const choose = path => onChange({ ...block, model: { ...model, entry: path, ...(() => { const e = pkg?.plan.entries.find(x => x.path === path); return e ? { family: e.family, format: e.format, render: e.render } : {}; })() } });
+  const choose = path => { const e = pkg?.plan.entries.find(x => x.path === path); if (e) onChange(chooseModel(block, e)); };
   const stop = event => event.stopPropagation();
   // Animation clips the file carries (glTF, FBX): play/pause and which clip, kept on the card.
   const animation = block.animation || { autoplay: false };
@@ -184,7 +177,8 @@ export default function ModelCard({ block, selected, onChange, onSelect = null, 
   // A CAD mesh is in metres; its size is shown in the STEP file's declared unit, and only when it declared one.
   const size = cad ? (cad.units && info?.size ? sizeLabel(info.size.map(v => v * cad.perMetre), cad.units) : null) : sizeLabel(info?.size, info?.units || model.units);
   const kind = modelKindLabel(entry ? { render: entry.render } : model);
-  const status = problem || (lost ? 'The graphics context was lost, so this viewer paused. The card is unchanged.' : '');
+  // A loader error when files are missing or were refused is about those files: say so, not the parser's words.
+  const status = (problem && (missing.length || blocked.length) ? 'This model cannot be shown without the files listed below.' : problem) || (lost ? 'The graphics context was lost, so this viewer paused. The card is unchanged.' : '');
   return (
     <div ref={root} data-model-card data-model-format={model.format || ''} data-model-state={active ? 'active' : ready ? 'ready' : 'idle'} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
       <div data-drag-zone className="flex shrink-0 cursor-grab items-center gap-2 px-1 pb-2 active:cursor-grabbing">

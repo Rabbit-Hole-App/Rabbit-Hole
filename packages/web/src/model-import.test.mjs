@@ -54,6 +54,8 @@ test('a photo dropped beside a model goes back to the ordinary drop path; textur
   const photo = new File([png()], 'holiday.png');
   const { cards, leftovers } = await importModelFiles([file('cube-binary.stl'), photo]);
   assert.equal(cards.length, 1); assert.deepEqual(leftovers, [photo]);
+  const lonelyPart = await importModelFiles([file('cube-binary.stl'), file('gltf-separate/cube.bin')]);
+  assert.deepEqual([lonelyPart.cards.length, lonelyPart.leftovers.length, lonelyPart.errors], [1, 0, ['cube.bin: no model in this drop uses this file']]);
   const only = await importModelFiles([photo]);
   assert.equal(only.cards.length, 0); assert.deepEqual(only.leftovers, [photo]);
 });

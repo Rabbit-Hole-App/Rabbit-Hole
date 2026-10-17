@@ -12,12 +12,12 @@ export { MiB };
 // to orbit at 60 fps (16.5 ms mean frame) on Intel integrated graphics (D3D11, headless Chromium;
 // e2e/model-budget-measure.mjs, 2026-10-16); above them the card keeps the original and says why it does not render. At
 // the 25 MiB cap an uncompressed file stays inside them; they bind for meshopt glTF and compressed splats.
-const { bytes, preview, archiveEntries, archiveBytes } = family('mesh').limits;
+const { bytes, preview, archiveEntries, archiveBytes, archiveRatio } = family('model-package').limits;
 export const MODEL_LIMITS = {
   bytes, ...preview, // triangles 1,000,000 (glTF grid, 999,698); vertices 1,500,000 (STL, 500,000 triangles unindexed);
   // points 1,600,000 (binary PLY with colours); splats 1,500,000 (.spz; a 780,000-splat .splat too); textures decoded RGBA
   archiveEntries, archiveBytes, // expanded, all entries
-  archiveRatio: 200, // expanded / compressed, per entry
+  archiveRatio, // expanded / compressed, per entry (above 1 MiB expanded)
   headerBytes: 64 * 1024, // PLY / glTF JSON / OBJ text read for planning
 };
 
@@ -203,7 +203,8 @@ export function bundlePath(path) {
 }
 
 // What a model's reference names: { embedded } for a data: URI, { blocked } for any other scheme (http, https, file,
-// blob, ...), { path } for a relative path inside the bundle, or { name } for an absolute filesystem path, which is
+// blob, ...) or a relative path that climbs out of the bundle, { path } for a relative path inside it, or { name } for an
+// absolute filesystem path, which is
 // only ever matched by its file name among the bundle's files, never read from disk.
 export function referenceOf(fromPath, uri) {
   const raw = String(uri ?? '').trim();
@@ -214,7 +215,8 @@ export function referenceOf(fromPath, uri) {
   if (/^[a-z][a-z0-9+.-]*:/i.test(decoded)) return { blocked: raw };
   const dir = String(fromPath || '').includes('/') ? fromPath.slice(0, fromPath.lastIndexOf('/') + 1) : '';
   const path = bundlePath(dir + decoded);
-  return path ? { path } : { name: baseName(decoded) };
+  // A relative path that climbs out of the bundle is refused (listed), never matched by its name.
+  return path ? { path } : { blocked: raw };
 }
 
 // Finds a referenced file among the bundle's paths: exact, then case-insensitive, then a unique file name anywhere in
@@ -366,4 +368,55 @@ export function sizeLabel(size, units) {
   if (!units || !size?.every?.(Number.isFinite)) return null;
   const fmt = n => (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2));
   return `${size.map(fmt).join(' × ')} ${units}`;
+}
+
+// ---- ZIP central directory (pure: the control plane can run it on a whole upload) -------------------------------------
+
+const u16 = (b, o) => b[o] | (b[o + 1] << 8);
+// The archive's entries from its central directory: [{ name, path, method, compressed, size, offset }]. Throws the
+// visible reason when the archive is unsafe or unsupported.
+export function zipEntries(bytes, limits = MODEL_LIMITS) {
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65535); i--) if (u32(bytes, i) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('This ZIP has no central directory (damaged or not a ZIP)');
+  const count = u16(bytes, eocd + 10), dirSize = u32(bytes, eocd + 12), dirOffset = u32(bytes, eocd + 16);
+  if (count === 0xffff || dirOffset === 0xffffffff || dirSize === 0xffffffff) throw new Error('ZIP64 archives are not supported');
+  if (count > limits.archiveEntries) throw new Error(`This ZIP has ${count} entries; a model package may have at most ${limits.archiveEntries}`);
+  if (dirOffset + dirSize > bytes.length) throw new Error('This ZIP is truncated');
+  const entries = [], seen = new Set();
+  let at = dirOffset, total = 0;
+  for (let n = 0; n < count; n++) {
+    if (u32(bytes, at) !== 0x02014b50) throw new Error('This ZIP has a damaged central directory');
+    const madeBy = u16(bytes, at + 4) >> 8, flags = u16(bytes, at + 8), method = u16(bytes, at + 10);
+    const compressed = u32(bytes, at + 20), size = u32(bytes, at + 24);
+    const nameLength = u16(bytes, at + 28), extraLength = u16(bytes, at + 30), commentLength = u16(bytes, at + 32);
+    const external = u32(bytes, at + 38), offset = u32(bytes, at + 42);
+    const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLength));
+    at += 46 + nameLength + extraLength + commentLength;
+    if (name.endsWith('/') || name.endsWith('\\')) continue; // a directory
+    // Backslashes are separators too; any '..' segment, an absolute, drive or UNC name refuses the whole archive.
+    const path = name.split('\\').join('/').split('/').includes('..') ? null : bundlePath(name);
+    if (!path) throw new Error(`This ZIP has an entry outside the package (${name}); it was not opened`);
+    if ((madeBy === 3 || madeBy === 19) && ((external >>> 16) & 0xf000) === 0xa000) throw new Error(`This ZIP has a symbolic link (${name}); it was not opened`);
+    if (flags & 1) throw new Error('Encrypted ZIP entries are not supported');
+    if (method !== 0 && method !== 8) throw new Error(`${name}: ZIP compression method ${method} is not supported`);
+    if (seen.has(path.toLowerCase())) throw new Error(`This ZIP has two entries named ${path}`);
+    seen.add(path.toLowerCase());
+    if (path.split('/').some(part => part === '__MACOSX') || path.split('/').pop().startsWith('._')) continue; // Finder metadata
+    total += size;
+    if (total > limits.archiveBytes) throw new Error(`This ZIP expands past ${Math.round(limits.archiveBytes / 1048576)} MiB; a model package must be smaller`);
+    if (compressed && size / compressed > limits.archiveRatio && size > 1048576) throw new Error(`${name} expands ${Math.round(size / compressed)}x; that looks like a decompression bomb`);
+    entries.push({ name, path, method, compressed, size, offset });
+  }
+  return entries;
+}
+
+// The server-side structure check for a .zip model package (family model-package): a safe archive (zipEntries' guards)
+// whose entries include a model or splat entry point (a model extension, or a SOG meta.json). { ok, entries } or
+// { ok: false, reason }. Reads only the central directory; nothing is inflated.
+export function modelPackageCheck(bytes, limits = MODEL_LIMITS) {
+  let entries;
+  try { entries = zipEntries(bytes, limits); } catch (problem) { return { ok: false, reason: problem.message }; }
+  const points = entries.map(e => e.path).filter(p => isModelEntryName(p) || baseName(p).toLowerCase() === 'meta.json');
+  return points.length ? { ok: true, entries: points } : { ok: false, reason: 'this ZIP holds no 3D model or splat package' };
 }

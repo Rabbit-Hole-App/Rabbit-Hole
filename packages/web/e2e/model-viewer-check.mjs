@@ -191,7 +191,7 @@ try {
   // 15-16. STEP: awaiting the converter, then its GLB derivative in the same viewer, sized in the file's unit.
   const step = await dropOne(['cube-header-only.step'], { wait: null });
   const awaiting = await card(step.id).locator('[data-model-cad]').getAttribute('data-model-cad', { timeout: 10000 }).catch(() => null);
-  const download = await card(step.id).locator('[data-model-download]').isEnabled();
+  const download = await card(step.id).locator('[data-model-download]:not([disabled])').waitFor({ timeout: 10000 }).then(() => true, () => false);
   ok(awaiting === 'awaiting' && download, 'a STEP card says it awaits the converter and keeps Download original', String(awaiting));
   await page.evaluate(id => window.__patch(id, { fileRef: { v: 1, source: { id: 'fs_test', rev: 'x' }, family: 'cad', job: null, derivatives: { mesh: 'fd_mesh', structure: 'fd_structure' } } }), step.id);
   await card(step.id).locator('[data-model-card][data-model-state="ready"]').waitFor({ timeout: 30000 }).catch(() => {});

@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 import '../src/index.css';
 import ModelCard from '../src/ModelCard.jsx';
 import { importModelFiles } from '../src/model-import.js';
-import { cacheAsset } from '../src/learn-asset-cache.js';
+import { setSourceClient, storeModelCard } from '../src/model-storage.js';
 import { liveCount } from '../src/viewer-slots.js';
 
 const log = window.__log = { wheel: 0, pointer: 0, keys: [], changes: [], errors: [] };
@@ -37,11 +37,22 @@ window.__drop = async items => {
   }));
   const started = performance.now();
   const { cards, leftovers, errors } = await importModelFiles(files);
-  for (const { block, blob } of cards) await cacheAsset(block.assetKey, blob);
-  setCards(list => [...list, ...cards.map(c => c.block)]);
-  return { blocks: cards.map(c => c.block), leftovers: leftovers.map(f => f.name), errors, importMs: Math.round(performance.now() - started) };
+  const blocks = [];
+  for (const card of cards) blocks.push(await storeModelCard(card, { app: 'harness', board: 'main' }));
+  setCards(list => [...list, ...blocks]);
+  return { blocks, leftovers: leftovers.map(f => f.name), errors, importMs: Math.round(performance.now() - started) };
 };
 window.__clear = () => setCards([]);
 // A card as a later stage would leave it (e.g. a STEP card once its job has a GLB derivative).
 window.__patch = (id, patch) => setCards(list => list.map(b => (b.id === id ? { ...b, ...patch } : b)));
 window.__liveCount = liveCount;
+
+// ?sources=1: a stand-in for file-source-client.js (same signature), so cards go through the fileRef path: each file is
+// its own source, kept in memory here; window.__sources counts uploads and reads.
+if (new URLSearchParams(location.search).get('sources')) {
+  const store = new Map(); window.__sources = { uploads: [], reads: [] };
+  setSourceClient({
+    async uploadSource(file, { app, board, family }) { const id = `fs_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`; store.set(id, file); window.__sources.uploads.push({ id, name: file.name, family, app, board }); return { id, rev: `rev-${id}` }; },
+    async loadSource(block) { window.__sources.reads.push(block.fileRef.source.id); return store.get(block.fileRef.source.id) || null; },
+  }, { app: 'harness', board: 'main' });
+}

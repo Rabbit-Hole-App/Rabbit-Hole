@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { allFixtures, glb, gltfSeparate, plySplat, zip, png, stlBinary } from '../e2e/model-fixtures.mjs';
 import { sniffModel, inspectPly, planBundle, bundlePath, referenceOf, findInBundle, headerCounts, overBudget, sizeLabel, threeMfUnit, MODEL_LIMITS } from './model-formats.js';
 import { zipEntries, readModelZip, packBundle } from './model-archive.js';
+import { modelPackageCheck } from './model-formats.js';
+import { family } from './file-capabilities.js';
 
 const F = allFixtures();
 const enc = s => new TextEncoder().encode(s);
@@ -55,7 +57,8 @@ test('bundle paths never leave the bundle; references resolve only to bundle fil
   // An absolute author path is matched by its file name among the bundle's files, never read.
   assert.deepEqual(referenceOf('cube.mtl', 'C:\\Users\\me\\tex.png'), { name: 'tex.png' });
   assert.deepEqual(referenceOf('cube.mtl', 'file:///home/me/tex.png'), { name: 'tex.png' });
-  assert.deepEqual(referenceOf('cube.mtl', '../../outside.png'), { name: 'outside.png' });
+  assert.deepEqual(referenceOf('cube.mtl', '../../outside.png'), { blocked: '../../outside.png' });
+  assert.deepEqual(referenceOf('model/sub/cube.gltf', '../tex.png'), { path: 'model/tex.png' }); // inside the bundle: fine
   const paths = ['m/a.gltf', 'm/Tex/Checker.PNG', 'm/b.bin'];
   assert.equal(findInBundle(paths, { path: 'm/tex/checker.png' }), 'm/Tex/Checker.PNG');
   assert.equal(findInBundle(paths, { name: 'b.bin' }), 'm/b.bin');
@@ -146,4 +149,15 @@ test('loose files pack into one stored ZIP that reads back byte for byte', () =>
   assert.deepEqual(packBundle(files), packed); // deterministic
   const back = readModelZip(packed).files;
   for (const f of files) assert.deepEqual(back.find(b => b.path === f.path).bytes, f.bytes);
+});
+
+test('model-package: the registry family and the whole-archive check the upload route can run', () => {
+  const pkg = family('model-package');
+  assert.deepEqual([pkg.extensions, pkg.limits.bytes, pkg.limits.archiveEntries, pkg.limits.archiveBytes, pkg.limits.archiveRatio], [['zip'], 25 * 1048576, 512, 200 * 1048576, 200]);
+  assert.ok(pkg.sniff(F['gltf-bundle.zip'])); assert.ok(!pkg.sniff(F['cube.glb']));
+  assert.deepEqual(modelPackageCheck(F['gltf-bundle.zip']), { ok: true, entries: ['model/cube.gltf'] });
+  assert.deepEqual(modelPackageCheck(F['two-models.zip']).entries, ['a/cube.stl', 'b/cube.glb']);
+  assert.equal(modelPackageCheck(F['ring.sog']).ok, true, 'a SOG zip has its meta.json');
+  assert.match(modelPackageCheck(zip({ 'notes.txt': new TextEncoder().encode('hi') })).reason, /no 3D model/);
+  for (const name of ['traversal.zip', 'symlink.zip', 'bomb.zip']) assert.equal(modelPackageCheck(F[name]).ok, false, name);
 });

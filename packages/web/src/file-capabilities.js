@@ -17,7 +17,7 @@ const NONE = { store: false, preview: false, edit: false, download: false, conte
 const planned = (id, label, lane, extensions, notes) => ({ id, label, lane, status: 'planned', extensions, mime: [], sniff: null, card: null, chooser: null, route: null, can: NONE, limits: {}, notes });
 
 const MODEL_CAN = { store: true, preview: true, edit: false, download: true, context: false };
-const MODEL_LIMITS = { bytes: 25 * MiB, preview: { triangles: 1_000_000, vertices: 1_500_000, points: 1_600_000, splats: 1_500_000, textureBytes: 256 * MiB, nodes: 5000, accessorElements: 5_000_000 }, archiveEntries: 512, archiveBytes: 200 * MiB };
+const MODEL_LIMITS = { bytes: 25 * MiB, preview: { triangles: 1_000_000, vertices: 1_500_000, points: 1_600_000, splats: 1_500_000, textureBytes: 256 * MiB, nodes: 5000, accessorElements: 5_000_000 }, archiveEntries: 512, archiveBytes: 200 * MiB, archiveRatio: 200 };
 export const FAMILIES = [
   { id: 'image', label: 'Image', lane: 3, status: 'shipped', extensions: ['png', 'jpg', 'jpeg', 'webp'], mime: ['image/png', 'image/jpeg', 'image/webp'], sniff: SNIFF.image,
     card: 'file:image', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: false, context: true }, limits: { bytes: 5 * MiB },
@@ -64,7 +64,9 @@ export const FAMILIES = [
   // A model's own files: offered so Upload takes a .gltf with its parts; never a card alone (an unused one is refused).
   { id: 'model-part', label: 'Model file', lane: 4, status: 'shipped', extensions: ['bin', 'mtl'], mime: [], sniff: null,
     card: null, chooser: null, route: 'model', can: { store: true, preview: false, edit: false, download: true, context: false }, limits: { bytes: MODEL_LIMITS.bytes }, notes: 'a glTF buffer or an OBJ material library, stored with its model' },
-  { id: 'model-package', label: 'Model package', lane: 4, status: 'shipped', extensions: ['zip'], mime: ['application/zip'], sniff: null,
+  // Its head sniff is the ZIP signature; the whole-archive check (guards plus a model or splat entry point) is
+  // model-formats.js modelPackageCheck, which the upload route can run on the full body.
+  { id: 'model-package', label: 'Model package', lane: 4, status: 'shipped', extensions: ['zip'], mime: ['application/zip'], sniff: b => b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04,
     card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'a ZIP is opened only as a model or splat package: guarded (traversal, symlinks, bombs), a choice when it holds several models' },
 ];
 export const family = id => FAMILIES.find(f => f.id === id) || null;

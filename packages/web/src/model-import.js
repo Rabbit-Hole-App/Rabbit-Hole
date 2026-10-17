@@ -8,6 +8,7 @@
 // ordinary drop path.
 import { MODEL_LIMITS, ENTRY_FORMATS, baseName, extensionOf, headerCounts, isContainerName, isDependencyName, isModelEntryName, planBundle, threeMfUnit } from './model-formats.js';
 import { packBundle, readModelZip, zipEntries, zipEntryBytes } from './model-archive.js';
+import { familyOf } from './file-capabilities.js';
 
 const MiB = 1048576;
 const tooBig = (name, bytes) => `${name}: 3D files up to ${MODEL_LIMITS.bytes / MiB} MiB (this one is ${(bytes / MiB).toFixed(1)} MiB)`;
@@ -15,6 +16,10 @@ const bytesOf = async file => new Uint8Array(await file.arrayBuffer());
 const MAX_ENTRIES_LISTED = 20;
 
 export const CARD_SIZE = { w: 560, h: 460 };
+
+// The registry family each stored file of a bundle is uploaded as, so the server checks it as what it is: a texture as an
+// image, a SOG meta.json as JSON, another model by its own family, a .bin / .mtl as a model part.
+export const partFamily = path => { const f = familyOf({ name: path }); return f && f.id !== 'model-package' ? f.id : 'model-part'; };
 
 // The card's compact record (no bytes, no dependency lists: those are re-read from the stored original when it opens).
 export function modelBlock({ assetKey, label, size, entry, entries = null, packageKind, download, counts = {}, units = null }) {
@@ -80,11 +85,14 @@ export async function importModelFiles(files) {
         const packed = group.length > 1;
         const blob = packed ? new Blob([packBundle(group)], { type: 'application/zip' }) : own.file;
         const name = packed ? `${entry.path.replace(/\.[^.]+$/, '')}.zip` : entry.path;
-        cards.push({ block: modelBlock({ assetKey: `model:${crypto.randomUUID()}`, label: entry.path, size: blob.size, entry, packageKind: packed ? 'zip' : 'file', download: name, ...facts }), blob });
+        // parts: the files as dropped, one source each once file-source-client.js stores them (model-storage.js).
+        const parts = group.map((r, i) => ({ path: r.path, file: r.file, family: i ? partFamily(r.path) : entry.family }));
+        cards.push({ block: modelBlock({ assetKey: `model:${crypto.randomUUID()}`, label: entry.path, size: blob.size, entry, packageKind: packed ? 'zip' : 'file', download: name, ...facts }), blob, parts, sourcePath: entry.path });
       } catch (problem) { errors.push(problem.message.startsWith(baseName(entry.path)) ? problem.message : `${baseName(entry.path)}: ${problem.message}`); }
     }
-    // A texture or .bin no model named goes back to the ordinary drop path (an image becomes an image card).
-    for (const path of plan.unused) leftovers.push(read.find(r => r.path === path).file);
+    // A texture no model named goes back to the ordinary drop path (an image becomes an image card); a .bin, .mtl or
+    // .json nobody named is said so here, since it is no card on its own.
+    for (const path of plan.unused) { const f = read.find(r => r.path === path).file; if (partFamily(path) === 'model-part' || /\.json$/i.test(path)) errors.push(`${f.name}: no model in this drop uses this file`); else leftovers.push(f); }
   } else leftovers.push(...candidates);
 
   // A ZIP or a folder is one package: one card.
@@ -98,7 +106,7 @@ export async function importModelFiles(files) {
       let inner, blob;
       if (pack.list) {
         const relevant = pack.list.filter(f => isModelEntryName(f.bundlePath) || isDependencyName(f.bundlePath) || /\.webp$/i.test(f.bundlePath));
-        inner = await Promise.all(relevant.map(async f => ({ path: f.bundlePath, bytes: await bytesOf(f) })));
+        inner = await Promise.all(relevant.map(async f => ({ path: f.bundlePath, bytes: await bytesOf(f), file: f })));
         blob = new Blob([packBundle(inner)], { type: 'application/zip' });
       } else { inner = await pack.read(); blob = pack.original(); }
       const plan = planBundle(inner);
@@ -107,7 +115,12 @@ export async function importModelFiles(files) {
       const only = valid.length === 1 ? valid[0] : null;
       const facts = only ? entryFacts(only, inner.find(f => f.path === only.path).bytes) : {};
       const download = pack.list ? `${pack.name}.zip` : pack.name;
-      cards.push({ block: modelBlock({ assetKey: `model:${crypto.randomUUID()}`, label: pack.name, size: blob.size, entry: only, entries: only ? null : valid, packageKind: 'zip', download, ...facts }), blob });
+      // A ZIP stays one source (the original); a folder is one source per file, its entry (or first model) the main one.
+      const main = (only || valid[0]).path;
+      const parts = pack.list ? inner.map(f => ({ path: f.path, file: f.file, family: f.path === main ? (only || valid[0]).family : partFamily(f.path) })) : [{ path: pack.name, file: blob, family: 'model-package' }];
+      const block = modelBlock({ assetKey: `model:${crypto.randomUUID()}`, label: pack.name, size: blob.size, entry: only, entries: only ? null : valid, packageKind: 'zip', download, ...facts });
+      if (pack.list) block.model.package = 'folder';
+      cards.push({ block, blob, parts, sourcePath: pack.list ? main : pack.name });
     } catch (problem) { errors.push(problem.message.includes(pack.name) ? problem.message : `${pack.name}: ${problem.message}`); }
   }
   return { cards, leftovers, errors };
@@ -116,22 +129,23 @@ export async function importModelFiles(files) {
 // What a card's original holds, re-read when it opens: { files: Map(path -> bytes), plan }.
 export async function openModelPackage(block, blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  const list = block.model.package === 'zip' ? readModelZip(bytes).files : [{ path: block.model.entry || block.label, bytes }];
+  const list = ['zip', 'folder'].includes(block.model.package) ? readModelZip(bytes).files : [{ path: block.model.entry || block.label, bytes }];
   return { files: new Map(list.map(f => [f.path, f.bytes])), plan: planBundle(list) };
 }
 
 // Supplying missing files to a card: the stored files plus the new ones, as one ZIP, re-planned.
+export const checkAddedFiles = added => { for (const f of added) if (!isDependencyName(f.name) && !isModelEntryName(f.name)) throw new Error(`${f.name}: add the model's own files (.bin, .mtl, textures)`); };
 export async function addFilesToPackage(block, blob, added) {
+  checkAddedFiles(added);
   const { files } = await openModelPackage(block, blob);
   const entryDir = (block.model.entry || '').includes('/') ? block.model.entry.slice(0, block.model.entry.lastIndexOf('/') + 1) : '';
   for (const f of added) {
-    if (!isDependencyName(f.name) && !isModelEntryName(f.name)) throw new Error(`${f.name}: add the model's own files (.bin, .mtl, textures)`);
     files.set(entryDir + f.name, await bytesOf(f));
   }
   const list = [...files.entries()].map(([path, bytes]) => ({ path, bytes }));
   const packed = new Blob([packBundle(list)], { type: 'application/zip' });
   if (packed.size > MODEL_LIMITS.bytes) throw new Error(tooBig(block.label, packed.size));
-  return { blob: packed, block: { ...block, assetKey: `model:${crypto.randomUUID()}`, size: packed.size, model: { ...block.model, package: 'zip', download: block.model.package === 'zip' ? block.model.download : `${(block.model.entry || block.label).replace(/\.[^.]+$/, '')}.zip` } } };
+  return { blob: packed, block: { ...block, assetKey: `model:${crypto.randomUUID()}`, size: packed.size, model: { ...block.model, package: block.model.package === 'folder' ? 'folder' : 'zip', download: block.model.package !== 'file' ? block.model.download : `${(block.model.entry || block.label).replace(/\.[^.]+$/, '')}.zip` } } };
 }
 
 export const modelKindLabel = model => (model?.render === 'splat' ? 'Gaussian splat' : model?.render === 'points' ? 'Point cloud' : model?.render === 'cad' ? 'CAD model' : '3D model');
