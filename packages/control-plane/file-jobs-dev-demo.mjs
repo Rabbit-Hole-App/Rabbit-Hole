@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const demo = process.argv[2], BASE = new URL(arg('base')).origin, CP = new URL(arg('cp', 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev')).origin;
-const FILE = arg('file'), APP = arg('fly-app', 'rabbit-hole-convert-dev'), MACHINE = arg('machine'), OUT = arg('out'), SHOTS = arg('shots');
+const HEALTH = arg('converter-health', 'https://rabbit-hole-convert-dev.fly.dev/health'), FILE = arg('file'), APP = arg('fly-app', 'rabbit-hole-convert-dev'), MACHINE = arg('machine'), OUT = arg('out'), SHOTS = arg('shots');
 if (!['1', '2'].includes(demo) || !FILE || !process.env.DEV_TEST_BYPASS || (demo === '2' && !/^[a-f0-9]{14}$/.test(MACHINE || ''))) {
   console.error('usage: DEV_TEST_BYPASS=... node file-jobs-dev-demo.mjs 1|2 --base <clone> --file <pptx> [--machine <id>]'); process.exit(2);
 }
@@ -40,6 +40,9 @@ const openContext = async () => {
 // Everything the browser does goes through the page's own fetch, with the page's cookie.
 const inPage = (page, fn, args) => page.evaluate(fn, args);
 
+const health = async () => { try { const h = await (await fetch(HEALTH, { signal: AbortSignal.timeout(20_000) })).json(); return { version: h.version, converters: h.converters }; } catch (error) { return { error: error.message }; } };
+const converterBefore = await health();
+say(`converter ${converterBefore.version || converterBefore.error}`);
 const bytes = readFileSync(FILE), name = basename(FILE);
 let { context, page } = await openContext();
 say(`signed in as a test user on ${BASE}`);
@@ -105,7 +108,7 @@ const result = await inPage(page, async ({ m }) => {
   for (const d of listed.derivatives || []) {
     const r = await fetch(`/api/learn/files/${m.source}/d/${d.id}`);
     const body = new Uint8Array(await r.arrayBuffer());
-    files.push({ id: d.id, name: d.name, kind: d.kind, type: r.headers.get('content-type'), bytes: body.byteLength, d1Bytes: d.bytes, sha256: hex(await crypto.subtle.digest('SHA-256', body)), d1Sha256: r.headers.get('x-content-sha256'), magic: String.fromCharCode(...body.slice(0, 4)) });
+    files.push({ id: d.id, name: d.name, kind: d.kind, converterVersion: d.converter_version, type: r.headers.get('content-type'), bytes: body.byteLength, d1Bytes: d.bytes, sha256: hex(await crypto.subtle.digest('SHA-256', body)), d1Sha256: r.headers.get('x-content-sha256'), magic: String.fromCharCode(...body.slice(0, 4)) });
   }
   return { cards: cards.length, resubmit: { job: again.job?.id, created: again.created }, files };
 }, { m: made });
@@ -122,7 +125,7 @@ const checks = {
   validHeaders: result.files.filter(f => f.type === 'application/pdf').every(f => f.magic === '%PDF') && result.files.filter(f => f.type === 'image/png').every(f => f.magic === '\x89PNG'),
   ...(demo === '2' ? { recoveredOnLaterAttempt: job.attempt > evidence.killedAt.attempt } : {}),
 };
-Object.assign(evidence, { final: { state: job.state, attempt: job.attempt, limitations: job.limitations, error: job.error, created_at: job.created_at, finished_at: job.finished_at, conversionSeconds: job.finished_at && job.created_at ? (job.finished_at - job.created_at) / 1000 : null }, result, checks, timeline, pass: Object.values(checks).every(Boolean) });
+Object.assign(evidence, { converter: { before: converterBefore, after: await health() }, final: { state: job.state, attempt: job.attempt, limitations: job.limitations, error: job.error, created_at: job.created_at, finished_at: job.finished_at, conversionSeconds: job.finished_at && job.created_at ? (job.finished_at - job.created_at) / 1000 : null }, result, checks, timeline, pass: Object.values(checks).every(Boolean) });
 for (const [k, v] of Object.entries(checks)) say(`${v ? 'PASS' : 'FAIL'}  ${k}`);
 say(`${result.files.length} derivatives: ${names.slice(0, 4).join(', ')}${names.length > 4 ? ', ...' : ''}`);
 if (OUT) writeFileSync(OUT, JSON.stringify(evidence, null, 2));
