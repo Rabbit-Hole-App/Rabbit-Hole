@@ -62,6 +62,7 @@ import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
 import { readPanelPin, savePanelPin } from './canvas-find.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
+import { boardFileLimit, formatBytes } from './file-capabilities.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
@@ -1025,7 +1026,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return () => { setRemoteAssets(null); setWorkspaceStore(null); };
   }, [boardPath]);
   const uploadedAssets = useRef(null);
-  useEffect(() => { uploadedAssets.current = null; }, [boardPath]);
+  const refusedAssets = useRef(new Set()); // board files the server refused: said once per open
+  useEffect(() => { uploadedAssets.current = null; refusedAssets.current = new Set(); }, [boardPath]);
   // Runs after a board PUT, so the board has its server row.
   const [assetQueue] = useState(serial);
   const syncAssets = () => assetQueue(async () => {
@@ -1037,13 +1039,20 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         const value = await cachedAsset(key);
         if (value == null) { complete = false; continue; }
         const blob = typeof value === 'string' ? new Blob([value], { type: 'text/x-cached-string' }) : value;
-        if (blob.size > 25 * 1024 * 1024) { toast(`${blob.name || 'A file'} is over 25 MB, so it was not saved to your account and stays only in this browser.`); complete = false; continue; }
+        // The server's own cap for this type (file-capabilities.js): 50 MiB for a video, 25 MiB otherwise.
+        const limit = boardFileLimit(blob.type).bytes;
+        if (refusedAssets.current.has(key)) { complete = false; continue; }
+        if (blob.size > limit) { toast(`${blob.name || 'A file'} is over ${formatBytes(limit)}, so it was not saved to your account and stays only in this browser.`); refusedAssets.current.add(key); complete = false; continue; }
         const response = await fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, {
           method: 'PUT', body: blob,
           headers: { 'Content-Type': blob.type || 'application/octet-stream', ...(typeof value === 'string' ? { 'X-Asset-Kind': 'string' } : {}), ...wsHeaders() },
         });
         if (response.ok) uploadedAssets.current.add(key);
-        else complete = false;
+        else {
+          complete = false;
+          // A refusal (too large, not the type it claims) says why once; any other failure retries after the next save.
+          if ([413, 415].includes(response.status)) { refusedAssets.current.add(key); toast(`${blob.name || 'A file'}: ${(await response.json().catch(() => ({}))).error || 'it was not saved to your account'}`, { tone: 'error' }); }
+        }
       }
     } catch { complete = false; /* tried again after the next save */ }
     return complete;
