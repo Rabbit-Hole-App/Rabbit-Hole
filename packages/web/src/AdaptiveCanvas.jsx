@@ -5289,7 +5289,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
               {block && (supportsCardLayout(block) ? <details data-card-layout-menu className="rounded text-sm">
-                <summary role="menuitem" aria-haspopup="menu" className="cursor-pointer rounded px-2 py-1.5 hover:bg-hover">Layout</summary>
+                <summary role="menuitem" aria-haspopup="menu" className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-hover"><ScrollText size={16} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-ink-2" /><span className="min-w-0 flex-1">Layout</span></summary>
                 <div role="menu" aria-label="Card layout" className="pl-3">{[['scrollable','Scrollable'],['full','Full content']].map(([mode,label]) => <MenuRow icon={mode === 'full' ? UnfoldVertical : ScrollText} key={mode} role="menuitemradio" aria-checked={(block.cardLayout?.mode || 'scrollable') === mode} disabled={lockedIds.has(block.id) || selection.length !== 1} onClick={act(() => setCardLayout(block.id, mode))}><span aria-hidden="true" className="inline-block w-4">{(block.cardLayout?.mode || 'scrollable') === mode ? '✓' : ''}</span>{label}</MenuRow>)}</div>
               </details> : <MenuRow icon={ScrollText} disabled title="Full content is not supported for this interactive or source viewer.">Layout unavailable for this card</MenuRow>)}
               {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline(performance.now(), false, 'edit'))}>Quick Edit</MenuRow>}
