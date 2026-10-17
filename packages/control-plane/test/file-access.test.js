@@ -106,3 +106,17 @@ test('a fork inherits the references of the board it was read from; a board that
   await call('PUT', `/api/learn/boards/${forked.body.name}/main`, 'friend', { state: STATE, version: 1 });
   assert.ok(!refs().includes(`fs_shared@${fork.id}`) && refs().includes(`fs_shared@${rowOf('team', 'owner@test', 'demo-app').id}`));
 });
+
+test('a model card bundle (fileRef.bundle): its own dependency sources are indexed and readable through a link; a foreign bundle id is not', async t => {
+  const { env, request, call, source, refs, rowOf } = setup(t);
+  source('fs_model'); source('fs_bin'); source('fs_texture'); source('fs_foreign', PEOPLE.friend);
+  const model = { id: 'm', type: 'model', fileRef: { v: 1, source: { id: 'fs_model', rev: 'abc' }, view: { entry: 'scene.gltf' },
+    bundle: [{ path: 'scene.bin', source: { id: 'fs_bin', rev: 'abc' } }, { path: 'tex/wood.png', source: { id: 'fs_texture', rev: 'abc' } }, { path: 'stolen.png', source: { id: 'fs_foreign', rev: 'abc' } }] } };
+  assert.deepEqual(fileRefSources({ blocks: [model] }), ['fs_model', 'fs_bin', 'fs_texture', 'fs_foreign']);
+  await call('PUT', OWN, 'owner', { state: { ...STATE, blocks: [model] } });
+  const id = rowOf('team', 'owner@test', 'demo-app').id;
+  assert.deepEqual(refs(), [`fs_bin@${id}`, `fs_model@${id}`, `fs_texture@${id}`], 'the saver’s own bundle sources; the foreign one indexes nothing');
+  const links = (await call('POST', `${OWN}/share`, 'owner', { shared: true, view: true })).body.sharing;
+  assert.equal((await authorizeFileSource(request('friend'), env, 'fs_texture', { token: links.view })).via, 'link', 'a shared viewer loads a dependency');
+  assert.equal((await authorizeFileSource(request('owner'), env, 'fs_foreign', { token: links.view })).status, 404, 'a foreign bundle id reads nothing, even for the board owner');
+});
