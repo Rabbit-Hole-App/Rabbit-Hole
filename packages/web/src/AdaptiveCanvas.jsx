@@ -3327,7 +3327,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const shape = shapesRef.current.find(entry => entry.id === id);
     return shape?.text ? { text: shape.text } : null;
   };
-  const armCollection = ids => {
+  const armCollection = (ids, ref = null) => {
     const gids = new Set(ids.map(groupOf));
     const gid = gids.size === 1 && !gids.has(null) ? [...gids][0] : null;
     const group = gid && membersOf(gid).length === ids.length ? groups.find(entry => entry.id === gid) : null;
@@ -3335,7 +3335,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const id = group ? group.id : `selection:${[...ids].sort().join('+')}`;
     armedId.current = null;
     armedGroup.current = group ? group.id : null;
-    onAskTargetRef.current?.({ id, kind: group ? 'Group' : 'Selection', title: label, get text() { return groupTargetText(ids.map(askEntryOf).filter(Boolean)); } });
+    onAskTargetRef.current?.({ id, kind: group ? 'Group' : 'Selection', title: label, ...(ref ? { ref } : {}), get text() { return groupTargetText(ids.map(askEntryOf).filter(Boolean)); } });
     // The visuals ride too: a rendered snapshot of the selection's area becomes this question's image context.
     const boxes = boxesOf(ids);
     if (!boxes.length) return;
@@ -3370,7 +3370,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const group = ids.length > 1 && groups.find(entry => ids.every(id => groupOf(id) === entry.id) && membersOf(entry.id).length === ids.length);
       const picked = window.getSelection(), node = picked && !picked.isCollapsed ? picked.anchorNode : null;
       const quote = object && (node?.nodeType === 1 ? node : node?.parentElement)?.closest('[data-block-id]')?.getAttribute('data-block-id') === object.id ? picked.toString() : '';
-      chatWorkspace.addToChat(selectionRef({ ids, kind: objectKind(object), name: described?.title || (group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`), content: read(), quote, text: read }));
+      const ref = selectionRef({ ids, kind: objectKind(object), name: described?.title || (group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`), content: read(), quote, text: read });
+      chatWorkspace.addToChat(ref);
+      // Keep the existing snapshot path; the matching pinned ref makes this one chip, not a second selection chip.
+      if (!object) armCollection(ids, ref);
       if (object && askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
       if (object?.type === 'file' && object.kind === 'image' && object.mediaId) onCardActionRef.current?.('image-attach', { blockId: object.id, mediaId: object.mediaId, label: object.label });
       return true;

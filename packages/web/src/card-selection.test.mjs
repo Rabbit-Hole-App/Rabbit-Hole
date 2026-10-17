@@ -151,7 +151,7 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   assert.match(add, /\.\('image-attach', \{ blockId: object\.id, mediaId: object\.mediaId, label: object\.label \}\);/);
   assert.match(add, /\} else armCollection\(ids\);\n\s+askDraft\(\);/, 'no text: the composer is revealed and focused, its draft stays');
   assert.doesNotMatch(add, /askDraft\([A-Za-z'\`]/, 'no ready question is written');
-  const collection = canvas.slice(canvas.indexOf('const armCollection = ids => {'), canvas.indexOf('const addToChat = () => {'));
+  const collection = canvas.slice(canvas.indexOf('const armCollection = (ids, ref = null) => {'), canvas.indexOf('const addToChat = () => {'));
   assert.match(collection, /get text\(\) \{ return groupTargetText\(ids\.map\(askEntryOf\)\.filter\(Boolean\)\); \}/, 'content is resolved when it is read at send');
   assert.match(collection, /const label = group \? `Group: \$\{group\.label \|\| `\$\{ids\.length\} items`\}` :/, 'one chip: Group: <name>, or the count');
   // The pin slot reserves the actions' segment for an object (a block, an item): PILL.ask (comments.test.mjs).
