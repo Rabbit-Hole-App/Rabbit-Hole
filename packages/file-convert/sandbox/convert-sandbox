@@ -1,0 +1,40 @@
+#!/bin/sh
+# Runs one conversion child in a fresh sandbox. Installed root-owned at
+# /usr/local/sbin/convert-sandbox; the service user may run it through sudo with TWO arguments:
+# the 32-hex workspace id and the slot (0-3). Every path is built here from the id; nothing else
+# is accepted. Same structure as packages/learn-render/motion/service/motion-sandbox (Fly-proven).
+#
+# Resources: resource-control.mjs puts this shell in the job's groups BEFORE anything else
+# starts (cgroup v2 when complete, else cgroup v1 memory+memsw, pids, cpu/cpuacct, freezer as on
+# Fly). Limits: resource-control.mjs LIMITS. Neither backend complete -> the job fails closed.
+#
+# Namespaces: new network, PID, mount, IPC and UTS namespaces (unshare): only a loopback that
+# stays down, its own processes, its own mounts. sandbox-init hides the service's files and
+# drops to convert-run<slot> with no capabilities and no environment. `timeout` is the hard
+# backstop just above the service's limit; when it fires, or the service's SIGTERM arrives
+# through sudo, unshare dies and --kill-child ends the whole PID namespace. Afterwards
+# resource-control.mjs stops anything still in the job's groups, records limits and usage, and
+# removes the groups.
+set -eu
+ID=${1:-}
+SLOT=${2:-}
+case "$ID" in ''|*[!0-9a-f]*) echo "convert-sandbox: workspace id must be 32 lowercase hex" >&2; exit 64 ;; esac
+[ "${#ID}" -eq 32 ] || { echo "convert-sandbox: workspace id must be 32 lowercase hex" >&2; exit 64; }
+case "$SLOT" in 0|1|2|3) ;; *) echo "convert-sandbox: slot must be 0-3" >&2; exit 64 ;; esac
+JOB=/var/convert/jobs/$ID
+[ -d "$JOB" ] && [ ! -L "$JOB" ] || { echo "convert-sandbox: no job directory for $ID" >&2; exit 66; }
+RC="/usr/local/bin/node /app/sandbox/resource-control.mjs"
+
+$RC prepare "$ID" "$$" || exit 70
+
+timeout --kill-after=5s 305s \
+  unshare --net --pid --mount --ipc --uts --fork --kill-child --mount-proc \
+  /usr/local/lib/convert/sandbox-init "$ID" "$SLOT" &
+CHILD=$!
+trap 'kill -TERM "$CHILD" 2>/dev/null || true' TERM INT HUP
+STATUS=0
+wait "$CHILD" || STATUS=$?
+while kill -0 "$CHILD" 2>/dev/null; do wait "$CHILD" || STATUS=$?; done
+
+$RC finish "$ID" "$$" "$STATUS" "$SLOT" || echo "convert-sandbox: cleanup could not be recorded" >&2
+exit "$STATUS"

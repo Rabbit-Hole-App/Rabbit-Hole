@@ -1,0 +1,5 @@
+# Everything here runs in the Linux converter image: LF on every checkout and in `git archive`
+# (core.autocrlf=true hosts would otherwise ship "#!/bin/sh\r" into the image).
+* text=auto eol=lf
+# Real binary fixtures: byte-exact.
+proof/fixtures/** -text

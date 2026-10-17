@@ -1,0 +1,53 @@
+#!/bin/sh
+# Runs as root INSIDE the namespaces convert-sandbox made, then becomes the conversion child.
+# Installed root-owned at /usr/local/lib/convert/sandbox-init. Every mount is private to this
+# mount namespace and vanishes with it. Adapted from motion's sandbox-init.
+set -eu
+ID=$1
+SLOT=$2
+USER_NAME=convert-run$SLOT
+JOB=/var/convert/jobs/$ID
+
+# Network: the fresh namespace has only loopback, and it stays DOWN. No converter needs a
+# socket: LibreOffice, FFmpeg and OpenCascade read and write files only.
+
+mount --make-rprivate /
+# Private, size-capped scratch (LibreOffice's profile, intermediate files). tmpfs pages count
+# against the job's memory group.
+mount -t tmpfs -o size=1024m,mode=1777,nosuid,nodev tmpfs /tmp
+mount -t tmpfs -o size=128m,mode=1777,nosuid,nodev tmpfs /dev/shm
+mkdir /tmp/job
+mount --bind "$JOB" /tmp/job
+mount -t tmpfs -o size=1m,mode=755 tmpfs /var/convert
+mount -t tmpfs -o size=1m,mode=755 tmpfs /home
+mount -t tmpfs -o size=1m,mode=700 tmpfs /root
+if [ -d /.fly ]; then mount -t tmpfs -o size=1m,mode=700 tmpfs /.fly; fi
+mount --bind /app /app
+mount -o remount,bind,ro /app
+
+asrun() { setpriv --reuid="$USER_NAME" --regid=convert --clear-groups -- "$@"; }
+preflight_fail() {
+  printf '{"status":"failed","error":"workspace_preflight_failed","detail":"%s"}\n' "$1" > /tmp/job/out/result.json
+  echo "sandbox-init: workspace preflight failed: $1" >&2
+  exit 65
+}
+for d in /tmp/job /tmp/job/out /tmp/job/in; do
+  [ "$(stat -c %G "$d")" = convert ] || preflight_fail "$d is not group convert"
+done
+[ "$(stat -c %a /tmp/job/out)" = 2770 ] || preflight_fail "out/ is not mode 2770"
+[ "$(stat -c %a /tmp/job/job.json)" = 640 ] || preflight_fail "job.json is not mode 0640"
+[ "$(stat -c %a /tmp/job/in/source)" = 640 ] || preflight_fail "in/source is not mode 0640"
+asrun test -r /tmp/job/in/source || preflight_fail "$USER_NAME cannot read the source"
+asrun test -w /tmp/job/out || preflight_fail "$USER_NAME cannot write out/"
+[ -z "$(asrun ls -A /var/convert 2>/dev/null)" ] || preflight_fail "the service job tree is visible"
+[ -z "$(asrun ls -A /home 2>/dev/null)" ] || preflight_fail "home directories are visible"
+if asrun test -r /etc/sudoers.d/convert; then preflight_fail "service configuration is readable"; fi
+
+# The child: its slot user (group convert, so the service can remove what it writes), no
+# supplementary groups, no capabilities, no new privileges, an empty environment, a 256 MiB
+# per-file write limit, bounded open files and tasks.
+umask 007
+exec setpriv --reuid="$USER_NAME" --regid=convert --clear-groups --no-new-privs --inh-caps=-all --bounding-set=-all -- \
+  env -i HOME=/tmp TMPDIR=/tmp PATH=/opt/ffmpeg/bin:/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8 NODE_ENV=production CONVERT_SANDBOX=linux \
+  prlimit --fsize=268435456 --nofile=4096 --nproc=512 -- \
+  /usr/local/bin/node /app/child.mjs /tmp/job

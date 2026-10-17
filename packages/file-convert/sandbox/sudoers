@@ -1,0 +1,4 @@
+# /etc/sudoers.d/convert: the service user may start the sandbox launcher as root and nothing
+# else. The launcher validates its two arguments (workspace id, slot) and builds every path itself.
+Defaults:convert-svc env_reset, !requiretty, !lecture
+convert-svc ALL=(root) NOPASSWD: /usr/local/sbin/convert-sandbox
