@@ -8,11 +8,14 @@ const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replac
 
 test('the companion column shares the right side\'s open state; Context, Files and Graph are its views, never Chat tabs', () => {
   const panels = read('./chat-panels.js');
-  assert.match(panels, /const \[companionOpen, setCompanionOpen\] = useState\(false\), \[view, setView\] = useState\('context'\), \[previous, setPrevious\] = useState\(null\);/, 'closed, on Context, by default');
+  assert.match(panels, /const \[companionOpen, setCompanionOpen\] = useState\(false\), \[view, setView\] = useState\('context'\);/, 'closed, on Context, by default');
   assert.match(panels, /sourcesOpen: open && companionOpen && view === 'context'/, 'sourcesOpen is derived from the right side, the column and its view');
   assert.match(panels, /if \(reveal\) setOpen\(true\);\n\s+if \(!reveal && !open\) return;/, 'a late completion never reopens a hidden right side');
-  assert.match(panels, /setPrevious\(open && companionOpen && view !== next \? view : null\);/, 'Back to the view a show() replaced');
-  assert.match(panels, /companion: \{ open: companionOpen, view, previous, show, close, back \}/, 'Interface 1');
+  // Owner brief 2026-10-16 item 4: the labelled tabs move between the views, so there is no Back to <view>; the header's one
+  // control toggles the column, reopening it on the view it last showed.
+  assert.doesNotMatch(panels, /previous|back/);
+  assert.match(panels, /const toggle = \(\) => \(open && companionOpen \? close\(\) : show\(view\)\);/);
+  assert.match(panels, /companion: \{ open: companionOpen, view, show, close, toggle \}/, 'Interface 1');
   assert.match(panels, /openSources: options => show\('context', options\)/);
   assert.match(panels, /closeSources: close,/, 'closing Sources closes the column, never Chat or the right side');
   assert.match(panels, /openChat: \(\) => \{ setOpen\(true\); setTab\('chat'\); if \(!wide\(\)\) close\(\); \}/, 'below lg Chat takes the viewer\'s place');
@@ -35,7 +38,13 @@ test('the page mounts the companion LEFT of Chat, every view mounted while hidde
   assert.match(page, /useEffect\(\(\) => \{ if \(openViewer\) companion\.show\(openViewer\); \}, \[\]\);/, 'an old ?tab= link opens its view once');
   assert.doesNotMatch(page, /data-learn-open-map/, 'no Map page to link to');
   assert.match(page, /if \(files\) window\.addEventListener\('small:open-files', showFiles\);\n\s+if \(graph\) window\.addEventListener\('small:open-graph', showGraph\);/);
-  assert.match(read('./ask.jsx'), /data-chat-sources aria-label="Context" title="Open Context"[^\n]*onClick=\{\(\) => chat\.panels\.openSources\(\)\}[^\n]*<Files size=\{16\}/, 'the composer button opens Context with the same icon');
+  // Owner brief 2026-10-16 item 6: the composer has no Explore codebase or Open Context shortcut; the + menu's upload entry is
+  // "Upload Context" with the upload icon, and the Context tab's own button says "Upload".
+  const ask = read('./ask.jsx');
+  assert.doesNotMatch(ask, /data-chat-sources|data-explore-codebase|Explore codebase|Open Context|onExploreCodebase/);
+  assert.match(ask, /<MenuItem icon=\{Upload\} data-upload-context onClick=\{\(\) => \{ setPlusOpen\(false\); fileRef\.current\?\.click\(\); \}\}>Upload Context<\/MenuItem>/);
+  assert.match(read('./SourcesPane.jsx'), /<Button variant="action" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\}>\n\s+<Upload size=\{14\} aria-hidden \/> Upload\n/);
+  assert.doesNotMatch(page, /data-companion-return|Back to \{/, 'no Back to graph or Back to files');
   const header = read('./PanelHeader.jsx');
   assert.match(header, /export const COMPANION_VIEWS = \[\n\s+\{ id: 'context', label: 'Context', Icon: Files \},\n\s+\{ id: 'files', label: 'Files', Icon: FolderTree \},\n\s+\{ id: 'graph', label: 'Graph', Icon: Network \},\n\];/);
   assert.match(header, /data-companion-back onClick=\{onClose\} aria-label="Back to chat"[^\n]*\n[^\n]*lg:hidden/, 'Back to chat below lg');

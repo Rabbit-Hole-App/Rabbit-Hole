@@ -9,9 +9,9 @@ import SourceReader from './SourceReader.jsx';
 import { pdfKeyOfRef } from './pdf-source.js';
 
 // Sub-lane A4a owns this file: the Sources pane left of Chat (brief section 6). A1 mounts it, unpadded, as the
-// Sources ResizableSidePanel's child. A compact header (the active source's icon and title, Back, All sources, Open
-// externally, Close), then Materials: Upload, and the canvas's one context collection (chat-context.js items) as collapsible
-// rows. Only the expanded row mounts its reader (A4b's SourceReader). Viewing never attaches, and Close never detaches
+// Sources ResizableSidePanel's child. A compact header while a source is open (its icon and title, Back, All sources, Open
+// externally), then the blue Upload and the canvas's one context collection (chat-context.js items) as collapsible rows with
+// their kind, size and date - no Sources or Materials heading (owner brief 2026-10-16 item 4). Only the expanded row mounts its reader (A4b's SourceReader). Viewing never attaches, and Close never detaches
 // (contract A5). Every document action sits on its own row and names that row's document (pdf-materials-refinement.md
 // sections 1-5), never the one open in the reader: canvas context, Add to canvas, this chat, then Remove from Materials.
 const ICON_BUTTON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent';
@@ -20,6 +20,16 @@ const ICON_BUTTON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-l
 // white inside any class naming bg-accent, which would turn the resting bg-white surface white.
 const ROW_ACTION = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-40';
 const rowAction = (pressed = false) => `${ROW_ACTION} ${pressed ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20' : 'border-line bg-white text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink'}`;
+
+// A document row's metadata: its kind, size and upload day, from the context-documents list (learn-context-docs.js); other
+// rows (canvas cards, a source opened from a citation) carry no document and show none.
+const KINDS = { pdf: 'PDF', text: 'Text', markdown: 'Markdown', md: 'Markdown', txt: 'Text' };
+const bytes = n => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} B`);
+export const docMeta = doc => {
+  if (!doc) return '';
+  const day = doc.created_at ? new Date(`${String(doc.created_at).replace(' ', 'T')}${/Z|[+-]\d\d:?\d\d$/.test(doc.created_at) ? '' : 'Z'}`) : null;
+  return [KINDS[doc.kind] || (doc.kind ? String(doc.kind).toUpperCase() : ''), Number.isFinite(doc.size) && doc.size > 0 ? bytes(doc.size) : '', day && !Number.isNaN(day.getTime()) ? day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ');
+};
 
 export default function SourcesPane() {
   const chat = useChatWorkspace();
@@ -59,11 +69,11 @@ export default function SourcesPane() {
   const act = work => event => { event.stopPropagation(); work(); };
   return (
     <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
-      <div data-sources-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
+      {(active || sources.canBack) && <div data-sources-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
         {sources.canBack && <button type="button" onClick={sources.back} aria-label="Back" title="Back" className={ICON_BUTTON}><ArrowLeft size={16} aria-hidden /></button>}
         <div className="flex min-w-0 flex-1 items-center gap-1.5 px-1">
           {active ? <RefIcon kind={active.kind} size={16} className="shrink-0 text-ink-2" /> : null}
-          <h2 className="min-w-0 truncate text-sm font-medium text-ink" title={active?.name}>{active ? active.name : 'Sources'}</h2>
+          {active && <h2 className="min-w-0 truncate text-sm font-medium text-ink" title={active.name}>{active.name}</h2>}
           {active && rangeLabel(active.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(active.range)}</span>}
         </div>
         {active && <button type="button" onClick={allSources} aria-label="All sources" title="All sources" className={ICON_BUTTON}><List size={16} aria-hidden /></button>}
@@ -75,13 +85,11 @@ export default function SourcesPane() {
             </Menu>
           </span>
         )}
-      </div>
+      </div>}
       <div ref={body} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2">
-        <div className="flex shrink-0 items-center justify-between gap-2 px-1 pb-1">
-          <span className="text-[11px] font-semibold tracking-wider text-ink-3 uppercase">Materials</span>
+        <div className="flex shrink-0 items-center justify-end gap-2 px-1 pb-2">
           <input ref={picker} type="file" accept={CONTEXT_ACCEPT} className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; context.upload(file); }} />
-          {/* border-[1px]: the secondary variant's border loses to its base border-0 in the built CSS; a local width shows it. */}
-          <Button variant="secondary" size="sm" data-materials-upload onClick={() => picker.current?.click()} className="border-[1px]">
+          <Button variant="action" size="sm" data-materials-upload onClick={() => picker.current?.click()}>
             <Upload size={14} aria-hidden /> Upload
           </Button>
         </div>
@@ -98,10 +106,13 @@ export default function SourcesPane() {
               <div data-material-row data-source-id={ref.sourceId} className="@container rounded-md hover:bg-hover">
                 <div className="flex flex-col @[22rem]:flex-row @[22rem]:items-center @[22rem]:gap-1">
                   <button type="button" aria-expanded={open} disabled={!ready} onClick={toggle} title={item.error || name}
-                    className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 text-left text-sm text-ink disabled:cursor-default">
+                    className="flex min-h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left text-sm text-ink disabled:cursor-default">
                     <ChevronRight size={14} aria-hidden className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-90' : ''} ${ready ? '' : 'invisible'}`} />
                     {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : item.state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}
-                    <span data-material-name title={name} className={`min-w-0 truncate ${isActive ? 'font-medium' : ''}`}>{name}</span>
+                    <span className="flex min-w-0 flex-col leading-tight">
+                      <span data-material-name title={name} className={`min-w-0 truncate ${isActive ? 'font-medium' : ''}`}>{name}</span>
+                      {docMeta(doc) && <span data-material-meta className="truncate text-[11px] text-ink-3">{docMeta(doc)}</span>}
+                    </span>
                     {rangeLabel(ref.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(ref.range)}</span>}
                     {busy && <span className="shrink-0 text-xs text-ink-3">{item.state === 'processing' ? 'Processing' : 'Uploading'}</span>}
                   </button>

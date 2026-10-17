@@ -51,7 +51,18 @@ await check('Chat is open by default on the right with one multiline composer, a
   assert.equal(await page.locator('[data-chat-composer] textarea:visible').count(), 1, 'exactly one visible main composer');
   const p = await box(pane), c = await box(page.locator('[data-block-id="c-c"]'));
   assert.ok(p.x > c.x, 'Chat sits to the right of the canvas');
-  for (const name of ['History', 'New chat', 'Mode', 'Commands', 'Context']) assert.ok(await pane.getByRole('button', { name, exact: true }).count() >= 1, `${name} control`);
+  for (const name of ['History', 'New chat', 'Mode', 'Commands']) assert.ok(await pane.getByRole('button', { name, exact: true }).count() >= 1, `${name} control`);
+  // Owner brief 2026-10-16 item 6: no Explore codebase or Open Context shortcut in the composer (the panel header's one control
+  // opens Context, Files and Graph); its + menu's upload entry reads exactly "Upload Context", with the upload icon.
+  const composer = pane.locator('[data-chat-composer]');
+  assert.equal(await composer.locator('[data-chat-sources], [data-explore-codebase], button[aria-label="Context"], button[aria-label="Explore codebase"]').count(), 0, 'no Context or Explore codebase shortcut');
+  await composer.getByRole('button', { name: 'Add', exact: true }).click();
+  const upload = pane.locator('[data-upload-context]');
+  await upload.waitFor({ state: 'visible', timeout: 5000 });
+  assert.equal((await upload.innerText()).trim(), 'Upload Context');
+  assert.equal(await upload.locator('svg').count(), 1, 'the upload icon stays');
+  await page.keyboard.press('Escape');
+  await upload.waitFor({ state: 'hidden', timeout: 5000 });
 });
 await shot('01-chat-alone');
 

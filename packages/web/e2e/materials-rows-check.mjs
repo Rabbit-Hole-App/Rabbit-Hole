@@ -162,7 +162,7 @@ const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-c
 // Chat and Context share the panel: a step on the composer or the selection pill shows the Chat tab first.
 const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.getAttribute('aria-selected') !== 'true') await tab.click(); };
 const openSources = async () => {
-  if (!(await sourcesOpen())) await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
+  if (!(await sourcesOpen())) await page.locator('[data-panel-companion]').click({ timeout: 5000 });
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
   // Every row is listed and ready (its expand control enabled).
   await waitFor(async () => {
@@ -174,7 +174,7 @@ const closeSources = async () => { if (await sourcesOpen()) { await page.locator
 // Click one row action and check it neither expanded its row nor switched the reader.
 const press = async (doc, name) => {
   // A row action lives in the Context tab; a step on Chat (send, select) left Chat showing.
-  if (!(await sourcesOpen())) await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
+  if (!(await sourcesOpen())) await page.locator('[data-panel-companion]').click({ timeout: 5000 });
   const expanded = await expander(doc).getAttribute('aria-expanded'), reader = await readerTitle();
   await action(doc, name).click();
   await page.waitForTimeout(300);
@@ -272,6 +272,13 @@ await check('Materials lists every document as its own row with the four actions
   }
   assert.equal(await page.locator('[data-materials-upload]').count(), 1, 'one Upload button');
   assert.match((await page.locator('[data-materials-upload]').innerText()).trim(), /^Upload$/, 'Upload is labelled');
+  // Owner brief 2026-10-16 item 4: the rows show directly (no Sources or Materials heading), Upload is the blue filled button
+  // with a white label, and a document row says its kind.
+  assert.doesNotMatch(await page.locator('[data-sources-pane]').innerText(), /^(Sources|Materials)$/m, 'no Sources or Materials heading');
+  const upload = await page.locator('[data-materials-upload]').evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+  assert.deepEqual(upload, ['rgb(23, 108, 206)', 'rgb(255, 255, 255)'], `the blue Upload with a white label: ${upload}`);
+  const meta = await row(A).locator('[data-material-meta]').innerText();
+  assert.match(meta, /^PDF/, `the row says its kind: ${meta}`);
   assert.equal(await page.locator('[data-source-add-canvas]').count(), 0, 'no document action is left in the header');
   // Names: tooltips and accessible names say the document and the scope.
   const labels = async doc => Object.fromEntries(await Promise.all(['context', 'canvas', 'chat', 'remove'].map(async name => [name, [await action(doc, name).getAttribute('title'), await action(doc, name).getAttribute('aria-label')]])));

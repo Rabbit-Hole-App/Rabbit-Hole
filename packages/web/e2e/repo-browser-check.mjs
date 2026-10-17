@@ -102,7 +102,7 @@ const files = async () => {
 const graph = async () => {
   const button = companion.locator('[data-companion-view="graph"]');
   if (await columnOpen()) { if (await view() !== 'graph') await button.click(); }
-  else await page.locator('button[aria-label="Explore codebase"]').click();
+  else { await page.locator('[data-panel-companion]').click(); await button.click(); } // the Chat header's one control (owner brief 2026-10-16)
   await graphPanel.locator('[data-graph-node]').first().waitFor({ timeout: 30000 }); await page.waitForTimeout(400);
 };
 // Enter on a focused node selects it (lane B), as a click would.
@@ -198,7 +198,7 @@ await check('2 a symbol click is symbol context: model.py lists its symbols; GPT
 });
 await shot('E-symbol-selected');
 
-await check('3 Graph and Files selections are one canonical object: the same symbol picked in both is one chip; Open source in the Graph opens Files at its line; Back to graph keeps the pick', async () => {
+await check('3 Graph and Files selections are one canonical object: the same symbol picked in both is one chip; Open source in the Graph opens Files at its line; the Graph tab keeps the pick', async () => {
   await symbolRow('model_causalselfattention').click();
   const fromFiles = await keys();
   await graph();
@@ -210,7 +210,8 @@ await check('3 Graph and Files selections are one canonical object: the same sym
   assert.deepEqual(await lit(), [29]);
   assert.equal(await symbolRow('model_causalselfattention').getAttribute('aria-current'), 'true');
   await shot('H-graph-node-to-files');
-  await companion.getByRole('button', { name: 'Back to graph', exact: true }).click();
+  assert.equal(await companion.getByRole('button', { name: 'Back to graph', exact: true }).count(), 0, 'no Back to graph (owner brief 2026-10-16 item 4)');
+  await companion.locator('[data-companion-view="graph"]').click();
   await graphPanel.locator('[data-graph-node="model_causalselfattention"][data-selected]').waitFor({ timeout: 5000 });
   await graphPanel.locator('[data-graph-clear]').click(); // the graph's selection off; the Files selection stays
   await files();
@@ -453,12 +454,12 @@ await check('10d a code reference in an answer opens Files beside Chat at that r
   await shot('L-code-ref-open');
 });
 
-await check('9 another repository or canvas never inherits the context: a canvas shows no code chip and no Explore codebase, another project starts with nothing selected', async () => {
+await check('9 another repository or canvas never inherits the context: a canvas shows no code chip and no Graph view, another project starts with nothing selected', async () => {
   await page.evaluate((to) => { history.pushState(null, '', to); dispatchEvent(new PopStateEvent('popstate')); }, `/apps/${canvas.name}`);
   await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
   await page.waitForTimeout(600);
   assert.deepEqual(await keys(), []);
-  assert.equal(await page.locator('button[aria-label="Explore codebase"]').count(), 0, 'no repository on a plain canvas');
+  assert.equal(await page.locator('[data-companion-view="graph"]').count(), 0, 'no repository on a plain canvas');
   await open(`/apps/${REPO2}`);
   assert.deepEqual(await keys(), []);
   await graph();

@@ -133,9 +133,11 @@ const besideChat = async () => {
   assert.ok(Math.abs(viewer.right - chat.left) < 2, 'the viewer sits immediately LEFT of Chat');
   assert.ok(await field().isVisible(), 'the Chat composer stays visible');
 };
-// Opens Sources / Context the way the composer does (its data-chat-sources button opens it in both layouts).
+// Opens Context from the Chat header's one Context / Files / Graph control (owner brief 2026-10-16 items 3-4; the composer's
+// Open Context shortcut is gone), then its Context tab - in both layouts.
 const openContext = async () => {
-  await pane().locator('[data-chat-sources]').first().click();
+  if (await page.locator('[data-panel-companion]').getAttribute('aria-pressed') !== 'true') await page.locator('[data-panel-companion]').click();
+  await page.locator('[data-companion-view="context"]').click();
   await waitFor(async () => (await sourcesWidth()) > 50, 5000, 'Context / Sources did not open');
 };
 const blocksSaved = () => page.evaluate(key => JSON.stringify((JSON.parse(localStorage.getItem(key) || 'null')?.blocks || []).map(b => [b.id, b.x, b.y, b.w, b.h, b.dx, b.dy])), INK);
@@ -194,7 +196,8 @@ await check('a stroke drawn and the panel hidden, then shown, within 400 ms: eac
 await check('hide and reopen from Context without an open reader: Context opens beside Chat, both come back, Materials listed', async () => {
   await openContext();
   assert.equal(await activeView(), 'context');
-  assert.equal(await page.locator('[data-panel-viewer="context"]').getAttribute('aria-pressed'), 'true', 'the Context toggle in the Chat header shows it pressed');
+  assert.equal(await page.locator('[data-panel-companion]').getAttribute('aria-pressed'), 'true', 'the Context, Files and Graph control in the Chat header shows it pressed');
+  assert.equal(await page.locator('[data-companion-view="context"]').getAttribute('aria-pressed'), 'true', 'on its Context tab');
   await besideChat();
   await shot('02-context-materials');
   await hide();

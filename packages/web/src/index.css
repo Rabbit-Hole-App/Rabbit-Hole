@@ -200,6 +200,12 @@ html {
   --cmd-teach-bg: #f5f3ff;
   --cmd-teach-fg: #5b21b6;
   --cmd-teach-line: #ddd6fe;
+  /* The right panel's selected navigation icon and the companion's filled actions (owner brief 2026-10-16 items 3-4; the
+     approved toc-upload-context and companion-panel mockups): a soft purple tile with a purple icon, a blue with white text
+     (5.0:1). Flipped in .dark. */
+  --nav-selected-bg: #eee5fc;
+  --nav-selected-fg: #6431a0;
+  --action-blue: #176cce;
   --cmd-research-bg: #fffbeb;
   --cmd-research-fg: #854d0e;
   --cmd-research-line: #fde68a;
@@ -382,6 +388,9 @@ html {
   --cmd-teach-bg: #251d3d;
   --cmd-teach-fg: #ddd6fe;
   --cmd-teach-line: #5b21b6;
+  --nav-selected-bg: #453060;
+  --nav-selected-fg: #e1cff9;
+  --action-blue: #2485e8;
   --cmd-research-bg: #33260b;
   --cmd-research-fg: #fde68a;
   --cmd-research-line: #854d0e;
@@ -539,6 +548,7 @@ html {
    black on blue in dark mode, owner 2026-10-08). */
 .dark [class*='bg-accent'],
 .dark [class*='bg-[#2383e2]'],
+.dark [class*='bg-(--action-blue)'],
 .dark [class*='bg-danger'] {
   --color-white: #ffffff;
 }

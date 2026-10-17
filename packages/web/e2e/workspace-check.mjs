@@ -85,9 +85,15 @@ const openCanvas = async () => {
   await pane().waitFor({ state: 'visible', timeout: 30000 });
   await page.waitForTimeout(1000);
 };
+// The Chat header's one Context / Files / Graph control, then its Graph tab (owner brief 2026-10-16; no Explore codebase).
+const showGraph = async () => {
+  const control = page.locator('[data-panel-companion]');
+  if (await control.getAttribute('aria-pressed') !== 'true') await control.click();
+  await companion().locator('[data-companion-view="graph"]').click();
+};
 const openGraph = async () => {
   if (await companionOpen() && await view() === 'graph') return;
-  await pane().locator('button[aria-label="Explore codebase"]').click();
+  await showGraph();
   await node('train').waitFor({ timeout: 30000 });
   await page.waitForTimeout(600); // the first fit
 };
@@ -220,7 +226,7 @@ await check('inspector §4: an external dependency is its own object - no file, 
   assert.deepEqual(importers, [...new Set(importers)], 'each file once');
 });
 await shot('insp-H2-external');
-await check('inspector §16: Open source shows the file at the pinned commit in Files beside Chat; Back to graph keeps the selection', async () => {
+await check('inspector §16: Open source shows the file at the pinned commit in Files beside Chat; the Graph tab keeps the selection', async () => {
   await node('model').click();
   await waitFor(async () => await title() === 'model.py', 5000, 'model.py did not select');
   await details().locator('[data-node-open-source]').click();
@@ -229,8 +235,9 @@ await check('inspector §16: Open source shows the file at the pinned commit in 
   await reader.locator('[data-source-line="1"]').waitFor();
   assert.equal(await reader.locator('[data-source-commit]').getAttribute('data-source-commit'), COMMIT);
   assert.ok(await pane().isVisible(), 'Chat stays beside it');
-  await companion().locator('[data-companion-return]').click();
-  await waitFor(async () => await view() === 'graph', 5000, 'Back did not return to Graph');
+  assert.equal(await companion().locator('[data-companion-return]').count(), 0, 'no Back to graph (owner brief 2026-10-16 item 4)');
+  await companion().locator('[data-companion-view="graph"]').click();
+  await waitFor(async () => await view() === 'graph', 5000, 'the Graph tab did not return to Graph');
   assert.deepEqual(await graphPanel().locator('[data-graph-node][data-selected]').evaluateAll((all) => all.map((n) => n.dataset.graphNode)), ['model']);
 });
 await shot('insp-E-source');
@@ -289,7 +296,7 @@ for (const [width, height, name] of [[820, 1000, 'dock-I1-tablet'], [390, 844, '
     if (await companionOpen()) await companion().locator('[data-companion-back]').click();
     await field().waitFor({ state: 'visible' });
     await field().fill('kept draft');
-    await pane().locator('button[aria-label="Explore codebase"]').click();
+    await showGraph();
     await graphPanel().waitFor({ state: 'visible', timeout: 10000 });
     const back = companion().locator('[data-companion-back]');
     assert.ok(await back.isVisible(), 'Back to chat');
