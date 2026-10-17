@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { docIsEmpty } from './canvas-doc.js';
 import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, Shapes, X } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
+import { setFileScope } from './file-source-client.js';
 import { CardSourceScope } from './use-card-source.js';
 import ForkButton from './ForkButton.jsx';
 import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
@@ -89,12 +90,13 @@ export default function SharedBoardPage({ token }) {
   useEffect(() => {
     const fileUrl = key => `/api/learn/boards/shared/${encodeURIComponent(token)}/assets/${encodeURIComponent(key)}`;
     setRemoteAssets(key => fetch(fileUrl(key)));
+    setFileScope({ share: token }); // imported files read through the link (file-source-client.js)
     setWorkspaceStore({
       load: id => fetch(fileUrl(`notebook:${id}`)).then(response => (response.ok ? response.json() : null)).catch(() => null),
       fresh: true,
       workspaceId: id => `${id}-shared`,
     });
-    return () => { setRemoteAssets(null); setWorkspaceStore(null); };
+    return () => { setRemoteAssets(null); setWorkspaceStore(null); setFileScope(null); };
   }, [token]);
 
   useEffect(() => {

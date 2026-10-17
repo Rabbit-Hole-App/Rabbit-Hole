@@ -20,7 +20,12 @@ const NOTEBOOK = {
 };
 
 test('.ipynb, .py and common code files are imports, any case; the choices are the owner\'s', () => {
-  assert.deepEqual(['a.ipynb', 'B.IPYNB', 'x.py', 'X.PY', 'x.pyc', 'notes.txt', 'py', ''].map(importKind), ['ipynb', 'ipynb', 'py', 'py', null, null, null, null]);
+  assert.deepEqual(['a.ipynb', 'B.IPYNB', 'x.py', 'X.PY', 'x.pyc', 'py', ''].map(importKind), ['ipynb', 'ipynb', 'py', 'py', null, null, null]);
+  // File imports lane 2 (canvas-file-imports.md): .txt is a Text card, .md/.markdown a Markdown card (or its source as a Code
+  // card); a Word 97-2003 .doc is not an import (its family is planned until its converter; DocImport.jsx says so on drop).
+  assert.deepEqual(['notes.txt', 'README.md', 'a.MARKDOWN', 'old.doc'].map(importKind), ['text', 'markdown', 'markdown', null]);
+  assert.deepEqual(IMPORT_CHOICES.text.map(([id]) => id), ['text', 'attachment']);
+  assert.deepEqual(IMPORT_CHOICES.markdown.map(([id]) => id), ['markdown', 'code', 'attachment']);
   // Repository graph Release 2 (lane DROP): other source and config files are code; images, PDFs and archives are not.
   assert.deepEqual(['app.js', 'Main.TS', 'lib.rs', 'ci.yml', 'Dockerfile', 'a.png', 'a.pdf', 'a.zip'].map(importKind), ['code', 'code', 'code', 'code', 'code', null, null, null]);
   assert.deepEqual(IMPORT_CHOICES.ipynb.map(([, label]) => label), ['Notebook', 'File attachment']);
@@ -32,7 +37,7 @@ test('empty and oversized files are refused with a line that names the file and 
   assert.deepEqual(checkImport(file('a.ipynb')), { kind: 'ipynb' });
   assert.equal(checkImport(file('a.ipynb', 0)).error, 'a.ipynb: the file is empty');
   assert.equal(checkImport(file('big.py', IMPORT_LIMIT + 1)).error, 'big.py is 25.0 MiB; files up to 25 MiB can be added to a canvas');
-  assert.match(checkImport(file('page.bin')).error, /^page\.bin: add a \.ipynb notebook, a \.py file or another code file$/);
+  assert.match(checkImport(file('page.bin')).error, /^page\.bin: add a \.ipynb notebook, a \.py file, a text or Markdown file or another code file$/);
   assert.deepEqual(checkImport(file('big.js', IMPORT_LIMIT)), { kind: 'code' }, 'a code file takes the same 25 MiB limit');
 });
 

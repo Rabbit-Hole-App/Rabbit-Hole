@@ -64,6 +64,7 @@ import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, dragSource, insertCodeCard, repoCodeCard } from './code-card.js';
 import { lazyFeature } from './lazy-feature.jsx';
+import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -76,6 +77,8 @@ const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 // SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
 const MediaBody = lazyFeature(() => import('./MediaCard.jsx'), 'The media player');
 const MEDIA_BODY = { svg: 'SVG', audio: 'Audio', clip: 'Video' };
+// Text, Markdown, table, workbook, Word and presentation cards (file-doc-import.js; canvas-file-imports.md lane 2).
+const FileDocCard = lazyFeature(() => import('./FileDocCard.jsx'), 'The file preview');
 const noop = () => {};
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -783,6 +786,8 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
+  if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file…</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;

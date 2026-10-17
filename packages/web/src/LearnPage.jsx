@@ -9,6 +9,7 @@ import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
+import { setFileScope } from './file-source-client.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading } from './LearnExtras.jsx';
@@ -31,6 +32,7 @@ import ShortcutsSheet from './ShortcutsSheet.jsx';
 const SlashCommandsSheet = lazyFeature(() => import('./SlashCommandsSheet.jsx'), 'The slash commands');
 import FilesPanel from './FilesPanel.jsx';
 import FileImportDialog from './FileImportDialog.jsx';
+import { useDocImport } from './DocImport.jsx';
 import PdfAddDialog from './PdfAddDialog.jsx';
 import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
 import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
@@ -644,6 +646,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // in this browser for the board's server copy - no code runs, nothing is installed, no model is asked.
   const [imports, setImports] = useState([]); // [{ id, file, kind, at }] or [{ id, kind: 'batch', files: [{ file, kind }], at }]
   const [importState, setImportState] = useState({ error: null, busy: false });
+  // Tables, workbooks, Word documents and presentations (DocImport.jsx, canvas-file-imports.md lane 2): their own checks and choices.
+  const docImport = useDocImport({ canvas: () => canvasApi.current, toast });
   const nextImport = () => { setImportState({ error: null, busy: false }); setImports(queue => queue.slice(1)); };
   const addImport = async choice => {
     const { at, ...entry } = imports[0];
@@ -703,6 +707,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         if (error) toast(error, { tone: 'error' }); else asked.push({ id: crypto.randomUUID(), file, kind, at });
         continue;
       }
+      if (docImport.claims(file)) { await docImport.take(file, at); continue; }
       // Images, GIFs, SVG, audio and video are read from their bytes (media-import.js, loaded with the first media drop).
       const media = mediaFamilyOf(file.name) ? await (await import('./media-import.js')).importMedia(file) : null;
       const { kind, error } = media || classifyDrop(file);
@@ -1021,6 +1026,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // this browser has none, and once the board is on the server, any file not yet uploaded goes up.
   useEffect(() => {
     setRemoteAssets(key => fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, { headers: wsHeaders() }));
+    setFileScope({ app: app.name, board: boardName }); // imported files read through this board (file-source-client.js)
     // Notebook workspaces: saved once the board has its server row (a review board: while shared or published), and
     // not after a 409; loaded only into an empty workspace (this owner on another browser), never over local files.
     const workspaceUrl = id => `${boardPath}/assets/${encodeURIComponent(`notebook:${id}`)}`;
@@ -1031,7 +1037,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         : null),
       fresh: false,
     });
-    return () => { setRemoteAssets(null); setWorkspaceStore(null); };
+    return () => { setRemoteAssets(null); setWorkspaceStore(null); setFileScope(null); };
   }, [boardPath]);
   const uploadedAssets = useRef(null);
   const refusedAssets = useRef(new Set()); // board files the server refused: said once per open
@@ -2077,6 +2083,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     </ResizableSidePanel>
     <input ref={filePicker} type="file" multiple accept={acceptList()} className="hidden"
       onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
+    {docImport.dialog}
     {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} files={imports[0].files} error={importState.error} busy={importState.busy}
       onCancel={nextImport} onConfirm={addImport} />}
     {/* With sections on the canvas the rail mirrors the panel's table of

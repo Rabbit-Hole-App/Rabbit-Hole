@@ -4,9 +4,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, Loader2, RotateCcw, TriangleAlert, X } from 'lucide-react';
 import { loadMediaOriginal, mediaMeta } from './media-storage.js';
-import { wsHeaders } from './api.js';
 import { SvgRefused, sanitizeSvg } from './svg-sanitize.js';
-import { derivativeState, probeMedia, requestPlayback, retryPlayback, watchPlayback } from './media-playback.js';
+import { canWrite, cancelPlayback, derivativeState, derivativeUrl, findPlayback, probeMedia, requestPlayback, retryPlayback, watchPlayback } from './media-playback.js';
+import { FORK_PENDING_LABEL } from './file-jobs-client.js';
+import { startUpload, uploadState, watchUpload } from './file-source-client.js';
 
 const clock = seconds => {
   if (!Number.isFinite(seconds)) return '';
@@ -96,56 +97,69 @@ function SvgBody({ block, original }) {
 function PlaybackCopy({ block, onChange }) {
   const meta = mediaMeta(block);
   const [job, setJob] = useState(null);
+  const [checked, setChecked] = useState(false);
   const [problem, setProblem] = useState(null);
+  const [attempt, setAttempt] = useState(0);
   const blockRef = useRef(block); blockRef.current = block;
-  const fileRef = block.fileRef;
-  const shown = problem ? { state: 'failed', error: problem } : derivativeState({ fileRef, job });
-  const rev = fileRef?.source?.rev;
-  // A result lands only on a card that still shows the same source revision (contract 5.4): a removed, undone or
-  // replaced card is never recreated or overwritten by a late job.
+  const fileRef = block.fileRef, rev = fileRef?.source?.rev, writable = canWrite();
+  const shown = problem ? { state: 'failed', error: problem } : derivativeState({ fileRef, job, checked, writable });
+  // A result lands only on a card that still shows the same source revision (contract 5.4): a removed, undone or replaced
+  // card is never recreated or overwritten by a late job.
   const still = () => blockRef.current.fileRef?.source?.rev === rev;
+  const record = patch => { if (still()) onChange({ ...blockRef.current, fileRef: { ...blockRef.current.fileRef, ...patch(blockRef.current.fileRef) } }); };
   useEffect(() => {
     if (!fileRef?.source?.id || fileRef.derivatives?.playback) return undefined;
     const abort = new AbortController();
     (async () => {
       try {
+        // A copy made for this source revision already (another card, a fork's original) is used as it is.
+        const found = await findPlayback(fileRef);
+        if (abort.signal.aborted) return;
+        setChecked(true);
+        if (found) { if (writable) record(ref => ({ derivatives: { ...(ref.derivatives || {}), playback: found } })); else setJob({ state: 'ready', found }); return; }
+        if (!writable) return; // a viewer or a fork never starts a conversion
         let id = fileRef.job;
         if (!id) {
-          ({ id } = await requestPlayback({ fileRef, cardId: block.id, headers: wsHeaders() }));
+          const submitted = await requestPlayback({ fileRef, cardId: block.id });
           if (abort.signal.aborted || !still()) return;
-          onChange({ ...blockRef.current, fileRef: { ...blockRef.current.fileRef, job: id } });
+          id = submitted.id; setJob(submitted);
+          record(() => ({ job: id }));
         }
-        const settled = await watchPlayback({ jobId: id, headers: wsHeaders(), signal: abort.signal, onUpdate: next => !abort.signal.aborted && setJob(next) });
-        const done = settled && derivativeState({ fileRef, job: settled });
-        if (done?.state === 'ready' && done.derivative && still()) {
-          const current = blockRef.current.fileRef;
-          onChange({ ...blockRef.current, fileRef: { ...current, derivatives: { ...(current.derivatives || {}), playback: done.derivative } } });
+        const settled = await watchPlayback({ jobId: id, signal: abort.signal, onUpdate: next => !abort.signal.aborted && setJob(next) });
+        if (settled && (settled.state === 'ready' || settled.state === 'ready_with_limitations')) {
+          const playback = await findPlayback(fileRef);
+          if (!playback) setProblem('The playable copy finished without a playback file.');
+          else record(ref => ({ derivatives: { ...(ref.derivatives || {}), playback } }));
         }
       } catch (error) { if (!abort.signal.aborted) setProblem(error.message); }
     })();
     return () => abort.abort();
-  }, [fileRef?.source?.id, rev, fileRef?.job, fileRef?.derivatives?.playback]); // eslint-disable-line react-hooks/exhaustive-deps
-  const codec = codecName(meta.codec) || 'this encoding';
-  if (shown.state === 'ready') return (
+  }, [fileRef?.source?.id, rev, fileRef?.job, fileRef?.derivatives?.playback, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const what = codecName(meta.codec) ? `${codecName(meta.codec)} audio` : 'this audio';
+  const readyUrl = shown.state === 'ready' ? shown.url : job?.found ? derivativeUrl(fileRef, job.found) : null;
+  if (readyUrl) return (
     <>
-      <audio controls preload="metadata" src={shown.url} aria-label={`Play ${block.label || 'audio'} (converted copy)`} className="w-full" />
+      <audio controls preload="metadata" src={readyUrl} aria-label={`Play ${block.label || 'audio'} (converted copy)`} className="w-full" />
       <p data-media-state="derivative-ready" className="pt-1 text-[11px] text-ink-3">Playing a converted copy (AAC). The original is unchanged.</p>
     </>
   );
   if (shown.state === 'failed') return (
-    <Notice state="failed" action={fileRef?.job ? <button type="button" onPointerDown={event => event.stopPropagation()} onClick={async () => { setProblem(null); try { setJob(await retryPlayback({ jobId: fileRef.job, headers: wsHeaders() })); } catch (error) { setProblem(error.message); } }}
+    <Notice state="failed" action={writable && fileRef?.job ? <button type="button" onPointerDown={event => event.stopPropagation()} onClick={async () => { setProblem(null); try { setJob(await retryPlayback({ jobId: fileRef.job })); setAttempt(n => n + 1); } catch (error) { setProblem(error.message); } }}
       className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-medium text-ink-2 hover:bg-hover hover:text-ink"><RotateCcw size={12} />Retry</button> : null}>
-      This browser cannot play {codec} audio, and a playable copy could not be made: {shown.error}
+      This browser cannot play {what}, and a playable copy could not be made: {shown.error}
     </Notice>
   );
-  if (shown.state === 'awaiting-converter') return (
-    <Notice state="awaiting-converter">This browser cannot play {codec} audio. A playable copy needs the file converter, which is not connected to this canvas yet. Download the original to play it in another app.</Notice>
+  if (shown.state === 'saving') return (
+    <Notice state="awaiting-converter">This browser cannot play {what}. A playable copy is made once the file is saved to your account; download the original to play it in another app meanwhile.</Notice>
+  );
+  if (shown.state === 'elsewhere') return (
+    <Notice state="elsewhere">This browser cannot play {what}, and no playable copy has been made yet. {FORK_PENDING_LABEL}; download the original to play it in another app.</Notice>
   );
   return (
-    <Notice state="working" action={fileRef?.job ? <button type="button" aria-label="Cancel the playable copy" onPointerDown={event => event.stopPropagation()}
-      onClick={() => fetch(`/api/learn/files/jobs/${encodeURIComponent(fileRef.job)}/cancel`, { method: 'POST', headers: wsHeaders() }).catch(() => {})}
+    <Notice state="working" action={writable && fileRef?.job ? <button type="button" aria-label="Cancel the playable copy" onPointerDown={event => event.stopPropagation()}
+      onClick={() => cancelPlayback({ jobId: fileRef.job })}
       className="flex shrink-0 items-center rounded-md p-1 text-ink-2 hover:bg-hover hover:text-ink"><X size={12} /></button> : null}>
-      This browser cannot play {codec} audio; making a playable copy{shown.stage ? ` (${shown.stage.replace(/_/g, ' ')})` : ''}…
+      This browser cannot play {what}; {shown.state === 'checking' ? 'looking for a playable copy' : `making a playable copy (${shown.stage || 'Queued'})`}…
     </Notice>
   );
 }
@@ -215,12 +229,56 @@ function ImageBody({ block, original }) {
 
 const BODY = { svg: SvgBody, audio: AudioBody, clip: VideoBody, image: ImageBody };
 
+// ---- saving a new fileRef card (file-source-client.js) -------------------------------------------------------------------
+
+// The upload of a fileRef card not stored yet: started from this browser's copy (fileRef.local; shared per key, so it
+// resumes after a reload), watched, and the stored source written into the card, so the next board save names it.
+function useUpload(block, onChange) {
+  const ref = block.fileRef, key = ref && !ref.source?.id ? ref.local : null;
+  const [state, setState] = useState(() => (key ? uploadState(key) : null));
+  const blockRef = useRef(block); blockRef.current = block;
+  const start = () => startUpload(key, { family: ref.family, name: mediaMeta(blockRef.current).name || blockRef.current.label });
+  useEffect(() => {
+    if (!key) { setState(null); return undefined; }
+    const take = next => {
+      setState(next);
+      const current = blockRef.current;
+      if (next?.stage === 'stored' && !current.fileRef?.source?.id) {
+        const { local, ...rest } = current.fileRef; // eslint-disable-line no-unused-vars
+        onChange({ ...current, fileRef: { ...rest, source: { id: next.source.id, rev: next.source.rev } } });
+      }
+    };
+    const unwatch = watchUpload(key, take);
+    if (canWrite()) start();
+    take(uploadState(key)); // an upload that finished before this card mounted
+    return unwatch;
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { state, retry: () => key && start() };
+}
+
+// Never "saved" before the server says so.
+function SaveState({ state, onRetry }) {
+  if (state?.stage === 'failed') return (
+    <div role="alert" data-media-save="failed" className="mb-1 flex items-start gap-1.5 text-xs text-ink-2">
+      <TriangleAlert size={13} className="mt-px shrink-0" /><span className="min-w-0 flex-1">Not saved: {state.error}</span>
+      {state.retryable && <button type="button" data-media-retry onPointerDown={event => event.stopPropagation()} onClick={onRetry} className="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 font-medium hover:bg-hover hover:text-ink"><RotateCcw size={12} />Retry</button>}
+    </div>
+  );
+  const percent = state?.total ? Math.floor((100 * (state.sent || 0)) / state.total) : 0;
+  const line = !state ? (canWrite() ? 'Saving to your account…' : 'Not saved yet: the upload from the browser that added this file has not finished.')
+    : state.stage === 'uploading' ? `Saving to your account… ${percent}%` : state.stage === 'hashing' ? 'Preparing to save…' : 'Saving to your account…';
+  return <p role="status" data-media-save={state?.stage || 'waiting'} className="mb-1 text-[11px] text-ink-3">{line}</p>;
+}
+
 export default function MediaBody({ block, onChange }) {
   const original = useOriginal(block);
-  if (original.missing) return <Missing stored={!!block.fileRef?.source?.id} />;
+  const upload = useUpload(block, onChange);
+  const pending = block.fileRef && !block.fileRef.source?.id;
+  if (original.missing) return <>{pending && <SaveState state={upload.state} onRetry={upload.retry} />}<Missing stored={!!block.fileRef?.source?.id} /></>;
   const Body = BODY[block.kind] || ImageBody;
   return (
-    <div data-media-card={block.kind}>
+    <div data-media-card={block.kind} data-saved={block.fileRef ? (pending ? 'pending' : 'stored') : 'board-file'}>
+      {pending && <SaveState state={upload.state} onRetry={upload.retry} />}
       <Body block={block} original={original} onChange={onChange} />
       <div className="flex justify-end pt-1"><DownloadOriginal href={original.download} name={block.label} /></div>
     </div>

@@ -1,47 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadMediaOriginal, mediaMeta, setSourceClient, storeMedia } from './media-storage.js';
+import { mediaMeta, storeMedia } from './media-storage.js';
+import { resetUploads, setFileScope, uploadState } from './file-source-client.js';
 
-const rev = 'c'.repeat(64);
-const fakeClient = () => {
-  const uploads = [];
-  return {
-    uploads,
-    async uploadSource(file, where) { uploads.push({ name: file.name, ...where }); return { source: { id: 'fs_0123456789abcdef01234567', rev } }; },
-    async loadSource(block) { return block.fileRef.source.rev === rev ? new Blob(['bytes'], { type: 'audio/flac' }) : null; },
-  };
-};
-
-test('with the client, a new SVG or audio import becomes one compact fileRef card, never bytes or URLs', async () => {
-  const client = fakeClient();
-  setSourceClient(client, { app: 'canvas-1', board: 'main' });
+test('a new SVG or audio import is a fileRef card at once: its copy waits under fileRef.local while one upload starts', async () => {
+  resetUploads();
+  setFileScope(null); // no owner scope here, so the upload settles as refused instead of touching the network
   const card = await storeMedia(new File(['x'], 'song.flac'), { kind: 'audio', meta: { name: 'song.flac', size: 1, type: 'audio/flac', codec: 'flac', duration: 2 } });
-  assert.deepEqual(client.uploads, [{ name: 'song.flac', app: 'canvas-1', board: 'main', family: 'audio' }]);
-  assert.equal(card.assetKey, undefined);
-  assert.deepEqual(card.fileRef.source, { id: 'fs_0123456789abcdef01234567', rev });
+  assert.equal(card.assetKey, undefined, 'never a board file');
+  assert.equal(card.fileRef.source, null, 'not stored until the server says so');
+  assert.match(card.fileRef.local, /^import:[0-9a-f-]{36}$/);
   assert.equal(card.fileRef.family, 'audio');
   assert.deepEqual(card.fileRef.meta, { name: 'song.flac', size: 1, type: 'audio/flac', codec: 'flac', duration: 2, title: 'song' });
   assert.ok(JSON.stringify(card.fileRef).length < 2048, 'contract section 3: under 2 KB');
   assert.doesNotMatch(JSON.stringify(card), /blob:|base64|https?:/);
-  assert.equal(mediaMeta({ ...card, meta: { type: 'stale' } }).type, 'audio/flac', 'fileRef.meta is the card\'s truth');
+  assert.ok(uploadState(card.fileRef.local), 'the upload started from the file in hand');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual([uploadState(card.fileRef.local).stage, uploadState(card.fileRef.local).error], ['failed', 'Only the canvas owner can save files here.'], 'a page that cannot write says so');
   const svg = await storeMedia(new File(['<svg/>'], 'logo.svg'), { kind: 'svg', meta: { name: 'logo.svg', type: 'image/svg+xml', size: 6, width: 300, height: 150 } });
   assert.equal(svg.fileRef.family, 'svg');
-  setSourceClient(null);
+  await assert.rejects(storeMedia(new File(['x'], 'a.png'), { kind: 'image', meta: {} }), /board-file path/, 'image drops keep their asset path (lead ruling)');
+  resetUploads();
 });
 
-test('a stored-source card reads through loadSource; without the client it is unreadable, not guessed', async () => {
-  setSourceClient(fakeClient());
-  const block = { type: 'file', kind: 'audio', fileRef: { v: 1, source: { id: 'fs_0123456789abcdef01234567', rev }, family: 'audio', meta: {} } };
-  assert.equal(await (await loadMediaOriginal(block)).text(), 'bytes');
-  assert.equal(await loadMediaOriginal({ ...block, fileRef: { ...block.fileRef, source: { ...block.fileRef.source, rev: 'd'.repeat(64) } } }), null);
-  setSourceClient({ loadSource: async () => { throw new Error('403'); } });
-  assert.equal(await loadMediaOriginal(block), null, 'a refused read is the missing state');
-  setSourceClient(null);
-  assert.equal(await loadMediaOriginal(block), null);
-});
-
-test('a failed upload throws the reason the drop shows', async () => {
-  setSourceClient({ uploadSource: async () => ({}) });
-  await assert.rejects(storeMedia(new File(['x'], 'a.mp3'), { kind: 'audio', meta: {} }), /could not be stored/);
-  setSourceClient(null);
+test('the card reads fileRef.meta first, the old block meta otherwise', () => {
+  assert.equal(mediaMeta({ meta: { type: 'old' }, fileRef: { meta: { type: 'audio/flac' } } }).type, 'audio/flac');
+  assert.equal(mediaMeta({ meta: { type: 'image/png' } }).type, 'image/png');
+  assert.deepEqual(mediaMeta({}), {});
 });
