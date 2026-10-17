@@ -147,3 +147,16 @@ test('notification retries failures, persists successful deduplication, and neve
     rmSync(dir, { recursive: true, force: true });
   }
 });
+test('month boundary includes cleanup and final callback after execution deadline', () =>
+  fixture((env, options, set) => {
+    // Execution ends at 23:59:55; cleanup/final callback may still send in February.
+    set('2030-01-31T23:49:55Z');
+    initializeProduction(env, options);
+    const budget = new ProductionBudget(env, options);
+    budget.reserve('late-callback', 10);
+    const ledger = JSON.parse(
+      readFileSync(env.CAD_PRODUCTION_LEDGER_FILE, 'utf8'),
+    );
+    assert.equal(ledger.months['2030-01'].reservedBytes, 1048586);
+    assert.equal(ledger.months['2030-02'].reservedBytes, 1048586);
+  }));

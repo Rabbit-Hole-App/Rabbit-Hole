@@ -4,7 +4,9 @@ import { pathToFileURL } from 'node:url';
 import { durableWrite, requirePersistentMount } from './pilot-budget.mjs';
 const IDENTITY = 'rabbit-hole-cad-prod';
 const MAXIMUM = 2 * 1024 ** 3;
-const EXECUTION_WINDOW_MS = 600000;
+// 600s execution + 5s launcher kill + 18s cleanup polls + 10s final callback,
+// with 7s scheduling margin. Reserve both months for this complete wire window.
+const EXECUTION_WINDOW_MS = 640000;
 const month = (timestamp) => new Date(timestamp).toISOString().slice(0, 7);
 export function productionConfig(env) {
   const file = env.CAD_PRODUCTION_LEDGER_FILE;
