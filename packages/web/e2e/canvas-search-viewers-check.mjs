@@ -82,10 +82,10 @@ assert.ok([403, 404].includes(refused.status), 'member cannot write the owner bo
 assert.ok([403, 404].includes((await memberApi(`/api/learn/c/${privateBoard.board_id}/board`)).status), 'private linked board inaccessible to member');
 
 const browser = await chromium.launch(), results = [], errors = [], modelAttempts = [], backgroundHooks = [];
-let page;
+let page, failure;
 const check = async (label, fn) => {
-  try { await fn(); results.push(label); console.log(`ok ${label}`); }
-  catch (error) { await page?.screenshot({ path: `${OUT}/failure.png`, fullPage: true }).catch(() => {}); throw error; }
+  try { await fn(); results.push({ label, status: 'passed' }); console.log(`ok ${label}`); }
+  catch (error) { results.push({ label, status: 'failed', error: error.message }); await page?.screenshot({ path: `${OUT}/failure.png`, fullPage: true }).catch(() => {}); throw error; }
 };
 try {
   for (const audience of ['member', 'public']) {
@@ -112,7 +112,14 @@ try {
       await filter('cards').click(); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
       await input.fill('quartz'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
       await panel.locator('[data-find-match="viewer-card"]').click();
-      await expect(page.locator('[data-block-id="viewer-card"]')).toHaveAttribute('aria-current', 'true');
+      await expect(panel.locator('[data-find-match="viewer-card"]')).toHaveAttribute('aria-current', 'true');
+      // The real target uses transient WebAnimation/CSS highlighting, not aria-current.
+      await expect.poll(() => page.locator('[data-block-id="viewer-card"]').evaluate(element => {
+        const box = element.getBoundingClientRect(), frame = element.closest('[data-canvas-surface]').getBoundingClientRect();
+        return element.getAnimations().some(animation => animation.playState === 'running') &&
+          box.right > frame.left && box.left < frame.right && box.bottom > frame.top && box.top < frame.bottom &&
+          box.right > 0 && box.left < innerWidth && box.bottom > 0 && box.top < innerHeight;
+      })).toBe(true);
       await expect(panel).toBeVisible();
       assert.equal(await page.locator('[data-block-id="viewer-card"] [contenteditable="true"]').count(), 0);
       const resize = page.getByRole('separator', { name: 'Resize panel', exact: true });
@@ -127,6 +134,7 @@ try {
       await expect(panel.getByText('Document', { exact: true })).toBeVisible();
       await panel.locator('[data-search-index]').click();
       await expect(page.locator('[data-doc-toggle]')).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('[data-doc-state="ready"]')).toBeVisible();
       await expect(page.locator('[data-canvas-doc-editor]')).toContainText('Hidden document obsidian passage.');
       assert.equal(await page.locator('[data-canvas-doc-editor] [contenteditable="true"]').count(), 0);
       await expect(panel).toBeVisible(); await page.locator('[data-doc-toggle]').click();
@@ -146,7 +154,7 @@ try {
       await input.fill(`${audience} orphan celadon`); await expect(row(`comment:${ids.orphan}`)).toBeVisible();
       await row(`comment:${ids.orphan}`).locator('[data-search-index]').click();
       await expect(page.locator(`[data-comment-thread-view="${ids.orphan}"]`)).toContainText('Card deleted');
-      if (audience === 'public') await expect(page.locator('[data-comment-thread-view]')).toContainText('Sign in to comment.');
+      if (audience === 'public') await expect(page.locator('[data-comment-sign-in]')).toHaveText('Sign in to comment');
       await page.screenshot({ path: `${OUT}/${audience}-orphan.png` });
       await page.getByRole('button', { name: 'Back to Search', exact: true }).click();
     });
@@ -176,9 +184,8 @@ try {
       assert.equal((await api(`${base}/threads/${threads[audience].orphan}`)).body.thread.status, 'open');
     }
   });
-} finally {
-  writeFileSync(`${OUT}/results.json`, JSON.stringify({ passed: results.length, expected: 9, results, pageErrors: errors, modelAttempts, abortedBackgroundHooks: backgroundHooks.length }, null, 2));
+} catch (error) { failure = error.message; process.exitCode = 1; console.error(failure); } finally {
+  writeFileSync(`${OUT}/results.json`, JSON.stringify({ counts: { passed: results.filter(value => value.status === 'passed').length, failed: results.filter(value => value.status === 'failed').length, skipped: 0, interrupted: 9 - results.length }, error: failure, expected: 9, results, pageErrors: errors, modelAttempts, abortedBackgroundHooks: backgroundHooks.length }, null, 2));
   await browser.close();
 }
-assert.equal(results.length, 9);
-console.log('9/9 checks passed');
+if (!failure) { assert.equal(results.length, 9); console.log('9/9 checks passed'); }
