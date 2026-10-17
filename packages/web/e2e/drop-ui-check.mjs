@@ -41,6 +41,17 @@ let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 const surface = canvas.locator('div.touch-none').first();
+// Existing media cards can occupy a guessed screen fraction. A creation tool needs a real blank canvas hit.
+const emptyCanvasPoint = () => surface.evaluate(surface => {
+  const box = surface.getBoundingClientRect();
+  for (let y = Math.min(box.bottom - 100, box.top + 600); y > box.top + 100; y -= 32) {
+    for (let x = box.right - 100; x > box.left + 120; x -= 32) {
+      const hit = document.elementFromPoint(x, y);
+      if (hit?.closest('[data-canvas-surface]') && !hit.closest('[data-block-id],[data-item-id],[data-shape-id],[data-group-box],[data-group-chip],button,input,textarea,[role="toolbar"],[data-zoom],[data-minimap]')) return { x, y };
+    }
+  }
+  throw Error('No visible blank canvas point for the creation tool');
+});
 
 await page.goto(`${origin.origin}/apps/repo-drop-nanogpt?tab=learn`);
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
@@ -165,7 +176,10 @@ await page.waitForTimeout(200);
 // --- text tool: level pill on a fresh box ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Text"]').click();
 const box = await surface.boundingBox();
-await page.mouse.click(box.x + box.width * 0.8, box.y + 600);
+const priorTextIds = await canvas.locator('[data-item-id]').evaluateAll(nodes => nodes.map(node => node.dataset.itemId));
+const textPoint = await emptyCanvasPoint();
+await page.mouse.click(textPoint.x, textPoint.y);
+await page.waitForFunction(ids => [...document.querySelectorAll('[data-item-id]')].some(node => !ids.includes(node.dataset.itemId)), priorTextIds);
 await page.waitForTimeout(400);
 const levels = page.getByRole('group', { name: 'Text level' });
 ok('a fresh text box offers the level ladder', (await levels.count()) === 1);
@@ -182,7 +196,8 @@ ok('picking H2 styles the box', size === '24px', String(size));
 
 // --- stickies: color from the style panel; highlighter panel closable ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Sticky note"]').click();
-await page.mouse.click(box.x + box.width * 0.64, box.y + 620);
+const stickyPoint = await emptyCanvasPoint();
+await page.mouse.click(stickyPoint.x, stickyPoint.y);
 await page.waitForTimeout(300);
 await page.mouse.click(box.x + 40, box.y + 500); // settle out of editing
 await page.waitForTimeout(200);
@@ -226,6 +241,15 @@ ok('a shape drags from its interior, not just its outline', Math.abs(after.x - b
 // --- ctrl-drag rubber band + right-click Group / Ungroup ---
 const cardA = canvas.locator('img[alt="diagram.png"]').first();
 const cardB = canvas.locator('video[controls]');
+// Earlier uploads reveal their own cards. Fit through the actual keyboard command before marqueeing distant cards.
+await page.keyboard.press('Shift+1');
+await page.waitForFunction(() => {
+  const frame=document.querySelector('[data-canvas-surface]').getBoundingClientRect();
+  return [document.querySelector('img[alt="diagram.png"]'),document.querySelector('video[controls]')].every(node=>{
+    const box=node?.closest('[data-block-id]')?.getBoundingClientRect();
+    return box && box.top>=frame.top && box.bottom<=frame.bottom && box.left>=frame.left && box.right<=frame.right;
+  });
+});
 const a1 = await cardA.boundingBox();
 const b1 = await cardB.boundingBox();
 const left = Math.max(box.x + 4, Math.min(a1.x, b1.x) - 30), top = Math.max(box.y + 4, Math.min(a1.y, b1.y) - 30);
