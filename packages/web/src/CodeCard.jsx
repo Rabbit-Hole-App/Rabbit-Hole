@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronsDownUp, ChevronsUpDown, Copy, ExternalLink, FileCode, Loader2, MessageSquarePlus } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { highlightCode } from './code-lang.js';
 import { codeCardRef, previewOf, provenanceOf } from './code-card.js';
+import { useSearchContent } from './canvas-search-content.jsx';
+import { searchSourceRecord } from './canvas-search-content.js';
 import { useCardSource } from './use-card-source.js';
 import { loadAsset } from './learn-board-assets.js';
 import { repositoryUrl } from './card-sources.js';
@@ -30,6 +32,8 @@ const lineRuns = runs => {
 export default function CodeCard({ block, onChange }) {
   const chat = useChatWorkspace();
   const { status, lines, retry } = useCardSource(block);
+  const searchSource = useMemo(() => searchSourceRecord({ sourceKey: JSON.stringify(block.source || {}), status, units: (lines || []).map(line => ({ text: line.text, loc: { start: line.n, end: line.n } })), retry }), [block.source, status, lines, retry]);
+  useSearchContent(block.id, searchSource);
   const expanded = !!block.expanded;
   const view = status === 'ready' ? previewOf(lines, expanded) : null;
   const code = view ? view.lines.map(line => line.text).join('\n') : '';

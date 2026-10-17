@@ -16,6 +16,8 @@ import { fetchDerivatives, isTerminal, stageLabel, submitFileJob, watchFileJobs 
 import { jobRequest } from './file-job.js';
 import { selectionRef } from './selection-ref.js';
 import { wsHeaders } from './api.js';
+import { useSearchContent } from './canvas-search-content.jsx';
+import { searchSourceRecord } from './canvas-search-content.js';
 import { cn } from './ui.jsx';
 
 // The body of a lane 2 file card (docs/features/canvas-file-imports.md): a text, Markdown, table, workbook, Word document or
@@ -35,19 +37,19 @@ const count = n => Number(n || 0).toLocaleString('en-US');
 // The original file: { status: 'loading' | 'ready' | 'missing', blob }.
 function useOriginal(block) {
   const ref = block.fileRef;
-  const key = ref ? `${ref.source?.id || ''}@${ref.source?.rev || ''}|${ref.local || ''}` : block.assetKey;
+  const key = `${scopeQuery()}|${ref ? `${ref.source?.id || ''}@${ref.source?.rev || ''}|${ref.local || ''}` : block.assetKey}`;
   const [state, setState] = useState({ status: 'loading', blob: null });
   useEffect(() => {
     let active = true;
     setState(previous => (previous.blob ? previous : { status: 'loading', blob: null })); // a stored upload keeps its preview
     loadSource(block).then(value => {
       if (!active) return;
-      if (value == null) setState(previous => (previous.blob ? previous : { status: 'missing', blob: null }));
-      else setState({ status: 'ready', blob: typeof value === 'string' ? new Blob([value], { type: 'text/plain' }) : value });
+      if (value == null) setState(previous => (previous.blob && previous.key === key ? previous : { key, status: 'missing', blob: null }));
+      else setState({ key, status: 'ready', blob: typeof value === 'string' ? new Blob([value], { type: 'text/plain' }) : value });
     });
     return () => { active = false; };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  return state;
+  return { ...state, current: state.key === key };
 }
 
 // A parse of the original in the worker: { status: 'loading' | 'ready' | 'failed', result, error, code }.
@@ -128,6 +130,14 @@ export default function FileDocCard({ block, onChange }) {
   const original = useOriginal(block);
   const upload = useUpload(block, update);
   const [units, setUnits] = useState(null);
+  const [parseStatus, setParseStatus] = useState('loading');
+  const searchKey = JSON.stringify([scopeQuery(), block.fileRef?.source, block.fileRef?.local, block.assetKey, extractionOptions(block)]);
+  const searchSource = useMemo(() => {
+    const current = original.current && units?.sourceKey === searchKey && units.blob === original.blob;
+    const status = original.status === 'missing' ? 'unavailable' : !original.current || (!current && parseStatus === 'ready') ? 'loading' : parseStatus;
+    return searchSourceRecord({ sourceKey: searchKey, status: current ? (units.body.complete ? 'ready' : 'partial') : status, ...(current ? units.body : {}) });
+  }, [searchKey, original.current, original.status, original.blob, units, parseStatus]);
+  useSearchContent(block.id, searchSource);
   useTextDerivative(block, update, units);
   const chat = useChatWorkspace();
   const Icon = ICON[block.kind] || FileText;
@@ -158,7 +168,7 @@ export default function FileDocCard({ block, onChange }) {
       {block.fileRef && !block.fileRef.source?.id && <SaveState state={upload.state} onRetry={upload.retry} />}
       {original.status === 'loading' && <Status>Opening the file…</Status>}
       {original.status === 'missing' && <p data-file-doc-missing className="px-3 py-2 text-xs text-ink-2">{block.fileRef && !block.fileRef.source?.id ? 'This file was never saved to the account and is not in this browser. Drop it on the canvas again.' : 'This file is not in this browser or saved with the board yet.'}</p>}
-      {original.blob && <Body block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), body })} />}
+      {original.blob && <Body key={searchKey} block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onStatus={setParseStatus} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), sourceKey: searchKey, blob: original.blob, body })} />}
     </div>
   );
 }
@@ -196,7 +206,7 @@ function useExcerpt(block, excerpt) {
 }
 
 // ─── Text and Markdown: decoded with its encoding, drawn in chunks; Show more draws the next one. ───
-function TextBody({ block, blob, onChange, setMeta, onUnits }) {
+function TextBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   const [decoded, setDecoded] = useState({ status: 'loading' });
   const [shown, setShown] = useState(1);
   useEffect(() => {
@@ -206,6 +216,7 @@ function TextBody({ block, blob, onChange, setMeta, onUnits }) {
     });
     return () => { active = false; };
   }, [blob, block.encoding, block.label]);
+  useEffect(() => { onStatus?.(decoded.status); }, [decoded.status, onStatus]);
   const view = useMemo(() => (decoded.status === 'ready' ? textChunks(decoded.text) : null), [decoded]);
   useExcerpt(block, decoded.status === 'ready' ? { ...textExcerpt(decoded.text), where: `${decoded.encoding.toUpperCase()}, ${count(decoded.text.length)} characters` } : null);
   useEffect(() => { if (decoded.status === 'ready') onUnits?.(lineUnits(decoded.text)); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -300,9 +311,10 @@ function VirtualTable({ rows, header = null, letters = false, onCell, selected }
 }
 
 // ─── CSV / TSV: the first record is the header; delimiter and encoding can be corrected on the card. ───
-function TableBody({ block, blob, onChange, setMeta, onUnits }) {
+function TableBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   const parsed = useParsed(blob, 'table', { name: block.label, delimiter: block.delimiter || null, encoding: block.encoding || null });
   const t = parsed.result;
+  useEffect(() => { onStatus?.(parsed.status); }, [parsed.status, onStatus]);
   useEffect(() => { if (t) onUnits?.(tableUnits(t)); }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
   useExcerpt(block, t ? { ...tableExcerpt(t), where: `${count(t.totalRows)} rows × ${count(t.totalCols)} columns, ${DELIMITER_NAMES[t.delimiter] || 'custom'}-delimited` } : null);
   useEffect(() => { if (t) setMeta(`${count(Math.max(0, t.totalRows - 1))} rows × ${count(t.totalCols)} columns`); }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -323,10 +335,11 @@ function TableBody({ block, blob, onChange, setMeta, onUnits }) {
 }
 
 // ─── Workbooks: one sheet at a time (the selector lists the sheets this card holds), formulas marked and explained. ───
-function WorkbookBody({ block, blob, onChange, setMeta, onUnits }) {
+function WorkbookBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   const parsed = useParsed(blob, 'workbook', { name: block.label });
   const [picked, setPicked] = useState(null);
   const book = parsed.result;
+  useEffect(() => { onStatus?.(parsed.status); }, [parsed.status, onStatus]);
   const sheets = book ? book.sheets.filter(sheet => !block.sheets || block.sheets.includes(sheet.name)) : [];
   const sheet = sheets.find(entry => entry.name === block.sheet) || sheets[0] || null;
   useEffect(() => { setPicked(null); }, [sheet?.name]);
@@ -360,13 +373,14 @@ const quote = name => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `'${name.r
 
 // ─── Word documents: mammoth's structure as React elements (never HTML), images from the original, conversion notes said. ───
 const BLOCKS_PER_PAGE = 300;
-function DocumentBody({ block, blob, setMeta, onUnits }) {
+function DocumentBody({ block, blob, setMeta, onUnits, onStatus }) {
   const legacy = block.format === 'doc';
   const parsed = useParsed(legacy ? null : blob, 'document', { name: block.label });
   const [pages, setPages] = useState(1);
   const urls = useMemo(() => new Map((parsed.result?.images || []).map(image => [image.id, URL.createObjectURL(new Blob([image.bytes], { type: image.type }))])), [parsed.result]);
   useEffect(() => () => { for (const url of urls.values()) URL.revokeObjectURL(url); }, [urls]);
   const doc = parsed.result;
+  useEffect(() => { onStatus?.(parsed.status); }, [parsed.status, onStatus]);
   useEffect(() => { if (doc) onUnits?.(documentUnits(doc)); }, [doc]); // eslint-disable-line react-hooks/exhaustive-deps
   useExcerpt(block, doc ? { ...textExcerpt(doc.text), where: 'text and structure read from the .docx; layout not reproduced' } : null);
   useEffect(() => { if (doc) setMeta(`${count(doc.text.length)} characters${doc.images.length ? ` · ${doc.images.length} image${doc.images.length === 1 ? '' : 's'}` : ''}`); }, [doc]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -399,9 +413,10 @@ function DocNode({ node, urls }) {
 }
 
 // ─── Presentations: a slide navigator over the deck's own slide numbers; text extracted here, slide images await the converter. ───
-function PresentationBody({ block, onChange, update, blob, setMeta, onUnits }) {
+function PresentationBody({ block, onChange, update, blob, setMeta, onUnits, onStatus }) {
   const parsed = useParsed(blob, 'presentation', { name: block.label });
   const deck = parsed.result;
+  useEffect(() => { onStatus?.(parsed.status); }, [parsed.status, onStatus]);
   const [from, to] = block.slides || [1, deck?.count || 1];
   const slides = deck ? deck.slides.filter(slide => slide.number >= from && slide.number <= to) : [];
   const current = slides.find(slide => slide.number === block.slide) || slides[0] || null;

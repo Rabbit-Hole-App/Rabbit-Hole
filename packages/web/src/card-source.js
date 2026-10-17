@@ -48,3 +48,6 @@ export function cardGraph(graph, nodeIds = []) {
   const nodes = graph.nodes.filter(node => keep.has(node.id)), ids = new Set(nodes.map(node => node.id));
   return { nodes, edges: (graph.edges || []).filter(edge => ids.has(edge.source) && ids.has(edge.target)) };
 }
+
+// A React effect runs after render. Do not briefly return another source/access scope's ready state before it resets.
+export const currentCardSource = (state, identity, usable) => state.identity === identity ? state : { status: usable ? 'loading' : 'unavailable' };

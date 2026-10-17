@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api } from './api.js';
 import { loadAsset } from './learn-board-assets.js';
-import { cardGraph, cardLines, cardRequest, failureStatus, rangeLines } from './card-source.js';
+import { cardGraph, cardLines, cardRequest, currentCardSource, failureStatus, rangeLines } from './card-source.js';
 
 // The link a card is read through (follow-up R3 item 5): SharedBoardPage provides { token, viewer, version } for a share
 // link or an Explore publication, so its repository cards read by the link and the card's id - signed out too, never
@@ -66,20 +66,21 @@ export function useCardSource(block) {
   const [state, setState] = useState({ status: usable ? 'loading' : 'unavailable' });
   const [attempt, setAttempt] = useState(0);
   const start = block?.source?.start ?? null, end = block?.source?.end ?? null, nodes = (block?.nodeIds || []).join('\n');
+  const identity = JSON.stringify([key, start, end, nodes]);
   useEffect(() => {
-    if (!usable) { setState({ status: 'unavailable' }); return undefined; }
+    if (!usable) { setState({ identity, status: 'unavailable' }); return undefined; }
     let active = true;
-    setState({ status: 'loading' });
+    setState({ identity, status: 'loading' });
     readCardSource(request, block, scope).then(data => {
       if (!active) return;
-      if (request.kind === 'graph') setState({ status: 'ready', graph: cardGraph(data.graph, nodes ? nodes.split('\n') : []), skipped: data.skipped || [] });
+      if (request.kind === 'graph') setState({ identity, status: 'ready', graph: cardGraph(data.graph, nodes ? nodes.split('\n') : []), skipped: data.skipped || [] });
       // A link's read is already the card's stored range, numbered from its first line; any other read is the whole file.
-      else if (Number.isInteger(data.start)) setState({ status: 'ready', ...rangeLines(data.content, data.start) });
-      else setState({ status: 'ready', ...cardLines(data.content, start, end) });
-    }, error => { if (active) setState({ status: failureStatus(error) }); });
+      else if (Number.isInteger(data.start)) setState({ identity, status: 'ready', ...rangeLines(data.content, data.start) });
+      else setState({ identity, status: 'ready', ...cardLines(data.content, start, end) });
+    }, error => { if (active) setState({ identity, status: failureStatus(error) }); });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key names the request; start, end and nodes shape it.
   }, [key, start, end, nodes, attempt]);
   const retry = useCallback(() => setAttempt(n => n + 1), []);
-  return { ...state, retry };
+  return { ...currentCardSource(state, identity, usable), retry };
 }
