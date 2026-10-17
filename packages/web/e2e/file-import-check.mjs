@@ -71,6 +71,9 @@ if (process.env.OFFLINE !== '1') {
   const outside = [];
   // Another host is never contacted by an import: anything not the stack is recorded and refused.
   await context.route(url => !url.href.startsWith(BASE) && !url.href.startsWith(CP), route => { outside.push(route.request().url()); return route.abort(); });
+  // Import acceptance never requires paid inference; next steps are a wiring-only fixture.
+  for (const path of ['ask', 'selection', 'tutor/plan', 'artifact', 'home-ask', 'journey', 'course', 'media']) await context.route('**/api/learn/' + path, route => route.abort());
+  await context.route('**/api/learn/tutor/next-steps', route => route.fulfill({ json: { steps: [] } }));
   // Every toast the page shows (ui.jsx toast() dispatches small:toast), so a refusal is read from its own message.
   await context.addInitScript(() => { window.__toasts = []; addEventListener('small:toast', e => window.__toasts.push(String(e.detail?.message || ''))); });
   const page = await context.newPage();
