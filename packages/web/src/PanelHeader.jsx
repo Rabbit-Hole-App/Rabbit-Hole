@@ -146,3 +146,5 @@ export function CanvasFind({ cards, onFocus, inputRef, hidden }) {
     </div>
   );
 }
+
+export { default as CanvasSearchPanel } from './CanvasSearchPanel.jsx';
