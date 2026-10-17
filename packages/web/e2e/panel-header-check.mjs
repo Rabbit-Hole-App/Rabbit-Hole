@@ -45,11 +45,23 @@ await context.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|jour
 // stack answers at the provider boundary with the journey fixture (e2e/provider-tripwire.js); its basis is recorded so the
 // check holds it to the eligibility rules (docs/features/professor-next-steps.md §2.3).
 // Counted per page load: check 12's reload is a fresh page, which may ask for its basis again (the server cache answers it).
+const hookStarted = Date.now(), hookTiming = [], hookRequests = new WeakMap();
+const hookTrace = (kind, detail = {}) => { const entry = { ms: Date.now() - hookStarted, kind, ...detail }; hookTiming.push(entry); console.log('HOOK_TRACE', JSON.stringify(entry)); };
 let load = 0;
-await context.route(/\/api\/learn\/tutor\/next-steps$/, route => { hookBases.push({ load, basis: JSON.parse(route.request().postData() || '{}')?.input?.basis ?? null }); return route.continue(); });
+await context.route(/\/api\/learn\/tutor\/next-steps$/, route => {
+  const body = JSON.parse(route.request().postData() || '{}');
+  const detail = { load, basis: body.input?.basis ?? null, refresh: body.refresh ?? null, reason: body.reason ?? body.input?.reason ?? null, ms: Date.now() - hookStarted };
+  hookBases.push(detail); hookRequests.set(route.request(), hookBases.length);
+  hookTrace('request', { number: hookBases.length, ...detail });
+  return route.continue();
+});
 const page = await context.newPage();
-page.on('domcontentloaded', () => { load++; }); // full document loads only, never an in-app route change
+page.on('domcontentloaded', () => { load++; hookTrace('domcontentloaded', { load }); }); // full document loads only, never an in-app route change
 page.on('pageerror', error => errors.push(error.message));
+page.on('framenavigated', frame => { if (frame === page.mainFrame()) hookTrace('navigation', { path: new URL(frame.url()).pathname }); });
+page.on('console', message => { if (/\[vite\]|Fast Refresh|hot updated|hmr/i.test(message.text())) hookTrace('hmr-console', { text: message.text().slice(0, 500) }); });
+page.on('response', response => { const number = hookRequests.get(response.request()); if (number) hookTrace('response', { number, status: response.status() }); });
+page.on('requestfailed', request => { const number = hookRequests.get(request); if (number) hookTrace('failed', { number, error: request.failure()?.errorText }); });
 const startupResponses = [];
 page.on('response', response => {
   const path = new URL(response.url()).pathname;
@@ -521,6 +533,7 @@ await check('no model route was called and no page error', async () => {
 });
 
 await check('the canvas asked for hooks once on open, and nothing the panel did asked again (§2.3: never on selection, camera or panel)', async () => {
+  writeFileSync(`${SHOTS}/hook-timing.json`, JSON.stringify({ requests: hookBases, events: hookTiming }, null, 2));
   const perLoad = Object.groupBy(hookBases, request => request.load);
   console.log(`hook requests: ${hookBases.length} (${hooksAtOpen} on open) by page load: ${JSON.stringify(Object.fromEntries(Object.entries(perLoad).map(([n, list]) => [n, list.map(r => r.basis)])))}`);
   assert.equal(hooksAtOpen, 1, 'one hook request for the opened canvas');
