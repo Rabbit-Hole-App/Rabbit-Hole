@@ -4,6 +4,7 @@
 // reaches D1. Rename is the canvas PATCH (canvases.js); the tree is owner-private like canvases.
 import { canvasApp } from './canvases.js';
 import { dropRefs } from './canvas-refs.js';
+import { dropFileRefs } from './file-refs.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
@@ -131,6 +132,7 @@ export async function divesFetch(req, env, user) {
       db.prepare('DELETE FROM canvas_dives WHERE org=? AND owner_email=? AND child=?').bind(user.org, user.email, name),
       db.prepare('DELETE FROM canvases WHERE org=? AND owner_email=? AND name=?').bind(user.org, user.email, name),
       dropRefs(db, user.org, user.email, name),
+      dropFileRefs(db, user.org, user.email, name),
       db.prepare('DELETE FROM learn_boards WHERE org=? AND owner_email=? AND app=?').bind(user.org, user.email, name),
     ]));
     return json({ ok: true, deleted: names });

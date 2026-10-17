@@ -4,6 +4,7 @@ import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } fr
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
+import { dropFileRefs } from './file-refs.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -442,6 +443,7 @@ export async function canvasesFetch(req, env) {
         await db.batch([
           db.prepare('DELETE FROM canvas_publications WHERE org = ? AND canvas = ?').bind(user.org, name),
           dropRefs(db, user.org, user.email, name),
+          dropFileRefs(db, user.org, user.email, name),
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
         ]);
       }
