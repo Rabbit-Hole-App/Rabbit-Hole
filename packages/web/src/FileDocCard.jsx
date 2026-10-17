@@ -451,18 +451,23 @@ function useSlideImages(block, update, deck) {
         error => setState(previous => ({ ...previous, line: `Slide text only. Slide images: ${error.message}` })));
   }, [source?.id, ref?.job, !!deck]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!ref?.job || !source?.id) return undefined;
+    if (!source?.id) return undefined;
     const at = fileScope();
     let live = true;
+    const read = async () => {
+      const list = await fetchDerivatives(globalThis.fetch, { sourceId: source.id, rev: source.rev, converter: request.converter, options: request.options, app: at?.app || null, board: at?.board || 'main', share: at?.share || null }).catch(() => null);
+      if (!live || !list) return;
+      const slide = list.filter(d => d.kind === 'slide' && d.name.startsWith('slide-') && d.name.endsWith('.png'));
+      setState(previous => ({ ...previous, urls: new Map(slide.map(d => [Number(d.name.slice(6, -4)), `/api/learn/files/${source.id}/d/${d.id}${scopeQuery(at)}`])) }));
+    };
+    // A shared/forked card can keep the source revision without the original job.
+    if (!ref?.job) { read(); return () => { live = false; }; }
     const watch = watchFileJobs({ blocks: [block], fetchImpl: (url, init) => globalThis.fetch(url, init), share: at?.share || null, onJob: async (_, job) => {
       if (!live) return;
       const failed = job.state === 'failed' || job.state === 'cancelled';
       setState(previous => ({ ...previous, job, line: failed ? `Slide text only. Slide images: ${stageLabel(job)}${job.error ? ` (${job.error})` : ''}` : isTerminal(job) ? previous.line : `Slide images: ${stageLabel(job)}…` }));
       if (job.state !== 'ready' && job.state !== 'ready_with_limitations') return;
-      const list = await fetchDerivatives(globalThis.fetch, { sourceId: source.id, rev: source.rev, converter: request.converter, options: request.options, app: at?.app || null, board: at?.board || 'main', share: at?.share || null }).catch(() => null);
-      if (!live || !list) return;
-      const slide = list.filter(d => d.kind === 'slide' && d.name.startsWith('slide-') && d.name.endsWith('.png'));
-      setState(previous => ({ ...previous, urls: new Map(slide.map(d => [Number(d.name.slice(6, -4)), `/api/learn/files/${source.id}/d/${d.id}${scopeQuery(at)}`])) }));
+      await read();
     } });
     return () => { live = false; watch.stop(); };
   }, [ref?.job, source?.id]); // eslint-disable-line react-hooks/exhaustive-deps
