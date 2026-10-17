@@ -11,7 +11,7 @@ import { saveCadSource, putCadOutput, publishCadArtifacts, validateCadManifest, 
 import { cadModelRequest, runCadModel, cadReferenceImages } from './cad-model.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { notifyCadBudget } from './cad-budget-alert.js';
-import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus } from './cad-production-budget.js';
+import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus, pauseCadProductionTransfer, reportCadProductionTransferPause } from './cad-production-budget.js';
 
 const PREFIX = '/api/learn/cad/jobs';
 const LEASE = 90000;
@@ -84,6 +84,7 @@ export class CadJobs {
   async response(job,status=200){return cadJson(reply(job,await this.accepted(job)),status);}
   async notifyModelBudget(){
     const status=await this.locked(()=>cadProductionBudgetStatus(this.state.storage,this.env));
+    if(status.transferPaused)return;
     const month=status.lastRefusal?.month;
     if(!month||this.budgetAlerts.has(month))return;
     this.budgetAlerts.add(month);
@@ -105,6 +106,10 @@ export class CadJobs {
           if(error.status===429)try{await this.notifyModelBudget();}catch{/* Notification cannot change admission or expose private errors. */}
           throw error;
         }
+      }
+      if(path==='/production-transfer-pause'){
+        if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
+        return cadJson(await this.locked(()=>pauseCadProductionTransfer(this.state.storage,this.env)));
       }
       if(path==='/production-budget-status'){
         if(req.method!=='GET'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
@@ -287,7 +292,14 @@ export class CadJobs {
     job.dispatchAt=Date.now();job.leaseUntil=Date.now()+LEASE;await this.save(job);
     const response=await this.executor('/jobs',body);
     const current=await this.state.storage.get(jobKey(job.id));if(current.state==='cancelled')return;
-    if(response.status===429){current.dispatchAt=null;current.leaseUntil=null;current.dispatchAfter=Date.now()+10000;current.stage='queued';await this.save(current);return;}
+    if(response.status===429){
+      const refusal=await response.json().catch(()=>null);
+      if(refusal?.code==='budget_exhausted'||refusal?.error==='budget_exhausted'){
+        try{if(cadProductionEnforced(this.env))await reportCadProductionTransferPause(this.env);}
+        finally{await this.fail(current,'The monthly CAD executor transfer allowance is exhausted. New work is paused; saved artifacts are retained.');}
+        return;
+      }
+      current.dispatchAt=null;current.leaseUntil=null;current.dispatchAfter=Date.now()+10000;current.stage='queued';await this.save(current);return;}
     if(!response.ok)await this.fail(current,'The isolated CAD executor did not accept this attempt. Retry explicitly.');
   }
   async publish(snapshot){

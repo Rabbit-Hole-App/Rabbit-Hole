@@ -84,3 +84,27 @@ test('concurrent capacity denials send one notification without releasing reserv
  assert.equal((await f.request(input('over2',now))).status,429);release();assert.equal((await first).status,429);assert.equal(calls,1);
  const status=await(await f.status()).json();assert.equal(status.totals[status.month].reservedMicros,10000000);
 });
+
+for(const code of ['busy','budget_exhausted'])test(`executor ${code} ${code==='busy'?'retains queued retry':'pauses model admission on every board'}`,async()=>{
+ const f=fixture(),saved=state('board'),env={...f.env,SMALL_ENV:'test',CAD_JOB_SECRET:'fixture-only-secret-at-least-32-characters'},actor=new CadJobs(saved,env);
+ actor.executor=async()=>Response.json({error:code},{status:429});
+ const job={id:'job1',boardId:'board',owner:{org:'test',email:'owner@test'},attempt:1,modelId:'model1',cardId:'card1',revisionId:'revision1',origin:'https://test',state:'building',stage:'building',operation:'build',calls:1,reservedUsd:0.1,deadline:Date.now()+30000,limits:{calls:6,usd:0.2,elapsedMs:30000},source:{bytes:1,sha256:'fixture'},brief:{title:'Plate',units:'mm'},limitations:[]};
+ await saved.storage.put('job:job1',job);await actor.advance(structuredClone(job));const current=await saved.storage.get('job:job1');
+ if(code==='busy'){
+  assert.equal(current.stage,'queued');assert.ok(current.dispatchAfter>Date.now());assert.equal(current.dispatchAt,null);
+  assert.equal((await f.request(input('other-board',Date.now()))).status,200);
+ }else{
+  assert.equal(current.state,'failed');assert.match(current.error,/transfer allowance/);assert.equal(current.dispatchAfter,undefined);
+  assert.equal((await f.request(input('other-board',Date.now()))).status,429);
+  const status=await(await f.status()).json();assert.equal(status.transferPaused,true);assert.equal(status.reason,'monthly_transfer_limit');assert.equal(status.paused,true);
+ }
+});
+
+test('transfer pause expires automatically in the next UTC month and preserves reservation history',async()=>{
+ const {pauseCadProductionTransfer}=await import('../src/cad-production-budget.js'),s=state('test');
+ await reserveCadProductionModel(s.storage,config,input(),{now:jan});await pauseCadProductionTransfer(s.storage,config,{now:jan});
+ await assert.rejects(reserveCadProductionModel(s.storage,config,input(),{now:jan}),error=>error.status===429);
+ assert.equal((await cadProductionBudgetStatus(s.storage,config,{now:boundary})).paused,false);
+ await reserveCadProductionModel(s.storage,config,input('next',boundary),{now:boundary});
+ assert.equal((await s.storage.get(CAD_PRODUCTION_BUDGET_KEY)).months['2027-01'].reservedMicros,200000);
+});

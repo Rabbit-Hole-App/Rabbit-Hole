@@ -25,6 +25,7 @@ export async function reserveCadProductionModel(storage,env,input,{now=Date.now(
  if(!input||['jobId','boardId','ownerOrg','ownerEmail'].some(key=>typeof input[key]!=='string'||!input[key]||input[key].length>300)||!Number.isFinite(input.limitUsd)||input.limitUsd<=0||input.limitUsd>10)throw problem('Invalid CAD model reservation.',400);
  const months=cadReservationMonths(now,input.deadline),micros=Math.ceil(input.limitUsd*MICROS),identity={boardId:input.boardId,ownerOrg:input.ownerOrg,ownerEmail:input.ownerEmail,micros};
  const ledger=await storage.get(CAD_PRODUCTION_BUDGET_KEY)||{version:1,months:{}};
+ if(ledger.transferPause?.month===new Date(now).toISOString().slice(0,7))throw problem('The monthly CAD transfer allowance is exhausted. New CAD work is paused.',429);
  if(ledger.version!==1)throw problem('The CAD budget ledger cannot be read safely.');
  const fresh=[];
  for(const month of months){
@@ -53,11 +54,26 @@ export async function cadProductionBudgetStatus(storage,env,{now=Date.now()}={})
  const ledger=await storage.get(CAD_PRODUCTION_BUDGET_KEY)||{months:{}},month=new Date(now).toISOString().slice(0,7);
  let config;try{config=cadProductionConfig(env);}catch{return{enabled:false,paused:true,reason:'not_configured',month};}
  const totals=Object.fromEntries(Object.entries(ledger.months).map(([key,value])=>[key,{reservedMicros:value.reservedMicros,remainingMicros:Math.max(0,config.maxMicros-value.reservedMicros)}]));
- return{enabled:true,month,maxMicros:config.maxMicros,totals,paused:ledger.pause?.month===month||(totals[month]?.remainingMicros===0),reason:ledger.pause?.month===month?ledger.pause.reason:null,lastRefusal:ledger.pause||null,reservationsAreBilling:false};
+ const transferPaused=ledger.transferPause?.month===month;
+ return{enabled:true,month,maxMicros:config.maxMicros,totals,transferPaused,paused:transferPaused||ledger.pause?.month===month||(totals[month]?.remainingMicros===0),reason:transferPaused?'monthly_transfer_limit':ledger.pause?.month===month?ledger.pause.reason:null,lastRefusal:ledger.pause||null,reservationsAreBilling:false};
 }
 export async function reserveCadProductionJob(env,job){
  cadProductionConfig(env);
  if(!env.CAD_JOBS)throw problem('The global CAD model ledger is unavailable.');
  const response=await env.CAD_JOBS.get(env.CAD_JOBS.idFromName(CAD_PRODUCTION_BUDGET_NAME)).fetch('https://cad/production-model-reservation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:job.id,boardId:job.boardId,ownerOrg:job.owner.org,ownerEmail:job.owner.email,limitUsd:job.limits.usd,deadline:job.deadline})});
  const result=await response.json().catch(()=>null);if(!response.ok||result?.reserved!==true)throw problem(result?.error||'The global CAD model reservation failed.',response.ok?503:response.status);return result;
+}
+
+export async function pauseCadProductionTransfer(storage,env,{now=Date.now()}={}){
+ cadProductionConfig(env);
+ const ledger=await storage.get(CAD_PRODUCTION_BUDGET_KEY)||{version:1,months:{}};
+ ledger.transferPause={month:new Date(now).toISOString().slice(0,7),at:now};
+ await storage.put(CAD_PRODUCTION_BUDGET_KEY,ledger);
+ return{paused:true,month:ledger.transferPause.month,reason:'monthly_transfer_limit'};
+}
+export async function reportCadProductionTransferPause(env){
+ cadProductionConfig(env);
+ if(!env.CAD_JOBS)throw problem('The global CAD model ledger is unavailable.');
+ const response=await env.CAD_JOBS.get(env.CAD_JOBS.idFromName(CAD_PRODUCTION_BUDGET_NAME)).fetch('https://cad/production-transfer-pause',{method:'POST'});
+ if(!response.ok)throw problem('The global CAD transfer pause could not be recorded.');
 }
