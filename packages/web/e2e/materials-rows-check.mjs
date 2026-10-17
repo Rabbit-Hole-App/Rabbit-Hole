@@ -278,7 +278,7 @@ await check('Materials lists every document as its own row with the four actions
   const upload = await page.locator('[data-materials-upload]').evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
   assert.deepEqual(upload, ['rgb(23, 108, 206)', 'rgb(255, 255, 255)'], `the blue Upload with a white label: ${upload}`);
   const meta = await row(A).locator('[data-material-meta]').innerText();
-  assert.match(meta, /^PDF/, `the row says its kind: ${meta}`);
+  assert.match(meta, /^PDF · /, `the row says its kind: ${meta}`);
   assert.equal(await page.locator('[data-source-add-canvas]').count(), 0, 'no document action is left in the header');
   // Names: tooltips and accessible names say the document and the scope.
   const labels = async doc => Object.fromEntries(await Promise.all(['context', 'canvas', 'chat', 'remove'].map(async name => [name, [await action(doc, name).getAttribute('title'), await action(doc, name).getAttribute('aria-label')]])));
