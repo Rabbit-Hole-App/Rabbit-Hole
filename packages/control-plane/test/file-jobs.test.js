@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { fileJobsRoute, stepJob, FileJobs, LIMITS, callbackToken } from '../src/file-jobs.js';
+import { fileJobsRoute, stepJob, FileJobs, LIMITS, callbackToken, cleanupJob, optionsHash, RETENTION_MS } from '../src/file-jobs.js';
 import { memoryBucket } from './live-storage-spy.js';
+import { jobOptionsHash } from '../../web/src/file-jobs-client.js';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const SOURCE_BYTES = new TextEncoder().encode('PK fake pptx bytes');
@@ -313,9 +314,13 @@ test('the Durable Object stores its job and re-arms until the job settles', asyn
   await new FileJobs({ storage: memo }, f.env).alarm();
   assert.equal(f.job(job.id).state, 'validating');
   assert.ok(f.alarms.get(job.id) > Date.now(), 're-armed while active');
-  f.sqlite.prepare("UPDATE file_jobs SET state = 'ready' WHERE id = ?").run(job.id);
+  f.sqlite.prepare("UPDATE file_jobs SET state = 'ready', finished_at = ? WHERE id = ?").run(Date.now(), job.id);
   await new FileJobs({ storage: memo }, f.env).alarm();
-  assert.equal(await memo.get('id'), undefined, 'a settled job clears its object');
+  assert.equal(await memo.get('id'), job.id, 'a settled job keeps its object for the retention look');
+  assert.ok(f.alarms.get(job.id) > Date.now() + RETENTION_MS - 60_000, 'next alarm is the retention cleanup');
+  f.sqlite.prepare('UPDATE file_jobs SET finished_at = ? WHERE id = ?').run(Date.now() - RETENTION_MS - 1, job.id);
+  await new FileJobs({ storage: memo }, f.env).alarm();
+  assert.equal(await memo.get('id'), undefined, 'after cleanup the object is cleared');
 });
 
 test('without converter configuration the job fails truthfully instead of looping', async t => {
@@ -324,4 +329,70 @@ test('without converter configuration the job fails truthfully instead of loopin
   delete f.env.CONVERT_URL;
   assert.equal(await f.step(job.id, T0), null);
   assert.equal(f.job(job.id).state, 'failed'); assert.equal(f.job(job.id).error, 'File conversion is not configured on this server.');
+});
+
+test('retention: staged outputs of superseded and failed attempts go 24 h after settling; the committed attempt and file-sources stay', async t => {
+  const f = fixture(t);
+  const { job } = await (await f.submit()).json();
+  await f.step(job.id, T0);
+  await f.output(job.id, 1, 'preview.pdf', f.PDF); // attempt 1 dies after one output
+  await f.step(job.id, T0 + LIMITS.leaseMs + 1);
+  await f.step(job.id, T0 + LIMITS.leaseMs + 1 + LIMITS.backoffMs);
+  const done = T0 + LIMITS.leaseMs + 10_000;
+  assert.equal((await f.finish(job.id, 2, { now: done })).status, 200);
+  const keys = () => [...f.bucket.objects.keys()].sort();
+  const before = keys();
+  assert.ok(before.includes(`file-jobs/${job.id}/1/preview.pdf`));
+  assert.ok(await cleanupJob(f.env, job.id, done + RETENTION_MS - 1) > 0, 'not before 24 h');
+  assert.deepEqual(keys(), before);
+  assert.equal(await cleanupJob(f.env, job.id, done + RETENTION_MS), null);
+  const after = keys();
+  assert.deepEqual(before.filter(k => !after.includes(k)), [`file-jobs/${job.id}/1/preview.pdf`], 'only the superseded attempt');
+  assert.ok(after.includes(`file-jobs/${job.id}/2/preview.pdf`) && after.includes(`file-jobs/${job.id}/2/slide-001.png`), 'the committed attempt is kept');
+  assert.ok(after.filter(k => k.startsWith('file-sources/')).length === 3, 'the original and both derivatives are untouched');
+  // A failed job loses its final attempt's staging too; an unsettled job is never cleaned.
+  const { job: failing } = await (await f.submit({ card: 'card-f', idempotency_key: 'import:card-f:slides' })).json();
+  await f.step(failing.id, T0);
+  await f.output(failing.id, 1, 'preview.pdf', f.PDF);
+  assert.equal(await cleanupJob(f.env, failing.id, T0 + 2 * RETENTION_MS), null);
+  assert.ok(keys().includes(`file-jobs/${failing.id}/1/preview.pdf`), 'an active job keeps its staging');
+  await f.cb(failing.id, 1, 'fail', { error: 'too_complex', retryable: false });
+  await cleanupJob(f.env, failing.id, T0 + RETENTION_MS + 1);
+  assert.equal(keys().some(k => k.startsWith(`file-jobs/${failing.id}/`)), false);
+  assert.ok(keys().includes(`file-sources/${SOURCE}/original`));
+});
+
+test('derivatives by source revision: a fork and a link viewer see ready results; a stranger and a revoked link get 404', async t => {
+  const f = fixture(t);
+  const rev = sha(SOURCE_BYTES), options = await optionsHash({});
+  assert.equal(await jobOptionsHash({ width: 1280, from: 1 }), await optionsHash({ from: 1, width: 1280 }), 'browser and server hash options alike');
+  const path = (q = '') => `/api/learn/files/sources/${SOURCE}/derivatives?sha=${rev}&converter=slides&options=${options}${q}`;
+  const card = { id: 'card-1', type: 'pdf', fileRef: { v: 1, source: { id: SOURCE, rev }, family: 'presentation', job: null } };
+  f.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = 7').run(JSON.stringify({ blocks: [card] }));
+  f.sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, updated_at) VALUES('f1', 'team', 'forker@test', 'canvas-fork', 'main', ?, datetime('now'))").run(JSON.stringify({ blocks: [card] }));
+  f.sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, updated_at) VALUES('s1', 'team', 'stranger@test', 'canvas-own', 'main', '{\"blocks\":[]}', datetime('now'))").run();
+  const fork = q => f.send(path(q), { headers: { 'x-email': 'forker@test' } });
+  // Before the job commits nothing is ready: the forked card shows its "Converting in the original canvas" state.
+  assert.deepEqual((await (await fork('&app=canvas-fork')).json()).derivatives, []);
+  const { job } = await (await f.submit()).json();
+  await f.step(job.id, T0);
+  await f.cb(job.id, 1, 'progress', { stage: 'converting' });
+  assert.deepEqual((await (await fork('&app=canvas-fork')).json()).derivatives, [], 'pending work is not listed');
+  await f.finish(job.id, 1);
+  const listed = (await (await fork('&app=canvas-fork')).json()).derivatives;
+  assert.deepEqual(listed.map(d => [d.name, d.kind]), [['preview.pdf', 'preview'], ['slide-001.png', 'slide']]);
+  assert.equal(listed[0].coverage.coverage.text, 'extracted');
+  // The owner, with or without a board.
+  assert.equal((await (await f.send(path())).json()).derivatives.length, 2);
+  // A stranger: own board without the card, someone else's board name, or no board at all.
+  for (const q of ['&app=canvas-own', '&app=canvas-fork', ''])
+    assert.equal((await f.send(path(q), { headers: { 'x-email': 'stranger@test' } })).status, 404, q || 'no board');
+  // A link viewer while the link is on, then revoked.
+  const share = `&share=${'v'.repeat(24)}`;
+  assert.equal((await (await f.send(path(share), { headers: { 'x-email': 'stranger@test' } })).json()).derivatives.length, 2);
+  f.sqlite.prepare('UPDATE learn_boards SET shared = 0 WHERE id = 7').run();
+  assert.equal((await f.send(path(share), { headers: { 'x-email': 'stranger@test' } })).status, 404);
+  // Another revision lists nothing; missing parameters are refused.
+  assert.deepEqual((await (await f.send(path().replace(rev, 'b'.repeat(64)))).json()).derivatives, []);
+  assert.equal((await f.send(`/api/learn/files/sources/${SOURCE}/derivatives?sha=${rev}`)).status, 400);
 });

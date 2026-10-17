@@ -185,6 +185,31 @@ export async function stepJob(env, id, memo, now = Date.now()) {
   return delay;
 }
 
+// ---- retention: the staged outputs of failed or superseded attempts (file-jobs/<job>/<attempt>/*) are deleted once the job
+// has been settled for RETENTION; the committed attempt's staging is kept. Driven by the job's own alarm, never cron, and
+// limited to this job's staging prefix: file-sources/* is never listed or deleted here. Returns the delay to the next
+// look, or null when nothing is left to do.
+export const RETENTION_MS = 24 * 60 * 60 * 1000;
+export async function cleanupJob(env, id, now = Date.now()) {
+  const row = await jobRow(env.LEARN_DB, id);
+  if (!row || !TERMINAL.includes(row.state)) return null;
+  const due = (row.finished_at || row.updated_at || now) + RETENTION_MS;
+  if (now < due) return due - now;
+  const prefix = `file-jobs/${row.id}/`, bucket = learnMedia(env), doomed = [];
+  const failedFinal = row.state === 'failed' || row.state === 'cancelled';
+  let cursor;
+  do {
+    const page = await bucket.list({ prefix, cursor });
+    for (const { key } of page.objects) {
+      const attempt = Number(key.slice(prefix.length).split('/')[0]);
+      if (key.startsWith(prefix) && Number.isInteger(attempt) && (attempt < row.attempt || (attempt === row.attempt && failedFinal))) doomed.push(key);
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  for (let i = 0; i < doomed.length; i += 1000) await bucket.delete(doomed.slice(i, i + 1000));
+  return null;
+}
+
 export class FileJobs {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(req) {
@@ -201,7 +226,7 @@ export class FileJobs {
     // A throw (D1 or R2 unavailable) leaves the lease to expire; the job's own re-arm below keeps it alive past the
     // platform's alarm retries, and the next step recovers.
     let delay;
-    try { delay = await stepJob(this.env, id, this.state.storage); }
+    try { delay = await stepJob(this.env, id, this.state.storage); if (delay == null) delay = await cleanupJob(this.env, id); }
     catch (error) { console.error('file job step failed', id, error?.message); delay = 30_000; }
     if (delay != null) await this.state.storage.setAlarm(Date.now() + delay);
     else await this.state.storage.deleteAll();
@@ -255,7 +280,7 @@ async function complete(env, row, attempt, manifest, now) {
     const staged = await bucket.head(stagingKey(row.id, attempt, o.name));
     if (staged?.customMetadata?.sha256 !== o.sha256 || Number(staged.customMetadata.bytes) !== o.bytes) return json({ error: `Output ${o.name} is missing or differs` }, 422);
   }
-  const optionsHash = await sha256(row.options_json || '{}'), coverage = manifest.coverage && typeof manifest.coverage === 'object' ? manifest.coverage : null;
+  const optionsKey = await sha256(row.options_json || '{}'), coverage = manifest.coverage && typeof manifest.coverage === 'object' ? manifest.coverage : null;
   // Copy to the source's derivative keys before the commit. A derivative id is per attempt, so a copy never overwrites a
   // committed object; until the batch below no row points at it, so a crash here leaves nothing anyone reads.
   const rows = [];
@@ -275,11 +300,11 @@ async function complete(env, row, attempt, manifest, now) {
     ...rows.map(o => db.prepare(`INSERT OR IGNORE INTO file_derivatives(id, source_id, source_sha256, kind, name, converter, converter_version, options_hash, status,
         media_type, bytes, sha256, r2_key, coverage_json, created_at, updated_at)
       SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ? WHERE ${live}`)
-      .bind(o.id, row.source_id, row.source_sha256, o.kind, o.name, row.converter, manifest.converter_version, optionsHash, o.media_type, o.bytes, o.sha256, o.key, o.coverage_json, now, now, row.id, attempt)),
+      .bind(o.id, row.source_id, row.source_sha256, o.kind, o.name, row.converter, manifest.converter_version, optionsKey, o.media_type, o.bytes, o.sha256, o.key, o.coverage_json, now, now, row.id, attempt)),
     db.prepare(`UPDATE file_jobs SET state = ?, stage = ?, converter_version = ?, limitations_json = ?, lease_until = NULL, finished_at = ?, updated_at = ?,
         derivative_ids_json = (SELECT json_group_array(id) FROM (SELECT id FROM file_derivatives WHERE source_id = ? AND source_sha256 = ? AND converter_version = ? AND options_hash = ? AND name IN (${rows.map(() => '?').join(',')}) ORDER BY name))
       WHERE id = ? AND attempt = ? AND cancel_requested = 0 AND state NOT IN ${TERMINAL_SQL}`)
-      .bind(state, state, manifest.converter_version, JSON.stringify(limitations), now, now, row.source_id, row.source_sha256, manifest.converter_version, optionsHash, ...rows.map(o => o.name), row.id, attempt),
+      .bind(state, state, manifest.converter_version, JSON.stringify(limitations), now, now, row.source_id, row.source_sha256, manifest.converter_version, optionsKey, ...rows.map(o => o.name), row.id, attempt),
   ]);
   return changed(results.at(-1)) ? json({ committed: true }) : stale();
 }
@@ -338,12 +363,41 @@ async function readable(req, env, row) {
   return blocks.some(b => b?.fileRef?.job === row.id && b.fileRef.source?.id === row.source_id);
 }
 
+// ---- a card's results without its job (lead ruling 2026-10-16): the ready derivatives of a source revision for one
+// converter and options hash. A fork or a member reads them through its own board ({row}), a link viewer through the link
+// ({token}); the job's own board is never required, so a fork shows results the original's job made.
+// GET /api/learn/files/sources/<source>/derivatives?sha=<rev>&converter=<c>&options=<hash>[&app=<app>&board=<board> | &share=<token>]
+export const optionsHash = options => sha256(canonical(options || {}));
+async function derivativesOf(req, env, sourceId) {
+  const q = new URL(req.url).searchParams, rev = q.get('sha'), name = q.get('converter'), options = q.get('options');
+  if (!HEX64.test(rev || '') || !Object.hasOwn(CONVERTERS, name) || !HEX64.test(options || '')) return json({ error: 'sha, converter and options are required' }, 400);
+  let through = {};
+  if (q.get('share')) through = { token: q.get('share') };
+  else if (q.get('app')) {
+    const user = await repositoryIdentity(req, env);
+    if (user instanceof Response) return user;
+    // ponytail: the requester's own board (theirs or their fork); a member reads through the canvas's share link.
+    const row = await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(user.org, user.email, q.get('app'), q.get('board') || 'main').first();
+    if (!row) return json({ error: 'Not available' }, 404);
+    through = { row };
+  }
+  const access = await authorizeFileSource(req, env, sourceId, through);
+  if (access instanceof Response) return access;
+  if (access.source.sha256 !== rev) return json({ derivatives: [] });
+  const { results } = await env.LEARN_DB.prepare(`SELECT id, kind, name, media_type, bytes, converter_version, coverage_json FROM file_derivatives
+      WHERE source_id = ? AND source_sha256 = ? AND converter = ? AND options_hash = ? AND status = 'ready' ORDER BY converter_version, name`)
+    .bind(sourceId, rev, name, options).all();
+  return json({ derivatives: results.map(({ coverage_json, ...d }) => ({ ...d, coverage: JSON.parse(coverage_json || 'null') })) });
+}
+
 const JOB = '(fj_[a-f0-9]{24})';
 export async function fileJobsRoute(path, req, env, now = Date.now()) {
   const submitting = path.match(/^\/api\/learn\/files\/(fs_[a-f0-9]{24})\/jobs$/);
   const viewing = path.match(new RegExp(`^/api/learn/files/jobs/${JOB}(?:/(cancel|retry))?$`));
   const calling = path.match(new RegExp(`^/api/learn/files/jobs/${JOB}/(?:(source)|attempts/(\\d{1,3})/(progress|complete|fail|outputs)(?:/([^/]+))?)$`));
-  if (!submitting && !viewing && !calling) return null;
+  const listing = path.match(/^\/api\/learn\/files\/sources\/(fs_[a-f0-9]{24})\/derivatives$/);
+  if (!submitting && !viewing && !calling && !listing) return null;
+  if (listing) return listing && req.method === 'GET' ? derivativesOf(req, env, listing[1]) : json({ error: 'Method not allowed' }, 405);
   if (!env.LEARN_DB || !env.FILE_JOBS || !learnMedia(env)) return json({ error: 'File conversion is not available on this server.' }, 503);
   if (calling) {
     const [, id, source, n, action, name] = calling;

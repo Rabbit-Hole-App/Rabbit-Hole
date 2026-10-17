@@ -66,3 +66,19 @@ export function watchFileJobs({ blocks, fetchImpl, onJob, share = null, interval
     stop() { stopped = true; for (const t of timersById.values()) timers.clearTimeout(t); timersById.clear(); },
   };
 }
+
+// A card's results without its job (lead ruling 2026-10-16): a forked or shared card finds the ready derivatives of its
+// source revision for its family's converter and options. None yet: the card shows FORK_PENDING_LABEL, never a new job.
+export const FORK_PENDING_LABEL = 'Converting in the original canvas';
+// The same hash the server stores as file_derivatives.options_hash (file-jobs.js optionsHash).
+export async function jobOptionsHash(options = {}) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(options, Object.keys(options).sort())));
+  return [...new Uint8Array(bytes)].map(n => n.toString(16).padStart(2, '0')).join('');
+}
+export async function fetchDerivatives(fetchImpl, { sourceId, rev, converter, options = {}, app = null, board = 'main', share = null }) {
+  const q = new URLSearchParams({ sha: rev, converter, options: await jobOptionsHash(options) });
+  if (share) q.set('share', share); else if (app) { q.set('app', app); q.set('board', board); }
+  const r = await fetchImpl(`/api/learn/files/sources/${sourceId}/derivatives?${q}`);
+  if (!r.ok) return null; // not readable from here: the card keeps its fallback, never retries as an import
+  return (await r.json()).derivatives;
+}

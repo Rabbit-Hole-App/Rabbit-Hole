@@ -2,7 +2,7 @@
 // second import, stops at a settled state, and never applies a result to a card that was removed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { JOB_STAGE_LABELS, jobCards, jobIdempotencyKey, stageLabel, submitFileJob, watchFileJobs } from './file-jobs-client.js';
+import { FORK_PENDING_LABEL, JOB_STAGE_LABELS, fetchDerivatives, jobCards, jobIdempotencyKey, jobOptionsHash, stageLabel, submitFileJob, watchFileJobs } from './file-jobs-client.js';
 
 const card = (id, job, source = 'fs_' + 'a'.repeat(24)) => ({ id, type: 'pdf', fileRef: { v: 1, source: { id: source, rev: 'f'.repeat(64) }, family: 'presentation', job } });
 // Timers the test advances by hand.
@@ -71,4 +71,16 @@ test('submit carries one idempotency key per card, converter and source revision
   assert.equal(sent[0].body.idempotency_key, jobIdempotencyKey({ cardId: 'card 1', converter: 'slides', sourceRev: 'f'.repeat(64) }));
   assert.match(sent[0].body.idempotency_key, /^[A-Za-z0-9:_.-]{8,128}$/);
   assert.equal(sent[0].url, `/api/learn/files/${args.sourceId}/jobs`);
+});
+
+test('a forked card asks for its results by source revision through its own board, and a pending result is labelled', async () => {
+  const urls = [];
+  const fetchImpl = async url => { urls.push(url); return { ok: true, json: async () => ({ derivatives: [] }) }; };
+  const got = await fetchDerivatives(fetchImpl, { sourceId: 'fs_' + 'a'.repeat(24), rev: 'f'.repeat(64), converter: 'slides', app: 'canvas-fork' });
+  assert.deepEqual(got, []);
+  const q = new URL(urls[0], 'https://x').searchParams;
+  assert.equal(q.get('app'), 'canvas-fork'); assert.equal(q.get('options'), await jobOptionsHash({}));
+  assert.equal(FORK_PENDING_LABEL, 'Converting in the original canvas');
+  assert.equal(await fetchDerivatives(async () => ({ ok: false }), { sourceId: 'fs_x', rev: 'f', converter: 'slides', share: 't' }), null);
+  assert.equal(await jobOptionsHash({ b: 1, a: 2 }), await jobOptionsHash({ a: 2, b: 1 }));
 });
