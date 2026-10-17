@@ -16,6 +16,8 @@ const SNIFF = {
 const NONE = { store: false, preview: false, edit: false, download: false, context: false };
 const planned = (id, label, lane, extensions, notes) => ({ id, label, lane, status: 'planned', extensions, mime: [], sniff: null, card: null, chooser: null, route: null, can: NONE, limits: {}, notes });
 
+const MODEL_CAN = { store: true, preview: true, edit: false, download: true, context: false };
+const MODEL_LIMITS = { bytes: 25 * MiB, preview: { triangles: 1_000_000, vertices: 1_500_000, points: 1_600_000, splats: 1_500_000, textureBytes: 256 * MiB, nodes: 5000, accessorElements: 5_000_000 }, archiveEntries: 512, archiveBytes: 200 * MiB, archiveRatio: 200 };
 export const FAMILIES = [
   { id: 'image', label: 'Image', lane: 3, status: 'shipped', extensions: ['png', 'jpg', 'jpeg', 'webp'], mime: ['image/png', 'image/jpeg', 'image/webp'], sniff: SNIFF.image,
     card: 'file:image', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: false, context: true }, limits: { bytes: 5 * MiB },
@@ -45,11 +47,27 @@ export const FAMILIES = [
   planned('workbook', 'Workbook', 2, ['xlsx', 'xls'], 'lane 2'),
   planned('word', 'Word document', 2, ['docx', 'doc'], 'lane 2'),
   planned('presentation', 'Presentation', 2, ['pptx'], 'lane 2'),
-  planned('gltf', 'glTF scene', 4, ['glb', 'gltf'], 'GLB viewer exists (20 MiB), not wired to drop'),
-  planned('mesh', 'Mesh model', 4, ['obj', 'fbx', 'stl', '3mf'], 'lane 4'),
-  planned('cad', 'CAD model', 4, ['step', 'stp'], 'needs a native converter runtime'),
-  planned('ply', 'PLY', 4, ['ply'], 'mesh, point cloud or splat by schema'),
-  planned('splat', 'Gaussian splat', 4, ['splat', 'ksplat', 'spz', 'sog'], 'lane 4'),
+  // Lane 4 (model-import.js, ModelCard.jsx): route 'model' is the lazily loaded model importer (model-drop.js picks the
+  // drop). Structure is sniffed per extension client-side (model-formats.js); the server has no magic for these, so no
+  // family here is over the general cap. `context` is false: Ask lists a model card's name and declared counts only.
+  // Viewer budgets are the largest sizes measured at 60 fps on Intel integrated graphics (model-budget-measure.mjs).
+  { id: 'gltf', label: 'glTF scene', lane: 4, status: 'shipped', extensions: ['glb', 'gltf'], mime: ['model/gltf-binary', 'model/gltf+json'], sniff: null,
+    card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'glTF 2.0; .gltf with its .bin and textures as one card; meshopt decoded; Draco and KTX2 not decoded (shown as a preview limitation)' },
+  { id: 'mesh', label: 'Mesh model', lane: 4, status: 'shipped', extensions: ['obj', 'fbx', 'stl', '3mf'], mime: ['model/obj', 'model/stl', 'model/3mf'], sniff: null,
+    card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'OBJ+MTL+textures, FBX 7.x binary and ASCII, STL binary and ASCII, 3MF core (its unit shown); STL and 3MF turned Z-up' },
+  { id: 'cad', label: 'CAD model', lane: 4, status: 'shipped', extensions: ['step', 'stp'], mime: ['model/step'], sniff: null,
+    card: 'file:model', chooser: null, route: 'model', can: { ...MODEL_CAN, preview: false }, limits: MODEL_LIMITS, notes: 'original kept; preview mesh awaits the step-glb converter job' },
+  { id: 'ply', label: 'PLY', lane: 4, status: 'shipped', extensions: ['ply'], mime: [], sniff: null,
+    card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'header decides mesh, point cloud or Gaussian splat; inconsistent schemas refused' },
+  { id: 'splat', label: 'Gaussian splat', lane: 4, status: 'shipped', extensions: ['splat', 'ksplat', 'spz', 'sog'], mime: [], sniff: null,
+    card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'Spark 2.3.1: .splat, .ksplat, .spz v1-3, .sog (and an unpacked SOG folder), splat PLY' },
+  // A model's own files: offered so Upload takes a .gltf with its parts; never a card alone (an unused one is refused).
+  { id: 'model-part', label: 'Model file', lane: 4, status: 'shipped', extensions: ['bin', 'mtl'], mime: [], sniff: null,
+    card: null, chooser: null, route: 'model', can: { store: true, preview: false, edit: false, download: true, context: false }, limits: { bytes: MODEL_LIMITS.bytes }, notes: 'a glTF buffer or an OBJ material library, stored with its model' },
+  // Its head sniff is the ZIP signature; the whole-archive check (guards plus a model or splat entry point) is
+  // model-formats.js modelPackageCheck, which the upload route can run on the full body.
+  { id: 'model-package', label: 'Model package', lane: 4, status: 'shipped', extensions: ['zip'], mime: ['application/zip'], sniff: b => b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04,
+    card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'a ZIP is opened only as a model or splat package: guarded (traversal, symlinks, bombs), a choice when it holds several models' },
 ];
 export const family = id => FAMILIES.find(f => f.id === id) || null;
 

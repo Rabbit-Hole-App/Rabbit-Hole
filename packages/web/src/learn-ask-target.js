@@ -38,6 +38,8 @@ export function describeCanvasObject(object) {
   }
   if (object.type === 'wiki') return { kind: 'Wikipedia', title: object.title, text: `Wikipedia article on the canvas: ${object.title}${object.section ? ` (section ${object.section})` : ''}`, material: 'wiki' };
   if (object.type === 'pdf') return { kind: 'PDF', title: object.label || 'PDF', text: `PDF on the canvas: ${object.label || 'untitled'}`, material: 'pdf' };
+  // An imported model (ModelCard.jsx): its name, format and the counts its file declares - never the geometry itself.
+  if (object.type === 'file' && object.kind === 'model') return { kind: '3D model', title: object.label || '3D model', text: modelText(object), material: 'file' };
   if (object.type === 'file') {
     const image = object.kind === 'image';
     return { kind: image ? 'Image' : 'File', title: object.label || (image ? 'Image' : 'File'), text: `${image ? 'Image' : 'File'} on the canvas: ${object.label || 'untitled'}`, material: 'file', ...(image && object.mediaId ? { image: object.mediaId } : {}) };
@@ -76,4 +78,12 @@ export function groupTargetText(entries) {
 // A YouTube moment card: { type: 'video', videoId, title, channel, start, end, unverified }.
 export function describeYouTube(block) {
   return `YouTube moment: ${block.title} (video ${block.videoId}${block.channel ? `, ${block.channel}` : ''}), window ${block.start || 0}s-${block.end != null ? `${block.end}s` : 'end'}${block.unverified ? ' (window unverified)' : ''}`;
+}
+
+// What the tutor is told about an imported model card: listed, not inspected (no rendering or geometry reaches it).
+function modelText(object) {
+  const m = object.model || {}, c = m.counts || {};
+  const counts = [c.triangles && `${c.triangles} triangles`, c.faces && `${c.faces} faces`, c.vertices && `${c.vertices} vertices`, c.points && `${c.points} points`, c.splats && `${c.splats} splats`].filter(Boolean).join(', ');
+  const kind = m.render === 'splat' ? 'Gaussian splat' : m.render === 'points' ? 'point cloud' : m.render === 'cad' ? 'CAD model' : '3D model';
+  return `${kind} on the canvas: ${object.label || 'untitled'}${m.format ? ` (.${m.format}${counts ? `, ${counts}` : ''}${m.units ? `, units ${m.units}` : ''})` : ''}. Only its name and these counts are known here; its shape was not inspected.`;
 }

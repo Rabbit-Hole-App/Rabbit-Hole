@@ -63,6 +63,7 @@ import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, dragSource, insertCodeCard, repoCodeCard } from './code-card.js';
 import { lazyFeature } from './lazy-feature.jsx';
+import { droppedFiles } from './model-drop.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -72,6 +73,7 @@ const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI
 const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
+const ModelCard = lazyFeature(() => import('./ModelCard.jsx'), 'The 3D viewer');
 const noop = () => {};
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -774,6 +776,9 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
+  // An imported 3D model, point cloud, splat or CAD model (ModelCard.jsx): the header strip moves it, the viewer is explicit.
+  if (block.type === 'file' && block.kind === 'model') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || 560} height={block.h || 460} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the 3D viewer…</p>}><ModelCard block={block} selected={selected} onChange={onChange} onSelect={onSelect} /></Suspense></CanvasNode>;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -3076,6 +3081,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // graph node act on the graph, never on canvas cards. So do a graph card's own controls (GraphCard.jsx): Delete on a focused
       // node never deletes the card; the card is deleted by selecting it as a canvas object.
       if (document.activeElement?.closest?.('[data-companion],[data-graph-card]')) return;
+      // An active 3D viewer (ModelCard.jsx) owns its keys too: Esc ends its interaction first, never the selection.
+      if (document.activeElement?.closest?.('[data-viewer-active]')) return;
       // A drag in progress owns Esc: it cancels the gesture (startDrag) and nothing else.
       if (gestureLive && event.key === 'Escape') return;
       // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;
@@ -4813,7 +4820,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         }}
         onDragOver={event => { if (!readOnlyRef.current && chatWorkspace?.canvasOps?.insertCard && [...(event.dataTransfer?.types || [])].includes(CODE_DRAG)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDropHover(true); return; } if (onDropFiles && isFileDrag(event.dataTransfer)) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
-        onDrop={event => { const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); onDropFiles([...event.dataTransfer.files], local(event)); }}
+        onDrop={event => { const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); const at = local(event); droppedFiles(event.dataTransfer).then(files => onDropFiles(files, at), problem => toast(problem.message)); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />
