@@ -360,7 +360,10 @@ To repack after a re-measure: update `durations.json` and `C`, then print the li
    stages. Existing conditional folders/share/project-menu checks remain.
 6. Require the exact candidate's `scripts/dev-deploy.mjs` gate verifier to
    accept the terminal log; additionally require routing and project-menu
-   counts and zero provider-tripwire hits. Cleanup failure invalidates pass.
+   counts and zero provider-tripwire hits (`phases.mjs` `extraReceipts`:
+   answer-routing at least 15; project-menu every check it declares, its own
+   printed `N/N checks passed` total, never a number fixed here). Cleanup
+   failure invalidates pass.
 
 `source-manifest.json` records original helper hashes and portable template
 hashes. Preparation replaces machine paths, wraps existing commands for

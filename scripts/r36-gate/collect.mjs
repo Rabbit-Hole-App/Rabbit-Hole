@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { SHARDS, UNIT_STAGES, PARTS, mergeShards, retriedStages } from './shards.mjs';
-import { prerequisite } from './phases.mjs';
+import { prerequisite, extraReceipts } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
 import { awaitVerify } from './verify-check.mjs';
 import { pickAttempts, runJobs } from './attempts.mjs';
@@ -88,9 +88,7 @@ if ([units, ...shards].every(s => s.log !== null)) {
     // Identical to run.mjs's gate phase verdict.
     const { gateVerdict, stageCount } = await import(pathToFileURL(join(app, 'scripts/dev-deploy.mjs')));
     verdict = gateVerdict(record, APP_TREE, inTree);
-    const last = name => [...record.matchAll(new RegExp(`^${name} exit (\\d+)\\b(.*)$`, 'gm'))].at(-1);
-    const routing = last('answer-routing'), project = last('project-menu');
-    extraPassed = routing?.[1] === '0' && stageCount(routing[2]) >= 15 && project?.[1] === '0' && stageCount(project[2]) === 12 && /^answer-routing provider-tripwire hits: 0\r?$/m.test(record) && /^project-menu provider-tripwire hits: 0\r?$/m.test(record);
+    extraPassed = extraReceipts(record, stageCount);
     if (verdict || !extraPassed) failures.push(`complete gate rejected: ${verdict || 'routing/project-menu receipts missing'}`);
   } catch (error) { verdict = `not computed: ${error.message}`; failures.push(`merge: ${error.message}`); }
 }

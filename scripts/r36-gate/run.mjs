@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, appen
 import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SOURCE, prepare, files, sha256 } from './prepare.mjs';
-import { prerequisite, keepsProbeStack } from './phases.mjs';
+import { prerequisite, keepsProbeStack, extraReceipts } from './phases.mjs';
 import { SHARDS, CONDITIONAL, canary } from './shards.mjs';
 import { runBounded } from './bounded.mjs';
 
@@ -192,9 +192,7 @@ try {
   const {gateVerdict,stageCount}=await import(pathToFileURL(join(app,'scripts/dev-deploy.mjs')));
   const record=readFileSync(join(out,'gate.log'),'utf8');
   const verdict=gateVerdict(record,APP_TREE,inTree);
-  const last=name=>[...record.matchAll(new RegExp(`^${name} exit (\\d+)\\b(.*)$`,'gm'))].at(-1);
-  const routing=last('answer-routing'),project=last('project-menu');
-  const extraPassed=routing?.[1]==='0'&&stageCount(routing[2])>=15&&project?.[1]==='0'&&stageCount(project[2])===12&&/^answer-routing provider-tripwire hits: 0\r?$/m.test(record)&&/^project-menu provider-tripwire hits: 0\r?$/m.test(record);
+  const extraPassed=extraReceipts(record,stageCount);
   writeFileSync(join(out,'gate-verdict.json'),JSON.stringify({applicationSha:APP_SHA,applicationTree:APP_TREE,harnessSha:actualHarness,gateVerdict:verdict,extraPassed,pass:verdict===null&&extraPassed},null,2));
   if(verdict||!extraPassed)throw Error(`Complete gate rejected: ${verdict||'routing/project-menu receipts missing'}`);
   }
