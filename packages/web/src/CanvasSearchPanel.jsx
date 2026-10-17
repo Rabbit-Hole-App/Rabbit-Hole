@@ -22,7 +22,7 @@ function Preview({ result, getPreview, canvasKey }) {
     return () => { cancelled = true; if (owned) URL.revokeObjectURL(owned); };
   }, [canvasKey, result.previewKey, getPreview]);
   const Icon = iconOf(result);
-  return <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md bg-hover p-2" aria-hidden>
+  return <div className="flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-md bg-hover p-2" aria-hidden>
     {preview ? <img src={preview.src} alt="" className="h-full w-full object-contain" /> : <div className="flex min-w-0 flex-col items-center gap-2 text-ink-3"><Icon size={24} strokeWidth={1.4} /><span className="line-clamp-3 break-words text-center text-xs">{result.snippet?.hit || result.snippet?.after || result.title}</span></div>}
   </div>;
 }
@@ -87,20 +87,20 @@ export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query =
           const refs = result.references || [], children = result.rabbitHoles || [];
           return <li key={result.id} aria-posinset={index + 1} aria-setsize={results.length} data-search-result={result.id} className="absolute overflow-hidden pb-2" style={{ top: Math.floor(index / layout.columns) * layout.rowHeight, left: `calc(${index % layout.columns} * (100% + 8px) / ${layout.columns})`, width: `calc((100% - ${(layout.columns - 1) * 8}px) / ${layout.columns})`, height: layout.rowHeight }}>
             <div className={`flex h-full flex-col rounded-lg border p-2 ${selected ? 'border-ink-3 bg-hover' : 'border-line'}`}>
-              <button type="button" data-find-match={result.objectId} data-search-index={index} aria-current={selected ? 'true' : undefined} className={`${button} min-h-0 flex-1 text-left`} onClick={() => activate(index)} onKeyDown={event => {
+              <button type="button" data-find-match={result.objectId} data-search-index={index} aria-current={selected ? 'true' : undefined} className={`${button} flex min-h-0 flex-1 flex-col items-stretch justify-start text-left`} onClick={() => activate(index)} onKeyDown={event => {
                 const next = searchKeyIndex(event.key, index, results.length, layout.columns);
                 if (next !== null) { event.preventDefault(); event.stopPropagation(); if (next >= 0) { onActiveIdChange?.(results[next].id); reveal(next, true); } }
                 if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
               }}>
                 {!rows && <Preview key={`${canvasKey}:${result.previewKey || result.id}`} result={result} getPreview={getPreview} canvasKey={canvasKey} />}
-                <span className="mt-1 block truncate text-sm font-medium text-ink" title={result.title}>{result.title || 'Untitled object'}</span>
-                <span className="block truncate text-[10px] text-ink-3">{location || result.kind}{refs.length ? ` · ${refs.length} ${[...new Set(refs.map(ref => ref.kind || 'source'))].join('/')} reference${refs.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
-                <span className="line-clamp-2 break-words text-xs text-ink-2">{snippet.before}{snippet.hit && <mark className="rounded-sm bg-[#ddd6fe] text-ink">{snippet.hit}</mark>}{snippet.after}</span>
-                {result.availability?.status !== 'ready' && result.availability?.message && <span className="block truncate text-[10px] text-ink-3" title={result.availability.message}>{result.availability.message}</span>}
+                <span className="mt-1 block shrink-0 truncate text-sm font-medium text-ink" title={result.title}>{result.title || 'Untitled object'}</span>
+                <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3">{location || result.kind}{refs.length ? ` · ${refs.length} ${[...new Set(refs.map(ref => ref.kind || 'source'))].join('/')} reference${refs.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
+                <span className="line-clamp-2 shrink-0 break-words text-xs text-ink-2">{snippet.before}{snippet.hit && <mark className="rounded-sm bg-[#ddd6fe] text-ink">{snippet.hit}</mark>}{snippet.after}</span>
+                {result.availability?.status !== 'ready' && result.availability?.message && <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3" title={result.availability.message}>{result.availability.message}</span>}
               </button>
               {(refs.length > 0 || children.length > 0) && <div className="mt-1 flex max-h-10 shrink-0 gap-1 overflow-x-auto border-t border-line pt-1">
-                {refs.map((reference, at) => <button key={`ref:${reference.id || at}`} type="button" disabled={reference.unavailable} title={reference.unavailable ? 'Source unavailable' : `Open ${labelOf(reference)}`} onClick={() => onOpenAction?.(result, { kind: 'reference', reference })} className={`${button} flex max-w-full shrink-0 items-center gap-1 bg-hover px-1.5 py-1 text-[10px] text-ink-2`}><Link2 size={11} aria-hidden /><span className="max-w-24 truncate">{reference.unavailable ? 'Unavailable' : `Open ${labelOf(reference)}`}</span></button>)}
-                {children.map((rabbitHole, at) => <button key={`child:${rabbitHole.name || at}`} type="button" title={rabbitHole.title || rabbitHole.name} onClick={() => onOpenAction?.(result, { kind: 'rabbit-hole', rabbitHole })} className={`${button} shrink-0 bg-hover px-1.5 py-1 text-[10px] text-ink-2`}>Open Rabbit Hole</button>)}
+                {refs.map((reference, at) => <button key={`ref:${reference.id || at}`} type="button" disabled={reference.unavailable} title={reference.unavailable ? 'Source unavailable' : `Open ${labelOf(reference)}`} onClick={() => onOpenAction?.(result, { kind: 'reference', reference })} className={`${button} flex max-w-full shrink-0 items-center gap-1 bg-hover px-1.5 py-1 text-[10px] leading-3 text-ink-2`}><Link2 size={11} aria-hidden /><span className="max-w-24 truncate">{reference.unavailable ? 'Unavailable' : `Open ${labelOf(reference)}`}</span></button>)}
+                {children.map((rabbitHole, at) => <button key={`child:${rabbitHole.name || at}`} type="button" title={rabbitHole.title || rabbitHole.name} onClick={() => onOpenAction?.(result, { kind: 'rabbit-hole', rabbitHole })} className={`${button} shrink-0 bg-hover px-1.5 py-1 text-[10px] leading-3 text-ink-2`}>Open Rabbit Hole</button>)}
               </div>}
             </div>
           </li>;
