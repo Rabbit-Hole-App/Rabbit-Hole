@@ -31,9 +31,9 @@ test('.ipynb, .py and common code files are imports, any case; the choices are t
 test('empty and oversized files are refused with a line that names the file and the limit', () => {
   assert.deepEqual(checkImport(file('a.ipynb')), { kind: 'ipynb' });
   assert.equal(checkImport(file('a.ipynb', 0)).error, 'a.ipynb: the file is empty');
-  assert.equal(checkImport(file('big.py', IMPORT_LIMIT + 1)).error, 'big.py is 25.0 MB; files up to 25 MB can be added to a canvas');
+  assert.equal(checkImport(file('big.py', IMPORT_LIMIT + 1)).error, 'big.py is 25.0 MiB; files up to 25 MiB can be added to a canvas');
   assert.match(checkImport(file('page.bin')).error, /^page\.bin: add a \.ipynb notebook, a \.py file or another code file$/);
-  assert.deepEqual(checkImport(file('big.js', IMPORT_LIMIT)), { kind: 'code' }, 'a code file takes the same 25 MB limit');
+  assert.deepEqual(checkImport(file('big.js', IMPORT_LIMIT)), { kind: 'code' }, 'a code file takes the same 25 MiB limit');
 });
 
 test('a notebook keeps its cells and Markdown; saved outputs keep text and images, anything else becomes a visible line', () => {
@@ -107,7 +107,8 @@ test('every drop and every upload of a .ipynb or .py opens the one Add to canvas
   const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const page = read('./LearnPage.jsx'), canvas = read('./AdaptiveCanvas.jsx'), dialog = read('./FileImportDialog.jsx');
   assert.match(page, /if \(importKind\(file\.name\)\) \{\n\s+const \{ kind, error \} = checkImport\(file\);\n\s+if \(error\) toast\(error, \{ tone: 'error' \}\); else asked\.push\(\{ id: crypto\.randomUUID\(\), file, kind, at \}\);/);
-  assert.match(page, /accept="[^"]*\.ipynb,\.py"/, 'Insert > Upload a file offers them and goes through the same takeDrop');
+  // The picker's list is the capability registry's (file-capabilities.test.mjs proves it holds .ipynb, .py and the rest).
+  assert.match(page, /type="file" multiple accept=\{acceptList\(\)\}[^>]*\n\s+onChange=\{event => \{ takeDrop\(/, 'Insert > Upload a file offers them and goes through the same takeDrop');
   assert.match(page, /<FileImportDialog key=\{imports\[0\]\.id\} file=\{imports\[0\]\.file\} kind=\{imports\[0\]\.kind\}[^>]*onCancel=\{nextImport\} onConfirm=\{addImport\} \/>/);
   assert.match(canvas, /onDropFiles\(\[\.\.\.event\.dataTransfer\.files\], local\(event\)\)/, 'the drop point rides with the files');
   assert.match(canvas, /insertImported: \(block, at = null\) => \{/);
