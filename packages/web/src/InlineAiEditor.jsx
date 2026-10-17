@@ -1,3 +1,4 @@
+import { Md } from './Md.jsx';
 import { cardEditSelectionReason } from './inline-card-edit.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
@@ -55,6 +56,17 @@ const selectionKind = (target, board) => {
 
 // initialMode: 'edit' | 'explain' from the opener (the selection action bar's Quick Edit); else Edit for selected words,
 // Explain for objects.
+// Structured cards use the shared Markdown renderer, not serialized storage JSON. Native text edits keep their diff.
+function CardEditPreview({ fields, proposedOnly = false }) {
+  const text = (value, code) => code ? `\`\`\`\n${value}\n\`\`\`` : value;
+  return <div data-card-edit-preview className="space-y-3 text-left text-sm">
+    {fields.map(field => <section key={field.key} data-card-edit-field={field.key}>
+      <p className="mb-1 text-xs font-semibold text-ink-2">{field.label}</p>
+      {!proposedOnly && field.before && (field.before !== field.after || field.previousLabel !== field.label) && <details className="mb-1 text-ink-2"><summary className="cursor-pointer text-xs">Previous {field.previousLabel || field.label}</summary><Md text={text(field.before, field.code)} /></details>}
+      {field.after ? <div data-card-edit-after><Md text={text(field.after, field.code)} /></div> : <p className="text-xs text-ink-2">Removed</p>}
+    </section>)}
+  </div>;
+}
 export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
@@ -523,6 +535,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           return (preview.changes || []).map(change => {
             const at = place(change.id);
             if (!at) return null;
+            if (change.structured) return <div key={change.id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={change.id} data-card-edit-ghost className="absolute overflow-hidden rounded-md border border-dashed border-ai bg-white p-3 text-ink shadow-sm dark:bg-[#202020]" style={{ left: at.left, top: at.top, width: at.minWidth, height: at.minHeight }}>
+              <p className="mb-2 text-xs font-semibold text-ink-2">Proposed revision</p>
+              <CardEditPreview fields={change.fields} proposedOnly />
+            </div>;
             const styled = Object.fromEntries((change.style || []).map(([key, , after]) => [key, after]));
             const look = { fontSize: (styled.fontSize || 14) * z, fontWeight: styled.bold ? 700 : undefined, fontStyle: styled.italic ? 'italic' : undefined, textDecoration: styled.underline ? 'underline' : undefined, color: styled.textColor || undefined };
             return (
@@ -578,7 +594,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             {preview.summary && <p className="mb-1 text-ink-2">{preview.summary}</p>}
             {preview.changes.map(change => (
               <div key={change.id} data-inline-change={change.id} className="mb-1.5">
-                {change.before !== change.after && <>
+                {change.structured ? <CardEditPreview fields={change.fields} /> : change.before !== change.after && <>
                   <pre data-before className="whitespace-pre-wrap font-mono text-[12px] text-[#b42318] line-through decoration-[#b42318]/50">{change.before}</pre>
                   <pre data-after className="whitespace-pre-wrap font-mono text-[12px] text-[#1a7f37]">{change.after}</pre>
                 </>}

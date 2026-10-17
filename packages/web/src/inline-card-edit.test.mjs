@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardEditSpec, validateCardContent } from './inline-card-edit.js';
+import { cardEditSpec, validateCardContent, cardEditComparison, cardEditText } from './inline-card-edit.js';
 
 test('structured explanation edit preserves identity, provenance links and current layout', () => {
  const block = {id:'a',type:'explanation',title:'Title',body:'**Bold** $x$',more:[{label:'Why',text:'Detail'}],dx:12,cardLayout:{mode:'full',fullWidth:720},refs:[{id:'r'}]};
@@ -108,4 +108,18 @@ test('Markdown examples in snippet code, fenced code and inline code remain edit
   assert.equal(validateCardContent({type:'explanation',body:'Plain'},{body}).ok,true,body);
  }
  assert.equal(cardEditSpec({type:'explanation',body:'```md\n[label](url)\n```\nActual [claim](https://example.com)'}).ok,false);
+});
+
+test('structured preview exposes readable fields and original newlines rather than storage JSON', () => {
+ const before={title:'Old',body:'First\n\nSecond',more:[{label:'Details',text:'Old detail'}]};
+ const after={title:'New',body:'## Heading\n\n- Item $x$',more:[{label:'Reason',text:'New detail'}]};
+ const fields=cardEditComparison(before,after);
+ assert.equal(fields.find(field=>field.key==='body').before,'First\n\nSecond');
+ assert.equal(fields.find(field=>field.key==='body').after,'## Heading\n\n- Item $x$');
+ assert.equal(fields.find(field=>field.key==='section-0').previousLabel,'Details');
+ assert.equal(fields.find(field=>field.key==='section-0').label,'Reason');
+ const readable=cardEditText(after); assert.match(readable,/Body\n## Heading/); assert.doesNotMatch(readable,/"body":|\x5cn/);
+ const table=cardEditComparison({columns:['A','B'],rows:[['1','2']]},{columns:['A','B'],rows:[['3','4']]}).find(field=>field.key==='table');
+ assert.equal(table.after,'A | B\n--- | ---\n3 | 4');
+ assert.equal(cardEditComparison({code:'a\nb'},{code:'c\nd'})[0].code,true);
 });

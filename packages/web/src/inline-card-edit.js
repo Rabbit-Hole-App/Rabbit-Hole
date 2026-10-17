@@ -45,7 +45,25 @@ export function cardEditSpec(block) {
   if (!Object.keys(content).length || !structureSafe(content)) return fail('This card has content structure that cannot be rewritten safely. Explain is available.');
   return { ok: true, type: block.type, fields: Object.keys(content), content };
 }
-export const cardEditText = content => JSON.stringify(content, null, 2);
+export function cardEditFields(content = {}) {
+  const fields = [];
+  const labels = { title: 'Title', body: 'Body', brief: 'Introduction', caption: 'Caption', text: 'Text', code: 'Code' };
+  for (const [key, label] of Object.entries(labels)) if (Object.hasOwn(content, key)) fields.push({ key, label, text: content[key], code: key === 'code' });
+  if (Array.isArray(content.more)) content.more.forEach((section, index) => fields.push({ key: `section-${index}`, label: section.label || `Section ${index + 1}`, text: section.text }));
+  if (Array.isArray(content.columns)) {
+    const cell = value => String(value).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+    fields.push({ key: 'table', label: 'Table', text: [content.columns.map(cell).join(' | '), content.columns.map(() => '---').join(' | '), ...(content.rows || []).map(row => row.map(cell).join(' | '))].join('\n') });
+  }
+  return fields;
+}
+export const cardEditText = content => cardEditFields(content).map(field => `${field.label}\n${field.text}`).join('\n\n');
+export function cardEditComparison(before, after) {
+  const old = cardEditFields(before), next = cardEditFields(after);
+  return [...new Set([...old.map(field => field.key), ...next.map(field => field.key)])].map(key => {
+    const a = old.find(field => field.key === key), b = next.find(field => field.key === key);
+    return { key, label: b?.label || a.label, previousLabel: a?.label, before: a?.text ?? '', after: b?.text ?? '', code: b?.code || a?.code || false };
+  });
+}
 export function validateCardContent(block, content) {
   const spec = cardEditSpec(block);
   if (!spec.ok) return spec;

@@ -5,7 +5,7 @@
 // Pure: the canvas applies the transaction this returns in one undo step.
 import { reconcileRuns, runsOf, sliceRuns, spliceRuns, textPatch, fontSize as validSize, hexColor } from './learn-rich-text.js';
 import { TEXT_LEVELS } from './learn-style-panel.js';
-import { cardEditSpec, cardEditText, validateCardContent } from './inline-card-edit.js';
+import { cardEditSpec, cardEditText, cardEditComparison, validateCardContent } from './inline-card-edit.js';
 import { LIMITS } from './inline-ai-context.js';
 
 export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style', 'replace_card_content'];
@@ -142,7 +142,7 @@ export function wordDiff(before, after) {
 
 // What the preview shows for one change: before and after words, and which style keys moved.
 export function describeChange(change) {
-  if (change.field === 'cardContent') return { id: change.id, before: cardEditText(cardEditSpec(change.before).content), after: cardEditText(cardEditSpec(change.after).content), style: [], ...(change.before.type === 'snippet' && change.before.code !== change.after.code && change.before.output ? { notice: 'The previous code output will be cleared; the revised code has not been run.' } : {}) };
+  if (change.field === 'cardContent') return { id: change.id, structured: true, fields: cardEditComparison(cardEditSpec(change.before).content, cardEditSpec(change.after).content), before: cardEditText(cardEditSpec(change.before).content), after: cardEditText(cardEditSpec(change.after).content), style: [], ...(change.before.type === 'snippet' && change.before.code !== change.after.code && change.before.output ? { notice: 'The previous code output will be cleared; the revised code has not been run.' } : {}) };
   const field = change.field || 'text';
   const styleKeys = STYLE_KEYS.filter(key => change.before[key] !== change.after[key]);
   return { id: change.id, before: String(change.before[field] ?? ''), after: String(change.after[field] ?? ''), style: styleKeys.map(key => [key, change.before[key] ?? null, change.after[key] ?? null]) };
