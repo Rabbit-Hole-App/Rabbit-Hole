@@ -1,4 +1,4 @@
-// Keyless actual-app Search through the normal CSV/DOCX drop path. No parsed text or source routes are stubbed.
+// Keyless actual-app Search through the normal CSV/DOCX drop path. No parsed text is stubbed; the final recovery case aborts one original source route until Retry.
 // BASE=<local app> SMALL_CP=<local CP> VARS=<dev vars> CANDIDATE_SHA=<served SHA/dirt> OUT=<evidence> node e2e/canvas-search-files-check.mjs
 import { chromium } from '@playwright/test';
 import { unzipSync, zipSync, strFromU8, strToU8 } from 'three/addons/libs/fflate.module.js';
@@ -27,7 +27,7 @@ writeFileSync(resolve(OUT, 'search-deep.csv'), csv); writeFileSync(resolve(OUT, 
 const files = [{ name: 'search-deep.csv', type: 'text/csv', bytes: csv, token: CSV_TOKEN, kind: 'table' }, { name: 'search-deep.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', bytes: docx, token: DOCX_TOKEN, kind: 'document' }];
 const run = Date.now().toString(36), results = [], errors = [], models = [], traffic = [];
 const facts = { candidate: process.env.CANDIDATE_SHA || 'served candidate not supplied', base: BASE, run, fixtures: files.map(({ name, bytes }) => ({ name, bytes: bytes.length, sha256: sha(bytes) })), coverage: 'Already-parsed CSV rows and DOCX body text only; no OCR or new source reads initiated by Search.' };
-let browser, context, page, session, canvas, phase = 'initial', cards = [];
+let browser, context, page, session, canvas, phase = 'initial', cards = [], faultSource = null, faultRequests = 0;
 const until = async (read, message, timeout = 30000) => { const end = Date.now() + timeout; while (Date.now() < end) { if (await read()) return; await new Promise(done => setTimeout(done, 100)); } throw Error(message); };
 const api = async (path, method = 'GET', body) => {
   const response = await fetch(BASE + path, { method, headers: { cookie: `small_session=${session}`, origin: BASE, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -40,6 +40,7 @@ async function openFresh() {
   await context.route('**/*', route => {
     const req = route.request(), url = new URL(req.url());
     if (url.origin !== BASE && url.origin !== CP && !['blob:', 'data:'].includes(url.protocol)) return route.abort();
+    if (req.method() === 'GET' && url.pathname === faultSource) { faultRequests++; return route.abort('failed'); }
     if (url.pathname === '/api/learn/tutor/next-steps' || url.pathname === '/api/learn/next-steps') return route.fulfill({ json: { set_id: `search-files-${run}`, generated_at: new Date().toISOString(), options: [] } });
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method()) && MODEL.test(url.pathname)) { models.push(`${req.method()} ${url.pathname}`); return route.abort(); }
     return route.continue();
@@ -120,6 +121,28 @@ const tests = [
     assert.equal(errors.length, 0, errors.join('\n')); assert.equal(models.length, 0, models.join('\n'));
     await page.screenshot({ path: resolve(OUT, 'fresh-reload.png') });
   }],
+
+  ['failed original read exposes Search Retry and recovers real deep content without upload', async () => {
+    await context.close(); phase = 'recovery';
+    const file = files[0], block = cards.find(card => card.label === file.name);
+    faultSource = `/api/learn/files/${block.fileRef.source.id}`;
+    await openFresh();
+    await page.locator(`[data-block-id="${block.id}"] [data-file-doc-missing]`).waitFor();
+    assert.ok(faultRequests > 0, 'actual authorized original GET must hit the injected network failure');
+    await page.getByRole('tab', { name: 'Find text on canvas', exact: true }).click();
+    await panel().getByRole('textbox', { name: 'Find text on canvas', exact: true }).fill(file.token);
+    await until(async () => /^0 results$/.test(await panel().locator('[data-find-count]').innerText()), 'failed source must not expose stale deep content');
+    const retry = panel().getByRole('button', { name: 'Retry', exact: true }); await retry.waitFor();
+    const before = traffic.length; faultSource = null; await retry.click();
+    await searchSource(file, block);
+    const recovered = traffic.slice(before);
+    assert.ok(recovered.some(row => row.method === 'GET' && row.path === `/api/learn/files/${block.fileRef.source.id}`), 'Search Retry must reread the real original');
+    assert.equal(recovered.some(row => row.method === 'POST' && row.path === '/api/learn/files' || row.method === 'PUT' && /^\/api\/learn\/files\/fs_[^/]+$/.test(row.path)), false, 'Retry must not reupload');
+    assert.equal(errors.length, 0, errors.join('\n')); assert.equal(models.length, 0, models.join('\n'));
+    facts.recovery = { faultRequests, original: block.fileRef.source.id, traffic: recovered };
+    await page.screenshot({ path: resolve(OUT, 'source-retry-recovered.png') });
+  }],
+
 ];
 try {
   const response = await fetch(CP + '/test/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `search-files-${run}@example.com`, secret }) });

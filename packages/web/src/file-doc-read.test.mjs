@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileDocOriginal } from './file-doc-read.js';
+import { currentFileDocUnits, readFileDocOriginal } from './file-doc-read.js';
 const settle = () => new Promise(resolve => setImmediate(resolve));
 test('a rejected file read reports failure and a later Retry successfully reads the original', async () => {
   let attempts = 0; const states = [];
@@ -20,4 +20,14 @@ test('an unavailable read clears stale content and legacy text becomes a Blob', 
   assert.deepEqual(states[0], { status: 'missing', blob: null });
   readFileDocOriginal(async () => 'legacy original', value => states.push(value)); await settle();
   assert.equal(states[1].status, 'ready'); assert.equal(await states[1].blob.text(), 'legacy original');
+});
+
+test('retry loading, failure, and revision changes suppress prior parsed units', () => {
+  const blob = new Blob(['previous source']);
+  const units = { sourceKey: 'old@rev', blob, body: { units: [{ text: 'previous source' }] } };
+  const ready = { current: true, status: 'ready', blob };
+  assert.equal(currentFileDocUnits(ready, units, 'old@rev'), true);
+  for (const status of ['loading', 'failed', 'missing']) assert.equal(currentFileDocUnits({ ...ready, status }, units, 'old@rev'), false);
+  assert.equal(currentFileDocUnits(ready, units, 'new@rev'), false);
+  assert.equal(currentFileDocUnits({ ...ready, current: false }, units, 'old@rev'), false);
 });

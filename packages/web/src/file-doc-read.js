@@ -7,3 +7,8 @@ export function readFileDocOriginal(load, publish) {
   }, () => { if (active) publish({ status: 'failed', blob: null }); });
   return () => { active = false; };
 }
+
+// A retry or source revision must not advertise an older parse as ready.
+export function currentFileDocUnits(original, units, sourceKey) {
+  return original.current && original.status === 'ready' && units?.sourceKey === sourceKey && units.blob === original.blob;
+}

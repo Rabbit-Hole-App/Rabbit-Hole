@@ -18,7 +18,7 @@ import { selectionRef } from './selection-ref.js';
 import { wsHeaders } from './api.js';
 import { useSearchContent } from './canvas-search-content.jsx';
 import { searchSourceRecord } from './canvas-search-content.js';
-import { readFileDocOriginal } from './file-doc-read.js';
+import { currentFileDocUnits, readFileDocOriginal } from './file-doc-read.js';
 import { cn } from './ui.jsx';
 
 // The body of a lane 2 file card (docs/features/canvas-file-imports.md): a text, Markdown, table, workbook, Word document or
@@ -46,7 +46,8 @@ function useOriginal(block) {
     setState(previous => ({ key, attempt, status: 'loading', blob: previous.key === key ? previous.blob : null }));
     return readFileDocOriginal(() => loadSource(block), next => setState({ key, attempt, ...next }));
   }, [key, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { ...state, current: state.key === key && state.attempt === attempt, attempt, retry };
+  const current = state.key === key && state.attempt === attempt;
+  return { ...state, ...(current ? {} : { status: 'loading', blob: null }), current, attempt, retry };
 }
 
 // A parse of the original in the worker: { status: 'loading' | 'ready' | 'failed', result, error, code }.
@@ -130,12 +131,12 @@ export default function FileDocCard({ block, onChange }) {
   const [parseStatus, setParseStatus] = useState('loading');
   const searchKey = JSON.stringify([scopeQuery(), block.fileRef?.source, block.fileRef?.local, block.assetKey, extractionOptions(block)]);
   const searchSource = useMemo(() => {
-    const current = original.current && units?.sourceKey === searchKey && units.blob === original.blob;
-    const status = original.status === 'missing' ? 'unavailable' : original.status === 'failed' ? 'failed' : !original.current || (!current && parseStatus === 'ready') ? 'loading' : parseStatus;
+    const current = currentFileDocUnits(original, units, searchKey);
+    const status = original.status === 'missing' ? 'unavailable' : original.status === 'failed' ? 'failed' : !original.current || original.status === 'loading' || (!current && parseStatus === 'ready') ? 'loading' : parseStatus;
     return searchSourceRecord({ sourceKey: searchKey, retry: original.retry, status: current ? (units.body.complete ? 'ready' : 'partial') : status, ...(current ? units.body : {}) });
   }, [searchKey, original.current, original.status, original.blob, original.retry, units, parseStatus]);
   useSearchContent(block.id, searchSource);
-  useTextDerivative(block, update, units);
+  useTextDerivative(block, update, currentFileDocUnits(original, units, searchKey) ? units : null);
   const chat = useChatWorkspace();
   const Icon = ICON[block.kind] || FileText;
   const [meta, setMeta] = useState('');

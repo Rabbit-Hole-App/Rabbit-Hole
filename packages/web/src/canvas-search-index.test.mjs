@@ -147,3 +147,13 @@ test('canonical standalone refs array resolves the current title and focuses its
   assert.equal(hit.title, 'Resolved target title'); assert.equal(hit.objectId, 'standalone');
   assert.equal(hit.target.id, 'standalone'); assert.equal(hit.references.length, 1); assert.equal(hit.occurrenceCount, 1);
 });
+
+test('uploaded code preserves original filename after renaming without duplicates or denied metadata', () => {
+  const block = { id: 'uploaded', type: 'repo-code', title: 'Renamed analysis', source: { kind: 'upload', name: 'original-analysis.py' } };
+  const query = board => querySearchIndex(index(board), { query: 'original-analysis.py' });
+  assert.equal(query({ blocks: [block] }).results[0].occurrenceCount, 1);
+  assert.equal(query({ blocks: [{ ...block, title: block.source.name }] }).results[0].occurrenceCount, 1);
+  assert.equal(query({ blocks: [{ ...block, redacted: true }] }).results.length, 0);
+  const denied = index({ blocks: [block] }, { loadedContent: new Map([[block.id, { status: 'unavailable' }]]) });
+  assert.equal(querySearchIndex(denied, { query: 'original-analysis.py' }).results.length, 0);
+});

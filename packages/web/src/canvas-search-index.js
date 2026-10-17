@@ -65,9 +65,10 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
   } else content = fields('body', object.kind === 'equation' ? object.latex : object.text || object.label);
   if (content.length === 1 && content[0].text === title) content = [];
   const referenceFields = references.filter(ref => !ref.unavailable).flatMap((ref, i) => fields(`reference:${i}`, [object.type === 'canvas-ref' && ref.title === title ? '' : ref.title, ref.name, ref.path, ref.symbol, ref.page ? `page ${ref.page}` : '', ref.lines ? `lines ${ref.lines.join('-')}` : ''].filter(Boolean).join('\n'), 'reference'));
+  const sourceName = object.type === 'repo-code' && object.source?.kind === 'upload' && object.source.name !== title ? fields('name:source', string(object.source.name), 'metadata', { path: object.source.name }) : [];
   const sourceFields = loaded && ['ready', 'partial'].includes(loaded.status) ? array(loaded.units).flatMap((unit, i) => fields(`source:${i}`, unit.text, 'source', unit.loc)) : [];
   return { id: `object:${object.id}`, objectId: object.id, kind, ...(kind === 'card' ? { previewKey: object.id } : {}), title: title || (object.type === 'notebook' ? 'Notebook' : object.kind === 'equation' ? 'Equation' : kind === 'card' ? 'Card' : 'Text'), categories, references, rabbitHoles, availability: availabilityFor(object, loaded), sourceKey: loaded?.sourceKey,
-    target: { kind: 'object', id: object.id }, fields: [...fields('title', title), ...content, ...referenceFields, ...rabbitHoles.flatMap((child, i) => fields(`child:${i}`, child.title, 'reference')), ...sourceFields] };
+    target: { kind: 'object', id: object.id }, fields: [...fields('title', title), ...sourceName, ...content, ...referenceFields, ...rabbitHoles.flatMap((child, i) => fields(`child:${i}`, child.title, 'reference')), ...sourceFields] };
 }
 export const createSearchIndex = () => ({ scopeKey: null, revision: null, entries: new Map(), inputs: new Map() });
 export function updateSearchIndex(previous, input) {
