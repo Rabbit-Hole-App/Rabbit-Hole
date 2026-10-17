@@ -263,3 +263,39 @@ own families, and change `LearnPage.jsx` / `AdaptiveCanvas.jsx` through focused 
 ## 9. Built so far
 
 Filled in by Lane 1 per step (SHAs in `C:/s/spec/fi-lane1-report.md`).
+
+## 10. Lane 4: models, CAD, PLY and Gaussian splats (feature/fi-3d)
+
+Report and measurements: `C:/s/spec/fi-lane4-report.md`. Modules (all lazily imported except `model-drop.js`):
+
+| Module | Role |
+|---|---|
+| `model-drop.js` | eager, about 1 KB: which dropped names go to the model importer; reads a dropped folder (`webkitGetAsEntry`, files carry `bundleRoot`/`bundlePath`, at most 512) |
+| `model-formats.js` | structure sniffing per extension, PLY header -> mesh / points / splat (inconsistent schemas refused), dependency resolution only inside the bundle, budgets |
+| `model-archive.js` | model ZIPs: central directory checked before inflating (no traversal, symlink, encryption, ZIP64; at most 512 entries, 200 MiB expanded, ratio 200), entries inflated in 16 KiB slices bounded by the declared size; `packBundle` stores loose files as one ZIP |
+| `model-import.js` | files -> cards: one card per model (its dependencies packed with it), one card per ZIP or folder (a choice when it holds several models), unused loose files back to the ordinary drop |
+| `model-loaders.js` | three.js loaders (GLTF + meshopt, OBJ + MTL, FBX, STL, 3MF, PLY) and Spark; one `LoadingManager` URL modifier answers only bundle files, every other URL gets an empty `data:` URL and is listed |
+| `three-d-renderer.js` | the existing viewer, extended: `options.load`, `fit()`, `camera()`, `poster()`, context-loss handling (`onLost`; nothing is persisted after a loss) |
+| `ModelCard.jsx`, `viewer-slots.js` | the card: explicit Interact state (Esc first, `data-viewer-active` makes the canvas key handler stand down), at most 3 live renderers, posters (this browser only) off-screen, missing / blocked dependency list with Add files, Download original |
+| `model-cad.js` | STEP card states from the job and the derivatives it expects (below) |
+
+Card record today (pre-`fileRef`, so it persists through the existing board-asset path): `{ type: 'file', kind: 'model',
+assetKey: 'model:<uuid>', label, size, model: { v: 1, family, format, render: 'mesh'|'points'|'splat'|'cad', package:
+'file'|'zip', entry, entries?, download, counts?, units? }, camera, animation? }`, about 300 bytes. `assetKeysOf` already
+reports `assetKey`. When `fileRef` lands, `model` maps to `fileRef.view` (`entry`, `camera`) and `fileRef.meta`.
+
+Libraries: `@sparkjsdev/spark` 2.3.1 exact (MIT, Copyright 2025 World Labs Technologies, Inc.; npm integrity
+`sha512-K+SyIbkO/dx1TLLudK8Jp3/noS13z/kdNPo6OK2waxQaGy81HBmKGnNBT/t/K9Ew3dsIXmWqsJXxGfmAu1T5Jg==`; peer `three >=0.180.0`,
+verified with three 0.186.0; its WASM and worker are inlined, and with `fileBytes` it fetches nothing), which brings
+`fflate` 0.8.3 (MIT). three.js loaders and three's bundled fflate and meshopt decoder are MIT (three 0.186.0, already a
+dependency). three 0.186's own Gaussian-splat loaders need the WebGPU renderer and have no SOG reader, so Spark is used.
+
+Limits (`MODEL_LIMITS`, moves into `file-capabilities.js`): source 25 MiB (the general board-file cap); viewer budgets
+1,000,000 triangles, 1,500,000 vertices, 1,600,000 points, 1,500,000 splats, 256 MiB decoded textures, 5,000 nodes,
+5,000,000 accessor elements. Above a budget the card keeps the original and says why it does not render.
+
+STEP derivatives the card expects from the `step-glb` converter (via the JOBS lane's runner): `mesh` = `model.glb`
+(glTF 2.0, metres, Y-up, one node per assembly part named after it, within 20 MiB / 5,000,000 accessor elements);
+`structure` = `structure.json` `{ units, unit_scale_to_m, parts, solids, tree: [{ name, children? }], bbox: { min, max }
+(source units), limitations? }`; `poster` optional (the card draws one from the mesh when absent). Units are shown only
+when `structure.units` is reported; the card never claims CAD features, tolerances or a feature tree survive.
