@@ -1,6 +1,11 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CanvasSearchPanel } from './PanelHeader.jsx';
+import ResizableSidePanel from './ResizableSidePanel.jsx';
+import { useCanvasSearch } from './use-canvas-search.jsx';
+import { SearchContentProvider } from './canvas-search-content.jsx';
+import { slashOpensFind } from './source-finder.js';
 import { docIsEmpty } from './canvas-doc.js';
-import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, Shapes, X } from 'lucide-react';
+import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, Search, Shapes, X } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
 import { CardSourceScope } from './use-card-source.js';
@@ -70,11 +75,15 @@ export default function SharedBoardPage({ token }) {
   // setting is Open or Closed (else it answers 404 and the page shows none); signed out reads, posting needs an account.
   // On a share link the owner and members (member_board_id) get the members panel; other link viewers see no comments.
   const [commentsInfo, setCommentsInfo] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [returnToSearch, setReturnToSearch] = useState(false);
+  const searchInput = useRef(null);
+  const [searchFocus, setSearchFocus] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
   // The canvas's document (docs/features/blocknote-canvas.md), read-only here: shown on request, the canvas first.
   const [docShown, setDocShown] = useState(false);
   const canvasApi = useRef(null);
-  const openComments = useCallback(() => setCommentsOpen(true), []);
+  const openComments = useCallback(() => { setSearchOpen(false); setCommentsOpen(true); }, []);
   const memberBoard = shared?.member_board_id || null;
   const commentsBase = memberBoard ? memberBase(memberBoard) : shared?.published ? publicBase(token) : null;
   useEffect(() => {
@@ -122,6 +131,28 @@ export default function SharedBoardPage({ token }) {
   const cardScope = useMemo(() => ({ token, viewer: shared?.viewer || null, version: shared?.version ?? null }), [token, shared?.viewer, shared?.version]);
   const goTo = href => window.location.assign(href);
 
+  const searchChildren = useMemo(() => Object.entries(holes?.portals || {}).map(([origin_block_id, child]) => ({ ...child, origin_block_id })), [holes]);
+  const search = useCanvasSearch({ scopeKey: `shared:${token}:${shared?.viewer || 'anonymous'}`, canvasApi, epoch: !!shared, shown: searchOpen,
+    commentsBase: commentsInfo ? commentsBase : null, children: searchChildren,
+    onComment: result => { setReturnToSearch(true); comments.openPin(result.target.id); }, revealDocument: () => setDocShown(true) });
+  const openSearchAction = (result, action) => {
+    if (action.kind === 'rabbit-hole' && searchChildren.some(child => child.name === action.rabbitHole?.name)) goTo(action.rabbitHole.name);
+    else toast('This source cannot be opened from this shared view.');
+  };
+  useEffect(() => {
+    if (!searchOpen) return;
+    const frame = requestAnimationFrame(() => searchInput.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [searchOpen, searchFocus]);
+  useEffect(() => {
+    const key = event => {
+      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented || !slashOpensFind(document.activeElement)) return;
+      event.preventDefault(); setCommentsOpen(false); setSearchOpen(true); setSearchFocus(value => value + 1);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
+
   if (problem) {
     return (
       <main className="grid h-screen place-items-center bg-white p-6">
@@ -153,7 +184,8 @@ export default function SharedBoardPage({ token }) {
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
         {board.doc && !docIsEmpty(board.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
-        {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
+        <Button type="button" variant="secondary" data-search-button aria-pressed={searchOpen} onClick={() => { setCommentsOpen(false); setSearchOpen(open => !open); }}><Search size={13} strokeWidth={1.8} />Search</Button>
+        {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => { setSearchOpen(false); setCommentsOpen(open => !open); }}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
         <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
         {/* The viewer's own monthly AI allowance (owner D4 section 2), never the owner's; signed out, no personal allowance. */}
         {learnPreview && <UsageGauge signedIn={!!shared.viewer} onViewUsage={goToUsageSettings} />}
@@ -162,25 +194,25 @@ export default function SharedBoardPage({ token }) {
             Last, at the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
         <ProvenanceRow provenance={provenance} />
       </header>
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 max-lg:flex-col">
       <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
-        <Suspense fallback={null}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
+        <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
           <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} docView={docShown ? 'editor' : 'canvas'} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
             gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
             hooks={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
             onAskTarget={setTarget} askTargetId={target?.id ?? null}
             composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} />} />
-        </DivePortals.Provider></CardSourceScope.Provider></Suspense>
+        </DivePortals.Provider></CardSourceScope.Provider></SearchContentProvider></Suspense>
       </div>
-      {comments.active && commentsOpen && (
-        <aside aria-label="Comments" data-shared-comments className="flex w-[400px] shrink-0 flex-col border-l border-line px-5 pt-3 pb-4 max-md:w-full">
+      <ResizableSidePanel collapsed={!searchOpen && !(comments.active && commentsOpen)} storageKey="rh.viewer.panel.width" defaultWidth={400} aria-label={searchOpen ? 'Search' : 'Comments'} className="px-5 pt-3 pb-4">
           <div className="-mx-5 mb-3 flex items-center justify-between border-b border-line px-5 pb-2.5">
-            <h2 className="text-sm font-semibold text-ink">Comments</h2>
-            <button type="button" aria-label="Close comments" onClick={() => setCommentsOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} aria-hidden /></button>
+            <h2 className="text-sm font-semibold text-ink">{searchOpen ? 'Search' : 'Comments'}</h2>
+            <button type="button" aria-label={searchOpen ? 'Close Search' : 'Close comments'} onClick={() => { setSearchOpen(false); setCommentsOpen(false); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} aria-hidden /></button>
           </div>
-          <CommentsPanel {...comments.panelProps} />
-        </aside>
-      )}
+          {!searchOpen && commentsOpen && returnToSearch && <button type="button" onClick={() => { setCommentsOpen(false); setSearchOpen(true); }} className="mb-2 self-start rounded-md px-1 py-1 text-xs text-ink-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60">Back to Search</button>}
+          <CanvasSearchPanel {...search.panel} hidden={!searchOpen} inputRef={searchInput} onOpenAction={openSearchAction} />
+          {comments.active && commentsOpen && <div data-shared-comments className="flex min-h-0 flex-1 flex-col"><CommentsPanel {...comments.panelProps} /></div>}
+        </ResizableSidePanel>
       </div>
     </main>
   );

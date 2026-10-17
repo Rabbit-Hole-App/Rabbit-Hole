@@ -72,13 +72,13 @@ export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query =
       <button type="button" aria-label="Previous match" disabled={!results.length} onClick={() => go(-1)} className={`${button} p-1.5 hover:bg-hover`}><ChevronUp size={16} aria-hidden /></button>
       <button type="button" aria-label="Next match" disabled={!results.length} onClick={() => go(1)} className={`${button} p-1.5 hover:bg-hover`}><ChevronDown size={16} aria-hidden /></button>
     </div>
-    <div className="my-2 flex items-center justify-between gap-2 text-xs text-ink-3"><span>This canvas</span><span data-find-count aria-live="polite">{current >= 0 ? `${current + 1} of ${results.length}` : `${results.length} objects`}</span></div>
+    <div className="my-2 flex items-center justify-between gap-2 text-xs text-ink-3"><span>This canvas</span><span data-find-count aria-live="polite">{current >= 0 ? `${current + 1} of ${results.length}` : `${results.length} results`}</span></div>
     <div role="group" aria-label="Search filters" className="mb-2 flex flex-wrap gap-1">
       {SEARCH_FILTERS.map(([id, label]) => <button key={id} type="button" data-search-filter={id} aria-pressed={filter === id} onClick={() => onFilterChange(id)} className={`${button} flex items-center gap-1 px-2 py-1 text-xs ${filter === id ? 'bg-(--nav-selected-bg) text-(--nav-selected-fg)' : 'text-ink-2 hover:bg-hover'}`}>{label}<span className="tabular-nums opacity-70">{counts[id] ?? 0}</span></button>)}
     </div>
     {filter === 'comments' && <label className="mb-2 flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" checked={includeResolved} onChange={event => onIncludeResolvedChange?.(event.target.checked)} />Include resolved</label>}
     {canGoBack && <button type="button" onClick={onGoBack} className={`${button} mb-2 flex items-center gap-1 self-start px-1 py-1 text-xs text-ink-2 hover:bg-hover`}><ArrowLeft size={13} aria-hidden />Back to previous view</button>}
-    {(state !== 'ready' || status.message) && <div role="status" className="mb-2 text-xs text-ink-2">{status.message || (state === 'loading' ? 'Loading searchable content…' : state === 'error' ? 'Some content could not be loaded.' : 'Some content is not available to Search.')}{onRetry && state === 'error' && <button type="button" onClick={onRetry} className={`${button} ml-2 underline`}>Retry</button>}</div>}
+    {(state !== 'ready' || status.message) && <div role="status" className="mb-2 text-xs text-ink-2">{status.message || (state === 'loading' ? 'Loading searchable content…' : state === 'error' ? 'Some content could not be loaded.' : 'Some content is not available to Search.')}{onRetry && (state === 'error' || state === 'partial') && <button type="button" onClick={onRetry} className={`${button} ml-2 underline`}>Retry</button>}</div>}
     {!results.length && <p className="py-4 text-sm text-ink-2">{searchEmptyMessage(state, query, filter)}</p>}
     <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto" data-search-scroll onScroll={event => { positions.current.set(session, event.currentTarget.scrollTop); setViewport(previous => ({ ...previous, scrollTop: event.currentTarget.scrollTop })); }}>
       <ol aria-label="Search results" className="relative m-0 list-none p-0" style={{ height: layout.totalHeight }}>
@@ -94,7 +94,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query =
               }}>
                 {!rows && <Preview key={`${canvasKey}:${result.previewKey || result.id}`} result={result} getPreview={getPreview} canvasKey={canvasKey} />}
                 <span className="mt-1 block truncate text-sm font-medium text-ink" title={result.title}>{result.title || 'Untitled object'}</span>
-                <span className="block truncate text-[10px] text-ink-3">{location || result.kind}{refs.length ? ` · ${refs.length} reference${refs.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
+                <span className="block truncate text-[10px] text-ink-3">{location || result.kind}{refs.length ? ` · ${refs.length} ${[...new Set(refs.map(ref => ref.kind || 'source'))].join('/')} reference${refs.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
                 <span className="line-clamp-2 break-words text-xs text-ink-2">{snippet.before}{snippet.hit && <mark className="rounded-sm bg-[#ddd6fe] text-ink">{snippet.hit}</mark>}{snippet.after}</span>
                 {result.availability?.status !== 'ready' && result.availability?.message && <span className="block truncate text-[10px] text-ink-3" title={result.availability.message}>{result.availability.message}</span>}
               </button>

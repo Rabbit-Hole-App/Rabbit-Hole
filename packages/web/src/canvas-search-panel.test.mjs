@@ -71,4 +71,6 @@ test('loading has no false empty result claim; errors expose retry and zero arro
   assert.doesNotMatch(loading, /No matches|No searchable/);
   assert.match(loading, /aria-label="Next match" disabled/);
   assert.match(render({ status: { state: 'error' }, onRetry() {} }), />Retry<\/button>/);
+  assert.match(render({ status: { state: 'partial' }, onRetry() {} }), />Retry<\/button>/);
+  assert.match(loading, />0 results</);
 });
