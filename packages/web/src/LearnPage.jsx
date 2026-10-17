@@ -568,7 +568,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     try {
       pdf = await readPdf(await file.arrayBuffer());
       if (pdf.numPages > 100) { toast(`That PDF has ${pdf.numPages} pages. The tutor can read up to 100.`); return; }
-    } catch { toast('That file could not be read as a PDF.'); return; }
+    } catch { toast(`${file.name || 'That file'}: could not be read as a PDF.`); return; }
     let stored = null; // uploaded once: Add again after a failed draw reuses it
     await askPdf({ name: file.name, total: pdf.numPages, place: async (choice, progress) => {
       if (!stored) {
