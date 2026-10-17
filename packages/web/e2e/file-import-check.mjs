@@ -71,6 +71,8 @@ if (process.env.OFFLINE !== '1') {
   const outside = [];
   // Another host is never contacted by an import: anything not the stack is recorded and refused.
   await context.route(url => !url.href.startsWith(BASE) && !url.href.startsWith(CP), route => { outside.push(route.request().url()); return route.abort(); });
+  // Every toast the page shows (ui.jsx toast() dispatches small:toast), so a refusal is read from its own message.
+  await context.addInitScript(() => { window.__toasts = []; addEventListener('small:toast', e => window.__toasts.push(String(e.detail?.message || ''))); });
   const page = await context.newPage();
   page.on('pageerror', error => console.log('PAGEERROR:', error.message));
   const canvas = page.locator('[aria-label="Lesson canvas"]');
@@ -101,7 +103,7 @@ if (process.env.OFFLINE !== '1') {
     });
   };
   const choose = async chooser => {
-    if (chooser === 'import') { const dialog = page.getByRole('dialog', { name: 'Add to canvas' }); await dialog.waitFor({ timeout: 15000 }); await dialog.getByRole('button', { name: 'Add to canvas' }).click(); }
+    if (chooser === 'import' || chooser === 'workbook' || chooser === 'pptx') { const dialog = page.getByRole('dialog', { name: 'Add to canvas' }); await dialog.waitFor({ timeout: 15000 }); await dialog.getByRole('button', { name: 'Add to canvas' }).click(); }
     if (chooser === 'pdf') { const dialog = page.locator('[data-pdf-add-dialog] [role="dialog"]'); await dialog.waitFor({ timeout: 20000 }); await dialog.getByRole('button', { name: /^Add/ }).last().click(); }
   };
   const download = async (name, original) => {
@@ -118,14 +120,15 @@ if (process.env.OFFLINE !== '1') {
       const name = await open(fixture.family);
       const before = await board(name);
       outside.length = 0;
+      await page.evaluate(() => { window.__toasts = []; });
       const files = [fixture.file, ...fixture.deps.map(dep => join(FIXTURES.replace(/[\\/][^\\/]+$/, ''), dep))];
       await enter(files);
       if (!want.offered || want.mustRefuse) {
         // Refused: the page names the file in its message and the saved board gains nothing.
-        await until(async () => (await page.getByText(basename(fixture.path), { exact: false }).count()) > 0, 15000, `a message naming ${basename(fixture.path)}`);
+        const toasts = await until(async () => { const list = await page.evaluate(() => window.__toasts); return list.some(m => m.includes(basename(fixture.path))) ? list : null; }, 15000, `a message naming ${basename(fixture.path)}`);
         const after = await board(name);
         const added = addedBlocks(before.state, after.state);
-        check(label, !added.length && !outside.length, { expected: fixture.family === null ? 'refused (no family takes it)' : want.offered ? 'refused (over the cap, mislabelled, or a part without its model)' : 'refused (planned family)', added: added.map(b => [b.type, b.kind]), outside });
+        check(label, !added.length && !outside.length, { toast: toasts.find(m => m.includes(basename(fixture.path))), expected: fixture.family === null ? 'refused (no family takes it)' : want.offered ? 'refused (over the cap, mislabelled, or a part without its model)' : 'refused (planned family)', added: added.map(b => [b.type, b.kind]), outside });
         continue;
       }
       await choose(want.chooser);
@@ -139,7 +142,7 @@ if (process.env.OFFLINE !== '1') {
       const flags = await page.evaluate(names => names.filter(n => window[n] !== undefined), FLAGS);
       const kept = sums.includes(fixture.sha256);
       check(label, !!card && compact.ok && kept && !flags.length && !outside.length, {
-        card: card ? [card.type, card.kind] : added.map(b => [b.type, b.kind]), expected: [want.card.type, want.card.kind],
+        card: card ? [card.type, card.kind] : added.map(b => [b.type, b.kind]), expected: [want.card.type, want.card.kind], ...(card?.fileRef?.status ? { status: card.fileRef.status } : {}),
         board: compact, original: kept ? 'sha256 matches' : { want: fixture.sha256, got: sums }, ...(flags.length ? { ran: flags } : {}), ...(outside.length ? { outside } : {}),
       });
     } catch (error) {

@@ -30,6 +30,8 @@ export function loadFixtures(manifestPath, filter = '') {
 //   misdetected: a shipped family claims the file but it is not the fixture's family.
 //   byStructure: the extension alone cannot decide (splat-schema .ply vs mesh/point-cloud .ply); only an adapter that
 //     reads the header can, so the check reads the card the app made instead.
+// Attacks a sniff or archive guard refuses outright (the others are content that must be neutralised, not refused).
+export const REFUSED_ATTACKS = new Set(['mislabelled', 'zip-traversal', 'zip-symlink', 'zip-bomb']);
 //   family null in the list: no family takes the file (a .docm), so the registry must not detect it and both entries refuse it.
 export function expectation(fixture, registry) {
   const spec = fixture.family === null ? null : registry.family(fixture.family);
@@ -46,9 +48,9 @@ export function expectation(fixture, registry) {
     chooser: offered ? spec.chooser : null,
     cap: offered ? spec.limits?.bytes ?? null : null,
     can: spec?.can ?? null,
-    // A negative or over-the-cap fixture of an offered family must still end without a working card (refused or neutralised),
-    // and so must a file of a family that makes no card on its own (a model's .bin or .mtl dropped without its model).
-    mustRefuse: offered && (!spec.card || fixture.attack === 'mislabelled' || (fixture.role === 'boundary' && spec.limits?.bytes != null && fixture.bytes > spec.limits.bytes)),
+    // A mislabelled file, an unsafe archive or an over-the-cap file of an offered family is refused, and so is a file of a family
+    // that makes no card on its own (a model's .bin or .mtl dropped without its model).
+    mustRefuse: offered && (!spec.card || REFUSED_ATTACKS.has(fixture.attack) || (fixture.role === 'boundary' && spec.limits?.bytes != null && fixture.bytes > spec.limits.bytes)),
   };
 }
 
