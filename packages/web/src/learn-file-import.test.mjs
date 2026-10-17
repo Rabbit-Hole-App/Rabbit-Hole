@@ -20,7 +20,13 @@ const NOTEBOOK = {
 };
 
 test('.ipynb, .py and common code files are imports, any case; the choices are the owner\'s', () => {
-  assert.deepEqual(['a.ipynb', 'B.IPYNB', 'x.py', 'X.PY', 'x.pyc', 'notes.txt', 'py', ''].map(importKind), ['ipynb', 'ipynb', 'py', 'py', null, null, null, null]);
+  assert.deepEqual(['a.ipynb', 'B.IPYNB', 'x.py', 'X.PY', 'x.pyc', 'py', ''].map(importKind), ['ipynb', 'ipynb', 'py', 'py', null, null, null]);
+  // File imports lane 2 (canvas-file-imports.md): .txt is a Text card, .md/.markdown a Markdown card (or its source as a Code
+  // card), a Word 97-2003 .doc only a File attachment until its converter is wired.
+  assert.deepEqual(['notes.txt', 'README.md', 'a.MARKDOWN', 'old.doc'].map(importKind), ['text', 'markdown', 'markdown', 'doc']);
+  assert.deepEqual(IMPORT_CHOICES.text.map(([id]) => id), ['text', 'attachment']);
+  assert.deepEqual(IMPORT_CHOICES.markdown.map(([id]) => id), ['markdown', 'code', 'attachment']);
+  assert.deepEqual(IMPORT_CHOICES.doc.map(([id]) => id), ['attachment']);
   // Repository graph Release 2 (lane DROP): other source and config files are code; images, PDFs and archives are not.
   assert.deepEqual(['app.js', 'Main.TS', 'lib.rs', 'ci.yml', 'Dockerfile', 'a.png', 'a.pdf', 'a.zip'].map(importKind), ['code', 'code', 'code', 'code', 'code', null, null, null]);
   assert.deepEqual(IMPORT_CHOICES.ipynb.map(([, label]) => label), ['Notebook', 'File attachment']);
@@ -32,7 +38,7 @@ test('empty and oversized files are refused with a line that names the file and 
   assert.deepEqual(checkImport(file('a.ipynb')), { kind: 'ipynb' });
   assert.equal(checkImport(file('a.ipynb', 0)).error, 'a.ipynb: the file is empty');
   assert.equal(checkImport(file('big.py', IMPORT_LIMIT + 1)).error, 'big.py is 25.0 MB; files up to 25 MB can be added to a canvas');
-  assert.match(checkImport(file('page.bin')).error, /^page\.bin: add a \.ipynb notebook, a \.py file or another code file$/);
+  assert.match(checkImport(file('page.bin')).error, /^page\.bin: add a \.ipynb notebook, a \.py file, a text or Markdown file or another code file$/);
   assert.deepEqual(checkImport(file('big.js', IMPORT_LIMIT)), { kind: 'code' }, 'a code file takes the same 25 MB limit');
 });
 
@@ -107,7 +113,8 @@ test('every drop and every upload of a .ipynb or .py opens the one Add to canvas
   const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const page = read('./LearnPage.jsx'), canvas = read('./AdaptiveCanvas.jsx'), dialog = read('./FileImportDialog.jsx');
   assert.match(page, /if \(importKind\(file\.name\)\) \{\n\s+const \{ kind, error \} = checkImport\(file\);\n\s+if \(error\) toast\(error, \{ tone: 'error' \}\); else asked\.push\(\{ id: crypto\.randomUUID\(\), file, kind, at \}\);/);
-  assert.match(page, /accept="[^"]*\.ipynb,\.py"/, 'Insert > Upload a file offers them and goes through the same takeDrop');
+  // File imports lane 2 extends the list (text, Markdown, tables, workbooks, Word, PowerPoint); notebooks and Python stay in it.
+  assert.match(page, /accept=\{`[^`]*\.ipynb,\.py,[^`]*`\}/, 'Insert > Upload a file offers them and goes through the same takeDrop');
   assert.match(page, /<FileImportDialog key=\{imports\[0\]\.id\} file=\{imports\[0\]\.file\} kind=\{imports\[0\]\.kind\}[^>]*onCancel=\{nextImport\} onConfirm=\{addImport\} \/>/);
   assert.match(canvas, /onDropFiles\(\[\.\.\.event\.dataTransfer\.files\], local\(event\)\)/, 'the drop point rides with the files');
   assert.match(canvas, /insertImported: \(block, at = null\) => \{/);

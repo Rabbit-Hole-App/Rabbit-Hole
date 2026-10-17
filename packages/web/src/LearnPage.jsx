@@ -31,6 +31,8 @@ import ShortcutsSheet from './ShortcutsSheet.jsx';
 const SlashCommandsSheet = lazyFeature(() => import('./SlashCommandsSheet.jsx'), 'The slash commands');
 import FilesPanel from './FilesPanel.jsx';
 import FileImportDialog from './FileImportDialog.jsx';
+import { useDocImport } from './DocImport.jsx';
+import { DOC_ACCEPT } from './file-doc-import.js';
 import PdfAddDialog from './PdfAddDialog.jsx';
 import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
 import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
@@ -642,6 +644,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // in this browser for the board's server copy - no code runs, nothing is installed, no model is asked.
   const [imports, setImports] = useState([]); // [{ id, file, kind, at }] or [{ id, kind: 'batch', files: [{ file, kind }], at }]
   const [importState, setImportState] = useState({ error: null, busy: false });
+  // Tables, workbooks, Word documents and presentations (DocImport.jsx, canvas-file-imports.md lane 2): their own checks and choices.
+  const docImport = useDocImport({ canvas: () => canvasApi.current, toast });
   const nextImport = () => { setImportState({ error: null, busy: false }); setImports(queue => queue.slice(1)); };
   const addImport = async choice => {
     const { at, ...entry } = imports[0];
@@ -701,6 +705,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         if (error) toast(error, { tone: 'error' }); else asked.push({ id: crypto.randomUUID(), file, kind, at });
         continue;
       }
+      if (docImport.claims(file)) { await docImport.take(file, at); continue; }
       const { kind, error } = classifyDrop(file);
       if (error) { toast(error); continue; }
       if (kind === 'pdf') { await takePdf(file); continue; }
@@ -2058,8 +2063,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // the page past Learn's header strip.
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
     </ResizableSidePanel>
-    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.ipynb,.py" className="hidden"
+    <input ref={filePicker} type="file" multiple accept={`.png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.ipynb,.py,.txt,.md,.markdown,.doc,${DOC_ACCEPT}`} className="hidden"
       onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
+    {docImport.dialog}
     {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} files={imports[0].files} error={importState.error} busy={importState.busy}
       onCancel={nextImport} onConfirm={addImport} />}
     {/* With sections on the canvas the rail mirrors the panel's table of

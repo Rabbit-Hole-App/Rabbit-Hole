@@ -52,6 +52,8 @@ export default defineConfig({
       } },
     } : {}),
   },
+  // Module workers, so the file parser worker (src/file-parse.worker.js) loads SheetJS or mammoth only for the format it opens.
+  worker: { format: 'es' },
   server: { proxy },
   preview: { proxy }, // `vite preview` = production bundle against the same control plane
 });

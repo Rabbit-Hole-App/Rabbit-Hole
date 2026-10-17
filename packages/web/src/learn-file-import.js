@@ -3,6 +3,7 @@
 // cells in the notebook runtime and runs them only from its own Run all.
 import { newNotebookBlock, trimOutputs } from './learn-notebook.js';
 import { codeLanguage } from './code-language.js';
+import { textBlock } from './file-doc-import.js';
 
 const MB = 1024 * 1024;
 // A File attachment is a board file: the board's server copy takes files up to 25 MB (LearnPage syncAssets).
@@ -15,10 +16,17 @@ export const IMPORT_CHOICES = {
   py: [['code', 'Code card'], ['notebook', 'Notebook'], ['attachment', 'File attachment']],
   // Any other common source or config file (codeLanguage knows its language): a code card, never a notebook.
   code: [['code', 'Code card'], ['attachment', 'File attachment']],
+  // Plain text and Markdown (canvas-file-imports.md lane 2): their own card first; Markdown can also stay source in a Code card.
+  text: [['text', 'Text card'], ['attachment', 'File attachment']],
+  markdown: [['markdown', 'Markdown card'], ['code', 'Code card'], ['attachment', 'File attachment']],
+  // ponytail: awaiting converter. A Word 97-2003 .doc has no preview until the office-pdf conversion job is wired (file-job.js),
+  // so it is offered only as the file itself, said as such.
+  doc: [['attachment', 'File attachment (no preview yet)']],
   // Code pasted onto the canvas (docs/features/repository-browser.md "Files in Learn"): the same dialog, these two choices only.
   paste: [['code', 'Code card'], ['notebook', 'Jupyter notebook']],
 };
-export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : codeLanguage(name) !== 'text' ? 'code' : null);
+export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : /\.txt$/i.test(name || '') ? 'text'
+  : /\.(md|markdown)$/i.test(name || '') ? 'markdown' : /\.doc$/i.test(name || '') ? 'doc' : codeLanguage(name) !== 'text' ? 'code' : null);
 const mb = (n) => `${(n / MB).toFixed(1)} MB`;
 // A file name as the notebook workspace keeps it: one file at its top level.
 const fileName = (name) => String(name || 'file').replace(/[/\\]/g, '_');
@@ -26,7 +34,7 @@ const fileName = (name) => String(name || 'file').replace(/[/\\]/g, '_');
 // Before anything is read: { kind } or { error }, the error a visible line that names the file.
 export function checkImport(file) {
   const kind = importKind(file.name);
-  if (!kind) return { error: `${file.name || 'That file'}: add a .ipynb notebook, a .py file or another code file` };
+  if (!kind) return { error: `${file.name || 'That file'}: add a .ipynb notebook, a .py file, a text or Markdown file or another code file` };
   if (!file.size) return { error: `${file.name}: the file is empty` };
   if (file.size > IMPORT_LIMIT) return { error: `${file.name} is ${mb(file.size)}; files up to 25 MB can be added to a canvas` };
   return { kind };
@@ -86,6 +94,11 @@ export function importBlock({ name: raw, kind, choice, text, assetKey, size }) {
   const name = fileName(raw);
   if (!IMPORT_CHOICES[kind]?.some(([id]) => id === choice)) throw Error(`${name}: choose how to add it`);
   if (choice === 'attachment') return { id: crypto.randomUUID(), type: 'file', kind: 'attachment', dx: 0, dy: 0, assetKey, label: name, size };
+  // A Text or Markdown card reads its own asset (FileDocCard.jsx); a NUL in the text means a binary file, refused before placing.
+  if (choice === 'text' || choice === 'markdown') {
+    if (String(text).includes('\u0000')) throw Error(`${name} looks like a binary file, not text. Add it as a File attachment to keep it as it is.`);
+    return textBlock({ name, size, assetKey, kind: choice });
+  }
   let block;
   if (choice === 'code') block = { id: crypto.randomUUID(), type: 'snippet', dx: 0, dy: 0, title: name, code: text, output: '', source_asset: assetKey };
   else if (kind === 'ipynb') block = { ...newNotebookBlock(), active_path: name, files: [name], ipynb_path: name, ipynb: trimOutputs(safeOutputs(parseNotebook(text, name))), source_asset: assetKey };
@@ -107,7 +120,7 @@ export function codeBlock({ name: raw, text, assetKey, size }) {
 }
 
 // What a drop of several files will create, said before anything is placed: '2 code cards and 1 notebook'.
-const MADE = { code: ['code card', 'code cards'], notebook: ['notebook', 'notebooks'], attachment: ['file attachment', 'file attachments'] };
+const MADE = { code: ['code card', 'code cards'], notebook: ['notebook', 'notebooks'], text: ['text card', 'text cards'], markdown: ['Markdown card', 'Markdown cards'], attachment: ['file attachment', 'file attachments'] };
 export function importSummary(choices) {
   const parts = Object.entries(MADE).map(([id, [one, many]]) => [choices.filter((choice) => choice === id).length, one, many])
     .filter(([count]) => count).map(([count, one, many]) => `${count} ${count === 1 ? one : many}`);

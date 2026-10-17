@@ -1,0 +1,3 @@
+Plain notes
+with CRLF
+and a tab	here

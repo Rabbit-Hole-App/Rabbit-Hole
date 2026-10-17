@@ -1,6 +1,8 @@
 // The canvas target a Learn question is about (owner decision 2): the card, group or marked
 // region travels as canvas_target beside the learner's own words, never wrapped into the message.
 // The server bounds the text for the model (8000 characters, with a marker); this caps the request.
+import { describeFileCard } from './file-excerpts.js';
+
 export const CANVAS_TARGET_MAX = 32000;
 
 export function canvasTargetField(target) {
@@ -38,6 +40,9 @@ export function describeCanvasObject(object) {
   }
   if (object.type === 'wiki') return { kind: 'Wikipedia', title: object.title, text: `Wikipedia article on the canvas: ${object.title}${object.section ? ` (section ${object.section})` : ''}`, material: 'wiki' };
   if (object.type === 'pdf') return { kind: 'PDF', title: object.label || 'PDF', text: `PDF on the canvas: ${object.label || 'untitled'}`, material: 'pdf' };
+  // A text, table, workbook, Word or presentation card: its bounded excerpt and what it covers (file-excerpts.js).
+  const fileCard = describeFileCard(object);
+  if (fileCard) return fileCard;
   if (object.type === 'file') {
     const image = object.kind === 'image';
     return { kind: image ? 'Image' : 'File', title: object.label || (image ? 'Image' : 'File'), text: `${image ? 'Image' : 'File'} on the canvas: ${object.label || 'untitled'}`, material: 'file', ...(image && object.mediaId ? { image: object.mediaId } : {}) };
