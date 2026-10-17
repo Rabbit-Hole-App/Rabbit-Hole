@@ -477,7 +477,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
 // ─── Menu - white popover, shadow-pop, 28px items. Closes on outside click. ───
 export function Menu({ open, onClose, className, style, portal = false, anchor = null, children }) {
   const box = useRef(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     // pointerdown in the capture phase, not mousedown: the canvas surface
     // preventDefaults its pointer presses (drawing, panning), which suppresses
@@ -485,15 +485,17 @@ export function Menu({ open, onClose, className, style, portal = false, anchor =
     // the menu. Capture also beats any stopPropagation between here and the
     // press; presses inside the menu are told apart by containment instead.
     const close = event => { if (event?.target && box.current?.contains(event.target)) return; onClose(); };
-    // defer so the opening click doesn't immediately close it
-    const t = setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
+    // Register before the visible menu can receive a second press. The opening
+    // event has already passed document capture before its React handler opens
+    // the menu, so synchronous registration cannot dismiss that opening press.
+    document.addEventListener('pointerdown', close, true);
     // a portaled menu is pinned to viewport coords - a scroll that moves its anchor must close it (menu-scroll.js); the
     // opening click's own scroll, the anchor already measured, must not
     const onScroll = anchor ? closeOnAnchorScroll(anchor, onClose) : close;
     if (portal) window.addEventListener('scroll', onScroll, true);
     const escape = event => { if (event.key === 'Escape') onClose(); };
     window.addEventListener('keydown', escape);
-    return () => { clearTimeout(t); document.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', escape); if (portal) window.removeEventListener('scroll', onScroll, true); };
+    return () => { document.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', escape); if (portal) window.removeEventListener('scroll', onScroll, true); };
   }, [open]);
   // A portaled menu stays inside the window, 8px from every edge (menu-scroll.js menuShift): measured before paint where its
   // caller put it, then slid back in; one taller than the window scrolls. Again when its content grows (a submenu opening
