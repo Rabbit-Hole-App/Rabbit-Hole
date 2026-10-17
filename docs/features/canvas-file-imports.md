@@ -127,8 +127,10 @@ Rules:
 - Existing cards keep their fields (`assetKey`, `source.assetKey`, `source_asset`, notebook cells) and stay readable and
   editable. A card is upgraded to `fileRef` only by an idempotent upgrade that confirms the source record is stored
   before the old payload is dropped.
-- `assetKeysOf` and `boardAssetKeys` are extended (Lane 1) to report `fileRef.source.id` and derivative ids, so share,
-  fork, member reads and cleanup see them through the one existing list.
+- A `fileRef` is **not** a board file: `assetKeysOf` and `boardAssetKeys` never list it, so the browser never uploads it
+  as a board asset and a fork never copies its bytes (tested in `learn-files.test.js`). The board's file list for a
+  `fileRef` is `fileRefSources(state)` (`packages/control-plane/src/file-refs.js`) and its authorized form is
+  `file_source_refs` (section 4.1).
 - Copy/fork copies the `fileRef` (sources are immutable; no live link). A card's `doc` is copied as a new document at the
   same revision content, never shared between boards.
 
@@ -156,7 +158,15 @@ tables are new and no existing code reads them.
 | `file_derivatives` | a preview, poster, text, mesh, playback copy; one row per converter output | `id`, `source_id`, `source_sha256`, `kind`, `name` (the converter's output name, e.g. `slide-001.png`), `converter`, `converter_version`, `options_hash`, `status` (`pending`, `ready`, `failed`), `media_type`, `bytes`, `sha256`, `r2_key`, `coverage_json` (small), `error`, `created_at`, `updated_at`; UNIQUE (`source_id`, `source_sha256`, `kind`, `converter_version`, `options_hash`, `name`), so a multi-output kind such as `slide` holds one row per output |
 | `file_jobs` | durable conversion/extraction work | `id`, `org`, `owner_email` (initiator), `app`, `board_id`, `card_id`, `source_id`, `source_sha256`, `converter`, `converter_version`, `options_json`, `idempotency_key`, `state`, `stage`, `attempt`, `max_attempts`, `lease_until`, `cancel_requested`, `derivative_ids_json`, `limitations_json`, `error`, `created_at`, `updated_at`, `started_at`, `finished_at`; UNIQUE (`org`, `owner_email`, `idempotency_key`). Backoff counters live in the Durable Object's own storage, not here |
 | `file_documents` / `file_document_revisions` | edited text/code/notebook content | document `id`, `org`, `owner_email`, `app`, `board_id`, `source_id`, `source_sha256`, `head_rev`; revision (`doc_id`, `rev`) PK, `parent_rev`, `r2_key`, `bytes`, `sha256`, `created_by`, `created_at` |
-| `file_source_refs` | derived index: which boards reference a source | (`source_id`, `board_id`) PK; rewritten in the board save's batch, like `learn_canvas_refs` |
+| `file_source_refs` | the authorized references: which boards may read a source | (`source_id`, `board_id`) PK; rewritten in the board write's batch, like `learn_canvas_refs` (section 4.1) |
+
+**Extracted text derivative** (lead ruling, 2026-10-16; the CHAT lane reads it): `kind` `text` (or `transcript` for audio
+and video), `media_type` `application/json`, R2 body
+`{"v":1,"units":[{"loc":<range>,"text":"..."}],"complete":true|false,"limited":"..."}` (`limited` optional). `loc` is
+one range shape: `{page}`, `{slide}`, `{sheet, cells?}`, `{rows:[a,b], cols?}`, `{start,end}`, `{cell}`,
+`{startSec, endSec?}` or `{object}`. `coverage_json` = `{complete, limited}`. A `text/plain` text derivative counts as one
+unit with no `loc`. The chat resolver caps each ref at 4,000 characters and each turn at 12,000, and labels each result
+extracted, partial, transcribed, listed, unavailable or omitted.
 
 R2 keys on the existing `LEARN_MEDIA` bucket (dev `rabbit-hole-dev-learn-media`, prod `rabbit-hole-prod-learn-media`):
 
@@ -206,20 +216,48 @@ returns `{ source, via: 'owner' | 'board' | 'link', board? }` or a Response: 401
 every refusal. `fileRefSources(state)` lists a state's referenced source ids. Every file route calls it; none checks
 access its own way.
 
+**A reference authorizes only when it is a `file_source_refs` row** (`packages/control-plane/src/file-refs.js`, built,
+tested in `test/file-access.test.js`), never because a card merely names an id:
+
+- Every board write rewrites the board's rows in the same batch as the write, guarded on the row that write produced (a
+  rejected or stale save changes nothing): `saveOwn` (insert and update, so sharing too) and fork/duplicate.
+- A save indexes the sources its cards name **that the saver owns**, and keeps a row the board already held while a card
+  still names that source. A card naming another account's source id indexes nothing and reads nothing.
+- A fork or duplicate inherits the rows of the board it was read from, for the sources its copied cards name, so it reads
+  the same immutable bytes through its own reference. **A fork keeps that access after the original share link is
+  revoked** (`file-access.test.js`, "a fork inherits ...").
+- **Removing the card in the fork drops only the fork's row**; the source board's row for the same source stays
+  (`file-access.test.js`, same test). The same holds for any board.
+- **A permanent delete drops every row for that board** in the delete's batch (`dropFileRefs`): a canvas delete
+  (`canvases.js`, tested in `canvases.test.js`) and a Rabbit Hole delete, subtree included (`dives.js`, tested in
+  `dives.test.js`). No other board's rows change. Bytes and source records are never deleted here; cleanup decides with
+  retention.
+
+**Canvas members** (lead ruling, 2026-10-16): reads accept `?member=<board id>`, the convention the JOBS routes use, checked
+by `canvas-comments.js` `memberContext` (the owner or an active member, board not in Trash); then `{ row }` is that board.
+A removed member gets 404. Adding a file to a board needs write access to it. Members can view a canvas but cannot edit
+it (no member board write exists today), so a member's create is 403 and the owner's is allowed through the same
+`member` field. If member editing is added, the same check admits editing members.
+
 ### 4.2 Routes (Lane 1; the three source routes are built in `packages/control-plane/src/learn-files.js`)
 
-- `POST /api/learn/files` `{ app, board, name, type, size, sha256, family }` → `{ source, upload }` (idempotent on
-  owner + sha256 + board: an already stored identical source is returned, no second upload).
+- `POST /api/learn/files` `{ app, board, name, type, size, sha256, family, member? }` → `{ source, upload }`
+  (idempotent on owner + sha256 + size + family: an already stored identical source is returned, no second upload).
+  The source is not readable through the board until a save of a card naming it indexes it (section 4.1).
 - `PUT /api/learn/files/<source id>` raw bytes, by the source's owner → the server sniffs (families with a sniff), counts
   actual bytes (exactly the declared size; more is cut off with 413) and hashes while streaming, and marks `stored`
   only when count and sha256 match: this PUT is the finalize step. A family's cap is `limits.bytes`, or 25 MiB until its
   lane measures one. Create reuses the owner's stored source with the same sha256, size and family (`upload: null`), or
   resumes their unfinished upload of it.
 - `GET /api/learn/files/<source id>` the original as an attachment (`filename*`), with Range; `?share=<token>` for a link
-  viewer, `?app=&board=` through the requester's own board (a fork), else the owner only; all via
-  `authorizeFileSource`. Derivatives: the JOBS lane's `GET /api/learn/files/sources/<source>/derivatives` (section 5.3).
-- Mounted in `dev-worker.js`; `filesFetch` answers only `/api/learn/files` and `/api/learn/files/fs_*` and returns null
-  for every other `/api/learn/files` path, so the JOBS routes mount beside it.
+  viewer, `?member=<board id>` for a canvas member, `?app=&board=` through the requester's own board (a fork), else the
+  owner only; all via
+  `authorizeFileSource`. Derivatives (JOBS lane): `GET /api/learn/files/sources/<source>/derivatives` lists the ready ones
+  (section 5.3), and `GET /api/learn/files/<source>/d/<derivative>` (2bdb8e77 on `feature/fi-jobs`) serves one ready
+  derivative through `authorizeFileSource`, returning its D1 sha256.
+- Mounted in `dev-worker.js`; `filesFetch` answers only `/api/learn/files` and `/api/learn/files/fs_<id>` (no further
+  segment) and returns null for every other `/api/learn/files` path, `/fs_<id>/d/<derivative>` included, so the JOBS
+  routes mount beside it.
 - `POST /api/learn/files/<source id>/jobs` `{ converter, options, card, idempotency_key }`; `GET /api/learn/files/jobs/<job id>`;
   `POST …/jobs/<job id>/cancel`; `POST …/jobs/<job id>/retry`.
 - `PUT /api/learn/files/docs/<document id>` `{ base_rev, content }` → 409 when `base_rev` is not the head.
@@ -301,7 +339,8 @@ version + options, so duplicates are impossible.
 
 ## 6. Chat attachment identity
 
-New ContextRef kind `file` (added to `chat-modes.js KINDS`, `canvases.js REF_PREFIXES` and the web validators by Lane 1):
+New ContextRef kind `file` (added to `chat-modes.js KINDS`, `canvases.js REF_PREFIXES` and the web validators by the CHAT
+lane, `feature/fi-chat`):
 
 - `sourceId: 'file:<source id>@<sha256>'` - the source and its immutable revision; `version` = the derivative/converter
   version the excerpt came from.
@@ -326,7 +365,8 @@ same `boardFileLimit`, so a supported video is uploaded with the board; a file t
 
 | Lane | Owns |
 |---|---|
-| 1 Foundation | this document, `file-capabilities.js`, migration 0023 (every table, the job table included), `file-access.js`, the 50 MiB fix, `fileRef` in `assetKeysOf`/`boardAssetKeys`, ContextRef kind `file` |
+| 1 Foundation | this document, `file-capabilities.js`, migration 0023 (every table, the job table included), `file-access.js`, `file-refs.js`, `learn-files.js` (source routes), the 50 MiB fix |
+| CHAT (Toolbar session, `feature/fi-chat`) | ContextRef kind `file` in the validators and the chat resolver (section 6) |
 | JOBS (`feature/fi-jobs`, merges Lane 1) | `FileJobs` Durable Object, leases, dispatch, callbacks, results, cancel and retry, its configs |
 | 2 Documents | text, Markdown, code additions, notebooks, CSV/TSV, workbooks, Word, PDF, PPTX adapters |
 | 3 Media | images, SVG, audio, video adapters |
@@ -349,7 +389,7 @@ First release scope (owner decision E): this foundation and the 50 MiB video fix
 | Registry in the picker, drop classifier and import limits | built: the picker `accept` is `acceptList()`, `learn-drop.js` and `learn-file-import.js` read their types and limits from the registry, and every size reads in MiB |
 | `file-access.js` `authorizeFileSource` | built; unit-tested (`file-access.test.js`) |
 | Source routes: create, upload (finalize), download | built; unit-tested (`learn-files.test.js`); real Worker on the local stack (`file-sources-check.mjs`, 30 MiB) |
-| `fileRef` in the board lists and `file_source_refs` | Lane 1, next |
+| `file_source_refs` on every board write; references-only authorization; members through `?member=` | built; unit-tested (`file-access.test.js`, `learn-files.test.js`); real D1 on the local stack (`file-sources-check.mjs`) |
 | ContextRef kind `file` | CHAT lane (`feature/fi-chat`) |
 | Job runner | JOBS lane |
 

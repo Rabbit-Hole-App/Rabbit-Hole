@@ -89,7 +89,7 @@ async function actorOn(env, board, viewer) {
 }
 const settingsOf = board => ({ mode: board.published ? board.public_mode : 'off', enabled: !!board.comments_enabled });
 
-async function memberContext(req, env, boardId) {
+export async function memberContext(req, env, boardId) {
   if (!BOARD_ID.test(boardId)) return notFound();
   const board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND b.id = ?`).bind(boardId).first();
   if (!board) return notFound();

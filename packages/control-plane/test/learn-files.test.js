@@ -7,7 +7,7 @@ import { learnDb } from './learn-grade-fixture.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 import { filesFetch, filesRoute } from '../src/learn-files.js';
 
-const PEOPLE = { owner: { email: 'owner@test', org: 'team' }, friend: { email: 'friend@elsewhere', org: 'elsewhere' }, stranger: { email: 'who@else', org: 'other' } };
+const PEOPLE = { owner: { email: 'owner@test', org: 'team', user_id: 'u-owner' }, friend: { email: 'friend@elsewhere', org: 'elsewhere' }, stranger: { email: 'who@else', org: 'other' }, member: { email: 'member@test', org: 'members', user_id: 'u-member' } };
 const OWN = '/api/learn/boards/demo-app/main';
 const MiB = 1024 * 1024;
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -150,4 +150,43 @@ test('the owner reads through their own board too, and only a source that board 
   assert.equal((await call('GET', `/api/learn/files/${id}?app=demo-app&board=main`, { as: 'owner' })).status, 404, 'the board does not reference it');
   await saveBoard({ ...STATE, blocks: [card(id)] });
   assert.equal((await call('GET', `/api/learn/files/${id}?app=demo-app&board=main`, { as: 'owner' })).status, 200);
+});
+
+test('canvas members: an active member reads through ?member=, a removed member gets 404, and no member adds files', async t => {
+  const { call, store, sqlite } = setup(t);
+  const CANVAS = 'canvas-0a1b2c3d', MAIN = `/api/learn/boards/${CANVAS}/main`;
+  sqlite.prepare("INSERT INTO canvases(org,name,owner_email,title) VALUES('team',?,'owner@test','Board')").run(CANVAS);
+  await call('PUT', MAIN, { as: 'owner', body: { state: STATE } });
+  const bytes = webm(700);
+  const id = (await store(bytes, { app: CANVAS })).body.source.id;
+  const boardId = sqlite.prepare("SELECT id FROM learn_boards WHERE app = ?").get(CANVAS).id;
+  await call('PUT', MAIN, { as: 'owner', body: { state: { ...STATE, blocks: [card(id)] } } });
+  sqlite.prepare("INSERT INTO canvas_members(id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES('m1', 'team', ?, 'member@test', 'u-member', 'member@test', 'active', 'sent', 'u-owner', 1, 9999999999999)").run(CANVAS);
+  const read = await call('GET', `/api/learn/files/${id}?member=${boardId}`, { as: 'member' });
+  assert.deepEqual([read.status, sha(read.body)], [200, sha(bytes)], 'an active member reads the original');
+  assert.equal((await call('GET', `/api/learn/files/${id}?member=${boardId}`, { as: 'stranger' })).status, 404, 'not a member');
+  assert.equal((await call('GET', `/api/learn/files/${id}`, { as: 'member' })).status, 404, 'a member by id alone');
+  const declare = { app: CANVAS, board: 'main', name: 'b.webm', type: 'video/webm', size: 10, sha256: 'b'.repeat(64), family: 'video', member: boardId };
+  const refused = await call('POST', '/api/learn/files', { as: 'member', body: declare });
+  assert.equal(refused.status, 403, 'members view a canvas and never edit it, so they add no files');
+  assert.equal((await call('POST', '/api/learn/files', { as: 'owner', body: declare })).status, 201, 'the owner may name their own member board');
+  sqlite.prepare("UPDATE canvas_members SET status = 'removed', ended_at = 2 WHERE id = 'm1'").run();
+  assert.equal((await call('GET', `/api/learn/files/${id}?member=${boardId}`, { as: 'member' })).status, 404, 'a removed member');
+  assert.equal((await call('POST', '/api/learn/files', { as: 'member', body: declare })).status, 404);
+});
+
+test('a source upload does not stop its card indexing: saving the card after the upload authorizes the board', async t => {
+  const { call, saveBoard, store, sqlite } = setup(t);
+  await saveBoard(STATE);
+  const id = (await store(webm(300))).body.source.id;
+  await saveBoard({ ...STATE, blocks: [card(id)] });
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM file_source_refs WHERE source_id = ?').get(id).n, 1);
+});
+
+test('a fileRef is not a board file: the browser never uploads it as one and a fork never copies its bytes', async () => {
+  const { boardAssetKeys } = await import('../src/learn-boards.js');
+  const { assetKeysOf } = await import('../../web/src/learn-board-assets.js');
+  const state = { blocks: [card('fs_0123456789abcdef01234567'), { id: 'v', type: 'file', kind: 'clip', assetKey: 'drop:1' }] };
+  assert.deepEqual(assetKeysOf(state), ['drop:1']);
+  assert.deepEqual(boardAssetKeys(state), ['drop:1']);
 });
