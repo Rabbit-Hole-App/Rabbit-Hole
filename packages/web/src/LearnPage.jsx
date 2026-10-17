@@ -62,6 +62,7 @@ import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
 import { readPanelPin, savePanelPin } from './canvas-find.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
+import { mediaFamilyOf } from './media-family.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
@@ -701,12 +702,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         if (error) toast(error, { tone: 'error' }); else asked.push({ id: crypto.randomUUID(), file, kind, at });
         continue;
       }
-      const { kind, error } = classifyDrop(file);
+      // Images, GIFs, SVG, audio and video are read from their bytes (media-import.js, loaded with the first media drop).
+      const media = mediaFamilyOf(file.name) ? await (await import('./media-import.js')).importMedia(file) : null;
+      const { kind, error } = media || classifyDrop(file);
       if (error) { toast(error); continue; }
       if (kind === 'pdf') { await takePdf(file); continue; }
       const assetKey = `drop:${crypto.randomUUID()}`;
       await cacheAsset(assetKey, file);
-      if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name }); continue; }
+      if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name, meta: media?.meta }); continue; }
       let stored = null;
       try {
         const body = new FormData();
@@ -715,7 +718,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         stored = await response.json();
         if (!response.ok) throw new Error(stored?.error || 'Upload failed');
       } catch (problem) { toast(`${file.name}: ${problem.message}. The card is here, but the tutor will not see this image.`); stored = null; }
-      const blockId = canvas()?.insertFile({ assetKey, kind: 'image', label: stored?.title || file.name, mediaId: stored?.id || null });
+      const blockId = canvas()?.insertFile({ assetKey, kind: 'image', label: stored?.title || file.name, mediaId: stored?.id || null, meta: media?.meta });
       if (stored && blockId) {
         setImageContext({ blockId, id: stored.id, title: stored.title });
         registerSource({ id: `image:${blockId}`, kind: 'image', label: stored.title });
@@ -2058,7 +2061,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // the page past Learn's header strip.
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
     </ResizableSidePanel>
-    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.ipynb,.py" className="hidden"
+    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.mp4,.webm,.mp3,.wav,.ogg,.m4a,.flac,.pdf,.ipynb,.py" className="hidden"
       onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
     {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} files={imports[0].files} error={importState.error} busy={importState.busy}
       onCancel={nextImport} onConfirm={addImport} />}

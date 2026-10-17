@@ -1,4 +1,5 @@
 import { chromium } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 // Dropped-file cards plus the strip/toolbar/text/shape UI changes, against a
 // stubbed worker. What unit tests cannot see: a real OS-style drop landing as
@@ -82,16 +83,18 @@ const drop = async (name, type, bytes) => {
   }, [target, name, type, [...bytes]]);
   await page.waitForTimeout(1200);
 };
-const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0];
+// Real files: media cards are decided from their bytes (media-import.js), so a bare signature is refused as not an image.
+const fixture = name => [...readFileSync(new URL(`../src/__fixtures__/media/${name}`, import.meta.url))];
+const PNG = fixture('photo.png');
 
 await drop('diagram.png', 'image/png', PNG);
 ok('a dropped image lands as a card', (await canvas.locator('img[alt="diagram.png"]').count()) === 1);
 ok('the image was posted for the tutor', mediaPosts.length === 1);
 
-await drop('anim.gif', 'image/gif', [0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0]);
+await drop('anim.gif', 'image/gif', fixture('anim.gif'));
 ok('a GIF lands as a card without a server copy', (await canvas.locator('img[alt="anim.gif"]').count()) === 1 && mediaPosts.length === 1);
 
-await drop('clip.mp4', 'video/mp4', [0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]);
+await drop('clip.mp4', 'video/mp4', fixture('clip.mp4'));
 ok('a video clip lands as a native player card', (await canvas.locator('video[controls]').count()) === 1);
 
 await drop('page.html', 'text/html', [60, 104, 116, 109, 108, 62]);
