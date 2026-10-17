@@ -18,6 +18,7 @@
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 PERSIST=<lane>/local D1_CONFIG=<lane>/cfg/cp/wrangler.jsonc \
 //        node e2e/project-menu-check.mjs [shotsDir] [reviewShotsDir]
 import { chromium } from '@playwright/test';
+import { installPointerDiagnostics, reportPointerFailure } from './pointer-diagnostics.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -63,6 +64,7 @@ const contextFor = async (who, viewport = { width: 1440, height: 900 }) => {
   const context = await browser.newContext({ viewport });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   await context.route(url => NO_MODEL.test(new URL(url).pathname), route => route.abort());
+  await installPointerDiagnostics(context);
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
@@ -222,9 +224,14 @@ await part('12b the dropdowns by keyboard and pointer: Enter opens with focus on
     await page.locator('[data-menu-button-open]').waitFor({ state: 'detached' });
     assert.equal(await page.evaluate(sel => document.activeElement === document.querySelector(sel), button), true, `${button}: focus back on the button`);
     await page.locator(button).click(); await page.locator('[data-menu-button-open]').waitFor();
-    await page.mouse.click(700, 500);
-    await page.locator('[data-menu-button-open]').waitFor({ state: 'detached', timeout: 3000 });
-    assert.equal(await page.locator(button).getAttribute('aria-expanded'), 'false', `${button}: an outside press closes it`);
+    try {
+      await page.mouse.click(700, 500);
+      await page.locator('[data-menu-button-open]').waitFor({ state: 'detached', timeout: 3000 });
+      assert.equal(await page.locator(button).getAttribute('aria-expanded'), 'false', `${button}: an outside press closes it`);
+    } catch(error) {
+      await reportPointerFailure(page, `${SHOTS}/header-12b-outside-failed.png`, 'header outside press', {button,x:700,y:500});
+      throw error;
+    }
   }
   await page.locator(REPO).click();
   const link = page.locator('[data-menu-button-open] a[data-repo-badge]');

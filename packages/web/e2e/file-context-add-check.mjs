@@ -97,7 +97,9 @@ for (const c of cards) {
   await page.keyboard.press('Delete'); await settle(900);
   ok(c.name + ': card removed after attaching to chat', await page.locator('[data-block-id="' + c.id + '"]').count() === 0);
 }
-await page.locator('[data-panel-viewer="context"]').first().click();
+const companionToggle = page.locator('[data-panel-companion]').first();
+if (await companionToggle.getAttribute('aria-pressed') !== 'true') await companionToggle.click();
+await page.locator('[data-companion-view="context"]').click();
 console.log('CONTEXT_ROWS', await page.locator('[data-sources-pane]').innerText());
 await page.screenshot({ path: 'C:/s/spec/fi-context-rows.png' });
 watching = true;

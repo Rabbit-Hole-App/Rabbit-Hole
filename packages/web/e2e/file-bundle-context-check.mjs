@@ -116,7 +116,9 @@ for(const deadline=Date.now()+10000;;){const state=(await api(board)).body.state
 for(const deadline=Date.now()+10000;;){const saved=(await api('/api/ask/threads/'+thread)).body;if(saved.contextRefs?.some(ref=>ref.sourceId.includes(cards[0].source)))break;if(Date.now()>deadline)throw Error('file attachment did not persist in Chat');await settle(250);}
 await page.reload();await page.locator('[data-canvas-surface]').waitFor();await settle(1800);
 ok('after reload the visible card is still deleted',await page.locator('[data-model-card]').count()===0);
-await page.locator('[data-panel-viewer="context"]').first().click();
+const companionToggle = page.locator('[data-panel-companion]').first();
+if (await companionToggle.getAttribute('aria-pressed') !== 'true') await companionToggle.click();
+await page.locator('[data-companion-view="context"]').click();
 console.log('CONTEXT_ROWS', await page.locator('[data-sources-pane]').innerText());
 await page.screenshot({ path: 'C:/s/spec/fi-bundle-context-rows.png' });
 watching = true;
