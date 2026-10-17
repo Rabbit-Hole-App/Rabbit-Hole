@@ -75,6 +75,9 @@ const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI
 const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
+// SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
+const MediaBody = lazyFeature(() => import('./MediaCard.jsx'), 'The media player');
+const MEDIA_BODY = { svg: 'SVG', audio: 'Audio', clip: 'Video' };
 // Text, Markdown, table, workbook, Word and presentation cards (file-doc-import.js; canvas-file-imports.md lane 2).
 const FileDocCard = lazyFeature(() => import('./FileDocCard.jsx'), 'The file preview');
 const ModelCard = lazyFeature(() => import('./ModelCard.jsx'), 'The 3D viewer');
@@ -554,7 +557,10 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
 function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
   const [url, setUrl] = useState(null);
   const [missing, setMissing] = useState(false);
+  // A stored-source card (fileRef: an SVG or audio import, or Context Add to canvas for any media) reads through MediaBody too.
+  const media = MEDIA_BODY[block.kind] || (block.fileRef ? 'Image' : null);
   useEffect(() => {
+    if (media) return undefined; // MediaBody reads its own original
     let revoke = null;
     loadAsset(block.assetKey).then(file => {
       if (!file) { setMissing(true); return; }
@@ -562,7 +568,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       setUrl(revoke);
     });
     return () => { if (revoke) URL.revokeObjectURL(revoke); };
-  }, [block.assetKey]);
+  }, [block.assetKey, media]);
   const clip = block.kind === 'clip';
   // An imported file kept as it is (canvas-file-drop.md): its name and size, and Download. Never opened or run here.
   if (block.kind === 'attachment') return (
@@ -588,14 +594,16 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && block.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{clip ? 'Video' : 'Image'}<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{media || 'Image'}<span className="min-w-0 flex-1 truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+        {!media && url && <a href={url} download={block.label || 'image'} data-download-original aria-label="Download original" title="Download original" onPointerDown={event => event.stopPropagation()}
+          className="flex shrink-0 items-center rounded-md p-1 text-ink-2 normal-case hover:bg-hover hover:text-ink"><Download size={12} /></a>}
       </div>
-      <div data-pointer-body className="min-h-0 px-3 pb-3" onPointerDown={event => { if (clip && selected) event.stopPropagation(); }}>
-        {url
-          ? clip
-            ? <video src={url} controls className="w-full rounded-lg border border-line bg-black" />
-            : <img src={url} alt={block.label || 'Dropped image'} className="w-full rounded-lg border border-line bg-white object-contain" />
-          : <p className="p-2 text-sm text-ink-2">{missing ? 'This file is not in this browser. Drop it here again.' : 'Opening…'}</p>}
+      <div data-pointer-body className="min-h-0 px-3 pb-3" onPointerDown={event => { if ((clip || block.kind === 'audio') && selected) event.stopPropagation(); }}>
+        {media
+          ? <Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening…</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
+          : url
+            ? <img src={url} alt={block.label || 'Dropped image'} style={block.meta?.width && block.meta?.height ? { aspectRatio: `${block.meta.width} / ${block.meta.height}` } : undefined} className="w-full rounded-lg border border-line bg-white object-contain" />
+            : <p className="p-2 text-sm text-ink-2">{missing ? 'This file is not in this browser. Drop it here again.' : 'Opening…'}</p>}
       </div>
     </CanvasNode>
   );
@@ -1967,9 +1975,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
-      insertFile: ({ assetKey, kind, label, mediaId = null }) => {
+      insertFile: ({ assetKey = null, kind, label, mediaId = null, meta = null, fileRef = null }) => {
         snapshot();
-        return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, assetKey, label, ...(mediaId ? { mediaId } : {}) });
+        return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, ...(assetKey ? { assetKey } : {}), label, ...(mediaId ? { mediaId } : {}), ...(meta ? { meta } : {}), ...(fileRef ? { fileRef } : {}) });
       },
       // An arXiv paper as a card: the full reader - pages, zoom, Ask selection -
       // on the canvas. One card per paper; pointing at it again turns the page.

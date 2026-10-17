@@ -50,19 +50,21 @@ test('families: only shipped ones are offered, and a planned one claims nothing'
 test('every shipped extension reaches a card today, and the picker offers exactly those', async () => {
   const { importKind } = await import('./learn-file-import.js');
   const { acceptList } = await import('./file-capabilities.js');
+  const { mediaFamilyOf } = await import('./media-family.js');
   const { docKind } = await import('./file-doc-import.js');
   const { isModelDrop } = await import('./model-drop.js');
   for (const f of FAMILIES.filter(f => f.status === 'shipped')) {
     for (const ext of f.extensions) {
       if (f.route === 'import') assert.ok(importKind(`file.${ext.toUpperCase()}`), `.${ext} opens the import dialog`);
+      else if (f.route === 'media') assert.equal(mediaFamilyOf(`file.${ext.toUpperCase()}`), f.id, `.${ext} is read by media-import.js`);
       else if (f.route === 'doc') assert.ok(docKind(`file.${ext.toUpperCase()}`), `.${ext} goes to the lane 2 importer (DocImport.jsx)`);
       else if (f.route === 'model') assert.ok(f.card === null || isModelDrop([{ name: `file.${ext}` }]), `.${ext} goes to the model importer`);
       else assert.ok(classifyDrop({ type: f.mime[0], size: 1, name: `file.${ext}` }).kind, `.${ext} is a ${f.id} drop`);
     }
   }
   const offered = acceptList().split(',');
-  assert.ok(['.mp4', '.webm', '.pdf', '.ipynb', '.py', '.ts', '.png'].every(ext => offered.includes(ext)));
-  assert.ok(!offered.some(ext => ['.doc', '.svg'].includes(ext)), 'planned formats are not offered');
+  assert.ok(['.mp4', '.webm', '.pdf', '.ipynb', '.py', '.ts', '.png', '.svg', '.flac'].every(ext => offered.includes(ext)), 'Lane 3 shipped svg and audio');
+  assert.ok(!offered.some(ext => ['.doc'].includes(ext)), 'planned formats are not offered');
   assert.ok(['.txt', '.md', '.markdown', '.csv', '.tsv', '.xlsx', '.xls', '.docx', '.pptx', '.jsonl', '.ini', '.kts'].every(ext => offered.includes(ext)), 'lane 2 formats are offered');
   assert.ok(['.glb', '.stl', '.ply', '.spz', '.zip'].every(ext => offered.includes(ext)), 'Lane 4 model formats are offered');
 });

@@ -14,6 +14,9 @@ import { repositorySnapshot } from './repositories.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { appendCanvasTarget } from './learn-ask-context.js';
 import { sha256Hex } from './learn-grade-jev.js';
+import { fileContext } from './file-context.js';
+import { chatContext } from './chat-modes.js';
+import { fileChatRef } from '../../web/src/file-chat-ref.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
@@ -210,6 +213,17 @@ async function admitAsk(env, row, viewer, repository, key = null) {
 // `history` and `selected` (a card id, worded from the board here) come from the request: a model, a command or a file in it is ignored, and a message starting with
 // / is a plain question (nothing here dispatches commands).
 // link: an Explore publication's { source, key } - its own repository boundary and limit; a share reads its own.
+// An imported file card the viewer selected (canvas-file-imports.md section 6): its extracted text for the card's scope, read
+// through this shared board's own file reference (file-context.js, { row }: the board the link or membership already admitted),
+// with the coverage said to the model. Nothing when no file card is selected; never the original, never another board's file.
+async function selectedFileText(env, row, state, selected) {
+  const block = selected ? list(state?.blocks).find(entry => entry?.id === selected) : null;
+  const ref = block?.fileRef ? fileChatRef(block) : null;
+  if (!ref) return '';
+  const files = await fileContext(null, env, [ref], { row }).catch(() => null);
+  return chatContext('', [ref], null, 6000, null, files);
+}
+
 export async function askShared(env, row, viewer, body, link = null) {
   if (typeof body?.message !== 'string' || !body.message.trim() || body.message.length > MESSAGE_LIMIT) return json({ error: `Ask a question of 1-${MESSAGE_LIMIT} characters.` }, 400);
   const history = viewerHistory(body.history);
@@ -234,7 +248,7 @@ export async function askShared(env, row, viewer, body, link = null) {
     content: boardText(state),
     sources: boardSources(state),
     ...(repository ? { repository: { repo: repository.repo, commit: repository.commit, ...(snapshot ? {} : { note: "The repository source at this share's pinned commit is not available: answer from the canvas only, say so, and never use another version." }) } } : {}),
-  }), body.selected ? selectedCard(state, body.selected) : null);
+  }), body.selected ? selectedCard(state, body.selected) : null) + await selectedFileText(env, row, state, body.selected);
   const research = snapshot ? { papers: [], system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) } : { papers: [] };
   const meta = repository && !snapshot ? { notice: "The repository code at this share's commit could not be read, so this answer uses the canvas only." } : {};
   const selectedImage = imageCard(state, body.selected);

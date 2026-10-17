@@ -11,6 +11,10 @@ const SNIFF = {
   // MP4/ISO-BMFF: a box size, then 'ftyp'. WebM/Matroska: the EBML header id.
   video: b => ascii(b, 4, 'ftyp') || (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3),
   pdf: b => ascii(b, 0, '%PDF-'),
+  // Lane 3. SVG: text that opens with a tag (an XML declaration, comment, DOCTYPE or <svg), not gzip; the client parses
+  // the rest (svg-sanitize.js). Audio: MP3 (ID3 tag or an MPEG frame sync), RIFF WAVE, Ogg, FLAC or an MP4 ftyp box.
+  svg: b => { let i = b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0; while ([0x20, 0x09, 0x0a, 0x0d].includes(b[i])) i++; return b[i] === 0x3c && (ascii(b, i, '<?xml') || ascii(b, i, '<!--') || ascii(b, i, '<!DOCTYPE') || ascii(b, i, '<svg')); },
+  audio: b => ascii(b, 0, 'ID3') || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) || (ascii(b, 0, 'RIFF') && ascii(b, 8, 'WAVE')) || ascii(b, 0, 'OggS') || ascii(b, 0, 'fLaC') || ascii(b, 4, 'ftyp'),
 };
 
 const NONE = { store: false, preview: false, edit: false, download: false, context: false };
@@ -20,15 +24,21 @@ const MODEL_CAN = { store: true, preview: true, edit: false, download: true, con
 const MODEL_LIMITS = { bytes: 25 * MiB, preview: { triangles: 1_000_000, vertices: 1_500_000, points: 1_600_000, splats: 1_500_000, textureBytes: 256 * MiB, nodes: 5000, accessorElements: 5_000_000 }, archiveEntries: 512, archiveBytes: 200 * MiB, archiveRatio: 200 };
 export const FAMILIES = [
   { id: 'image', label: 'Image', lane: 3, status: 'shipped', extensions: ['png', 'jpg', 'jpeg', 'webp'], mime: ['image/png', 'image/jpeg', 'image/webp'], sniff: SNIFF.image,
-    card: 'file:image', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: false, context: true }, limits: { bytes: 5 * MiB },
+    card: 'file:image', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: true, context: true }, limits: { bytes: 5 * MiB, pixels: 100_000_000, side: 16384 },
     notes: 'the tutor sees it through /api/learn/media (5 MiB, PNG/JPEG/WebP)' },
   { id: 'gif', label: 'GIF', lane: 3, status: 'shipped', extensions: ['gif'], mime: ['image/gif'], sniff: SNIFF.gif,
-    card: 'file:image', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: false, context: false }, limits: { bytes: 10 * MiB }, notes: '' },
-  planned('svg', 'SVG', 3, ['svg'], 'sanitized preview, lane 3'),
+    card: 'file:image', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: true, context: false }, limits: { bytes: 10 * MiB, pixels: 100_000_000, side: 16384 },
+    notes: 'plays as the browser animates it; frames counted at import; the pixel cap is per frame' },
+  // Lane 3 (media-import.js, svg-sanitize.js, MediaCard.jsx). Limits measured 2026-10-16 (C:/s/spec/fi-lane3-report.md).
+  { id: 'svg', label: 'SVG', lane: 3, status: 'shipped', extensions: ['svg'], mime: ['image/svg+xml'], sniff: SNIFF.svg,
+    card: 'file:svg', chooser: null, route: 'media', can: { store: true, preview: true, edit: false, download: true, context: false }, limits: { bytes: 2 * MiB, elements: 20000, depth: 128 },
+    notes: 'a sanitized copy shown as an <img> (no scripts, handlers, foreignObject, links or external fetches); the original downloads as a file; .svgz refused' },
   { id: 'video', label: 'Video', lane: 3, status: 'shipped', extensions: ['mp4', 'webm'], mime: ['video/mp4', 'video/webm'], sniff: SNIFF.video,
-    card: 'file:clip', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: false, context: false }, limits: { bytes: 50 * MiB },
-    notes: 'browser playback of the original; no conversion yet' },
-  planned('audio', 'Audio', 3, ['mp3', 'wav', 'ogg', 'm4a', 'flac'], 'lane 3'),
+    card: 'file:clip', chooser: null, route: 'drop', can: { store: true, preview: true, edit: false, download: true, context: false }, limits: { bytes: 50 * MiB },
+    notes: 'browser playback of the original (H.264/AAC MP4, VP8/VP9/Opus WebM; HEVC only where the browser decodes it); an undecodable encoding says so and keeps the original; no video conversion' },
+  { id: 'audio', label: 'Audio', lane: 3, status: 'shipped', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'flac'], mime: ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/flac', 'audio/x-flac'], sniff: SNIFF.audio,
+    card: 'file:audio', chooser: null, route: 'media', can: { store: true, preview: true, edit: false, download: true, context: false }, limits: { bytes: 25 * MiB, durationSec: 4 * 3600 },
+    notes: 'browser playback when a decode probe proves it (MP3, PCM/float WAV, Ogg Vorbis/Opus/FLAC, FLAC, AAC M4A in Chrome and Firefox); ADPCM WAV, ALAC and AC-3 M4A need the audio-playback converter (awaiting converter until cards carry a stored source)' },
   { id: 'pdf', label: 'PDF', lane: 2, status: 'shipped', extensions: ['pdf'], mime: ['application/pdf'], sniff: SNIFF.pdf,
     card: 'pdf', chooser: 'pdf', route: 'pdf', can: { store: true, preview: true, edit: false, download: true, context: true }, limits: { bytes: 5 * MiB, pages: 100 },
     notes: 'download is the browser PDF viewer\'s own control; the tutor reads up to 100 pages' },

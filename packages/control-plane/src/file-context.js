@@ -59,9 +59,11 @@ export function unitsOf(body, mediaType, range) {
 }
 
 // Who is asking about which board: the source's owner first, then the asker's own board of this canvas, then the member
-// board they are on (canvas-comments.js memberContext: the owner or an active member). A Response never escapes: refused is
-// just unavailable for this ref.
-async function authorized(req, env, sourceId, { user, app, member }) {
+// board they are on (canvas-comments.js memberContext: the owner or an active member). row: a board the caller already
+// authorized for this viewer (a share or member link's board, learn-shared-ask.js) - only that board's own reference counts.
+// A Response never escapes: refused is just unavailable for this ref.
+async function authorized(req, env, sourceId, { user, app, member, row: board }) {
+  if (board) { const viaRow = await authorizeFileSource(req, env, sourceId, { row: board }); return viaRow instanceof Response ? null : viaRow; }
   const own = await authorizeFileSource(req, env, sourceId);
   if (!(own instanceof Response)) return own;
   if (user && app) {
@@ -81,7 +83,7 @@ async function authorized(req, env, sourceId, { user, app, member }) {
 
 // refs: the turn's validated context refs (only kind 'file' are read). Returns { coverage: Map(refKey -> label),
 // blocks: [text] } for chatContext. user: { org, email } of the asker; app: the canvas asked on; member: a member board id.
-export async function fileContext(req, env, refs, { user = null, app = null, member = null, limits = FILE_CONTEXT } = {}) {
+export async function fileContext(req, env, refs, { user = null, app = null, member = null, row = null, limits = FILE_CONTEXT } = {}) {
   const coverage = new Map(), blocks = [];
   let left = limits.perTurn;
   for (const ref of (refs || []).filter(r => r.kind === 'file')) {
@@ -91,7 +93,7 @@ export async function fileContext(req, env, refs, { user = null, app = null, mem
     if (!m) { say('unavailable'); continue; }
     const [, sourceId, rev] = m;
     let access = null;
-    try { access = await authorized(req, env, sourceId, { user, app, member }); } catch { access = null; }
+    try { access = await authorized(req, env, sourceId, { user, app, member, row }); } catch { access = null; }
     if (!access || access.source.sha256 !== rev) { say('unavailable'); continue; }
     const derivative = await env.LEARN_DB.prepare("SELECT id, kind, media_type, r2_key, converter_version FROM file_derivatives WHERE source_id = ? AND source_sha256 = ? AND kind IN ('text', 'transcript') AND status = 'ready' ORDER BY updated_at DESC LIMIT 1")
       .bind(sourceId, rev).first();

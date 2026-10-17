@@ -492,3 +492,54 @@ STEP derivatives the card expects from the `step-glb` converter (via the JOBS la
 `structure` = `structure.json` `{ units, unit_scale_to_m, parts, solids, tree: [{ name, children? }], bbox: { min, max }
 (source units), limitations? }`; `poster` optional (the card draws one from the mesh when absent). Units are shown only
 when `structure.units` is reported; the card never claims CAD features, tolerances or a feature tree survive.
+
+## 12. Media family (Lane 3: images, GIF, SVG, audio, video)
+
+Modules: `media-family.js` (the extension lookup, the only media code the canvas loads up front), `media-import.js` +
+`media-formats.js` (loaded with the first media drop: header and container readers), `svg-sanitize.js`,
+`media-playback.js`, `MediaCard.jsx` (lazy: the SVG, audio and video card bodies). No new library. The fixtures in
+`packages/web/src/__fixtures__/media` were made with Pillow 12.3, libsndfile 1.2.2 (soundfile 0.13.1), PyAV 19.0.1 (its
+bundled FFmpeg) and Chrome 155 MediaRecorder; they are generated test data, and no encoder ships with the app.
+
+| Family | Card | Recognized by | Limits (measured 2026-10-16; Chrome 155, Chromium 1234, Firefox 1538, Windows 11) |
+|---|---|---|---|
+| image | file:image (unchanged) | PNG IHDR, JPEG SOF + EXIF orientation, WebP VP8/VP8L/VP8X | 5 MiB; 100 MP and 16384 px a side (a 400 MP PNG took 2.3-4.2 s to draw; 134 MP 0.85-1.1 s) |
+| gif | file:image (unchanged) | GIF87a/89a, frames counted | 10 MiB; 100 MP per frame |
+| svg | file:svg | well-formed XML with one `<svg>` root | 2 MiB, 20,000 elements (sanitized in 230 ms in Node), depth 128 |
+| audio | file:audio | MP3 frame/ID3, RIFF WAVE fmt, Ogg first page, FLAC STREAMINFO, MP4 stsd | 25 MiB, 4 h |
+| video | file:clip (unchanged) | MP4 ftyp + stsd, WebM EBML + codec ids | 50 MiB (Lane 1) |
+
+- Orientation: every engine measured applies JPEG EXIF orientation (orientation 6 at 640x360 is shown at 360x640), and
+  no engine applies WebP EXIF orientation, so the card reserves the displayed shape the same way.
+- SVG: the card shows a sanitized copy only as an `<img>` from a blob URL (in that mode the browser runs no script and
+  fetches nothing), and the uploaded markup never enters the page. The sanitizer keeps a list of allowed drawing
+  elements. It drops scripts, handlers, foreignObject, links, `set`, href-rewriting animations, `@import`, `@font-face`
+  and every non-fragment `url()`/href. The only href kept apart from a `#fragment` is an embedded raster `data:` image on
+  `<image>`. DOCTYPE entities expand one level only, as literal text: external entities, parameter entities and nested
+  entities are refused. The card names what it removed. The original downloads as `application/octet-stream`.
+- Playback is decided by a decode probe (a detached muted element reaching `canplay`), not by `canPlayType`, which is
+  wrong in both directions. Measured: Chrome plays float WAV and answers "", and Playwright WebKit on Windows answers
+  "probably" and plays nothing.
+
+| Encoding | Chrome | Chromium | Firefox |
+|---|---|---|---|
+| MP3, PCM and float WAV, Ogg Vorbis/Opus/FLAC, FLAC, AAC M4A, WebM Opus | plays | plays | plays |
+| IMA ADPCM WAV, ALAC M4A, AC-3 M4A | derivative | derivative | derivative |
+| H.264/AAC MP4, VP8/VP9 WebM | plays | plays | plays |
+| HEVC MP4 | plays (hardware) | unsupported notice | unsupported notice |
+| MPEG-4 Part 2 MP4 | unsupported notice | unsupported notice | unsupported notice |
+
+- Storage: new SVG and audio imports are fileRef cards at once. The copy waits under `fileRef.local` while
+  `file-source-client.js` `startUpload` stores it; the card shows "Saving to your account…" or "Not saved: <reason>"
+  with Retry, then writes `fileRef.source`. Image, GIF and video drops keep their board-file `assetKey` (lead ruling).
+  MediaBody also renders Context "Add to canvas" fileRef cards of any media family (`file-to-canvas.js`), read through
+  `loadSource`.
+- Audio that this browser cannot decode first looks for an existing copy (`file-jobs-client.js` `fetchDerivatives`,
+  `audio-playback`, `{ bitrate_kbps: 128 }`). If there is none and the page can write, it submits one job
+  (`submitFileJob`, keyed per card, converter and revision) and reads its status until the job settles. Ready plays
+  `…/d/<derivative>` in the page scope and records `fileRef.derivatives.playback`. Failed says why and offers Retry. A
+  viewer or a fork never starts a job. Before the file is saved, the card says the copy will be made once it is. The
+  original stays downloadable in every state. No video conversion.
+- Media cards never autoplay. Native controls give play/pause, seek, volume, time and fullscreen. `preload=metadata`
+  paints the first frame as the poster (measured in all three engines). Import creates no `text` or `transcript`
+  derivative, so chat lists a media card as `listed`.

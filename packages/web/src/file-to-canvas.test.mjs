@@ -15,7 +15,9 @@ test('which rows can become a card: shipped fileRef families only; PDFs, code an
   assert.equal(canvasFamilyOf(ref('beach.mp4')).id, 'video');
   assert.equal(canvasFamilyOf(ref('photo.png')).id, 'image');
   assert.equal(canvasFamilyOf(ref('paper.pdf')), null, 'a PDF keeps its own Add to canvas (pdf-to-canvas)');
-  assert.equal(canvasFamilyOf(ref('notes.doc')), null, 'a planned family (.doc, awaiting its converter): no button until its lane ships it');
+  assert.equal(canvasFamilyOf(ref('logo.svg')).id, 'svg', 'Lane 3 shipped svg and audio');
+  assert.equal(canvasFamilyOf(ref('song.flac')).id, 'audio');
+  assert.equal(canvasFamilyOf(ref('notes.doc')), null, 'a planned family: no button until its lane ships it (.docx shipped with Lane 2)');
   assert.equal(canvasFamilyOf({ ...ref(), kind: 'doc' }), null);
   assert.equal(canvasFamilyOf({ ...ref(), sourceId: 'file:fs_x@y' }), null);
 });

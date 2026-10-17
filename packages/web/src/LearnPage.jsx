@@ -65,6 +65,7 @@ import { readPanelPin, savePanelPin } from './canvas-find.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
 import { isModelDrop } from './model-drop.js';
+import { mediaFamilyOf } from './media-family.js';
 import { acceptList, boardFileLimit, formatBytes } from './file-capabilities.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
@@ -719,12 +720,19 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         continue;
       }
       if (docImport.claims(file)) { await docImport.take(file, at); continue; }
-      const { kind, error } = classifyDrop(file);
+      // Images, GIFs, SVG, audio and video are read from their bytes (media-import.js, loaded with the first media drop).
+      const media = mediaFamilyOf(file.name) ? await (await import('./media-import.js')).importMedia(file) : null;
+      const { kind, error } = media || classifyDrop(file);
       if (error) { toast(error); continue; }
       if (kind === 'pdf') { await takePdf(file); continue; }
+      // SVG and audio: a stored source once the file client is injected (media-storage.js); everything else a board asset.
+      if (kind === 'svg' || kind === 'audio') {
+        try { canvas()?.insertFile(await (await import('./media-storage.js')).storeMedia(file, media)); } catch (problem) { toast(`${file.name}: ${problem.message}`); }
+        continue;
+      }
       const assetKey = `drop:${crypto.randomUUID()}`;
       await cacheAsset(assetKey, file);
-      if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name }); continue; }
+      if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name, meta: media?.meta }); continue; }
       let stored = null;
       try {
         const body = new FormData();
@@ -733,7 +741,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         stored = await response.json();
         if (!response.ok) throw new Error(stored?.error || 'Upload failed');
       } catch (problem) { toast(`${file.name}: ${problem.message}. The card is here, but the tutor will not see this image.`); stored = null; }
-      const blockId = canvas()?.insertFile({ assetKey, kind: 'image', label: stored?.title || file.name, mediaId: stored?.id || null });
+      const blockId = canvas()?.insertFile({ assetKey, kind: 'image', label: stored?.title || file.name, mediaId: stored?.id || null, meta: media?.meta });
       if (stored && blockId) {
         setImageContext({ blockId, id: stored.id, title: stored.title });
         registerSource({ id: `image:${blockId}`, kind: 'image', label: stored.title });
