@@ -32,7 +32,8 @@ function setup(t) {
   };
   const objects = new Map();
   const LEARN_MEDIA = {
-    put: async (key, body, { httpMetadata }) => { objects.set(key, { bytes: new Uint8Array(body instanceof ReadableStream ? await new Response(body).arrayBuffer() : body), httpMetadata }); },
+    // As R2: a stream is read whole, a declared sha256 is verified, and a failed put stores nothing.
+    put: async (key, body, { httpMetadata, sha256 }) => { const bytes = new Uint8Array(body instanceof ReadableStream ? await new Response(body).arrayBuffer() : body); if (sha256 && sha(bytes) !== sha256) throw new Error('put: The SHA-256 checksum you specified did not match what we received.'); objects.set(key, { bytes, httpMetadata }); },
     get: async (key, options) => {
       const object = objects.get(key);
       if (!object) return null;
@@ -293,4 +294,57 @@ test('acceptance 2: a fork keeps its files after the link is revoked and after t
   assert.equal(deleted.status, 200, await deleted.clone().text());
   assert.ok(!refsOf(f.sqlite).some(ref => ref.endsWith(`@${boardId}`)), 'the original rows are gone');
   assert.equal((await viaFork()).status, 200, 'the fork still reads the immutable bytes');
+});
+
+test('on the Workers path the body streams to R2 with its length and R2 checks the sha256; nothing is hashed or held in JavaScript', async t => {
+  const { call, saveBoard, objects } = setup(t);
+  globalThis.FixedLengthStream = class extends TransformStream { constructor(length) { let seen = 0; super({ transform(chunk, controller) { seen += chunk.byteLength; if (seen > length) throw new TypeError('more bytes than the stream length'); controller.enqueue(chunk); }, flush() { if (seen !== length) throw new TypeError('fewer bytes than the stream length'); } }); } };
+  t.after(() => { delete globalThis.FixedLengthStream; });
+  await saveBoard(STATE);
+  const bytes = webm(5 * MiB);
+  const made = await call('POST', '/api/learn/files', { as: 'owner', body: { app: 'demo-app', name: 's.webm', type: 'video/webm', size: bytes.byteLength, sha256: sha(bytes), family: 'video' } });
+  const url = made.body.upload.url, length = { 'Content-Length': String(bytes.byteLength) };
+  const tampered = webm(5 * MiB); tampered[4 * MiB] ^= 1;
+  assert.equal((await call('PUT', url, { as: 'owner', raw: tampered, headers: length })).status, 400, 'R2 refuses the wrong sha256');
+  assert.equal((await call('PUT', url, { as: 'owner', raw: webm(5 * MiB + 1), headers: length })).status, 400, 'more bytes than declared');
+  const short = await call('PUT', url, { as: 'owner', raw: webm(MiB), headers: length });
+  assert.deepEqual([short.status, typeof short.body.error], [400, 'string'], 'a Content-Length larger than the body: a JSON 400, not a hang');
+  assert.equal(objects.size, 0);
+  const stored = await call('PUT', url, { as: 'owner', raw: bytes, headers: length });
+  assert.deepEqual([stored.status, stored.body.source.status], [200, 'stored']);
+  assert.equal(sha([...objects.values()][0].bytes), sha(bytes));
+});
+
+// Owner checks (a)-(e) for file sources, 2026-10-16, on the Workers path (FixedLengthStream stand-in; R2 verifies sha256).
+test('owner checks (a)-(e), file sources: a wrong length or sha256 is never finalized, the no-length boundary, nothing kept', async t => {
+  const { call, saveBoard, objects, sqlite } = setup(t);
+  globalThis.FixedLengthStream = class extends TransformStream { constructor(length) { let seen = 0; super({ transform(chunk, controller) { seen += chunk.byteLength; if (seen > length) throw new TypeError('more bytes than the stream length'); controller.enqueue(chunk); }, flush() { if (seen !== length) throw new TypeError('fewer bytes than the stream length'); } }); } };
+  t.after(() => { delete globalThis.FixedLengthStream; });
+  await saveBoard(STATE);
+  const declare = async (bytes, name) => (await call('POST', '/api/learn/files', { as: 'owner', body: { app: 'demo-app', name, type: 'video/webm', size: bytes.byteLength, sha256: sha(bytes), family: 'video' } })).body;
+  const status = id => sqlite.prepare('SELECT status FROM file_sources WHERE id = ?').get(id).status;
+  const send = (url, bytes, declared) => call('PUT', url, { as: 'owner', raw: bytes, headers: declared === null ? {} : { 'Content-Length': String(declared) } });
+  const real = webm(4000);
+  const a = await declare(real, 'a.webm');
+  // (a) claims the declared size but sends fewer bytes.
+  assert.equal((await send(a.upload.url, real.slice(0, 1000), 4000)).status, 400, '(a)');
+  // (b) claims fewer than declared (the declared size no longer matches), and claims the size with more bytes behind it.
+  assert.equal((await send(a.upload.url, real, 1000)).status, 400, '(b) a Content-Length under the declared size');
+  assert.equal((await send(a.upload.url, webm(25 * MiB), 4000)).status, 400, '(b) the declared size with a far larger body');
+  assert.equal((await send(a.upload.url, real, 4001)).status, 413, '(b) a Content-Length over the declared size');
+  // (d) the declared size with other bytes: R2's sha256 check fails.
+  const other = webm(4000); other[2000] ^= 1;
+  assert.equal((await send(a.upload.url, other, 4000)).status, 400, '(d)');
+  assert.equal(status(a.source.id), 'uploading', '(d, e) never stored after any refusal');
+  assert.equal(objects.size, 0, '(e) no object for any refused upload');
+  assert.equal((await call('GET', `/api/learn/files/${a.source.id}`, { as: 'owner' })).status, 404, '(e) nothing to download');
+  // (c) no Content-Length: counted up to 1 MiB.
+  const mib = webm(1048576), over = webm(1048577);
+  const c1 = await declare(mib, 'c1.webm'), c2 = await declare(over, 'c2.webm');
+  assert.equal((await send(c1.upload.url, mib, null)).status, 200, '(c) 1048576 without a length');
+  const refused = await send(c2.upload.url, over, null);
+  assert.deepEqual([refused.status, refused.body.error, status(c2.source.id)], [411, 'Send this file with its Content-Length.', 'uploading'], '(c) 1048577 without a length');
+  // And the real upload still finalizes.
+  assert.equal((await send(a.upload.url, real, 4000)).status, 200);
+  assert.equal(status(a.source.id), 'stored');
 });
