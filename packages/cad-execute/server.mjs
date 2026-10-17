@@ -148,7 +148,7 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
       if (active) return send(429, { error: 'busy' });
       if (!admission || !budget) return send(503, { error: 'admission_disabled' });
       if (degraded || process.platform !== 'linux' || !detect().backend) return send(503, { error: 'sandbox_unavailable' });
-      try { budget.reserve(key, effectiveLimits(job).total_artifact_bytes); } catch { return send(429, { error: 'budget_exhausted' }); }
+      try { budget.reserve(key, effectiveLimits(job).total_artifact_bytes); } catch { await budget.notifyExhausted?.(); return send(429, { error: 'budget_exhausted' }); }
       const record = { job, stage: 'building', abort: new AbortController(), timings: {} };
       attempts.set(key, record); active = record;
       // Memory is advisory only; bounded entries cannot substitute for persisted CP ownership.

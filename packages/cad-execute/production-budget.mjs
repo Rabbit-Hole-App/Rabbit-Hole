@@ -46,6 +46,7 @@ export class ProductionBudget {
     { verifyMount = requirePersistentMount, now = Date.now } = {},
   ) {
     this.config = productionConfig(env);
+    this.alertToken = env.CAD_BUDGET_ALERT_TOKEN;
     this.now = now;
     verifyMount(this.config.file);
     try {
@@ -99,8 +100,10 @@ export class ProductionBudget {
         reservedBytes: 0,
         reservations: 0,
       };
-      if (allowance > this.config.maximum - entry.reservedBytes)
+      if (allowance > this.config.maximum - entry.reservedBytes) {
+        this.deniedMonth = period;
         throw Error('production_egress_limit');
+      }
       next.months[period] = {
         reservedBytes: entry.reservedBytes + allowance,
         reservations: entry.reservations + 1,
@@ -110,6 +113,44 @@ export class ProductionBudget {
     // Charge every redispatch and both possible months; no refunds or rollover reset.
     durableWrite(this.config.file, next);
     this.state = next;
+  }
+  async notifyExhausted() {
+    const period = month(this.now());
+    if (
+      !this.deniedMonth ||
+      !this.alertToken ||
+      this.notifying ||
+      this.state.notifiedMonths?.[period]
+    )
+      return;
+    this.notifying = true;
+    try {
+      const response = await fetch(
+        'https://digrabbithole.com/internal/cad-budget-alert',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.alertToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ month: period, kind: 'transfer' }),
+          redirect: 'error',
+          signal: AbortSignal.timeout(5000),
+        },
+      );
+      await response.body?.cancel();
+      if (!response.ok) return;
+      const next = {
+        ...this.state,
+        notifiedMonths: { ...this.state.notifiedMonths, [period]: true },
+      };
+      durableWrite(this.config.file, next);
+      this.state = next;
+    } catch {
+      /* Admission stays denied; retry notification on a later denial. */
+    } finally {
+      this.notifying = false;
+    }
   }
   expired() {
     return false;
