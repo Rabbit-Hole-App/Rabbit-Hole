@@ -66,6 +66,8 @@ import { CODE_CARD, CODE_DRAG, dragSource, insertCodeCard, repoCodeCard } from '
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
+import { createSearchSnapshotStore, searchCamera, searchRange, revealSearchRange, temporarySearchHighlight } from './canvas-search-navigation.js';
+import './canvas-search-navigation.css';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -1707,8 +1709,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Typing goes to docLive at once and into the board after a pause (one canvas render per pause, not per key).
   const onDocDirtyRef = useRef(onDocDirty);
   onDocDirtyRef.current = onDocDirty;
+  const searchRead = useRef(null), searchStore = useRef(null), docSearchApi = useRef(null);
+  const searchJump = useRef(0), searchPaint = useRef(null);
+  if (!searchStore.current) searchStore.current = createSearchSnapshotStore(() => searchRead.current());
   const docChanged = next => {
     docLive.current = next;
+    searchStore.current.changed();
     // The page says Saving… from the first key, not once the pause is over: Saved only ever means the server has it.
     if (!docTimer.current) onDocDirtyRef.current?.();
     clearTimeout(docTimer.current);
@@ -1896,6 +1902,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Tutor v1 (docs/features/tutor-v1-implementation-map.md §4): read the cards, and change one
       // card through a pure reducer (pager, practice), undoable like any other edit.
       blocks: () => blocksRef.current,
+      getSearchSnapshot: searchStore.current.get,
+      subscribeSearch: searchStore.current.subscribe,
+      captureNavigation: () => ({ owner: searchStore.current, view: { ...viewRef.current }, selection: [...selectedRef.current],
+        scroll: [...(surface.current?.querySelectorAll('[data-block-id] *, [data-canvas-doc] *') || [])]
+          .filter(node => node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth).map(node => ({ node, top: node.scrollTop, left: node.scrollLeft })) }),
+      restoreNavigation: saved => {
+        if (!saved || saved.owner !== searchStore.current) return { found: false, reason: 'different-canvas' };
+        searchJump.current++; searchPaint.current?.(); searchPaint.current = null;
+        cameraRef.current = null; revealRef.current = null;
+        for (const entry of saved.scroll) if (entry.node.isConnected) { entry.node.scrollTop = entry.top; entry.node.scrollLeft = entry.left; }
+        setSelection(saved.selection.filter(id => objectById(id) || shapesRef.current.some(shape => shape.id === id) || present.current.links.some(link => link.id === id) || groupsRef.current.some(group => group.id === id)));
+        setGlide(false); viewRef.current = { ...saved.view }; setView(viewRef.current);
+        return { found: true };
+      },
+      focusSearchTarget: target => focusSearchTarget(target),
       // Curious (owner task 2): the last semantic snapshot and its fingerprint (semanticBoard below); blocks() is unchanged.
       semantic: () => semanticRef.current.value(),
       // Whole-canvas context (chat-canvas-context.js), read when a chat turn is sent: the live lists with the open editor's
@@ -2621,6 +2642,53 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // A slot or a Tutor card glides there (200ms, none under reduced motion); a Files-panel card is framed at once, as before.
     if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre);
   });
+  // Search changes only camera, selection and transient DOM scroll/paint. It never commits text or card dimensions.
+  const focusSearchTarget = async target => {
+    const jump = ++searchJump.current;
+    searchPaint.current?.(); searchPaint.current = null;
+    if (!target || !surface.current) return { found: false, reason: 'missing-target' };
+    let element, range = null, box;
+    if (target.kind === 'document') {
+      if (!liveDoc()) return { found: false, reason: 'missing-target' };
+      if (docView !== 'editor') return { found: false, reason: 'document-hidden' };
+      if (!docSearchApi.current) return { found: false, reason: 'document-loading' };
+      const result = docSearchApi.current.reveal(target.docBlockId || target.id, target.quote);
+      if (!result.found) return result;
+      ({ element, range } = result);
+    } else if (target.anchor?.kind === 'point') {
+      box = { x: target.anchor.x, y: target.anchor.y, w: 24, h: 24 };
+    } else {
+      const id = target.anchor?.kind === 'object' ? target.anchor.object_id : target.id;
+      const selector = ['block-id', 'item-id', 'shape-id', 'group-box', 'connection'].map(key => `[data-${key}="${CSS.escape(id || '')}"]`).join(',');
+      element = surface.current.querySelector(selector);
+      const boxes = boxesOf(membersOf(id).length ? membersOf(id) : [id]);
+      box = boundsRef.current[id] || boxes[0];
+      if (!element) return { found: false, reason: 'missing-target' };
+      if (!box || membersOf(id).length) {
+        const hit = element.getBoundingClientRect(), at = surface.current.getBoundingClientRect(), v = viewRef.current;
+        box = { x: (hit.left - at.left - v.x) / v.z, y: (hit.top - at.top - v.y) / v.z, w: hit.width / v.z, h: hit.height / v.z };
+      }
+      setSelection([id]);
+      range = searchRange(element, target.quote);
+      revealSearchRange(element, range, viewRef.current.z);
+    }
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    if (jump !== searchJump.current || !surface.current || (element && !element.isConnected)) return { found: false, reason: 'superseded' };
+    // A matching paragraph within a Full-content card is its own camera target; an internally scrolled match is now visible.
+    if (element && (range || target.kind === 'document')) {
+      const hit = range?.getBoundingClientRect() || element.getBoundingClientRect(), at = surface.current.getBoundingClientRect(), current = viewRef.current;
+      if (hit.width || hit.height) box = { x: (hit.left - at.left - current.x) / current.z, y: (hit.top - at.top - current.y) / current.z,
+        w: Math.max(1, hit.width / current.z), h: Math.max(1, hit.height / current.z) };
+    }
+    if (!box) return { found: false, reason: 'missing-target' };
+    cameraRef.current = null; revealRef.current = null;
+    let area = visibleArea(), next = searchCamera(box, viewRef.current, area);
+    area = { ...area, bottom: Math.min(area.bottom, chromeTop(next.x + box.x * next.z, next.x + (box.x + box.w) * next.z) - 24) };
+    next = searchCamera(box, viewRef.current, area);
+    setGlide(false); viewRef.current = next; setView(next);
+    searchPaint.current = temporarySearchHighlight(element, range);
+    return { found: true, matched: !!range };
+  };
   // The slot a card on its way was given goes (a no-op once a card filled it, or after this canvas closed).
   const release = id => setSlots(previous => previous.some(slot => slot.id === id) ? previous.filter(slot => slot.id !== id) : previous);
   // A card already on the canvas answers a slot reserved for it: the slot goes, and the card comes into
@@ -2904,6 +2972,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const { id, text } = typed, put = list => list.map(entry => (entry.id === id ? { ...entry, text } : entry));
     return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
   };
+  // Search reads these unbudgeted live lists, independently of model context and camera/layout state.
+  searchRead.current = () => ({ ...semanticBoard(), doc: liveDoc() });
+  useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick, doc]);
+  useEffect(() => () => { searchJump.current++; searchPaint.current?.(); searchStore.current.dispose(); }, []);
   // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
   // editor's words and the selection have been still for 150 ms, focused on recent edits; typing settles at once. The
   // fingerprint and settling reach the page (onState), so a change of meaning re-plans and a move does not.
@@ -4876,7 +4948,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {unknownDocBlock(doc.blocks)
                 ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
                 : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document…</p>}>
-                  <CanvasDoc key={docEpoch} blocks={doc.blocks} editable={!readOnly} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
+                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
                 </Suspense>}
             </div>
           </div>
