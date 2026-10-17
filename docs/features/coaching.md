@@ -3240,3 +3240,8 @@ limits. Existing providers and independent evaluators are unchanged. Focused
 offline checks pass; full-suite, browser and real-model deployed verification are
 pending. The isolated upload failed `node:crypto` module validation. This is not a
 successful dev deployment and is excluded from the r35 candidate.
+
+
+### Canvas Search (2026-10-16, candidate)
+
+The existing right-panel Search now includes current-canvas browsing, seven filters, literal matching, cached previews, comment navigation and camera Back. It reuses the resizable panel and existing source/document viewers; it does not call models. See [the approved scope and coverage](canvas-search.md). Integrated release verification and isolated dev deployment are pending; this entry is not a deployment claim.

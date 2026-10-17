@@ -50,7 +50,7 @@ test('exactly one tab is active: aria-selected, the soft purple with a purple ic
   assert.match(read('./chat-panels.js'), /const \[open, setOpen\] = useState\(true\), \[tab, setTab\] = useState\('chat'\);/, 'open on Chat by default');
   assert.match(page, /const \{ open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab \} = panels;/);
   assert.match(page, /<div role="tabpanel" aria-label="Table of contents" className=\{`\$\{panelTab === 'toc' \? 'flex' : 'hidden'\}/);
-  assert.match(page, /<CanvasFind hidden=\{panelTab !== 'find'\}/);
+  assert.match(page, /<CanvasSearchPanel hidden=\{panelTab !== 'find'\}/);
 });
 
 test('Comments selects only on a saved top-level canvas; elsewhere it is aria-disabled and skipped by the arrows', () => {
@@ -179,9 +179,12 @@ test('find: case-insensitive over titles and bodies, one match per card, in canv
   assert.equal(cardWords({ id: 'z', title: 'T', more: [null], options: [{}] }), 'T', 'a malformed card cannot throw');
 });
 
-test('a match frames and selects its card through the canvas\'s existing focusBlock; nothing leaves the browser', () => {
-  assert.match(page, /onFocus=\{id => canvasApi\.current\?\.focusBlock\(id\)\}/);
-  assert.match(page, /cards=\{\(\) => \[\.\.\.\(canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\]\), \.\.\.exchanges\]\}/);
-  assert.doesNotMatch(header + read('./canvas-find.js'), /\bapi\(|fetch\(/);
-  assert.match(header, /if \(event\.key === 'Escape'\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); setQuery\(''\); setAt\(-1\); \}/, 'Escape clears the find');
+test('Search delegates target navigation to the live canvas and keeps matching local', () => {
+  assert.match(page, /<CanvasSearchPanel hidden=\{panelTab !== 'find'\}/);
+  assert.match(page, /\{\.\.\.canvasSearch\.panel\}/);
+  const search = read('./use-canvas-search.jsx');
+  assert.match(search, /canvasApi\.current\?\.focusSearchTarget\?\.\(result\.target\)/);
+  assert.match(search, /subscribeSearch\(update\)/);
+  assert.doesNotMatch(read('./canvas-search-index.js'), /\bapi\(|fetch\(/);
+  assert.match(read('./CanvasSearchPanel.jsx'), /event\.key === 'Escape'[\s\S]*onQueryChange\(''\)/);
 });

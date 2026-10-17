@@ -7,7 +7,14 @@ export const COUNTER_FROM = 4500;
 export const memberBase = boardId => `/api/learn/c/${encodeURIComponent(boardId)}`;
 export const publicBase = token => `/api/learn/boards/shared/${encodeURIComponent(token)}/comments`;
 
-const send = (url, body, method = 'POST') => api(url, { method, body: JSON.stringify(body ?? {}) });
+const changed = promise => promise.then(value => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('rh:comments-changed'));
+  return value;
+});
+const send = (url, body, method = 'POST') => {
+  const pending = api(url, { method, body: JSON.stringify(body ?? {}) });
+  return url.endsWith('/read') ? pending : changed(pending);
+};
 export const commentsApi = base => ({
   base,
   about: () => api(base),
@@ -17,10 +24,10 @@ export const commentsApi = base => ({
   reply: (threadId, body) => send(`${base}/threads/${threadId}/comments`, body),
   edit: (id, body) => send(`${base}/comments/${id}`, { body, mentions: mentionsIn(body) }, 'PATCH'),
   people: (q, scope) => api(`${base}/people?q=${encodeURIComponent(q)}&${scope.thread ? `thread=${scope.thread}` : `audience=${scope.audience}`}`),
-  remove: id => api(`${base}/comments/${id}`, { method: 'DELETE' }),
+  remove: id => changed(api(`${base}/comments/${id}`, { method: 'DELETE' })),
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
   color: (id, color) => send(`${base}/threads/${id}/color`, { color }, 'PUT'),
-  removeThread: id => api(`${base}/threads/${id}`, { method: 'DELETE' }),
+  removeThread: id => changed(api(`${base}/threads/${id}`, { method: 'DELETE' })),
   read: id => send(`${base}/threads/${id}/read`),
   block: (commentId, removeComments = false) => send(`${base}/blocks`, { comment_id: commentId, remove_comments: removeComments }),
   blocks: () => api(`${base}/blocks`),

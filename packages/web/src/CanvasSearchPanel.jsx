@@ -94,7 +94,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query =
               }}>
                 {!rows && <Preview key={`${canvasKey}:${result.previewKey || result.id}`} result={result} getPreview={getPreview} canvasKey={canvasKey} />}
                 <span className="mt-1 block shrink-0 truncate text-sm font-medium text-ink" title={result.title}>{result.title || 'Untitled object'}</span>
-                <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3">{location || result.kind}{refs.length ? ` · ${refs.length} ${[...new Set(refs.map(ref => ref.kind || 'source'))].join('/')} reference${refs.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
+                <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3">{result.match?.kind === 'source' ? 'Source text ? ' : ''}{location || result.kind}{refs.length ? ` · ${refs.length} ${[...new Set(refs.map(ref => ref.kind || 'source'))].join('/')} reference${refs.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
                 <span className="line-clamp-2 shrink-0 break-words text-xs text-ink-2">{snippet.before}{snippet.hit && <mark className="rounded-sm bg-[#ddd6fe] text-ink">{snippet.hit}</mark>}{snippet.after}</span>
                 {result.availability?.status !== 'ready' && result.availability?.message && <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3" title={result.availability.message}>{result.availability.message}</span>}
               </button>

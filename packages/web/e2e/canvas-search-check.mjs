@@ -129,7 +129,9 @@ check('live unsaved document text updates Search before the editor loses focus',
   const editor = page.locator('[data-canvas-doc] [contenteditable="true"]').first(); await editor.click();
   await page.keyboard.press('Control+End'); await page.keyboard.type(' DOC_UNSAVED_TOKEN');
   await waitCount(1); assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-canvas-doc]')), true);
-  assert.equal(await result('document:doc-p').count(), 1);
+  const editedBlock = await page.locator('[data-canvas-doc] .bn-block-outer[data-id]').filter({ hasText: 'DOC_UNSAVED_TOKEN' }).last().getAttribute('data-id');
+  assert.ok(editedBlock, 'the live editor exposes the edited block identity');
+  assert.equal(await result(`document:${editedBlock}`).count(), 1, 'the result identifies the actual edited block, including an editor-created trailing paragraph');
 });
 check('long-card text beyond its initial visible region matches and navigation preserves geometry', async () => {
   await search('NEEDLE_AT_BOTTOM'); await waitCount(1);

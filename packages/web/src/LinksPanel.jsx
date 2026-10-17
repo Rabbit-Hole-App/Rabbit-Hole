@@ -11,7 +11,8 @@ import { Button } from './ui.jsx';
 // back, and refresh() after a save that changed the links. An answer for another board is dropped.
 export function useCanvasLinks({ boardId, shown }) {
   const [links, setLinks] = useState({ status: 'loading', board: boardId, from: [], to: [] });
-  const cache = useRef(new Map()), request = useRef(null), wasShown = useRef(shown);
+  const cache = useRef(new Map()), cacheBoard = useRef(boardId), request = useRef(null), wasShown = useRef(shown);
+  if (cacheBoard.current !== boardId) { cache.current = new Map(); cacheBoard.current = boardId; }
   const refresh = useCallback(() => {
     request.current?.abort();
     if (!boardId) { setLinks({ status: 'none', board: null, from: [], to: [] }); return; }
@@ -33,6 +34,7 @@ export function useCanvasLinks({ boardId, shown }) {
   const current = links.board === boardId;
   const status = current ? links.status : 'loading';
   const resolve = useCallback(target => {
+    if (!current) return null;
     const group = current && links.from.find(entry => entry.target === target);
     if (group) return group.unavailable ? { unavailable: true } : group;
     return cache.current.get(target) || (status === 'ready' ? { unavailable: true } : null);

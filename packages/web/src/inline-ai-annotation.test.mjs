@@ -64,6 +64,8 @@ test('annotation: Dive and the owned Tutor outline do not read links at all', ()
 // Every module that reads a board's `links`, and what it does with them. A new reader fails this check until it is
 // listed here after its annotation handling is reviewed. Matches that are not a board's links say so.
 const READERS = {
+  'web/src/canvas-search-index.js': 'local literal Search indexes stored annotation labels; never model context',
+  'web/src/use-canvas-search.jsx': 'Search resolves already-authorized canvas reference metadata, not model context',
   'web/src/AdaptiveCanvas.jsx': 'draws them (dashed from kind), selects, styles, copies, cascades deletes; no structure',
   'web/src/inline-ai-context.js': 'the context builder: kind annotation is never structure (tested above)',
   'web/src/inline-ai-apply.js': 'writes the annotation connector with kind annotation',

@@ -31,5 +31,7 @@ export function searchLocation(location) {
   if (location.blockId) return 'Document';
   if (location.page != null) return `Page ${location.page}`;
   if (location.slide != null) return `Slide ${location.slide}`;
+  if (location.start != null) return `${location.path ? `${location.path} ? ` : ''}Line ${location.start}${location.end > location.start ? `?${location.end}` : ''}`;
+  if (location.path) return location.path;
   return [location.sheet, location.cells || location.rows || location.cell].filter(Boolean).join(' · ');
 }
