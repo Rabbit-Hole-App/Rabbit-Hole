@@ -5,9 +5,10 @@
 // Pure: the canvas applies the transaction this returns in one undo step.
 import { reconcileRuns, runsOf, sliceRuns, spliceRuns, textPatch, fontSize as validSize, hexColor } from './learn-rich-text.js';
 import { TEXT_LEVELS } from './learn-style-panel.js';
+import { cardEditSpec, cardEditText, validateCardContent } from './inline-card-edit.js';
 import { LIMITS } from './inline-ai-context.js';
 
-export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style'];
+export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style', 'replace_card_content'];
 const STYLE_KEYS = ['fontSize', 'level', 'bold', 'italic', 'underline', 'textColor'];
 const BOXED = new Set(['rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star']);
 const LINEAR = new Set(['line', 'arrow', 'curve', 'elbow']);
@@ -58,7 +59,17 @@ export function validateEdit(edit, frozen, board) {
     if (where.entity.locked) { errors.push(`${op.id} is locked.`); continue; }
     const current = changes.get(op.id)?.after || where.entity;
     let after = null;
-    if (op.op === 'replace_text') {
+    if (where.list === 'blocks' && !cardEditSpec(where.entity).ok) { errors.push(cardEditSpec(where.entity).reason); continue; }
+    if (op.op === 'replace_card_content') {
+      if (frozen.range || where.list !== 'blocks') { errors.push('Structured edits require a whole supported card.'); continue; }
+      if ((frozen.clipped || []).includes(op.id)) { errors.push('This card was not read completely. Reduce the selection before editing.'); continue; }
+      const original = cardEditSpec(where.entity);
+      if (JSON.stringify(original.content).length > LIMITS.targetChars) { errors.push('This card exceeds the complete-content edit budget.'); continue; }
+      const checked = validateCardContent(current, op.content);
+      if (!checked.ok) { errors.push(checked.error); continue; }
+      after = checked.after;
+      where.field = 'cardContent';
+    } else if (op.op === 'replace_text') {
       if (frozen.range) { errors.push('Only the selected words may change.'); continue; }
       if (!where.field) { errors.push('Cards are changed in the card itself, not inline.'); continue; }
       // The model did not read this target whole: a whole replace would erase what it never saw. A long text was cut
@@ -68,6 +79,7 @@ export function validateEdit(edit, frozen, board) {
       if ((frozen.clipped || []).includes(op.id)) { errors.push(`This selection is more than an edit can read at once (${LIMITS.objects} objects, ${LIMITS.total} characters). Select fewer objects, then press Ctrl+K.`); continue; }
       if (typeof op.text !== 'string' || op.text.length > MAX_EDIT_TEXT) { errors.push('The new text is missing or too long.'); continue; }
       after = withText(current, where.field, where.runs, op.text);
+      if (where.list === 'blocks' && current.type === 'snippet' && current.code !== op.text && Object.hasOwn(current, 'output')) after.output = '';
     } else if (op.op === 'replace_range') {
       const range = frozen.range;
       if (!range || op.from !== range.from || op.to !== range.to) { errors.push('An edit may replace only the selected words.'); continue; }
@@ -130,6 +142,7 @@ export function wordDiff(before, after) {
 
 // What the preview shows for one change: before and after words, and which style keys moved.
 export function describeChange(change) {
+  if (change.field === 'cardContent') return { id: change.id, before: cardEditText(cardEditSpec(change.before).content), after: cardEditText(cardEditSpec(change.after).content), style: [], ...(change.before.type === 'snippet' && change.before.code !== change.after.code && change.before.output ? { notice: 'The previous code output will be cleared; the revised code has not been run.' } : {}) };
   const field = change.field || 'text';
   const styleKeys = STYLE_KEYS.filter(key => change.before[key] !== change.after[key]);
   return { id: change.id, before: String(change.before[field] ?? ''), after: String(change.after[field] ?? ''), style: styleKeys.map(key => [key, change.before[key] ?? null, change.after[key] ?? null]) };

@@ -1,3 +1,4 @@
+import { validateCardContent } from '../../web/src/inline-card-edit.js';
 // The inline AI editor's worker routes (docs/features/inline-ai-editor.md §6-§12, A2, A3, A5).
 //
 //   POST /api/learn/inline/route     one JEV Choice question: which existing capability makes an Explain output. The
@@ -108,11 +109,17 @@ export function checkNote(text) {
   if (note.length > NOTE_MAX_CHARS) return { error: 'The explanation came back too long for a note.' };
   return { result: { kind: 'note', text: note } };
 }
-export function checkEdit(input, targetIds) {
+export function checkEdit(input, targetIds, context = null) {
   if (!input || typeof input !== 'object' || !Array.isArray(input.ops)) return { error: 'The model returned no edit.' };
   const ops = input.ops.slice(0, 40);
   const outside = ops.find(op => !targetIds.includes(op?.id));
   if (outside) return { error: `The edit reached outside the selection (${String(outside?.id).slice(0, 60)}).` };
+  for (const op of ops) if (op.op === 'replace_card_content') {
+    const target = context?.target?.objects?.find(entry => entry.id === op.id);
+    if (!target?.editable || target.truncated || target.editLimitation) return { error: 'The card was not supplied as complete editable content.' };
+    const checked = validateCardContent({ ...target.editable.content, type: target.editable.type }, op.content);
+    if (!checked.ok) return { error: checked.error };
+  }
   const limitation = typeof input.limitation === 'string' ? input.limitation.slice(0, 300) : undefined;
   return { result: { kind: 'edit', summary: String(input.summary || '').slice(0, 200), ops, ...(limitation ? { limitation } : {}) } };
 }
@@ -265,7 +272,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
         else if (tool) {
           let input = null;
           try { input = got.tool?.name === tool.name ? JSON.parse(got.json || '{}') : null; } catch { input = null; }
-          checked = edit ? checkEdit(input, targetIds) : checkDiagram(input);
+          checked = edit ? checkEdit(input, targetIds, context) : checkDiagram(input);
         } else checked = checkNote(got.text);
         if (checked.error) send('error', { error: checked.error, code: 'invalid' });
         else { outcome = 'done'; send('done', { result: checked.result, usage: { input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null }, ms: { first: got.first == null ? null : got.first - started, total: Date.now() - started } }); }

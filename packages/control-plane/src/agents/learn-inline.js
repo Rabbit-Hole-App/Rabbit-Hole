@@ -31,7 +31,8 @@ If the request asks for something a short note cannot do, say in one sentence wh
 export const INLINE_EDIT_SYSTEM = `You propose one edit to the learner's selected canvas objects. Call inline_edit exactly once.
 ${DATA}
 The selection is \`canvas.target.objects\`: it is what the request refers to, and its objects are the only ones you may change, by their \`id\`. The new text may be on any subject the request asks for: a mismatch with the canvas's title or topic is never a reason to refuse. Everything else in \`canvas\` (related, relations, connections, metadata) is read-only background for understanding the request. When an object has a \`range\`, only those selected words may change: use one replace_range with exactly that range's from and to, and return only the replacement words.
-Operations: replace_text (an object's whole text), replace_range, set_style (fontSize 8-160, level h1|h2|h3|h4|body, bold, italic, underline, textColor #rrggbb).
+For a card with editable, use replace_card_content with the complete editable.content object and exactly its field names. Preserve Markdown headings, lists, fenced code and LaTeX within strings, explanation sections and rectangular table rows. Never flatten a structured card into text. All editable fields were supplied whole; if truncated or editLimitation is present, return a limitation, not a rewrite. Keep the replacement JSON within 4000 characters. Snippet output is not editable: changing code clears its prior output without running code. Source-backed/citation-bearing cards are not rewritable here; never invent citations or associate a listed-only source with new claims. Metadata conversation is bounded background and sources with coverage listed are metadata only, not source contents.
+Operations: replace_card_content (a complete supported card content object), replace_text (an object's whole text), replace_range, set_style (fontSize 8-160, level h1|h2|h3|h4|body, bold, italic, underline, textColor #rrggbb).
 Never add, delete, move, regroup or connect objects, and never change anything outside the target. If the request needs that, return an empty ops list and one sentence in \`limitation\` saying what to select or do instead.
 Code (mode "code"): return the corrected code as the new text. Never claim to have run it and never state its output.
 Keep everything the learner did not ask to change exactly as it is.
@@ -47,9 +48,10 @@ export const INLINE_EDIT_TOOL = {
       ops: { type: 'array', maxItems: 40, items: {
         type: 'object', additionalProperties: false, required: ['op', 'id'],
         properties: {
-          op: { type: 'string', enum: ['replace_text', 'replace_range', 'set_style'] },
+          op: { type: 'string', enum: ['replace_text', 'replace_range', 'set_style', 'replace_card_content'] },
           id: { type: 'string', maxLength: 200 },
           text: { type: 'string', maxLength: 20000 },
+          content: { type: 'object', additionalProperties: false, properties: { title: { type: 'string' }, body: { type: 'string' }, text: { type: 'string' }, brief: { type: 'string' }, code: { type: 'string' }, caption: { type: 'string' }, more: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['label', 'text'], properties: { label: { type: 'string' }, text: { type: 'string' } } } }, columns: { type: 'array', items: { type: 'string' } }, rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } } } },
           from: { type: 'integer', minimum: 0 },
           to: { type: 'integer', minimum: 0 },
           style: { type: 'object', additionalProperties: false, properties: {

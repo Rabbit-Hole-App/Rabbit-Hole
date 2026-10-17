@@ -1,3 +1,4 @@
+import { cardEditSelectionReason } from './inline-card-edit.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
@@ -57,8 +58,9 @@ const selectionKind = (target, board) => {
 export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
+  const cardEditReason = !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
   const fileLocked = !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
-  const [mode, setMode] = useState(target.creation || fileLocked ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
+  const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
   // is the Explain mode itself and has no pill; it is still sent. The picker opens while the line is a leading /word.
@@ -176,7 +178,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { request, context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: how === 'edit' ? cardEditSelectionReason(target.ids || [], board()) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
     });
   };
@@ -580,6 +582,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                   <pre data-before className="whitespace-pre-wrap font-mono text-[12px] text-[#b42318] line-through decoration-[#b42318]/50">{change.before}</pre>
                   <pre data-after className="whitespace-pre-wrap font-mono text-[12px] text-[#1a7f37]">{change.after}</pre>
                 </>}
+                {change.notice && <p className="text-ink-2">{change.notice}</p>}
                 {change.style.map(([key, from, to]) => <p key={key} className="text-ink-2">{key === 'fontSize' ? 'Font size' : key === 'level' ? 'Level' : key}: {String(from ?? 'default')} → {String(to ?? 'default')}</p>)}
               </div>
             ))}
@@ -646,13 +649,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
               <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
                 {MODES.map(([value, label]) => (
                   <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
-                    disabled={(target.creation || fileLocked) && value === 'edit'} title={value !== 'edit' ? undefined : target.creation ? 'Select something to edit.' : fileLocked ? FILE_EDIT_LOCKED : undefined}
+                    disabled={(target.creation || fileLocked || cardEditReason) && value === 'edit'} title={value !== 'edit' ? undefined : target.creation ? 'Select something to edit.' : fileLocked ? FILE_EDIT_LOCKED : cardEditReason || undefined}
                     onClick={() => { changeMode(value); setModeOpen(false); focusField(); }}
                     className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">
                     <span className="flex w-3.5 justify-center">{mode === value && <Check size={13} className="text-ai" />}</span>{label}
                   </button>
                 ))}
                 {target.creation && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">Select something to edit.</p>}
+                {cardEditReason && !fileLocked && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{cardEditReason}</p>}
                 {fileLocked && <p data-inline-edit-disabled data-inline-file-locked className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{FILE_EDIT_LOCKED}</p>}
               </div>
             )}
@@ -693,6 +697,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 {!selectionOnly && <li data-inline-context-group="supporting" className="pt-1 font-medium text-ink">Supporting · read-only{prepared.context.related.length ? '' : ': none found'}</li>}
                 {prepared.context.related.map(entry => <li key={entry.id} data-inline-context-entry="supporting" className="truncate pl-2">{RELATION[entry.relation] || entry.relation} · {LABEL[entry.type] || entry.type} · {short(entry.text)}</li>)}
                 {prepared.context.target.group && <li className="truncate pl-2">group “{short(prepared.context.target.group.label || 'untitled', 30)}”</li>}
+                {prepared.context.metadata.conversation?.length > 0 && <li className="pl-2">{prepared.context.metadata.conversation.length} available conversation turns (bounded)</li>}
+                {prepared.context.metadata.sources?.length > 0 && <li className="pl-2">{prepared.context.metadata.sources.length} attached source references (listed, content not read)</li>}
                 {prepared.context.metadata.canvasTitle && <li className="truncate pl-2">canvas title “{short(prepared.context.metadata.canvasTitle, 40)}” (background only)</li>}
                 {prepared.context.style && <li data-inline-context-style className="truncate pl-2">look to match: {prepared.context.style.from ? `${prepared.context.style.kind} shapes, ${prepared.context.style.route} arrows` : 'the default (nothing drawn nearby)'}</li>}
                 <li data-inline-context-group="limits" className="pt-1 font-medium text-ink">Limits</li>

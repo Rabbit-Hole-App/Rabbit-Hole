@@ -6,6 +6,7 @@
 // (id -> { x, y, w, h } in world units) the canvas measures. Content and layout stay apart (A1): a content record says
 // what an object is and says; where it is comes from `boxes` on each build, so a move never rebuilds a description.
 
+import { cardEditSpec } from './inline-card-edit.js';
 import { cardText, semanticSnapshot } from './canvas-semantics.js';
 import { docText } from './doc-text.js';
 import { fileCoverage } from './file-chat-ref.js';
@@ -15,7 +16,7 @@ export const CONTEXT_VERSION = 'inline-context-2';
 // closeness alone); hops: how far along the diagram's relations; flowGap: the gap between two text boxes read in order.
 export const LIMITS = Object.freeze({ objects: 24, targetChars: 4000, chars: 400, total: 8000, rangeAround: 200, connections: 40, relevant: 0.35, hops: 3, flowGap: 48 });
 // What a move changes and a description never reads.
-const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'w', 'h', 'fresh']);
+const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'w', 'h', 'fresh', 'cardLayout']);
 const LINEAR = new Set(['line', 'arrow', 'curve', 'elbow']);
 
 // FNV-1a, 32-bit: a fingerprint, not a secret.
@@ -311,8 +312,14 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
   const gone = target.ids.filter(id => !present.includes(id));
   const targets = present.map(id => {
     const link = look.links.get(id);
-    const base = link ? { id, type: 'connection', text: String(link.label || ''), native: true, from: link.from, to: link.to } : look.record(id);
+    let base = link ? { id, type: 'connection', text: String(link.label || ''), native: true, from: link.from, to: link.to } : look.record(id);
+    const entity = look.entities.get(id);
+    const editable = entity?.list === 'blocks' ? cardEditSpec(entity.entity) : null;
+    // The complete structured representation replaces a lossy description, and counts against the same budget.
+    if (editable?.ok) base = { ...base, text: JSON.stringify(editable.content) };
     const taken = take(base, 'target', {}, limits.targetChars);
+    if (taken && editable?.ok && !taken.truncated) taken.editable = { type: editable.type, fields: editable.fields, content: editable.content };
+    if (taken && editable && !editable.ok) taken.editLimitation = editable.reason;
     if (taken && target.range && target.range.id === id) {
       const whole = base.text, { from, to } = target.range;
       taken.range = { from, to, text: whole.slice(from, to), before: whole.slice(Math.max(0, from - limits.rangeAround), from), after: whole.slice(to, to + limits.rangeAround) };
@@ -401,6 +408,33 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     ...(extras.title ? { canvasTitle: String(extras.title).slice(0, 200) } : {}),
     ...(extras.goal ? { learningGoal: String(extras.goal).slice(0, 300) } : {}),
   };
+  // Available conversation and intentionally attached references only; never claim listed sources were read.
+  if (!selectionOnly) {
+    const conversation = Array.isArray(extras.conversation) ? extras.conversation : [];
+    const sources = Array.isArray(extras.sources) ? extras.sources : [];
+    metadata.conversation = [];
+    metadata.sources = [];
+    omitted.conversation = 0; omitted.sources = 0;
+    for (const turn of conversation.slice().reverse()) {
+      if (!turn || !['user', 'assistant'].includes(turn.role) || typeof turn.text !== 'string') continue;
+      const room = Math.min(1000, Math.max(0, limits.total - chars));
+      if (!room) { omitted.conversation += 1; continue; }
+      const text = turn.text.slice(0, room);
+      const truncated = text.length !== turn.text.length;
+      metadata.conversation.unshift({ role: turn.role, text, ...(truncated ? { truncated: true } : {}) });
+      chars += text.length;
+      if (truncated) omitted.conversation += 1;
+    }
+    for (const source of sources) {
+      if (!source || typeof source !== 'object') continue;
+      const entry = { kind: String(source.kind || 'source').slice(0, 60), title: String(source.title || '').slice(0, 200), coverage: 'listed' };
+      if (typeof source.sourceId === 'string') entry.sourceId = source.sourceId.slice(0, 200);
+      if (source.range && typeof source.range === 'object') entry.range = Object.fromEntries(Object.entries(source.range).filter(([key, value]) => ['start', 'end', 'page', 'line', 'lineEnd', 'from', 'to'].includes(key) && (typeof value === 'number' || typeof value === 'string')).map(([key, value]) => [key, typeof value === 'string' ? value.slice(0, 100) : value]));
+      const length = JSON.stringify(entry).length;
+      if (chars + length > limits.total) { omitted.sources += 1; continue; }
+      metadata.sources.push(entry); chars += length;
+    }
+  }
   const image = targets.find(entry => entry.flattened);
   const imageEntity = image && look.entities.get(image.id)?.entity;
   const counts = { target: targets.length, ...Object.fromEntries(RELATIONS.map(relation => [relation, related.filter(entry => entry.relation === relation).length])) };

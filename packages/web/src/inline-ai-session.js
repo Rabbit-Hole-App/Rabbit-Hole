@@ -30,6 +30,7 @@ export function earlierResult(preview) {
     const summary = preview.summary || '', ops = preview.raw?.ops || [];
     const full = JSON.stringify({ summary, ops });
     if (full.length <= EARLIER_MAX) return full;
+    if (ops.some(op => op.op === 'replace_card_content')) return null;
     const each = Math.max(40, Math.floor((EARLIER_MAX - 600) / Math.max(1, ops.length)) - 120);
     const cut = ops.map(op => (typeof op.text === 'string' && op.text.length > each ? { ...op, text: `${op.text.slice(0, each)}…` } : op));
     return JSON.stringify({ summary, truncated: true, ops: cut }).slice(0, EARLIER_MAX);
@@ -184,16 +185,19 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       // original request go with the instruction, and the preview stays until the revision succeeds. A / command or the
       // other pill is a new request instead.
       const previous = state.status === 'preview' && state.preview && !state.accepted && state.preview.mode === mode && !explicitCommand(prompt) ? state.preview : null;
+      const earlier = previous ? earlierResult(previous) : null;
+      if (previous && earlier === null) { set({ error: 'This proposal is too large to refine completely. Reject it and request a shorter revision.', notice: null }); return 'too_long'; }
       const id = uuid(), mine = ++token;
       controller?.abort();
       controller = new AbortController();
       mark(id, 'submit');
       const snapshot = prepare();
+      if (snapshot.error) { set({ error: snapshot.error, notice: null }); finish(id, 'unsupported'); return 'unsupported'; }
       mark(id, 'refreshed');
       Object.assign(metric(id), { context: snapshot.shape || null, prep: { ms: snapshot.prepMs ?? null, cacheHit: !!snapshot.cacheHit } });
       const key = idempotencyKey({ boardKey, prints: snapshot.prints, mode, prompt: previous ? `${previous.requestId}|${prompt}` : prompt, selectionOnly: snapshot.selectionOnly });
       const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: snapshot.frozen, key,
-        ...(previous ? { replaces: previous.requestId, revise: { prompt: String(previous.origin || ''), result: earlierResult(previous) } } : {}) };
+        ...(previous ? { replaces: previous.requestId, revise: { prompt: String(previous.origin || ''), result: earlier } } : {}) };
       set({ requestId: id, mode, error: null, notice: null, clarify: null, stale: null, declined: null, retry: false });
       const kept = results.get(key);
       if (kept) {

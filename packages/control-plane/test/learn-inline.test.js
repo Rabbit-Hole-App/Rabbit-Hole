@@ -204,3 +204,11 @@ test('telemetry keeps the check outcomes and the diagram output', async () => {
   }
   assert.equal(cleanMetrics({ output: 'diagram' }).output, 'diagram');
 });
+
+test('structured card output must match complete target schema, never identity or layout', () => {
+ const target={target:{objects:[{id:'a',editable:{type:'explanation',content:{title:'T',body:'B'}}}]}};
+ const op={op:'replace_card_content',id:'a',content:{title:'T',body:'Revised'}};
+ assert.equal(checkEdit({ops:[op]},['a'],target).result.kind,'edit');
+ assert.match(checkEdit({ops:[op]},['a']).error,/complete/);
+ assert.ok(checkEdit({ops:[{...op,content:{...op.content,id:'other'}}]},['a'],target).error);
+});
