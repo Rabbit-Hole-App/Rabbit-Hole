@@ -117,3 +117,9 @@ test('large live board reuses unchanged entries while one edited object updates'
   assert.equal([...second.entries].filter(([id, entry]) => first.entries.get(id) === entry).length, 4999);
   t.diagnostic(`5000 objects: initial ${initialMs.toFixed(1)}ms, single edit ${updateMs.toFixed(1)}ms`);
 });
+
+test('accessible card results expose stable cached-poster keys without fetching previews', () => {
+  const value = index({ blocks: [{ id: 'visible', type: 'text', text: 'shown' }, { id: 'hidden', type: 'repo-code', redacted: true, title: 'private' }] });
+  assert.equal(query(value).results[0].previewKey, 'visible');
+  assert.equal(query(value).results.length, 1);
+});
