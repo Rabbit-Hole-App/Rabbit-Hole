@@ -512,7 +512,7 @@ await check('8 Open source on a code card opens Files at its revision and range,
 await check('9 inside a graph card: click and Shift-click select nodes, background drag pans and wheel zooms the card graph only, the outer canvas and the card stay; Escape clears the inner selection only; keys stay inside', async () => {
   await revealGraphCard();
   const card = (await ofType('repo-graph'))[0], outer = cardEl(card.id), el = outer.locator(SELECTORS.graphCard);
-  const note0 = await box(cardEl('rcc-note')), card0 = await box(outer);
+  let note0 = await box(cardEl('rcc-note')), card0 = await box(outer);
   const outerCamera = () => cardEl('rcc-note').evaluate(element => {
     const transforms = [];
     for (let node = element; node; node = node.parentElement) if (node.style.transform) transforms.push(node.style.transform);
@@ -526,6 +526,10 @@ await check('9 inside a graph card: click and Shift-click select nodes, backgrou
   const empty = await page.evaluate(([x0, y0, w, h]) => { for (let y = y0 + 12; y < y0 + h - 12; y += 10) for (let x = x0 + 12; x < x0 + w - 12; x += 10) { const e = document.elementFromPoint(x, y); if (e?.closest('svg') && !e.closest('[data-graph-node]') && !e.closest('button')) return { x, y }; } return null; }, [svg.x, svg.y, svg.width, svg.height]);
   assert.ok(empty, 'an empty point of the card graph');
   facts.c9Pointer.afterClicks = { note: await box(cardEl('rcc-note')), camera: await outerCamera() };
+  // Locator clicks can scroll the page to reach graph nodes. Isolate the drag from that preceding interaction.
+  // Keep the original positions above as evidence; neither drag nor wheel may move the settled outer view.
+  note0 = facts.c9Pointer.afterClicks.note;
+  card0 = await box(outer);
   facts.c9Pointer.target = await page.evaluate(({ x, y }) => {
     const element = document.elementFromPoint(x, y);
     return { x, y, tag: element?.tagName, card: element?.closest('[data-block-id]')?.dataset.blockId,
@@ -537,6 +541,7 @@ await check('9 inside a graph card: click and Shift-click select nodes, backgrou
   await page.waitForTimeout(300);
   facts.c9Pointer.afterDrag = { note: await box(cardEl('rcc-note')), camera: await outerCamera(), innerBefore: cam0, innerAfter: await cameraOf(el) };
   console.log('POINTER_DIAGNOSTIC case9 ' + JSON.stringify(facts.c9Pointer));
+  assert.deepEqual(await outerCamera(), facts.c9Pointer.afterClicks.camera, 'a graph drag changed the outer camera');
   assert.notEqual(await cameraOf(el), cam0, 'a background drag did not pan the card graph');
   assert.deepEqual(await box(cardEl('rcc-note')), note0, 'a background drag in the card graph moved the outer canvas');
   const cam1 = await cameraOf(el);
@@ -544,6 +549,7 @@ await check('9 inside a graph card: click and Shift-click select nodes, backgrou
   await page.waitForTimeout(400);
   facts.c9 = { cam0, cam1, cam2: await cameraOf(el), note0, note2: await box(cardEl('rcc-note')) };
   assert.deepEqual(await box(cardEl('rcc-note')), note0, `a wheel over the card graph moved the outer canvas (card camera ${cam1 === facts.c9.cam2 ? 'unchanged' : 'changed'})`);
+  assert.deepEqual(await outerCamera(), facts.c9Pointer.afterClicks.camera, 'a graph wheel changed the outer camera');
   const card1 = await box(outer);
   assert.deepEqual([card1.x, card1.y], [card0.x, card0.y], 'the card did not move');
   assert.equal((await selectedIn(el)).length, 2, 'panning kept the selection');
