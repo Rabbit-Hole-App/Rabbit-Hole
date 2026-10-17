@@ -198,7 +198,8 @@ test('Materials rows: canvas context, Add to canvas, this chat, then Remove from
   assert.match(source, /\{row\.error && <p role="alert" data-material-error/);
   // Every row action stops there; the header keeps no document action; Upload is a visible button.
   assert.match(source, /const act = work => event => \{ event\.stopPropagation\(\); work\(\); \};/);
-  assert.equal((source.match(/onClick=\{act\(/g) || []).length, 6, 'context, canvas, chat, remove, retry and dismiss all go through act');
+  // An imported file's own Add to canvas (file-to-canvas.js; file-to-canvas.test.mjs) is a seventh, on its own row too.
+  assert.equal((source.match(/onClick=\{act\(/g) || []).length, 7, 'context, canvas (PDF), canvas (imported file), chat, remove, retry and dismiss all go through act');
   assert.doesNotMatch(source, /data-source-add-canvas|Attach to this chat<\/MenuItem>|Detach from this chat/);
   assert.match(source, /<Button variant="secondary" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\} className="border-\[1px\]">\s+<Upload size=\{14\} aria-hidden \/> Upload/);
   assert.doesNotMatch(source, /data-sources-close/, 'one Close: the companion column header closes the viewer (PanelHeader.jsx CompanionHeader)');

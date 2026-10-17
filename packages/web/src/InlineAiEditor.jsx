@@ -11,6 +11,7 @@ import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission
 import { descFor } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
+import { FILE_EDIT_LOCKED, fileEditLocked } from './file-chat-ref.js';
 
 // The inline AI editor (docs/features/inline-ai-editor.md): a compact popover by the frozen selection, with Edit and
 // Explain pills, the prompt, a context indicator, the streamed preview and Accept / Reject. Everything it shows before
@@ -55,7 +56,9 @@ const selectionKind = (target, board) => {
 // Explain for objects.
 export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
-  const [mode, setMode] = useState(target.creation ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
+  // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
+  const fileLocked = !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
+  const [mode, setMode] = useState(target.creation || fileLocked ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
   // is the Explain mode itself and has no pill; it is still sent. The picker opens while the line is a leading /word.
@@ -197,6 +200,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   });
   // One Send: a typed command resolves through the registry exactly as a picked one, so both submit the same request.
   const send = () => {
+    if (mode === 'edit' && fileLocked) { setRefused(FILE_EDIT_LOCKED); return; }
     const out = submission({ mode, command, text: prompt });
     // A source search where no finder can open (an embed without one) is said like any command Ctrl+K lacks here.
     if (out.unsupported || (out.source && !config.openSearch)) { setRefused(out.unsupported || out.source.source); return; }
@@ -642,13 +646,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
               <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
                 {MODES.map(([value, label]) => (
                   <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
-                    disabled={target.creation && value === 'edit'} title={target.creation && value === 'edit' ? 'Select something to edit.' : undefined}
+                    disabled={(target.creation || fileLocked) && value === 'edit'} title={value !== 'edit' ? undefined : target.creation ? 'Select something to edit.' : fileLocked ? FILE_EDIT_LOCKED : undefined}
                     onClick={() => { changeMode(value); setModeOpen(false); focusField(); }}
                     className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">
                     <span className="flex w-3.5 justify-center">{mode === value && <Check size={13} className="text-ai" />}</span>{label}
                   </button>
                 ))}
                 {target.creation && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">Select something to edit.</p>}
+                {fileLocked && <p data-inline-edit-disabled data-inline-file-locked className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{FILE_EDIT_LOCKED}</p>}
               </div>
             )}
             {busy(status) ? (
