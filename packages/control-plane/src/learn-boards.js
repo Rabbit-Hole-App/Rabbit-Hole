@@ -689,7 +689,7 @@ async function startRabbitHole(req, env, token, body) {
 
 // The owner of a board: someone with access to its app - or, for a canvas
 // (smart-home catalog), the canvas's owner, checked against LEARN_DB.
-async function boardOwner(req, env, app) {
+export async function boardOwner(req, env, app) {
   if (!CANVAS.test(app)) {
     const access = await authorizedBoardApp(req, env, app);
     return access instanceof Response ? access : { org: access.org, email: access.email };

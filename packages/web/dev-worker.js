@@ -39,6 +39,7 @@ import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
+import { filesFetch } from '../control-plane/src/learn-files.js';
 import { provenanceRoute } from '../control-plane/src/learn-provenance.js';
 import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
@@ -277,6 +278,8 @@ const routes = {
     // Durable file-conversion jobs and the converter's callbacks (docs/features/canvas-file-imports.md section 5).
     if (path.startsWith('/api/learn/files/')) { const jobs = await fileJobsRoute(path, req, env); if (jobs) return jobs; }
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
+    // Imported file sources (canvas-file-imports.md section 4.2); null for /api/learn/files paths it does not own (the JOBS routes).
+    if (path.startsWith('/api/learn/files')) { const files = await filesFetch(req, env); if (files) return files; }
     // Canvas references: the picker and a canvas's links and backlinks (canvas-refs.js).
     if (canvasRefsRoute(path)) return canvasRefsFetch(req, env);
     // Public creator profiles, Explore's creator row and creator search (docs/features/creator-profile.md).

@@ -160,12 +160,13 @@ tables are new and no existing code reads them.
 
 R2 keys on the existing `LEARN_MEDIA` bucket (dev `rabbit-hole-dev-learn-media`, prod `rabbit-hole-prod-learn-media`):
 
-- `file-sources/<source id>/original`
+- `file-sources/<source id>/original/<upload attempt>` (each upload streams to its own key; `file_sources.r2_key` points
+  at it only once its byte count and sha256 match, so a bad or concurrent upload never replaces stored bytes)
 - `file-sources/<source id>/d/<derivative id>`
 - `file-docs/<document id>/<rev>`
 
 Keys carry random ids only; access is decided in D1, never by knowing a key. Bytes are uploaded under a source id the
-server issued; the object is written once (`onlyIf` absent) and never overwritten.
+server issued and are never overwritten once stored.
 
 ### 4.1 Authorization (every route)
 
@@ -205,13 +206,20 @@ returns `{ source, via: 'owner' | 'board' | 'link', board? }` or a Response: 401
 every refusal. `fileRefSources(state)` lists a state's referenced source ids. Every file route calls it; none checks
 access its own way.
 
-### 4.2 Routes (contract, Lane 1)
+### 4.2 Routes (Lane 1; the three source routes are built in `packages/control-plane/src/learn-files.js`)
 
 - `POST /api/learn/files` `{ app, board, name, type, size, sha256, family }` → `{ source, upload }` (idempotent on
   owner + sha256 + board: an already stored identical source is returned, no second upload).
-- `PUT /api/learn/files/<source id>` raw bytes → the server counts actual bytes against `family.limits.bytes`, sniffs,
-  hashes, and marks `stored` only when bytes and sha256 match the declaration.
-- `GET /api/learn/files/<source id>[?board=…]` original, with Range; `GET …/d/<derivative id>` a derivative.
+- `PUT /api/learn/files/<source id>` raw bytes, by the source's owner → the server sniffs (families with a sniff), counts
+  actual bytes (exactly the declared size; more is cut off with 413) and hashes while streaming, and marks `stored`
+  only when count and sha256 match: this PUT is the finalize step. A family's cap is `limits.bytes`, or 25 MiB until its
+  lane measures one. Create reuses the owner's stored source with the same sha256, size and family (`upload: null`), or
+  resumes their unfinished upload of it.
+- `GET /api/learn/files/<source id>` the original as an attachment (`filename*`), with Range; `?share=<token>` for a link
+  viewer, `?app=&board=` through the requester's own board (a fork), else the owner only; all via
+  `authorizeFileSource`. Derivatives: the JOBS lane's `GET /api/learn/files/sources/<source>/derivatives` (section 5.3).
+- Mounted in `dev-worker.js`; `filesFetch` answers only `/api/learn/files` and `/api/learn/files/fs_*` and returns null
+  for every other `/api/learn/files` path, so the JOBS routes mount beside it.
 - `POST /api/learn/files/<source id>/jobs` `{ converter, options, card, idempotency_key }`; `GET /api/learn/files/jobs/<job id>`;
   `POST …/jobs/<job id>/cancel`; `POST …/jobs/<job id>/retry`.
 - `PUT /api/learn/files/docs/<document id>` `{ base_rev, content }` → 409 when `base_rev` is not the head.
@@ -340,5 +348,7 @@ First release scope (owner decision E): this foundation and the 50 MiB video fix
 | Migration 0023 | built; applied to the local stack and to shared learn-dev (lead, 2026-10-16 ~5:55 PM PT, from 9d0d1b75); not production |
 | Registry in the picker, drop classifier and import limits | built: the picker `accept` is `acceptList()`, `learn-drop.js` and `learn-file-import.js` read their types and limits from the registry, and every size reads in MiB |
 | `file-access.js` `authorizeFileSource` | built; unit-tested (`file-access.test.js`) |
-| `/api/learn/files*`, `fileRef` in `assetKeysOf`, ContextRef kind `file` | contract only |
+| Source routes: create, upload (finalize), download | built; unit-tested (`learn-files.test.js`); real Worker on the local stack (`file-sources-check.mjs`, 30 MiB) |
+| `fileRef` in the board lists and `file_source_refs` | Lane 1, next |
+| ContextRef kind `file` | CHAT lane (`feature/fi-chat`) |
 | Job runner | JOBS lane |
