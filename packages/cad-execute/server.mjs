@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { validateJob, effectiveLimits, RESULT_SCHEMA, RUNTIME } from './contract.mjs';
 import { detect } from './sandbox/resource-control.mjs';
 import { inspectGlb } from '../web/src/three-d-asset.js';
-import { DevBudget } from './dev-budget.mjs';
+import { configuredBudget } from './pilot-budget.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const fail = code => Object.assign(new Error(code), { code });
@@ -147,7 +147,7 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
       if (active) return send(429, { error: 'busy' });
       if (!admission || !budget) return send(503, { error: 'admission_disabled' });
       if (degraded || process.platform !== 'linux' || !detect().backend) return send(503, { error: 'sandbox_unavailable' });
-      try { budget.reserve(key, effectiveLimits(job).total_artifact_bytes); } catch { return send(429, { error: 'dev_budget_exhausted' }); }
+      try { budget.reserve(key, effectiveLimits(job).total_artifact_bytes); } catch { return send(429, { error: 'budget_exhausted' }); }
       const record = { job, stage: 'building', abort: new AbortController(), timings: {} };
       attempts.set(key, record); active = record;
       // Memory is advisory only; bounded entries cannot substitute for persisted CP ownership.
@@ -159,7 +159,7 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
   return { server, isIdle: () => !active && Date.now() - idleSince > 300000, stop: () => { if (active) { active.cancelled = true; active.abort.abort(); } server.close(); } };
 }
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
-  const budget = new DevBudget({ file: process.env.CAD_DEV_BUDGET_FILE || '/var/cad/budget/usage.json', deadline: process.env.CAD_DEV_DEADLINE });
+  const budget = configuredBudget(process.env);
   const executor = createExecutor({ token: process.env.CAD_EXECUTOR_TOKEN, origins: (process.env.CAD_ALLOWED_ORIGINS || '').split(',').filter(Boolean), image: process.env.CAD_IMAGE_VERSION, budget, admission: process.env.CAD_ADMISSION_ENABLED === 'true' });
   executor.server.listen(Number(process.env.PORT || 8080));
   setInterval(() => { if (executor.isIdle() || budget.expired()) { executor.stop(); process.exitCode = 0; } }, 10000).unref();
