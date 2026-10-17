@@ -1,9 +1,10 @@
 // Imported files' authorized references (docs/features/canvas-file-imports.md section 4.1): the file_source_refs rows written
-// in the same batch as a board write (learn-migrations/0023). No imports, so canvases.js, dives.js and learn-boards.js can
+// in the same batch as a board write (learn-migrations/0023). Only pure shared helpers, so canvases.js, dives.js and learn-boards.js can
 // use it without an import cycle; file-access.js reads the rows.
-// The source ids a board's saved state names through cards' fileRef.
+// The source ids named by visible cards or retained file provenance in state.sources.
 // The card's own source and, for a model, its dependency files (fileRef.bundle: glTF .bin and textures, OBJ .mtl and textures).
-export const fileRefSources = state => [...new Set((state?.blocks || []).flatMap(block => [block?.fileRef?.source?.id,
+import { retainedFileSources } from '../../web/src/file-context-manifest.js';
+export const fileRefSources = state => [...new Set([...(state?.blocks || []), ...retainedFileSources(state)].flatMap(block => [block?.fileRef?.source?.id,
   ...(Array.isArray(block?.fileRef?.bundle) ? block.fileRef.bundle.map(part => part?.source?.id) : [])]).filter(id => typeof id === 'string'))];
 
 // The board row exactly as this batch's write left it (canvas-refs.js GUARD): a rejected or stale save changes no reference.

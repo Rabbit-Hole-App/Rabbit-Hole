@@ -82,3 +82,12 @@ test('stored document cards retain their actual format for the family renderer',
   const card = fileCardFromSource({ id: ID, rev: REV, name: 'report.docx', type: 'application/octet-stream', size: 100 }, canvasFamilyOf(ref('report.docx')));
   assert.equal(card.format, 'docx');
 });
+
+test('Context restores the retained model view and bundle after checking the main source revision', async () => {
+  const item=ref('cube.gltf'),dep={path:'cube.bin',source:{id:'fs_'+ 'a'.repeat(24),rev:'b'.repeat(64)}};
+  let inserted;
+  const manifest={v:1,source:{id:ID,rev:REV},family:'gltf',meta:{name:'cube.gltf'},view:{entry:'models/cube.gltf'},bundle:[dep]};
+  await addFileToCanvas({ref:item,app:'canvas-1',ops:{fileForContext:()=>manifest,insertCard:card=>{inserted=card;}},call:async()=>({ok:true,status:200,headers:new Headers({'x-source-rev':REV,'content-type':'model/gltf+json','content-length':'90','content-disposition':"attachment; filename*=UTF-8''cube.gltf"})})});
+  assert.deepEqual(inserted.fileRef.bundle,[dep]);assert.equal(inserted.fileRef.view.entry,'models/cube.gltf');
+  assert.equal(inserted.fileRef.source.id,ID);
+});

@@ -564,3 +564,9 @@ STEP cards now expose owner-only Retry for failed/cancelled jobs and initial sub
 ## Current release scope (owner follow-up, 2026-10-16)
 
 Legacy Word `.doc` is deferred from this file-import release: the owner explicitly chose “okay defer for now. make a note so we can revisit later”. `.docx` remains included. Keep the existing `.doc` refusal; revisit its converter-backed import, preview, Context, reload, sharing and recovery acceptance in a later release. Backend converter support alone does not establish shipped UI support.
+
+### Context restoration retains file provenance
+
+On a main canvas, Add to Chat retains the selected file’s validated source revision, model entry path and dependency references in the board’s existing `sources` provenance list. The Chat ref stays its bounded canonical identity. Deleting the visible card therefore does not discard the imported bundle; Context → Add to canvas verifies the source revision and reuses those references without uploading again. Unfinished dependency uploads must complete before attachment. The retained row starts detached from canvas-wide model context.
+
+Only sanitized file provenance copies on fork; unrelated private Chat/context records do not. The existing board reference index retains only sources owned by the saver or already authorized to that board. Removing the last visible or retained reference revokes board access; retaining arbitrary source IDs never grants access. No new schema or expanded review-board scope is introduced.

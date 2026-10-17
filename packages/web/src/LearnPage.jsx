@@ -10,6 +10,8 @@ import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
+import { fileChatRef } from './file-chat-ref.js';
+import { fileContextManifest } from './file-context-manifest.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading } from './LearnExtras.jsx';
@@ -414,6 +416,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // viewing never attaches (contract A5). While it is null, the old right-panel readers open as before.
   // canvasOps (chat-workspace.jsx) for Lane B's footer and actions: Add as card, Open in Notebook, locate.
   useEffect(() => chat?.setCanvasOps?.({
+    // Retain the immutable file manifest in the board's existing provenance list. Chat keeps only its compact identity.
+    // Deleting the visible card must not discard a model's dependency paths or the board's authorized file references.
+    retainFileForContext: (ref, selectedFile) => {
+      if (board || ref?.kind !== 'file') return;
+      const selected = selectedFile || canvasApi.current?.blocks?.().find(block => fileChatRef(block)?.sourceId === ref.sourceId)?.fileRef;
+      if (!selected) return;
+      const fileRef = fileContextManifest(selected);
+      if (!fileRef) { toast('Finish uploading this file and its dependencies before adding it to Chat.'); return false; }
+      setSources(previous => [...previous.filter(source => source.id !== ref.sourceId), { id: ref.sourceId, kind: 'file', label: ref.name, attached: false, fileRef }]);
+    },
+    fileForContext: ref => sourcesRef.current.find(source => source.kind === 'file' && source.id === ref.sourceId)?.fileRef,
     insertChat: entry => canvasApi.current?.insertChat(entry),
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
     locate: id => canvasApi.current?.focusBlock(id),
@@ -441,7 +454,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const block = newNotebookBlock(), [cell] = block.ipynb.cells;
       return canvasApi.current?.insertImported({ ...block, language, ipynb: { ...block.ipynb, cells: cells.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') })) } });
     },
-  }), [chat?.setCanvasOps]); // eslint-disable-line react-hooks/exhaustive-deps
+  }), [chat?.setCanvasOps, board]); // eslint-disable-line react-hooks/exhaustive-deps
   const chatWorkspace = useRef(null);
   chatWorkspace.current = chat; // the provider wraps this page (A1), so the handle is the page's own workspace
   const trackPaper = next => {
@@ -1251,7 +1264,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (now) return put();
     pushTimer.current = setTimeout(put, 1500);
   }, [boardPath]);
-  useEffect(() => { pushBoard(); }, [exchanges, pushBoard]);
+  useEffect(() => { pushBoard(); }, [exchanges, sources, pushBoard]);
   // Reload and keep my document (a 409, blocknote-canvas.md): this browser's document - its unsaved words written first -
   // is put aside, the server's newer board loads (the board GET), and the kept document goes over it as the newer edit.
   const keepMyDoc = () => {

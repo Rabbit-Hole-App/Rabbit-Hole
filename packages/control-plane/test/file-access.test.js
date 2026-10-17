@@ -120,3 +120,20 @@ test('a model card bundle (fileRef.bundle): its own dependency sources are index
   assert.equal((await authorizeFileSource(request('friend'), env, 'fs_texture', { token: links.view })).via, 'link', 'a shared viewer loads a dependency');
   assert.equal((await authorizeFileSource(request('owner'), env, 'fs_foreign', { token: links.view })).status, 404, 'a foreign bundle id reads nothing, even for the board owner');
 });
+
+test('retained Context manifests keep authorized bundle access, never manufacture it', async t => {
+  const {env,request,call,source,refs,rowOf}=setup(t);
+  source('fs_'+ 'a'.repeat(24));source('fs_'+ 'b'.repeat(24));source('fs_'+ 'c'.repeat(24),PEOPLE.friend);
+  const manifest={id:'file:fs_'+ 'a'.repeat(24)+'@'+'d'.repeat(64),kind:'file',fileRef:{source:{rev:'d'.repeat(64),id:'fs_'+ 'a'.repeat(24)},bundle:[{path:'cube.bin',source:{rev:'d'.repeat(64),id:'fs_'+ 'b'.repeat(24)}},{path:'foreign.bin',source:{rev:'d'.repeat(64),id:'fs_'+ 'c'.repeat(24)}}]}};
+  await call('PUT',OWN,'owner',{state:{...STATE,sources:[manifest]}});
+  const original=rowOf('team','owner@test','demo-app');
+  assert.deepEqual(refs(),['fs_'+ 'a'.repeat(24)+'@'+original.id,'fs_'+ 'b'.repeat(24)+'@'+original.id]);
+  const links=(await call('POST',OWN+'/share','owner',{shared:true,view:true})).body.sharing;
+  const forked=await call('POST','/api/learn/boards/fork','friend',{source:{token:links.view}});
+  assert.equal(forked.status,201);
+  const fork=rowOf('elsewhere','friend@elsewhere',forked.body.name);
+  assert.equal((await authorizeFileSource(request('friend'),env,'fs_'+ 'b'.repeat(24),{row:fork})).via,'board');
+  assert.equal((await authorizeFileSource(request('owner'),env,'fs_'+ 'c'.repeat(24),{row:original})).status,404);
+  await call('PUT','/api/learn/boards/'+forked.body.name+'/main','friend',{state:STATE,version:1});
+  assert.equal((await authorizeFileSource(request('friend'),env,'fs_'+ 'b'.repeat(24),{row:fork})).status,404,'removing last provenance reference revokes board access');
+});

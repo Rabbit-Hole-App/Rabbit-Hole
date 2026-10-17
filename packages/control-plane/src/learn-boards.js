@@ -19,6 +19,7 @@ import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
 import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js';
+import { retainedFileSources } from '../../web/src/file-context-manifest.js';
 import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
@@ -416,6 +417,8 @@ const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'are
 // the source, so the copy names it, and the copy's reader and questions still find the learner's own upload there.
 export function forkState(state, canvas = null) {
   const out = {};
+  const retained = retainedFileSources(state);
+  if (retained.length) out.sources = retained;
   for (const key of CONTENT) if (Array.isArray(state?.[key])) out[key] = state[key];
   // The canvas's one document (docs/features/blocknote-canvas.md) is an object: the copy gets its own, never a shared one.
   if (state?.doc && typeof state.doc === 'object' && !Array.isArray(state.doc)) out.doc = structuredClone(state.doc);

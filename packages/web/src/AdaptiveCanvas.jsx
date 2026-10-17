@@ -3384,7 +3384,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // An imported file card is its file ref (file-chat-ref.js: source revision + scope), the selection chip's own identity.
       const sourceRef = pdfRef(object) || fileChatRef(object);
       if (sourceRef) {
-        chatWorkspace.addToChat(sourceRef);
+        if (chatWorkspace.addToChat(sourceRef, { fileRef: object.fileRef }) === false) return false;
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
         return true;
       }

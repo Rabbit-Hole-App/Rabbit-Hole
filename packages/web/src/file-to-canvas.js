@@ -51,6 +51,10 @@ export async function addFileToCanvas({ ref, app, ops, call = fetch, headers = {
   if (!response.ok) throw Error(response.status === 404 ? 'the file is not available' : `the server answered ${response.status}`);
   const source = sourceFromHead(response.headers, ref);
   if (!source) throw Error('the stored file is a different version');
-  return ops.insertCard(fileCardFromSource(source, fam, ref.range?.page ? { pages: [ref.range.page] } : ref.range?.sheet ? { sheet: ref.range.sheet } : ref.range?.slide ? { slide: ref.range.slide } : {}),
-    { same: sameFileCard(source.id, source.rev) });
+  const saved = ops.fileForContext?.(ref);
+  const manifest = saved?.source?.id === source.id && saved.source.rev === source.rev ? saved : null;
+  const view = ref.range?.page ? { pages: [ref.range.page] } : ref.range?.sheet ? { sheet: ref.range.sheet } : ref.range?.slide ? { slide: ref.range.slide } : (manifest?.view || {});
+  const card = fileCardFromSource(source, fam, view);
+  if (Array.isArray(manifest?.bundle)) card.fileRef.bundle = structuredClone(manifest.bundle);
+  return ops.insertCard(card, { same: sameFileCard(source.id, source.rev) });
 }

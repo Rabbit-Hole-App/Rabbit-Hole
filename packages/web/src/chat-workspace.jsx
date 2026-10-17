@@ -37,7 +37,7 @@ export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, ch
   // loads the reader without reopening a panel the learner hid (chat-panels.js openSources).
   const openSource = useCallback((ref, options) => { panels.openSources(options); sources.open(ref); }, [panels, sources]);
   // Add to Chat (contract A5): open Chat, Ask mode, attach, keep the draft, focus, never send.
-  const addToChat = useCallback(ref => { panels.openChat(); thread.setMode('ask'); context.attach(ref); composer.focus(); }, [panels, thread, context, composer]);
+  const addToChat = useCallback((ref, options) => { if (canvasOps?.retainFileForContext?.(ref, options?.fileRef) === false) return false; panels.openChat(); thread.setMode('ask'); context.attach(ref); composer.focus(); }, [panels, thread, context, composer, canvasOps]);
   // The Chat's AskPanel registers its send loop (A2); regenerate(messageId) re-sends that turn with regenerate: { messageId }
   // (contract B5). The server reuses the stored turn's mode, command and refs, so nothing open now leaks in.
   const sender = useRef(null);
