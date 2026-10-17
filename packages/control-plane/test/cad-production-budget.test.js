@@ -205,3 +205,13 @@ test('future-month infrastructure refusals alert the current operational month w
  assert.equal((await f.request(input('future-cost',now))).status,429);assert.deepEqual(payload,{month,kind:'infrastructure'});
  assert.equal((await f.saved.storage.get(CAD_PRODUCTION_BUDGET_KEY)).pause.month,future);
 });
+
+test('an operator infrastructure adjustment records exhaustion and notifies immediately without a new job',async()=>{
+ const f=fixture(),month=new Date().toISOString().slice(0,7);let payload,inGate=false;
+ const original=f.saved.blockConcurrencyWhile;f.saved.blockConcurrencyWhile=fn=>original.call(f.saved,async()=>{inGate=true;try{return await fn();}finally{inGate=false;}});
+ f.env.CAD_BUDGET_ALERT_TOKEN='fixture-only-token-with-at-least-32-characters';f.env.CONTROL_PLANE={fetch:async req=>{assert.equal(inGate,false);payload=await req.json();return Response.json({ok:true});}};
+ const actor=new CadJobs(f.saved,f.env),request=()=>new Request('https://cad/production-infrastructure-adjustment',{method:'POST',body:JSON.stringify({month,micros:26000000})});
+ assert.equal((await new CadJobs(state('board'),f.env).fetch(request())).status,404);
+ assert.equal((await actor.fetch(request())).status,200);assert.deepEqual(payload,{month,kind:'infrastructure'});
+ const status=await(await f.status()).json();assert.equal(status.paused,true);assert.equal(status.reason,'infra_limit');assert.equal(status.lastRefusal.month,month);
+});

@@ -84,7 +84,7 @@ export class CadJobs {
   async response(job,status=200){return cadJson(reply(job,await this.accepted(job)),status);}
   async notifyModelBudget(){
     const status=await this.locked(()=>cadProductionBudgetStatus(this.state.storage,this.env));
-    if(status.transferPaused)return;
+    if(status.transferPaused&&status.lastRefusal?.reason!=='infra_limit')return;
     const month=status.lastRefusal?status.month:null,kind=status.lastRefusal?.reason==='infra_limit'?'infrastructure':'model',alertId=`${kind}:${month}`;
     if(!month||this.budgetAlerts.has(alertId))return;
     this.budgetAlerts.add(alertId);
@@ -109,7 +109,9 @@ export class CadJobs {
       }
       if(path==='/production-infrastructure-adjustment'){
         if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
-        const input=await req.json();return cadJson(await this.locked(()=>recordCadInfrastructureExtras(this.state.storage,this.env,input)));
+        const input=await req.json(),projection=await this.locked(()=>recordCadInfrastructureExtras(this.state.storage,this.env,input));
+        if(projection.projectedMicros>=projection.limitMicros)try{await this.notifyModelBudget();}catch{/* Adjustment remains durable if notification is unavailable. */}
+        return cadJson(projection);
       }
       if(path==='/production-transfer-pause'){
         if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);

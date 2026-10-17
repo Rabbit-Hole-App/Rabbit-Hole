@@ -121,8 +121,10 @@ export async function recordCadInfrastructureExtras(storage,env,input){
  ledger.infrastructure||={retainedBytes:0,jobs:{},extras:{}};
  if(input.micros<(ledger.infrastructure.extras[input.month]||0))throw problem('Infrastructure adjustments cannot refund reserved cost.',409);
  ledger.infrastructure.extras[input.month]=input.micros;
+ const projection=infraProjection(ledger,config,input.month);
+ if(projection.projectedMicros>=config.infraMaxMicros)ledger.pause={month:input.month,reason:'infra_limit',at:Date.now()};
  await storage.put(CAD_PRODUCTION_BUDGET_KEY,ledger);
- return infraProjection(ledger,config,input.month);
+ return projection;
 }
 
 // Called inside the per-board mutation gate before R2 writes. The lifetime cap
