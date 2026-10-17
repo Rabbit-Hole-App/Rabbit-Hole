@@ -18,6 +18,7 @@ import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
 import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js';
+import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -35,59 +36,27 @@ const ASSET_KEY = /^[\x20-\x7e]{1,500}$/;
 const SAFE_TYPE = /^(image\/(png|jpeg|gif|webp|avif)|application\/pdf|video\/(mp4|webm|quicktime)|audio\/(mpeg|wav|ogg|webm)|text\/x-cached-string)$/;
 const assetObject = async (row, key) => `learn-boards/${row.id}/${await sha256Hex(key)}`;
 
-// The request body as a stream that errors once more than `cap` bytes have arrived: the cap holds on actual bytes,
-// whatever Content-Length said. `head` holds chunks already read for the sniff.
-function cappedBody(reader, head, cap, state) {
-  return new ReadableStream({
-    async pull(controller) {
-      const { done, value } = head.length ? { done: false, value: head.shift() } : await reader.read();
-      if (done) { controller.close(); return; }
-      state.seen += value.byteLength;
-      if (state.seen > cap) { state.over = true; await reader.cancel().catch(() => {}); controller.error(new RangeError('over the file cap')); return; }
-      controller.enqueue(value);
-    },
-    cancel: reason => reader.cancel(reason),
-  });
-}
-
 async function putAsset(req, env, row, key) {
   if (!learnMedia(env)) return json({ error: 'Board files need the R2 bucket on this worker.' }, 503);
   if (!ASSET_KEY.test(key)) return json({ error: 'Bad asset key' }, 400);
   const type = (req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
   const { bytes: cap, sniff } = boardFileLimit(type);
-  const over = () => json({ error: `This file is over ${formatBytes(cap)}, so it was not saved to your account and stays in your browser.` }, 413);
-  const declared = req.headers.get('content-length');
-  // Refused before reading; the body is cancelled, not left open, so the connection answers at once.
-  if (declared !== null && !(Number(declared) <= cap)) { await req.body?.cancel().catch(() => {}); return over(); }
-  const reader = (req.body || new Response(new Uint8Array(0)).body).getReader();
-  // Enough leading bytes to check the type a larger cap was claimed for, before anything is stored.
-  const head = [];
-  let headBytes = 0;
-  while (sniff && headBytes < 16) { const { done, value } = await reader.read(); if (done) break; head.push(value); headBytes += value.byteLength; }
-  if (sniff) {
-    const first = new Uint8Array(headBytes);
-    head.reduce((at, chunk) => { first.set(chunk, at); return at + chunk.byteLength; }, 0);
-    if (!sniff(first)) { await reader.cancel().catch(() => {}); return json({ error: 'This file is not an MP4 or WebM video.' }, 415); }
-  }
-  const state = { seen: 0, over: false };
-  const stream = cappedBody(reader, head, cap, state);
-  let body = stream;
-  // R2 takes a stream only with a known length: with Content-Length the body streams through a FixedLengthStream (no
-  // copy held in the isolate); without it (chunked) it is read whole, already bounded by the cap.
-  if (declared !== null && typeof FixedLengthStream === 'function') {
-    const fixed = new FixedLengthStream(Number(declared));
-    stream.pipeTo(fixed.writable).catch(() => {});
-    body = fixed.readable;
-  } else {
-    try { body = await new Response(stream).arrayBuffer(); } catch (error) { if (state.over) return over(); throw error; }
-  }
+  // Streamed natively to R2 with bounded memory and CPU (upload-body.js); the cap is checked on the declared length before a
+  // byte is read, and HTTP framing plus FixedLengthStream make the stored bytes exactly that length.
+  const got = await uploadBody(req, { cap, sniffBytes: sniff ? 16 : 0 });
+  if (got.refused === 'over') return json({ error: `This file is over ${formatBytes(cap)}, so it was not saved to your account and stays in your browser.` }, 413);
+  if (got.refused === 'length') return json({ error: 'Send this file with its Content-Length.' }, 411);
+  if (sniff && !sniff(got.head)) { await got.body.cancel?.().catch(() => {}); return json({ error: 'This file is not an MP4 or WebM video.' }, 415); }
   try {
-    await learnMedia(env).put(await assetObject(row, key), body, {
+    await learnMedia(env).put(await assetObject(row, key), got.body, {
       httpMetadata: { contentType: SAFE_TYPE.test(type) ? type : 'application/octet-stream' },
       customMetadata: { key, kind: req.headers.get('x-asset-kind') === 'string' ? 'string' : 'blob' },
     });
-  } catch (error) { if (state.over) return over(); throw error; }
-  return json({ key, size: state.seen });
+  } catch (error) {
+    if (await clientMismatch(got, error)) return json({ error: `Send exactly the ${got.length} bytes this upload declared.` }, 400);
+    throw error;
+  }
+  return json({ key, size: got.length });
 }
 
 // One satisfiable `bytes=` range as R2's { offset, length }; null to serve the whole file (none, several, or malformed:

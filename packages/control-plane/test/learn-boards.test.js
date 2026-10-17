@@ -207,7 +207,10 @@ test('the cap holds on actual bytes when the client bypasses its own check: no C
   const { call, objects } = setup(t);
   await savedBoard(call, ['drop:a']);
   const key = `${OWN}/assets/${encodeURIComponent('drop:a')}`;
-  assert.equal((await call('PUT', key, asVideo(mp4(50 * MiB + 1), 'video/mp4', null))).status, 413, 'no Content-Length: counted');
+  const chunked = await call('PUT', key, asVideo(mp4(50 * MiB + 1), 'video/mp4', null));
+  assert.deepEqual([chunked.status, chunked.body.error], [411, 'Send this file with its Content-Length.'], 'no Content-Length: counted, and past 1 MiB it must say its length');
+  assert.equal((await call('PUT', key, asVideo(mp4(1000), 'video/mp4', null))).status, 200, 'a small body without Content-Length is counted and stored');
+  objects.clear();
   assert.equal((await call('PUT', key, asVideo(mp4(50 * MiB + 1), 'video/mp4', 1000))).status, 413, 'a Content-Length smaller than the body: counted');
   assert.equal((await call('PUT', key, asVideo(mp4(16), 'video/mp4', 50 * MiB + 1))).status, 413, 'a declared size over the cap is refused before reading');
   assert.equal(objects.size, 0);
@@ -230,13 +233,18 @@ test('only a body that sniffs as a video gets the video cap; everything else kee
 test('with Content-Length the body streams to R2 through a FixedLengthStream, still counted', async t => {
   const { call, objects } = setup(t);
   // The Workers runtime has FixedLengthStream (a pass-through whose readable has a known length); Node does not: a stand-in.
-  globalThis.FixedLengthStream = class extends TransformStream { constructor(length) { super(); this.expectedLength = length; } };
+  // As the runtime's: it errors when the bytes written are not exactly its length.
+  globalThis.FixedLengthStream = class extends TransformStream { constructor(length) { let seen = 0; super({ transform(chunk, controller) { seen += chunk.byteLength; if (seen > length) throw new TypeError('more bytes than the stream length'); controller.enqueue(chunk); }, flush() { if (seen !== length) throw new TypeError('fewer bytes than the stream length'); } }); } };
   t.after(() => { delete globalThis.FixedLengthStream; });
   await savedBoard(call, ['drop:s', 'drop:t']);
   const ok = await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:s')}`, asVideo(mp4(30 * MiB)));
   assert.equal(ok.status, 200);
   assert.equal([...objects.values()][0].bytes.byteLength, 30 * MiB);
-  assert.equal((await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:t')}`, asVideo(mp4(50 * MiB + 1), 'video/mp4', 1000))).status, 413, 'more bytes than declared, past the cap');
+  assert.equal((await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:t')}`, asVideo(mp4(50 * MiB + 1), 'video/mp4', 1000))).status, 400, 'more bytes than declared: the stream refuses them and nothing is stored');
+  // A Content-Length larger than the bytes actually sent: the stream errors at the end, R2 stores nothing, and the answer is
+  // a JSON 400, not a hang.
+  const short = await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:t')}`, asVideo(mp4(1000), 'video/mp4', 5000));
+  assert.deepEqual([short.status, short.body.error], [400, 'Send exactly the 5000 bytes this upload declared.']);
   assert.equal(objects.size, 1);
 });
 
