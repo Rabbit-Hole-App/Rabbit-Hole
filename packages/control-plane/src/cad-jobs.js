@@ -10,6 +10,8 @@ import { CAD_LIMITS, CAD_TERMINAL, cadLimits, cadJson, cadError, cadBody, cadHas
 import { saveCadSource, putCadOutput, publishCadArtifacts, validateCadManifest, cadStageKey } from './cad-artifacts.js';
 import { cadModelRequest, runCadModel, cadReferenceImages } from './cad-model.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { notifyCadBudget } from './cad-budget-alert.js';
+import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus } from './cad-production-budget.js';
 
 const PREFIX = '/api/learn/cad/jobs';
 const LEASE = 90000;
@@ -68,7 +70,7 @@ export async function cadRoute(path, req, env) {
 }
 
 export class CadJobs {
-  constructor(state,env){this.state=state;this.env=env;this.activeModels=new Set();this.publications=new Set();}
+  constructor(state,env){this.state=state;this.env=env;this.activeModels=new Set();this.publications=new Set();this.budgetAlerts=new Set();}
   async locked(fn){
     // Cloudflare resets an object when an exception escapes this callback.
     // Expected conflicts must leave the short gate before being rethrown.
@@ -80,9 +82,36 @@ export class CadJobs {
   async wake(delay=50){const at=Date.now()+delay,current=await this.state.storage.getAlarm();if(!current||current>at)await this.state.storage.setAlarm(at);}
   async accepted(job){return this.state.storage.get(`model:${job.modelId}`);}
   async response(job,status=200){return cadJson(reply(job,await this.accepted(job)),status);}
+  async notifyModelBudget(){
+    const status=await this.locked(()=>cadProductionBudgetStatus(this.state.storage,this.env));
+    const month=status.lastRefusal?.month;
+    if(!month||this.budgetAlerts.has(month))return;
+    this.budgetAlerts.add(month);
+    try {
+      const key=`production:model-alert:${month}`;
+      if(await this.state.storage.get(key))return;
+      // No external request runs inside the global reservation mutex.
+      if(await notifyCadBudget(this.env,{month,kind:'model'}))await this.state.storage.put(key,true);
+    } finally {this.budgetAlerts.delete(month);}
+  }
   async fetch(req){
     try {
-      if(new URL(req.url).pathname==='/callback')return await this.callback(req);
+      const path=new URL(req.url).pathname;
+      if(path==='/production-model-reservation'){
+        if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
+        const input=await req.json();
+        try{return cadJson(await this.locked(()=>reserveCadProductionModel(this.state.storage,this.env,input)));}
+        catch(error){
+          if(error.status===429)try{await this.notifyModelBudget();}catch{/* Notification cannot change admission or expose private errors. */}
+          throw error;
+        }
+      }
+      if(path==='/production-budget-status'){
+        if(req.method!=='GET'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
+        return cadJson(await this.locked(()=>cadProductionBudgetStatus(this.state.storage,this.env)));
+      }
+      if(isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
+      if(path==='/callback')return await this.callback(req);
       const input=await req.json();
       // Only short persisted mutations are serialized. Network/model work runs from alarms.
       return await this.locked(()=>this.action(input));
@@ -97,6 +126,7 @@ export class CadJobs {
       return cadJson({jobs:items.map(x=>x.job),blocks:items.map(x=>x.block)});
     }
     if(action==='create') {
+      if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
       const fingerprint=await cadHash(JSON.stringify([payload.cardId,payload.prompt,payload.context??null,payload.baseRevisionId??null]));
       const existing=await this.state.storage.get(`request:${payload.requestId}`);
       if(existing){if(existing.fingerprint!==fingerprint)throw cadError('Request identity belongs to a different CAD request',409);return this.response(await this.state.storage.get(jobKey(existing.id)));}
@@ -139,10 +169,12 @@ export class CadJobs {
       await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));job.awaitingAccept=false;await this.save(job);return this.response(job);
     }
     if(action==='clarify'){
+      if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
       if(job.state!=='waiting_for_answer'||typeof payload.answer!=='string'||!payload.answer.trim()||payload.answer.length>4000)throw cadError('Answer the pending design question.');
       job.answer=payload.answer;job.question=null;job.state='queued';job.stage='queued';job.deadline=Date.now()+job.limits.elapsedMs;await this.wake();await this.save(job);return this.response(job,202);
     }
     if(action==='retry'){
+      if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
       if(!['failed','cancelled'].includes(job.state))throw cadError('Only a failed or cancelled job can be retried.',409);
       if(job.pendingResult&&job.state==='failed'){
         job.state='checking';job.stage='publishing';job.error=null;job.deadline=Date.now()+job.limits.elapsedMs;
@@ -201,11 +233,15 @@ export class CadJobs {
       if(review){const artifact=job.manifest?.artifacts.find(a=>a.kind==='thumbnail');const staged=artifact&&await learnMedia(this.env).get(cadStageKey(job,artifact.name));if(staged){const bytes=new Uint8Array(await staged.arrayBuffer());if(bytes.length>1024*1024)throw cadError('CAD review thumbnail is too large.');image=btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(''));}else throw cadError('CAD review thumbnail is unavailable.');}
       const reference=review?{blocks:[]}:await cadReferenceImages(this.env,job);
       const prepared=cadModelRequest(job,{review,image,pictures:reference.blocks||[]});
+      // Global network reservation occurs outside the per-board concurrency gate.
+      if(cadProductionEnforced(this.env))await reserveCadProductionJob(this.env,job);
       const reserved=await this.locked(async()=>{
         const current=await this.state.storage.get(jobKey(job.id));
         // Thumbnail/reference I/O may have yielded to Cancel, removal or Retry.
         // Recheck before spending, and persist both counters and the in-flight fence together.
         if(!current||current.attempt!==job.attempt||current.state!==job.state||current.state==='cancelled'||current.hidden||current.modelInFlight)return false;
+        if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
+        if(Date.now()>=current.deadline)throw cadError('CAD reached its accepted time limit.',409);
         job=current;
         if(reference.notice&&!job.limitations.includes(reference.notice))job.limitations.push(reference.notice);
         if(job.calls+1>job.limits.calls||job.reservedUsd+prepared.reservedUsd>job.limits.usd)throw cadError('CAD reached its accepted model-call or spend limit.',429);
