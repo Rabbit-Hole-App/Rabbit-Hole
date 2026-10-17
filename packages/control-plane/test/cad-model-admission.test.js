@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+import {resolve} from 'node:path';
+const moduleUrl=process.env.CAD_IMPLEMENTATION_FILE?pathToFileURL(resolve(process.env.CAD_IMPLEMENTATION_FILE)):process.env.CAD_IMPLEMENTATION_DIR?pathToFileURL(resolve(process.env.CAD_IMPLEMENTATION_DIR,'packages/control-plane/src/cad-jobs.js')):new URL('../src/cad-jobs.js',import.meta.url);
+const {CadJobs}=await import(moduleUrl.href);
+for(const action of ['cancel','placement'])test(`${action} during review thumbnail read prevents model admission and resurrection`,async()=>{
+ const data=new Map();let calls=0,release,entered;
+ const paused=new Promise(r=>{release=r;}),started=new Promise(r=>{entered=r;});
+ const storage={get:async key=>structuredClone(data.get(key)),put:async(key,value)=>data.set(key,structuredClone(value)),list:async({prefix})=>new Map([...data].filter(([key])=>key.startsWith(prefix))),setAlarm:async()=>{},getAlarm:async()=>null};
+ const state={storage,blockConcurrencyWhile:async fn=>fn()};
+ const env={SMALL_ENV:'test',CAD_TEST_MODEL:async()=>{calls++;return{accepted:true};},LEARN_MEDIA:{get:async()=>{entered();await paused;return{arrayBuffer:async()=>new Uint8Array([137,80,78,71]).buffer};}},CAD_VERIFICATION_BOARD_ID:'board1',CAD_VERIFICATION_MAX_CALLS:'11',CAD_VERIFICATION_MAX_USD:'1.10'};
+ const actor=new CadJobs(state,env);
+ const job={id:'job1',attempt:1,boardId:'board1',modelId:'model1',cardId:'card1',revisionId:'revision1',state:'checking',stage:'checking',modelPhase:'review',operation:'build',calls:1,reservedUsd:0.1,deadline:Date.now()+30000,limits:{calls:6,usd:0.6,elapsedMs:30000},brief:{title:'Plate',units:'mm',parameters:{},assumptions:[]},manifest:{artifacts:[{kind:'thumbnail',name:'thumbnail.png'}],validation:{baselinePassed:true}},owner:{org:'test',email:'owner@test'},limitations:[]};
+ await storage.put('job:job1',job);
+ const advance=actor.advance(structuredClone(job)).catch(error=>error);
+ await started;
+ const response=await actor.fetch(new Request('https://cad/action',{method:'POST',body:JSON.stringify({action,id:'job1',payload:action==='placement'?{hidden:true}:{}})}));
+ assert.equal(response.status,200);assert.equal((await storage.get('job:job1')).state,'cancelled');
+ release();await advance;
+ assert.equal(calls,0,'cancellation before admission must prevent even a fixture provider invocation');
+ const current=await storage.get('job:job1');assert.equal(current.state,'cancelled');assert.equal(current.calls,1);assert.equal(current.reservedUsd,0.1);assert.equal(current.modelInFlight,undefined);
+ assert.equal(data.has('model:model1'),false);assert.equal(data.has('verification:usage'),false,'cancelled work must not reserve the shared verification allowance');
+});

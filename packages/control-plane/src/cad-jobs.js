@@ -200,23 +200,30 @@ export class CadJobs {
       const review=job.modelPhase==='review';let image;
       if(review){const artifact=job.manifest?.artifacts.find(a=>a.kind==='thumbnail');const staged=artifact&&await learnMedia(this.env).get(cadStageKey(job,artifact.name));if(staged){const bytes=new Uint8Array(await staged.arrayBuffer());if(bytes.length>1024*1024)throw cadError('CAD review thumbnail is too large.');image=btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(''));}else throw cadError('CAD review thumbnail is unavailable.');}
       const reference=review?{blocks:[]}:await cadReferenceImages(this.env,job);
-      if(reference.notice&&!job.limitations.includes(reference.notice))job.limitations.push(reference.notice);
       const prepared=cadModelRequest(job,{review,image,pictures:reference.blocks||[]});
-      if(job.calls+1>job.limits.calls||job.reservedUsd+prepared.reservedUsd>job.limits.usd)throw cadError('CAD reached its accepted model-call or spend limit.',429);
-      // One explicitly scoped verification canvas shares a durable allowance across
-      // all four scenarios, failures and restarts. Never refund uncertain requests.
-      if(this.env.CAD_VERIFICATION_BOARD_ID){
-        if(job.boardId!==this.env.CAD_VERIFICATION_BOARD_ID)throw cadError('CAD verification canvas does not match.',403);
-        await this.locked(async()=>{
-          const usage=await this.state.storage.get('verification:usage')||{calls:0,reservedUsd:0};
-          const maxCalls=Number(this.env.CAD_VERIFICATION_MAX_CALLS),maxUsd=Number(this.env.CAD_VERIFICATION_MAX_USD);
-          if(!Number.isInteger(maxCalls)||maxCalls<1||maxCalls>11||!Number.isFinite(maxUsd)||maxUsd<=0||maxUsd>1.10)throw cadError('CAD verification allowance is not configured.',503);
-          if(usage.calls+1>maxCalls||usage.reservedUsd+prepared.reservedUsd>maxUsd)throw cadError('CAD verification allowance has been reached.',429);
-          await this.state.storage.put('verification:usage',{calls:usage.calls+1,reservedUsd:usage.reservedUsd+prepared.reservedUsd});
-        });
-      }
-      job.calls++;job.reservedUsd+=prepared.reservedUsd;job.operationKey=`cad-${job.id.replace(/\W/g,'')}-${job.calls}`;
-      job.modelInFlight=job.operationKey;job.state=review?'checking':'preparing';job.stage=job.state;await this.save(job);
+      const reserved=await this.locked(async()=>{
+        const current=await this.state.storage.get(jobKey(job.id));
+        // Thumbnail/reference I/O may have yielded to Cancel, removal or Retry.
+        // Recheck before spending, and persist both counters and the in-flight fence together.
+        if(!current||current.attempt!==job.attempt||current.state!==job.state||current.state==='cancelled'||current.hidden||current.modelInFlight)return false;
+        job=current;
+        if(reference.notice&&!job.limitations.includes(reference.notice))job.limitations.push(reference.notice);
+        if(job.calls+1>job.limits.calls||job.reservedUsd+prepared.reservedUsd>job.limits.usd)throw cadError('CAD reached its accepted model-call or spend limit.',429);
+        // One explicitly scoped verification canvas shares a durable allowance across
+        // all four scenarios, failures and restarts. Never refund uncertain requests.
+        if(this.env.CAD_VERIFICATION_BOARD_ID){
+          if(job.boardId!==this.env.CAD_VERIFICATION_BOARD_ID)throw cadError('CAD verification canvas does not match.',403);
+            const usage=await this.state.storage.get('verification:usage')||{calls:0,reservedUsd:0};
+            const maxCalls=Number(this.env.CAD_VERIFICATION_MAX_CALLS),maxUsd=Number(this.env.CAD_VERIFICATION_MAX_USD);
+            if(!Number.isInteger(maxCalls)||maxCalls<1||maxCalls>11||!Number.isFinite(maxUsd)||maxUsd<=0||maxUsd>1.10)throw cadError('CAD verification allowance is not configured.',503);
+            if(usage.calls+1>maxCalls||usage.reservedUsd+prepared.reservedUsd>maxUsd)throw cadError('CAD verification allowance has been reached.',429);
+            await this.state.storage.put('verification:usage',{calls:usage.calls+1,reservedUsd:usage.reservedUsd+prepared.reservedUsd});
+        }
+        job.calls++;job.reservedUsd+=prepared.reservedUsd;job.operationKey=`cad-${job.id.replace(/\W/g,'')}-${job.calls}`;
+        job.modelInFlight=job.operationKey;job.state=review?'checking':'preparing';job.stage=job.state;await this.save(job);
+        return true;
+      });
+      if(!reserved)return;
       this.activeModels.add(job.id);
       let result;try{result=await runCadModel(this.env,job,prepared);}finally{this.activeModels.delete(job.id);}
       const current=await this.state.storage.get(jobKey(job.id));if(current.state==='cancelled'||current.attempt!==job.attempt)return;
