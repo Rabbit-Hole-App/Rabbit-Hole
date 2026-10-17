@@ -13,6 +13,7 @@
 //   - main and inspector ending at the dock's edge, and the dock's scope chips on the project: no dock on a canvas.
 // Usage: BASE=http://127.0.0.1:8868 SMALL_CP=http://127.0.0.1:8869 [VARS=<cp .dev.vars>] node e2e/workspace-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
+import { installPointerDiagnostics, reportPointerFailure } from './pointer-diagnostics.mjs';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { COMMIT, REPO, routeRepository } from './nanogpt-repository-fixture.mjs';
@@ -53,6 +54,7 @@ await context.route('**/api/learn/ask', (route) => {
 });
 // The Curious hook on the canvas: scripted, so nothing reaches a model and the planner's absence on a keyless stack is quiet.
 await context.route('**/api/learn/tutor/next-steps', (route) => { hooks.push(1); return route.fulfill({ json: { set_id: `ws-set-${hooks.length}`, generated_at: new Date().toISOString(), options: [] } }); });
+await installPointerDiagnostics(context);
 const page = await context.newPage();
 page.setDefaultTimeout(15000);
 const errors = [];
@@ -163,10 +165,15 @@ await check('inspector §4, dock §4: a graph node selects - a node named like i
   assert.match((await codeChips())[0], new RegExp(`^code:karpathy/nanoGPT@${COMMIT}:model\\.py#model_gpt\\|`));
   // A click on the graph's white space deselects (owner, 2026-10-08): no node lit, no details, no chip.
   const graph = graphPanel().getByRole('img', { name: 'Repository dependency graph' }), g = await box(graph);
-  await graph.click({ position: { x: 8, y: g.height - 8 } });
-  await waitFor(async () => (await details().count()) === 0, 3000, 'white space did not deselect');
-  assert.equal(await graphPanel().locator('[data-graph-node][data-selected]').count(), 0);
-  assert.deepEqual(await codeChips(), []);
+  try {
+    await graph.click({ position: { x: 8, y: g.height - 8 } });
+    await waitFor(async () => (await details().count()) === 0, 3000, 'white space did not deselect');
+    assert.equal(await graphPanel().locator('[data-graph-node][data-selected]').count(), 0);
+    assert.deepEqual(await codeChips(), []);
+  } catch(error) {
+    await reportPointerFailure(page, `${SHOTS}/graph-whitespace-failed.png`, 'graph white-space deselection', {measuredGraph:g,relativePoint:{x:8,y:g.height-8}});
+    throw error;
+  }
 });
 await node('train').click();
 await details().waitFor();
