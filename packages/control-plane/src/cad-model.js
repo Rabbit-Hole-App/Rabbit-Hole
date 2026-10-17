@@ -9,7 +9,7 @@ export const CAD_MODEL = 'claude-sonnet-5-5';
 // Dedicated CAD credentials are an explicit pair. Never combine one half with
 // another feature's key/workspace, or silently select the subscription route.
 export function cadModelEnvironment(env) {
-  if (env.CAD_MODEL_API_KEY === undefined && env.CAD_MODEL_WORKSPACE_ID === undefined) return env;
+  if (env.CAD_MODEL_REQUIRE_DEDICATED !== 'true' && env.CAD_MODEL_API_KEY === undefined && env.CAD_MODEL_WORKSPACE_ID === undefined) return env;
   if (typeof env.CAD_MODEL_API_KEY !== 'string' || !env.CAD_MODEL_API_KEY.trim() ||
       typeof env.CAD_MODEL_WORKSPACE_ID !== 'string' || !env.CAD_MODEL_WORKSPACE_ID.trim()) {
     throw cadError('Dedicated CAD access requires CAD_MODEL_API_KEY and CAD_MODEL_WORKSPACE_ID together.', 503);

@@ -74,3 +74,13 @@ test('without dedicated CAD settings the existing general or subscription config
     assert.equal(cadModelEnvironment(configuration), configuration);
   }
 });
+
+test('production dedicated-route requirement refuses missing secrets instead of spending general credits', async () => {
+  const current = job();
+  const configuration = { SMALL_ENV: 'test', CAD_MODEL_ENABLED: 'true', CAD_MODEL_REQUIRE_DEDICATED: 'true',
+    ANTHROPIC_API_KEY: 'fixture-general-key', ANTHROPIC_WORKSPACE_ID: 'fixture-general-workspace' };
+  await intercept(async calls => {
+    await assert.rejects(runCadModel(configuration, current, prepared(current)), /requires CAD_MODEL_API_KEY and CAD_MODEL_WORKSPACE_ID together/);
+    assert.equal(calls.length, 0);
+  });
+});

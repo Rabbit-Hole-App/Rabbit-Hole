@@ -1,0 +1,53 @@
+# Inactive preparation. No workflow uses this file. Activation needs owner approval.
+# Build context is the repository root; do not run fly launch (it may create HA copies).
+app = "rabbit-hole-cad-prod"
+primary_region = "iad"
+kill_timeout = "25s"
+
+[build]
+  dockerfile = "packages/cad-execute/Dockerfile"
+
+[env]
+  PORT = "8080"
+  CAD_ADMISSION_ENABLED = "false"
+  CAD_ALLOWED_ORIGINS = "https://digrabbithole.com"
+  CAD_BUDGET_MODE = "pilot"
+  CAD_PILOT_LEDGER_FILE = "/var/cad/budget/usage.json"
+  CAD_PILOT_MAX_BYTES = "2147483648"
+  # Set approved CAD_PILOT_ID, CAD_PILOT_STARTED_AT, CAD_PILOT_DEADLINE
+  # and pinned CAD_IMAGE_VERSION only after approval. Missing values fail closed.
+
+[[mounts]]
+  source = "cad_budget"
+  destination = "/var/cad/budget"
+  scheduled_snapshots = false
+  initial_size = "1gb"
+  # Provision exactly 1 GiB; no auto-extension. Job scratch stays ephemeral.
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # POST /jobs returns before background execution. Proxy request idleness is unsafe.
+  # The application exits only after five idle minutes; Fly wakes it on dispatch.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 0
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+[[http_service.checks]]
+  grace_period = "20s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[[restart]]
+  policy = "never"
+
+[[vm]]
+  memory = "4gb"
+  cpu_kind = "shared"
+  cpus = 2
