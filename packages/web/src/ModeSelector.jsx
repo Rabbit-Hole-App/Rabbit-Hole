@@ -26,6 +26,8 @@ export default function ModeSelector({ disabled = false }) {
     return () => document.removeEventListener('pointerdown', away, true);
   }, [open]);
   if (!chat) return null;
+  // The Table of contents has one mode (owner brief 2026-10-16 item 7): Tutor, shown, with no menu.
+  if (chat.tocView) return <span data-chat-mode="tutor" data-toc-mode title="The table of contents is refined with the Tutor" className={cn(COMPOSER_TOOL, 'cursor-default text-sm hover:bg-transparent hover:text-ink-2')}>Tutor</span>;
   const { mode, setMode } = chat.thread;
   const current = Math.max(0, MODES.findIndex(([id]) => id === mode));
   const show = () => { setOpen(true); requestAnimationFrame(() => items.current[current]?.focus()); };

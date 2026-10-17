@@ -124,24 +124,28 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
   assert.match(pane, /data-chat-pane/, 'e2e selects [data-chat-pane] [data-chat-composer]');
   assert.match(pane, /\{unavailable \|\| <AskPanel \{\.\.\.askProps\} \{\.\.\.chatAskProps\} hideConversation=\{docked\} \/>\}/, 'the dock\'s props (A3b) reach the Chat AskPanel');
   assert.doesNotMatch(pane, /Sparkles|AppIcon|contentPanel/);
-  assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat' && !composerDocked\} docked=\{composerDocked\}/);
+  assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat'\} chatAskProps/, 'Chat only in the Chat tab (owner brief 2026-10-16 item 7)');
 });
 
-// R4 A3 (C:/s/spec/toc-r4.md): the Table of contents keeps the Chat composer below it, Tutor selected on entry. The rendered
-// behaviour (draft, attachments, no request on open, Send opens Chat, scroll restored, a narrow panel) is e2e/panel-header-check.mjs.
-test('the Table of contents docks the same Chat pane under the contents: composer only, Tutor once per entry, Send opens Chat', () => {
-  const pane = read('./ChatPane.jsx'), ask = read('./ask.jsx'), threads = read('./chat-threads.js');
-  assert.match(page, /const composerDocked = panelTab === 'toc' && !setupChat;/, 'not under the course interview, which has its own composer');
-  assert.match(page, /if \(!composerDocked\) return undefined;\n    chat\.thread\.holdMode\('tutor'\);\n    return \(\) => chat\.thread\.holdMode\(null\);\n  \}, \[composerDocked\]\);/, 'once per entry, not every render; held until the tab is left');
-  assert.match(threads, /const holdMode = useCallback\(next => \{ held\.current = next; if \(next\) setModeState\(next\); \}, \[\]\);/, 'shown, not saved');
-  assert.match(threads, /const setMode = useCallback\(next => \{ held\.current = null; setModeState\(next\); saveState\(\{ mode: next \}\); \}, \[saveState\]\);/, 'a pick is saved and ends the hold');
-  assert.match(threads, /const mode = restoredMode\(held\.current, thread\.mode\);\n    select\(thread\.id\); setTitle\(thread\.title \|\| ''\); setModeState\(mode\);/, 'a late restore keeps the held mode');
-  assert.match(page, /onSent=\{\(\) => setPanelTab\(tab => \(tab === 'toc' \? 'chat' : tab\)\)\}/, 'a turn sent there shows its answer in Chat');
-  const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
-  assert.ok(toc > 0 && chatPane > toc && chatPane < page.indexOf('</ResizableSidePanel>', toc), 'one ChatPane, after the contents, in the same panel');
-  assert.equal(page.match(/<ChatPane\b/g).length, 1, 'the same instance, never a second composer');
-  assert.match(pane, /className=\{`\$\{hidden \? 'hidden' : 'flex'\} @container min-h-0 \$\{docked \? 'shrink-0' : 'flex-1'\} flex-col`\}/);
-  assert.match(pane, /data-chat-header className=\{`mb-2 \$\{docked \? 'hidden' : 'flex'\}/);
+// Owner brief 2026-10-16 item 7 (replaces R4 A3's docked Chat composer): the Table of contents has its own conversation, a
+// separate thread (slot 'toc') that is always Tutor, below the contents. The rendered behaviour (drafts kept apart, no
+// request on open, Send stays in TOC, scroll restored, a narrow panel) is e2e/panel-header-check.mjs and toc-tutor-check.mjs.
+test('the Table of contents has its own conversation: a separate thread, always Tutor, below the contents; Chat stays in Chat', () => {
+  const ask = read('./ask.jsx'), threads = read('./chat-threads.js'), workspace = read('./chat-workspace.jsx'), modes = read('./ModeSelector.jsx'), history = read('./ChatHistory.jsx'), conversation = read('./TocConversation.jsx');
+  assert.doesNotMatch(page, /composerDocked|holdMode/, 'Chat\'s composer no longer docks under the contents');
+  assert.match(workspace, /const tocThread = useChatThread\(canvas, \{ slot: 'toc' \}\);/);
+  assert.match(workspace, /const tocComposer = useChatDraft\(`\$\{canvas\}\.toc`, tocThread\);/, 'its own draft key');
+  assert.match(workspace, /useEffect\(\(\) => \{ holdTutor\('tutor'\); \}, \[holdTutor\]\);/, 'always Tutor, shown and not saved');
+  assert.match(threads, /setModeState\(held\.current \|\| 'auto'\)/, 'a new TOC thread stays Tutor');
+  assert.match(threads, /threads\?\.find\(thread => thread\.id !== toc\)/, 'Chat never falls back to the TOC\'s thread');
+  assert.match(history, /\.filter\(row => row\.id !== tocThread\)/, 'History leaves the TOC\'s thread out');
+  assert.match(modes, /if \(chat\.tocView\) return <span data-chat-mode="tutor"/, 'Tutor shown, no menu');
+  assert.match(conversation, /<AskPanel \{\.\.\.askProps\} hideConversation=\{!open\} \/>/, 'collapsed, only the composer shows');
+  assert.match(page, /<TocWorkspace key=\{app\.name\}><TocConversation /);
+  assert.match(page, /placeholder="Describe your goal or refine the outline…"/);
+  const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), conv = page.indexOf('<TocWorkspace'), chatPane = page.indexOf('<ChatPane key={app.name}');
+  assert.ok(toc > 0 && conv > toc && chatPane > conv, 'the conversation inside the contents tab, Chat after it');
+  assert.equal(page.match(/<ChatPane\b/g).length, 1);
   assert.match(ask, /\(contentPanel \|\| hideConversation \|\| \(composerOnly && !sheetMode\)\) && 'hidden'/, 'the conversation stays mounted, hidden');
   assert.match(page, /onScrollCapture=\{event => \{ if \(event\.target\.matches\?\.\('\[data-toc\]'\)\) tocScroll\.current = event\.target\.scrollTop; \}\}/);
   assert.match(page, /if \(list\) list\.scrollTop = tocScroll\.current;\n  \}, \[panelOpen, panelTab\]\);/, 'coming back restores the contents\' scroll');

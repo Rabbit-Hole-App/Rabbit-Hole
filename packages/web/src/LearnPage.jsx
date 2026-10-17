@@ -44,11 +44,12 @@ import { RepositoryBadge } from './repository-canvas.jsx';
 import { clearSelection } from './repo-context.js';
 import PanelHeader, { CanvasFind, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
+import TocConversation from './TocConversation.jsx';
 import SourcesPane from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
 import LinksPanel, { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
-import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
+import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, ArrowUpToLine, RotateCw, Link2, ArrowLeft, MonitorPlay, ScrollText, Globe } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
@@ -896,17 +897,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const savedRefs = useRef(null);
   // The course interview (Edit course) still lives under the Table of contents tab, so starting one brings that tab forward.
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
-  // R4 A3 (C:/s/spec/toc-r4.md): under the Table of contents the Chat pane docks, its composer only, below the contents (the
-  // course interview has its own composer, so not then). Docking selects Tutor once per entry, shown and not saved, so opening
-  // the tab sends nothing; a thread restored while docked keeps it (holdMode) until the learner picks a mode or leaves the tab,
-  // and a mode picked after that stays, in Chat too. A turn sent from there opens Chat on its answer, and
-  // coming back puts the contents where they were scrolled (a hidden tab loses its scroll position).
-  const composerDocked = panelTab === 'toc' && !setupChat;
-  useEffect(() => {
-    if (!composerDocked) return undefined;
-    chat.thread.holdMode('tutor');
-    return () => chat.thread.holdMode(null);
-  }, [composerDocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Owner brief 2026-10-16 item 7: the Table of contents has its own conversation (TocConversation, TocWorkspace's thread), not
+  // Chat's composer docked. Coming back to the tab puts the contents where they were scrolled (a hidden tab loses its scroll).
+  // The learning goal under the contents' heading (lead ruling 2026-10-16: the outline has no goal field, so the TOC
+  // conversation's most recent request - the one sent now, else the restored thread's last; none, nothing shown).
+  const [tocAsked, setTocAsked] = useState(null);
+  const tocGoal = tocAsked || [...(chat?.toc?.thread.restore.messages || [])].reverse().find(message => message.role === 'user')?.content || null;
   const tocPanel = useRef(null), tocScroll = useRef(0); // the tabpanel's onScrollCapture keeps the contents' scrollTop
   useLayoutEffect(() => {
     const list = panelOpen && panelTab === 'toc' && tocPanel.current?.querySelector('[data-toc]');
@@ -2028,15 +2024,20 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
-      <TableOfContents outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+      <TableOfContents subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
       </div>
+      {/* The TOC conversation (owner brief item 7): its own thread, always Tutor. An outline change the Tutor proposes here is
+          the learner's own request, so it applies to the contents at once (the outline renumbers itself); one that cannot
+          apply (stale or refused) waits as the Apply/Discard card with its reason. */}
+      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} onSent={setTocAsked} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline…"
+        codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository}
+        boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>
-      {/* After the Table of contents, so docked under it (composerDocked) its composer sits below the contents. */}
-      <ChatPane key={app.name} hidden={panelTab !== 'chat' && !composerDocked} docked={composerDocked} onSent={() => setPanelTab(tab => (tab === 'toc' ? 'chat' : tab))} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
+      <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
         onExploreCodebase={repository ? () => chat.panels.companion?.show('graph') : null} codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
         // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
         // the page past Learn's header strip.

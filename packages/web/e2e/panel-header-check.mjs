@@ -101,24 +101,26 @@ await check('2 Chat is the default tab; Table of contents selects violet with a 
   assert.deepEqual([bg, fg], ['rgb(91, 33, 182)', 'rgb(255, 255, 255)']);
   assert.equal(await tab('Find text on canvas').evaluate(node => getComputedStyle(node).color) === 'rgb(255, 255, 255)', false, 'inactive icons are neutral');
   assert.ok(await panel().locator('[data-toc]').isVisible());
-  // R4 (owner decision 1A): a top-level section reads "Topic 1: <title>", the number inside its title button.
-  assert.ok(await panel().getByRole('button', { name: 'Topic 1: Kitchen chemistry', exact: true }).isVisible(), 'the canvas heading is listed');
+  // Owner brief 2026-10-16 item 7 (replaces R4 decision 1A's "Topic 1:"): the title button is the title, its number beside it.
+  assert.ok(await panel().getByRole('button', { name: 'Kitchen chemistry', exact: true }).isVisible(), 'the canvas heading is listed');
   assert.equal(await panel().locator('[data-canvas-find]').isVisible(), false);
 });
 await shot('01-header-toc-active', panel());
 await shot('01b-page-toc-active');
 
-// R4 A3 (C:/s/spec/toc-r4.md): the Table of contents keeps the Chat composer below it, Tutor selected. The long contents, the
-// draft and attachments, Send and the narrow panel are on their own canvas below (L1-L7).
-const docked = (on = page) => on.locator('aside[aria-label="Learn agent chat"] [data-chat-docked]');
+// Owner brief 2026-10-16 item 7 (replaces R4 A3's docked Chat composer): the Table of contents has its own conversation and
+// composer below the contents, Tutor its only mode. The long contents, drafts kept apart, Send and the narrow panel are on
+// their own canvas below (L1-L8).
+const docked = (on = page) => on.locator('aside[aria-label="Learn agent chat"] [data-toc-conversation]');
 const below = async (upper, lower) => { const a = await upper.boundingBox(), b = await lower.boundingBox(); return !!a && !!b && a.y + a.height <= b.y + 1; };
-await check('2b short contents: the Chat composer stays below them, Tutor selected; no Chat header or conversation over the contents', async () => {
+await check('2b short contents: the TOC conversation and its composer stay below them, Tutor its only mode; no Chat header or conversation over the contents', async () => {
   await docked().waitFor();
-  assert.ok(await docked().locator('[data-chat-composer] textarea').first().isVisible(), 'the composer shows');
+  assert.ok(await docked().locator('[data-toc-composer] textarea').first().isVisible(), 'the composer shows');
   assert.ok(await below(panel().locator('[data-toc]'), docked()), 'below the contents');
   const [aside, pane] = [await panel().boundingBox(), await docked().boundingBox()];
   assert.ok(Math.abs(aside.y + aside.height - (pane.y + pane.height)) < 40, `anchored at the panel's foot: pane ends ${Math.round(pane.y + pane.height)}, panel ${Math.round(aside.y + aside.height)}`);
   assert.equal(await docked().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
+  assert.equal(await docked().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no mode menu');
   assert.equal(await panel().locator('[data-chat-header]').isVisible(), false);
   assert.equal(await page.getByRole('tabpanel', { name: 'Chat', exact: true }).count(), 0, 'the Table of contents is the one tabpanel');
 });
@@ -286,7 +288,7 @@ const tocAsks = [], tocStray = [], tocErrors = [], chatRequests = [];
 await ctx2.route('**/api/learn/ask', route => {
   tocAsks.push(JSON.parse(route.request().postData() || '{}'));
   const n = tocAsks.length;
-  return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: `Canned answer ${n}.` }) + frame('done', { ok: true, threadId: 'toc-thread-1', userMessageId: `u-${n}`, messageId: `m-${n}` }) });
+  return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: `Canned answer ${n}.` }) + frame('done', { ok: true, threadId: `canned-thread-${n}`, userMessageId: `u-${n}`, messageId: `m-${n}` }) });
 });
 await ctx2.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); tocStray.push(route.request().url()); return route.abort(); });
 await ctx2.route(/\/api\/learn\/chat\//, route => (route.request().method() === 'GET' ? route.continue() : route.fulfill({ json: { ok: true } }))); // the canned thread exists nowhere
@@ -297,8 +299,10 @@ const panel2 = () => p2.locator('aside[aria-label="Learn agent chat"]');
 const field = () => p2.locator('[data-chat-pane] [data-chat-composer] textarea').first();
 const send2 = () => p2.locator('[data-chat-pane] [data-chat-composer] button[aria-label="Send"]');
 const mode2 = () => p2.locator('[data-chat-pane] [data-chat-mode]').getAttribute('data-chat-mode');
-// Entering the tab selects Tutor in an effect after the render that docks the composer: wait for it, never read it once.
-const modeIs = async (want, message) => { const end = Date.now() + 5000; let got; while ((got = await mode2()) !== want && Date.now() < end) await p2.waitForTimeout(50); assert.equal(got, want, message); };
+// The TOC's own composer (owner brief 2026-10-16 item 7): its field, Send and mode.
+const tocField = () => docked(p2).locator('[data-toc-composer] textarea').first();
+const tocSend = () => docked(p2).locator('[data-toc-composer] button[aria-label="Send"]');
+const tocMode = () => docked(p2).locator('[data-chat-mode]').getAttribute('data-chat-mode');
 const pickMode = async id => { await p2.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click(); await p2.locator(`[data-chat-mode-option="${id}"]`).click(); };
 const tab2 = name => p2.getByRole('tab', { name, exact: true });
 const selected2 = async () => p2.locator('[role="tab"][aria-selected="true"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
@@ -341,15 +345,15 @@ await check('L1 in Chat: one Ask question answered, then an unsent draft and a c
   assert.equal(tocAsks.length, 1);
 });
 
-await check('L2 opening the Table of contents: the same composer docks below the long contents with Tutor selected, the draft and card kept, nothing requested', async () => {
+await check('L2 opening the Table of contents: its own composer below the long contents, Tutor only and empty; Chat\'s draft, card and conversation stay in Chat; nothing requested', async () => {
   await p2.waitForTimeout(1200); // past the 800 ms thread-state save of the draft and the card (chat-threads.js SAVE_DELAY)
   const mark = chatRequests.length;
   await tab2('Table of contents').click();
   await docked(p2).waitFor();
-  await modeIs('tutor', 'Tutor on entry');
-  assert.equal(await field().inputValue(), 'Which part should I review next?', 'the draft');
-  assert.equal(await chip().count(), 1, 'the attached card');
-  assert.equal(await p2.locator('[data-chat-pane]').getByText('Canned answer 1.', { exact: true }).isVisible(), false, 'the conversation stays in Chat');
+  assert.equal(await tocMode(), 'tutor');
+  assert.equal(await tocField().inputValue(), '', 'Chat\'s draft is not here');
+  assert.equal(await docked(p2).locator('[data-context-chip]', { hasText: 'Heat flows from hot to cold' }).count(), 0, 'Chat\'s attached card is not here');
+  assert.equal(await p2.getByText('Canned answer 1.', { exact: true }).isVisible(), false, 'the conversation stays in Chat');
   await reachable();
   await p2.waitForTimeout(1200); // past the same save delay: entering the tab saves nothing either
   assert.deepEqual(chatRequests.slice(mark), [], 'no chat, ask or Tutor request from opening the tab');
@@ -357,17 +361,15 @@ await check('L2 opening the Table of contents: the same composer docks below the
 });
 await shot2('06-toc-composer-long', panel2());
 
-await check('L3 Tutor once per entry: a mode picked under the contents stays, in Chat too; a new entry selects Tutor, which Chat keeps', async () => {
-  await pickMode('ask');
-  await field().fill('Which part should I review next?'); // typing re-renders; the pick stays
-  assert.equal(await mode2(), 'ask');
+await check('L3 drafts and modes stay apart: a TOC draft and Chat\'s draft each survive switching; Chat keeps its own mode, TOC stays Tutor', async () => {
+  await tocField().fill('Add a part on boiling points');
   await tab2('Chat').click();
-  assert.equal(await mode2(), 'ask', 'never reset on switching to Chat');
+  assert.equal(await field().inputValue(), 'Which part should I review next?', 'Chat\'s draft');
+  assert.equal(await mode2(), 'ask', 'Chat\'s own mode, never moved by the TOC');
   await tab2('Table of contents').click();
   await docked(p2).waitFor();
-  await modeIs('tutor', 'a new entry');
-  await tab2('Chat').click();
-  assert.equal(await mode2(), 'tutor', 'never silently Auto');
+  assert.equal(await tocField().inputValue(), 'Add a part on boiling points', 'the TOC draft');
+  assert.equal(await tocMode(), 'tutor');
 });
 
 await check('L4 coming back to the contents restores their scroll position, from Chat and after hiding the panel', async () => {
@@ -388,18 +390,19 @@ await check('L4 coming back to the contents restores their scroll position, from
   assert.ok(Math.abs((await list().evaluate(node => node.scrollTop)) - was) <= 2, `reopened at ${was}`);
 });
 
-await check('L5 Send from under the contents: the Tutor turn in the same conversation, then Chat shows its answer, Tutor still selected', async () => {
-  assert.equal(await mode2(), 'tutor');
-  await field().fill('Which part should I review next?');
-  await send2().click();
-  await p2.locator('[data-chat-pane]').getByText('Canned answer 2.', { exact: true }).waitFor({ timeout: 15000 });
-  assert.deepEqual(await selected2(), ['chat'], 'the panel switched to Chat');
-  assert.ok(await p2.locator('[data-chat-pane]').getByText('Canned answer 1.', { exact: true }).isVisible(), 'the earlier turn is in the same conversation');
-  assert.equal(await p2.locator('[data-chat-docked]').count(), 0);
+await check('L5 Send from the TOC: a Tutor turn in the TOC\'s own new thread; the answer shows in the TOC conversation and the panel stays on TOC; Chat and its New chat leave it', async () => {
+  await tocSend().click();
+  await docked(p2).getByText('Canned answer 2.', { exact: true }).waitFor({ timeout: 15000 });
+  assert.deepEqual(await selected2(), ['toc'], 'the panel stays on the Table of contents');
+  assert.equal(await docked(p2).getByText('Canned answer 1.', { exact: true }).count(), 0, 'Chat\'s turn is not in the TOC conversation');
   assert.equal(tocAsks.length, 2);
   assert.equal(tocAsks[1].mode, 'tutor', 'the existing Tutor pipeline');
-  assert.equal(tocAsks[1].thread_id, 'toc-thread-1', 'the same thread');
-  assert.equal(await mode2(), 'tutor');
+  assert.equal(tocAsks[1].thread_id ?? null, null, 'a new TOC thread, never Chat\'s canned-thread-1');
+  await tab2('Chat').click();
+  assert.equal(await p2.locator('[data-chat-pane]').getByText('Canned answer 2.', { exact: true }).count(), 0, 'the TOC answer is not in Chat');
+  await p2.locator('[data-chat-pane]').getByRole('button', { name: 'New chat', exact: true }).click();
+  await tab2('Table of contents').click();
+  assert.ok(await docked(p2).getByText('Canned answer 2.', { exact: true }).isVisible(), 'New chat in Chat leaves the TOC conversation');
 });
 await shot2('07-sent-from-contents-chat', panel2());
 
@@ -412,7 +415,7 @@ await check('L6 a narrow panel (its minimum width) and a phone: contents and com
   if (await handle.getAttribute('aria-valuenow') !== await handle.getAttribute('aria-valuemin')) for (let i = 0; i < 40; i += 1) await p2.keyboard.press('ArrowLeft');
   assert.equal(await handle.getAttribute('aria-valuenow'), await handle.getAttribute('aria-valuemin'), 'at the minimum width');
   await reachable();
-  assert.ok((await field().boundingBox()).width > 200, 'room to type');
+  assert.ok((await tocField().boundingBox()).width > 200, 'room to type');
   assert.equal(await panel2().evaluate(node => node.scrollWidth > node.clientWidth + 1), false, 'the panel does not scroll sideways');
   await shot2('08-toc-composer-narrow', panel2());
   await p2.setViewportSize({ width: 390, height: 844 });
@@ -422,16 +425,17 @@ await check('L6 a narrow panel (its minimum width) and a phone: contents and com
   await shot2('09-toc-composer-phone');
 });
 
-// The canvas's saved thread (an Ask chat) answers only after the tab was entered: its saved mode must not replace Tutor.
+// Chat's saved thread (an Ask chat) answers only after the tab was entered: it restores into Chat with its own mode, and never
+// into the TOC, which stays Tutor. The TOC's own pointer (slot=toc) reads the server's (none: the canned thread exists nowhere).
 let releaseThread, threadAsked = false;
 const threadHeld = new Promise(resolve => { releaseThread = resolve; });
-await p2.route(/\/api\/learn\/chat\/active\?/, route => (route.request().method() === 'GET' ? route.fulfill({ json: { threadId: 'toc-thread-2' } }) : route.fallback()));
+await p2.route(/\/api\/learn\/chat\/active\?(?!.*slot=toc)/, route => (route.request().method() === 'GET' ? route.fulfill({ json: { threadId: 'toc-thread-2' } }) : route.fallback()));
 await p2.route(/\/api\/ask\/threads\/toc-thread-2$/, async route => {
   threadAsked = true;
   await threadHeld;
   return route.fulfill({ json: { id: 'toc-thread-2', title: 'Saved Ask chat', mode: 'ask', contextRefs: [], draft: null, messages: [{ role: 'user', content: 'An earlier Ask question', status: 'done' }, { role: 'assistant', content: 'An earlier Ask answer', status: 'done' }] } });
 });
-await check('L8 entered before the saved thread loads: Tutor stays when it arrives; a mode picked after entry still wins', async () => {
+await check('L8 entered before Chat\'s saved thread loads: it restores into Chat with its own mode, never into the TOC, which stays Tutor', async () => {
   await p2.setViewportSize({ width: 1440, height: 900 });
   await p2.reload();
   await p2.locator('[data-block-id="t-card"]').waitFor({ timeout: 60000 });
@@ -439,18 +443,14 @@ await check('L8 entered before the saved thread loads: Tutor stays when it arriv
   assert.equal(await p2.locator('[data-chat-pane]').getAttribute('data-chat-restore'), 'loading');
   await tab2('Table of contents').click();
   await docked(p2).waitFor();
-  await modeIs('tutor', 'Tutor on entry, the thread still loading');
+  assert.equal(await tocMode(), 'tutor', 'Tutor in the TOC, Chat\'s thread still loading');
   releaseThread();
   await p2.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
-  assert.equal(await mode2(), 'tutor', 'the saved Ask mode did not replace Tutor');
+  assert.equal(await tocMode(), 'tutor', 'the saved Ask mode never reaches the TOC');
+  assert.equal(await docked(p2).getByText('An earlier Ask answer', { exact: true }).count(), 0, 'Chat\'s thread is not restored into the TOC');
   await tab2('Chat').click();
   await p2.locator('[data-chat-pane]').getByText('An earlier Ask answer', { exact: true }).waitFor();
-  assert.equal(await mode2(), 'tutor', 'the restored conversation, Tutor kept in Chat');
-  await tab2('Table of contents').click();
-  await docked(p2).waitFor();
-  await pickMode('auto');
-  await tab2('Chat').click();
-  assert.equal(await mode2(), 'auto', 'the mode picked after entry wins');
+  assert.equal(await mode2(), 'ask', 'Chat restores its own saved mode');
 });
 
 await check('L7 the long canvas: no other model route, no page error', async () => {

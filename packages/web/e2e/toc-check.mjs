@@ -61,8 +61,9 @@ let reply = null, lastProposal = null;
 const tutorTurn = proposal => `event: chunk\ndata: ${JSON.stringify({ text: 'Here is a place for that in your contents.' })}\n\nevent: outline\ndata: ${JSON.stringify(proposal)}\n\nevent: done\ndata: {}\n\n`;
 const send = async text => {
   await page.getByRole('tab', { name: /^Chat$/ }).click();
-  // Tutor mode, which posts to /api/learn/ask (answered above); Auto would plan with the live Tutor first.
-  const pane = page.locator('aside[aria-label="Learn agent chat"]');
+  // Tutor mode, which posts to /api/learn/ask (answered above); Auto would plan with the live Tutor first. The Chat pane's own
+  // composer: the Table of contents has its own (owner brief 2026-10-16 item 7).
+  const pane = page.locator('aside[aria-label="Learn agent chat"] [data-chat-pane]');
   if (await pane.locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'tutor') {
     await pane.getByRole('button', { name: 'Mode', exact: true }).click();
     await page.locator('[data-chat-mode-option="tutor"]').click();
@@ -122,14 +123,15 @@ const center = box => ({ x: box.x + box.w / 2, y: box.y + box.h / 2 });
 
 await open();
 
-await check('1 the hierarchy reads Topic 1 / 1.1 / 1.1.1 with descriptions under titles; no empty description line', async () => {
+// Owner brief 2026-10-16 item 7 (mockup reference 4) replaces R4 decision 1A: a section reads "1 <title>", no "Topic" prefix.
+await check('1 the hierarchy reads 1 / 1.1 / 1.1.1 with descriptions under titles; no empty description line', async () => {
   const rows = await toc().locator('[data-toc-entry]').evaluateAll(nodes => nodes.map(node => node.innerText.replace(/\s+/g, ' ').trim()));
-  assert.equal(rows[0].startsWith('Topic 1: Kitchen chemistry Why heat, salt and acid'), true, rows[0]);
+  assert.equal(rows[0].startsWith('1 Kitchen chemistry Why heat, salt and acid'), true, rows[0]);
   assert.equal(rows[1], '1.1 Maillard browning Sugars and amino acids react above about 140 C and make new flavours.');
   assert.equal(rows[2], '1.1.1 Temperature windows Too cool steams; too hot burns.');
   assert.equal(rows[3], '1.2 Acids and proteins');
-  assert.equal(rows[4].startsWith('Topic 2: A deliberately long topic title'), true);
-  assert.equal(rows[5], 'Topic 3: Baking Flour, water, heat.');
+  assert.equal(rows[4].startsWith('2 A deliberately long topic title'), true);
+  assert.equal(rows[5], '3 Baking Flour, water, heat.');
   assert.equal(rows[15], '3.10 Bread step 10');
   assert.equal(await entry('s12').locator('p').count(), 0, 'no description, no line for one');
   assert.equal(await entry('t2').locator('p').count(), 0);
@@ -154,13 +156,29 @@ await check('2 the guide line runs through the centres of the topic markers, beh
   const sub = rows.find(row => row.id === 's11');
   const deeper = center(sub.mark).x - center(topics[0].mark).x;
   assert.ok(deeper >= 24 && deeper <= 28, `sub-section markers ${deeper}px deeper than topic markers`);
-  const gap = topics[0].title.x - topics[0].mark.right;
-  assert.ok(gap >= 10 && gap <= 16, `marker to text ${gap}px`);
+  const gap = topics[0].number.x - topics[0].mark.right;
+  assert.ok(gap >= 10 && gap <= 16, `marker to number ${gap}px`);
   assert.equal(new Set(topics.map(row => Math.round(center(row.mark).x))).size, 1, 'topic markers share one column');
   const tens = rows.filter(row => row.id.startsWith('s3'));
   assert.equal(new Set(tens.map(row => Math.round(row.title.x))).size, 1, 'titles stay aligned from 3.1 to 3.10');
 });
 await shot('01-light-wide');
+
+await check('2b a section folds and unfolds its sub-sections; the numbering stays; the fold survives a switch to Chat and back', async () => {
+  const fold = toc().getByRole('button', { name: 'Collapse Kitchen chemistry', exact: true });
+  assert.equal(await fold.getAttribute('aria-expanded'), 'true');
+  await fold.click();
+  const unfold = toc().getByRole('button', { name: 'Expand Kitchen chemistry', exact: true });
+  assert.equal(await unfold.getAttribute('aria-expanded'), 'false');
+  assert.equal(await entry('s11').count(), 0, 'its sub-sections are folded away');
+  assert.equal(await entry('t2').locator('[data-toc-number]').innerText(), '2', 'the next section keeps its number');
+  await shot('01b-folded');
+  await page.getByRole('tab', { name: /^Chat$/ }).click();
+  await tocTab().click();
+  assert.equal(await entry('s11').count(), 0, 'still folded after a switch to Chat');
+  await unfold.click();
+  assert.equal((await entry('s11').innerText()).replace(/\s+/g, ' ').trim().startsWith('1.1 Maillard browning'), true, 'back, numbered as before');
+});
 
 await check('3 a circle only completes: it ticks, the canvas stays put, and it unticks; keyboard Space works the same', async () => {
   const before = await camera();
@@ -201,7 +219,8 @@ await check('5 a title and description edit in place, together, and the canvas h
   await toc().getByRole('textbox', { name: 'Title of Baking' }).fill('Not this');
   await toc().getByRole('textbox', { name: 'Title of Baking' }).press('Escape');
   await toc().locator('[data-toc-editor]').waitFor({ state: 'detached' });
-  assert.equal(await title('t3').innerText(), 'Topic 3: Baking');
+  assert.equal(await title('t3').innerText(), 'Baking');
+  assert.equal(await entry('t3').locator('[data-toc-number]').innerText(), '3');
 });
 
 await check('6 a drag moves a section with its sub-sections and renumbers; completion stays with its section; a drag from a circle moves nothing', async () => {
@@ -212,8 +231,9 @@ await check('6 a drag moves a section with its sub-sections and renumbers; compl
   await page.waitForFunction(() => document.querySelector('[data-toc-entry]')?.getAttribute('data-toc-entry') === 't3');
   const now = await order();
   assert.deepEqual(now.slice(0, 11), ['t3', ...Array.from({ length: 10 }, (_, i) => `s3${i}`)], 'Baking leads, with its ten steps');
-  assert.equal(await title('t3').innerText(), 'Topic 1: Baking');
-  assert.equal(await title('t1').innerText(), 'Topic 2: Kitchen chemistry');
+  assert.equal(await entry('t3').locator('[data-toc-number]').innerText(), '1');
+  assert.equal(await entry('t1').locator('[data-toc-number]').innerText(), '2');
+  assert.equal(await title('t1').innerText(), 'Kitchen chemistry');
   assert.equal(await entry('s11').getAttribute('data-done'), 'true', 'Maillard browning is still done after its number changed');
   assert.equal((await entry('s11').innerText()).startsWith('2.1'), true);
   const before = await order();

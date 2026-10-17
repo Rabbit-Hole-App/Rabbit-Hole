@@ -10,16 +10,16 @@ import { cn, Input } from './ui.jsx';
 // only (contract A3), newest activity first, from the server: each row shows the title, a short preview and the last
 // activity. Enter or a click opens a row (thread.open restores its messages, mode, attachments and draft); Escape closes.
 export default function ChatHistory() {
-  const chat = useChatWorkspace(), canvas = chat?.canvas;
+  const chat = useChatWorkspace(), canvas = chat?.canvas, tocThread = chat?.tocThreadId; // the TOC's conversation stays in TOC
   const [q, setQ] = useState(''), [rows, setRows] = useState(null), [error, setError] = useState(null), [opening, setOpening] = useState(null), [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!canvas) return undefined;
     let live = true;
     const timer = setTimeout(() => api(threadsUrl(canvas, q))
-      .then(d => { if (live) { setRows(d.threads || []); setError(null); } })
+      .then(d => { if (live) { setRows((d.threads || []).filter(row => row.id !== tocThread)); setError(null); } })
       .catch(e => { if (live) setError(e.message || 'Could not load your chats'); }), q.trim() ? 250 : 0);
     return () => { live = false; clearTimeout(timer); };
-  }, [canvas, q, attempt]);
+  }, [canvas, q, attempt, tocThread]);
   if (!chat) return null;
   const { thread } = chat;
   const pick = async id => {

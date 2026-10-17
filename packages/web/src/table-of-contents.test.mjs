@@ -32,7 +32,7 @@ const outline = outlineFrom(blocks);
 const render = (props = {}) => B.renderToStaticMarkup(B.createElement(B.TableOfContents, { outline, canvasApi: { current: null }, onShow: () => {}, ...props }));
 const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
-test('numbering follows the order and hierarchy: Topic 1, 1.1, 1.1.1; ids stay the keys', () => {
+test('numbering follows the order and hierarchy: 1, 1.1, 1.1.1; ids stay the keys', () => {
   const tree = outlineTree(outline);
   const flat = nodes => nodes.flatMap(node => [[node.entry.id, node.number], ...flat(node.children)]);
   assert.deepEqual(flat(tree), [['t1', '1'], ['s1', '1.1'], ['s1a', '1.1.1'], ['s2', '1.2'], ['t2', '2']]);
@@ -40,13 +40,13 @@ test('numbering follows the order and hierarchy: Topic 1, 1.1, 1.1.1; ids stay t
   assert.deepEqual(flat(moved).map(([id, number]) => `${id}=${number}`), ['t2=1', 't1=2', 's1=2.1', 's1a=2.1.1', 's2=2.2'], 'a reorder renumbers; nothing else moves with the number');
 });
 
-test('entries before the first topic stay unnumbered: no invented Topic 0', () => {
+test('entries before the first topic stay unnumbered: no invented 0', () => {
   const tree = outlineTree(outlineFrom([h('o', 2, 'Orphan'), h('oo', 3, 'Deeper'), h('a', 1, 'First')]));
   assert.deepEqual([tree[0].number, tree[0].children[0].number, tree[1].number], [null, null, '1']);
-  assert.doesNotMatch(render({ outline: outlineFrom([h('o', 2, 'Orphan'), h('a', 1, 'First')]) }), /Topic 0/);
+  assert.doesNotMatch(render({ outline: outlineFrom([h('o', 2, 'Orphan'), h('a', 1, 'First')]) }), /data-toc-number="true"[^>]*>0</);
 });
 
-test('multi-digit numbers: Topic 10 and 10.12', () => {
+test('multi-digit numbers: 10 and 10.12', () => {
   const many = [...Array.from({ length: 10 }, (_, i) => h(`t${i}`, 1, `T${i}`)), ...Array.from({ length: 12 }, (_, i) => h(`s${i}`, 2, `S${i}`))];
   const tree = outlineTree(outlineFrom(many));
   assert.equal(tree[9].number, '10');
@@ -54,12 +54,17 @@ test('multi-digit numbers: Topic 10 and 10.12', () => {
   assert.match(render({ outline: outlineFrom(many) }), /tabular-nums[^>]*>10\.12</);
 });
 
-test('a topic reads "Topic 1: title" with its description beneath; a sub-section has its number, title and description', () => {
+// Owner brief 2026-10-16 item 7 (mockup reference 4) replaces R4 decision 1A's "Topic 1: title".
+test('a section reads "1 title" with its description beneath, and folds its sub-sections; a sub-section has its number, title and description', () => {
   const html = render();
-  assert.match(text(html), /Topic 1: Kitchen chemistry Why heat and acid change food\./);
+  assert.match(text(html), /(^| )1 Kitchen chemistry Why heat and acid change food\./);
   assert.match(text(html), /1\.1 Maillard browning Sugars and amino acids above 140 C\./);
   assert.match(text(html), /1\.1\.1 Temperature/);
-  assert.match(text(html), /Topic 2: Baking/);
+  assert.match(text(html), / 2 Baking/);
+  assert.doesNotMatch(text(html), /Topic/, 'no "Topic" prefix');
+  assert.match(html, /data-toc-fold="true" aria-expanded="true" aria-label="Collapse Kitchen chemistry"/, 'a section with sub-sections folds; expanded at first');
+  assert.match(html, /aria-label="Collapse Maillard browning"/, 'a sub-section with its own sub-sections folds too');
+  assert.doesNotMatch(html, /aria-label="Collapse Baking"/, 'nothing to fold, no control');
   assert.doesNotMatch(text(html), /Subtopic/, 'never the literal word');
 });
 
@@ -151,4 +156,13 @@ test('the page: a syllabus proposal brings the contents forward, a Tutor one onl
   assert.match(page, /tocPending=\{proposal && canEditCanvas \? 1 : 0\}/);
   assert.match(page, /const canEditCanvas = !\(app\.kind === 'canvas' && app\.canEdit === false\);/);
   assert.match(page, /<TableOfContents [^\n]*activeId=\{canvasState\.activeSection \?\? null\} readOnly=\{!canEditCanvas\}/);
+});
+
+// The project line and the learning goal under the heading (owner brief 2026-10-16 item 7; lead ruling: real data or nothing).
+test('the project and the goal show under the heading only when given; the goal is labelled and clamped to two lines', () => {
+  const html = render({ subtitle: 'karpathy/minGPT', goal: 'Understand attention, then train a small model' });
+  assert.match(html, /data-toc-subtitle="true"[^>]*>karpathy\/minGPT</);
+  assert.match(html, /data-toc-goal="true"[^>]*class="[^"]*line-clamp-2[^"]*"><span[^>]*>Goal<\/span> · Understand attention, then train a small model</);
+  const bare = render();
+  assert.doesNotMatch(bare, /data-toc-subtitle|data-toc-goal/, 'none given, nothing shown - never sample text');
 });

@@ -39,7 +39,9 @@ export const restoredMode = (held, saved) => held || saved || 'auto';
 // The Chat header's title (owner brief section 6): never "New chat" while the conversation is loading or failed to load.
 export const chatTitle = ({ status, title }) => (status === 'loading' ? 'Loading chat…' : status === 'error' ? 'Chat not loaded' : title || 'New chat');
 
-export function useChatThread(canvas) {
+// slot 'toc' (owner brief 2026-10-16 item 7): the Table of contents' own conversation. It restores only its own open thread;
+// Chat, with none of its own, falls back to the canvas's latest thread that is not the TOC's (History leaves it out too).
+export function useChatThread(canvas, { slot = null } = {}) {
   const [id, setId] = useState(null), [title, setTitle] = useState(''), [mode, setModeState] = useState('auto'), [historyOpen, setHistoryOpen] = useState(false);
   const [restore, setRestore] = useState(() => blank(`${canvas}:new:0`)), [status, setStatus] = useState('loading');
   const idRef = useRef(null), held = useRef(null), pending = useRef(null), timer = useRef(null), request = useRef(0), shownCanvas = useRef(canvas), keyRef = useRef(restore.key);
@@ -47,7 +49,7 @@ export function useChatThread(canvas) {
   const show = next => { keyRef.current = next.key; setRestore(next); };
   useEffect(() => { keyRef.current = restore.key; return () => { keyRef.current = null; }; }, [restore.key]);
   const liveKey = useCallback(() => keyRef.current, []);
-  const remember = useCallback(threadId => { rememberThread(canvas, threadId).catch(() => {}); }, [canvas]);
+  const remember = useCallback(threadId => { rememberThread(canvas, threadId, api, slot).catch(() => {}); }, [canvas, slot]);
   // One PUT per quiet spell, to the thread the changes were made in. Best effort: the local draft copy (chat-draft.js) and
   // the next turn (apiAsk records mode and refs) keep what a failed save loses.
   const flush = useCallback(() => {
@@ -69,7 +71,7 @@ export function useChatThread(canvas) {
   const newChat = useCallback(() => {
     flush();
     const turn = ++request.current;
-    select(null); setTitle(''); setModeState('auto'); setHistoryOpen(false); setStatus('ready');
+    select(null); setTitle(''); setModeState(held.current || 'auto'); setHistoryOpen(false); setStatus('ready');
     show(blank(`${canvas}:new:${turn}`));
   }, [canvas, flush]);
   // Shows a saved thread, unless a later open, New chat or the learner's own turn (claim) came first.
@@ -119,13 +121,17 @@ export function useChatThread(canvas) {
     const turn = ++request.current;
     setStatus('loading');
     try {
-      const active = await activeThread(canvas);
-      const threadId = active ?? (await api(threadsUrl(canvas, '', 1))).threads?.[0]?.id ?? null;
+      const active = await activeThread(canvas, api, slot);
+      let threadId = active;
+      if (!threadId && !slot) {
+        const toc = await activeThread(canvas, api, 'toc');
+        threadId = (await api(threadsUrl(canvas, '', 2))).threads?.find(thread => thread.id !== toc)?.id ?? null;
+      }
       if (turn !== request.current) return;
       if (!threadId) { setStatus('ready'); return; }
       if (await load(threadId, turn) && !active) remember(threadId);
     } catch { if (turn === request.current) setStatus('error'); }
-  }, [canvas, load, remember]);
+  }, [canvas, slot, load, remember]);
   const claim = useCallback(() => { request.current++; setStatus('ready'); }, []);
   useEffect(() => {
     if (shownCanvas.current !== canvas) { shownCanvas.current = canvas; newChat(); }

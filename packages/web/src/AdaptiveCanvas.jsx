@@ -2929,7 +2929,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return target && { target };
     }
     const held = document.activeElement;
-    if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
+    if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[data-toc-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
     const target = freezeTarget(board, selectedRef.current);
     if (target) return { target };
     // Nothing selected (a populated canvas is not a blank one): the same editor, to add. From the keyboard only while the
@@ -3085,7 +3085,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // canvas's own letter, Space and arrow keys stand down there.
       const held = document.activeElement;
       const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
-        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
+        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-toc-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       if (presentingRef.current === null && plain) {
         if (event.key === ' ' && focusedCard) { event.preventDefault(); if (!selectedRef.current.includes(focusedCard)) selectRef.current(focusedCard); return; }
