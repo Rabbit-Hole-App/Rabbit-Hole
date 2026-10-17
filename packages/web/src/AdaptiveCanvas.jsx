@@ -5302,18 +5302,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
         {/* The page's own lower-left control (Learn: the feedback button). */}
         {bottomLeft}
-        <div data-zoom-stack className="flex flex-col items-start gap-2">
+        {/* One positioned group (owner brief 2026-10-16 item 8, aligned-minimap mockup): the minimap directly above the zoom
+            row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
+            the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
+        <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
         {minimap && <div data-canvas-minimap className="hidden md:block @max-[640px]:hidden">
           <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
             onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
         </div>}
-        <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2 @max-[1024px]:w-fit">
+        <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
           <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
-          <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
+          <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
         </div>

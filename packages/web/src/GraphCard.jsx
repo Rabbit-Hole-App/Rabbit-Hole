@@ -54,7 +54,8 @@ function GraphCardBody({ block }) {
   // The companion opens this source only on its own repository at this card's revision, never another commit's file.
   const here = !!companion && companion.app === block.repository?.app && companion.commit === block.repository?.commit;
   const one = nodes.length === 1 ? nodes[0] : null;
-  const scope = block.scope === 'subgraph' ? `Subgraph · ${block.nodeIds.length} node${block.nodeIds.length === 1 ? '' : 's'}` : 'Whole graph';
+  const count = `${block.nodeIds?.length} node${block.nodeIds?.length === 1 ? '' : 's'}`;
+  const scope = block.scope !== 'subgraph' ? 'Whole graph' : block.view === 'view' ? `Graph view · ${count}` : block.view === 'search' ? `Search matches · ${count}` : `Subgraph · ${count}`;
 
   return <div data-graph-card className="flex min-h-0 flex-1 flex-col gap-1.5 px-3 pb-3">
     <div className="flex shrink-0 items-center gap-1.5 text-xs text-ink-2">

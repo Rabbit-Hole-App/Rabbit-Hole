@@ -18,10 +18,13 @@ export function limitEdges(edges, shown, cap = EDGE_CAP) {
 }
 
 // `repository` is use-repository.js's object; the commit is the loaded snapshot's, the code the learner is looking at.
-export function graphCardBlock(repository, nodeIds = []) {
+// view: what the node ids are - null a selection ("Add selection as graph"), 'view' the graph the panel showed (its overview
+// or a focus), 'search' a search's matches (owner brief 2026-10-16 item 5). A view is stored as a subgraph, so the server
+// (repository-cards.js) and the AI context read exactly those nodes; `view` only names it on the card.
+export function graphCardBlock(repository, nodeIds = [], view = null) {
   const repo = repository.app?.repo || '', commit = repository.snapshot?.commit || '';
   const scope = nodeIds.length ? 'subgraph' : 'whole';
-  return { type: 'repo-graph', title: scope === 'whole' ? `${repo} graph` : `${repo} subgraph`, repository: { app: repository.name, repo, commit }, scope, nodeIds: [...nodeIds], camera: null, w: GRAPH_CARD.w, h: GRAPH_CARD.h };
+  return { type: 'repo-graph', title: scope === 'whole' || view ? `${repo} graph` : `${repo} subgraph`, repository: { app: repository.name, repo, commit }, scope, nodeIds: [...nodeIds], ...(scope === 'subgraph' && view ? { view } : {}), camera: null, w: GRAPH_CARD.w, h: GRAPH_CARD.h };
 }
 
 // The same graph at the same revision and scope: a second Add reveals the first card (double-click, retry) instead of a copy.
