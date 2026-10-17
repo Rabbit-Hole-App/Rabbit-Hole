@@ -197,7 +197,7 @@ try {
   state.sources = [{ id: 'web:global', kind: 'web', label: 'GLOBAL_CONTEXT_ONLY', attached: true }];
   state.doc = { v: 1, x: 1800, y: 200, w: 800, blocks: [{ id: 'doc-p', type: 'paragraph', content: [{ type: 'text', text: 'hidden document zebra', styles: {} }], children: [] }] };
   saved = await request(`/api/learn/boards/${canvas.name}/main`, 'PUT', { state });
-  await request(`/api/canvases/${unavailable.name}`, 'DELETE'); // Only the newly created fixture, to prove unavailable metadata.
+  await request(`/api/apps/${unavailable.name}/trash`, 'POST', {}); // Only the newly created fixture, to prove unavailable metadata.
   child = await request('/api/canvases/dives', 'POST', { name: `canvas-${randomUUID().replaceAll('-', '').slice(0, 8)}`, title: 'EXISTING_CHILD_TITLE', parent: { app: canvas.name, board: 'main' }, origin_block_id: 'alpha', dive: {} });
   await request(`/api/learn/boards/${child.name}/main`, 'PUT', { state: empty([card('child-body', 'Child', 'CHILD_ONLY_BODY')]) });
   const anchor = { kind: 'object', object_id: 'alpha', object_kind: 'block', dx: 0, dy: 0, label: 'Alpha attention' };
