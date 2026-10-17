@@ -257,8 +257,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // its own progress and errors; none of the canvas selection and none of Chat's extras (learn-ask-target.js tocAskProps,
   // TOC_HIDDEN; lead ruling 2026-10-16 on owner brief item 7).
   const tocView = !!workspace?.tocView;
-  if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor }));
+  if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor, boardContext } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor, boardContext }));
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
+  // TOC has no attachments, including the canvas documents auto-offered to a new chat.
+  const attachedRefs = tocView ? NO_REFS : (chat?.context.attached || NO_REFS);
   // A canvas with a repository (codebase: use-repository.js's object, the Main canvas or a project canvas; repo-canvas-graph.md
   // section 6): what the graph and Files viewers hold now is temporary context beside this chat's pinned refs - one chip and
   // one sent ref each, pinned first, up to the server's 20 (repo-context.js turnRefs). The Files selection is one of these
@@ -267,7 +269,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const graphCardRefs = useCardRefs();
   const cardRefs = tocView ? NO_REFS : graphCardRefs;
   const temporaryCode = chat && !tocView ? [...(codebase ? selectionRefs(codebase) : []), ...cardRefs] : NO_REFS;
-  const codeTurnRefs = turnRefs(chat?.context.attached || [], temporaryCode);
+  const codeTurnRefs = turnRefs(attachedRefs, temporaryCode);
 
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
   // tutor.extras move to the left caption.
@@ -439,9 +441,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // A typed /command replaces the pill rather than nesting inside it.
     if (!regenerate && slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); promptCommand.current = command; sentDraft.current = { command, text: raw }; setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
     if (!regenerate && slash && raw.trim().startsWith('/')) { promptCommand.current = parseSlash(raw)?.name || null; sentDraft.current = { command: null, text: raw }; setCommand(null); if (slashRef.current?.intercept(raw)) return; }
-    // An explicit Ask never goes to the journey resolver or starts a journey (owner brief section 5): a course or journey
+    // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
-    if (chat?.thread.mode === 'ask') skipJourney = true;
+    if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
     // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
     // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
     // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
@@ -519,9 +521,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // below for /api/learn/ask, in the Tutor's turn for its plan. The selection is the target and what is selected now; the user
     // message keeps the ids it went with (refs), so a follow-up's history still points at them. imageObject: the canvas object
     // whose picture rides (image_context), the only one the package may call inspected.
-    const canvasOps = learnChat && !isDemo ? workspace?.canvasOps : null;
+    const canvasOps = learnChat && !isDemo && !tocView ? workspace?.canvasOps : null;
     const selection = [(target || canvasSeed?.target)?.id, ...(canvasOps?.selection?.() || [])].filter(Boolean);
-    const attachments = chat ? refIds(chat.context.attached) : [];
+    const attachments = chat ? refIds(attachedRefs) : [];
     const canvasArgs = { history: chatHistory(msgs), selection, attachments };
     const sentRefs = [...new Set([...selection, ...attachments])];
     const imageObject = target?.image ? target.id : questionImage?.blockId || null;
@@ -561,8 +563,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
     // A Tutor turn begins in its own branch below; every other turn begins here.
     // A turn about one PDF page keeps the Tutor, which reads that page (tutorPage, page_context); several pages go to /api/learn/ask.
-    const pdfPage = tutorPage(target, chat?.context.attached);
-    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, chat?.context.attached) && !pdfPage, chat, mode: chat?.thread.mode });
+    const pdfPage = tutorPage(target, attachedRefs);
+    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, chat, mode: chat?.thread.mode });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
@@ -621,7 +623,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           : questionOutline?.length ? { outline: questionOutline, outlineRevision: outlineRevision(questionOutline) } : {}),
         // The page read: a selected page, else the open reader (its selection included), else an uploaded-paper page chip in the
         // composer (pdf-to-canvas.md), so the chip asks about its page after the selection is cleared. home: a copied page's canvas.
-        ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.home ? { home: questionPaper.home } : {}), ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : chat && turnPaper(null, chat.context.attached) ? { paper_context: turnPaper(null, chat.context.attached) } : {}),
+        ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.home ? { home: questionPaper.home } : {}), ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : chat && turnPaper(null, attachedRefs) ? { paper_context: turnPaper(null, attachedRefs) } : {}),
         // One reader holds one thing, so an open paper is what rides; a detached
         // wiki source arrives here as null and the key is simply absent.
         // A dropped image outranks the article and video cards - it is the
@@ -1081,7 +1083,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null}
+          stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => { if (codebase) dropRef(codebase, ref); dropCardRef(ref); } } : null} /> : null}
           leading={<>

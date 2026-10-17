@@ -31,7 +31,7 @@ test('Auto keeps the Tutor for one page and falls back for several; never a Tuto
   assert.equal(route(null, [paperPage, docPage]), false);
   // The composer computes exactly this (learn-journey-ui.test.mjs pins the line).
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.match(ask, /const pdfPage = tutorPage\(target, chat\?\.context\.attached\);/);
+  assert.match(ask, /const pdfPage = tutorPage\(target, attachedRefs\);/);
   assert.match(ask, /image: tutorImage, page: pdfPage, opening/);
 });
 

@@ -10,7 +10,10 @@ export const CANVAS_TARGET_MAX = 32000;
 export const NO_REFS = Object.freeze([]);
 export function tocAskProps(props) {
   return { ...props, canvasTarget: null, onClearCanvasTarget: null, slash: null, tray: null, voice: null, nextStepRef: null,
-    tutor: props.tutor ? { ...props.tutor, extras: null, opening: null } : props.tutor };
+    tutor: props.tutor ? { ...props.tutor, extras: null, opening: null } : props.tutor,
+    // The owner (2026-10-16): a TOC request never inherits Chat's attachments. The open paper, article, video, image and canvas
+    // preview stay Chat's; preserve the outline and proposal handler without clearing Chat's image or paper selection.
+    boardContext: props.boardContext ? { ...props.boardContext, paper: null, wiki: null, video: null, image: null, preview: null, removeImage: () => {} } : props.boardContext };
 }
 // Every data- attribute AskPanel itself renders (ask.jsx), and the children it mounts, as shown or hidden in the TOC view.
 // ask-toc-view.test.mjs holds ask.jsx to this list: a new data- attribute there needs its row here.

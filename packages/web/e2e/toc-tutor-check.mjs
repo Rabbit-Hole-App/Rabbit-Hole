@@ -15,6 +15,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { outlineRevision } from '../src/learn-outline-model.js';
+import { COMMIT, REPO, routeRepository } from './nanogpt-repository-fixture.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8911';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8913';
@@ -35,6 +36,13 @@ const SYLLABUS = { journeyId: null, goal: 'Read a tide table', topics: [
   { id: 't2', title: 'Tide tables', objectives: ['Read a height'], refs: [] },
 ] };
 
+// A real canvas context document is offered automatically to new Chat threads. TOC must not inherit it.
+const chatFile = new FormData();
+chatFile.append('app', canvas.name);
+chatFile.append('file', new Blob(['CHAT_ONLY_ATTACHMENT: notes about waves, not the TOC goal.'], { type: 'text/plain' }), 'toc-chat-only.txt');
+const chatUpload = await (await fetch(`${BASE}/api/learn/context`, { method: 'POST', headers: { cookie: `small_session=${session}` }, body: chatFile })).json();
+assert.ok(chatUpload.document?.id, 'the isolation test has a real uploaded context document');
+const chatOnlySource = `doc:${chatUpload.document.id}`;
 // ---------------------------------------------------------------- routes: capture and canned answers
 const captured = [], refused = [], outside = [], errors = [];
 const next = [];   // what the next /api/learn/ask answers: { syllabus } or { outline: ops => ops } or {}
@@ -68,6 +76,7 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.addInitScript(([key, value]) => { if (window === window.top && !localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, [inkKey, seeds[inkKey]]);
+await routeRepository(context);
 await context.route('**/*', router);
 const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
@@ -86,6 +95,7 @@ const waitFor = async (test, ms = 10000) => { const end = Date.now() + ms; for (
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator('[data-block-id="k1"]').waitFor({ timeout: 60000 });
 await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
+await page.locator('[data-chat-pane] [data-context-chip]').filter({ hasText: 'toc-chat-only.txt' }).waitFor();
 
 const pane = () => page.locator('[data-chat-pane]');
 // The Table of contents tab's name also says how many proposals wait for review (PanelHeader tocPending, R4), so it is
@@ -118,6 +128,7 @@ let adopted = [];
 await check('1 a Tutor syllabus renders its topic descriptions and numbered subtopics, with Use as table of contents', async () => {
   const body = await turn('make me a syllabus on tides', { syllabus: SYLLABUS });
   assert.equal(body.mode, 'tutor');
+  assert.ok(body.context_refs.some(ref => ref.sourceId === chatOnlySource), 'normal Chat receives its uploaded document');
   assert.equal(body.outline, undefined, 'no headings yet, so no outline rides');
   assert.equal(body.outlineRevision, undefined);
   const card = pane().locator('[data-syllabus]').last();
@@ -224,6 +235,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   for (const [role, content, client_id] of [['user', ask, 'toc-u'], ['assistant', 'The saved TOC reply.', 'toc-a']])
     await api(`/api/learn/chat/threads/${TOC_THREAD}/messages`, { method: 'POST', body: JSON.stringify({ app: canvas.name, client_id, role, content, mode: 'tutor' }) });
   await tab('Chat').click();
+  await setMode('ask'); // TOC must not inherit Chat's mode.
   await pane().locator('[data-chat-composer] textarea').first().fill('A Chat draft');
   await tab('Table of contents').click();
   await tocField().waitFor();
@@ -241,6 +253,11 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   const { body, reply } = captured[n];
   assert.equal(body.mode, 'tutor');
   assert.equal(body.thread_id ?? null, null, 'a new TOC thread, never Chat\'s');
+  assert.equal(body.message, ask, 'the TOC goal/request is its own');
+  assert.deepEqual(body.outline.map(h => [h.id, h.level, h.label, h.description, h.done]), before.map(h => [h.id, h.level, h.text, h.description, h.done]), 'the current complete outline rides');
+  assert.equal(body.outlineRevision, outlineRevision(body.outline));
+  assert.deepEqual(body.context_refs, [], 'no Chat attachments or canvas references');
+  for (const key of ['canvas_context', 'canvas_target', 'paper_context', 'wiki_context', 'video_context', 'image_context', 'canvas_seed']) assert.equal(body[key], undefined, `TOC excludes ${key}`);
   await tocBox().getByText(`Canned reply ${reply}.`, { exact: true }).waitFor({ timeout: 15000 });
   const after = await waitFor(async () => { const h = await headings(); return h.some(x => x.text === 'Tidal bores') && h; });
   const at = after.findIndex(h => h.text === 'Tidal bores');
@@ -256,6 +273,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await tab('Chat').click();
   assert.equal(await pane().getByText(`Canned reply ${reply}.`, { exact: true }).count(), 0, 'the TOC reply is not in Chat');
   assert.equal(await pane().locator('[data-chat-composer] textarea').first().inputValue(), 'A Chat draft', 'Chat\'s draft kept');
+  assert.equal(await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'ask', 'TOC never changes Chat mode');
   await pane().getByRole('button', { name: 'New chat', exact: true }).click();
   await tab('Table of contents').click();
   assert.ok(await tocBox().getByText(`Canned reply ${reply}.`, { exact: true }).isVisible(), 'New chat leaves the TOC conversation');
@@ -271,15 +289,61 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await tab('Chat').click();
   await page.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
   assert.equal(await pane().getByText('The saved TOC reply.', { exact: true }).count(), 0, 'Chat never restores the TOC\'s thread');
+  await tab('Table of contents').click();
+  const followUp = 'Teach me tides by refining these headings';
+  const followIndex = captured.length;
+  await tocField().fill(followUp);
+  await tocBox().locator('[data-toc-composer] button[aria-label="Send"]').click();
+  await waitFor(() => captured.length > followIndex, 20000);
+  const followBody = captured[followIndex].body;
+  assert.equal(followBody.thread_id, TOC_THREAD, 'the restored TOC conversation, never Chat history');
+  assert.equal(followBody.mode, 'tutor');
+  assert.equal(followBody.message, followUp);
+  assert.deepEqual(followBody.context_refs, []);
+  for (const key of ['canvas_context', 'canvas_target', 'paper_context', 'wiki_context', 'video_context', 'image_context', 'canvas_seed']) assert.equal(followBody[key], undefined, `restored TOC excludes ${key}`);
+  assert.ok(followBody.outline.some(h => h.label === 'Tidal bores'), 'the refined outline rides on the next TOC turn');
+  await tocBox().getByText(`Canned reply ${captured[followIndex].reply}.`, { exact: true }).waitFor();
 });
 
+await check('10 repository TOC keeps its intentional repository commit and outline, never the file selected in Chat', async () => {
+  const repoInk = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${REPO}:ink`;
+  await page.evaluate(([key, seed]) => localStorage.setItem(key, JSON.stringify(seed)), [repoInk, {
+    strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [],
+    blocks: [{ id: 'repo-heading', type: 'heading', level: 1, text: 'Repository outline', description: 'Read the model first.' }],
+  }]);
+  await page.goto(`${BASE}/apps/${REPO}`);
+  await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+  await pane().waitFor();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:open-files')));
+  const files = page.locator('[data-companion] [data-learn-files]');
+  await files.locator('[data-file-row="model.py"]').click();
+  await pane().locator('[data-code-selection]').first().waitFor();
+  await tab('Table of contents').click();
+  await contents().locator('[data-toc-subtitle]').filter({ hasText: 'karpathy/nanoGPT' }).waitFor();
+  const n = captured.length, request = 'Refine my repository outline to explain attention';
+  await tocField().fill(request);
+  await tocBox().locator('[data-toc-composer] button[aria-label="Send"]').click();
+  await waitFor(() => captured.length > n, 20000);
+  const body = captured[n].body;
+  assert.equal(body.message, request);
+  assert.equal(body.mode, 'tutor');
+  assert.equal(body.scope.app, REPO);
+  assert.deepEqual(body.repository_context, { commit: COMMIT }, 'intentional repository identity without Chat file/range');
+  assert.deepEqual(body.context_refs, [], 'selected repository file stays in Chat');
+  assert.equal(body.canvas_context, undefined);
+  assert.equal(body.canvas_target, undefined);
+  assert.equal(body.thread_id ?? null, null, 'new repository TOC, not the other canvas conversation');
+  assert.deepEqual(body.outline.map(h => [h.id, h.label, h.level]), [['repo-heading', 'Repository outline', 1]]);
+  await tocBox().getByText(`Canned reply ${captured[n].reply}.`, { exact: true }).waitFor();
+  await contents().screenshot({ path: `${OUT}/10-repository-toc.png` });
+});
 await check('6 no model route was reached and the page raised no error', async () => {
   assert.deepEqual(refused, []);
   assert.deepEqual(outside, []);
   assert.deepEqual(errors, []);
 });
 
-writeFileSync(`${OUT}/results.json`, JSON.stringify({ results, asks: captured.length }, null, 2));
+writeFileSync(`${OUT}/results.json`, JSON.stringify({ results, asks: captured.length, requests: captured.map(({ body }) => body) }, null, 2));
 await browser.close();
 const failed = results.filter(r => !r.ok).length;
 console.log(`${results.length - failed}/${results.length} passed`);

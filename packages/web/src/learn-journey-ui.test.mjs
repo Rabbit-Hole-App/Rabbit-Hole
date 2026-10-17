@@ -193,7 +193,7 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // has neither, and a failed one gives the words back. Ask the Tutor (skipJourney) goes straight to the planner.
   // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
   // The path is chat-route.js tutorTurn: the Tutor in Auto (and off the Chat pane); Ask and Tutor modes post to /api/learn/ask.
-  assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, chat\?\.context\.attached\) && !pdfPage, chat, mode: chat\?\.thread\.mode \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
+  assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, attachedRefs\) && !pdfPage, chat, mode: chat\?\.thread\.mode \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
   assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, page: pdfPage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\] \}\)/);
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
