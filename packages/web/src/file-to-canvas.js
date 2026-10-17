@@ -31,7 +31,7 @@ export function fileCardFromSource(source, fam, view = {}) {
   const [type, kind] = fam.card.split(':');
   const title = source.name.replace(/\.[^.]+$/, '');
   return {
-    type, kind, label: title,
+    type, kind, label: title, format: source.name.split('.').pop().toLowerCase(),
     fileRef: { v: 1, source: { id: source.id, rev: source.rev }, family: fam.id, meta: { name: source.name, type: source.type, ...(source.size != null ? { size: source.size } : {}), title },
       view, derivatives: {}, job: null, doc: null, status: { preview: 'pending', context: 'none' } },
   };

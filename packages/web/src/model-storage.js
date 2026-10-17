@@ -146,3 +146,14 @@ export function chooseModel(block, entry) {
   const { local: _local, ...base } = ref;
   return { ...block, model, fileRef: { ...base, source: chosen.source, ...(chosen.local ? { local: chosen.local } : {}), family: entry.family, meta: { ...ref.meta, name: entry.path.split('/').pop() }, view: { ...ref.view, entry: entry.path }, bundle: [...ref.bundle.filter(b => b !== chosen), previous] } };
 }
+
+// Context cards carry only their stored source. Reconstruct the same view from its parsed bytes, never its name alone.
+export function modelFromPlan(block, plan) {
+  if (block.model) return block.model;
+  const entries = (plan?.entries || []).filter(entry => !entry.error);
+  const selected = entries.find(entry => entry.path === block.fileRef?.view?.entry) || (entries.length === 1 ? entries[0] : null);
+  return { v: 1, family: selected?.family || block.fileRef?.family, format: selected?.format || null,
+    render: selected?.render || null, entry: selected?.path || null,
+    package: block.fileRef?.family === 'model-package' ? 'zip' : 'file', download: block.fileRef?.meta?.name || block.label,
+    ...(!selected && entries.length > 1 ? { entries: entries.map(({ path, label, format }) => ({ path, label, format })) } : {}) };
+}

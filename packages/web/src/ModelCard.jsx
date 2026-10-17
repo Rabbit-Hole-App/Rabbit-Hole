@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, FilePlus, Rotate3d, Scan, TriangleAlert } from 'lucide-react';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { formatLabel, modelKindLabel } from './model-import.js';
-import { addModelFiles, chooseModel, openModelFiles, useModelUploads } from './model-storage.js';
+import { addModelFiles, chooseModel, modelFromPlan, openModelFiles, useModelUploads } from './model-storage.js';
 import { MODEL_ACCEPT } from './model-drop.js';
 import { headerCounts, overBudget, sizeLabel } from './model-formats.js';
 import { activateViewer, claimViewer, deactivateViewer, releaseViewer } from './viewer-slots.js';
@@ -31,19 +31,19 @@ function countLine(counts = {}) {
 }
 
 export default function ModelCard({ block, selected, onChange, onSelect = null }) {
-  const model = block.model || {};
   const root = useRef(null), host = useRef(null), engine = useRef(null), latest = useRef(block);
-  latest.current = block;
   const [blob, setBlob] = useState(null), [pkg, setPkg] = useState(null), [problem, setProblem] = useState('');
   const [live, setLive] = useState(false), [visible, setVisible] = useState(false), [ready, setReady] = useState(false);
   const [active, setActive] = useState(false), [lost, setLost] = useState(false), [attempt, setAttempt] = useState(0);
   const [info, setInfo] = useState(null), [poster, setPoster] = useState(null), [report, setReport] = useState({ missing: [], blocked: [] });
   const [cad, setCad] = useState(null), [clips, setClips] = useState([]);
+  const model = modelFromPlan(block, pkg?.plan);
+  latest.current = { ...block, model };
   // Each file's upload to the account (file-source-client.js); a stored source is written into the card as it lands.
   // latest moves at once, so two uploads landing before a re-render both reach the card.
   const uploads = useModelUploads(block, fn => { const next = fn(latest.current); if (next !== latest.current) { latest.current = next; onChange(next); } });
   // A STEP card: its step-glb job (submitted once the original is stored) and the GLB derivative it renders.
-  const cadPreview = useCadPreview(block, fn => { const next = fn(latest.current); if (next !== latest.current) { latest.current = next; onChange(next); } });
+  const cadPreview = useCadPreview(latest.current, fn => { const next = fn(latest.current); if (next !== latest.current) { latest.current = next; onChange(next); } });
   const cadState = model.render === 'cad' ? cadPreview : null;
 
   // The card's own files (model-storage.js: its fileRef sources, or the board asset), then what they hold.

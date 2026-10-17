@@ -100,3 +100,15 @@ test('a missing dependency becomes a new bundle entry with its own upload when t
   await assert.rejects(addModelFiles(block, [new File(['x'], 'notes.txt')]), /model's own files/);
   setSourceClient(null);
 });
+
+test('a Context model card reconstructs its view from the stored format, including package choice', async () => {
+  const { modelFromPlan } = await import('./model-storage.js');
+  const block = { label: 'cube', fileRef: { family: 'gltf', meta: { name: 'cube.glb' }, view: {} } };
+  const entry = { path: 'cube.glb', family: 'gltf', format: 'glb', render: 'mesh' };
+  assert.equal(modelFromPlan(block, { entries: [entry] }).entry, 'cube.glb');
+  assert.equal(modelFromPlan(block, { entries: [entry] }).render, 'mesh');
+  const second = { ...entry, path: 'other.glb' };
+  assert.equal(modelFromPlan(block, { entries: [entry, second] }).entry, null);
+  assert.equal(modelFromPlan(block, { entries: [entry, second] }).entries.length, 2);
+  assert.equal(modelFromPlan(block, { entries: [{ ...entry, error: 'invalid' }] }).entry, null);
+});

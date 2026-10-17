@@ -77,3 +77,8 @@ test('Ctrl+K: a file card with no semantic editing path takes no Edit; one whose
   assert.match(editor, /disabled=\{\(target\.creation \|\| fileLocked\) && value === 'edit'\}/, 'Edit is disabled in the mode menu');
   assert.match(editor, /if \(mode === 'edit' && fileLocked\) \{ setRefused\(FILE_EDIT_LOCKED\); return; \}/, 'and refused at send');
 });
+
+test('stored document cards retain their actual format for the family renderer', () => {
+  const card = fileCardFromSource({ id: ID, rev: REV, name: 'report.docx', type: 'application/octet-stream', size: 100 }, canvasFamilyOf(ref('report.docx')));
+  assert.equal(card.format, 'docx');
+});
