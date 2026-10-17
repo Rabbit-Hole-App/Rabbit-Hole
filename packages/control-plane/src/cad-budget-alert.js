@@ -1,7 +1,7 @@
 const PATH = '/internal/cad-budget-alert';
 const valid = value => value && typeof value === 'object' && !Array.isArray(value) &&
   Object.keys(value).every(key => key === 'month' || key === 'kind') &&
-  value.month === new Date().toISOString().slice(0, 7) && ['model', 'transfer'].includes(value.kind);
+  value.month === new Date().toISOString().slice(0, 7) && ['model', 'transfer', 'infrastructure'].includes(value.kind);
 const configuredToken = env => typeof env.CAD_BUDGET_ALERT_TOKEN === 'string' && env.CAD_BUDGET_ALERT_TOKEN.length >= 32;
 const result = (status, ok = false) => Response.json({ok}, {status});
 

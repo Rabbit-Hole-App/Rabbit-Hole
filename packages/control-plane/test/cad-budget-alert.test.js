@@ -5,7 +5,7 @@ const token='fixture-token-'.repeat(4), month=new Date().toISOString().slice(0,7
 const env={CAD_BUDGET_ALERT_TOKEN:token,CAD_BUDGET_ALERT_EMAIL:'owner@example.test'};
 const request=(body={month,kind:'model'},auth=token)=>new Request('https://cp/internal/cad-budget-alert',{method:'POST',headers:{authorization:`Bearer ${auth}`},body:typeof body==='string'?body:JSON.stringify(body)});
 test('fixed owner, sanitized message and monthly idempotency key for each budget',async()=>{
-  for(const kind of ['model','transfer']){
+  for(const kind of ['model','transfer','infrastructure']){
     let captured;
     assert.equal((await cadBudgetAlert(request({month,kind}),env,{sendEmail:async(...args)=>{captured=args;return true;}})).status,200);
     assert.equal(captured[1],env.CAD_BUDGET_ALERT_EMAIL);
@@ -33,6 +33,15 @@ test('email failure is retryable without exposing provider error',async()=>{
     const response=await cadBudgetAlert(request(),env,{sendEmail});
     assert.equal(response.status,502);assert.deepEqual(await response.json(),{ok:false});
   }
+});
+test('infrastructure alerts require authentication and reject recipient or prompt injection',async()=>{
+  let calls=0;const deps={sendEmail:async()=>{calls++;return true;}};
+  assert.equal((await cadBudgetAlert(request({month,kind:'infrastructure'},'wrong'),env,deps)).status,401);
+  for(const extra of [{to:'attacker@example.test'},{prompt:'private card content'}])
+    assert.equal((await cadBudgetAlert(request({month,kind:'infrastructure',...extra}),env,deps)).status,400);
+  assert.equal(calls,0);
+  assert.equal(await notifyCadBudget({...env,CONTROL_PLANE:{fetch:async req=>cadBudgetAlert(req,env,deps)}},{month,kind:'infrastructure'}),true);
+  assert.equal(calls,1);
 });
 test('caller uses service binding and returns success only for accepted notification',async()=>{
   let calls=0;
