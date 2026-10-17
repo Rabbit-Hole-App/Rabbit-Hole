@@ -131,8 +131,8 @@ const fakeMeta = {
   splitAnswerMeta: text => { const m = String(text).match(/\s*<answer_meta>([^]*?)<\/answer_meta>\s*$/); return m ? { content: text.slice(0, m.index), raw: m[1] } : { content: text, raw: null }; },
   validateAnswerMeta: (raw, { messageId }) => ({ actions: [], followUps: raw ? [{ id: 'f1', text: `next after ${messageId}`, kind: 'next' }] : [] }),
 };
-const build = (answerMeta = fakeMeta) => {
-  const deps = { ...baseDeps, ...chatModes, ...answerMeta, json: (body, status = 200) => Response.json(body, { status }) };
+const build = (answerMeta = fakeMeta, extra = {}) => {
+  const deps = { ...baseDeps, ...chatModes, ...answerMeta, json: (body, status = 200) => Response.json(body, { status }), ...extra };
   return new Function(...Object.keys(deps), `${apiAskSource}; return apiAsk;`)(...Object.values(deps));
 };
 
@@ -634,4 +634,29 @@ test('a selected graph card rides as a named graph ref: scope only, no range and
   assert.throws(() => contextRefs([{ ...ref, text: 'code' }]), /text rides only/);
   assert.throws(() => contextRefs([{ ...ref, sourceId: 'code:x@y:z' }]), /must start with graph:/);
   assert.match(chatContext('', [ref], null, 4000), /\[graph\] "karpathy\/nanoGPT subgraph" sourceId/);
+});
+
+// Imported files (canvas-file-imports.md section 6; owner acceptance 3d): every mode that reaches /api/learn/ask - Ask, explicit
+// Tutor and Auto (which the client routes here whenever a file is attached, chat-route.js fileTurn) - resolves the turn's file
+// refs and sends their excerpts and coverage to the model. Tutor consumes them; nothing is dropped. fileContext is a double
+// here: file-context.test.js covers what it reads; this covers that apiAsk calls it and sends what it returns.
+test('file refs ride Ask, explicit Tutor and Auto turns: the excerpt and its coverage reach the model', async t => {
+  const f = fixture(t);
+  const FILE = { sourceId: `file:fs_${'a'.repeat(24)}@${'b'.repeat(64)}`, kind: 'file', name: 'sales.xlsx', version: '', range: { sheet: 'Q1' } };
+  const seen = [];
+  const fileContext = async (req, env, refs, options) => {
+    seen.push({ refs, options });
+    return { coverage: new Map([[`${FILE.sourceId}|${JSON.stringify(FILE.range)}`, 'extracted']]), blocks: ['Extracted text of "sales.xlsx": [Q1!A1:B3] Jan | 10'] };
+  };
+  for (const mode of ['ask', 'tutor', 'auto']) {
+    f.replies.push('An answer.\n<answer_meta>{}</answer_meta>');
+    const { res } = await f.ask({ message: 'what grew in Q1?', mode, context_refs: [FILE], member_board: 'b-1' }, build(fakeMeta, { fileContext }));
+    assert.equal(res.status, 200, mode);
+    const sent = JSON.stringify(f.calls.at(-1));
+    assert.match(sent, /\[Q1!A1:B3\] Jan \| 10/, `${mode}: the excerpt reaches the model`);
+    assert.match(sent, /extracted: its text for this range is included below/, `${mode}: its coverage is said`);
+  }
+  assert.equal(seen.length, 3);
+  assert.deepEqual(seen[1].refs, [FILE], 'the Tutor turn asked for the file ref');
+  assert.deepEqual(seen[1].options, { user: owner, app: 'canvas-0a1b2c3d', member: 'b-1' });
 });

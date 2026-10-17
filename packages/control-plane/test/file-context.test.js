@@ -128,3 +128,84 @@ test('another account gets nothing by id; a member of the board gets the excerpt
   assert.equal([...removed.coverage.values()][0], 'unavailable', 'removed: nothing read');
   assert.equal(removed.blocks.length, 0);
 });
+
+// Owner acceptance 3b: the excerpt is the attached revision's text at the asked location, never other units under that label.
+test('extraction returns exactly the asked units of the attached revision: page 3, a sheet, rows, lines, a cell', async t => {
+  const { env, request, source, derivative, store } = setup(t);
+  source();
+  const pages = { v: 1, complete: true, units: [1, 2, 3, 4, 5].map(page => ({ loc: { page }, text: `Text of page ${page}.` })) };
+  store.set(derivative({ sha: OLD }), JSON.stringify({ v: 1, complete: true, units: [{ loc: { page: 3 }, text: 'OLD REVISION page 3.' }] }));
+  store.set(derivative(), JSON.stringify(pages));
+  const excerpt = async range => (await fileContext(request('owner'), env, [ref(range)], { user: PEOPLE.owner })).blocks[0]?.split('\n').slice(1).join('\n');
+  assert.equal(await excerpt({ page: 3 }), '[p. 3] Text of page 3.', 'page 3 only, from the attached revision');
+  assert.equal(await excerpt(null), pages.units.map(u => `[p. ${u.loc.page}] ${u.text}`).join('\n'), 'the whole source: every unit, in order');
+  const SRC2 = `fs_${'4'.repeat(24)}`;
+  source(SRC2);
+  store.set(derivative({ id: SRC2 }), JSON.stringify({ v: 1, complete: true, units: [
+    { loc: { sheet: 'Q1', cells: 'A1:B3' }, text: 'Q1 grid' }, { loc: { sheet: 'Q2', cells: 'A1:B2' }, text: 'Q2 grid' },
+    { loc: { rows: [1, 50] }, text: 'rows 1-50' }, { loc: { rows: [51, 100] }, text: 'rows 51-100' },
+    { loc: { start: 1, end: 20 }, text: 'lines 1-20' }, { loc: { start: 21, end: 40 }, text: 'lines 21-40' },
+    { loc: { cell: 'c2' }, text: 'cell two' }, { loc: { cell: 'c3' }, text: 'cell three' },
+  ] }));
+  const at = async range => (await fileContext(request('owner'), env, [ref(range, REV, SRC2)], { user: PEOPLE.owner })).blocks[0]?.split('\n').slice(1).join('\n');
+  assert.equal(await at({ sheet: 'Q2', cells: 'A1:B2' }), '[Q2!A1:B2] Q2 grid');
+  assert.equal(await at({ rows: [60, 70] }), '[rows 51-100] rows 51-100');
+  assert.equal(await at({ start: 25, end: 30 }), '[L21-40] lines 21-40');
+  assert.equal(await at({ cell: 'c3' }), '[cell c3] cell three');
+  // Plain text, a line range: those lines only.
+  const SRC3 = `fs_${'5'.repeat(24)}`;
+  source(SRC3);
+  store.set(derivative({ id: SRC3, media: 'text/plain' }), 'one\ntwo\nthree\nfour');
+  assert.equal((await fileContext(request('owner'), env, [ref({ start: 2, end: 3 }, REV, SRC3)], { user: PEOPLE.owner })).blocks[0].split('\n').slice(1).join('\n'), '[L2-3] two\nthree');
+});
+
+// Owner acceptance 3c: the labels match what was included, at exactly the limits and one character over each.
+test('truncation at exactly 4,000 per ref and 12,000 per turn, and one over each: labels match what was included', async t => {
+  const { env, request, source, derivative, store } = setup(t);
+  const ids = [6, 7, 8, 9].map(d => `fs_${String(d).repeat(24)}`);
+  const put = (id, chars) => { source(id); store.set(derivative({ id, media: 'text/plain' }), 'y'.repeat(chars)); };
+  const run = async list => {
+    const files = await fileContext(request('owner'), env, list.map(id => ref(null, REV, id)), { user: PEOPLE.owner });
+    return { labels: [...files.coverage.values()], sizes: files.blocks.map(b => (b.split('\n')[1] || '').length) };
+  };
+  put(ids[0], 4000);
+  assert.deepEqual(await run([ids[0]]), { labels: ['extracted'], sizes: [4000] }, 'exactly the per-ref limit: whole, extracted');
+  put(ids[1], 4001);
+  assert.deepEqual(await run([ids[1]]), { labels: ['partial'], sizes: [4000] }, 'one over: 4,000 included, partial');
+  put(ids[2], 4000); put(ids[3], 4000);
+  assert.deepEqual(await run([ids[0], ids[2], ids[3]]), { labels: ['extracted', 'extracted', 'extracted'], sizes: [4000, 4000, 4000] }, 'exactly the per-turn limit');
+  assert.deepEqual(await run([ids[0], ids[2], ids[3], ids[1]]), { labels: ['extracted', 'extracted', 'extracted', 'omitted'], sizes: [4000, 4000, 4000] }, 'one more past 12,000: omitted, nothing of it sent');
+  // A budget that ends inside a ref: what fits is sent and labelled partial.
+  const files = await fileContext(request('owner'), env, [ref(null, REV, ids[0]), ref(null, REV, ids[2]), ref(null, REV, ids[1])], { user: PEOPLE.owner, limits: { perRef: 4000, perTurn: 10000 } });
+  assert.deepEqual([...files.coverage.values()], ['extracted', 'extracted', 'partial']);
+  assert.equal(files.blocks[2].split('\n')[1].length, 2000);
+  assert.match(files.blocks[2], /partial: the first 2000 of 4001 characters/);
+});
+
+// Owner acceptance 3a: Context -> Add to canvas puts the card on the board through the ordinary board save, which records the
+// file_source_refs row; after a reopen the card is still there and still resolves; taking the card off removes that access.
+test('a card added from a Context row saves normally, records its reference, and resolves after a reopen', async t => {
+  const { env, request, source, derivative, store, sqlite, call } = setup(t);
+  source();
+  store.set(derivative(), UNITS);
+  const { canvasFamilyOf, fileCardFromSource } = await import('../../web/src/file-to-canvas.js');
+  const fam = canvasFamilyOf({ ...ref(), name: 'clip.mp4' });
+  const card = { id: 'c-added', dx: 0, dy: 0, ...fileCardFromSource({ id: SRC, rev: REV, name: 'clip.mp4', type: 'video/mp4', size: 10 }, fam) };
+  assert.ok(JSON.stringify(card.fileRef).length < 2048, 'a compact fileRef');
+  const STATE = { blocks: [card], shapes: [], items: [], links: [], strokes: [], exchanges: [] };
+  const saved = await call('PUT', '/api/learn/boards/demo-app/main', 'owner', { state: STATE });
+  assert.ok(saved.status < 300, `the ordinary board save (${saved.status})`);
+  const board = sqlite.prepare("SELECT id FROM learn_boards WHERE app = 'demo-app' AND board = 'main'").get();
+  assert.deepEqual(sqlite.prepare('SELECT source_id FROM file_source_refs WHERE board_id = ?').all(board.id).map(r => r.source_id), [SRC], 'the save recorded the reference');
+  // Reopen: the saved board still holds the card, and a member of that board reads the excerpt through it.
+  const reopened = await (await call('GET', '/api/learn/boards/demo-app/main', 'owner')).json();
+  assert.deepEqual((reopened.state || reopened).blocks.map(b => b.fileRef?.source), [{ id: SRC, rev: REV }]);
+  sqlite.prepare("INSERT INTO canvases (org, name, owner_email, title) VALUES ('team', 'demo-app', 'owner@test', 'Demo')").run();
+  sqlite.prepare(`INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at)
+    VALUES ('m1', 'team', 'demo-app', 'friend@elsewhere', 'u-friend', 'friend@elsewhere', 'active', 'sent', 'owner@test', 1, 9999999999999)`).run();
+  assert.equal([...(await fileContext(request('friend'), env, [ref({ sheet: 'Q1' })], { user: PEOPLE.friend, member: board.id })).coverage.values()][0], 'extracted');
+  // The card taken off and saved: the reference row goes, and the board no longer grants the file.
+  await call('PUT', '/api/learn/boards/demo-app/main', 'owner', { state: { ...STATE, blocks: [] } });
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM file_source_refs WHERE board_id = ?').get(board.id).n, 0);
+  assert.equal([...(await fileContext(request('friend'), env, [ref({ sheet: 'Q1' })], { user: PEOPLE.friend, member: board.id })).coverage.values()][0], 'unavailable');
+});
