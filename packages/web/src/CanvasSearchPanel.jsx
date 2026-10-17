@@ -72,7 +72,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, inputRef, query =
       <button type="button" aria-label="Previous match" disabled={!results.length} onClick={() => go(-1)} className={`${button} p-1.5 hover:bg-hover`}><ChevronUp size={16} aria-hidden /></button>
       <button type="button" aria-label="Next match" disabled={!results.length} onClick={() => go(1)} className={`${button} p-1.5 hover:bg-hover`}><ChevronDown size={16} aria-hidden /></button>
     </div>
-    <div className="my-2 flex items-center justify-between gap-2 text-xs text-ink-3"><span>This canvas</span><span data-find-count aria-live="polite">{current >= 0 ? `${current + 1} of ${results.length}` : `${results.length} results`}</span></div>
+    <div className="my-2 flex items-center justify-between gap-2 text-xs text-ink-3"><span>This canvas</span><span data-find-count aria-live="polite">{current >= 0 ? `${current + 1} of ${results.length}` : `${results.length} result${results.length === 1 ? '' : 's'}`}</span></div>
     <div role="group" aria-label="Search filters" className="mb-2 flex flex-wrap gap-1">
       {SEARCH_FILTERS.map(([id, label]) => <button key={id} type="button" data-search-filter={id} aria-pressed={filter === id} onClick={() => onFilterChange(id)} className={`${button} flex items-center gap-1 px-2 py-1 text-xs ${filter === id ? 'bg-(--nav-selected-bg) text-(--nav-selected-fg)' : 'text-ink-2 hover:bg-hover'}`}>{label}<span className="tabular-nums opacity-70">{counts[id] ?? 0}</span></button>)}
     </div>

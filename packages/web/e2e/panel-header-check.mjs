@@ -3,7 +3,7 @@
 // only: local D1 and fresh browser profiles. No model is called: /api/learn/ask is answered here and any other model
 // route fails the run. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 node e2e/panel-header-check.mjs [shotsDir]
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -18,11 +18,13 @@ const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/sess
 const owner = { session: await sessionFor(`panel-owner-${run}@example.com`, `panel_${run}`) };
 const api = async (path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'application/json' } }); return { status: r.status, body: await r.json().catch(() => null) }; };
 
+// Search owner brief 2026-10-16: empty query browses objects; direct titles rank before body matches.
+// The first salt card has ice only in its body, while the far card names ice in its title.
 // A section, two salt cards near the top, filler, and one card far down the column that only a find brings into view.
 const filler = Array.from({ length: 8 }, (_, i) => ({ id: `k-fill-${i}`, type: 'explanation', dx: 0, dy: 0, title: `Filler card ${i + 1}`, body: 'Water molecules slow down and line up as they cool. '.repeat(6) }));
 const BLOCKS = [
   { id: 'k-head', type: 'heading', dx: 0, dy: 0, level: 1, text: 'Kitchen chemistry' },
-  { id: 'k-exp', type: 'explanation', dx: 0, dy: 0, title: 'Why salt melts ice', body: 'Salt dissolves into the thin film of water on ice and lowers its freezing point.' },
+  { id: 'k-exp', type: 'explanation', dx: 0, dy: 0, title: 'Why salt melts frozen water', body: 'Salt dissolves into the thin film of water on ice and lowers its freezing point.' },
   { id: 'k-quiz', type: 'quiz', dx: 0, dy: 0, question: 'What does SALT do to the freezing point of water?', options: [{ key: 'A', text: 'Lowers it', correct: true }, { key: 'B', text: 'Raises it' }] },
   ...filler,
   { id: 'k-far', type: 'explanation', dx: 0, dy: 0, title: 'Zephyr ice cream', body: 'Churning while it freezes keeps the ice crystals small.' },
@@ -147,7 +149,7 @@ await shot('02-comments-tab', page.locator('[data-panel-header]'));
 
 await check('4 one tab at a time: Find replaces the outline and takes the typing focus', async () => {
   await tab('Find text on canvas').click();
-  await page.waitForTimeout(200);
+  await expect(findInput()).toBeFocused();
   assert.deepEqual(await selected(), ['find']);
   assert.ok(await panel().locator('[data-canvas-find]').isVisible());
   assert.equal(await panel().locator('[data-toc]').isVisible(), false);
@@ -175,34 +177,36 @@ await check('5 arrow keys move between the enabled tabs, Comments included on a 
 
 await check('6 find matches case-insensitively, one row per card, with a count', async () => {
   await findInput().fill('salt');
-  await page.waitForTimeout(200);
-  assert.equal(await count(), '2 found');
+  await expect(page.locator('[data-find-count]')).toHaveText('2 results');
+  assert.equal(await count(), '2 results');
   assert.deepEqual(await page.locator('[data-find-match]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-find-match'))), ['k-exp', 'k-quiz']);
   assert.deepEqual(await page.locator('[data-find-match] mark').allInnerTexts(), ['salt', 'SALT']);
 });
 
 await check('7 Enter and Next frame and select each match in turn; Previous goes back', async () => {
   await findInput().press('Enter');
-  await page.waitForTimeout(700);
+  await expect(page.locator('[data-find-count]')).toHaveText('1 of 2');
+  await expect(card('k-exp')).toHaveAttribute('aria-current', 'true');
   assert.equal(await count(), '1 of 2');
   assert.equal(await card('k-exp').getAttribute('aria-current'), 'true');
   await page.getByRole('button', { name: 'Next match' }).click();
-  await page.waitForTimeout(700);
+  await expect(page.locator('[data-find-count]')).toHaveText('2 of 2');
+  await expect(card('k-quiz')).toHaveAttribute('aria-current', 'true');
   assert.equal(await count(), '2 of 2');
   assert.equal(await card('k-quiz').getAttribute('aria-current'), 'true');
   assert.notEqual(await card('k-exp').getAttribute('aria-current'), 'true', 'one selection');
   await page.getByRole('button', { name: 'Previous match' }).click();
-  await page.waitForTimeout(700);
+  await expect(card('k-exp')).toHaveAttribute('aria-current', 'true');
   assert.equal(await count(), '1 of 2');
 });
 
 await check('8 a real find brings a card from off screen into view and selects it', async () => {
   assert.equal(await inCanvas('k-far'), false, 'starts below the visible canvas');
   await findInput().fill('zephyr');
-  await page.waitForTimeout(200);
-  assert.equal(await count(), '1 found');
+  await expect(page.locator('[data-find-count]')).toHaveText('1 result');
+  assert.equal(await count(), '1 result');
   await findInput().press('Enter');
-  await page.waitForTimeout(900);
+  await expect.poll(() => inCanvas('k-far')).toBe(true);
   assert.equal(await card('k-far').getAttribute('aria-current'), 'true');
   assert.equal(await inCanvas('k-far'), true);
 });
@@ -210,12 +214,12 @@ await check('8 a real find brings a card from off screen into view and selects i
 await check('8b a click on a match row frames that card: back up the column to the first salt card', async () => {
   assert.equal(await inCanvas('k-exp'), false, 'framing the far card moved the first one out of view');
   await findInput().fill('ice');
-  await page.waitForTimeout(200);
+  await expect(page.locator('[data-find-count]')).toHaveText('2 results');
   const rows = await page.locator('[data-find-match]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-find-match')));
-  assert.deepEqual(rows, ['k-exp', 'k-far']);
+  assert.deepEqual(rows, ['k-far', 'k-exp'], 'the title match precedes the body-only match');
   await page.locator('[data-find-match="k-exp"]').click();
-  await page.waitForTimeout(900);
-  assert.equal(await count(), '1 of 2');
+  await expect.poll(() => inCanvas('k-exp')).toBe(true);
+  assert.equal(await count(), '2 of 2');
   assert.equal(await page.locator('[data-find-match="k-exp"]').getAttribute('aria-current'), 'true');
   assert.equal(await card('k-exp').getAttribute('aria-current'), 'true');
   assert.equal(await inCanvas('k-exp'), true);
@@ -223,12 +227,14 @@ await check('8b a click on a match row frames that card: back up the column to t
 await shot('03-find-active-matches');
 await shot('03b-find-panel', panel());
 
-await check('9 Escape in the find input clears it', async () => {
+await check('9 Escape clears the query and restores current-canvas browsing', async () => {
   await findInput().focus();
   await page.keyboard.press('Escape');
   assert.equal(await findInput().inputValue(), '');
-  assert.equal(await count(), '');
-  assert.equal(await page.locator('[data-find-match]').count(), 0);
+  await expect(page.locator('[data-find-count]')).toHaveText(`${BLOCKS.length} results`);
+  assert.ok(await page.locator('[data-find-match]').count() > 0, 'empty query browses virtualized results');
+  assert.ok(await page.locator('[data-find-match]').count() <= BLOCKS.length);
+  await expect(page.locator('[data-find-match="k-head"]')).toBeVisible();
   assert.ok(await isOpen(), 'and leaves the panel open');
 });
 
@@ -249,8 +255,9 @@ await check('11 unpinned: the choice is stored, a find row keeps the panel, a pr
   await shot('04b-unpinned', page.locator('[data-panel-header]'));
   await tab('Find text on canvas').click();
   await findInput().fill('salt');
+  await expect(page.locator('[data-find-count]')).toHaveText('2 results');
   await page.locator('[data-find-match="k-quiz"]').click();
-  await page.waitForTimeout(700);
+  await expect(card('k-quiz')).toHaveAttribute('aria-current', 'true');
   assert.ok(await isOpen(), 'working in the panel is not a press on the canvas');
   assert.equal(await card('k-quiz').getAttribute('aria-current'), 'true');
   await pressCanvas();
