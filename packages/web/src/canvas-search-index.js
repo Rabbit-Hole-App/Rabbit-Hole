@@ -17,7 +17,6 @@ function referencesFor(object, supplied) {
   const refs = [...array(supplied)];
   for (const ref of array(object.refs)) if (!refs.some(value => value.id === ref.id || value.target === ref.target)) refs.push({ ...ref, kind: 'canvas' });
   for (const ref of validSources(object.sources)) if (ref.kind !== 'calculation') refs.push(ref);
-  if (object.type === 'canvas-ref' && object.target && !refs.some(ref => ref.target === object.target)) refs.push({ kind: 'canvas', target: object.target });
   if (object.type === 'repo-code' && object.source?.kind === 'repository') refs.push({ kind: 'code', ...object.source });
   const pdf = pdfRef(object);
   if (pdf) refs.push({ ...pdf, kind: 'pdf', title: pdf.name, page: pdf.range?.page });
@@ -47,7 +46,8 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
   if (!object?.id || object.redacted || object.unavailable) return null;
   // An explicitly denied source may not retain private filename/path metadata in the index.
   if ((object.type === 'repo-code' || object.type === 'repo-graph') && loaded?.status === 'unavailable') return null;
-  const resolvedCanvas = object.type === 'canvas-ref' ? array(suppliedRefs).find(ref => ref.target === object.target) : null;
+  const canvasTarget = object.type === 'canvas-ref' ? object.refs?.[0]?.target : null;
+  const resolvedCanvas = canvasTarget ? array(suppliedRefs).find(ref => ref.target === canvasTarget) : null;
   if (resolvedCanvas) object = { ...object, title: resolvedCanvas.unavailable ? '' : resolvedCanvas.title || '', label: '', text: '' };
   const title = string(object.title || object.label || object.name || object.question || object.prompt);
   const references = referencesFor(object, suppliedRefs), rabbitHoles = children.filter(child => child.origin_block_id === object.id && !child.unavailable && !child.pending);
@@ -64,7 +64,7 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
     content = fields('body', cardText(body));
   } else content = fields('body', object.kind === 'equation' ? object.latex : object.text || object.label);
   if (content.length === 1 && content[0].text === title) content = [];
-  const referenceFields = references.filter(ref => !ref.unavailable).flatMap((ref, i) => fields(`reference:${i}`, [ref.title, ref.name, ref.path, ref.symbol, ref.page ? `page ${ref.page}` : '', ref.lines ? `lines ${ref.lines.join('-')}` : ''].filter(Boolean).join('\n'), 'reference'));
+  const referenceFields = references.filter(ref => !ref.unavailable).flatMap((ref, i) => fields(`reference:${i}`, [object.type === 'canvas-ref' && ref.title === title ? '' : ref.title, ref.name, ref.path, ref.symbol, ref.page ? `page ${ref.page}` : '', ref.lines ? `lines ${ref.lines.join('-')}` : ''].filter(Boolean).join('\n'), 'reference'));
   const sourceFields = loaded && ['ready', 'partial'].includes(loaded.status) ? array(loaded.units).flatMap((unit, i) => fields(`source:${i}`, unit.text, 'source', unit.loc)) : [];
   return { id: `object:${object.id}`, objectId: object.id, kind, ...(kind === 'card' ? { previewKey: object.id } : {}), title: title || (object.type === 'notebook' ? 'Notebook' : object.kind === 'equation' ? 'Equation' : kind === 'card' ? 'Card' : 'Text'), categories, references, rabbitHoles, availability: availabilityFor(object, loaded), sourceKey: loaded?.sourceKey,
     target: { kind: 'object', id: object.id }, fields: [...fields('title', title), ...content, ...referenceFields, ...rabbitHoles.flatMap((child, i) => fields(`child:${i}`, child.title, 'reference')), ...sourceFields] };

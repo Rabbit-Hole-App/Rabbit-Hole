@@ -104,7 +104,7 @@ test('comment summary and complete messages are not counted twice', () => {
   assert.equal(query(value, 'needle').totalOccurrences, 2);
 });
 test('a denied resolved canvas reference removes stale metadata from the index', () => {
-  const value = index({ blocks: [{ id: 'ref', type: 'canvas-ref', target: 'elsewhere', title: 'Private old title' }] }, { references: { ref: [{ target: 'elsewhere', unavailable: true }] } });
+  const value = index({ blocks: [{ id: 'ref', type: 'canvas-ref', refs: [{ id: 'ref-id', target: 'elsewhere' }], title: 'Private old title' }] }, { references: { ref: [{ target: 'elsewhere', unavailable: true }] } });
   assert.equal(query(value, 'Private').results.length, 0);
   assert.equal(query(value).results[0].references[0].title, undefined);
 });
@@ -138,4 +138,12 @@ test('papers, PDF pages and images state metadata-only limits and never invent O
   assert.equal(query(value, 'Owner supplied caption').results[0].objectId, 'image');
   assert.equal(query(value, 'not-searchable-hidden-words').results.length, 0);
   assert.match(query(value).results.find(result => result.objectId === 'image').availability.message, /OCR/);
+});
+
+
+test('canonical standalone refs array resolves the current title and focuses its own object', () => {
+  const value = index({ blocks: [{ id: 'standalone', type: 'canvas-ref', refs: [{ id: 'link', target: 'board-id' }] }] }, { references: { standalone: [{ id: 'link', kind: 'canvas', target: 'board-id', title: 'Resolved target title', href: '/apps/canvas-12345678' }] } });
+  const hit = query(value, 'Resolved target title', 'references').results[0];
+  assert.equal(hit.title, 'Resolved target title'); assert.equal(hit.objectId, 'standalone');
+  assert.equal(hit.target.id, 'standalone'); assert.equal(hit.references.length, 1); assert.equal(hit.occurrenceCount, 1);
 });

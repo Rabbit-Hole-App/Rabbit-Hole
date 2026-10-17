@@ -189,8 +189,8 @@ try {
     { id: 'code', type: 'snippet', title: 'Code example', code: 'optimizer.step()\noptimizer.step()\n/src/train.py', language: 'python', dx: 0, dy: 0 },
     card('reference', 'Referenced card', 'body', { sources: [{ kind: 'web', title: 'STRUCTURED_REFERENCE', url: 'https://example.invalid/source' }] }),
     card('prose', 'Prose only', 'https://example.invalid/prose'),
-    { id: 'canvas-reference', type: 'canvas-ref', target: targetBoard.board_id, dx: 0, dy: 0 },
-    { id: 'unavailable-ref', type: 'canvas-ref', target: unavailableBoard.board_id, dx: 0, dy: 0 },
+    { id: 'canvas-reference', type: 'canvas-ref', refs: [{ id: randomUUID(), target: targetBoard.board_id }], dx: 0, dy: 0 },
+    { id: 'unavailable-ref', type: 'canvas-ref', refs: [{ id: randomUUID(), target: unavailableBoard.board_id }], dx: 0, dy: 0 },
   ]);
   state.items = [{ id: 'text', kind: 'text', x: 1100, y: 700, w: 300, text: 'standalone zebra', size: 24, color: '#37352f', opacity: 1 }];
   state.shapes = [{ id: 'shape', kind: 'rect', x1: 1000, y1: 100, x2: 1200, y2: 200, text: 'shape zebra', color: '#37352f' }];
