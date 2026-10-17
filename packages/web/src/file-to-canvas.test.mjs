@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { addFileToCanvas, canvasFamilyOf, fileCardFromSource, sameFileCard, sourceFromHead } from './file-to-canvas.js';
 import { fileEditLocked } from './file-chat-ref.js';
+import { cardEditSelectionReason } from './inline-card-edit.js';
 
 const ID = `fs_${'e'.repeat(24)}`, REV = 'f'.repeat(64);
 const ref = (name = 'beach.mp4', range = null) => ({ sourceId: `file:${ID}@${REV}`, kind: 'file', name, version: '', range });
@@ -63,18 +64,25 @@ test('the Context row: Add to canvas runs on its own row and never attaches or d
   assert.doesNotMatch(button, /attach|detach|canvasContext/, 'its handler changes no chat or context state');
 });
 
-test('Ctrl+K: a file card with no semantic editing path takes no Edit; one whose family edits does', () => {
+test('Ctrl+K preserves file-family restrictions and additionally requires a safe inline card schema', () => {
   const card = (id, family) => ({ id, type: 'file', kind: 'x', fileRef: { v: 1, source: { id: ID, rev: REV }, family } });
   const board = { blocks: [card('v', 'video'), card('n', 'notebook'), { id: 'e', type: 'explanation', title: 'Plain card' }] };
   assert.equal(fileEditLocked(['v'], board), true, 'a video has no edit path');
   assert.equal(fileEditLocked(['e', 'v'], board), true, 'any locked file in the selection locks Edit');
-  assert.equal(fileEditLocked(['n'], board), false, 'a notebook edits (registry can.edit)');
+  assert.equal(fileEditLocked(['n'], board), false, 'a notebook still has its own editing capability (registry can.edit)');
+  // Card-scroll owner scope: notebook/file source rewriting is not a supported inline card operation.
+  // The old UI offered notebook Edit, but the old operation validator rejected notebook content.
+  assert.match(cardEditSelectionReason(['n'], board), /no safe structured editing path/);
+  assert.match(cardEditSelectionReason(['v'], board), /no safe structured editing path/);
+  assert.equal(cardEditSelectionReason(['e'], board), null, 'a supported plain explanation remains eligible for Edit');
+  assert.ok(cardEditSelectionReason(['e', 'v'], board), 'mixed selection cannot bypass an unsupported file');
   assert.equal(fileEditLocked(['e'], board), false);
   assert.equal(fileEditLocked(['v'], null), false);
   const editor = readFileSync(new URL('./InlineAiEditor.jsx', import.meta.url), 'utf8');
+  assert.match(editor, /const cardEditReason = !target\.creation && cardEditSelectionReason\(target\.ids \|\| \[\], canvas\.board\?\.\(\) \|\| \{\}\);/, 'the same runtime eligibility guard controls the editor');
   assert.match(editor, /const fileLocked = !target\.creation && fileEditLocked\(target\.ids \|\| \[\], canvas\.board\?\.\(\)\);/);
-  assert.match(editor, /useState\(target\.creation \|\| fileLocked \? 'explain'/, 'opens in Explain');
-  assert.match(editor, /disabled=\{\(target\.creation \|\| fileLocked\) && value === 'edit'\}/, 'Edit is disabled in the mode menu');
+  assert.match(editor, /useState\(target\.creation \|\| fileLocked \|\| cardEditReason \? 'explain'/, 'opens in Explain');
+  assert.match(editor, /disabled=\{\(target\.creation \|\| fileLocked \|\| cardEditReason\) && value === 'edit'\}/, 'Edit is disabled in the mode menu');
   assert.match(editor, /if \(mode === 'edit' && fileLocked\) \{ setRefused\(FILE_EDIT_LOCKED\); return; \}/, 'and refused at send');
 });
 
