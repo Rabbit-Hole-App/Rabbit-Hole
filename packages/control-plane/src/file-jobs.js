@@ -416,13 +416,33 @@ async function derivativesOf(req, env, sourceId) {
   return json({ derivatives: results.map(({ coverage_json, ...d }) => ({ ...d, coverage: JSON.parse(coverage_json || 'null') })) });
 }
 
+// One derivative's bytes (contract 4.2 `GET /api/learn/files/<source>/d/<derivative>`), read through the same board check as
+// the original: owner, ?share=, ?member= or ?app=&board=. Board-file headers; the D1 sha256 rides along for verification.
+const DERIVATIVE_TYPE = /^(application\/(pdf|json)|image\/png|audio\/mp4|model\/gltf-binary)$/;
+async function derivativeFile(req, env, sourceId, derivativeId) {
+  const through = await boardThrough(req, env);
+  if (through instanceof Response) return through;
+  const access = await authorizeFileSource(req, env, sourceId, through);
+  if (access instanceof Response) return access;
+  const d = await env.LEARN_DB.prepare("SELECT * FROM file_derivatives WHERE id = ? AND source_id = ? AND source_sha256 = ? AND status = 'ready'").bind(derivativeId, sourceId, access.source.sha256).first();
+  const object = d && await learnMedia(env).get(d.r2_key);
+  if (!object) return json({ error: 'Not available' }, 404);
+  return new Response(object.body, { headers: {
+    'Content-Type': DERIVATIVE_TYPE.test(d.media_type) ? d.media_type : 'application/octet-stream', 'Content-Length': String(d.bytes),
+    'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(d.name)}`, 'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "sandbox; default-src 'none'", 'X-Content-SHA256': d.sha256, 'Cache-Control': 'private, no-cache',
+  } });
+}
+
 const JOB = '(fj_[a-f0-9]{24})';
 export async function fileJobsRoute(path, req, env, now = Date.now()) {
   const submitting = path.match(/^\/api\/learn\/files\/(fs_[a-f0-9]{24})\/jobs$/);
   const viewing = path.match(new RegExp(`^/api/learn/files/jobs/${JOB}(?:/(cancel|retry))?$`));
   const calling = path.match(new RegExp(`^/api/learn/files/jobs/${JOB}/(?:(source)|attempts/(\\d{1,3})/(progress|complete|fail|outputs)(?:/([^/]+))?)$`));
   const listing = path.match(/^\/api\/learn\/files\/sources\/(fs_[a-f0-9]{24})\/derivatives$/);
-  if (!submitting && !viewing && !calling && !listing) return null;
+  const reading = path.match(/^\/api\/learn\/files\/(fs_[a-f0-9]{24})\/d\/(fd_[a-f0-9]{24})$/);
+  if (!submitting && !viewing && !calling && !listing && !reading) return null;
+  if (reading) return req.method === 'GET' ? derivativeFile(req, env, reading[1], reading[2]) : json({ error: 'Method not allowed' }, 405);
   if (listing) return listing && req.method === 'GET' ? derivativesOf(req, env, listing[1]) : json({ error: 'Method not allowed' }, 405);
   if (!env.LEARN_DB || !env.FILE_JOBS || !learnMedia(env)) return json({ error: 'File conversion is not available on this server.' }, 503);
   if (calling) {

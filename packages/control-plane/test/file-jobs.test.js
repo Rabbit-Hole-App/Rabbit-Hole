@@ -406,6 +406,13 @@ test('derivatives by source revision: a fork and a link viewer see ready results
   assert.equal((await (await f.send(path(share), { headers: { 'x-email': 'stranger@test' } })).json()).derivatives.length, 2);
   f.sqlite.prepare('UPDATE learn_boards SET shared = 0 WHERE id = 7').run();
   assert.equal((await f.send(path(share), { headers: { 'x-email': 'stranger@test' } })).status, 404);
+  // The derivative's bytes, through the same checks.
+  const file = id => f.send(`/api/learn/files/${SOURCE}/d/${id}?app=canvas-fork`, { headers: { 'x-email': 'forker@test' } });
+  const got = await file(listed[0].id);
+  assert.equal(got.status, 200); assert.equal(got.headers.get('content-disposition').startsWith('attachment'), true);
+  assert.equal(sha(new Uint8Array(await got.arrayBuffer())), got.headers.get('x-content-sha256'));
+  assert.equal((await f.send(`/api/learn/files/${SOURCE}/d/${listed[0].id}?app=canvas-own`, { headers: { 'x-email': 'stranger@test' } })).status, 404);
+  assert.equal((await file('fd_' + '0'.repeat(24))).status, 404);
   // Another revision lists nothing; missing parameters are refused.
   assert.deepEqual((await (await f.send(path().replace(rev, 'b'.repeat(64)))).json()).derivatives, []);
   assert.equal((await f.send(`/api/learn/files/sources/${SOURCE}/derivatives?sha=${rev}`)).status, 400);
