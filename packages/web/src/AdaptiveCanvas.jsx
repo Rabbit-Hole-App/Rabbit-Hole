@@ -26,6 +26,7 @@ import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
+import { fileChatRef } from './file-chat-ref.js';
 import { objectKind, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
@@ -3284,13 +3285,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const askedId = useRef(null);
   // The selected object's chat-context identity (pdf-materials-refinement.md section 6): a PDF card or page is its document and
   // page (pdfRef), anything else the ref Add to chat gives it. The composer shows a selection and an attachment of one ref once.
-  const chatRefOf = object => pdfRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
+  const chatRefOf = object => pdfRef(object) || fileChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
   const armTarget = block => {
     const described = describeObject(block);
     if (!described) return false;
     armedId.current = block.id;
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
-    const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material }, ref: chatRefOf(block), pdf: !!pdfRef(block) };
+    const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material }, ref: chatRefOf(block), pdf: !!(pdfRef(block) || fileChatRef(block)) };
     // A page sends the page itself, of its own source (pdf-source.js): an uploaded paper's page as paper_context, read by
     // the model as the reader's pages are, from its home canvas when it was copied here; a context document's page as its doc
     // ref at that page. The thumbnail only shows on the chip.
@@ -3360,8 +3361,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // A page is its own PDF at that page (pdf-to-canvas.md): a context document's ref, or an uploaded paper's (pageRef), the
       // chip a question about it sends; a whole PDF card is its document's ref (pdfRef), never a second card chip of one PDF.
       // Its selection chip steps aside, as a card's does below, so the page is one chip.
-      if (pdfRef(object)) {
-        chatWorkspace.addToChat(pdfRef(object));
+      // An imported file card is its file ref (file-chat-ref.js: source revision + scope), the selection chip's own identity.
+      const sourceRef = pdfRef(object) || fileChatRef(object);
+      if (sourceRef) {
+        chatWorkspace.addToChat(sourceRef);
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
         return true;
       }

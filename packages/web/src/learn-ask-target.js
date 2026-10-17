@@ -1,3 +1,4 @@
+import { describeFileCard } from './file-chat-ref.js';
 // The canvas target a Learn question is about (owner decision 2): the card, group or marked
 // region travels as canvas_target beside the learner's own words, never wrapped into the message.
 // The server bounds the text for the model (8000 characters, with a marker); this caps the request.
@@ -17,8 +18,10 @@ export function canvasTargetField(target) {
 // 2026-10-08: "when we click on a card meaning it is selected we should have a pill above the chat composer"): a chat
 // card, a text box or sticky note, an equation, and the Wikipedia, PDF, file and section cards. A divider has nothing to ask about.
 // material: the card's icon on the pill. image: an uploaded image's media id, which rides as image_context.
+
 export function describeCanvasObject(object) {
   if (!object) return null;
+  if (object.fileRef) return describeFileCard(object);
   if (!object.type) {
     if (typeof object.question === 'string') {
       const turns = [object, ...(object.replies || [])].map(turn => `Q: ${turn.question || ''}\nA: ${turn.answer || ''}`);
