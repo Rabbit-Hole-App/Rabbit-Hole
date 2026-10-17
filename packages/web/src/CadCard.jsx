@@ -110,7 +110,9 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
   const proposed=job?.awaitingAccept || block.proposedRevisionId;
   const shown=preview && proposed ? job?.manifest : manifest;
   const download=async artifact=>{setError('');try{const response=await apiFetch(readUrl(artifact.url,{ownerRead:mutable}));if(!response.ok)throw new Error(`Download failed (${response.status})`);const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=artifact.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(problem){setError(problem.message);}};
-  return <div data-cad-card data-cad-state={state} className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
+  // A shared canvas uses hand-mode hit testing to select, then only this viewer
+  // accepts pointers. Editing stays governed by mutable, not viewing selection.
+  return <div data-cad-card data-cad-state={state} className={`flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 ${readOnly && selected ? 'pointer-events-auto' : ''}`}>
     <p data-drag-zone className="cursor-grab text-sm font-medium">{block.title || 'CAD model'}</p>
     <div role="status" className="flex flex-wrap gap-2 text-xs text-ink-2"><span>{proposed?'Revision ready for review':cadStage(state)}</span><span>{block.units || 'Units pending'}</span>{running && !!job?.createdAt && <span>{elapsed}s elapsed</span>}</div>
     {block.cadDetached && <p data-cad-detached className="text-xs text-ink-2">Saved model copy. Explore, Explain and download existing artifacts; generation, edits and new exports are unavailable for this copy.</p>}

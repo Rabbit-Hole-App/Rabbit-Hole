@@ -7,6 +7,7 @@ interactive model card on the isolated CAD dev clone. This candidate reuses the
 shared card shell, viewer and confirmation flow; it does not promote production.
 Architecture, bounded verification and remaining scope are tracked in
 [Canvas CAD](cad.md), [verification](cad-verification.md) and [scope](cad-scope.md).
+Shared CAD viewing uses separate selection from editing: selecting a saved card activates its viewer controls without enabling edits or revision actions. The focused deployed regression uses existing artifacts only; the executor remains removed and new generation unavailable.
 
 ### Compact landing Guided graph (2026-09-30)
 

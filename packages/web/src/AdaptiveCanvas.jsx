@@ -815,7 +815,7 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null }) {
+function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // Tool Performance v1: visible on first paint; simple cards are complete then (learn-perf.js).
@@ -880,7 +880,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} onCadExplain={() => cadOpen('explain')} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} onCadExplain={() => cadOpen('explain')} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
     </CanvasNode>
@@ -5112,7 +5112,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
