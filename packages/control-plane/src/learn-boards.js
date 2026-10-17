@@ -10,6 +10,7 @@ import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
 import { sniffImageType } from './learn-media.js';
+import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
@@ -34,20 +35,23 @@ export const MAX_STATE = 1_900_000;
 const ASSET_KEY = /^[\x20-\x7e]{1,500}$/;
 // Served types: anything else is stored as opaque bytes, so an upload can never
 // come back as a page on this origin.
-const SAFE_TYPE = /^(image\/(png|jpeg|gif|webp|avif)|application\/pdf|video\/(mp4|webm|quicktime)|audio\/(mpeg|wav|ogg|webm)|text\/x-cached-string)$/;
+const SAFE_TYPE = /^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|application\/pdf|video\/(mp4|webm|quicktime)|audio\/(mpeg|wav|ogg|webm|mp4|flac)|text\/x-cached-string)$/;
 const assetObject = async (row, key) => `learn-boards/${row.id}/${await sha256Hex(key)}`;
 
 async function putAsset(req, env, row, key) {
   if (!learnMedia(env)) return json({ error: 'Board files need the R2 bucket on this worker.' }, 503);
   if (!ASSET_KEY.test(key)) return json({ error: 'Bad asset key' }, 400);
   const type = (req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-  const { bytes: cap, sniff } = boardFileLimit(type);
+  const { bytes: cap, sniff: sizeSniff } = boardFileLimit(type);
+  const format = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg',
+    'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/flac': 'flac' }[type];
+  const sniff = format ? FORMATS[format] : sizeSniff;
   // Streamed natively to R2 with bounded memory and CPU (upload-body.js); the cap is checked on the declared length before a
   // byte is read, and HTTP framing plus FixedLengthStream make the stored bytes exactly that length.
-  const got = await uploadBody(req, { cap, sniffBytes: sniff ? 16 : 0 });
+  const got = await uploadBody(req, { cap, sniffBytes: sniff ? HEAD_BYTES : 0 });
   if (got.refused === 'over') return json({ error: `This file is over ${formatBytes(cap)}, so it was not saved to your account and stays in your browser.` }, 413);
   if (got.refused === 'length') return json({ error: 'Send this file with its Content-Length.' }, 411);
-  if (sniff && !sniff(got.head)) { await got.body.cancel?.().catch(() => {}); return json({ error: 'This file is not an MP4 or WebM video.' }, 415); }
+  if (sniff && !sniff(got.head)) { await got.body.cancel?.().catch(() => {}); return json({ error: sizeSniff ? 'This file is not an MP4 or WebM video.' : 'This file does not match its declared media type.' }, 415); }
   try {
     await learnMedia(env).put(await assetObject(row, key), got.body, {
       httpMetadata: { contentType: SAFE_TYPE.test(type) ? type : 'application/octet-stream' },

@@ -359,3 +359,18 @@ test('owner checks (a)-(e), board files: a wrong Content-Length either way, the 
   assert.deepEqual((await keys()).sort(), ['import:c']);
   assert.equal(objects.size, 1);
 });
+
+test('board media validates declared formats and serves safe audio/SVG types as sandboxed attachments', async t => {
+  const { call } = setup(t);
+  await call('PUT', OWN, { as: 'owner', body: { state: STATE } });
+  const enc = new TextEncoder();
+  for (const [type, bytes] of [['audio/flac', enc.encode('fLaCsample')], ['audio/mp4', new Uint8Array([0,0,0,20,102,116,121,112,77,52,65,32])], ['image/svg+xml', enc.encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>')]]) {
+    const path = OWN + '/assets/' + encodeURIComponent('media:' + type);
+    assert.equal((await call('PUT', path, { as: 'owner', raw: bytes, headers: { 'Content-Type': type } })).status, 200);
+    const got = await call('GET', path, { as: 'owner' });
+    assert.equal(got.headers.get('content-type'), type);
+    assert.equal(got.headers.get('content-disposition'), 'attachment');
+    assert.match(got.headers.get('content-security-policy'), /sandbox/);
+    assert.equal((await call('PUT', path + '-bad', { as: 'owner', raw: enc.encode('not this format'), headers: { 'Content-Type': type } })).status, 415);
+  }
+});
