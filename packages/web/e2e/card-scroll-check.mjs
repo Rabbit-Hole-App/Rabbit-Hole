@@ -57,6 +57,9 @@ async function fixture(type = 'explanation', options = {}) {
   const noOverflow = async () => {
     const failures = await card.evaluate(root => [...root.querySelectorAll('*')].filter(e => {
       const s = getComputedStyle(e); if (!e.clientWidth || !e.clientHeight) return false;
+      // KaTeX intentionally exposes a separate 1px clipped MathML tree to assistive technology.
+      // Visible .katex-html remains subject to overflow and explicit matrix-fit assertions.
+      if (e.matches('.katex .katex-mathml') && s.position === 'absolute' && s.width === '1px' && s.height === '1px' && s.clipPath === 'inset(50%)') return false;
       return (/auto|scroll|hidden|clip/.test(s.overflowY) && e.scrollHeight > e.clientHeight + 3) || (/auto|scroll|hidden|clip/.test(s.overflowX) && e.scrollWidth > e.clientWidth + 3);
     }).map(e => ({ tag: e.tagName, cls: e.className, w: e.clientWidth, sw: e.scrollWidth, h: e.clientHeight, sh: e.scrollHeight })));
     assert.deepEqual(failures, [], 'Full content must expose content, not hide clipped overflow');
