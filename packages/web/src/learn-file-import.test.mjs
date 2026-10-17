@@ -109,7 +109,8 @@ test('every drop and every upload of a .ipynb or .py opens the one Add to canvas
   assert.match(page, /if \(importKind\(file\.name\)\) \{\n\s+const \{ kind, error \} = checkImport\(file\);\n\s+if \(error\) toast\(error, \{ tone: 'error' \}\); else asked\.push\(\{ id: crypto\.randomUUID\(\), file, kind, at \}\);/);
   assert.match(page, /accept="[^"]*\.ipynb,\.py"/, 'Insert > Upload a file offers them and goes through the same takeDrop');
   assert.match(page, /<FileImportDialog key=\{imports\[0\]\.id\} file=\{imports\[0\]\.file\} kind=\{imports\[0\]\.kind\}[^>]*onCancel=\{nextImport\} onConfirm=\{addImport\} \/>/);
-  assert.match(canvas, /onDropFiles\(\[\.\.\.event\.dataTransfer\.files\], local\(event\)\)/, 'the drop point rides with the files');
+  // A dropped folder's files are read first (model-drop.js droppedFiles, file-imports Lane 4); the drop point is taken at the drop.
+  assert.match(canvas, /const at = local\(event\); droppedFiles\(event\.dataTransfer\)\.then\(files => onDropFiles\(files, at\)/, 'the drop point rides with the files');
   assert.match(canvas, /insertImported: \(block, at = null\) => \{/);
   assert.match(dialog, /<ConfirmDialog title="Add to canvas" confirmLabel=\{busy \? 'Adding…' : 'Add to canvas'\} confirmVariant="primary" onCancel=\{onCancel\}/);
   assert.match(dialog, /<span data-import-file[^>]*>\{file\.name\}<\/span>/);

@@ -8,15 +8,16 @@
 export const MiB = 1024 * 1024;
 
 // Source cap: the general board-file cap (25 MiB) until Lane 1's registry gives models their own. Complexity budgets
-// were measured on the fixtures (C:/s/spec/fi-lane4-report.md "Budgets"); above them the card keeps the original and
-// says why it does not render.
+// are the largest sizes measured to orbit at 60 fps (16.5 ms mean frame) on Intel integrated graphics (D3D11, headless
+// Chromium; e2e/model-budget-measure.mjs, 2026-10-16); above them the card keeps the original and says why it does not
+// render. At the 25 MiB cap an uncompressed file stays inside them; they bind for meshopt glTF and compressed splats.
 export const MODEL_LIMITS = {
   bytes: 25 * MiB,
-  triangles: 3_000_000,
-  vertices: 3_000_000,
-  points: 5_000_000,
-  splats: 3_000_000,
-  textureBytes: 256 * MiB, // decoded RGBA, all textures of one model
+  triangles: 1_000_000, // glTF grid, 999,698 triangles
+  vertices: 1_500_000, // binary STL, 500,000 triangles = 1,500,000 unindexed vertices
+  points: 1_600_000, // binary PLY with colours
+  splats: 1_500_000, // .spz; a 780,000-splat .splat also measured
+  textureBytes: 256 * MiB, // decoded RGBA, all textures of one model (DamagedHelmet: 5 textures, 80 MiB)
   nodes: 5000,
   accessorElements: 5_000_000, // the existing GLB viewer's bound (three-d-asset.js)
   archiveEntries: 512,

@@ -62,6 +62,7 @@ import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
 import { readPanelPin, savePanelPin } from './canvas-find.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
+import { isModelDrop } from './model-drop.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
@@ -694,6 +695,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return () => window.removeEventListener('small:code-card', place);
   }, []);
   const takeDrop = async (files, at = null) => {
+    // 3D models, splats, CAD, ZIP and folder packages (model-import.js, lazily loaded): one card per model, placed in
+    // input order; files no model uses (a photo alongside) carry on below as ordinary drops.
+    if (isModelDrop(files)) {
+      const { importModelFiles } = await import('./model-import.js');
+      const { cards, leftovers, errors } = await importModelFiles(files);
+      for (const error of errors) toast(error, { tone: 'error' });
+      for (const { block, blob } of cards) { await cacheAsset(block.assetKey, blob); canvas()?.insertImported(block, at); }
+      files = leftovers;
+    }
     const asked = [];
     for (const file of files) {
       if (importKind(file.name)) {
@@ -2058,7 +2068,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // the page past Learn's header strip.
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
     </ResizableSidePanel>
-    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.ipynb,.py" className="hidden"
+    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.glb,.gltf,.bin,.obj,.mtl,.fbx,.stl,.3mf,.step,.stp,.ply,.splat,.ksplat,.spz,.sog,.zip,.ipynb,.py" className="hidden"
       onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
     {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} files={imports[0].files} error={importState.error} busy={importState.busy}
       onCancel={nextImport} onConfirm={addImport} />}
