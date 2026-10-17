@@ -15,10 +15,9 @@ const SOURCE = 'fs_' + 'a'.repeat(24), T0 = 1_800_000_000_000;
 function fixture(t, { concurrency = 2 } = {}) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
-  sqlite.exec(readFileSync(new URL('./file-jobs-standin.sql', import.meta.url), 'utf8'));
   sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, shared, view_token, updated_at) VALUES('7', 'team', 'owner@test', 'repo-x', 'main', ?, 1, ?, datetime('now'))")
     .run(JSON.stringify({ blocks: [] }), 'v'.repeat(24));
-  sqlite.prepare("INSERT INTO file_sources(id, org, owner_email, app, board_id, family, name, media_type, bytes, sha256, r2_key, status) VALUES(?, 'team', 'owner@test', 'repo-x', '7', 'presentation', 'deck.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ?, ?, ?, 'stored')")
+  sqlite.prepare("INSERT INTO file_sources(id, org, owner_email, app, board_id, family, name, media_type, bytes, sha256, r2_key, status, created_at, stored_at) VALUES(?, 'team', 'owner@test', 'repo-x', '7', 'presentation', 'deck.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ?, ?, ?, 'stored', 1, 1)")
     .run(SOURCE, SOURCE_BYTES.byteLength, sha(SOURCE_BYTES), `file-sources/${SOURCE}/original`);
   const db = { prepare: sql => { let args = []; const stmt = sqlite.prepare(sql); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = []; for (const s of statements) out.push(await s.run()); sqlite.exec('COMMIT'); return out; } catch (e) { sqlite.exec('ROLLBACK'); throw e; } } };

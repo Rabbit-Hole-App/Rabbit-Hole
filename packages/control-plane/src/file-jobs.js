@@ -4,7 +4,7 @@
 // callbacks scoped to one (job, attempt); only the current attempt of a live job can change anything, so a late, repeated
 // or cancelled result is a no-op. A job never writes board JSON: a card shows a job only while it still references it.
 import { repositoryIdentity } from './repositories.js';
-import { sharedAccess } from './learn-boards.js';
+import { authorizeFileSource } from './file-access.js';
 import { learnMedia } from './learn-storage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -22,8 +22,9 @@ export const LIMITS = {
   outputBytes: 50 * 1024 * 1024, // one output (converter 1.6)
   outputs: 400,
   tokenMs: 20 * 60 * 1000,    // callback token life: the converter's 300 s hard timeout plus margin
+  backoffMs: 5_000,           // the first retry's wait; doubles per attempt, capped at 5 min
 };
-export const backoffMs = n => Math.min(5_000 * 2 ** Math.max(0, n - 1), 300_000);
+export const backoffMs = n => Math.min(LIMITS.backoffMs * 2 ** Math.max(0, n - 1), 300_000);
 const FAILURES = {
   unsupported_format: 'This file format is not supported by the converter.',
   invalid_source: 'The file could not be read. It may be damaged.',
@@ -63,7 +64,9 @@ export async function tokenValid(env, req, job, attempt, now = Date.now()) {
 
 // ---- the converter's service API (canvas-file-converter.md 1.2)
 const NOT_CONFIGURED = 'File conversion is not configured on this server.';
-const configured = env => /^https:\/\//i.test(env.CONVERT_URL || '') && !!env.CONVERT_TOKEN && /^https?:\/\//i.test(env.FILE_JOB_ORIGIN || '') && (env.FILE_JOB_SECRET || '').length >= 32;
+// HTTPS, or plain HTTP to this machine for a local stack's stub converter.
+const LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/i;
+const configured = env => (/^https:\/\//i.test(env.CONVERT_URL || '') || LOCAL.test(env.CONVERT_URL || '')) && !!env.CONVERT_TOKEN && /^https?:\/\//i.test(env.FILE_JOB_ORIGIN || '') && (env.FILE_JOB_SECRET || '').length >= 32;
 async function converter(env, path, body) {
   if (!configured(env)) throw new Error(NOT_CONFIGURED);
   return fetch(new URL(path, env.CONVERT_URL), {
@@ -129,8 +132,8 @@ export async function stepJob(env, id, memo, now = Date.now()) {
     .bind(state, state, error, now, now, ...at).run();
   if (row.cancel_requested) {
     if (ACTIVE.includes(row.state)) await converter(env, `/jobs/${row.id}/${row.attempt}/cancel`).catch(() => {});
-    await settle('cancelled');
-    return null;
+    // A settle that lost a race (the row moved on) looks again rather than dropping the job.
+    return changed(await settle('cancelled')) ? null : 1_000;
   }
   if (row.state === 'queued') {
     if (!configured(env)) { await settle('failed', NOT_CONFIGURED); return null; }
@@ -139,15 +142,15 @@ export async function stepJob(env, id, memo, now = Date.now()) {
     const wait = async () => {
       if (waits + 1 >= LIMITS.maxDispatchWaits) { await settle('failed', 'The converter is unavailable. Retry later.'); return null; }
       await memo.put(`waits:${row.attempt}`, waits + 1);
-      return Math.min(5_000 * (waits + 1), 120_000);
+      return Math.min(LIMITS.backoffMs * (waits + 1), 120_000);
     };
     // Lease and concurrency are claimed in one statement, so two objects can never both take the last slot.
-    const claim = await db.prepare(`UPDATE file_jobs SET state = 'validating', stage = 'validating', lease_until = ?, updated_at = ?
+    const claim = await db.prepare(`UPDATE file_jobs SET state = 'validating', stage = 'validating', lease_until = ?, updated_at = ?, started_at = COALESCE(started_at, ?)
       WHERE ${guard} AND cancel_requested = 0 AND (lease_until IS NULL OR lease_until < ?)
         AND (SELECT COUNT(*) FROM file_jobs WHERE state IN ${ACTIVE_SQL} AND lease_until > ?) < ?`)
-      .bind(now + LIMITS.leaseMs, now, ...at, now, now, concurrency(env)).run();
+      .bind(now + LIMITS.leaseMs, now, now, ...at, now, now, concurrency(env)).run();
     // No free slot (or a cancel raced the claim): look again shortly; waiting in line never counts against the job.
-    if (!changed(claim)) return 5_000 + Math.floor(Math.random() * 2_000);
+    if (!changed(claim)) return LIMITS.backoffMs + Math.floor(Math.random() * LIMITS.backoffMs / 2);
     const source = await db.prepare('SELECT bytes, sha256, media_type FROM file_sources WHERE id = ?').bind(row.source_id).first();
     const base = new URL(`/api/learn/files/jobs/${row.id}/`, env.FILE_JOB_ORIGIN);
     let r;
@@ -171,8 +174,7 @@ export async function stepJob(env, id, memo, now = Date.now()) {
   // attempt starts from the stored source; the old one can no longer commit.
   if (row.lease_until > now) return row.lease_until - now + 1_000;
   if (row.attempt >= row.max_attempts) {
-    await settle('failed', `Conversion stopped responding ${row.attempt} times. Retry to try again.`);
-    return null;
+    return changed(await settle('failed', `Conversion stopped responding ${row.attempt} times. Retry to try again.`)) ? null : 1_000;
   }
   const next = await db.prepare(`UPDATE file_jobs SET attempt = attempt + 1, state = 'queued', stage = 'queued', lease_until = NULL, updated_at = ? WHERE ${guard} AND lease_until <= ?`)
     .bind(now, ...at, now).run();
@@ -196,8 +198,11 @@ export class FileJobs {
   async alarm() {
     const id = await this.state.storage.get('id');
     if (!id) return;
-    // A throw here leaves the lease to expire; the platform retries the alarm, and the next step recovers.
-    const delay = await stepJob(this.env, id, this.state.storage);
+    // A throw (D1 or R2 unavailable) leaves the lease to expire; the job's own re-arm below keeps it alive past the
+    // platform's alarm retries, and the next step recovers.
+    let delay;
+    try { delay = await stepJob(this.env, id, this.state.storage); }
+    catch (error) { console.error('file job step failed', id, error?.message); delay = 30_000; }
     if (delay != null) await this.state.storage.setAlarm(Date.now() + delay);
     else await this.state.storage.deleteAll();
   }
@@ -320,16 +325,16 @@ async function callback(env, req, row, attempt, action, name, now) {
   return action === 'complete' ? complete(env, row, attempt, body, now) : fail(env, row, attempt, body, now);
 }
 
-// ---- who may read a job's status: its owner, or a share/publication viewer whose saved board still has a card on this job
-// and source (contract 4.1). ponytail: members read through their share link; swap for Lane 1's 4.1 helper when exported.
+// ---- who may read a job's status (contract 4.1, file-access.js): the job's initiator, or a viewer the source check admits
+// through a share/publication link whose board is the job's own board and still holds a card on this job.
 async function readable(req, env, row) {
   const user = await repositoryIdentity(req, env);
   if (!(user instanceof Response) && user.org === row.org && user.email === row.owner_email) return true;
   const token = new URL(req.url).searchParams.get('share');
   if (!token) return false;
-  const found = await sharedAccess(req, env, token);
-  if (found instanceof Response || found.row.id !== row.board_id) return false;
-  const blocks = JSON.parse(found.row.state_json || '{}').blocks || [];
+  const access = await authorizeFileSource(req, env, row.source_id, { token });
+  if (access instanceof Response || String(access.board?.id) !== String(row.board_id)) return false;
+  const blocks = JSON.parse(access.board.state_json || '{}').blocks || [];
   return blocks.some(b => b?.fileRef?.job === row.id && b.fileRef.source?.id === row.source_id);
 }
 
