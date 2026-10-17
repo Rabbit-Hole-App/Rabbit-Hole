@@ -219,11 +219,14 @@ ok('exactly 50 MiB is accepted by the server', exact.status === 200 && (await ex
 const over = await raw(`bypass:${run}:over`, webmOf(50 * MiB + 1));
 ok('50 MiB + 1 byte is refused by the server', over.status === 413 && /over 50 MiB/.test((await over.json()).error), String(over.status));
 const chunks = webmOf(50 * MiB + 1);
-// The server stops reading at the cap and answers while the client is still sending: the client sees the 413, or the
-// connection closed under it. Either way the listing below proves nothing was stored.
+// Without a length the Worker stops at its separate 1 MiB fallback limit and returns 411. Some local transports reset
+// the connection while this larger body is still being sent; that proves no status contract, only refusal plus the
+// no-stored-object assertion below. The isolated workerd boundary check covers the exact fallback independently.
 const chunked = await raw(`bypass:${run}:chunked`, new ReadableStream({ start(controller) { for (let at = 0; at < chunks.length; at += 4 * MiB) controller.enqueue(chunks.slice(at, at + 4 * MiB)); controller.close(); } }))
-  .then(response => String(response.status), error => `connection closed (${error.cause?.code || error.message})`);
-ok('50 MiB + 1 byte with no Content-Length is refused on the bytes', chunked === '413' || chunked.startsWith('connection closed'), chunked);
+  .then(async response => ({ status: response.status, body: await response.json() }), error => ({ closed: error.cause?.code || error.message }));
+if (chunked.closed) console.log(`info no-length transport closed (${chunked.closed}); fallback status unobserved, checking no stored object`);
+ok('an upload without Content-Length requires a length past the fallback limit (or closes without storing)',
+  (chunked.status === 411 && chunked.body?.error === 'Send this file with its Content-Length.') || !!chunked.closed, JSON.stringify(chunked));
 const listed = (await (await fetch(`${ownBoard}/assets`, { headers: authed })).json()).keys || [];
 ok('neither refused upload was stored', listed.includes(`bypass:${run}:exact`) && !listed.includes(`bypass:${run}:over`) && !listed.includes(`bypass:${run}:chunked`), listed.filter(key => key.startsWith('bypass:')).join(', '));
 const notVideo = await raw(`bypass:${run}:fake`, new Uint8Array(30 * MiB));
