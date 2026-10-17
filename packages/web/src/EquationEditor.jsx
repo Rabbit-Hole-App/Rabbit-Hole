@@ -23,10 +23,13 @@ const LATEX_TAB = 'latex';
 
 // latex in, the field's source out on finish: when focus leaves the field and its palette (a click away, Esc, a tab
 // away). Typing or pasting LaTeX works in the field itself; the LaTeX tab shows the source as plain text to edit.
-export default function EquationEditor({ latex, zoom, onDone }) {
+export default function EquationEditor({ latex, zoom, onDone, onDraft }) {
   const root = useRef(null), field = useRef(null), finished = useRef(false);
   const [tab, setTab] = useState(EQUATION_PALETTE[0].id);
   const [source, setSource] = useState(latex);
+  const draftCallback = useRef(onDraft);
+  draftCallback.current = onDraft;
+  const updateSource = next => { setSource(next); draftCallback.current?.(next); };
   // Under the equation instead when there is no room above it on the canvas (an equation near the top edge), checked
   // again when a taller tab (Greek, Matrix) opens.
   const [below, setBelow] = useState(false);
@@ -40,11 +43,12 @@ export default function EquationEditor({ latex, zoom, onDone }) {
     mf.menuItems = [];
     mf.placeholder = '\\text{Equation}';
     mf.value = latex;
-    const changed = () => setSource(sourceOf(mf));
+    draftCallback.current?.(latex);
+    const changed = () => updateSource(sourceOf(mf));
     mf.addEventListener('input', changed);
     mf.focus();
     mf.executeCommand('moveToMathfieldEnd');
-    return () => mf.removeEventListener('input', changed);
+    return () => { mf.removeEventListener('input', changed); draftCallback.current?.(null); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const finish = () => {
     if (finished.current) return;
@@ -53,7 +57,7 @@ export default function EquationEditor({ latex, zoom, onDone }) {
   };
   const insert = template => {
     field.current.insert(template, { format: 'latex', selectionMode: 'placeholder', focus: true });
-    setSource(sourceOf(field.current));
+    updateSource(sourceOf(field.current));
   };
   const group = EQUATION_PALETTE.find(entry => entry.id === tab);
   const tabClass = on => `rounded px-1.5 py-0.5 text-[11px] ${on ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`;
@@ -73,7 +77,7 @@ export default function EquationEditor({ latex, zoom, onDone }) {
         </div>
         {tab === LATEX_TAB
           ? <input data-equation-source aria-label="LaTeX source" autoFocus spellCheck={false} value={source} placeholder="\frac{a}{b}"
-              onChange={event => { setSource(event.target.value); field.current.setValue(event.target.value, { silenceNotifications: true }); }}
+              onChange={event => { updateSource(event.target.value); field.current.setValue(event.target.value, { silenceNotifications: true }); }}
               className="mt-1 h-7 w-[340px] rounded border border-line bg-white px-2 font-mono text-xs text-ink outline-none focus:border-ink-3" />
           : <div role="group" aria-label={group.name} className="mt-1 flex flex-wrap gap-0.5">
               {group.items.map(item => (

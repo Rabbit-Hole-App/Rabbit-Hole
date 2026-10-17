@@ -54,3 +54,19 @@ export function temporarySearchHighlight(element, range) {
   const timer = setTimeout(clear, 2200);
   return () => { clearTimeout(timer); clear(); };
 }
+
+// Editor-only LaTeX is not board state: closing the editor removes the overlay, never writes an undo/save step.
+export function createEquationSearchDrafts(changed) {
+  const drafts = new Map();
+  return {
+    set(id, latex) {
+      if (latex == null ? !drafts.has(id) : drafts.has(id) && drafts.get(id) === latex) return;
+      if (latex == null) drafts.delete(id); else drafts.set(id, latex);
+      changed();
+    },
+    apply(board) {
+      if (!drafts.size) return board;
+      return { ...board, items: board.items.map(item => drafts.has(item.id) ? { ...item, latex: drafts.get(item.id) } : item) };
+    },
+  };
+}

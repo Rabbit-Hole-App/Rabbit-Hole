@@ -66,7 +66,7 @@ import { CODE_CARD, CODE_DRAG, dragSource, insertCodeCard, repoCodeCard } from '
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
-import { createSearchSnapshotStore, searchCamera, searchRange, revealSearchRange, temporarySearchHighlight } from './canvas-search-navigation.js';
+import { createSearchSnapshotStore, createEquationSearchDrafts, searchCamera, searchRange, revealSearchRange, temporarySearchHighlight } from './canvas-search-navigation.js';
 import './canvas-search-navigation.css';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
@@ -1064,7 +1064,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
 
 // An equation (docs/features/canvas-equations.md): its LaTeX rendered by KaTeX, and while edited MathLive's field with
 // the palette above it (EquationEditor.jsx, loaded on the first edit). Double-click edits; a click away or Esc finishes.
-function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture, onDelete, onSnap, onPatch, onDone }) {
+function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture, onDelete, onSnap, onPatch, onDone, onDraft }) {
   const [editing, setEditing] = useState(!!item.fresh);
   const size = item.size || EQUATION_SIZE;
   const still = item.latex ? <MathText expression={item.latex} display /> : <span className="text-[0.6em] text-ink-3 italic">Empty equation</span>;
@@ -1086,7 +1086,7 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
       className={`absolute z-10 -mx-1 rounded border px-1 [&_[data-chat-math]]:my-0 [&_[data-chat-math]]:py-0 ${editing ? 'cursor-text border-line bg-white' : `cursor-grab border-transparent active:cursor-grabbing ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-select ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={() => { if (tool === 'select' && !locked) setEditing(true); }}>
       {editing
-        ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
+        ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} onDraft={latex => onDraft(item.id, latex)} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
         : still}
       {/* The size ladder, where a text box shows its H1-to-text one; never while the LaTeX is edited (the palette is there). */}
       {selected && !editing && !locked && tool === 'select' && (
@@ -1710,7 +1710,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const onDocDirtyRef = useRef(onDocDirty);
   onDocDirtyRef.current = onDocDirty;
   const searchRead = useRef(null), searchStore = useRef(null), docSearchApi = useRef(null);
-  const searchJump = useRef(0), searchPaint = useRef(null);
+  const searchJump = useRef(0), searchPaint = useRef(null), equationSearchDrafts = useRef(null);
+  if (!equationSearchDrafts.current) equationSearchDrafts.current = createEquationSearchDrafts(() => searchStore.current.changed());
   if (!searchStore.current) searchStore.current = createSearchSnapshotStore(() => searchRead.current());
   const docChanged = next => {
     docLive.current = next;
@@ -2973,7 +2974,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
   };
   // Search reads these unbudgeted live lists, independently of model context and camera/layout state.
-  searchRead.current = () => ({ ...semanticBoard(), doc: liveDoc() });
+  searchRead.current = () => ({ ...equationSearchDrafts.current.apply(semanticBoard()), doc: liveDoc() });
   useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick, doc]);
   useEffect(() => () => { searchJump.current++; searchPaint.current?.(); searchStore.current.dispose(); }, []);
   // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
@@ -5129,7 +5130,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         })}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => item.kind === 'equation'
-            ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
+            ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
             onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink

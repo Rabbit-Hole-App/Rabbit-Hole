@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { searchCamera, createSearchSnapshotStore, searchQuote, revealSearchRange } from './canvas-search-navigation.js';
+import { searchCamera, createSearchSnapshotStore, searchQuote, revealSearchRange, createEquationSearchDrafts } from './canvas-search-navigation.js';
 
 test('search frames tiny objects at readable zoom without enlarging or moving the object', () => {
   const box = Object.freeze({x:900,y:1400,w:10,h:10}), view={x:0,y:0,z:.2}, area={left:24,top:24,right:600,bottom:650};
@@ -38,4 +38,22 @@ test('match reveal scrolls only the inner card container at the camera scale', (
   try { revealSearchRange(card,{startContainer:{parentElement:inner},getBoundingClientRect:()=>({top:600,bottom:610,left:120,right:200})},.5);
     assert.equal(inner.scrollTop,900);assert.equal(card.scrollTop,0);
   } finally {globalThis.getComputedStyle=previous;}
+});
+
+
+test('equation drafts are searchable immediately without persisting, and closing restores stored content', () => {
+  const equation=Object.freeze({id:'e',kind:'equation',latex:'saved'}), other=Object.freeze({id:'other',latex:'other'});
+  const board=Object.freeze({items:Object.freeze([equation,other]),blocks:[]});
+  let calls=0;
+  const drafts=createEquationSearchDrafts(()=>{calls++;store.changed();});
+  const store=createSearchSnapshotStore(()=>drafts.apply(board));
+  const initial=store.get();
+  drafts.set('e','\\frac{live}{draft}');
+  assert.equal(store.get().board.items[0].latex,'\\frac{live}{draft}');
+  assert.equal(equation.latex,'saved');assert.equal(store.get().board.items[1],other);
+  assert.notEqual(store.get(),initial);assert.equal(calls,1);
+  drafts.set('e','\\frac{live}{draft}');assert.equal(calls,1);
+  drafts.set('e','');assert.equal(store.get().board.items[0].latex,'');
+  drafts.set('e',null);assert.equal(store.get().board,board);assert.equal(calls,3);
+  drafts.set('e',null);assert.equal(calls,3);
 });
