@@ -1,6 +1,6 @@
-// Verifies the Graph-first app page on the dev deployment: tab row replaces
-// the breadcrumb, Graph is the default tab, non-graphified apps get a blank
-// canvas beside the Graph Agent; a repository opens on its canvas. Run: node e2e/app-tabs-check.mjs
+// Verifies dev app navigation: repositories open their canvas; regular server/job apps keep
+// Runbook as their default and an explicit Graph tab with one Agent Bar (T02 section 12, D3).
+// Run: node e2e/app-tabs-check.mjs. A missing regular app uses a labeled, read-only API fixture.
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
@@ -16,14 +16,24 @@ const { session } = await login.json();
 const apps = await (await fetch(`${base}/api/apps`, { headers: { Cookie: `small_session=${session}`, 'User-Agent': 'small-tabs-check' } })).json();
 const list = apps.apps || apps;
 const repo = list.find((a) => a.kind === 'repository');
-const plain = list.find((a) => a.kind !== 'repository');
+const existingPlain = list.find((a) => ['server', 'job'].includes(a.kind));
+const plain = existingPlain || { name: 'ui-tabs-read-fixture', kind: 'server', org: apps.org, email: apps.email, owner_email: apps.email, members: [], teams: [], visibility: 'private', created_at: '2026-10-16 00:00:00', canEdit: false, runbook: null, url: 'https://example.invalid' };
+if (!repo) throw new Error('Repository fixture missing: repository navigation must be exercised');
+console.log(`regular app evidence: ${existingPlain ? 'actual dev app' : 'read-only API fixture (no regular app in this account)'}`);
 console.log(`apps: ${list.length} · repo: ${repo?.name || 'none'} · plain: ${plain ? `${plain.name} (${plain.kind})` : 'none'}`);
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1500, height: 950 } });
 await context.addCookies([{ name: 'small_session', value: session, domain, path: '/' }]);
+let fixtureReads = 0;
+if (!existingPlain) await context.route(url => url.origin === new URL(base).origin && url.pathname === `/api/apps/${plain.name}`, route => {
+  if (route.request().method() !== 'GET') return route.abort();
+  fixtureReads++;
+  return route.fulfill({ json: plain });
+});
 const page = await context.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
+page.on('console', message => { if (message.type() === 'error') console.log('CONSOLEERROR:', message.text().slice(0, 800)); });
 const failures = [];
 const check = async (label, fn) => { try { await fn(); console.log(`ok: ${label}`); } catch (e) { failures.push(label); console.log(`FAIL: ${label} — ${e.message.split('\n')[0]}`); } };
 
@@ -51,10 +61,26 @@ if (repo) {
 
 if (plain) {
   await page.goto(`${base}/apps/${plain.name}`);
-  await page.getByRole('tab', { name: 'Graph', exact: true }).waitFor({ timeout: 20000 });
-  await check('app: Graph is default tab', async () => { if (await page.getByRole('tab', { name: 'Graph', exact: true }).getAttribute('data-state') !== 'active') throw new Error('not active'); });
-  await check('app: blank canvas present', () => page.locator('[aria-label="App graph"]').waitFor({ timeout: 5000 }));
-  await check('app: Graph Agent header', () => page.getByRole('heading', { name: 'Graph Agent' }).waitFor({ timeout: 10000 }));
+  try { await page.getByRole('tab', { name: 'Graph', exact: true }).waitFor({ timeout: 20000 }); }
+  catch (error) {
+    console.log('app mount diagnostic:', JSON.stringify({ pathname: new URL(page.url()).pathname, fixtureReads, text: (await page.locator('body').innerText()).slice(0, 1200) }));
+    await page.screenshot({ path: 'e2e/shots/tabs-app-mount-failed.png', fullPage: false });
+    throw error;
+  }
+  // docs/features/rabbit-hole-t02-spec.md section 12: Runbook landing replaces the old Graph default;
+  // on Graph the Agent Bar replaces the Graph Agent input. Keep both navigation and composer coverage.
+  await check('app: Runbook is default tab', async () => { if (await page.getByRole('tab', { name: 'Runbook', exact: true }).getAttribute('data-state') !== 'active') throw new Error('not active'); });
+  await check('app: explicit Graph tab shows the blank canvas', async () => {
+    await page.getByRole('tab', { name: 'Graph', exact: true }).click();
+    await page.locator('[aria-label="App graph"]').waitFor({ timeout: 5000 });
+    if (await page.getByRole('tab', { name: 'Graph', exact: true }).getAttribute('data-state') !== 'active') throw new Error('Graph not active');
+  });
+  await check('app: Graph has one Agent Bar and no second Graph Agent composer', async () => {
+    await page.locator('[data-agent-bar]').waitFor({ timeout: 10000 });
+    if (await page.locator('[data-agent-bar]').count() !== 1) throw new Error('expected one Agent Bar');
+    if (await page.getByRole('heading', { name: 'Graph Agent', exact: true }).count()) throw new Error('obsolete Graph Agent composer');
+    if (await page.locator('[data-agent-bar] textarea').count() !== 1) throw new Error('expected one bar input');
+  });
   await check('app: Runbook tab present', () => page.getByRole('tab', { name: 'Runbook', exact: true }).waitFor({ timeout: 5000 }));
   await check('app: legacy ?tab=agent maps to Graph', async () => {
     await page.goto(`${base}/apps/${plain.name}?tab=agent`);
