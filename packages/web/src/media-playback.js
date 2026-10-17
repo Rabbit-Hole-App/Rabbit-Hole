@@ -4,6 +4,7 @@
 // derivative through the control plane's job runner (contract sections 4.2 and 5; converter `audio-playback`,
 // canvas-file-converter.md section 1.3) via the JOBS lane's file-jobs-client.js, never straight from the converter. That
 // needs the card's stored source (fileRef.source); until the file is saved the card says so and keeps its original.
+import { retryFileJob } from './file-jobs-client.js';
 import { playbackPlan } from './media-formats.js';
 import { fetchDerivatives, isTerminal, stageLabel, submitFileJob } from './file-jobs-client.js';
 import { canWrite, fileScope, scopeQuery } from './file-source-client.js';

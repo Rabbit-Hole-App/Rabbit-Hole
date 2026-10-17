@@ -157,3 +157,13 @@ test('Ask context lists a model card by name and declared counts only', () => {
   const text = describeCanvasObject({ type: 'file', kind: 'model', label: 'ring.splat', model: { format: 'splat', render: 'splat', counts: { splats: 512 } } }).text;
   assert.equal(text, 'Gaussian splat on the canvas: ring.splat (.splat, 512 splats). Only its name and these counts are known here; its shape was not inspected.');
 });
+
+test('STEP retry is offered only to an owner for failed, cancelled or unsubmitted jobs', async () => {
+  const { cadCardState } = await import('./model-cad.js');
+  const ref = { source: { id: 'fs_source' }, job: 'fj_existing' };
+  for (const state of ['failed', 'cancelled']) {
+    assert.equal(cadCardState(ref, { job: { state }, owner: true }).retry, true);
+    assert.equal(cadCardState(ref, { job: { state }, owner: false }).retry, false);
+  }
+  assert.equal(cadCardState(ref, { error: 'Unavailable', owner: false }).retry, false);
+});

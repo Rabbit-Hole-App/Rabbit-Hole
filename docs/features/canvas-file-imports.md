@@ -556,3 +556,7 @@ bundled FFmpeg) and Chrome 155 MediaRecorder; they are generated test data, and 
 - Media cards never autoplay. Native controls give play/pause, seek, volume, time and fullscreen. `preload=metadata`
   paints the first frame as the poster (measured in all three engines). Import creates no `text` or `transcript`
   derivative, so chat lists a media card as `listed`.
+
+### Integration follow-up: failed conversion Retry
+
+STEP cards now expose owner-only Retry for failed/cancelled jobs and initial submission failures. Existing jobs use the shared `retryFileJob` endpoint action (also used by audio), retain the job/source/card identity and restart status polling. Focused client/state tests pass; browser and real converter acceptance remain pending.

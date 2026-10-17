@@ -84,3 +84,11 @@ test('a forked card asks for its results by source revision through its own boar
   assert.equal(await fetchDerivatives(async () => ({ ok: false }), { sourceId: 'fs_x', rev: 'f', converter: 'slides', share: 't' }), null);
   assert.equal(await jobOptionsHash({ b: 1, a: 2 }), await jobOptionsHash({ a: 2, b: 1 }));
 });
+
+test('Retry keeps the existing job identity and rejects a refused retry', async () => {
+  const { retryFileJob } = await import('./file-jobs-client.js');
+  const calls = [], job = { id: 'fj_existing', state: 'queued', attempt: 4 };
+  assert.deepEqual(await retryFileJob(async (url, init) => { calls.push({ url, ...init }); return Response.json({ job }); }, job.id), job);
+  assert.deepEqual(calls, [{ url: '/api/learn/files/jobs/fj_existing/retry', method: 'POST' }]);
+  await assert.rejects(retryFileJob(async () => Response.json({ error: 'Not available' }, { status: 404 }), job.id), /Not available/);
+});

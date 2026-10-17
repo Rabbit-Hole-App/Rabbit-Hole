@@ -14,9 +14,9 @@
 // stored (one idempotency key per card, converter and revision), every page reads the job's state, and once ready the
 // card reads the mesh and structure derivatives of that revision; a shared or forked card with no job of its own reads
 // the ready derivatives of its source revision and never starts a job.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { canWrite, fileScope, scopeQuery } from './file-source-client.js';
-import { FORK_PENDING_LABEL, fetchDerivatives, isTerminal, stageLabel, submitFileJob, watchFileJobs } from './file-jobs-client.js';
+import { FORK_PENDING_LABEL, fetchDerivatives, isTerminal, retryFileJob, stageLabel, submitFileJob, watchFileJobs } from './file-jobs-client.js';
 
 export const CAD_CONVERTER = { converter: 'step-glb', options: {} };
 const STAGE = { queued: 'Queued for conversion', validating: 'Checking the STEP file', converting: 'Converting to a viewing mesh', preparing_preview: 'Preparing the preview' };
@@ -28,11 +28,11 @@ export function cadCardState(fileRef, { job = null, mesh = false, owner = true, 
   if (!fileRef) return { state: 'awaiting', label: `Awaiting converter: this card was made before STEP previews were stored. ${KEPT}`, retry: false };
   if (mesh) return { state: job?.state === 'ready_with_limitations' ? 'limited' : 'ready', label: '', retry: false };
   if (!fileRef.source?.id) return { state: 'saving', label: 'The STEP file is saving; its preview starts once it is stored.', retry: false };
-  if (error) return { state: 'failed', label: `The STEP preview could not be started: ${error}. ${KEPT}`, retry: true };
+  if (error) return { state: 'failed', label: `The STEP preview could not be started: ${error}. ${KEPT}`, retry: owner };
   if (!fileRef.job) return owner ? { state: 'working', label: STAGE.queued, retry: false } : { state: 'pending', label: `${FORK_PENDING_LABEL}. ${KEPT}`, retry: false };
   if (!job || STAGE[job.state]) return { state: 'working', label: STAGE[job?.stage] || STAGE[job?.state] || stageLabel(job), retry: false };
-  if (job.state === 'cancelled') return { state: 'cancelled', label: `Conversion cancelled. ${KEPT}`, retry: true };
-  if (job.state === 'failed') return { state: 'failed', label: `The STEP preview could not be made${job.error ? `: ${job.error}` : ''}. ${KEPT}`, retry: true };
+  if (job.state === 'cancelled') return { state: 'cancelled', label: `Conversion cancelled. ${KEPT}`, retry: owner };
+  if (job.state === 'failed') return { state: 'failed', label: `The STEP preview could not be made${job.error ? `: ${job.error}` : ''}. ${KEPT}`, retry: owner };
   return { state: 'working', label: STAGE.preparing_preview, retry: false }; // ready: reading the derivatives
 }
 
@@ -42,13 +42,25 @@ export function useCadPreview(block, update) {
   const ref = block.fileRef, source = ref?.source, cad = block.model?.render === 'cad';
   const [found, setFound] = useState({ job: null, meshUrl: null, structureUrl: null, error: '' });
   const owner = canWrite();
+  const [attempt, setAttempt] = useState(0), [retrying, setRetrying] = useState(false);
+  const retryPending = useRef(false);
+  const retry = async () => {
+    if (!owner || retryPending.current) return;
+    retryPending.current = true; setRetrying(true);
+    try {
+      const job = ref.job ? await retryFileJob(globalThis.fetch, ref.job) : null;
+      setFound(previous => ({ ...previous, job, error: '' }));
+      setAttempt(value => value + 1); // Terminal polling stopped; resume it for the same durable job.
+    } catch (error) { setFound(previous => ({ ...previous, error: error.message })); }
+    finally { retryPending.current = false; setRetrying(false); }
+  };
   useEffect(() => {
     if (!cad || !source?.id || ref.job || !owner) return;
     const at = fileScope();
     submitFileJob(globalThis.fetch, { sourceId: source.id, sourceRev: source.rev, cardId: block.id, ...CAD_CONVERTER, app: at.app, board: at.board })
       .then(job => update(current => (current.fileRef?.job ? current : { ...current, fileRef: { ...current.fileRef, job: job.id } })),
         error => setFound(previous => ({ ...previous, error: error.message })));
-  }, [cad, source?.id, ref?.job]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cad, source?.id, ref?.job, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!cad || !source?.id) return undefined;
     const at = fileScope();
@@ -66,9 +78,9 @@ export function useCadPreview(block, update) {
       if (isTerminal(job) && (job.state === 'ready' || job.state === 'ready_with_limitations')) read(job);
     } });
     return () => { live = false; watch.stop(); };
-  }, [cad, source?.id, ref?.job]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cad, source?.id, ref?.job, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
   const state = cadCardState(ref, { job: found.job, mesh: !!found.meshUrl, owner, error: found.error });
-  return { ...state, meshUrl: found.meshUrl, structureUrl: found.structureUrl, limitations: found.job?.limitations || [] };
+  return { ...state, onRetry: retry, retrying, meshUrl: found.meshUrl, structureUrl: found.structureUrl, limitations: found.job?.limitations || [] };
 }
 
 // The STEP length units the converter reports, as the card shows them, and how many of each make a metre (the mesh is

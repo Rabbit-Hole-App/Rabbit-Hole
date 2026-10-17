@@ -82,3 +82,11 @@ export async function fetchDerivatives(fetchImpl, { sourceId, rev, converter, op
   if (!r.ok) return null; // not readable from here: the card keeps its fallback, never retries as an import
   return (await r.json()).derivatives;
 }
+
+// Retry preserves the durable job and source; the server authorizes its owner and advances the attempt.
+export async function retryFileJob(fetchImpl, jobId) {
+  const response = await fetchImpl('/api/learn/files/jobs/' + encodeURIComponent(jobId) + '/retry', { method: 'POST' });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.job) throw new Error(body.error || 'The conversion retry was refused.');
+  return body.job;
+}
