@@ -2,7 +2,7 @@ import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutE
 import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand } from 'lucide-react';
 import { Md } from './ask.jsx';
-import { supportsCardLayout, switchCardLayout, resizeCardLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
+import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
 import './card-layout.css';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -3103,8 +3103,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The accepted result as one transaction and one undo step, applied to the lists as they are now: an unrelated edit made
   // meanwhile stays (§11). Then the existing save path at once, so persistence is measured apart from acceptance (A3).
   const applyInline = (tx, requestId, onPersisted) => {
-    if (!alive.current) return false;
+    if (!alive.current || readOnlyRef.current) return false;
     editorRef.current?.commit('blur');
+    if (tx.kind === 'edit') {
+      const live = inlineBoard();
+      if (tx.changes.some(change => !live[change.list]?.some(entry => entry.id === change.id) || lockedRef.current.has(change.id))) return false;
+      const boxes = measureNow();
+      tx = { ...tx, changes: tx.changes.map(change => change.list === 'blocks'
+        ? { ...change, after: preserveCardEditLayout(change.after, boxes[change.id]) } : change) };
+    }
     // A placed card (A7) goes at the end of the column, offset to the spot its ghost showed; no other card moves.
     if (tx.kind === 'card' && !tx.after && !tx.end) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
     setCardGhost(null);

@@ -45,3 +45,10 @@ export function contentMinimum(element) {
  }
  return Math.ceil(min);
 }
+
+// Capture the current outer box before an accepted rewrite, including default auto-sized cards.
+// This is part of the edit transaction, so Undo restores both content and its previous sizing policy.
+export function preserveCardEditLayout(block, box) {
+ if (!supportsCardLayout(block) || block.cardLayout || !positive(box?.w) || !positive(box?.h)) return block;
+ return { ...block, cardLayout: { mode: 'scrollable', scrollableSize: { w: box.w, h: box.h }, fullWidth: box.w, slot: { w: box.w, h: box.h } } };
+}
