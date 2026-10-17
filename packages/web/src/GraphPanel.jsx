@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Network, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input, Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -27,7 +27,8 @@ import { insertCodeCard, insertCodeCards, nodeCodeCard } from './code-card.js';
 // Graph information, Layers (review fixtures only), Open source (Files viewer, and GitHub), Ask about this, Ask why, Learn
 // this. Selecting is temporary chat context (repo-context.js); Add to chat pins it. Nothing here sends or calls a model.
 // Closing the companion column clears the temporary selection; pinned refs stay.
-// Add to canvas (clarification section 1, Release 2): "Add graph to canvas" (the whole indexed graph), and for a selection
+// Add to canvas (clarification section 1, Release 2; owner brief 2026-10-16 item 5): the header's add adds the graph shown
+// here (addGraph below), and for a selection
 // "Add selection as graph" (its nodes and only their indexed relationships) or "Add code card" (nodes with retrievable code),
 // from the selection row or a node's right-click menu. They place a card on this canvas and never touch Chat.
 const ICONS = { file: FileCode, symbol: Braces, external: Package };
@@ -56,7 +57,17 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   // Add to canvas: an equivalent card already on the canvas is revealed, not added again (graph-card.js sameGraphCard).
   const ops = chat?.canvasOps?.insertCard ? chat.canvasOps : null, [menu, setMenu] = useState(null);
   const indexed = ids => ids.filter(id => snapshot?.graph.nodes.some(n => n.id === id)); // fixture layer records stay out
-  const addGraph = (ids = []) => { const block = graphCardBlock(repository, ids); ops.insertCard(block, { same: other => sameGraphCard(other, block) }); };
+  // addGraph() with no ids (the header's Add to canvas) adds the graph shown here - the overview, a focus, a search or an
+  // answer view: exactly the indexed nodes on screen (RepositoryGraph onShown) and their relationships, never the whole
+  // repository behind a bounded or focused view (owner brief 2026-10-16 item 5, the mismatch the owner reported). Only a view
+  // of every node is the whole graph. addGraph(ids) adds that selection.
+  const onScreen = useRef([]);
+  const addGraph = (ids = []) => {
+    const shownIds = ids.length ? ids : indexed(onScreen.current), all = !ids.length && shownIds.length >= (snapshot?.graph.nodes.length ?? 0);
+    if (!shownIds.length) return; // a search with no match draws nothing to add
+    const block = all ? graphCardBlock(repository) : graphCardBlock(repository, shownIds, ids.length ? null : query.trim() ? 'search' : 'view');
+    ops.insertCard(block, { same: other => sameGraphCard(other, block) });
+  };
   const codeNodes = ids => ids.map(id => snapshot?.graph.nodes.find(n => n.id === id)).filter(n => n?.path);
   const addCode = nodes => insertCodeCards(ops, nodes.map(n => nodeCodeCard({ app: repository.name, repo: app.repo, commit: snapshot.commit }, n)));
   const canCode = !!insertCodeCard && !!ops && codeNodes(selected).length > 0;
@@ -76,9 +87,10 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
       </span>
-      {snapshot && <IconBtn data-graph-add-to-canvas aria-label="Add graph to canvas" disabled={!ops || !snapshot.graph.nodes.length}
+      {/* The blue "Add to canvas" (owner brief 2026-10-16 item 4): a labelled filled button in the graph's header; what it adds is addGraph's. */}
+      {snapshot && <Button size="sm" variant="action" data-graph-add-to-canvas disabled={!ops || !snapshot.graph.nodes.length} className="shrink-0"
         title={['queued', 'indexing'].includes(status) ? `Add the graph of commit ${short(snapshot.commit)} to the canvas (a newer commit is still indexing)` : 'Add graph to canvas'}
-        onClick={() => addGraph()}><Network size={14} /></IconBtn>}
+        onClick={() => addGraph()}>Add to canvas</Button>}
       {memory && snapshot && <Button size="sm" data-map-layers-open aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} />Layers<ChevronDown size={12} className="text-ink-3" /></Button>}
     </header>
     <Body repository={repository} />
@@ -89,7 +101,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
       </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
       {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
-        <RepositoryGraph key={snapshot.commit} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu}
+        <RepositoryGraph key={snapshot.commit} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
           camera={camera} onCamera={value => repository.graph.setCamera({ ...value, commit: snapshot.commit })} />
       </div> : <p data-graph-empty className="text-sm text-ink-2">This repository has no code graph. You can still ask about its code in Chat.</p>}
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>

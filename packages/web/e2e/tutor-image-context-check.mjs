@@ -175,14 +175,29 @@ check('D a detached image sends no image_context', !!detached && imageOf(detache
 {
   const uploads = seen.uploads.length;
   await page.keyboard.press('Escape');
-  // The group's chip selects its members; the selected group shows its Add to chat. Both are pressed as DOM events: the
-  // chip sits at the board's left edge, under the tool gutter, which would take a pointer click.
-  await page.locator('[data-group-chip="g1"]').dispatchEvent('pointerdown', { button: 0 });
+  // Complete the pointer gesture: pointerdown alone leaves SelectionActions busy and hides the bar.
+  await page.locator('[data-group-chip="g1"]').click({ timeout: 5000 });
   const asked = await page.locator('[data-selection-bar] [data-add-to-chat]').first().waitFor({ timeout: 5000 })
-    .then(() => page.locator('[data-selection-bar] [data-add-to-chat]').first().dispatchEvent('click')).then(() => true, () => false);
+    .then(() => page.locator('[data-selection-bar] [data-add-to-chat]').first().click()).then(() => true, () => false);
   if (!asked) await shot(page, 'G-no-ask-pill');
   const captured = asked && await until(async () => seen.uploads.length > uploads, 20000);
   await page.waitForTimeout(800);
+  check('G Add to chat keeps one pinned group chip in Ask', await page.locator('[data-chat-pane] [data-context-chip]').count() === 1 && await page.locator('[data-chat-pane] [data-chat-mode]').getAttribute('data-chat-mode') === 'ask');
+  const askBefore = seen.asks.length;
+  await composer(page).fill('Explain this group in Ask mode.');
+  await composer(page).press('Enter');
+  await until(async () => seen.asks.length > askBefore);
+  const ask = seen.asks.at(-1), refs = ask?.context_refs || [];
+  check('G Ask sends one group ref and its rendered snapshot', refs.length === 1 && refs[0].kind === 'group' && JSON.stringify(refs[0].range?.cardIds) === JSON.stringify(['b1', 'b2']) && ask?.image_context?.id === seen.uploads.at(-1), JSON.stringify({ mode: ask?.mode, refs, image: ask?.image_context }));
+  // A group's snapshot rides once. Re-arm the same group to verify the Tutor path too, without a duplicate pinned ref.
+  const again = seen.uploads.length;
+  await page.locator('[data-group-chip="g1"]').click({ timeout: 5000 });
+  await page.locator('[data-selection-bar] [data-add-to-chat]').first().click({ timeout: 5000 });
+  await until(async () => seen.uploads.length > again, 20000);
+  check('G adding the group again keeps one pinned ref', await page.locator('[data-chat-pane] [data-context-chip]').count() === 1);
+  // Add to chat intentionally picks Ask. This scenario verifies the Tutor's image request, so choose Auto explicitly.
+  await page.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click();
+  await page.locator('[data-chat-mode-option="auto"]').click();
   const shotId = seen.uploads.at(-1), before = seen.plans.length;
   await composer(page).fill('How do these two ideas fit together?'); // Add to chat writes no question
   await composer(page).press('Enter');

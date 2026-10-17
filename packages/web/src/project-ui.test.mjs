@@ -17,25 +17,24 @@ const page = read('RepositoryPage.jsx'), wired = read('repository-canvas.jsx'), 
 test('a repository opens on its canvas: no Files | Graph | Learn page; the badge, status and details live in the canvas header', () => {
   assert.doesNotMatch(page, /TabsList|TabsTrigger|data-project-tabs|<RepositoryGraph|<MapInspector|ExpandedPageFrame|Search repository/);
   // The Main canvas and every project canvas alike: the switcher, the project and the repository's canvas props.
-  assert.match(page, /\{picked\?<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} canvasProps=\{props\}\/>/);
-  assert.match(page, /:<LearnPage app=\{live\} project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} \{\.\.\.props\}\/>\}/);
+  assert.match(page, /\{picked\?<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{live\} switcher=\{switcher\} canvasProps=\{props\}\/>/);
+  assert.match(page, /:<LearnPage app=\{live\} project=\{live\} switcher=\{switcher\} \{\.\.\.props\}\/>\}/);
   // An old ?tab= link opens its viewer once and leaves the plain URL (routes.js repositoryView).
   assert.match(page, /const \[openViewer,setOpenViewer\]=useState\(\(\)=>repositoryView\(window\.location\.search\)\);/);
   assert.match(page, /params\.delete\('tab'\);\n\s+if\(params\.has\('canvas'\)\)params\.set\('tab','learn'\);[^\n]*\n\s+const rest=params\.toString\(\);\n\s+window\.history\.replaceState\(window\.history\.state,'',`\/apps\/\$\{app\.name\}\$\{rest\?`\?\$\{rest\}`:''\}`\);/);
   // ...on arrival only: a canvas switched to later opens as it is (review 2026-10-15 #8).
   assert.match(page, /useEffect\(\(\)=>\{if\(arrived\.current!==picked\?\.name\)setOpenViewer\(null\);\},\[picked\?\.name\]\);/);
-  // Beside the title: the switcher, carrying the canvas's Rabbit Holes as a group (owner r35); no switcher, the title's own chevron.
-  assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{\/\*[\s\S]*?\*\/\}\s*\{switcher \? cloneElement\(switcher, \{ holes: dive\.titleHoles \}\) : <TitleHoles \{\.\.\.dive\.titleHoles\} \/>\}/);
-  // In the switcher, the holes are a group under the current canvas, its own row left out (it is that canvas).
-  assert.match(page, /\{e\.current&&holes\?\.rows\.length>1&&<div data-switcher-holes>[^\n]*<HoleRows rows=\{holes\.rows\.slice\(1\)\} onPick=\{row=>\{setOpen\(false\);holes\.onPick\(row\);\}\}\/>/);
-  // No Map icon on the canvas any more; the repository badge, its status and details instead. The GitHub link itself is the
-  // provenance group's repository button now (decision 2A, C:/s/spec/hdr-provenance.md; provenance-group.test.mjs), with the
-  // status and details beside it.
+  // In a project the canvas selector IS the canvas name (owner brief 2026-10-16 item 2), carrying the canvas's Rabbit Holes as
+  // a group (owner r35), its title and its rename; no project, the editable title and its own holes chevron.
+  assert.match(learn, /\{switcher \? cloneElement\(switcher, \{ holes: dive\.titleHoles, title: canvasTitle \|\| fallbackTitle, onRename: renameTitle \}\) : <><input/);
+  assert.match(learn, /<TitleHoles \{\.\.\.dive\.titleHoles\} \/><\/>\}/);
+  // In the selector, the holes are a group under the current canvas, its own row left out (it is that canvas).
+  assert.match(page, /\{e\.current&&holes\?\.rows\.length>1&&<div data-switcher-holes>[^\n]*<HoleRows rows=\{holes\.rows\.slice\(1\)\} onPick=\{row=>\{m\.close\(\);holes\.onPick\(row\);\}\}\/>/);
+  // No Map icon on the canvas any more. The repository is ONE named dropdown in the provenance group (owner brief item 1;
+  // provenance-group.test.mjs) holding branch, commit, status and Refresh branch; the indexing status stays beside it.
   assert.doesNotMatch(learn, /data-learn-map/);
-  assert.match(learn, /<ProvenanceRow provenance=\{provenance\}>\{repository && <RepositoryBadge repository=\{repository\} \/>\}<\/ProvenanceRow>/);
-  assert.doesNotMatch(wired, /data-repo-badge href/, 'one repository link in the header: the group');
-  assert.match(wired, /data-repo-info aria-label="Repository details"/);
-  assert.match(wired, /<div data-repo-details[\s\S]*?Refresh branch/);
+  assert.match(learn, /<ProvenanceRow provenance=\{provenance\} repository=\{repository\} end=\{false\}>\{repository && <RepositoryBadge repository=\{repository\} \/>\}<\/ProvenanceRow>/);
+  assert.doesNotMatch(wired, /data-repo-badge(?!-)|data-repo-info|data-repo-details/, 'one repository control in the header: the dropdown');
   // A repository with no snapshot opens its canvas too: its status shows in the header and its viewers, never a separate page.
   assert.match(wired, /data-repo-status=\{status\} role="status"/);
   assert.match(wired, /<RepositoryState repository=\{repository\} what="files" \/>/);
@@ -71,16 +70,17 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   assert.match(read('RepositoryGraph.jsx'), /if\(e\.button!==0\)\{e\.preventDefault\(\);e\.target\.closest\('\[data-graph-node\]'\)\?\.focus\(\{preventScroll:true\}\);return;\}/);
   assert.match(read('ResizableSidePanel.jsx'), /<aside \{\.\.\.props\} ref=\{panel\} inert=\{collapsed \|\| undefined\}/);
   assert.match(wired, /const failed = status === 'failed' \|\| \(status === 'ready' && !!error\);/);
-  // The canvas header beside the companion and Chat: wraps, centred only while it fits, starting after the Back button.
-  // With Chat closed on a wide frame (owner, Release B A3 item 2) a three-column grid: the menubar after Back (lead ruling),
-  // the title group centred, the actions and the provenance row at the right, wrapping the row onto its own line when it
-  // does not fit; with Chat open the column boxes are contents and the row wraps as before (E2).
-  assert.match(learn, /<div data-canvas-header className=\{`relative flex shrink-0 flex-wrap items-center justify-center-safe [^`]*pl-12[^`]*\$\{panelOpen \? '' : TITLE_CENTRED\.header\}`\}>/);
-  assert.match(learn, /header: '@min-\[1100px\]\/frame:grid @min-\[1100px\]\/frame:grid-cols-\[minmax\(max-content,1fr\)_auto_minmax\(min-content,1fr\)\] @min-\[1100px\]\/frame:items-start'/);
-  assert.match(learn, /<div data-title-crumbs className=\{`flex max-w-full min-w-0 items-center \$\{panelOpen \? '' : TITLE_CENTRED\.title\}`\}>/);
-  assert.match(learn, /<div data-header-left className=\{panelOpen \? 'contents' : TITLE_CENTRED\.left\}><CanvasMenubar menus=\{canvasMenus\} \/><\/div>\s*<div data-header-right className=\{panelOpen \? 'contents' : TITLE_CENTRED\.right\}>/);
-  assert.match(learn, /<ProvenanceRow provenance=\{provenance\}>\{repository && <RepositoryBadge repository=\{repository\} \/>\}<\/ProvenanceRow>\s*<\/div>\s*<\/div>\}/, 'the provenance row ends the right column');
-  assert.match(learn, /right: 'contents [^']*flex-wrap [^']*justify-end [^']*\[&>\[data-provenance-row\]\]:ml-0'/);
+  // The canvas header (owner brief 2026-10-16 item 2, the approved centred-menubar mockup): Home alone at the far left, after
+  // it ONE centred group - the crumbs, the menubar, the actions and the provenance row last - wrapping when it does not fit
+  // (centred only while it fits), with the right panel open or closed alike: no separate column layout any more.
+  // Equal side padding (owner header correction, 2026-10-16): Home's room on the left is balanced on the right, so the group
+  // centres on the canvas area itself.
+  assert.match(learn, /<div data-canvas-header className="relative flex shrink-0 items-center justify-center-safe px-12 [^"]*">/);
+  assert.match(learn, /<div data-header-group className="flex max-w-full min-w-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0\.5">/);
+  assert.doesNotMatch(learn, /TITLE_CENTRED|data-header-left|data-header-right/);
+  assert.match(learn, /<div data-title-crumbs className="flex max-w-full min-w-0 items-center">/);
+  assert.match(learn, /<\/div>\n\s*<CanvasMenubar menus=\{canvasMenus\} \/>/, 'the menubar right after the crumbs');
+  assert.match(learn, /<ProvenanceRow provenance=\{provenance\} repository=\{repository\} end=\{false\}>\{repository && <RepositoryBadge repository=\{repository\} \/>\}<\/ProvenanceRow>\s*<\/div>\s*<\/div>\}/, 'the provenance row ends the group');
   // #12 an ordinary open forces no viewer.
   assert.match(app, /a\.kind === 'repository' \? navigate\(`\/apps\/\$\{a\.name\}`\)/);
 });
@@ -270,15 +270,25 @@ test('the inspector has one action, Learn this, in its header beside the title; 
 });
 
 // Owner r35: "when we open a project and we create a second canvas, we should still keep the original project name ... like
-// a bread crumb: pallets/itsdangerous > canvas 2". In a project the title is [project] › [canvas] on one line, the Main
-// canvas included; the project part is the card's own title (cardModel), goes to the Main canvas, and shrinks first.
-test('in a project the title is a one-line breadcrumb: the project (its card title, to the Main canvas), then the canvas', () => {
-  assert.match(learn, /<div data-title-crumbs className=\{`flex max-w-full min-w-0 items-center \$\{panelOpen \? '' : TITLE_CENTRED\.title\}`\}>\n\s*\{project && <>\n\s*<button type="button" data-project-crumb title=\{cardModel\(project\)\.title\} onClick=\{\(\) => navigate\(canvasHref\(project\.name\)\)\}\n\s*className="h-8 max-w-60 min-w-12 shrink-\[50\] truncate [^"]*">\{cardModel\(project\)\.title\}<\/button>/);
-  // The canvas title stays the renamable input, and the switcher or the Rabbit Holes chevron hangs off it, inside the crumbs.
-  assert.match(learn, /<\/>\}\n\s*<input aria-label="Canvas title"[\s\S]*?\{switcher \? cloneElement[^\n]*\n\s*<\/div>/);
+// a bread crumb: pallets/itsdangerous > canvas 2". In a project the title is [project] › [canvas selector] on one line, the
+// Main canvas included; the project part is the card's own title (cardModel), plain text since the owner brief of
+// 2026-10-16 item 2 (no link, no menu: project management is in Home and the Library), and shrinks first.
+test('in a project the title is a one-line breadcrumb: the project as plain text (its card title), then the canvas selector', () => {
+  assert.match(learn, /<div data-title-crumbs className="flex max-w-full min-w-0 items-center">\n\s*\{project && <>\n\s*<span data-project-crumb title=\{cardModel\(project\)\.title\}\n\s*className="block h-8 max-w-60 min-w-12 shrink-\[50\] truncate [^"]*">\{cardModel\(project\)\.title\}<\/span>/);
+  assert.doesNotMatch(learn, /data-project-crumb[^\n]*onClick/);
+  // Outside a project the canvas title stays the renamable input with the Rabbit Holes chevron.
+  assert.match(learn, /: <><input aria-label="Canvas title"[\s\S]*?<TitleHoles \{\.\.\.dive\.titleHoles\} \/><\/>\}\n\s*<\/div>/);
   // The Main canvas is named so, the project name being the crumb before it.
   assert.match(learn, /: project \? 'Main canvas' : app\.repo \|\| app\.name\)/);
   // RepositoryPage names the project on the Main canvas and on every project canvas; CanvasPage keeps its own row.
-  assert.match(page, /project=\{live\} projectMenu=\{projectMenu\} switcher=\{switcher\} \{\.\.\.props\}\/>\}/);
-  assert.match(read('CanvasPage.jsx'), /<LearnPage app=\{app\} switcher=\{switcher\} project=\{switcher \? project : null\} projectMenu=\{projectMenu\} \{\.\.\.canvasProps\} \/>/);
+  assert.match(page, /project=\{live\} switcher=\{switcher\} \{\.\.\.props\}\/>\}/);
+  assert.match(read('CanvasPage.jsx'), /<LearnPage app=\{app\} switcher=\{switcher\} project=\{switcher \? project : null\} \{\.\.\.canvasProps\} \/>/);
+  // The selector: one button naming the canvas with a chevron; its menu lists the project's canvases (the open one checked),
+  // New canvas and Rename canvas (Save and Cancel), and stays inside the window (useMenuButton + the portaled Menu).
+  assert.match(page, /<button type="button" data-canvas-switcher \{\.\.\.m\.buttonProps\} aria-label=\{`Canvas: \$\{title\}`\}/);
+  assert.match(page, /<Menu portal anchor=\{m\.button\.current\} open=\{m\.open\} onClose=\{m\.onClose\} style=\{m\.style\}/);
+  assert.match(page, /role="menuitemradio" aria-checked=\{e\.current\} data-canvas-option/);
+  assert.match(page, /data-new-canvas[^\n]*>New canvas<\/MenuItem>/);
+  assert.match(page, /data-rename-canvas[^\n]*>Rename canvas<\/MenuItem>/);
+  assert.match(page, /<ConfirmDialog title="Rename canvas" confirmLabel="Save"/);
 });

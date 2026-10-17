@@ -30,6 +30,8 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         'inline-flex items-center gap-1.5 rounded-lg border-0 text-sm font-medium whitespace-nowrap transition-colors duration-100 select-none focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-50',
         size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3',
         variant === 'primary' && 'bg-accent text-white hover:bg-accent-hover',
+        // The companion's filled actions (Upload, Add to canvas; owner brief 2026-10-16 item 4): --action-blue, white text.
+        variant === 'action' && 'bg-(--action-blue) font-medium text-white hover:brightness-110',
         // "New token" template: visible as a button at rest - white, border, faint shadow
         variant === 'secondary' && 'border border-line-strong bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:bg-hover',
         // "Copy link" template: accent-tinted fill for feature CTAs that should not shout
@@ -525,6 +527,40 @@ export function Menu({ open, onClose, className, style, portal = false, anchor =
   );
   // portal escapes overflow-hidden/auto ancestors (settings modal panes etc.)
   return portal ? createPortal(node, document.body) : node;
+}
+
+// A header button's portaled dropdown (owner brief 2026-10-16 items 1-2): pinned under the button's left edge, then kept inside
+// the window by Menu (menuShift), and placed again from the button when the window resizes. The press that closed it never
+// reopens it; Escape or a pick returns focus to the button (close()), and opening moves focus to the first row.
+// Returns { open, close, onClose, buttonProps (spread on the button), button (its ref), style } for
+// <Menu portal anchor={button.current} open={open} onClose={onClose} style={style}>, its content marked data-menu-button-open.
+export function useMenuButton() {
+  const [open, setOpen] = useState(false), [at, setAt] = useState(null);
+  const button = useRef(null), pressed = useRef(false), justClosed = useRef(false), byKey = useRef(false);
+  const place = () => { const r = button.current?.getBoundingClientRect(); if (r) setAt({ left: Math.max(8, r.left), top: r.bottom + 4 }); };
+  useEffect(() => {
+    if (!open) return undefined;
+    byKey.current = false;
+    const key = event => { if (event.key === 'Escape') byKey.current = true; };
+    window.addEventListener('resize', place);
+    window.addEventListener('keydown', key, true);
+    const first = requestAnimationFrame(() => document.querySelector('[data-menu-button-open] [role^="menuitem"]:not(:disabled), [data-menu-button-open] a[href]')?.focus({ preventScroll: true }));
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('keydown', key, true); cancelAnimationFrame(first); };
+  }, [open]);
+  const close = (focus = true) => {
+    setOpen(false);
+    if (focus) button.current?.focus({ preventScroll: true });
+    justClosed.current = true; setTimeout(() => { justClosed.current = false; }, 0);
+  };
+  const toggle = () => {
+    if (pressed.current) { pressed.current = false; return; }
+    if (open) { close(); return; }
+    place(); setOpen(true);
+  };
+  const buttonProps = { ref: button, 'aria-haspopup': 'menu', 'aria-expanded': open, onPointerDown: () => { pressed.current = justClosed.current; }, onClick: toggle };
+  // Menu's onClose: Escape returns focus to the button, a press elsewhere leaves it where the press put it.
+  const onClose = () => close(byKey.current);
+  return { open, close, onClose, button, buttonProps, style: at || undefined };
 }
 
 // ─── Form controls (design/components.html "Inputs"). One field row: label 200px,

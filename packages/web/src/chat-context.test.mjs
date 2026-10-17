@@ -149,7 +149,8 @@ test('chips and pane: nothing outside a Learn canvas; This canvas first; an empt
   assert.match(inCanvas(C.ContextChips), /^<div data-context-chips="true"><ul aria-label="Context for this chat"[^>]*><li data-canvas-context="true"/);
   assert.equal(text(inCanvas(C.ContextChips)), 'This canvas');
   const pane = text(inCanvas(C.SourcesPane));
-  assert.match(pane, /^Sources /);
+  // Owner brief 2026-10-16 item 4: the blue Upload first, no Sources or Materials heading.
+  assert.match(pane, /^Upload No sources yet/);
   assert.match(pane, /No sources yet/);
 });
 
@@ -201,7 +202,7 @@ test('Materials rows: canvas context, Add to canvas, this chat, then Remove from
   // An imported file's own Add to canvas (file-to-canvas.js; file-to-canvas.test.mjs) is a seventh, on its own row too.
   assert.equal((source.match(/onClick=\{act\(/g) || []).length, 7, 'context, canvas (PDF), canvas (imported file), chat, remove, retry and dismiss all go through act');
   assert.doesNotMatch(source, /data-source-add-canvas|Attach to this chat<\/MenuItem>|Detach from this chat/);
-  assert.match(source, /<Button variant="secondary" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\} className="border-\[1px\]">\s+<Upload size=\{14\} aria-hidden \/> Upload/);
+  assert.match(source, /<Button variant="action" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\}>\s+<Upload size=\{14\} aria-hidden \/> Upload/);
   assert.doesNotMatch(source, /data-sources-close/, 'one Close: the companion column header closes the viewer (PanelHeader.jsx CompanionHeader)');
 });
 

@@ -39,7 +39,10 @@ if (repo) {
   await check('repo: no repository page tabs', async () => { if (await page.locator('[data-project-tabs]').count()) throw new Error('tab row found'); });
   await check('repo: the link becomes the plain canvas URL', async () => { await page.waitForURL((u) => !u.searchParams.has('tab'), { timeout: 5000 }); });
   await check('repo: badge opens GitHub', async () => {
-    const href = await page.locator('[data-repo-badge]').getAttribute('href', { timeout: 10000 });
+    // The repository is one named dropdown (owner brief 2026-10-16 item 1): its GitHub link is the dropdown's first row.
+    await page.locator('[data-repo-menu]').click({ timeout: 10000 });
+    const href = await page.locator('[data-menu-button-open] a[data-repo-badge]').getAttribute('href', { timeout: 10000 });
+    await page.keyboard.press('Escape');
     if (href !== `https://github.com/${repo.repo}`) throw new Error(`badge href ${href}`);
   });
   await check('repo: breadcrumb gone', async () => { if (await page.getByText(`Apps/${repo.repo}`).count()) throw new Error('crumb found'); });

@@ -6,8 +6,13 @@ import { readFileSync } from 'node:fs';
 // a card, image_context riding the next question, the level pill styling a
 // fresh text box, and a shape dragged by its interior.
 
-const app = { name: 'nanogpt', org: 'example-team', orgName: 'Example team', kind: 'repository', repo: 'karpathy/nanoGPT', description: '', owner_email: 'b@e.test', deployed_at: '2026-09-08T09:16:00Z', created_at: '2026-09-07T16:20:00Z', visibility: 'domain', members: [], teams: [], observations: [], canEdit: true, email: 'b@e.test', schedule: null, commit_sha: 'abc123' };
-const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.email, apps: [app], folders: [] }, '/api/apps/nanogpt': app, '/api/apps/nanogpt/learn-course': { course: null, canAuthor: true }, '/api/repositories/nanogpt': { ...app, status: 'ready' }, '/api/repositories/nanogpt/snapshot': { commit: 'abc123', graph: { nodes: [], edges: [] }, files: [], skipped: [] }, '/api/workspaces': { active: app.org, email: app.email, workspaces: [{ slug: app.org, name: app.orgName, role: 'owner', kind: 'custom' }] } };
+// Repository IDs use repo-: their canvas owns the composer (routes.js), not the app's global Agent Bar.
+const app = { name: 'repo-drop-nanogpt', org: 'example-team', orgName: 'Example team', kind: 'repository', repo: 'karpathy/nanoGPT', description: '', owner_email: 'b@e.test', deployed_at: '2026-09-08T09:16:00Z', created_at: '2026-09-07T16:20:00Z', visibility: 'domain', members: [], teams: [], observations: [], canEdit: true, email: 'b@e.test', schedule: null, commit_sha: 'abc123' };
+const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.email, apps: [app], folders: [] }, '/api/apps/repo-drop-nanogpt': app, '/api/apps/repo-drop-nanogpt/learn-course': { course: null, canAuthor: true }, '/api/repositories/repo-drop-nanogpt': { ...app, status: 'ready' }, '/api/repositories/repo-drop-nanogpt/snapshot': { commit: 'abc123', graph: { nodes: [], edges: [] }, files: [], skipped: [] }, '/api/workspaces': { active: app.org, email: app.email, workspaces: [{ slug: app.org, name: app.orgName, role: 'owner', kind: 'custom' }] } };
+
+// The signed-in fixture must pass handle onboarding and supply the canvas navigator tree.
+replies['/api/profile'] = { handle: 'drop_tester', name: 'Drop tester' };
+replies['/api/canvases/dives'] = { path: [{ app: 'repo-drop-nanogpt', board: 'main', title: 'nanoGPT' }], children: [] };
 
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
@@ -33,7 +38,7 @@ const ok = (name, condition, extra = '') => { if (!condition) failed += 1; conso
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 const surface = canvas.locator('div.touch-none').first();
 
-await page.goto('http://localhost:5189/apps/nanogpt?tab=learn');
+await page.goto('http://localhost:5189/apps/repo-drop-nanogpt?tab=learn');
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(3000);
 
@@ -55,10 +60,10 @@ ok('focusing the title puts the caret at the end', (await page.locator('input[ar
 await page.keyboard.press('Backspace');
 await page.keyboard.press('Enter');
 
-// --- present refuses an empty canvas (and a shapes-only one - no cards) ---
+// --- present refuses an empty canvas without changing its chrome ---
 await page.locator('[aria-label="Present"]').click();
 await page.waitForTimeout(400);
-ok('presenting an empty canvas refuses with a toast', (await page.getByText('Add a section or a card to present.').count()) >= 1);
+ok('presenting an empty canvas refuses with a toast', (await page.getByText('The canvas is empty. Draw or add something, then present it.').count()) >= 1);
 ok('and no step counter appears', (await page.getByText(/1 \/ \d+/).count()) === 0);
 ok('and the panel stays open', (await page.locator('[aria-label="Learn agent chat"]').count()) === 1);
 
@@ -72,36 +77,41 @@ await page.keyboard.press('Escape');
 const box0 = await surface.boundingBox();
 
 // --- dropping files ---
-const drop = async (name, type, bytes) => {
+const drop = async (name, type, bytes, point = { x: 0.2, y: 0.5 }) => {
   const target = await surface.elementHandle();
-  await page.evaluate(([element, fileName, fileType, data]) => {
+  const bounds = await surface.boundingBox();
+  await page.evaluate(([element, fileName, fileType, data, clientX, clientY]) => {
     const file = new File([new Uint8Array(data)], fileName, { type: fileType });
     const transfer = new DataTransfer();
     transfer.items.add(file);
-    element.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer }));
-    element.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
-  }, [target, name, type, [...bytes]]);
+    element.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer, clientX, clientY }));
+    element.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer, clientX, clientY }));
+  }, [target, name, type, [...bytes], bounds.x + bounds.width * point.x, bounds.y + bounds.height * point.y]);
   await page.waitForTimeout(1200);
 };
 // Real files: media cards are decided from their bytes (media-import.js), so a bare signature is refused as not an image.
 const fixture = name => [...readFileSync(new URL(`../src/__fixtures__/media/${name}`, import.meta.url))];
 const PNG = fixture('photo.png');
 
-await drop('diagram.png', 'image/png', PNG);
+await drop('diagram.png', 'image/png', PNG, { x: 0.15, y: 0.2 });
 ok('a dropped image lands as a card', (await canvas.locator('img[alt="diagram.png"]').count()) === 1);
 ok('the image was posted for the tutor', mediaPosts.length === 1);
 
-await drop('anim.gif', 'image/gif', fixture('anim.gif'));
+await drop('anim.gif', 'image/gif', fixture('anim.gif'), { x: 0.15, y: 0.6 });
 ok('a GIF lands as a card without a server copy', (await canvas.locator('img[alt="anim.gif"]').count()) === 1 && mediaPosts.length === 1);
 
-await drop('clip.mp4', 'video/mp4', fixture('clip.mp4'));
+await drop('clip.mp4', 'video/mp4', fixture('clip.mp4'), { x: 0.6, y: 0.2 });
 ok('a video clip lands as a native player card', (await canvas.locator('video[controls]').count()) === 1);
 
-await drop('page.html', 'text/html', [60, 104, 116, 109, 108, 62]);
-ok('an unknown type is refused with a visible reason', (await page.getByText('drop an image, GIF, video, PDF, notebook (.ipynb) or Python file (.py)').count()) >= 1);
+await drop('program.exe', 'application/octet-stream', [0x4d, 0x5a]);
+ok('an unknown type is refused with a visible reason', (await page.getByText('program.exe: drop an image, GIF, video, PDF, notebook (.ipynb), Python file (.py) or code file', { exact: true }).count()) >= 1);
 
+// Ask mode exercises the scripted /ask response; Auto now routes to the Tutor planner.
+const chat = page.locator('[data-chat-pane]').first();
+await chat.getByRole('button', { name: 'Mode', exact: true }).click();
+await page.locator('[data-chat-mode-option="ask"]').click();
 // image_context rides the next question
-await page.locator('textarea, input[placeholder^="Ask about"]').last().fill('what is in this diagram?');
+await chat.locator('textarea, input[placeholder^="Ask about"]').last().fill('what is in this diagram?');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(1500);
 const withImage = asks.find(body => body.image_context);
@@ -140,12 +150,12 @@ await page.waitForTimeout(200);
 // --- text tool: level pill on a fresh box ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Text"]').click();
 const box = await surface.boundingBox();
-await page.mouse.click(box.x + 800, box.y + 600);
+await page.mouse.click(box.x + box.width * 0.8, box.y + 600);
 await page.waitForTimeout(400);
 const levels = page.getByRole('group', { name: 'Text level' });
 ok('a fresh text box offers the level ladder', (await levels.count()) === 1);
 const freshBox = await canvas.locator('[data-item-id]').last().boundingBox();
-ok('a fresh text box opens long', freshBox && freshBox.width >= 380, `${Math.round(freshBox?.width || 0)}px`);
+ok('a fresh text box grows with its words until resized', freshBox && freshBox.width > 0 && await canvas.locator('[data-item-id]').last().evaluate(node => node.style.width) === 'max-content', `${Math.round(freshBox?.width || 0)}px`);
 ok('the ladder reaches H4', (await levels.getByRole('button', { name: 'H4' }).count()) === 1);
 await levels.getByRole('button', { name: 'H2' }).click();
 await page.keyboard.type('Chapter');
@@ -157,7 +167,7 @@ ok('picking H2 styles the box', size === '24px', String(size));
 
 // --- stickies: color from the style panel; highlighter panel closable ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Sticky note"]').click();
-await page.mouse.click(box.x + 640, box.y + 620);
+await page.mouse.click(box.x + box.width * 0.64, box.y + 620);
 await page.waitForTimeout(300);
 await page.mouse.click(box.x + 40, box.y + 500); // settle out of editing
 await page.waitForTimeout(200);
@@ -183,9 +193,9 @@ await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="
 
 // --- shapes: drag by the interior ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Rectangle"]').click();
-await page.mouse.move(box.x + 700, box.y + 300);
+await page.mouse.move(box.x + box.width * 0.7, box.y + 300);
 await page.mouse.down();
-await page.mouse.move(box.x + 900, box.y + 450, { steps: 5 });
+await page.mouse.move(box.x + box.width * 0.9, box.y + 450, { steps: 5 });
 await page.mouse.up();
 await page.waitForTimeout(300);
 const rect = canvas.locator('svg[data-ink] rect').first();
@@ -227,8 +237,15 @@ await page.waitForTimeout(200);
 await page.mouse.click(a1.x + 40, a1.y + 20);
 await page.waitForTimeout(200);
 // drag from EMPTY space inside the outline; the whole group must follow
-const gapA = await cardA.boundingBox();
-const gapPoint = { x: gapA.x + gapA.width / 2, y: gapA.y + gapA.height + 10 };
+const gapPoint = await page.locator('[data-group-box]').evaluate(group => {
+  const bounds = group.getBoundingClientRect(), frame = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
+  for (let y = Math.max(bounds.top + 8, frame.top + 8); y < Math.min(bounds.bottom - 8, frame.bottom - 30); y += 12) {
+    for (let x = Math.max(bounds.left + 8, frame.left + 8); x < Math.min(bounds.right - 8, frame.right - 50); x += 12) {
+      if (document.elementFromPoint(x, y) === group) return { x, y };
+    }
+  }
+  throw Error('No visible empty group surface to drag');
+});
 const b3 = await cardB.boundingBox();
 const a3before = await cardA.boundingBox();
 await page.mouse.move(gapPoint.x, gapPoint.y);
@@ -297,10 +314,20 @@ await page.waitForTimeout(300);
 const parked = await page.getByRole('toolbar', { name: 'Canvas tools' }).boundingBox();
 ok('released near the left edge, it parks left', parked.x < box.x + box.width / 3, `x=${Math.round(parked.x)}`);
 
-// --- minimap (on by default) shares the composer's lower edge ---
-const map = await page.locator('svg[aria-label="Canvas overview"]').boundingBox();
+// --- lower-left stack: minimap directly above the zoom row (owner 2026-10-08) ---
+const map = await page.locator('[data-canvas-minimap]').boundingBox();
 const pill = await page.locator('[data-zoom]').boundingBox();
-ok('minimap bottom lines up with the zoom pill bottom', map && pill && Math.abs((map.y + map.height) - (pill.y + pill.height)) <= 2, map && pill ? `${Math.round(map.y + map.height)} vs ${Math.round(pill.y + pill.height)}` : 'missing');
+ok('minimap sits directly above the zoom row on the same left edge', map && pill && Math.abs(map.x - pill.x) <= 2 && pill.y >= map.y + map.height && pill.y - (map.y + map.height) <= 16, map && pill ? `gap ${Math.round(pill.y - map.y - map.height)}px` : 'missing');
+
+// Code imports have their explicit confirmation flow, checked after the media-only grouping scenario.
+await drop('page.html', 'text/html', [60, 104, 116, 109, 108, 62]);
+const importDialog = page.locator('[data-file-import-dialog]');
+ok('HTML offers Code card, never a notebook or executable page', await importDialog.locator('[data-import-choice="code"]').getAttribute('aria-checked') === 'true' && await importDialog.locator('[data-import-choice="notebook"]').count() === 0);
+await importDialog.getByRole('button', { name: 'Add to canvas', exact: true }).click();
+await importDialog.waitFor({ state: 'detached' });
+const htmlCard = canvas.locator('[data-block-id]').filter({ hasText: 'page.html' }).first();
+await htmlCard.waitFor();
+ok('HTML lands as a code card, never an executable page', await htmlCard.count() === 1 && await htmlCard.locator('iframe').count() === 0);
 
 await page.screenshot({ path: 'e2e/shots/drop-ui-1.png' });
 await browser.close();

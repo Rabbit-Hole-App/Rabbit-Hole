@@ -10,7 +10,7 @@ Owner request, 2026-10-07. This is the header of the canvas's right panel (`Lear
 
 - **Icons only:** lucide `Search`, `BookOpen`, `MessageCircle`, `Pin`, `X`. Each has a tooltip (`title`) and an `aria-label`; there is no visible text and no chart tab.
 - **Tabs:** the three tabs share one rounded group (`role="tablist"`, each `role="tab"` with `aria-selected`). Exactly one is active, and its content shows below the header.
-- **Active colour:** the /teach violet, `#5b21b6` (`--cmd-teach-fg`, slash-command-tones.md), with a white icon. Inactive icons are neutral, and a thin divider runs under the header.
+- **Active colour (owner brief 2026-10-16 item 3, approved mockup toc-upload-context):** a rounded pale purple (`--nav-selected-bg`, `#eee5fc`; dark `#453060`) with a purple icon (`--nav-selected-fg`, `#6431a0`; dark `#e1cff9`). Icons are 30 x 32 px, 2 px apart, with no enclosing box. Inactive icons are muted neutral; hover is the neutral hover, never the selected purple. A thin divider runs under the header.
 - **Keyboard:** the arrow keys move between the enabled tabs and select as they go. Comments is skipped.
 
 **Chat (chat workspace, owner brief 2026-10-13 section 3):** Chat (lucide `MessageSquareText`) is a permanent fourth tab,
@@ -42,13 +42,15 @@ This is a new, local find. The header's Search button (YouTube, arXiv and Wikipe
 - **Unpinned:** a press on the canvas surface (`[data-canvas-surface]`) closes the panel. Work inside the panel, such as typing a find or picking a row, never closes it.
 - **Storage:** the choice is kept in this browser (`localStorage` `small.learn-panel:pinned`). Reading and writing it are guarded, so blocked storage keeps the default.
 
-## Viewers: Context and Repository files
+## Viewers: one Context / Files / Graph control
 
-Owner decision 1A (2026-10-15): Context and Repository files are no longer tabs. They are views of the companion column
-LEFT of Chat (hide-right-panel.md, "Companion column"). Right of the tablist, before Pin and Close, the header carries one
-pressed toggle per viewer: Context (lucide `Files`) always, and Repository files (`FolderTree`) where the canvas has
-repository files. A toggle shows that view, or closes the column when that view is already showing. The tabs are Chat,
-Find, Table of contents, Comments and Links.
+Owner brief 2026-10-16 items 3-4: Context, Files and Graph are views of the companion column LEFT of Chat
+(hide-right-panel.md, "Companion column"). Right of the tablist, set apart by spacing and before Pin and Close, the header
+carries ONE pressed toggle (lucide `PanelLeft`, `data-panel-companion`), named for the views it opens ("Context, Files and
+Graph"; "Context" on a canvas with no repository). It opens the column on the view it last showed, or closes it. The
+column's own labelled tabs (Context, Files, Graph) switch views, and its X closes it; there is no Back to graph / Back to
+files. The composer no longer carries Explore codebase or Open Context. The tabs are Chat, Find, Table of contents,
+Comments and Links.
 
 ## Close sidebar
 

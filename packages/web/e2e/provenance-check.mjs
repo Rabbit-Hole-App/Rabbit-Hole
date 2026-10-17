@@ -1,9 +1,9 @@
 // The canvas header's provenance group (C:/s/spec/hdr-provenance.md owner decisions 1A-4A; ProvenanceGroup.jsx): the four
 // display combinations, long names, a narrow window, new-tab destinations, a chain of accessible, private and unavailable
 // ancestors, an incomplete history, keyboard use, light and dark, on the owned, shared (signed out) and member pages; and the
-// header layout (decision E2): the group at the right edge of its row, right-aligned on the next row when the header wraps,
-// with nothing overlapping and no horizontal scroll, with Chat open and closed at 1440 and on a phone.
-// And title centring with Chat closed (Release B A3 item 2): the title group at the header's centre, a long title truncated.
+// header layout: on the shared and member pages (decision E2) the group at the right edge of its row, right-aligned on the
+// next row when the header wraps; on the canvas page (owner brief 2026-10-16 items 1-2) the repository is one named dropdown
+// and the group ends the header's one centred group, Chat open or closed; nothing overlapping and no horizontal scroll.
 // The provenance object is the server's (contract C1, routes C2); here each page's provenance GET is answered with a C1
 // fixture, so this checks the UI only - who may see what is the SERVER lane's tests. The share link is real (local D1),
 // opened signed out; the member page's two reads are answered here too. GitHub is never contacted: its pages are stubbed.
@@ -97,7 +97,9 @@ const open = async (path, { provenance = answer, width = 1440, height = 900, the
 };
 const OWNED = `/apps/${canvas.name}`;
 const group = () => page.locator('[data-provenance]');
-const repo = () => page.locator('[data-provenance] [data-repo-badge]');
+// The repository is one named dropdown button (owner brief 2026-10-16 item 1); its GitHub link is the dropdown's first row.
+const repo = () => page.locator('[data-provenance] [data-repo-menu]');
+const repoLink = async () => { if (await repo().getAttribute('aria-expanded') !== 'true') await repo().click(); const link = page.locator('[data-menu-button-open] a[data-repo-badge]'); await link.waitFor(); return link; };
 const forkButton = () => page.locator('[data-provenance-fork]');
 // The provenance answer has arrived and rendered (or rendered nothing): the read was made and the page settled on it.
 const settled = async path => {
@@ -140,19 +142,30 @@ await check('1 neither: no group and no placeholder; a 404 or 401 provenance ans
   await shot('01-neither');
 });
 
-await check('2 repository only: one GitHub link, its name and tooltip in full, opening the repository in a new tab', async () => {
+await check('2 repository only: one named dropdown button (GitHub mark, name, chevron) whose press only opens the dropdown; its GitHub link opens the repository in a new tab', async () => {
   await open(OWNED, { provenance: { repository: REPO, fork: null } });
   await repo().waitFor();
   assert.equal(await forkButton().count(), 0);
-  assert.equal(await page.locator('[data-repo-badge]').count(), 1, 'one repository link in the header');
-  assert.equal(await repo().getAttribute('href'), REPO.url);
-  assert.equal(await repo().getAttribute('target'), '_blank');
-  assert.equal(await repo().getAttribute('rel'), 'noopener noreferrer');
-  assert.equal(await repo().getAttribute('title'), 'Open acme/attention on GitHub');
-  assert.equal(await page.getByRole('link', { name: 'Open acme/attention on GitHub' }).count(), 1);
+  assert.equal(await page.locator('[data-canvas-header] [data-repo-menu]').count(), 1, 'one repository control in the header');
+  assert.equal(await page.locator('[data-canvas-header] a[href^="https://github.com"]').count(), 0, 'the header itself holds no GitHub link');
+  assert.equal(await repo().getAttribute('title'), 'acme/attention');
+  assert.equal(await repo().getAttribute('aria-label'), 'Repository acme/attention');
   assert.equal((await repo().innerText()).trim(), 'acme/attention');
-  assert.equal(await newTab(() => repo().click()), REPO.url, 'a click opens GitHub in a new tab');
+  assert.equal(await repo().locator('svg').count(), 2, 'the GitHub mark and the chevron');
+  const pages = context.pages().length;
+  await repo().click();
+  assert.equal(await repo().getAttribute('aria-expanded'), 'true', 'a press opens the dropdown');
+  assert.equal(context.pages().length, pages, 'and opens no tab');
+  const link = await repoLink();
+  assert.equal(await link.getAttribute('href'), REPO.url);
+  assert.equal(await link.getAttribute('target'), '_blank');
+  assert.equal(await link.getAttribute('rel'), 'noopener noreferrer');
+  assert.equal(await link.getAttribute('title'), 'Open acme/attention on GitHub');
+  assert.equal(await page.getByRole('menuitem', { name: 'Open acme/attention on GitHub' }).count(), 1);
+  await shot('02-repository-open', page);
+  assert.equal(await newTab(() => link.click()), REPO.url, 'the link opens GitHub in a new tab');
   assert.equal(new URL(page.url()).pathname, OWNED, 'the canvas stays open');
+  await page.keyboard.press('Escape');
   await clear('[data-canvas-header]');
   await shot('02-repository-only');
 });
@@ -196,7 +209,7 @@ await check('4 both: repository first, matching heights, one shared border with 
 
 await check('5 keyboard: Tab reaches each button; Enter opens the history, Escape closes it and returns focus; a second click closes it', async () => {
   await repo().focus();
-  assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-repo-badge')), true);
+  assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-repo-menu')), true);
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-provenance-fork')), true, 'the fork button is the next stop');
   await page.keyboard.press('Enter');
@@ -239,11 +252,17 @@ await check('7 a private or unavailable immediate source names no title on the b
 await check('8 long names ellipsize in the header; the full names stay in the tooltips and accessible names', async () => {
   await open(OWNED, { provenance: { repository: LONG_REPO, fork: LONG_FORK } });
   await forkButton().waitFor();
-  for (const [button, full] of [[repo(), `Open ${LONG_REPO.label} on GitHub`], [forkButton(), `Forked from ${LONG_FORK.ancestors[0].title}`]]) {
-    assert.equal(await button.locator('span.truncate').evaluate(node => node.scrollWidth > node.clientWidth), true, `${full}: truncated`);
+  for (const [button, full, name] of [[repo(), LONG_REPO.label, `Repository ${LONG_REPO.label}`], [forkButton(), `Forked from ${LONG_FORK.ancestors[0].title}`, `Forked from ${LONG_FORK.ancestors[0].title}`]]) {
+    assert.equal(await button.locator('span.truncate').first().evaluate(node => node.scrollWidth > node.clientWidth), true, `${full}: truncated`);
     assert.equal(await button.getAttribute('title'), full);
-    assert.equal(await button.getAttribute('aria-label'), full);
+    assert.equal(await button.getAttribute('aria-label'), name);
   }
+  // The full name stays in the dropdown, wrapped, not cut.
+  const link = await repoLink();
+  assert.equal((await link.innerText()).trim(), LONG_REPO.label, 'the dropdown shows the full name');
+  const menu = await box(link);
+  assert.ok(menu.x >= 8 && menu.right <= page.viewportSize().width - 8, 'the dropdown stays inside the window');
+  await page.keyboard.press('Escape');
   assert.ok((await box(group())).w < 560, 'the group stays compact');
   await clear('[data-canvas-header]');
   await shot('06-long-names');
@@ -277,8 +296,10 @@ await check('11 a signed-out public viewer: the link page reads its own route an
   await open(`/b/${token}`, { provenance: { repository: REPO, fork: FORK }, signedIn: false });
   await forkButton().waitFor();
   assert.deepEqual([...new Set(asked)], [`/api/learn/provenance/link/${token}`]);
-  assert.equal(await repo().getAttribute('href'), REPO.url);
-  assert.equal(await page.locator('[data-repo-info], [data-repo-details], [data-repo-status]').count(), 0, 'no details menu or status');
+  assert.equal(await (await repoLink()).getAttribute('href'), REPO.url);
+  assert.equal((await page.locator('[data-repo-details]').innerText()).trim(), REPO.label, 'the dropdown holds the link only: no branch, commit, status or Refresh for a signed-out viewer');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('[data-repo-info], [data-repo-status], [data-repo-refresh]').count(), 0, 'no details menu or status');
   // The repository's own actions (repository-canvas.jsx RepositoryBadge); the Next steps 'Refresh suggestions' is not one.
   const restricted = page.getByRole('button', { name: /Refresh branch|Retry import|Import failed|Unavailable · Retry|Repository details/ });
   assert.equal(await restricted.count(), 0, `no restricted actions: ${await restricted.evaluateAll(nodes => nodes.map(node => node.outerHTML.slice(0, 300)))}`);
@@ -311,18 +332,14 @@ const layout = async (header, wraps) => {
   }, [header, wraps], { polling: 'raf', timeout: 5000 }).catch(() => {});
   return page.evaluate(selector => window.provenanceLayout(selector), header);
 };
+// The canvas page's header is one centred group (step 15); here the shared and member pages' E2 rows.
 const LAYOUTS = [
-  { name: 'owned-chat-open', path: OWNED, header: '[data-canvas-header]', chat: true, wraps: true },
-  // Chat closed (Release B A3 item 2): the title is centred, and at 1440 the actions with a repository and a fork fit in the
-  // right half, so the group ends the first row (step 15 has the case where it takes its own line).
-  { name: 'owned-chat-closed', path: OWNED, header: '[data-canvas-header]', chat: false, wraps: false },
-  { name: 'owned-narrow', path: OWNED, header: '[data-canvas-header]', width: 390, height: 844, wraps: true },
   { name: 'shared', path: `/b/${token}`, header: 'header', signedIn: false, wraps: false },
   { name: 'shared-narrow', path: `/b/${token}`, header: 'header', signedIn: false, width: 390, height: 844, wraps: true },
   { name: 'member', path: `/c/${MEMBER}`, header: 'header', wraps: false },
   { name: 'member-narrow', path: `/c/${MEMBER}`, header: 'header', width: 390, height: 844, wraps: true },
 ];
-await check('13 layout (E2): the group ends at its row\'s right edge - right-aligned on the next row when the header wraps - with nothing overlapping and no horizontal scroll; Chat open and closed at 1440, and a phone, on the owned, shared and member pages', async () => {
+await check('13 layout (E2): on the shared and member pages the group ends at its row\'s right edge - right-aligned on the next row when the header wraps - with nothing overlapping and no horizontal scroll, at 1440 and on a phone', async () => {
   const seen = {};
   for (const theme of ['light', 'dark']) for (const each of LAYOUTS) {
     await open(each.path, { provenance: { repository: REPO, fork: FORK }, width: each.width || 1440, height: each.height || 900, theme, signedIn: each.signedIn !== false });
@@ -345,68 +362,61 @@ await check('13 layout (E2): the group ends at its row\'s right edge - right-ali
   console.log('   group placement:', JSON.stringify(seen));
 });
 
-// Title centring with Chat closed (owner, Release B A3 item 2; lead ruling: the menubar sits after Back): the title group sits
-// at the middle of the header's content box, the menubar on its left, the one-press actions and the provenance group on its
-// right ending at the header's right edge, and a long title truncates without running under a control. With Chat open the
-// header is E2's wrapping row.
+// The canvas header (owner brief 2026-10-16 item 2, the approved centred-menubar mockup; it replaces Release B A3 item 2's
+// three columns): Home alone at the far left and ONE centred group after it - title, menubar, actions, then the provenance
+// group last - with the right panel open and closed alike; a row too narrow for it wraps the group, still centred, with
+// nothing overlapping, a long title truncated under nothing and no horizontal scroll.
 const centring = () => page.locator('[data-canvas-header]').evaluate(root => {
   const style = getComputedStyle(root), edge = root.getBoundingClientRect(), r = node => node.getBoundingClientRect();
-  const crumbs = r(root.querySelector('[data-title-crumbs]')), left = r(root.querySelector('[data-header-left]')), title = root.querySelector('input[aria-label="Canvas title"]');
-  const actions = r(root.querySelector('[data-header-right] button[aria-label="Present"]')), t = r(title);
-  const mid = (edge.left + parseFloat(style.paddingLeft) + edge.right - parseFloat(style.paddingRight)) / 2;
+  const group = root.querySelector('[data-header-group]'), g = r(group), title = root.querySelector('input[aria-label="Canvas title"]'), t = r(title);
+  // The canvas area's own centre (owner header correction, 2026-10-16): the header spans the canvas column, and its equal side
+  // padding balances Home, so the group centres on the area, not on what Home leaves.
+  const left = edge.left + parseFloat(style.paddingLeft), right = edge.right - parseFloat(style.paddingRight);
+  const area = root.closest('section[aria-label="Learn"]')?.getBoundingClientRect() || edge;
+  const items = [...group.querySelectorAll('[data-title-crumbs], [role="menubar"], button[aria-label="Present"], [data-provenance-row]')].map(node => node.matches('[data-provenance-row]') ? 'provenance' : node.matches('[role="menubar"]') ? 'menubar' : node.matches('[data-title-crumbs]') ? 'title' : 'actions');
+  const boxes = [...group.querySelectorAll('[data-title-crumbs], [role="menubar"], button[aria-label="Present"], [data-provenance-row]')].map(r);
+  const last = boxes.at(-1), lastOnItsRow = boxes.filter(b => Math.abs(b.top - last.top) < 4).every(b => b.right <= last.right + 0.5);
   const under = [...root.querySelectorAll('button, a, [role="menubar"]')].filter(node => node.getClientRects().length && node !== title)
     .map(r).filter(b => b.width > 0 && t.left < b.right - 0.5 && b.left < t.right - 0.5 && t.top < b.bottom - 0.5 && b.top < t.bottom - 0.5).length;
-  return { display: style.display, offset: (crumbs.left + crumbs.right) / 2 - mid, order: left.right <= crumbs.left + 0.5 && crumbs.right <= actions.left + 0.5,
+  return { offset: (g.left + g.right) / 2 - (area.left + area.right) / 2, inside: g.left >= left - 0.5 && g.right <= right + 0.5, items, lastOnItsRow, home: r(root.querySelector('[data-learn-home]')).right <= g.left + 0.5 || getComputedStyle(root.querySelector('[data-learn-home]')).display === 'none',
     truncated: title.scrollWidth > title.clientWidth, under, page: [document.documentElement.scrollWidth, document.documentElement.clientWidth], header: [root.scrollWidth, root.clientWidth] };
 });
-// wraps: whether the group takes its own line - it stays beside the actions only when both fit in the right half.
 const CENTRING = [
-  { name: 'wide-repository', path: OWNED, width: 1440, provenance: { repository: REPO, fork: null }, wraps: false },
-  { name: 'wide', path: OWNED, width: 1440, wraps: false },
+  { name: 'wide-repository', path: OWNED, width: 1440, provenance: { repository: REPO, fork: null } },
+  { name: 'wide', path: OWNED, width: 1440 },
   { name: 'wide-no-provenance', path: OWNED, width: 1440, provenance: { status: 404, body: { error: 'Not found' } } },
-  { name: 'long-title', path: `/apps/${long.name}`, width: 1440, long: true, wraps: true },
-  { name: 'narrow', path: OWNED, width: 390, height: 844, narrow: true, wraps: true },
+  { name: 'long-title', path: `/apps/${long.name}`, width: 1440, long: true },
+  { name: 'narrow', path: OWNED, width: 390, height: 844 },
 ];
-await check('15 title centring (Release B A3 item 2): with Chat closed the title group sits at the header\'s centre, the menubar on its left, the actions and the group on its right ending at the right edge; a long title truncates under nothing; Chat open and a phone keep the wrapping row', async () => {
+await check('15 the canvas header: Home at the far left, then one centred group (title, menubar, actions, the provenance group last) with the right panel open and closed; a long title truncates under nothing; a phone wraps without overlap or sideways scroll', async () => {
   const seen = {};
-  for (const theme of ['light', 'dark']) for (const each of CENTRING) {
+  for (const theme of ['light', 'dark']) for (const each of CENTRING) for (const chat of [true, false]) {
     await open(each.path, { provenance: each.provenance || { repository: REPO, fork: FORK }, width: each.width, height: each.height || 900, theme });
-    if (each.wraps === undefined) await settled(`/api/learn/provenance/apps/${canvas.name}`); else await group().waitFor();
-    const hide = page.getByRole('button', { name: 'Hide the right panel' });
-    if (await hide.count()) await hide.click();
-    await page.getByRole('button', { name: 'Show the right panel' }).waitFor();
-    const where = `${each.name} (${theme})`;
-    // The panel closes with a width transition: wait (bounded) for the title to settle at the centre, then assert what it measured.
-    if (!each.narrow) await page.waitForFunction(() => { const root = document.querySelector('[data-canvas-header]'), s = getComputedStyle(root), e = root.getBoundingClientRect(), b = root.querySelector('[data-title-crumbs]').getBoundingClientRect();
-      return s.display === 'grid' && Math.abs((b.left + b.right) / 2 - (e.left + parseFloat(s.paddingLeft) + e.right - parseFloat(s.paddingRight)) / 2) <= 1; }, null, { timeout: 5000 }).catch(() => {});
+    if (each.provenance?.status) await settled(`/api/learn/provenance/apps/${canvas.name}`); else await group().waitFor();
+    const toggle = page.getByRole('button', { name: chat ? 'Show the right panel' : 'Hide the right panel' });
+    if (await toggle.count()) await toggle.click();
+    await page.getByRole('button', { name: chat ? 'Hide the right panel' : 'Show the right panel' }).waitFor();
+    const where = `${each.name}, Chat ${chat ? 'open' : 'closed'} (${theme})`;
+    // The panel opens and closes with a width transition: wait (bounded) for the group to settle at the centre.
+    await page.waitForFunction(() => { const root = document.querySelector('[data-canvas-header]'), s = getComputedStyle(root), e = root.getBoundingClientRect(), b = root.querySelector('[data-header-group]').getBoundingClientRect();
+      window.groupFrames = window.groupLeft === b.left ? (window.groupFrames || 0) + 1 : 0; window.groupLeft = b.left;
+      return window.groupFrames >= 10 && Math.abs((b.left + b.right) / 2 - (e.left + e.right) / 2) <= 1; }, null, { polling: 'raf', timeout: 5000 }).catch(() => {});
     const at = await centring();
-    if (each.narrow) assert.equal(at.display, 'flex', `${where}: a phone keeps the wrapping row`);
-    else {
-      assert.equal(at.display, 'grid', `${where}: the three-column header`);
-      assert.ok(Math.abs(at.offset) <= 1, `${where}: the title is ${at.offset.toFixed(1)}px off the header's centre`);
-      assert.equal(at.order, true, `${where}: the menubar left of the title, the actions right of it`);
-    }
+    assert.ok(Math.abs(at.offset) <= 1, `${where}: the group is ${at.offset.toFixed(1)}px off the canvas area's centre`);
+    assert.equal(at.inside, true, `${where}: the group stays inside the header`);
+    assert.equal(at.home, true, `${where}: Home sits left of the group`);
+    const want = ['title', 'menubar', 'actions', ...(each.provenance?.status ? [] : ['provenance'])];
+    assert.deepEqual(at.items, want, `${where}: the group's order`);
+    if (!each.provenance?.status) assert.equal(at.lastOnItsRow, true, `${where}: the provenance group ends its row`);
     if (each.long) assert.equal(at.truncated, true, `${where}: the long title truncates`);
     assert.equal(at.under, 0, `${where}: the title runs under ${at.under} control(s)`);
     assert.ok(at.page[0] <= at.page[1], `${where}: the page scrolls sideways (${at.page})`);
     assert.ok(at.header[0] <= at.header[1], `${where}: the header scrolls sideways (${at.header})`);
-    if (each.wraps !== undefined) {
-      const row = await layout('[data-canvas-header]', each.wraps);
-      assert.ok(Math.abs(row.gap) <= 1, `${where}: the group ends ${row.gap}px from the header's right edge`);
-      assert.equal(row.wrapped, each.wraps, each.wraps ? `${where}: the group does not fit beside the actions, so it takes its own line` : `${where}: the group fits beside the actions, on the title's line`);
-      await clear('[data-canvas-header]');
-    }
-    seen[each.name] = `${each.narrow ? 'wrapping row' : `centred (${at.offset.toFixed(1)}px)`}${each.wraps === undefined ? '' : each.wraps ? ', group own line' : ', group same line'}`;
-    await shot(`centring-${each.name}-${theme}`, page.locator('[data-canvas-header]'));
+    if (!each.provenance?.status) await clear('[data-canvas-header]');
+    seen[`${each.name}-${chat ? 'open' : 'closed'}`] = `centred (${at.offset.toFixed(1)}px)`;
+    await shot(`centring-${each.name}-${chat ? 'chat' : 'nochat'}-${theme}`, page.locator('[data-canvas-header]'));
   }
-  // Chat open: E2's wrapping row, the column boxes dissolved.
-  await open(OWNED, { provenance: { repository: REPO, fork: FORK } });
-  await forkButton().waitFor();
-  const show = page.getByRole('button', { name: 'Show the right panel' });
-  if (await show.count()) await show.click();
-  await page.getByRole('button', { name: 'Hide the right panel' }).waitFor();
-  assert.equal((await centring()).display, 'flex', 'Chat open keeps the wrapping row');
-  console.log('   title group:', JSON.stringify(seen));
+  console.log('   header group:', JSON.stringify(seen));
 });
 
 await context.close();

@@ -27,7 +27,7 @@ test('the top-left corner goes Back (owner, 2026-10-04: no longer a jump to Home
 // "move the 3 hooks options window to the bottom right aligned with the lower of the chat composer".
 test('the bottom strip: the minimap above the zoom row at lower left, the hooks lower right beside the composer', () => {
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /<div data-zoom-stack className="flex flex-col items-start gap-2">\n\s+\{minimap && <div data-canvas-minimap className="hidden md:block @max-\[640px\]:hidden">\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, one left edge');
+  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{minimap && <div data-canvas-minimap className="hidden md:block @max-\[640px\]:hidden">\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, stretched to one outer width (owner brief 2026-10-16 item 8)');
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
   assert.match(strip, /md:flex-row md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s');
   // On a phone the hooks sit above the composer, at the right.

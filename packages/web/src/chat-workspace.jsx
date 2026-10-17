@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useChatPanels } from './chat-panels.js';
 import { useChatThread } from './chat-threads.js';
 import { useChatDraft } from './chat-draft.js';
@@ -29,6 +29,14 @@ export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, ch
   const composer = useChatDraft(canvas, thread);
   const context = useChatContext(canvas, thread);
   const sources = useChatSources(canvas);
+  // The Table of contents' own conversation (owner brief 2026-10-16 item 7): its own thread (slot 'toc', always Tutor), draft
+  // and attachments, so TOC and Chat never share messages, drafts or New chat. TocWorkspace hands them to the TOC's AskPanel.
+  const tocThread = useChatThread(canvas, { slot: 'toc' });
+  const tocComposer = useChatDraft(`${canvas}.toc`, tocThread);
+  const tocContext = useChatContext(canvas, tocThread);
+  const holdTutor = tocThread.holdMode;
+  useEffect(() => { holdTutor('tutor'); }, [holdTutor]);
+  const toc = useMemo(() => ({ thread: tocThread, composer: tocComposer, context: tocContext }), [tocThread, tocComposer, tocContext]);
   // composer.prepare (contract A6) for Lane B actions and Explore next: opens Chat, applies mode and refs, then the draft rules.
   const prepareDraft = composer.prepare;
   const prepare = useCallback((options = {}) => { panels.openChat(); if (options.mode) thread.setMode(options.mode); options.contextRefs?.forEach(context.attach); prepareDraft(options); }, [panels, thread, context, prepareDraft]);
@@ -45,6 +53,17 @@ export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, ch
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
-  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps, canvasCoverage, setCanvasCoverage }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, canvasCoverage]);
+  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, canvasCoverage, toc, tocThread.id]);
+  return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
+}
+
+// The Table of contents view's workspace: the page's, with the TOC's own thread, draft and attachments in place of Chat's,
+// and its own send loop. tocView: the composer shows Tutor as its only mode (ModeSelector).
+export function TocWorkspace({ children }) {
+  const parent = useChatWorkspace();
+  const sender = useRef(null);
+  const registerSender = useCallback(send => { sender.current = send; return () => { if (sender.current === send) sender.current = null; }; }, []);
+  const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
+  const value = useMemo(() => parent && ({ ...parent, ...parent.toc, registerSender, regenerate, tocView: true }), [parent, registerSender, regenerate]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }

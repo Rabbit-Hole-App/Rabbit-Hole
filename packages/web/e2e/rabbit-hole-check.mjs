@@ -1878,7 +1878,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await projectAt(page, `/apps/${ready.name}?tab=learn`);
     await page.waitForTimeout(800);
     must(await viewerWidth(page) === 0 && await page.locator('[data-project-tabs]').count() === 0, '?tab=learn opened a viewer or project tabs');
-    await page.locator('button[aria-label="Explore codebase"]').click();
+    // The Chat header's one Context / Files / Graph control, then its Graph tab (owner brief 2026-10-16; no Explore codebase).
+    await page.locator('[data-panel-companion]').click();
+    await page.locator('[data-companion-view="graph"]').click();
     await viewerShows(page, 'graph');
     await page.context().close();
     const phone = await open({ width: 390, height: 844 });
@@ -1972,24 +1974,27 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // No repository page: what its header showed lives in the canvas header - the provenance group's repository button to GitHub,
   // its icon and owner/repository (decision 2A, C:/s/spec/hdr-provenance.md; ProvenanceGroup.jsx), and the repository, branch,
   // commit and status behind one info icon beside it (repository-canvas.jsx RepositoryBadge).
-  if (ready) await check('wp6-overview: an old ?tab=overview link opens the canvas with the Graph; the header names the project and links the repository on GitHub by its name; repository, branch, commit and status sit behind one info icon, with no operational clutter at rest; nothing written', async () => {
+  if (ready) await check('wp6-overview: an old ?tab=overview link opens the canvas with the Graph; the header names the project and its repository dropdown names the repository and links it on GitHub; repository, branch, commit and status sit in that one dropdown, with no operational clutter at rest; nothing written', async () => {
     const page = await open();
     await noAsks(page);
     await projectAt(page, `/apps/${ready.name}?tab=overview`);
     await viewerShows(page, 'graph');
     const writes = writes6(page); // from here on: reading the header and its details writes nothing
     await page.locator('[data-project-crumb]').waitFor({ timeout: 10000 });
-    const badge = page.locator('a[data-repo-badge]');
-    must((await badge.getAttribute('aria-label')) === `Open ${ready.repo} on GitHub`, `the badge reads ${await badge.getAttribute('aria-label')}`);
-    must((await badge.getAttribute('href') || '').toLowerCase().startsWith(`https://github.com/${ready.repo}`.toLowerCase()) && await badge.getAttribute('target') === '_blank', 'the badge does not open the repository on GitHub in a new tab');
-    must((await badge.innerText()).trim() === ready.repo, `the badge reads ${await badge.innerText()}, not the repository name`);
+    // One named dropdown (owner brief 2026-10-16 item 1): the button names the repository; its first row links GitHub.
+    const button = page.locator('[data-repo-menu]');
+    must((await button.innerText()).trim() === ready.repo, `the repository button reads ${await button.innerText()}, not the repository name`);
     for (const clutter of ['Refresh branch', 'Last run']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on the canvas at rest`);
-    must(await page.locator('[data-repo-details]').count() === 0, 'the repository details show before the info icon');
-    await page.locator('[data-repo-info]').click();
+    must(await page.locator('[data-repo-details]').count() === 0, 'the repository details show before the dropdown opens');
+    await button.click();
     const details = page.locator('[data-repo-details]');
     await details.waitFor({ timeout: 5000 });
-    const text = await details.innerText();
-    for (const want of [ready.repo, ready.branch, `Commit ${ready.commit_sha.slice(0, 7)}`, `Status: ${ready.status}`]) must(text.includes(want), `the details lack ${want}: ${text}`);
+    const badge = details.locator('a[data-repo-badge]');
+    must((await badge.getAttribute('aria-label')) === `Open ${ready.repo} on GitHub`, `the link reads ${await badge.getAttribute('aria-label')}`);
+    must((await badge.getAttribute('href') || '').toLowerCase().startsWith(`https://github.com/${ready.repo}`.toLowerCase()) && await badge.getAttribute('target') === '_blank', 'the link does not open the repository on GitHub in a new tab');
+    const text = (await details.innerText()).replace(/\s+/g, ' ');
+    const status = `${ready.status[0].toUpperCase()}${ready.status.slice(1)}`;
+    for (const want of [ready.repo, `Branch ${ready.branch}`, `Commit ${ready.commit_sha.slice(0, 7)}`, `Status ${status}`]) must(text.includes(want), `the details lack ${want}: ${text}`);
     await page.keyboard.press('Escape');
     must(!writes.length, `the canvas wrote: ${writes.join(', ')}`);
     await page.context().close();
@@ -2428,7 +2433,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.route('**/static/GraphPanel-*.js', (r) => (persistent || !failed++ ? r.fulfill({ status: 404, body: 'gone' }) : r.continue()));
       await projectAt(page, `/apps/${ready.name}`);
       page.on('load', () => reloads++); // full page loads only
-      const explore = page.locator('button[aria-label="Explore codebase"]');
+      // The Chat header's one Context / Files / Graph control, then its Graph tab (owner brief 2026-10-16; no Explore codebase).
+      const control = page.locator('[data-panel-companion]');
+      const explore = { waitFor: options => control.waitFor(options), click: async () => { if (await control.getAttribute('aria-pressed') !== 'true') await control.click(); await page.locator('[data-companion-view="graph"]').click(); } };
       const missing = page.locator('[data-learn-graph] [data-feature-unavailable]', { hasText: 'The graph could not load. A newer version may be out.' });
       const reloaded = page.waitForEvent('load', { timeout: 30000 }).then(() => 'reload', () => null);
       await explore.click();

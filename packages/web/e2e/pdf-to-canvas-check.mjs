@@ -187,7 +187,9 @@ const openSources = async () => {
     const chip = page.locator(`[data-context-chip] button[title="Open ${DOC_NAME}"]:visible`).first();
     if (await chip.count()) await chip.click({ timeout: 5000 });
     else {
-      await page.locator('[data-chat-sources]:visible').first().click({ timeout: 5000 });
+      // The Chat header's one Context / Files / Graph control (owner brief 2026-10-16 item 4), then its Context tab.
+      if (await page.locator('[data-panel-companion]').getAttribute('aria-pressed') !== 'true') await page.locator('[data-panel-companion]').click({ timeout: 5000 });
+      await page.locator('[data-companion-view="context"]').click({ timeout: 5000 });
       await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
       await sourcesPane().locator('section button[aria-expanded]').filter({ hasText: DOC_NAME }).first().click({ timeout: 5000 });
     }

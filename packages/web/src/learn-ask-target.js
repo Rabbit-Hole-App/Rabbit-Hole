@@ -6,6 +6,49 @@ import { describeFileCard as describeLocalFileCard } from './file-excerpts.js';
 
 export const CANVAS_TARGET_MAX = 32000;
 
+// The Table of contents' conversation (TocWorkspace, tocView; owner brief 2026-10-16 item 7) refines the goal and the outline.
+// Lead ruling 2026-10-16, for the owner to confirm: its AskPanel renders only its messages, the Tutor label, its composer and
+// its own progress and errors. The canvas selection and every Chat extra stay Chat's, so a TOC turn carries no canvas_target,
+// no image or card context from a selection and no graph-card or viewer code refs. NO_REFS is one array, so hooks stay stable.
+export const NO_REFS = Object.freeze([]);
+export function tocAskProps(props) {
+  return { ...props, canvasTarget: null, onClearCanvasTarget: null, slash: null, tray: null, voice: null, nextStepRef: null,
+    tutor: props.tutor ? { ...props.tutor, extras: null, opening: null } : props.tutor,
+    // The owner (2026-10-16): a TOC request never inherits Chat's attachments. The open paper, article, video, image and canvas
+    // preview stay Chat's; preserve the outline and proposal handler without clearing Chat's image or paper selection.
+    boardContext: props.boardContext ? { ...props.boardContext, paper: null, wiki: null, video: null, image: null, preview: null, removeImage: () => {} } : props.boardContext };
+}
+// Every data- attribute AskPanel itself renders (ask.jsx), and the children it mounts, as shown or hidden in the TOC view.
+// ask-toc-view.test.mjs holds ask.jsx to this list: a new data- attribute there needs its row here.
+export const TOC_VIEW = {
+  shown: {
+    ChatMessages: 'its messages, progress and errors',
+    ModeSelector: 'the Tutor label (data-toc-mode)',
+    ChatComposer: 'its composer (data-toc-composer)',
+  },
+  hidden: {
+    'data-panel-content': 'the History list (a panel with its own header; the Learn Chat and TOC never open it here)',
+    'data-chat-sheet': "the canvas dock's sheet mode (the message list renders without it)",
+    'data-chat-clear': "Clear in a panel header or the dock's sheet (neither renders for a Learn Chat)",
+    'data-canvas-target': 'the selected card or region chip (canvasTarget is null)',
+    'data-selected-card': 'the selected card chip (canvasTarget is null)',
+    'data-text-only': 'part of the selection chip',
+    'data-canvas-attachment': 'the canvas or paper image preview',
+    'data-repository-context': "the repository's Asking about box",
+    'data-context-path': "the repository's Asking about box",
+    'data-context-excerpt': "the repository's Asking about box",
+    'data-upload-context': 'the + menu',
+    'data-context-button': 'Context documents (never on the Learn Chat either)',
+    'data-command-slot': 'the / command control (slash is null)',
+    'data-voice-error': 'voice (voice is null)',
+    'data-tutor-extras': "the Tutor's suggestion chips and the suggested Rabbit Hole (tutor.extras is null)",
+    ContextChips: 'the context pills (chips is null)',
+    TutorPromptTray: 'the prompt tray (tray is null)',
+    VoiceToggle: 'the mic (voice is null)',
+    MentionHits: 'the @ mention list',
+  },
+};
+
 export function canvasTargetField(target) {
   const text = String(target.text || '');
   const cut = CANVAS_TARGET_MAX - 60;

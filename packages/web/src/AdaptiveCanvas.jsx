@@ -2948,7 +2948,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return target && { target };
     }
     const held = document.activeElement;
-    if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
+    if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[data-toc-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
     const target = freezeTarget(board, selectedRef.current);
     if (target) return { target };
     // Nothing selected (a populated canvas is not a blank one): the same editor, to add. From the keyboard only while the
@@ -3106,7 +3106,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // canvas's own letter, Space and arrow keys stand down there.
       const held = document.activeElement;
       const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
-        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
+        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-toc-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       if (presentingRef.current === null && plain) {
         if (event.key === ' ' && focusedCard) { event.preventDefault(); if (!selectedRef.current.includes(focusedCard)) selectRef.current(focusedCard); return; }
@@ -3348,7 +3348,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const shape = shapesRef.current.find(entry => entry.id === id);
     return shape?.text ? { text: shape.text } : null;
   };
-  const armCollection = ids => {
+  const armCollection = (ids, ref = null) => {
     const gids = new Set(ids.map(groupOf));
     const gid = gids.size === 1 && !gids.has(null) ? [...gids][0] : null;
     const group = gid && membersOf(gid).length === ids.length ? groups.find(entry => entry.id === gid) : null;
@@ -3356,7 +3356,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const id = group ? group.id : `selection:${[...ids].sort().join('+')}`;
     armedId.current = null;
     armedGroup.current = group ? group.id : null;
-    onAskTargetRef.current?.({ id, kind: group ? 'Group' : 'Selection', title: label, get text() { return groupTargetText(ids.map(askEntryOf).filter(Boolean)); } });
+    onAskTargetRef.current?.({ id, kind: group ? 'Group' : 'Selection', title: label, ...(ref ? { ref } : {}), get text() { return groupTargetText(ids.map(askEntryOf).filter(Boolean)); } });
     // The visuals ride too: a rendered snapshot of the selection's area becomes this question's image context.
     const boxes = boxesOf(ids);
     if (!boxes.length) return;
@@ -3393,7 +3393,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const group = ids.length > 1 && groups.find(entry => ids.every(id => groupOf(id) === entry.id) && membersOf(entry.id).length === ids.length);
       const picked = window.getSelection(), node = picked && !picked.isCollapsed ? picked.anchorNode : null;
       const quote = object && (node?.nodeType === 1 ? node : node?.parentElement)?.closest('[data-block-id]')?.getAttribute('data-block-id') === object.id ? picked.toString() : '';
-      chatWorkspace.addToChat(selectionRef({ ids, kind: objectKind(object), name: described?.title || (group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`), content: read(), quote, text: read }));
+      const ref = selectionRef({ ids, kind: objectKind(object), name: described?.title || (group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`), content: read(), quote, text: read });
+      chatWorkspace.addToChat(ref);
+      // Keep the existing snapshot path; the matching pinned ref makes this one chip, not a second selection chip.
+      if (!object) armCollection(ids, ref);
       if (object && askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
       if (object?.type === 'file' && object.kind === 'image' && object.mediaId) onCardActionRef.current?.('image-attach', { blockId: object.id, mediaId: object.mediaId, label: object.label });
       return true;
@@ -5325,18 +5328,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
         {/* The page's own lower-left control (Learn: the feedback button). */}
         {bottomLeft}
-        <div data-zoom-stack className="flex flex-col items-start gap-2">
+        {/* One positioned group (owner brief 2026-10-16 item 8, aligned-minimap mockup): the minimap directly above the zoom
+            row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
+            the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
+        <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
         {minimap && <div data-canvas-minimap className="hidden md:block @max-[640px]:hidden">
           <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
             onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
         </div>}
-        <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2 @max-[1024px]:w-fit">
+        <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
           <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
-          <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
+          <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
         </div>

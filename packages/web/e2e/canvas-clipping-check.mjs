@@ -156,7 +156,7 @@ await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
 await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
 await page.waitForTimeout(1500);
 // Context (the companion column left of Chat, opened from Chat's header), then the document's own row action Add to canvas.
-await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
+await page.locator('[data-panel-companion]').click({ timeout: 5000 });
 await page.locator('[data-material-row]').filter({ has: page.locator(`[data-material-name][title="${NAME}"]`) }).first().locator('[data-material-action="canvas"]').click({ timeout: 10000 });
 const dialog = page.locator('[data-pdf-add-dialog] [role="dialog"]');
 await dialog.waitFor({ timeout: 10000 });
@@ -178,7 +178,7 @@ await check('the right panel open on Context: the canvas runs to the panel (no b
   const g = await geometry();
   facts.both_open = g;
   assert.equal(g.panels, 2, 'Chat and the companion column are open');
-  assert.equal(await page.locator('[data-panel-viewer="context"]').getAttribute('aria-pressed'), 'true', 'the companion shows Context');
+  assert.equal(await page.locator('[data-companion-view="context"]').getAttribute('aria-pressed'), 'true', 'the companion shows Context');
   noBlankStrip(g, 'Context open');
   assert.ok(g.nav, 'the Rabbit Holes Map is still on screen');
   assert.ok(g.nav.right <= g.surface.x + 0.5 || g.nav.x >= g.surface.right - 0.5, `the map ${Math.round(g.nav.x)}-${Math.round(g.nav.right)} never sits on the canvas ${Math.round(g.surface.x)}-${Math.round(g.surface.right)}`);
@@ -287,7 +287,7 @@ await waitFor(async () => { const g = await geometry(); return g.cards.rc1 && g.
 await settle();
 for (const [name, id] of [['code', 'rc1'], ['graph', 'rg1']]) {
   await check(`the repository ${name} card beside Chat and Context: the canvas runs to the panel and the selected card is whole`, async () => {
-    if ((await geometry()).panels < 2) { await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 }); await settle(); }
+    if ((await geometry()).panels < 2) { await page.locator('[data-panel-companion]').click({ timeout: 5000 }); await settle(); }
     await select(id);
     const g = await geometry();
     facts[`repo_${name}_both_open`] = { surface: g.surface, panelLeft: g.panelLeft, card: g.cards[id] };

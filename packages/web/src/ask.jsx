@@ -20,12 +20,12 @@ import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload, Network } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
 import { MODEL_CHOICES } from './model-choices.js';
-import { canvasTargetField } from './learn-ask-target.js';
+import { NO_REFS, canvasTargetField, tocAskProps } from './learn-ask-target.js';
 import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
@@ -235,7 +235,7 @@ export function NextStepsCard({ steps, onPick }) {
 // The hole openings this tab has sent, by opening key (openOnce): module-level, not a ref, so a dock remounted while the
 // hole's board lands from the server (LearnPage canvasEpoch) never sends the same opening twice.
 const openedHoles = new Set();
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onExploreCodebase = null, codebase = null, hideConversation = false }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, codebase = null, hideConversation = false }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -253,16 +253,23 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // card's follow-up composer. Its thread, History, New chat and resume (A2), and its draft, / command and mode (A3a) live
   // in the chat workspace, so menus, mode changes and resizing never clear them. Every other chat (chat === null) keeps its own state.
   const workspace = useChatWorkspace();
+  // The Table of contents' conversation (TocWorkspace, tocView) renders only its messages, the Tutor label, its composer and
+  // its own progress and errors; none of the canvas selection and none of Chat's extras (learn-ask-target.js tocAskProps,
+  // TOC_HIDDEN; lead ruling 2026-10-16 on owner brief item 7).
+  const tocView = !!workspace?.tocView;
+  if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor, boardContext } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, tutor, boardContext }));
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
+  // TOC has no attachments, including the canvas documents auto-offered to a new chat.
+  const attachedRefs = tocView ? NO_REFS : (chat?.context.attached || NO_REFS);
   // A canvas with a repository (codebase: use-repository.js's object, the Main canvas or a project canvas; repo-canvas-graph.md
   // section 6): what the graph and Files viewers hold now is temporary context beside this chat's pinned refs - one chip and
   // one sent ref each, pinned first, up to the server's 20 (repo-context.js turnRefs). The Files selection is one of these
   // chips, so the older "Asking about" box is not shown beside it.
   // Nodes selected inside graph cards on the canvas (graph-card.js) are temporary context of the same kind, on any canvas.
-  const cardRefs = useCardRefs();
-  const temporaryCode = chat ? [...(codebase ? selectionRefs(codebase) : []), ...cardRefs] : [];
-  const codeTurnRefs = turnRefs(chat?.context.attached || [], temporaryCode);
-  const graphOpen = !!(chat?.panels?.companion?.open && chat.panels.companion.view === 'graph');
+  const graphCardRefs = useCardRefs();
+  const cardRefs = tocView ? NO_REFS : graphCardRefs;
+  const temporaryCode = chat && !tocView ? [...(codebase ? selectionRefs(codebase) : []), ...cardRefs] : NO_REFS;
+  const codeTurnRefs = turnRefs(attachedRefs, temporaryCode);
 
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
   // tutor.extras move to the left caption.
@@ -434,9 +441,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // A typed /command replaces the pill rather than nesting inside it.
     if (!regenerate && slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); promptCommand.current = command; sentDraft.current = { command, text: raw }; setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
     if (!regenerate && slash && raw.trim().startsWith('/')) { promptCommand.current = parseSlash(raw)?.name || null; sentDraft.current = { command: null, text: raw }; setCommand(null); if (slashRef.current?.intercept(raw)) return; }
-    // An explicit Ask never goes to the journey resolver or starts a journey (owner brief section 5): a course or journey
+    // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
-    if (chat?.thread.mode === 'ask') skipJourney = true;
+    if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
     // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
     // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
     // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
@@ -482,7 +489,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
     if (guardedHistory) historyRequest.current++;
     chatThread?.claim(); // a restore still on its way never replaces this turn
-    onSent?.();
+    onSent?.(message);
     if (contentPanel) { setFilePeek(null); onCloseContentPanel?.(); setView('chat'); }
     setChoices(null);
     setBusy(true);
@@ -514,9 +521,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // below for /api/learn/ask, in the Tutor's turn for its plan. The selection is the target and what is selected now; the user
     // message keeps the ids it went with (refs), so a follow-up's history still points at them. imageObject: the canvas object
     // whose picture rides (image_context), the only one the package may call inspected.
-    const canvasOps = learnChat && !isDemo ? workspace?.canvasOps : null;
+    const canvasOps = learnChat && !isDemo && !tocView ? workspace?.canvasOps : null;
     const selection = [(target || canvasSeed?.target)?.id, ...(canvasOps?.selection?.() || [])].filter(Boolean);
-    const attachments = chat ? refIds(chat.context.attached) : [];
+    const attachments = chat ? refIds(attachedRefs) : [];
     const canvasArgs = { history: chatHistory(msgs), selection, attachments };
     const sentRefs = [...new Set([...selection, ...attachments])];
     const imageObject = target?.image ? target.id : questionImage?.blockId || null;
@@ -556,9 +563,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
     // A Tutor turn begins in its own branch below; every other turn begins here.
     // A turn about one PDF page keeps the Tutor, which reads that page (tutorPage, page_context); several pages go to /api/learn/ask.
-    const pdfPage = tutorPage(target, chat?.context.attached);
-    const fileTurn = [...(chat?.context.attached || []), target?.ref].some(ref => ref?.kind === 'file');
-    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, chat?.context.attached) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode });
+    const pdfPage = tutorPage(target, attachedRefs);
+    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file');
+    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
@@ -617,7 +624,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           : questionOutline?.length ? { outline: questionOutline, outlineRevision: outlineRevision(questionOutline) } : {}),
         // The page read: a selected page, else the open reader (its selection included), else an uploaded-paper page chip in the
         // composer (pdf-to-canvas.md), so the chip asks about its page after the selection is cleared. home: a copied page's canvas.
-        ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.home ? { home: questionPaper.home } : {}), ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : chat && turnPaper(null, chat.context.attached) ? { paper_context: turnPaper(null, chat.context.attached) } : {}),
+        ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.home ? { home: questionPaper.home } : {}), ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : chat && turnPaper(null, attachedRefs) ? { paper_context: turnPaper(null, attachedRefs) } : {}),
         // One reader holds one thing, so an open paper is what rides; a detached
         // wiki source arrives here as null and the key is simply absent.
         // A dropped image outranks the article and video cards - it is the
@@ -1008,7 +1015,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
       <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
-        {atHits.length > 0 && (
+        {!tocView && atHits.length > 0 && (
           <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
             {atHits.map((a) => (
               <button
@@ -1049,7 +1056,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         </button>}
         {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
             first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
-        {repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
+        {!tocView && repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
           <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
           {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
           {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
@@ -1065,8 +1072,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
         </div>}
         {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
-        {boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
-        {boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>
+        {!tocView && boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
+        {!tocView && boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
@@ -1077,11 +1084,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} chips={chat ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, chat.context.attached))?.id ?? null}
+          stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => { if (codebase) dropRef(codebase, ref); dropCardRef(ref); } } : null} /> : null}
           leading={<>
-          <div className="relative shrink-0">
+          {!tocView && <div className="relative shrink-0">
             <button
               type="button"
               aria-label="Add"
@@ -1094,7 +1101,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </button>
             <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
               {/* The Chat pane uploads into the canvas's one context collection (chat.context.upload: the context-docs upload). */}
-              {chat ? <MenuItem icon={Upload} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>Upload a PDF, text or Markdown file</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>}
               <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
@@ -1108,11 +1115,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               className="hidden"
               onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
             />
-          </div>
-          {/* Explore codebase (repo-canvas-graph.md section 3): opens the graph in the companion column; never sends or asks. */}
-          {onExploreCodebase && <button type="button" data-explore-codebase aria-label="Explore codebase" title="Explore codebase" aria-pressed={graphOpen} disabled={voiceOn}
-            onClick={onExploreCodebase} className={cn(chat ? COMPOSER_TOOL : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', graphOpen && 'bg-active text-ink')}>
-            <Network size={chat ? 16 : 14} strokeWidth={1.5} aria-hidden /></button>}
+          </div>}
           {contextDocs.enabled && !chat && (
             <div className="relative shrink-0">
               <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
@@ -1158,8 +1161,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
-          {/* The Chat toolbar after Plus, in order: Sources, the mode, the / slot, the mic; Send sits at the far right. */}
-          {chat && <button type="button" data-chat-sources aria-label="Context" title="Open Context" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={() => chat.panels.openSources()} className={COMPOSER_TOOL}><Files size={16} strokeWidth={1.5} /></button>}
+          {/* The Chat toolbar after Plus, in order: the mode, the / slot, the mic; Send sits at the far right. Context, Files and
+              Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
           {chat && <ModeSelector disabled={voiceOn} />}
           {(dock || chat) && chatControl}
           {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}

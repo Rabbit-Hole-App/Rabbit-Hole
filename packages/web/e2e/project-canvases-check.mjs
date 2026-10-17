@@ -52,11 +52,12 @@ const shot = async name => { if (!SHOTS) return; await page.waitForTimeout(400);
 const switcher = page.locator('[data-canvas-switcher]');
 // Opening the switcher reloads the catalog (RepositoryPage CanvasSwitcher), so the list is read once that reload has landed.
 const options = async () => { const fresh = page.waitForResponse(r => new URL(r.url()).pathname === '/api/apps', { timeout: 15000 }).catch(() => null); await switcher.click(); await fresh; await page.waitForTimeout(300); await page.locator('[data-canvas-option]').first().waitFor(); return page.locator('[data-canvas-option]').evaluateAll(els => els.map(el => [el.innerText.trim(), el.getAttribute('aria-checked')])); };
-const title = () => page.getByLabel('Canvas title').inputValue();
+// In a project the canvas selector names the canvas (owner brief 2026-10-16 item 2): one button, the name and a chevron.
+const title = async () => (await page.locator('[data-canvas-switcher] [data-canvas-name]').innerText()).trim();
 
 await page.goto(`${BASE}/apps/${REPO}?tab=learn`);
 await switcher.waitFor({ timeout: 60000 });
-check('the switcher sits in the Learn header strip, beside the title', await page.locator('[data-canvas-switcher]').count() === 1 && await page.getByLabel('Canvas title').count() === 1);
+check('the canvas selector sits in the Learn header strip and is the title: no separate title field', await page.locator('[data-canvas-header] [data-canvas-switcher]').count() === 1 && await page.getByLabel('Canvas title').count() === 0 && await title() === 'Main canvas');
 check('a project alone lists Main canvas, checked', JSON.stringify(await options()) === JSON.stringify([['Main canvas', 'true']]));
 await shot('01-switcher-main-only');
 
@@ -110,22 +111,26 @@ await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
 await page.waitForTimeout(1500);
 check('Main canvas does not show another canvas\'s content', await page.getByText(MARK).count() === 0);
 
-// ---- rename from the title field; the switcher follows ----
+// ---- rename from the canvas selector's Rename canvas (Save); the selector and its list follow ----
 await page.goto(`${BASE}/apps/${REPO}?tab=learn&canvas=${made}`);
 await switcher.waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500); // the Rabbit Hole navigator's tree, which carries the rename, loads after the canvas
-await page.getByLabel('Canvas title').fill(`Renamed ${run}`);
-await page.getByLabel('Canvas title').press('Enter');
+await switcher.click(); await page.locator('[data-rename-canvas]').click();
+await page.getByRole('dialog', { name: 'Rename canvas' }).getByLabel('Canvas name').fill(`Renamed ${run}`);
+await page.getByRole('button', { name: 'Save', exact: true }).click();
 await page.waitForTimeout(1500);
-check('a rename from the title field reaches the server', (await api(`/api/apps/${made}`)).body.title === `Renamed ${run}`);
+check('a rename from the canvas selector reaches the server', (await api(`/api/apps/${made}`)).body.title === `Renamed ${run}`);
 check('renaming the canvas keeps the project part', (await crumb.innerText()).trim() === PROJECT && await title() === `Renamed ${run}`);
 check('the switcher shows the new name', (await options()).some(([label]) => label === `Renamed ${run}`));
 await page.keyboard.press('Escape');
 
-await crumb.click();
+// The project part is plain text now (owner brief 2026-10-16 item 2: project management is in Home and the Library); the
+// Main canvas is the selector's first row.
+check('the project part is plain text, not a link', await crumb.evaluate(node => node.tagName) === 'SPAN' && await crumb.locator('a, button').count() === 0);
+await switcher.click(); await page.locator('[data-canvas-option="main"]').click();
 await page.waitForURL(new RegExp(`/apps/${REPO}[?]tab=learn$`));
 await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
-check('the project part goes to the Main canvas, which names the project too', (await crumb.innerText()).trim() === PROJECT && await title() === 'Main canvas');
+check('the Main canvas names the project too', (await crumb.innerText()).trim() === PROJECT && await title() === 'Main canvas');
 await shot('title-crumbs-main-canvas');
 // Long names stay on one line: on a desktop the title is cut short and the project kept whole; on a phone the project is cut
 // first, down to its minimum width, then the title.
@@ -133,7 +138,7 @@ const LONG = `A canvas with a very long title that has to stay on one line in th
 const longCanvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: LONG, project: REPO }) })).body;
 const crumbs = () => page.evaluate(() => {
   const box = node => ({ width: node.clientWidth, full: node.scrollWidth, nowrap: getComputedStyle(node).whiteSpace === 'nowrap' });
-  return { row: document.querySelector('[data-title-crumbs]').getBoundingClientRect().height, project: box(document.querySelector('[data-project-crumb]')), title: box(document.querySelector('input[aria-label="Canvas title"]')) };
+  return { row: document.querySelector('[data-title-crumbs]').getBoundingClientRect().height, project: box(document.querySelector('[data-project-crumb]')), title: box(document.querySelector('[data-canvas-switcher] [data-canvas-name]')) };
 });
 await page.goto(`${BASE}/apps/${REPO}?tab=learn&canvas=${longCanvas.name}`);
 await crumb.waitFor({ timeout: 60000 }); await page.waitForTimeout(800);

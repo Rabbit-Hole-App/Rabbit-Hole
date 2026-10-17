@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
-import { GitBranch, Info, RefreshCw } from 'lucide-react';
-import { Button, IconBtn, Menu, toast } from './ui.jsx';
+import { Suspense, useEffect, useMemo } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { Button, toast } from './ui.jsx';
 import CodeReader from './CodeReader.jsx';
 import { lazyFeature } from './lazy-feature.jsx';
 import { useRepository } from './use-repository.js';
@@ -94,28 +94,18 @@ export function RepositoryState({ repository, what = 'files' }) {
   </div>;
 }
 
-// Beside the canvas header's provenance group (ProvenanceGroup.jsx, whose repository button opens GitHub; decision 2A): the
-// indexing state while there is no snapshot (a new repository opens its canvas at once and shows its progress here), and the
-// details the old repository page kept behind its info icon: branch, commit, status, Refresh branch / Retry import - the
-// actions only for a viewer the repository API says may use them (canEdit).
+// Beside the canvas header's repository dropdown (ProvenanceGroup.jsx RepositoryMenu, owner brief 2026-10-16 item 1, which now
+// holds the branch, commit, status and Refresh branch): only the indexing state while there is no snapshot (a new
+// repository opens its canvas at once and shows its progress here), and a failed import's Retry.
 export function RepositoryBadge({ repository }) {
-  const [open, setOpen] = useState(false);
-  const { app, status, canEdit, refresh, retry, commit, error } = repository;
+  const { status, canEdit, refresh, retry, error } = repository;
   const fail = e => toast(e.message, { tone: 'error' });
-  if (status === 'unavailable') return <span data-repo-badge data-state="unavailable" className="flex h-8 shrink-0 items-center px-1.5 text-xs text-ink-3">Repository content unavailable</span>;
+  if (status === 'unavailable') return <span data-repo-status data-state="unavailable" className="flex h-8 shrink-0 items-center px-1.5 text-xs text-ink-3">Repository content unavailable</span>;
   const busy = ['loading', 'queued', 'indexing'].includes(status);
+  if (!busy && status !== 'failed') return null;
   return <span data-repo-badge-row className="relative flex shrink-0 items-center">
     {busy && <span data-repo-status={status} role="status" className="flex h-8 items-center gap-1.5 px-1.5 text-xs text-ink-2"><span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />{status === 'queued' ? 'Waiting to read the repository…' : status === 'indexing' ? 'Reading the repository…' : 'Loading…'}</span>}
     {status === 'failed' && <button type="button" data-repo-status="failed" title={error || 'The repository could not be read'} onClick={() => Promise.resolve(canEdit ? refresh() : retry()).catch(fail)}
       className="flex h-8 items-center gap-1 rounded-lg px-1.5 text-xs text-red-700 hover:bg-hover"><RefreshCw size={12} aria-hidden />{canEdit ? 'Import failed · Retry' : 'Unavailable · Retry'}</button>}
-    {app && <><IconBtn data-repo-info aria-label="Repository details" title="Repository details" aria-expanded={open} onClick={() => setOpen(value => !value)}><Info size={15} /></IconBtn>
-      <Menu open={open} onClose={() => setOpen(false)} className="top-full right-0 mt-1 w-72 p-3">
-        <div data-repo-details className="flex flex-col items-start gap-2 text-xs text-ink-2">
-          <span className="font-medium text-ink">{app.repo}</span>
-          <span className="flex items-center gap-1.5"><GitBranch size={14} aria-hidden />{app.branch}</span>
-          <span>Commit {commit?.slice(0, 7) || 'awaiting snapshot'}</span><span>Status: {app.status}</span>
-          {canEdit && <Button size="sm" disabled={busy} onClick={() => refresh().catch(fail)}><RefreshCw size={13} aria-hidden /> {app.status === 'failed' ? 'Retry import' : 'Refresh branch'}</Button>}
-        </div>
-      </Menu></>}
   </span>;
 }
