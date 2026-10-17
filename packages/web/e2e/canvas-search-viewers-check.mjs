@@ -38,11 +38,11 @@ const seed = async (name, state) => {
   const saved = await api(path, { state, version: current.body?.version ?? 0 }, 'PUT');
   assert.equal(saved.status, 200, 'board saved'); return saved.body;
 };
-const empty = { blocks: [], items: [], shapes: [], strokes: [], links: [], groups: [], areas: [], exchanges: [] };
+const empty = { blocks: [], items: [], shapes: [], strokes: [], links: [], groups: [], areas: [] }; // Deliberately omit exchanges: real saved boards may have no conversation.
 const privateTitle = `private-harbor-${run}`;
 const privateCanvas = await create(privateTitle), privateBoard = await seed(privateCanvas.name, empty);
 const canvas = await create(`Viewer Search ${run}`);
-const state = { ...empty, blocks: [
+const state = { ...empty, shapes: [{ id: 'viewer-shape', kind: 'rect', x1: 80, y1: 140, x2: 320, y2: 240, color: '#37352f', width: 2, dash: 'solid', fill: null, opacity: 1, round: false, text: 'Shared shape' }], blocks: [
   { id: 'viewer-card', type: 'explanation', title: 'Quartz browser card', body: 'Readable quartz crystal content.', dx: 0, dy: 0,
     refs: [{ id: crypto.randomUUID(), target: privateBoard.board_id }] },
   { id: 'deleted-anchor', type: 'explanation', title: 'Removed card', body: 'This card will be removed after its threads exist.', dx: 0, dy: 0 },
@@ -76,6 +76,7 @@ for (const [audience, base] of [['member', memberBase], ['public', publicBase]])
 const visibleState = { ...state, blocks: state.blocks.filter(block => block.id !== 'deleted-anchor') };
 await seed(canvas.name, visibleState);
 const baseline = (await api(`/api/learn/boards/${canvas.name}/main`)).body;
+assert.equal(Object.hasOwn(baseline.state, 'exchanges'), false, 'real stored fixture retains missing exchanges');
 // This is the real server authorization boundary, not merely a disabled UI button.
 const refused = await memberApi(`/api/learn/boards/${canvas.name}/main`, { state: visibleState, version: baseline.version }, 'PUT');
 assert.ok([403, 404].includes(refused.status), 'member cannot write the owner board');
@@ -101,6 +102,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`${BASE}${audience === 'member' ? `/c/${boardId}` : `/e/${token}`}`);
     await page.locator('[data-block-id="viewer-card"]').waitFor({ timeout: 60000 });
+    await expect(page.locator('[data-shape-id="viewer-shape"]')).toBeAttached();
     const panel = page.locator('[data-canvas-search]'), input = panel.getByRole('textbox', { name: 'Find text on canvas' });
     const filter = id => panel.locator(`[data-search-filter="${id}"]`);
     const search = async (query, category = 'all') => { await filter(category).click(); await input.fill(query); };

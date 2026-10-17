@@ -19,6 +19,8 @@ import { useCanvasLinks } from '../LinksPanel.jsx';
 import { ProvenanceRow, useProvenance } from '../ProvenanceGroup.jsx';
 
 const AdaptiveCanvas = lazy(() => import('../AdaptiveCanvas.jsx'));
+// Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
+const EMPTY_EXCHANGES = Object.freeze([]);
 
 // /c/<board id>: a canvas shared with you as a member (docs/features/canvas-comments.md section 5, board 7). View and
 // comment: the canvas read-only, and the Comments panel on the member family. The owner is sent to their own page.
@@ -103,7 +105,7 @@ export default function MemberBoardPage({ boardId }) {
 
   if (problem) return <main className="grid h-screen place-items-center bg-white p-6"><div className="max-w-sm text-center"><h1 className="text-lg font-semibold text-ink">{problem}</h1><a href="/" className="mt-3 inline-block text-sm text-ink-2 underline">Go to {PRODUCT}</a></div></main>;
   if (!board) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the canvas…</main>;
-  const { exchanges = [], ...state } = board.state || {};
+  const { exchanges = EMPTY_EXCHANGES, ...state } = board.state || {};
   const owner = board.owner;
   return (
     <main data-member-board className="flex h-screen flex-col bg-white">

@@ -34,6 +34,8 @@ import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
+// Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
+const EMPTY_EXCHANGES = Object.freeze([]);
 
 // /b/<token>: a Learn board someone shared (docs/features/canvas-sharing.md).
 // Always view-only - pan and zoom. A public link needs no sign-in; any other
@@ -164,7 +166,7 @@ export default function SharedBoardPage({ token }) {
     );
   }
   if (!shared) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board…</main>;
-  const { exchanges = [], ...board } = shared.state || {};
+  const { exchanges = EMPTY_EXCHANGES, ...board } = shared.state || {};
   return (
     <main className="flex h-screen flex-col bg-white">
       <header className="flex shrink-0 flex-wrap items-center gap-3 gap-y-2 border-b border-line px-4 py-2">
