@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {classify,select} from './affected.mjs';
 const map=JSON.parse(readFileSync(new URL('./check-map.json',import.meta.url),'utf8'));
 test('CAD manual checks are registered but never enter automated Linux or readiness execution',()=>{
- for(const check of ['cad-check.mjs','cad-real-check.mjs','cad-runtime-browser-check.mjs']){
+ for(const check of ['cad-check.mjs','cad-real-check.mjs','cad-final-recovery-check.mjs','cad-runtime-browser-check.mjs']){
   assert.equal(map.checks[check].runner,'windows-only');
   const result=select([{path:`packages/web/e2e/${check}`}],map,true);
   assert.ok(!result.checks.includes(check));assert.ok(result.notCovered.includes(check));

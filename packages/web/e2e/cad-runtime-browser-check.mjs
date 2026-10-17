@@ -14,7 +14,7 @@ assert.ok(session);
 assert.equal(process.env.CAD_RUNTIME_READY,'yes','Coordinator must confirm completed runtime jobs before running');
 const OUT=resolve(process.env.OUT||'cad-runtime-browser-evidence');mkdirSync(OUT,{recursive:true});
 const minimumReady=process.env.CAD_RUNTIME_MIN_READY==='1'?1:2;
-const results=[],errors=[],blocked=[],artifactReads=[];
+const results=[],errors=[],blocked=[],artifactReads=[],boardWrites=[],persistenceObservations=[];
 let browser,page,setupError,identities=[];
 const boardPath=`/api/learn/boards/${app}/${board}`;
 const jobsPath=`/api/learn/cad/jobs?app=${encodeURIComponent(app)}&board=${encodeURIComponent(board)}`;
@@ -32,7 +32,15 @@ check('completed real jobs restore their saved CAD cards',async()=>{
   identities=ready.map(({id,cardId,revisionId,attempt})=>({id,cardId,revisionId,attempt}));
   await page.goto(`${base}/apps/${app}`,{waitUntil:'domcontentloaded'});
   for(const job of ready)await page.locator(`[data-block-id="${job.cardId}"] [data-cad-card]`).waitFor();
-  initialLayout=layout((await json(boardPath)).state);
+  const deadline=Date.now()+30000;let persisted;
+  while(Date.now()<deadline){
+    persisted=(await json(boardPath)).state;
+    const complete=ready.every(job=>persisted.blocks?.some(block=>block.id===job.cardId&&block.revisionId===job.revisionId&&block.fileRef?.source?.id===job.manifest.sourceId));
+    persistenceObservations.push({at:new Date().toISOString(),acceptedSourceReferencesPersisted:complete});
+    if(complete)break;await new Promise(resolve=>setTimeout(resolve,250));
+  }
+  assert.equal(persistenceObservations.at(-1).acceptedSourceReferencesPersisted,true,'Recovered accepted revisions/source references must persist before authorization checks');
+  initialLayout=layout(persisted);
 });
 check('real saved GLBs load and interact without moving cards',async()=>{
   for(const [index,job] of ready.entries()){
@@ -88,9 +96,10 @@ try{
     return route.continue();
   });
   page=await context.newPage();page.setDefaultTimeout(30000);page.on('pageerror',error=>errors.push(error.message));
+  page.on('response',response=>{if(response.request().method()==='PUT'&&new URL(response.url()).pathname===boardPath)boardWrites.push({at:new Date().toISOString(),status:response.status()});});
   for(const item of checks){try{await item.fn();results.push({name:item.name,status:'passed'});console.log('PASS '+item.name);}catch(error){results.push({name:item.name,status:'failed',error:error.message});throw error;}}
 }catch(error){setupError=error.message;process.exitCode=1;console.error(error.message);await page?.screenshot({path:resolve(OUT,'failure.png')}).catch(()=>{});}
 finally{
   await browser?.close();const counts={passed:results.filter(item=>item.status==='passed').length,failed:results.filter(item=>item.status==='failed').length,skipped:0,interrupted:checks.length-results.length};
-  writeFileSync(resolve(OUT,'results.json'),JSON.stringify({candidate:process.env.CANDIDATE_SHA||'unrecorded',base,app,board,counts,results,identities,artifactReads,blocked,errors,setupError,limitation:'Real stored model rendering and read authorization only; no new model requests or geometry-quality assertions.'},null,2));console.log(JSON.stringify(counts));
+  writeFileSync(resolve(OUT,'results.json'),JSON.stringify({candidate:process.env.CANDIDATE_SHA||'unrecorded',base,app,board,minimumReady,counts,results,identities,artifactReads,boardWrites,persistenceObservations,blocked,errors,setupError,limitation:'Real stored model rendering and read authorization only; no new model requests or geometry-quality assertions.'},null,2));console.log(JSON.stringify(counts));
 }

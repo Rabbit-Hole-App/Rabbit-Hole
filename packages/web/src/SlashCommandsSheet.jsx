@@ -67,7 +67,7 @@ export default function SlashCommandsSheet({ appName, onClose }) {
             )}
             {/* The card at the size it has on the canvas: the pane scrolls rather than shrink it. */}
             <div className="mt-3 flex min-h-0 flex-1 items-start justify-center overflow-auto py-1">
-              {name === 'cad' ? <p className="max-w-md text-sm text-ink-2">Describe the part, its purpose and any required dimensions. CAD creates a saved background job, asks about important missing dimensions, and returns an interactive model with checked downloads. Selecting CAD does not start generation.</p> : demo === 'cards'
+              {name === 'cad' ? <p data-slash-cad className="max-w-md text-sm text-ink-2">Describe the part, its purpose and any required dimensions. CAD creates a saved background job, asks about important missing dimensions, and returns an interactive model with checked downloads. Selecting CAD does not start generation.</p> : demo === 'cards'
                 ? <CardPreview key={`${name}:${card.card}`} type={card.card} command={name} appName={appName} />
                 : demo === 'sources'
                   ? <div data-slash-sources className="flex flex-col items-center gap-2"><p className="w-[440px] max-w-full text-xs text-ink-2">{SOURCE_NOTE}</p><CardPreview type="explanation" command="source" appName={appName} /></div>

@@ -18,6 +18,19 @@ const setup = async (t, extraEnv = {}) => { const f = await startCadAcceptanceSt
 const submit = (f, body = request(), opts = {}) => f.request('/api/learn/cad/jobs', { method: 'POST', body, ...opts });
 const design = { source:'# Synthetic source; never executed.\n', brief:{title:'Synthetic plate',units:'mm',parameters:{length:40,width:20,height:5},assumptions:[],requirements:[]}, checks:[] };
 const fakeModel = async job => job.modelPhase === 'review' ? {accepted:true,problems:[]} : design;
+
+test('CAD: explicit review retry preserves checked artifacts and never rebuilds geometry', async t => {
+  let failReview=true,modelCalls=0;
+  const f=await setup(t,{CAD_TEST_MODEL:async job=>{modelCalls++;if(job.modelPhase==='review'&&failReview)throw Error('invalid review JSON');return fakeModel(job);}});
+  const first=await(await submit(f)).json(),actor=f.objects.get('cad-board-a'),key=`job:${first.job.id}`;
+  await finishWithSyntheticArtifacts(f,first.job.id,{review:false});
+  await actor.instance.alarm();
+  const failed=await actor.storage.get(key);assert.equal(failed.state,'failed');assert.equal(failed.modelPhase,'review');
+  const retried=await(await f.request(`/api/learn/cad/jobs/${first.job.id}/retry`,{method:'POST',body:{confirmed:true}})).json();
+  assert.equal(retried.job.state,'checking');assert.equal(retried.job.attempt,failed.attempt);
+  failReview=false;await actor.instance.advance(await actor.storage.get(key));
+  const ready=await actor.storage.get(key);assert.equal(ready.state,'ready');assert.deepEqual(ready.manifest,failed.manifest);assert.equal(modelCalls,3);
+});
 test('CAD: bounded verification counts failed requests durably across jobs and restarts', async t => {
   let calls=0;
   const f=await setup(t,{CAD_VERIFICATION_BOARD_ID:'cad-board-a',CAD_VERIFICATION_MAX_CALLS:'1',CAD_VERIFICATION_MAX_USD:'0.10',CAD_TEST_MODEL:async()=>{calls++;throw Error('synthetic provider failure');}});

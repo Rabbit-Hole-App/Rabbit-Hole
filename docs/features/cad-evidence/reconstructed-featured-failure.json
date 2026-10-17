@@ -1,0 +1,131 @@
+{
+  "reconstructed": true,
+  "implementationSha": "9e24ea7bae0227c9257ddddee9c3af94cdfe3de9",
+  "reason": "Original real-model-ready-resume/results.json is zero bytes after ENOSPC; not an original test receipt",
+  "featuredJobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.0686c07262794bbdb301459f42cc3414",
+  "providerRequestCount": 4,
+  "actualCostUsd": 0.061158,
+  "ledgerAt": "2026-10-17T20:10:37.980Z",
+  "ledgerSha256": "708a2fd879ccdf72e75c5a903d467fdf0952a64117c0db89e4c08c637652f496",
+  "operationCostsUsd": [
+    0.01421,
+    0.00792,
+    0.024544,
+    0.014484
+  ],
+  "observedFeatured": {
+    "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.0686c07262794bbdb301459f42cc3414",
+    "state": "failed",
+    "attempt": 1,
+    "revisionId": "cr_ee566461480446e1809ef5032a629df0",
+    "error": "The CAD model returned an invalid design response.",
+    "validation": {
+      "baselinePassed": true,
+      "passed": true,
+      "facts": {
+        "bounds_mm": {
+          "x": 60,
+          "y": 40,
+          "z": 5
+        },
+        "solid_count": 1,
+        "volume_mm3": 11348.67258771281,
+        "circular_diameters_mm": [
+          4
+        ]
+      },
+      "checks": [
+        {
+          "id": "bounds_x",
+          "status": "passed",
+          "passed": true,
+          "actual": 60,
+          "expected": 60,
+          "tolerance": 0.01
+        },
+        {
+          "id": "bounds_y",
+          "status": "passed",
+          "passed": true,
+          "actual": 40,
+          "expected": 40,
+          "tolerance": 0.01
+        },
+        {
+          "id": "bounds_z",
+          "status": "passed",
+          "passed": true,
+          "actual": 5,
+          "expected": 5,
+          "tolerance": 0.01
+        },
+        {
+          "id": "single_solid",
+          "status": "passed",
+          "passed": true,
+          "actual": 1,
+          "expected": 1,
+          "tolerance": 0
+        },
+        {
+          "id": "hole_diameter",
+          "status": "passed",
+          "passed": true,
+          "actual": 4,
+          "expected": 4,
+          "tolerance": 0.01
+        },
+        {
+          "id": "volume",
+          "status": "passed",
+          "passed": true,
+          "actual": 11348.67258771281,
+          "expected": 11348.67,
+          "tolerance": 1
+        }
+      ],
+      "units": "mm",
+      "geometry_units": "mm",
+      "limitations": [
+        "Circular diameter check establishes an edge diameter, not hole depth or placement.",
+        "Unlisted requirements and manufacturing suitability are not verified."
+      ]
+    },
+    "artifacts": [
+      {
+        "kind": "step",
+        "bytes": 45560,
+        "sha256": "c5f3e40452671fb66d3456c67aee56da2c915e3fe6f12568e7743011c49c8183"
+      },
+      {
+        "kind": "validation",
+        "bytes": 1062,
+        "sha256": "acdf82afc7ed44db8ca42bd7a3bdd306eeaac0a64c93e29097d528f5d63cb323"
+      },
+      {
+        "kind": "glb",
+        "bytes": 25620,
+        "sha256": "e6b5e5e7b690bcbe91e0c3e2e1b3b2b96cc3aaa92735adb02edb9244b5f645fa"
+      },
+      {
+        "kind": "thumbnail",
+        "bytes": 139870,
+        "sha256": "accdc2ed0ad15c84490a0dca9d3f8d34a2beb6a0ebac55d42dffa66e6f9652d2"
+      }
+    ]
+  },
+  "scenarioAccounting": {
+    "first": "ready; separate real browser5/5",
+    "featured": "failed invalid design response after artifacts built",
+    "edit": "not started",
+    "clarification": "not started"
+  },
+  "inferredScenarioCounts": {
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "interrupted": 2
+  },
+  "countLimitation": "Reconstructed from sequential harness, remote state and independent artifacts; original assertion transcript unavailable",
+  "reviewFailure": "Raw provider reply was not retained; exact malformed-response cause remains unknown"
+}

@@ -149,6 +149,12 @@ export class CadJobs {
         await this.wake();await this.save(job);return this.response(job,202);
       }
       if(job.calls>=job.limits.calls||job.reservedUsd>=job.limits.usd)throw cadError('This job reached its accepted budget. Start a new explicitly confirmed request.',429);
+      if(job.state==='failed'&&job.modelPhase==='review'&&['step','glb','thumbnail'].every(kind=>job.manifest?.artifacts.some(a=>a.kind===kind))){
+        // A failed model review does not invalidate the already checked geometry.
+        // Keep its attempt-scoped thumbnail and retry only the explicitly confirmed review.
+        job.state='checking';job.stage='checking';job.error=null;job.modelInFlight=null;job.deadline=Date.now()+job.limits.elapsedMs;
+        await this.wake();await this.save(job);return this.response(job,202);
+      }
       if(job.manifest?.artifacts.some(a=>a.kind==='step')){
         const missing=['glb','thumbnail'].find(kind=>!job.manifest.artifacts.some(a=>a.kind===kind));
         if(missing){job.operation='export';job.exportFormat=missing;job.previewRecovery=true;}

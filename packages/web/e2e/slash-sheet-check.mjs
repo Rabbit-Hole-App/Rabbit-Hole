@@ -61,7 +61,11 @@ ok('Esc clears the search and keeps the sheet open', await search.inputValue() =
 const missing = [];
 for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
-  if (!await sheet.locator('[data-slash-card], [data-slash-chat], [data-slash-finder]').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false)) missing.push(command);
+  if (!await sheet.locator('[data-slash-card], [data-slash-chat], [data-slash-finder], [data-slash-cad]').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false)) missing.push(command);
+  if(command==='cad'){
+    const text=await sheet.locator('[data-slash-cad]').textContent();
+    ok('CAD describes background work, clarification and explicit generation',text.includes('saved background job')&&text.includes('missing dimensions')&&text.includes('Selecting CAD does not start generation'));
+  }
 }
 ok('every command shows a demo', missing.length === 0, missing.join(' '));
 // The card a command makes: [data-slash-card] and a readiness hint per card type.

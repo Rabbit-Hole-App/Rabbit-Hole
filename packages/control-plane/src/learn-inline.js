@@ -18,6 +18,7 @@ import { LEARN_TASKS, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
+import { inspectSavedCad } from './cad-inspection.js';
 import { isUploadedMediaId } from './learn-media.js';
 import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, INLINE_EDIT_TOOL, INLINE_NOTE_SYSTEM } from './agents/learn-inline.js';
 import { decide, proceedGate } from './learn-inline-route.js';
@@ -213,6 +214,12 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     const got = await images(env, allowed, { image_context: ref, board: typeof body.board === 'string' ? body.board : 'main' }).catch(() => null);
     if (got?.blocks) pictures = got.blocks;
   }
+  // Signed selected IDs identify saved cards; caller-supplied measurements/URLs are never trusted.
+  // This deterministic inspection adds no model or executor request.
+  if (!edit && !creation) {
+    const inspection = await inspectSavedCad(req, env, { access: allowed, board: typeof body.board === 'string' ? body.board : 'main', targetIds, includePreview: !context.image && !pictures.length });
+    pictures.push(...inspection.blocks);
+  }
   const text = JSON.stringify({ request: prompt, canvas: context, ...(revise ? { earlier: { request: revise.prompt, result: revise.result } } : {}) });
   const request = {
     // The subscription bridge replays a streamed answer as text only, which would drop a tool call (an edit, a diagram):
@@ -281,7 +288,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
         send('error', { error: 'The answer stopped before it was complete.', code: 'stream' });
         outcome = 'stream_error';
       } finally {
-        log({ stage: 'generate', request_id: requestId, mode, route, outcome, streaming, model: got.model, first_ms: got.first == null ? null : got.first - started, total_ms: Date.now() - started, input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null, image: pictures.length > 0 });
+        log({ stage: 'generate', request_id: requestId, mode, route, outcome, streaming, model: got.model, first_ms: got.first == null ? null : got.first - started, total_ms: Date.now() - started, input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null, image: pictures.some(block => block.type === 'image') });
         try { controller.close(); } catch { /* already cancelled */ }
       }
     },
