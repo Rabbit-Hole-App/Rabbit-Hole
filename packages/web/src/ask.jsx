@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload, Network } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -235,7 +235,7 @@ export function NextStepsCard({ steps, onPick }) {
 // The hole openings this tab has sent, by opening key (openOnce): module-level, not a ref, so a dock remounted while the
 // hole's board lands from the server (LearnPage canvasEpoch) never sends the same opening twice.
 const openedHoles = new Set();
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, onExploreCodebase = null, codebase = null, hideConversation = false }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, codebase = null, hideConversation = false }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -262,7 +262,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const cardRefs = useCardRefs();
   const temporaryCode = chat ? [...(codebase ? selectionRefs(codebase) : []), ...cardRefs] : [];
   const codeTurnRefs = turnRefs(chat?.context.attached || [], temporaryCode);
-  const graphOpen = !!(chat?.panels?.companion?.open && chat.panels.companion.view === 'graph');
 
   // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
   // tutor.extras move to the left caption.
@@ -1093,7 +1092,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </button>
             <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
               {/* The Chat pane uploads into the canvas's one context collection (chat.context.upload: the context-docs upload). */}
-              {chat ? <MenuItem icon={Upload} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>Upload a PDF, text or Markdown file</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>}
               <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
@@ -1108,10 +1107,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
             />
           </div>
-          {/* Explore codebase (repo-canvas-graph.md section 3): opens the graph in the companion column; never sends or asks. */}
-          {onExploreCodebase && <button type="button" data-explore-codebase aria-label="Explore codebase" title="Explore codebase" aria-pressed={graphOpen} disabled={voiceOn}
-            onClick={onExploreCodebase} className={cn(chat ? COMPOSER_TOOL : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', graphOpen && 'bg-active text-ink')}>
-            <Network size={chat ? 16 : 14} strokeWidth={1.5} aria-hidden /></button>}
           {contextDocs.enabled && !chat && (
             <div className="relative shrink-0">
               <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
@@ -1157,8 +1152,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
-          {/* The Chat toolbar after Plus, in order: Sources, the mode, the / slot, the mic; Send sits at the far right. */}
-          {chat && <button type="button" data-chat-sources aria-label="Context" title="Open Context" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={() => chat.panels.openSources()} className={COMPOSER_TOOL}><Files size={16} strokeWidth={1.5} /></button>}
+          {/* The Chat toolbar after Plus, in order: the mode, the / slot, the mic; Send sits at the far right. Context, Files and
+              Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
           {chat && <ModeSelector disabled={voiceOn} />}
           {(dock || chat) && chatControl}
           {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}

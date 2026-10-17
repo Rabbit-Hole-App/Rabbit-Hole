@@ -101,12 +101,13 @@ for (const [index, [email, app]] of PEOPLE.entries()) {
   await settle(page);
   await mic(page).waitFor({ timeout: 15000 });
 
-  // The code is one click away, beside Chat (owner, 2026-10-15): Explore codebase opens the Graph view, Repository files the
-  // Files view, in the companion column; the URL stays and the composer stays the Tutor.
+  // The code is one click away, beside Chat (owner brief 2026-10-16 items 3-4): the Chat header's one Context / Files / Graph
+  // control opens the companion column, its Graph and Files tabs switch the view; the URL stays and the composer stays the Tutor.
   const url = page.url();
-  await page.locator('[data-chat-pane] button[aria-label="Explore codebase"]').click();
+  await page.locator('[data-panel-companion]').click();
+  await page.locator('[data-companion-view="graph"]').click();
   await page.locator('[data-companion] [data-learn-graph] [data-graph-panel]').waitFor({ timeout: 20000 });
-  await page.locator('[data-panel-viewer="files"]').click();
+  await page.locator('[data-companion-view="files"]').click();
   await page.locator('[data-companion] [data-learn-files]').waitFor({ state: 'visible', timeout: 10000 });
   assert.equal(page.url(), url, `${who}: viewing code does not navigate`);
   await mic(page).waitFor({ timeout: 15000 });

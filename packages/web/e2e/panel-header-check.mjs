@@ -80,7 +80,7 @@ await card('k-exp').waitFor({ timeout: 60000 });
 await page.waitForTimeout(2500); // past the 1200 ms hook debounce
 const hooksAtOpen = hookBases.length;
 
-await check('1 the header is eight icon buttons in the owner\'s order: five tabs (Chat first, Links last), the Context viewer toggle, Pin, Close; no visible text', async () => {
+await check('1 the header is eight icon buttons in the owner\'s order: five tabs (Chat first, Links last), the one Context / Files / Graph control, Pin, Close; no visible text', async () => {
   await openPanel();
   const header = page.locator('[data-panel-header]');
   const names = await header.locator('button').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('title')]));
@@ -88,18 +88,25 @@ await check('1 the header is eight icon buttons in the owner\'s order: five tabs
   assert.equal((await header.innerText()).trim(), '', 'icons only');
   assert.equal(await header.locator('button svg').count(), 8);
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 5, 'the five tabs share one group');
-  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-viewer]').count(), 0, 'the Context toggle is not a tab');
-  assert.equal(await page.locator('[data-panel-viewer="context"]').getAttribute('aria-pressed'), 'false', 'a toggle, the viewer closed');
+  // Owner brief 2026-10-16 items 3-4: one Context / Files / Graph control (named Context on a canvas with no repository), not a tab,
+  // set apart from the navigation icons by spacing.
+  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-companion]').count(), 0, 'the companion control is not a tab');
+  assert.equal(await page.locator('[data-panel-companion]').getAttribute('aria-pressed'), 'false', 'a toggle, the companion closed');
+  const [tabs, utility] = [await header.locator('[role="tablist"]').boundingBox(), await page.locator('[data-panel-companion]').boundingBox()];
+  assert.ok(utility.x - (tabs.x + tabs.width) >= 12, `the utilities sit apart from the tabs: ${Math.round(utility.x - (tabs.x + tabs.width))} px`);
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-pin], [data-panel-header] [role="tablist"] [data-panel-close]').count(), 0, 'Pin and Close sit outside it');
 });
 
-await check('2 Chat is the default tab; Table of contents selects violet with a white icon, its outline below the header', async () => {
+await check('2 Chat is the default tab; Table of contents selects a soft purple with a purple icon (dark too), its outline below the header', async () => {
   assert.deepEqual(await selected(), ['chat']);
   await tab('Table of contents').click();
   assert.deepEqual(await selected(), ['toc']);
   const [bg, fg] = await tab('Table of contents').evaluate(node => [getComputedStyle(node).backgroundColor, getComputedStyle(node).color]);
-  assert.deepEqual([bg, fg], ['rgb(91, 33, 182)', 'rgb(255, 255, 255)']);
-  assert.equal(await tab('Find text on canvas').evaluate(node => getComputedStyle(node).color) === 'rgb(255, 255, 255)', false, 'inactive icons are neutral');
+  // Owner brief 2026-10-16 item 3 (the approved toc-upload-context mockup): pale purple, purple icon; inactive icons neutral.
+  assert.deepEqual([bg, fg], ['rgb(238, 229, 252)', 'rgb(100, 49, 160)']);
+  assert.notEqual(await tab('Find text on canvas').evaluate(node => getComputedStyle(node).color), fg, 'inactive icons are neutral');
+  const dark = await page.evaluate(() => { document.documentElement.classList.add('dark'); const node = document.querySelector('[data-panel-tab="toc"]'); const out = [getComputedStyle(node).backgroundColor, getComputedStyle(node).color]; document.documentElement.classList.remove('dark'); return out; });
+  assert.deepEqual(dark, ['rgb(69, 48, 96)', 'rgb(225, 207, 249)'], 'the dark treatment');
   assert.ok(await panel().locator('[data-toc]').isVisible());
   // Owner brief 2026-10-16 item 7 (replaces R4 decision 1A's "Topic 1:"): the title button is the title, its number beside it.
   assert.ok(await panel().getByRole('button', { name: 'Kitchen chemistry', exact: true }).isVisible(), 'the canvas heading is listed');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Files, FolderTree, Link2, MessageCircle, MessageSquareText, Network, Pin, Search, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Files, FolderTree, Link2, MessageCircle, MessageSquareText, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
@@ -7,7 +7,9 @@ import { findMatches } from './canvas-find.js';
 // Pin and Close on the right. Icons only:
 // the label is the tooltip and the accessible name. Comments (docs/features/canvas-comments.md) selects on a saved
 // top-level canvas (commentsOn); anywhere else its slot never selects (aria-disabled, skipped by the arrow keys).
-// The active tab is the /teach violet (--cmd-teach-fg, #5b21b6) with a white icon.
+// Navigation styling (owner brief 2026-10-16 item 3; the approved toc-upload-context mockup): 30 x 32 icon buttons 2px apart,
+// no enclosing box; the active tab is a rounded soft purple (--nav-selected-bg) with a purple icon (--nav-selected-fg), both
+// flipped in .dark; inactive icons are a muted neutral, and hover is the neutral --color-hover, never the selected purple.
 export const PANEL_TABS = [
   { id: 'chat', label: 'Chat', Icon: MessageSquareText },
   { id: 'find', label: 'Find text on canvas', Icon: Search },
@@ -27,9 +29,10 @@ const OFF_TITLE = 'Comments are on saved canvases';
 
 // commentsUnread: threads with news for you; the Comments tab carries a dot while there are any.
 // tocPending: Tutor proposals waiting for Apply or Discard (R4); the Table of contents tab carries a dot and says how many.
-// viewers: the companion views Chat's header opens with one click (Context, and Repository files where there are files); each
-// is a pressed toggle that shows or closes that view, beside the tabs and never one of them. viewer: the view open now, or null.
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, viewers = [], viewer = null, onViewer = null }) {
+// companion (owner brief 2026-10-16 items 3-4): the ONE control that opens and closes the Context / Files / Graph column
+// beside Chat - { views (the labels it opens), open, onToggle }; a pressed toggle at the utilities' end, never a tab.
+export const companionLabel = views => (views.length > 1 ? `${views.slice(0, -1).map(view => view.label).join(', ')} and ${views.at(-1).label}` : views[0]?.label || 'Context');
+export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, companion = null }) {
   const off = id => id === 'comments' && !commentsOn;
   const ENABLED = PANEL_TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
@@ -43,29 +46,28 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
   return (
     <div data-panel-header className="-mx-5 mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-line px-5 pb-2.5">
       {/* Too many tabs for a narrow panel: the row scrolls sideways (no bar; a focused tab scrolls into view), never squeezed. */}
-      <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg border border-line bg-hover p-0.5 [scrollbar-width:none]">
+      <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex min-w-0 items-center gap-0.5 overflow-x-auto p-0.5 [scrollbar-width:none]">
         {PANEL_TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label, pending = id === 'toc' && tocPending > 0; return (
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={pending ? `${label}, ${tocPending} proposal${tocPending === 1 ? '' : 's'} to review` : label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}
-            className={`relative flex h-7 w-8 shrink-0 items-center justify-center rounded-md ${tab === id ? 'bg-[#5b21b6] text-white shadow-sm' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-white hover:text-ink'}`}>
+            className={`relative flex h-8 w-[30px] shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${tab === id ? 'bg-(--nav-selected-bg) text-(--nav-selected-fg)' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
             {id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot aria-hidden className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent ring-1 ring-white" />}
             {pending && <span data-toc-pending aria-hidden className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent ring-1 ring-white" />}
-            <Icon size={15} strokeWidth={1.8} aria-hidden />
+            <Icon size={16} strokeWidth={1.8} aria-hidden />
           </button>
         ); })}
       </div>
-      <div className="flex shrink-0 items-center gap-0.5">
-        {viewers.map(({ id, label, Icon }) => { const name = id === 'files' ? 'Repository files' : label; return (
-          <button key={id} type="button" data-panel-viewer={id} aria-label={name} title={name} aria-pressed={viewer === id} onClick={() => onViewer(id)}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg ${viewer === id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><Icon size={15} strokeWidth={1.8} aria-hidden /></button>
-        ); })}
-        {viewers.length > 0 && <span aria-hidden className="mx-0.5 h-4 w-px bg-line" />}
+      <div className="ml-4 flex shrink-0 items-center gap-0.5">
+        {companion && (() => { const name = companionLabel(companion.views); return (
+          <button type="button" data-panel-companion aria-label={name} title={name} aria-pressed={companion.open} onClick={companion.onToggle}
+            className={`flex h-8 w-[30px] items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${companion.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><PanelLeft size={16} strokeWidth={1.8} aria-hidden /></button>
+        ); })()}
         <button type="button" data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open" aria-pressed={pinned} onClick={() => onPin(!pinned)}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ${pinned ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
-          <Pin size={15} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden /></button>
+          className={`flex h-8 w-[30px] items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${pinned ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+          <Pin size={16} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden /></button>
         <button type="button" data-panel-close aria-label="Close sidebar" title="Close sidebar" onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} strokeWidth={1.8} aria-hidden /></button>
+          className="flex h-8 w-[30px] items-center justify-center rounded-md text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"><X size={16} strokeWidth={1.8} aria-hidden /></button>
       </div>
     </div>
   );

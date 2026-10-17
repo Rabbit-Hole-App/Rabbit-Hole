@@ -1878,7 +1878,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await projectAt(page, `/apps/${ready.name}?tab=learn`);
     await page.waitForTimeout(800);
     must(await viewerWidth(page) === 0 && await page.locator('[data-project-tabs]').count() === 0, '?tab=learn opened a viewer or project tabs');
-    await page.locator('button[aria-label="Explore codebase"]').click();
+    // The Chat header's one Context / Files / Graph control, then its Graph tab (owner brief 2026-10-16; no Explore codebase).
+    await page.locator('[data-panel-companion]').click();
+    await page.locator('[data-companion-view="graph"]').click();
     await viewerShows(page, 'graph');
     await page.context().close();
     const phone = await open({ width: 390, height: 844 });
@@ -2431,7 +2433,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.route('**/static/GraphPanel-*.js', (r) => (persistent || !failed++ ? r.fulfill({ status: 404, body: 'gone' }) : r.continue()));
       await projectAt(page, `/apps/${ready.name}`);
       page.on('load', () => reloads++); // full page loads only
-      const explore = page.locator('button[aria-label="Explore codebase"]');
+      // The Chat header's one Context / Files / Graph control, then its Graph tab (owner brief 2026-10-16; no Explore codebase).
+      const control = page.locator('[data-panel-companion]');
+      const explore = { waitFor: options => control.waitFor(options), click: async () => { if (await control.getAttribute('aria-pressed') !== 'true') await control.click(); await page.locator('[data-companion-view="graph"]').click(); } };
       const missing = page.locator('[data-learn-graph] [data-feature-unavailable]', { hasText: 'The graph could not load. A newer version may be out.' });
       const reloaded = page.waitForEvent('load', { timeout: 30000 }).then(() => 'reload', () => null);
       await explore.click();

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Network, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input, Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -87,9 +87,10 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
       </span>
-      {snapshot && <IconBtn data-graph-add-to-canvas aria-label="Add graph to canvas" disabled={!ops || !snapshot.graph.nodes.length}
+      {/* The blue "Add to canvas" (owner brief 2026-10-16 item 4): a labelled filled button in the graph's header; what it adds is addGraph's. */}
+      {snapshot && <Button size="sm" variant="action" data-graph-add-to-canvas disabled={!ops || !snapshot.graph.nodes.length} className="shrink-0"
         title={['queued', 'indexing'].includes(status) ? `Add the graph of commit ${short(snapshot.commit)} to the canvas (a newer commit is still indexing)` : 'Add graph to canvas'}
-        onClick={() => addGraph()}><Network size={14} /></IconBtn>}
+        onClick={() => addGraph()}>Add to canvas</Button>}
       {memory && snapshot && <Button size="sm" data-map-layers-open aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} />Layers<ChevronDown size={12} className="text-ink-3" /></Button>}
     </header>
     <Body repository={repository} />

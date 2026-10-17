@@ -123,7 +123,7 @@ const openCanvas = async () => {
 };
 const openSources = async () => {
   if (await sourcesOpen()) return;
-  await page.locator('[data-panel-viewer="context"]').click({ timeout: 5000 });
+  await page.locator('[data-panel-companion]').click({ timeout: 5000 });
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
 };
 const slides = () => page.evaluate(() => [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')]

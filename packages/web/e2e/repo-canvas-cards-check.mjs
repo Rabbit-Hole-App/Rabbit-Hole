@@ -31,7 +31,7 @@ const SELECTORS = {
   openInCompanion: '[data-graph-card-expand]', // GRAPH: the graph card's Show in the Graph beside Chat
   addToCanvas: 'Add to canvas', // the selection controls' menu button, when the choices sit behind one
   nodeAddCard: '[data-node-add-card]', // GRAPH: the node details' Add code card
-  addCodeCard: 'Add code card', addSelectionAsGraph: 'Add selection as graph',
+  addCodeCard: 'Add code card', addSelectionAsGraph: 'Add selection as graph', addGraphToCanvas: 'Add to canvas', // the graph header's blue button (owner brief 2026-10-16 item 4)
   // Context: a graph card selected with no node inside it rides as a graph-scope ref (GRAPH).
   graphScopeRef: ref => ref.kind === 'graph' || String(ref.sourceId || '').startsWith('graph:'),
   // ACCESS: the owner-checked source route for a card. Owner reads are served from the fixture here (a keyless stack has no
@@ -167,7 +167,12 @@ const box = locator => locator.boundingBox();
 const canvasFrame = () => page.locator('[aria-label="Lesson canvas"]');
 const pane = () => page.locator('[data-chat-pane]');
 const field = () => pane().locator('[data-chat-composer] textarea').first();
-const explore = () => page.locator('button[aria-label="Explore codebase"]');
+// The Chat header's one Context / Files / Graph control, then its Graph tab (owner brief 2026-10-16; no Explore codebase).
+const explore = async () => {
+  const control = page.locator('[data-panel-companion]');
+  if (await control.getAttribute('aria-pressed') !== 'true') await control.click();
+  await page.locator('[data-companion-view="graph"]').click();
+};
 const companion = () => page.locator('[data-companion]');
 const graphPanel = () => page.locator('[data-companion] [data-graph-panel]');
 const view = () => companion().locator('[data-companion-view][aria-pressed="true"]').getAttribute('data-companion-view', { timeout: 2000 }).catch(() => null);
@@ -188,7 +193,7 @@ const openCanvas = async (path = `/apps/${REPO}`) => {
 };
 const openGraph = async () => {
   if (await companionOpen() && await view() === 'graph') return;
-  await explore().click();
+  await explore();
   await graphPanel().waitFor({ state: 'visible', timeout: 15000 });
   await node(N.train).waitFor({ timeout: 30000 });
   await page.waitForTimeout(600);
@@ -734,7 +739,7 @@ await check('16b more than 250 connections: the graph says "Showing 250 of N con
   served = big;
   try {
     await openCanvas();
-    await explore().click(); // not openGraph: the bulk symbols outrank train in the overview
+    await explore(); // not openGraph: the bulk symbols outrank train in the overview
     await graphPanel().waitFor({ state: 'visible', timeout: 15000 });
     await graphPanel().locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
     const panel = graphPanel(), limit = panel.locator('[data-graph-edge-limit]');

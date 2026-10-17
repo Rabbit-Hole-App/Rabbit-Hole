@@ -113,7 +113,13 @@ const box = async locator => locator.boundingBox();
 const canvasFrame = () => page.locator('[aria-label="Lesson canvas"]');
 const pane = () => page.locator('[data-chat-pane]');
 const field = () => pane().locator('[data-chat-composer] textarea').first();
-const explore = () => page.locator('button[aria-label="Explore codebase"]');
+// Owner brief 2026-10-16 items 3-6: the Chat header's one Context / Files / Graph control opens the companion; its Graph tab
+// shows the graph (the composer's Explore codebase is gone).
+const companionControl = () => page.locator('[data-panel-companion]');
+const explore = async () => {
+  if (await companionControl().getAttribute('aria-pressed') !== 'true') await companionControl().click();
+  await page.locator('[data-companion-view="graph"]').click();
+};
 const companion = () => page.locator('[data-companion]');
 const graphPanel = () => page.locator('[data-companion] [data-graph-panel]');
 // The companion's shown view: its view buttons are a pressed switch (lane A, CompanionHeader).
@@ -151,7 +157,7 @@ const openCanvas = async (path = `/apps/${REPO}`) => {
 const companionOpen = async () => ((await companion().boundingBox().catch(() => null))?.width ?? 0) > 100;
 const openGraph = async () => {
   if (await companionOpen() && await view() === 'graph') return;
-  await explore().click();
+  await explore();
   await graphPanel().waitFor({ state: 'visible', timeout: 15000 });
   await node(N.train).waitFor({ timeout: 30000 });
   await page.waitForTimeout(600); // the first fit
@@ -177,15 +183,15 @@ const closeViewer = () => companion().locator('[data-companion-close]').click();
 // ================================================================ the run
 await openContext();
 
-await check('1 /apps/<repo> opens the canvas, no repository page; Chat and the composer graph icon Explore codebase; a plain canvas has no icon', async () => {
+await check('1 /apps/<repo> opens the canvas, no repository page; Chat and the header control Context, Files and Graph; no composer graph icon', async () => {
   await openCanvas();
   assert.equal(await page.locator('[data-project-tabs]').count(), 0, 'no Files | Graph | Learn switcher');
   assert.equal(new URL(page.url()).pathname, `/apps/${REPO}`);
   await pane().waitFor({ state: 'visible', timeout: 10000 });
   assert.equal(await graphPanel().isVisible().catch(() => false), false, 'the graph is not forced open');
-  await explore().waitFor({ timeout: 10000 });
-  assert.equal(await explore().getAttribute('title'), 'Explore codebase');
-  assert.ok(await pane().locator('[data-chat-composer]').locator('button[aria-label="Explore codebase"]').count() === 1, 'the icon is in the composer controls');
+  await companionControl().waitFor({ timeout: 10000 });
+  assert.equal(await companionControl().getAttribute('aria-label'), 'Context, Files and Graph', 'one control names the three views');
+  assert.equal(await pane().locator('[data-chat-composer]').locator('button[aria-label="Explore codebase"], [data-explore-codebase]').count(), 0, 'no Explore codebase in the composer');
   // The repository is one named dropdown (owner brief 2026-10-16 item 1): its GitHub link is the dropdown's first row.
   await page.locator('[data-repo-menu]').click();
   const badge = page.locator('[data-menu-button-open] a[data-repo-badge]');
@@ -205,7 +211,7 @@ const finish = () => {
 if (!results[0].ok) { console.log('stopped: the repository canvas did not open, so no other check can run'); await browser.close(); process.exit(finish()); }
 
 let draft = `draft ${run} about the optimizer`;
-await check('2 Explore codebase opens Graph in the companion column LEFT of Chat, side by side, Chat and its composer visible; nothing is asked', async () => {
+await check('2 the header control and its Graph tab open Graph in the companion column LEFT of Chat, side by side, Chat and its composer visible; nothing is asked', async () => {
   await send('What does this repository do?'); // history to keep (check 3)
   await field().fill(draft);
   const before = { asks: asked(), hooks: hooks.length };
@@ -364,7 +370,7 @@ await check('8 a selection question carries the repository, the commit and the s
   assert.ok(!('text' in refs[0]) || !refs[0].text || refs[0].text.length < 4000, 'a bounded excerpt at most; the server resolves the code');
 });
 
-await check('9 a code citation opens Files at its range, not pinned and asking nothing; Back to graph restores the camera and the selection', async () => {
+await check('9 a code citation opens Files at its range, not pinned and asking nothing; the Graph tab restores the camera and the selection', async () => {
   await openGraph();
   await graphPanel().getByRole('button', { name: 'Zoom in', exact: true }).click();
   await graphPanel().locator(`[data-graph-node="${N.attn}"]`).focus(); await page.keyboard.press(' '); // Space adds to the selection
@@ -383,7 +389,9 @@ await check('9 a code citation opens Files at its range, not pinned and asking n
   await page.waitForTimeout(400);
   assert.equal(asked(), n, 'the click asked nothing');
   await shot('05-citation-in-files');
-  await companion().getByRole('button', { name: 'Back to graph', exact: true }).click();
+  // No Back to graph (owner brief 2026-10-16 item 4): the labelled Graph tab returns.
+  assert.equal(await companion().locator('[data-companion-return]').count(), 0, 'no Back to <view> link');
+  await companion().locator('[data-companion-view="graph"]').click();
   await graphPanel().waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(400);
   facts.s9 = { before: was, after: { camera: await camera(), selected: await selectedNodes() } };
@@ -435,17 +443,18 @@ await check('12 Curious asks for the repository canvas at its indexed commit and
   assert.equal(await page.locator('[data-next-steps] [data-next-step]').count(), 3, 'three directions');
 });
 
-await check('13 another canvas never inherits graph context; it shows no Explore codebase', async () => {
+await check('13 another canvas never inherits graph context; it shows no Graph view', async () => {
   await node(N.train).click().catch(() => {});
   await openCanvas(`/apps/${plain.name}`).catch(async () => { await page.goto(`${BASE}/apps/${plain.name}`); await pane().waitFor({ timeout: 30000 }); });
   await pane().waitFor({ state: 'visible', timeout: 30000 });
-  assert.equal(await explore().count(), 0, 'no graph entry without a repository');
+  assert.equal(await page.locator('[data-companion-view="graph"]').count(), 0, 'no graph entry without a repository');
+  assert.equal(await companionControl().getAttribute('aria-label'), 'Context', 'the header control opens Context alone');
   assert.equal((await codeKeys()).length, 0, 'no code chip carried over');
 });
 
 // The narrow layout runs in its own browser: below lg one column at a time, the viewer in place of Chat with Back to chat.
 await openContext({ width: 900, height: 900 });
-await check('14 narrow: Explore codebase shows Graph in place of Chat; Back to chat returns with the draft; never two squeezed columns', async () => {
+await check('14 narrow: the Graph view shows in place of Chat; Back to chat returns with the draft; never two squeezed columns', async () => {
   await openCanvas();
   await field().fill(draft);
   await openGraph();

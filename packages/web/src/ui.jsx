@@ -30,6 +30,8 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         'inline-flex items-center gap-1.5 rounded-lg border-0 text-sm font-medium whitespace-nowrap transition-colors duration-100 select-none focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-50',
         size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3',
         variant === 'primary' && 'bg-accent text-white hover:bg-accent-hover',
+        // The companion's filled actions (Upload, Add to canvas; owner brief 2026-10-16 item 4): --action-blue, white text.
+        variant === 'action' && 'bg-(--action-blue) font-medium text-white hover:brightness-110',
         // "New token" template: visible as a button at rest - white, border, faint shadow
         variant === 'secondary' && 'border border-line-strong bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:bg-hover',
         // "Copy link" template: accent-tinted fill for feature CTAs that should not shout

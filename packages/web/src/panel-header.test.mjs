@@ -35,14 +35,18 @@ test('icons only: a tooltip and an accessible name, no visible text, one tablist
   // The name is the label; a Table of contents tab with Tutor proposals waiting adds how many (R4, lead 2026-10-16), and
   // table-of-contents.test.mjs renders both names.
   assert.match(header, /role="tab" data-panel-tab=\{id\} aria-label=\{pending \? `\$\{label\}, \$\{tocPending\} proposal\$\{tocPending === 1 \? '' : 's'\} to review` : label\} title=\{title\}/);
-  assert.match(header, /<Icon size=\{15\} strokeWidth=\{1\.8\} aria-hidden \/>\n\s+<\/button>/, 'the icon is the tab\'s only child');
+  assert.match(header, /<Icon size=\{16\} strokeWidth=\{1\.8\} aria-hidden \/>\n\s+<\/button>/, 'the icon is the tab\'s only child');
 });
 
-test('exactly one tab is active: aria-selected, the violet with a white icon, and the only one in the Tab order', () => {
+// Owner brief 2026-10-16 item 3 (the approved toc-upload-context mockup): a rounded pale purple with a purple icon, flipped in
+// dark; hover is the neutral hover, never the selected purple.
+test('exactly one tab is active: aria-selected, the soft purple with a purple icon, and the only one in the Tab order', () => {
   assert.match(header, /aria-selected=\{tab === id\}/);
   assert.match(header, /tabIndex=\{tab === id \? 0 : -1\}/);
-  assert.match(header, /tab === id \? 'bg-\[#5b21b6\] text-white/, 'the /teach violet (--cmd-teach-fg)');
-  assert.match(read('./index.css'), /--cmd-teach-fg: #5b21b6;/, 'the same value as the /teach pill');
+  assert.match(header, /tab === id \? 'bg-\(--nav-selected-bg\) text-\(--nav-selected-fg\)' : disabled \? [^:]+ : 'text-ink-2 hover:bg-hover hover:text-ink'/);
+  const css = read('./index.css');
+  assert.match(css, /--nav-selected-bg: #eee5fc;\n\s+--nav-selected-fg: #6431a0;/, 'light: the mockup values');
+  assert.match(css, /--nav-selected-bg: #453060;\n\s+--nav-selected-fg: #e1cff9;/, 'dark: the mockup values');
   assert.match(read('./chat-panels.js'), /const \[open, setOpen\] = useState\(true\), \[tab, setTab\] = useState\('chat'\);/, 'open on Chat by default');
   assert.match(page, /const \{ open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab \} = panels;/);
   assert.match(page, /<div role="tabpanel" aria-label="Table of contents" className=\{`\$\{panelTab === 'toc' \? 'flex' : 'hidden'\}/);
@@ -64,8 +68,8 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
 test('Links is the last tab, and a narrow panel scrolls the tab row, never squeezing it', () => {
   assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n\s+\/\/[^\n]*\n\s+\{ id: 'links', label: 'Links', Icon: Link2 \},\n\];/);
   assert.match(header, /role="tablist" aria-label="Panel views" onKeyDown=\{arrow\} className="flex min-w-0 items-center gap-0\.5 overflow-x-auto/);
-  assert.match(header, /className=\{`relative flex h-7 w-8 shrink-0 items-center/, 'every tab keeps its size');
-  assert.match(header, /<div className="flex shrink-0 items-center gap-0\.5">\n\s+\{viewers\.map\([\s\S]{0,900}?<button type="button" data-panel-pin/, 'the viewer toggles, Pin and Close never shrink');
+  assert.match(header, /className=\{`relative flex h-8 w-\[30px\] shrink-0 items-center/, 'every tab keeps its size (30 x 32)');
+  assert.match(header, /<div className="ml-4 flex shrink-0 items-center gap-0\.5">\n\s+\{companion && [\s\S]{0,900}?<button type="button" data-panel-pin/, 'the companion control, Pin and Close never shrink, set apart from the tabs');
   assert.match(page, /<LinksPanel hidden=\{panelTab !== 'links'\}/);
 });
 
@@ -73,10 +77,12 @@ test('Links is the last tab, and a narrow panel scrolls the tab row, never squee
 test('Chat\'s tabs hold no viewer: no Context or Files tab', () => {
   assert.doesNotMatch(header.slice(header.indexOf('export const PANEL_TABS'), header.indexOf('export const COMPANION_VIEWS')), /'context'|'files'|'graph'/);
   assert.doesNotMatch(page, /filesOn/);
-  // One click from Chat's header opens a viewer (Context, and Repository files where there are files): a pressed toggle, not a tab.
-  assert.match(header, /data-panel-viewer=\{id\} aria-label=\{name\} title=\{name\} aria-pressed=\{viewer === id\} onClick=\{\(\) => onViewer\(id\)\}/);
-  assert.match(page, /viewers=\{companionViews\.filter\(entry => entry\.id !== 'graph'\)\}/, 'Graph opens from the composer (Explore codebase)');
-  assert.match(page, /onViewer=\{id => \(panelOpen && companion\.open && companionView === id \? companion\.close\(\) : companion\.show\(id\)\)\}/);
+  // Owner brief 2026-10-16 items 3-4: ONE control in Chat's header opens and closes the Context / Files / Graph column (a
+  // pressed toggle, not a tab), in place of the separate Context and Repository files shortcuts.
+  assert.match(header, /data-panel-companion aria-label=\{name\} title=\{name\} aria-pressed=\{companion\.open\} onClick=\{companion\.onToggle\}/);
+  assert.doesNotMatch(header, /data-panel-viewer|Repository files/);
+  assert.match(header, /export const companionLabel = views => \(views\.length > 1 \? `\$\{views\.slice\(0, -1\)\.map\(view => view\.label\)\.join\(', '\)\} and \$\{views\.at\(-1\)\.label\}` : views\[0\]\?\.label \|\| 'Context'\);/, 'its name lists the views it opens: Context, Files and Graph');
+  assert.match(page, /companion=\{\{ views: companionViews, open: panelOpen && companion\.open, onToggle: companion\.toggle \}\}/);
 });
 
 test('pinned by default, and the choice lasts in this browser; storage that throws keeps the default', () => {
