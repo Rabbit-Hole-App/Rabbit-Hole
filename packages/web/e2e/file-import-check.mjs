@@ -33,11 +33,11 @@ for (const fixture of fixtures) {
   if (!want.known) problems.push(`no registry family "${fixture.family}"`);
   if (want.misdetected) problems.push(`the registry offers it as ${want.detected}, not ${fixture.family}`);
   if (want.offered && !want.byStructure && want.detected !== fixture.family) problems.push(`its family is shipped but the registry does not take .${fixture.ext}`);
-  if (!want.offered && want.detected === fixture.family) problems.push('a planned family is offered');
+  if (!want.offered && fixture.family !== null && want.detected === fixture.family) problems.push('a planned family is offered');
   const sniff = sniffs(registry, fixture, head(fixture.file));
   if (sniff !== null && fixture.attack === 'mislabelled' && sniff) problems.push('the sniff accepts a mislabelled file');
   if (sniff !== null && fixture.attack !== 'mislabelled' && fixture.role !== 'negative' && !sniff) problems.push('the sniff refuses a real file');
-  check(`registry  ${fixture.path}`, !problems.length, { family: fixture.family, status: want.offered ? 'shipped' : 'planned', detected: want.detected, sniff, ...(problems.length ? { problems } : {}) });
+  check(`registry  ${fixture.path}`, !problems.length, { family: fixture.family, status: fixture.family === null ? 'no family' : want.offered ? 'shipped' : 'planned', detected: want.detected, sniff, ...(problems.length ? { problems } : {}) });
 }
 // Every extension the spec lists belongs to exactly one registry family (the picker, drop and server read only the registry).
 const SPEC = 'png jpg jpeg webp gif svg mp4 webm mp3 wav ogg m4a flac pdf txt md markdown ipynb py js mjs cjs ts jsx tsx java go rs c h cpp cc cxx hpp cs rb php swift kt kts sh bash sql r jl lua scala html css scss json jsonl yaml yml toml ini xml csv tsv xlsx xls docx doc pptx glb gltf obj fbx stl 3mf step stp ply splat ksplat spz sog'.split(' ');
@@ -125,7 +125,7 @@ if (process.env.OFFLINE !== '1') {
         await until(async () => (await page.getByText(basename(fixture.path), { exact: false }).count()) > 0, 15000, `a message naming ${basename(fixture.path)}`);
         const after = await board(name);
         const added = addedBlocks(before.state, after.state);
-        check(label, !added.length && !outside.length, { expected: want.offered ? 'refused (over the cap or mislabelled)' : 'refused (planned family)', added: added.map(b => [b.type, b.kind]), outside });
+        check(label, !added.length && !outside.length, { expected: fixture.family === null ? 'refused (no family takes it)' : want.offered ? 'refused (over the cap, mislabelled, or a part without its model)' : 'refused (planned family)', added: added.map(b => [b.type, b.kind]), outside });
         continue;
       }
       await choose(want.chooser);

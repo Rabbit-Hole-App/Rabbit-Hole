@@ -4,6 +4,7 @@
 // asks sniffUpload({ family, name, head, size }). The family list itself stays in file-capabilities.js; this module only knows
 // what each extension's bytes look like. Wired into PUT /api/learn/files by Lane 1 / the integrator.
 import { family as familyById } from '../../web/src/file-capabilities.js';
+import { modelPackageCheck } from '../../web/src/model-formats.js';
 
 export const HEAD_BYTES = 4096;
 
@@ -68,12 +69,23 @@ export const FORMATS = {
   sog: b => ZIP(b) && has(b, 'meta.json'),
   zip: ZIP,
 };
+// A model's own files (family model-part, Lane 4): only the extensions the registry lists for it are taken.
+const KTX2 = [0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a];
+export const PART_FORMATS = {
+  bin: (b, size) => size > 0,
+  mtl: b => text(b),
+  png: FORMATS.png, jpg: FORMATS.jpg, jpeg: FORMATS.jpeg, webp: FORMATS.webp,
+  ktx2: b => KTX2.every((v, i) => b[i] === v),
+};
 // Text families: every name the registry lists for text, Markdown, notebooks' Python, code and delimited data is checked as text.
 const TEXT_FAMILIES = new Set(['text', 'markdown', 'python', 'code', 'delimited']);
 
 // The verdict for one upload: { ok, format, reason }. ok is false when the bytes are not what the name says, or the name is not one
 // the family takes; true when they are; ok is true with checked:false only for a text family's name (no structure beyond text).
-export function sniffUpload({ family, name, head, size = head?.length ?? 0 }) {
+// A model package (.zip, family model-package) is judged on the whole archive: pass `body`, all its bytes (the family's cap is
+// 25 MiB). Lane 4's modelPackageCheck reads its central directory and refuses traversal, symlinks, bombs and archives
+// with no model or splat entry point; nothing is inflated.
+export function sniffUpload({ family, name, head, size = head?.length ?? 0, body = null }) {
   const fam = familyById(family);
   const base = String(name || '').split(/[/\\]/).pop().toLowerCase();
   const ext = base.includes('.') ? base.split('.').pop() : '';
@@ -86,6 +98,17 @@ export function sniffUpload({ family, name, head, size = head?.length ?? 0 }) {
   }
   if (!fam.extensions.includes(ext)) return { ok: false, format: ext, reason: `${fam.label} does not take .${ext || '(no extension)'}` };
   const bytes = head instanceof Uint8Array ? head : new Uint8Array(head || []);
+  if (fam.id === 'model-package') {
+    if (!FORMATS.zip(bytes)) return { ok: false, format: ext, reason: 'this is not a .zip file' };
+    if (!body) return { ok: false, format: ext, reason: 'a model package is checked on the whole archive' };
+    const verdict = modelPackageCheck(body instanceof Uint8Array ? body : new Uint8Array(body));
+    return verdict.ok ? { ok: true, format: ext, checked: true, entries: verdict.entries } : { ok: false, format: ext, reason: verdict.reason };
+  }
+  if (fam.id === 'model-part') {
+    const part = PART_FORMATS[ext];
+    if (!part) return { ok: false, format: ext, reason: `no structure check for .${ext}` };
+    return part(bytes, size) ? { ok: true, format: ext, checked: true } : { ok: false, format: ext, reason: `this is not a .${ext} model file` };
+  }
   const check = FORMATS[ext];
   if (check) return check(bytes, size) ? { ok: true, format: ext, checked: true } : { ok: false, format: ext, reason: `this is not a .${ext} file` };
   if (TEXT_FAMILIES.has(fam.id)) return text(bytes) ? { ok: true, format: ext, checked: false } : { ok: false, format: ext, reason: `a .${ext} file is text; this one is binary` };
