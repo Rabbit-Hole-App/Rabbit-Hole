@@ -56,9 +56,11 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(app.workers_dev, false);
   assert.deepEqual(app.routes, [{ pattern: 'digrabbithole.com', custom_domain: true }]);
   assert.deepEqual(app.services, [{ binding: 'CONTROL_PLANE', service: 'rabbit-hole-cp' }]);
-  // Same classes and migration tags as dev, so the Durable Object model is the one tested there.
-  assert.deepEqual(app.durable_objects, dev.durable_objects);
-  assert.deepEqual(app.migrations, dev.migrations);
+  // Same classes and migration tags as dev, so the Durable Object model is the one tested there. FileJobs (file imports)
+  // is dev and parallel only until its release adds it here (lead ruling 2026-10-16, docs/features/canvas-file-imports.md).
+  const devOnly = { bindings: dev.durable_objects.bindings.filter(b => b.class_name !== 'FileJobs') };
+  assert.deepEqual(app.durable_objects, devOnly);
+  assert.deepEqual(app.migrations, dev.migrations.filter(m => m.tag !== 'file-jobs-1'));
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
   assert.equal(app.assets.directory, './dist-dev');
   // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).

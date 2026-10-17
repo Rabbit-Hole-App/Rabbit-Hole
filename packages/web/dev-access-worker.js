@@ -3,5 +3,5 @@
 // production's app-worker.js never import it; small-cp-dev and every other clone keep dev-worker.js as their entry.
 import { withAccess } from '../control-plane/src/dev-access.js';
 import worker from './dev-worker.js';
-export { RepositoryImports, LearnScenes, LearnVideos } from './dev-worker.js';
+export { RepositoryImports, LearnScenes, LearnVideos, FileJobs } from './dev-worker.js';
 export default { ...worker, fetch: withAccess((req, env, ctx) => worker.fetch(req, env, ctx)) };

@@ -10,6 +10,8 @@ import { chatSyllabusFetch } from '../control-plane/src/chat-syllabus-route.js';
 import { libraryFoldersFetch, libraryFoldersRoute } from '../control-plane/src/library-folders.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
+export { FileJobs } from '../control-plane/src/file-jobs.js';
+import { fileJobsRoute } from '../control-plane/src/file-jobs.js';
 import SHELL from './dist-dev/index.html';
 import LANDING from './dist-dev/design/rabbit-hole-hero.html';
 import BLOG from './dist-dev/design/rabbit-hole-blog.html';
@@ -273,6 +275,8 @@ const routes = {
     // the exact /api/learn/board route, which generates explanations.
     // The canvas header's repository and fork history for this viewer (learn-provenance.js).
     if (path.startsWith('/api/learn/provenance/')) { const provenance = await provenanceRoute(path, req, env); if (provenance) return provenance; }
+    // Durable file-conversion jobs and the converter's callbacks (docs/features/canvas-file-imports.md section 5).
+    if (path.startsWith('/api/learn/files/')) { const jobs = await fileJobsRoute(path, req, env); if (jobs) return jobs; }
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
     // Imported file sources (canvas-file-imports.md section 4.2); null for /api/learn/files paths it does not own (the JOBS routes).
     if (path.startsWith('/api/learn/files')) { const files = await filesFetch(req, env); if (files) return files; }
