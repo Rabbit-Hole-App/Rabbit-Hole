@@ -4,7 +4,7 @@
 // Topology: docs/features/rabbit-hole-production.md.
 import worker from './dev-worker.js';
 import { ownControlPlane } from '../control-plane/src/dev-forwarding.js';
-export { RepositoryImports, LearnScenes, LearnVideos } from './dev-worker.js';
+export { RepositoryImports, LearnScenes, LearnVideos, CadJobs } from './dev-worker.js';
 
 export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),

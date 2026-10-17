@@ -47,6 +47,22 @@ test('CAD: invalid operator limits fail closed before job acceptance', async t =
   assert.equal((await submit(f)).status,503);
   assert.equal(f.events.filter(e=>e.kind==='alarm').length,0);
 });
+test('CAD: two-call pilot allows generation and review but rejects a third call after restart', async t => {
+  let calls=0;
+  const f=await setup(t,{CAD_MAX_CALLS:'2',CAD_MAX_USD:'0.20',CAD_MAX_REPAIRS:'0',
+    CAD_VERIFICATION_BOARD_ID:'cad-board-a',CAD_VERIFICATION_MAX_CALLS:'2',CAD_VERIFICATION_MAX_USD:'0.20',
+    CAD_TEST_MODEL:async job=>{calls++;return fakeModel(job);}});
+  const first=await(await submit(f)).json(),actor=f.objects.get('cad-board-a');
+  await finishWithSyntheticArtifacts(f,first.job.id);
+  assert.equal(calls,2);
+  assert.equal((await actor.storage.get(`job:${first.job.id}`)).limits.repairs,0);
+  actor.restart();
+  const second=await(await submit(f,request({cardId:'pilot-third',requestId:'pilot-third'}))).json();
+  await assert.rejects(()=>actor.instance.advance(actor.data.get(`job:${second.job.id}`)),/allowance has been reached/);
+  assert.equal(calls,2);
+  const usage=await actor.storage.get('verification:usage');
+  assert.equal(usage.calls,2);assert.ok(usage.reservedUsd<=0.20);
+});
 async function finishWithSyntheticArtifacts(f, id, { kinds = ['step','glb','thumbnail'], review = true } = {}) {
   const actor = [...f.objects.values()][0], key = `job:${id}`;
   await actor.instance.advance(await actor.storage.get(key));

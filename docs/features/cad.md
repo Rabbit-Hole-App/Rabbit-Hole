@@ -1,8 +1,8 @@
 # Canvas CAD
 
-Current deployment and verification: [final dev handoff](cad-evidence/dev-handoff-2026-10-17.md).
+Current production: `d16c3a45` supports saved CAD viewing and shared interaction; new generation is not activated. See the [production activation proposal](cad-production.md) for exact prerequisites, preparation and approval limits.
 
-Current handoff: implementation **`049f2845`** is deployed to isolated dev; see the [final receipt](cad-evidence/dev-handoff-2026-10-17.md) for completed checks, exact SHA attribution, usage, cleanup and remaining blocked assertions. Earlier review snapshots below retain their historical status.
+Historical dev handoff: implementation **`049f2845`** was deployed to isolated dev; see the [final receipt](cad-evidence/dev-handoff-2026-10-17.md) and [shared interaction receipt](cad-evidence/shared-interaction-final.md) for subsequent checks, exact SHA attribution, usage, cleanup and remaining blocked assertions. Earlier review snapshots below retain their historical status.
 
 Implementation in progress, based on `abd5f840`. Authoritative requested scope:
 owner's text-to-cad specification, 2026-10-17. Main and production are untouched.
@@ -89,8 +89,18 @@ No production deployment, main push or production migration is part of this work
 The dev-only verification deployment restricts generation to one approved board
 using `CAD_VERIFICATION_BOARD_ID`, `CAD_VERIFICATION_MAX_CALLS` and
 `CAD_VERIFICATION_MAX_USD`. Reservations survive failed calls and restarts.
-`CAD_MODEL_API_KEY` is scoped to CAD transport so its installation does not enable
-unrelated paid features. `CAD_MAX_CALLS`, `CAD_MAX_REPAIRS`, `CAD_MAX_USD` and
+Dedicated CAD transport requires both `CAD_MODEL_API_KEY` and
+`CAD_MODEL_WORKSPACE_ID`; it never combines either with general inference
+credentials. A partial pair or simultaneous `SUBSCRIPTION_ONLY=true` fails
+before transport. Existing deployments with a CAD key and an inherited general
+workspace must explicitly configure the CAD workspace before enabling this route.
+With neither dedicated setting, the existing general/subscription route is
+unchanged unless `CAD_MODEL_REQUIRE_DEDICATED=true`; the production pilot sets
+this flag so missing secrets cannot spend from the general workspace.
+These settings do not enable unrelated paid features. Deterministic
+transport checks verify the selected headers, not the provider-side workspace
+membership or spending limit; operators must verify those separately.
+`CAD_MAX_CALLS`, `CAD_MAX_REPAIRS`, `CAD_MAX_USD` and
 `CAD_MAX_ELAPSED_MS` may lower the hard job ceilings, never raise them.
 
 Shared and forked cards expose saved immutable artifacts, not live private job
