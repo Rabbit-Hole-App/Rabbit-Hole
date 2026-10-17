@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, Download, FileSpreadsheet, FileText, Loader2, MessageSquarePlus, Presentation, RotateCw, Sheet, Table2 } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { Md } from './Md.jsx';
@@ -18,6 +18,7 @@ import { selectionRef } from './selection-ref.js';
 import { wsHeaders } from './api.js';
 import { useSearchContent } from './canvas-search-content.jsx';
 import { searchSourceRecord } from './canvas-search-content.js';
+import { readFileDocOriginal } from './file-doc-read.js';
 import { cn } from './ui.jsx';
 
 // The body of a lane 2 file card (docs/features/canvas-file-imports.md): a text, Markdown, table, workbook, Word document or
@@ -39,17 +40,13 @@ function useOriginal(block) {
   const ref = block.fileRef;
   const key = `${scopeQuery()}|${ref ? `${ref.source?.id || ''}@${ref.source?.rev || ''}|${ref.local || ''}` : block.assetKey}`;
   const [state, setState] = useState({ status: 'loading', blob: null });
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt(value => value + 1), []);
   useEffect(() => {
-    let active = true;
-    setState(previous => (previous.blob ? previous : { status: 'loading', blob: null })); // a stored upload keeps its preview
-    loadSource(block).then(value => {
-      if (!active) return;
-      if (value == null) setState(previous => (previous.blob && previous.key === key ? previous : { key, status: 'missing', blob: null }));
-      else setState({ key, status: 'ready', blob: typeof value === 'string' ? new Blob([value], { type: 'text/plain' }) : value });
-    });
-    return () => { active = false; };
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { ...state, current: state.key === key };
+    setState(previous => ({ key, attempt, status: 'loading', blob: previous.key === key ? previous.blob : null }));
+    return readFileDocOriginal(() => loadSource(block), next => setState({ key, attempt, ...next }));
+  }, [key, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { ...state, current: state.key === key && state.attempt === attempt, attempt, retry };
 }
 
 // A parse of the original in the worker: { status: 'loading' | 'ready' | 'failed', result, error, code }.
@@ -134,9 +131,9 @@ export default function FileDocCard({ block, onChange }) {
   const searchKey = JSON.stringify([scopeQuery(), block.fileRef?.source, block.fileRef?.local, block.assetKey, extractionOptions(block)]);
   const searchSource = useMemo(() => {
     const current = original.current && units?.sourceKey === searchKey && units.blob === original.blob;
-    const status = original.status === 'missing' ? 'unavailable' : !original.current || (!current && parseStatus === 'ready') ? 'loading' : parseStatus;
-    return searchSourceRecord({ sourceKey: searchKey, status: current ? (units.body.complete ? 'ready' : 'partial') : status, ...(current ? units.body : {}) });
-  }, [searchKey, original.current, original.status, original.blob, units, parseStatus]);
+    const status = original.status === 'missing' ? 'unavailable' : original.status === 'failed' ? 'failed' : !original.current || (!current && parseStatus === 'ready') ? 'loading' : parseStatus;
+    return searchSourceRecord({ sourceKey: searchKey, retry: original.retry, status: current ? (units.body.complete ? 'ready' : 'partial') : status, ...(current ? units.body : {}) });
+  }, [searchKey, original.current, original.status, original.blob, original.retry, units, parseStatus]);
   useSearchContent(block.id, searchSource);
   useTextDerivative(block, update, units);
   const chat = useChatWorkspace();
@@ -167,8 +164,9 @@ export default function FileDocCard({ block, onChange }) {
       </div>
       {block.fileRef && !block.fileRef.source?.id && <SaveState state={upload.state} onRetry={upload.retry} />}
       {original.status === 'loading' && <Status>Opening the file…</Status>}
+      {original.status === 'failed' && <div data-file-doc-read-error role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The file could not be read.<button type="button" onClick={original.retry} className={BUTTON}>Retry</button></div>}
       {original.status === 'missing' && <p data-file-doc-missing className="px-3 py-2 text-xs text-ink-2">{block.fileRef && !block.fileRef.source?.id ? 'This file was never saved to the account and is not in this browser. Drop it on the canvas again.' : 'This file is not in this browser or saved with the board yet.'}</p>}
-      {original.blob && <Body key={searchKey} block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onStatus={setParseStatus} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), sourceKey: searchKey, blob: original.blob, body })} />}
+      {original.blob && <Body key={`${searchKey}:${original.attempt}`} block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onStatus={setParseStatus} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), sourceKey: searchKey, blob: original.blob, body })} />}
     </div>
   );
 }
