@@ -44,10 +44,12 @@ const state = { ...empty, blocks: [
 const saved = await seed(canvas.name, state), boardId = saved.board_id, memberBase = `/api/learn/c/${boardId}`;
 const invitation = await api(`${memberBase}/members`, { emails: [`searchmember-${run}@example.com`] });
 const inviteToken = invitation.body?.invited?.[0]?.test_invite_url?.split('#')[1];
-assert.ok(inviteToken, 'real test invitation issued');
+const invitationDiagnostic = { status: invitation.status, code: invitation.body?.code, error: invitation.body?.error, invited: invitation.body?.invited?.map(value => ({ email_status: value.email_status, echo: !!value.test_invite_url })), skipped: invitation.body?.skipped?.map(value => ({ reason: value.reason })) };
+assert.ok(inviteToken, 'real test invitation issued (requires SMALL_ENV=test): ' + JSON.stringify(invitationDiagnostic));
 const code = (await memberApi('/api/learn/invites/code', { token: inviteToken })).body?.test_code;
 assert.ok(code, 'test verification code issued');
 assert.equal((await memberApi('/api/learn/invites/accept', { token: inviteToken, code })).body?.joined, true);
+if (process.env.SETUP_ONLY === '1') { console.log('Real invitation and member acceptance passed; browser not started.'); process.exit(0); }
 const published = await api(`/api/apps/${canvas.name}/publish`, {});
 const token = published.body?.publication_token;
 assert.ok(token, 'real publication created');
