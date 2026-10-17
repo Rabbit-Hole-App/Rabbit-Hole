@@ -11,7 +11,12 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('file-sources-check runs against the local stack only');
 const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36).slice(-6);
-const sessionOf = async who => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `${who}-${run}@example.com`, secret, handle: `${who}_${run}` }) })).json()).session;
+const sessionOf = async who => {
+  const response = await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `${who}-${run}@example.com`, secret, handle: `${who}_${run}` }) });
+  const body = await response.json();
+  if (!response.ok || typeof body.session !== 'string') throw new Error(`test-session setup failed: HTTP ${response.status}`);
+  return body.session;
+};
 const owner = { cookie: `small_session=${await sessionOf('fsrc')}` }, stranger = { cookie: `small_session=${await sessionOf('fstr')}` };
 const made = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { ...owner, 'content-type': 'application/json' }, body: JSON.stringify({ title: `File sources ${run}` }) })).json();
 const board = `${BASE}/api/learn/boards/${made.name}/main`;
@@ -28,7 +33,7 @@ const declare = bytes => fetch(`${BASE}/api/learn/files`, { method: 'POST', head
 
 const bytes = webm(30 * MiB);
 const created = await declare(bytes), first = await created.json();
-ok('create answers a source id and an upload', created.status === 201 && /^fs_[0-9a-f]{24}$/.test(first.source?.id) && first.upload?.method === 'PUT', String(created.status));
+ok('create answers a source id and an upload', created.status === 201 && /^fs_[0-9a-f]{24}$/.test(first.source?.id) && first.upload?.method === 'PUT', String(created.status) + (first.error ? ': ' + first.error : ''));
 const id = first.source.id, file = `${BASE}/api/learn/files/${id}`;
 const tampered = webm(30 * MiB); tampered[20 * MiB] ^= 1;
 const bad = await fetch(file, { method: 'PUT', headers: { ...owner, 'content-type': 'video/webm' }, body: tampered });
