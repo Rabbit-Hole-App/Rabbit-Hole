@@ -53,6 +53,7 @@ await page.route('**/__fixtures/**', route => { const name = decodeURIComponent(
 // The STEP card's derivatives, as the file routes will serve them (canvas-file-imports.md 4.2; converter output shape).
 await page.route('**/api/learn/files/**', route => {
   const path = new URL(route.request().url()).pathname;
+  if (path === '/api/learn/files/sources/fs_test/derivatives') return route.fulfill({ json: { derivatives: [{ id: 'fd_mesh', kind: 'mesh', name: 'model.glb' }, { id: 'fd_structure', kind: 'structure', name: 'structure.json' }] } });
   if (path.endsWith('/d/fd_mesh')) return route.fulfill({ body: Buffer.from(F['cube.glb']), contentType: 'model/gltf-binary' });
   if (path.endsWith('/d/fd_structure')) return route.fulfill({ json: { source_unit: 'millimetre', unit: 'metre', quality: 'normal', parts: 1, meshes: 1, tree: { name: 'cube', meshes: 1 } } });
   return route.fulfill({ status: 404 });
@@ -193,11 +194,12 @@ try {
   const awaiting = await card(step.id).locator('[data-model-cad]').getAttribute('data-model-cad', { timeout: 10000 }).catch(() => null);
   const download = await card(step.id).locator('[data-model-download]:not([disabled])').waitFor({ timeout: 10000 }).then(() => true, () => false);
   ok(awaiting === 'awaiting' && download, 'a STEP card says it awaits the converter and keeps Download original', String(awaiting));
-  await page.evaluate(id => window.__patch(id, { fileRef: { v: 1, source: { id: 'fs_test', rev: 'x' }, family: 'cad', job: null, derivatives: { mesh: 'fd_mesh', structure: 'fd_structure' } } }), step.id);
+  // A shared view of a stored STEP card (no job of its own here): it reads the ready step-glb derivatives of its revision.
+  await page.evaluate(id => window.__patch(id, { fileRef: { v: 1, source: { id: 'fs_test', rev: 'a'.repeat(64) }, family: 'cad', meta: { name: 'cube.step' }, view: { entry: 'cube.step' }, job: null } }), step.id);
   await card(step.id).locator('[data-model-card][data-model-state="ready"]').waitFor({ timeout: 30000 }).catch(() => {});
   const cadSize = await card(step.id).locator('[data-model-size]').textContent({ timeout: 2000 }).catch(() => '');
   const cadNote = await card(step.id).locator('[data-model-cad-note]').count();
-  ok(cadSize === '1000 × 1000 × 1000 mm' && cadNote === 1 && (await viewerInk(step.id, 'step-derivative')) > 0.01, 'with its GLB derivative the STEP card renders, sized in the declared millimetres, marked a preview mesh', cadSize);
+  ok(cadSize === '1000 × 1000 × 1000 mm' && cadNote === 1 && (await viewerInk(step.id, 'step-derivative')) > 0.01, 'with its step-glb derivatives the STEP card renders, sized in the declared millimetres, marked a preview mesh', cadSize);
 } finally {
   if (process.env.MEASURE) console.table(timings);
   await browser.close(); await server.close();

@@ -457,7 +457,7 @@ both load from the worker (or the main-thread fallback) when a card of that form
 - A presentation submits the `slides` job once stored (`file-jobs-client.js submitFileJob`, `fileRef.job`), shows its stage,
   and shows the `slide-NNN.png` derivatives when ready; otherwise its slide text, saying why.
 
-## 11. Lane 4: models, CAD, PLY and Gaussian splats (feature/fi-3d)
+## Lane 4: models, CAD, PLY and Gaussian splats (feature/fi-3d)
 
 Report and measurements: `C:/s/spec/fi-lane4-report.md`. Modules (all lazily imported except `model-drop.js`):
 
@@ -472,10 +472,22 @@ Report and measurements: `C:/s/spec/fi-lane4-report.md`. Modules (all lazily imp
 | `ModelCard.jsx`, `viewer-slots.js` | the card: explicit Interact state (Esc first, `data-viewer-active` makes the canvas key handler stand down), at most 3 live renderers, posters (this browser only) off-screen, missing / blocked dependency list with Add files, Download original |
 | `model-cad.js` | STEP card states from the job and the derivatives it expects (below) |
 
-Card record today (pre-`fileRef`, so it persists through the existing board-asset path): `{ type: 'file', kind: 'model',
-assetKey: 'model:<uuid>', label, size, model: { v: 1, family, format, render: 'mesh'|'points'|'splat'|'cad', package:
-'file'|'zip', entry, entries?, download, counts?, units? }, camera, animation? }`, about 300 bytes. `assetKeysOf` already
-reports `assetKey`. When `fileRef` lands, `model` maps to `fileRef.view` (`entry`, `camera`) and `fileRef.meta`.
+Card record: `{ type: 'file', kind: 'model', label, size, model: { v: 1, family, format, render: 'mesh'|'points'|'splat'|'cad',
+package: 'file'|'zip'|'folder', entry, entries?, download, counts?, units? }, camera, animation?, fileRef }`. `fileRef`
+(through `file-source-client.js`, one `startUpload` per file): `source` = the entry file, or the dropped ZIP (family
+`model-package`, `view.entry` = the model's path inside it); `bundle` = `[{ path, source: { id, rev } }]` the card's other
+files (lead-approved, 2026-10-16); while a file uploads its entry has `source: null` and `local` (this browser's copy), and
+the card writes each stored source in on the entry that still names that local key. Dependencies resolve only to the
+card's own entries. A missing file added from the card becomes one more bundle entry. Cards made earlier with `assetKey`
+(a stored ZIP of loose files) still open. Needs Lane 1's `fileRefSources(state)` to index `bundle` sources too, or a shared
+viewer cannot read a dependency.
+
+Registry (Lane 4 rows in `file-capabilities.js`, route `model`): `gltf`, `mesh`, `cad` (preview false until the step-glb
+job), `ply`, `splat`, `model-package` (.zip: head sniff `PK`; `model-formats.js modelPackageCheck(bytes)` is the
+whole-archive check for the upload route - guards plus a model or splat entry point, SOG meta.json included), and
+`model-part` (route `model-part`, never a card alone: .bin, .mtl and textures .png/.jpg/.jpeg/.webp inside a model bundle,
+25 MiB each; standalone pictures stay the 5 MiB image family). `can.context` is false for all: Ask lists a model card's
+name, format and declared counts only.
 
 Libraries: `@sparkjsdev/spark` 2.3.1 exact (MIT, Copyright 2025 World Labs Technologies, Inc.; npm integrity
 `sha512-K+SyIbkO/dx1TLLudK8Jp3/noS13z/kdNPo6OK2waxQaGy81HBmKGnNBT/t/K9Ew3dsIXmWqsJXxGfmAu1T5Jg==`; peer `three >=0.180.0`,
@@ -483,15 +495,16 @@ verified with three 0.186.0; its WASM and worker are inlined, and with `fileByte
 `fflate` 0.8.3 (MIT). three.js loaders and three's bundled fflate and meshopt decoder are MIT (three 0.186.0, already a
 dependency). three 0.186's own Gaussian-splat loaders need the WebGPU renderer and have no SOG reader, so Spark is used.
 
-Limits (`MODEL_LIMITS`, moves into `file-capabilities.js`): source 25 MiB (the general board-file cap); viewer budgets
-1,000,000 triangles, 1,500,000 vertices, 1,600,000 points, 1,500,000 splats, 256 MiB decoded textures, 5,000 nodes,
-5,000,000 accessor elements. Above a budget the card keeps the original and says why it does not render.
+Limits (registry `limits`, read by `model-formats.js MODEL_LIMITS`): source 25 MiB; ZIP 512 entries, 200 MiB expanded,
+ratio 200 per entry over 1 MiB; viewer budgets (`limits.preview`) 1,000,000 triangles, 1,500,000 vertices, 1,600,000
+points, 1,500,000 splats, 256 MiB decoded textures, 5,000 nodes, 5,000,000 accessor elements, each the largest size
+measured at 60 fps on Intel integrated graphics (D3D11, headless Chromium, `e2e/model-budget-measure.mjs`). Above a budget
+the card keeps the original and says why it does not render.
 
-STEP derivatives the card expects from the `step-glb` converter (via the JOBS lane's runner): `mesh` = `model.glb`
-(glTF 2.0, metres, Y-up, one node per assembly part named after it, within 20 MiB / 5,000,000 accessor elements);
-`structure` = `structure.json` `{ units, unit_scale_to_m, parts, solids, tree: [{ name, children? }], bbox: { min, max }
-(source units), limitations? }`; `poster` optional (the card draws one from the mesh when absent). Units are shown only
-when `structure.units` is reported; the card never claims CAD features, tolerances or a feature tree survive.
+STEP (`model-cad.js`): the owner's canvas submits `step-glb` through `file-jobs-client.js` once the original is stored;
+every page watches the job; the card renders the `model.glb` derivative (glTF 2.0, metres, Y-up, one node per part) in the
+same viewer and sizes it from `structure.json` `source_unit` only when the file declared one; a shared or forked card with
+no job reads the ready derivatives of its revision. The card never claims CAD features, tolerances or a feature tree.
 
 ## 12. Media family (Lane 3: images, GIF, SVG, audio, video)
 

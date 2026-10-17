@@ -704,11 +704,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // 3D models, splats, CAD, ZIP and folder packages (model-import.js, lazily loaded): one card per model, placed in
     // input order; files no model uses (a photo alongside) carry on below as ordinary drops.
     if (isModelDrop(files)) {
-      const [{ importModelFiles }, { storeModelCard }] = await Promise.all([import('./model-import.js'), import('./model-storage.js')]);
+      const [{ importModelFiles }, { placeModelCard }] = await Promise.all([import('./model-import.js'), import('./model-storage.js')]);
       const { cards, leftovers, errors } = await importModelFiles(files);
       for (const error of errors) toast(error, { tone: 'error' });
       for (const card of cards) {
-        try { canvas()?.insertImported(await storeModelCard(card, { app: app.name, board: boardName }), at); } catch (problem) { toast(`${card.block.label}: ${problem.message}`, { tone: 'error' }); }
+        try { canvas()?.insertImported(await placeModelCard(card), at); } catch (problem) { toast(`${card.block.label}: ${problem.message}`, { tone: 'error' }); }
       }
       files = leftovers;
     }

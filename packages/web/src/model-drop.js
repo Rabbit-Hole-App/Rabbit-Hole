@@ -6,7 +6,7 @@ import { FAMILIES, familyOf } from './file-capabilities.js';
 const isEntry = file => { const f = familyOf({ name: file.name }); return f?.route === 'model' && f.card === 'file:model'; };
 export const isModelDrop = files => files.some(file => file.bundleRoot || isEntry(file));
 // What "Add the missing files" offers: the model families' extensions and the image types a model's textures use.
-export const MODEL_ACCEPT = [...FAMILIES.filter(f => f.route === 'model').flatMap(f => f.extensions), 'png', 'jpg', 'jpeg', 'webp'].map(e => `.${e}`).join(',');
+export const MODEL_ACCEPT = [...new Set(FAMILIES.filter(f => f.lane === 4).flatMap(f => f.extensions))].map(e => `.${e}`).join(',');
 
 // A drop's files, a dropped folder's included: each file from a folder carries `bundleRoot` (the folder) and
 // `bundlePath` (its path inside it). The entries are taken now, while the drop event is live; reading them is async.
