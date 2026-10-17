@@ -29,3 +29,15 @@ fly apps destroy rabbit-hole-cad-dev --yes
 ```
 
 Do not target the existing converter, lesson/motion renderers, web services or production. Idle shutdown alone does not prevent HTTP proxy autostart; disable autostart explicitly. Removing the executor means new CAD jobs are unavailable until a separately authorized replacement is configured; saved artifacts remain in control-plane storage.
+
+## Final cleanup — 2026-10-17
+
+After integrated verification completed, two keyless control probes passed (0 failed / 0 skipped): stage timeout with a sleeping descendant in2.207s and explicit SIGTERM cancellation in0.319s. Both reported cleanup.ok, remaining0 and render_user_processes0. See [control probe evidence](linux-control-probe-2026-10-17.json). These verify the runtime process tree, not the browser cancellation flow or hostile resource-exhaustion behavior.
+
+Final durable ledger:832,569,344 bytes reserved (750MiB conservative registry reservation plus four11MiB service attempts), with6MiB remaining. No fifth attempt or additional image build occurred. Probe report download2,067 bytes and ledger438 bytes supplement the earlier145,329-byte artifact download. These are known content bytes, not a provider wire-usage meter. Full50MiB allowance plus registry content still leaves approximately25MiB for transport and diagnostic overhead; actual billed traffic is unavailable.
+
+Machine created2026-10-17T19:34:08Z. Autostart disabled and machine stopped successfully by20:23:48Z (13:23:48 Pacific); app `rabbit-hole-cad-dev` then destroyed successfully by20:24:25Z. Lifetime was less than51minutes, below four aggregate machine-hours and the15:15 Pacific cutoff. No existing converter, renderer or production app was changed. Saved control-plane artifacts remain accessible; new executor jobs are unavailable until separately authorized infrastructure is configured.
+
+Conservative infrastructure estimate: one223.554-second Depot build approximately$0.19; less than0.85 machine-hours at approximately$0.0353/hour is under$0.031; at most1GiB NA egress approximately$0.02; transient rootfs storage is negligible at this duration. Combined estimate under$0.25, excluding unknown taxes or provider rounding. This is not verified billing: no invoice or account-level actual-cost evidence was available. Registry/build content transfer is separately bounded above. The$5 budget was not presented as a provider-enforced billing cap.
+
+Root reports all four approved model scenarios passed on`2ff803e8`, eight provider requests and$0.117674 settled; that is separate model evidence owned by the integration lane. The original first-attempt publication failure remains historically unexplained; successful recovery is not retrospective proof of its cause.

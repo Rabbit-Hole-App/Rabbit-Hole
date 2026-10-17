@@ -1,5 +1,7 @@
 # CAD verification
 
+Current handoff: implementation **`049f2845`** is deployed to isolated dev; see the [final receipt](cad-evidence/dev-handoff-2026-10-17.md) for completed checks, exact SHA attribution, usage, cleanup and remaining blocked assertions. Earlier review snapshots below retain their historical status.
+
 Status: implementation and verification in progress. The coordinator owns the subsequently approved infrastructure and CAD model verification budgets; this independent acceptance lane has made zero model requests. This document distinguishes scripted orchestration, actual geometry execution and real-model quality. The feature contract is [cad.md](cad.md).
 
 ## Evidence requirements

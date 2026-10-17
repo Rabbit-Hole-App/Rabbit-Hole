@@ -1,0 +1,150 @@
+{
+  "candidate": "049f284549596f10f7aa904710340edc030ea827+documentation-only-dirty",
+  "base": "https://rabbit-hole-web-dev-cad-integration.tryrabbithole.workers.dev",
+  "app": "canvas-0da4df73",
+  "board": "main",
+  "minimumReady": 2,
+  "counts": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "interrupted": 0
+  },
+  "results": [
+    {
+      "name": "completed real jobs restore their saved CAD cards",
+      "status": "passed"
+    },
+    {
+      "name": "real saved GLBs load and interact without moving cards",
+      "status": "passed"
+    },
+    {
+      "name": "stored artifacts allow owner reads and reject anonymous reads",
+      "status": "passed"
+    },
+    {
+      "name": "reload retains the same jobs, revisions and canvas layout",
+      "status": "passed"
+    },
+    {
+      "name": "no page error or attempted CAD mutation occurred",
+      "status": "passed"
+    }
+  ],
+  "identities": [
+    {
+      "id": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac",
+      "cardId": "ff924312-1a8e-4f81-87da-c781a7ed3aea",
+      "revisionId": "cr_a153b84eb10a4895985e8ee24cec8d91",
+      "attempt": 2
+    },
+    {
+      "id": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.b8c7a611f37140f68fce9a92551deb7e",
+      "cardId": "20c94a22-d5fd-4edc-8d6f-71c470b8bebc",
+      "revisionId": "cr_9a3fa75c9b7b46d9b90c7cfc60e9577f",
+      "attempt": 1
+    }
+  ],
+  "artifactReads": [
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac",
+      "kind": "source",
+      "bytes": 470,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac",
+      "kind": "step",
+      "bytes": 16920,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac",
+      "kind": "validation",
+      "bytes": 939,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac",
+      "kind": "glb",
+      "bytes": 1840,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac",
+      "kind": "thumbnail",
+      "bytes": 112155,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.b8c7a611f37140f68fce9a92551deb7e",
+      "kind": "source",
+      "bytes": 881,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.b8c7a611f37140f68fce9a92551deb7e",
+      "kind": "step",
+      "bytes": 45560,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.b8c7a611f37140f68fce9a92551deb7e",
+      "kind": "validation",
+      "bytes": 1063,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.b8c7a611f37140f68fce9a92551deb7e",
+      "kind": "glb",
+      "bytes": 25620,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    },
+    {
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.b8c7a611f37140f68fce9a92551deb7e",
+      "kind": "thumbnail",
+      "bytes": 139280,
+      "ownerStatus": 200,
+      "boardScopedStatus": 200,
+      "anonymousStatus": 401
+    }
+  ],
+  "boardWrites": [],
+  "persistenceObservations": [
+    {
+      "at": "2026-10-17T20:31:12.795Z",
+      "acceptedSourceReferencesPersisted": true
+    }
+  ],
+  "blocked": [
+    {
+      "path": "/api/learn/tutor/next-steps",
+      "method": "POST"
+    },
+    {
+      "path": "/api/learn/boards/canvas-0da4df73/main/thumbnail",
+      "method": "PUT"
+    }
+  ],
+  "errors": [],
+  "limitation": "Real stored model rendering and read authorization only; no new model requests or geometry-quality assertions."
+}

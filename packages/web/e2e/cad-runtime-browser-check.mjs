@@ -45,7 +45,7 @@ check('completed real jobs restore their saved CAD cards',async()=>{
 check('real saved GLBs load and interact without moving cards',async()=>{
   for(const [index,job] of ready.entries()){
     const card=page.locator(`[data-block-id="${job.cardId}"]`);
-    await card.scrollIntoViewIfNeeded();await card.locator('[data-drag-zone]').first().click();
+    await page.evaluate(()=>document.activeElement?.blur());await page.keyboard.press('Shift+Digit1');await page.waitForTimeout(700);await card.locator('[data-drag-zone]').first().click();
     const viewer=card.locator('[data-cad-viewer]');await viewer.locator('canvas').waitFor();
     await viewer.getByRole('button',{name:'Interact',exact:true}).waitFor();
     await page.waitForFunction(id=>{const card=document.querySelector(`[data-block-id="${id}"]`);return [...card.querySelectorAll('button')].some(button=>button.textContent==='Interact'&&!button.disabled);},job.cardId);

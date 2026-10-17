@@ -1,5 +1,7 @@
 ﻿# CAD scope and verification coverage
 
+Current handoff: implementation **`049f2845`** is deployed to isolated dev; see the [final receipt](cad-evidence/dev-handoff-2026-10-17.md) for completed checks, exact SHA attribution, usage, cleanup and remaining blocked assertions. Earlier review snapshots below retain their historical status.
+
 Review snapshot: 2026-10-17, integration worktree based on `abd5f840cd701b072630e6405f93a78978875acc` with uncommitted CAD changes. This is a scope matrix, not a final release receipt. Replace this attribution with the implementation commit and link final execution receipts before claiming deployment completion. Specification: [cad.md](cad.md); runtime architecture: [cad-executor.md](cad-executor.md); acceptance plan: [cad-verification.md](cad-verification.md).
 
 **Evidence labels:** *fixture* means deterministic orchestration/UI or unit evidence; *runtime pending* means real geometry/execution proof has not been supplied to this review; *model pending* means actual model-generated quality has not been established. A blocked assertion is not passed coverage. Later coordinator receipts take precedence over this dated snapshot.

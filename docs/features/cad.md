@@ -1,5 +1,9 @@
 # Canvas CAD
 
+Current deployment and verification: [final dev handoff](cad-evidence/dev-handoff-2026-10-17.md).
+
+Current handoff: implementation **`049f2845`** is deployed to isolated dev; see the [final receipt](cad-evidence/dev-handoff-2026-10-17.md) for completed checks, exact SHA attribution, usage, cleanup and remaining blocked assertions. Earlier review snapshots below retain their historical status.
+
 Implementation in progress, based on `abd5f840`. Authoritative requested scope:
 owner's text-to-cad specification, 2026-10-17. Main and production are untouched.
 

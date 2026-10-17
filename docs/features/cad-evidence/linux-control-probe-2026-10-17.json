@@ -1,0 +1,94 @@
+[
+  {
+    "mode": "timeout",
+    "elapsed_ms": 2207,
+    "exit": 1,
+    "cancelSent": false,
+    "proof": {
+      "exit_status": 1,
+      "backend": "cgroup-v1",
+      "memory_bytes": 2147483648,
+      "swap_bytes": 0,
+      "memsw_limit": 2147483648,
+      "pids_max": 512,
+      "cpu_period_us": 100000,
+      "cpu_quota_us": 100000,
+      "oom_kills": 0,
+      "memory_peak": 14426112,
+      "memory_failcnt": 0,
+      "memsw_peak": 14426112,
+      "pids_peak": 8,
+      "pids_limit_hits": 0,
+      "cpu_nr_periods": 8,
+      "cpu_throttled": 0,
+      "cpu_throttled_time_us": 0,
+      "cpu_usage_us": 160430,
+      "cpu_quota": 1,
+      "controllers": [
+        "memory",
+        "memsw",
+        "pids",
+        "cpu",
+        "cpuacct",
+        "freezer"
+      ],
+      "cleanup": {
+        "freezer": "used",
+        "terminated": 0,
+        "killed": 0,
+        "remaining": 0,
+        "settle_ms": 2,
+        "groups_removed": true,
+        "render_user_processes": 0,
+        "ok": true
+      }
+    },
+    "passed": true
+  },
+  {
+    "mode": "cancel",
+    "elapsed_ms": 319,
+    "exit": 1,
+    "cancelSent": true,
+    "proof": {
+      "exit_status": 1,
+      "backend": "cgroup-v1",
+      "memory_bytes": 2147483648,
+      "swap_bytes": 0,
+      "memsw_limit": 2147483648,
+      "pids_max": 512,
+      "cpu_period_us": 100000,
+      "cpu_quota_us": 100000,
+      "oom_kills": 0,
+      "memory_peak": 14381056,
+      "memory_failcnt": 0,
+      "memsw_peak": 14381056,
+      "pids_peak": 8,
+      "pids_limit_hits": 0,
+      "cpu_nr_periods": 2,
+      "cpu_throttled": 0,
+      "cpu_throttled_time_us": 0,
+      "cpu_usage_us": 158415,
+      "cpu_quota": 1,
+      "controllers": [
+        "memory",
+        "memsw",
+        "pids",
+        "cpu",
+        "cpuacct",
+        "freezer"
+      ],
+      "cleanup": {
+        "freezer": "used",
+        "terminated": 0,
+        "killed": 0,
+        "remaining": 0,
+        "settle_ms": 2,
+        "groups_removed": true,
+        "render_user_processes": 0,
+        "ok": true
+      }
+    },
+    "passed": true
+  }
+]

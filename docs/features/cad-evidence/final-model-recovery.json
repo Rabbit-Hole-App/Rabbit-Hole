@@ -1,0 +1,431 @@
+{
+  "sha": "2ff803e878b58de9d5db1071da769f69cbc76ddf",
+  "base": "https://rabbit-hole-web-dev-cad-integration.tryrabbithole.workers.dev",
+  "app": "canvas-0da4df73",
+  "boardId": "81877708-fa80-4e41-bccc-13697504cd19",
+  "startedAt": "2026-10-17T20:19:31.768Z",
+  "expectedProviderRequests": 8,
+  "maximumProviderRequests": 11,
+  "maximumUsd": 1.1,
+  "providerRequestCount": null,
+  "actualCostUsd": null,
+  "results": [
+    {
+      "name": "simple dimensioned part",
+      "status": "passed",
+      "startedAt": "2026-10-17T20:19:33.050Z",
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.c2350817297f4a0ebd95a485af9cc7ac",
+      "revisionId": "cr_a153b84eb10a4895985e8ee24cec8d91",
+      "parameters": {
+        "length": 40,
+        "width": 20,
+        "thickness": 5
+      },
+      "validation": {
+        "baselinePassed": true,
+        "passed": true,
+        "facts": {
+          "bounds_mm": {
+            "x": 40,
+            "y": 20,
+            "z": 5
+          },
+          "solid_count": 1,
+          "volume_mm3": 3999.999999999999,
+          "circular_diameters_mm": []
+        },
+        "checks": [
+          {
+            "id": "bounds_x",
+            "status": "passed",
+            "passed": true,
+            "actual": 40,
+            "expected": 40,
+            "tolerance": 0.01
+          },
+          {
+            "id": "bounds_y",
+            "status": "passed",
+            "passed": true,
+            "actual": 20,
+            "expected": 20,
+            "tolerance": 0.01
+          },
+          {
+            "id": "bounds_z",
+            "status": "passed",
+            "passed": true,
+            "actual": 5,
+            "expected": 5,
+            "tolerance": 0.01
+          },
+          {
+            "id": "volume",
+            "status": "passed",
+            "passed": true,
+            "actual": 3999.999999999999,
+            "expected": 4000,
+            "tolerance": 1
+          },
+          {
+            "id": "solids",
+            "status": "passed",
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0
+          }
+        ],
+        "units": "mm",
+        "geometry_units": "mm",
+        "limitations": [
+          "Circular diameter check establishes an edge diameter, not hole depth or placement.",
+          "Unlisted requirements and manufacturing suitability are not verified."
+        ]
+      },
+      "artifacts": [
+        {
+          "kind": "step",
+          "bytes": 16920,
+          "sha256": "b187b9033130bb75e55877f9c5d4bbec8f3de31b9cf008b5c3cd52d13322d48f"
+        },
+        {
+          "kind": "glb",
+          "bytes": 1840,
+          "sha256": "2f28b5c4d6becc8887c8ba79c10a279d6990cd9c0501c24e4fc2254f6cb395fd"
+        },
+        {
+          "kind": "thumbnail",
+          "bytes": 112155,
+          "sha256": "b2bb14d51a839f7db971292f726f54f55846932205a5d91b54f7d715ae984b2c"
+        }
+      ],
+      "runtime": {
+        "cadgen": "0.7.21",
+        "build123d": "0.11.1",
+        "ocp": "7.9.3.1.1",
+        "playwright": "1.63.0",
+        "upstream": "24573128ceaab564f497d7c12f995c41784c9539",
+        "executor": "cad-execute/1",
+        "image": "cad-tree-1814c9a180a81cf9e511644601bb5a8bf3e73ead5a8b00837a384ffeb287cf86"
+      },
+      "timings": {
+        "build": 25895,
+        "check": 8356,
+        "glb": 9284,
+        "thumbnail": 21046
+      },
+      "finishedAt": "2026-10-17T20:19:34.588Z"
+    },
+    {
+      "name": "meaningful features",
+      "status": "passed",
+      "startedAt": "2026-10-17T20:19:34.591Z",
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.0686c07262794bbdb301459f42cc3414",
+      "revisionId": "cr_ee566461480446e1809ef5032a629df0",
+      "parameters": {
+        "plate_length_x": 60,
+        "plate_width_y": 40,
+        "plate_thickness_z": 5,
+        "hole_diameter": 4,
+        "hole_x_offset": 10,
+        "hole_y_offset": 10,
+        "pocket_length_x": 20,
+        "pocket_width_y": 10,
+        "pocket_depth": 2
+      },
+      "validation": {
+        "baselinePassed": true,
+        "passed": true,
+        "facts": {
+          "bounds_mm": {
+            "x": 60,
+            "y": 40,
+            "z": 5
+          },
+          "solid_count": 1,
+          "volume_mm3": 11348.67258771281,
+          "circular_diameters_mm": [
+            4
+          ]
+        },
+        "checks": [
+          {
+            "id": "bounds_x",
+            "status": "passed",
+            "passed": true,
+            "actual": 60,
+            "expected": 60,
+            "tolerance": 0.01
+          },
+          {
+            "id": "bounds_y",
+            "status": "passed",
+            "passed": true,
+            "actual": 40,
+            "expected": 40,
+            "tolerance": 0.01
+          },
+          {
+            "id": "bounds_z",
+            "status": "passed",
+            "passed": true,
+            "actual": 5,
+            "expected": 5,
+            "tolerance": 0.01
+          },
+          {
+            "id": "single_solid",
+            "status": "passed",
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0
+          },
+          {
+            "id": "hole_diameter",
+            "status": "passed",
+            "passed": true,
+            "actual": 4,
+            "expected": 4,
+            "tolerance": 0.01
+          },
+          {
+            "id": "volume",
+            "status": "passed",
+            "passed": true,
+            "actual": 11348.67258771281,
+            "expected": 11348.67,
+            "tolerance": 1
+          }
+        ],
+        "units": "mm",
+        "geometry_units": "mm",
+        "limitations": [
+          "Circular diameter check establishes an edge diameter, not hole depth or placement.",
+          "Unlisted requirements and manufacturing suitability are not verified."
+        ]
+      },
+      "artifacts": [
+        {
+          "kind": "step",
+          "bytes": 45560,
+          "sha256": "c5f3e40452671fb66d3456c67aee56da2c915e3fe6f12568e7743011c49c8183"
+        },
+        {
+          "kind": "glb",
+          "bytes": 25620,
+          "sha256": "e6b5e5e7b690bcbe91e0c3e2e1b3b2b96cc3aaa92735adb02edb9244b5f645fa"
+        },
+        {
+          "kind": "thumbnail",
+          "bytes": 139870,
+          "sha256": "accdc2ed0ad15c84490a0dca9d3f8d34a2beb6a0ebac55d42dffa66e6f9652d2"
+        }
+      ],
+      "runtime": {
+        "cadgen": "0.7.21",
+        "build123d": "0.11.1",
+        "ocp": "7.9.3.1.1",
+        "playwright": "1.63.0",
+        "upstream": "24573128ceaab564f497d7c12f995c41784c9539",
+        "executor": "cad-execute/1",
+        "image": "cad-tree-1814c9a180a81cf9e511644601bb5a8bf3e73ead5a8b00837a384ffeb287cf86"
+      },
+      "timings": {
+        "build": 27096,
+        "check": 8689,
+        "glb": 10346,
+        "thumbnail": 21806
+      },
+      "blockedAssertions": [
+        "hole count and centers independently measured",
+        "pocket depth"
+      ],
+      "finishedAt": "2026-10-17T20:19:43.033Z"
+    },
+    {
+      "name": "invariant-preserving edit",
+      "status": "passed",
+      "startedAt": "2026-10-17T20:19:43.036Z",
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.b8c7a611f37140f68fce9a92551deb7e",
+      "revisionId": "cr_9a3fa75c9b7b46d9b90c7cfc60e9577f",
+      "parameters": {
+        "plate_length_x": 60,
+        "plate_width_y": 40,
+        "plate_thickness_z": 5,
+        "hole_diameter": 4,
+        "hole_x_offset": 10,
+        "hole_y_offset": 10,
+        "pocket_length_x": 20,
+        "pocket_width_y": 10,
+        "pocket_depth": 3
+      },
+      "validation": {
+        "baselinePassed": true,
+        "passed": true,
+        "facts": {
+          "bounds_mm": {
+            "x": 60,
+            "y": 40,
+            "z": 5
+          },
+          "solid_count": 1,
+          "volume_mm3": 11148.672587712812,
+          "circular_diameters_mm": [
+            4
+          ]
+        },
+        "checks": [
+          {
+            "id": "bounds_x",
+            "status": "passed",
+            "passed": true,
+            "actual": 60,
+            "expected": 60,
+            "tolerance": 0.01
+          },
+          {
+            "id": "bounds_y",
+            "status": "passed",
+            "passed": true,
+            "actual": 40,
+            "expected": 40,
+            "tolerance": 0.01
+          },
+          {
+            "id": "bounds_z",
+            "status": "passed",
+            "passed": true,
+            "actual": 5,
+            "expected": 5,
+            "tolerance": 0.01
+          },
+          {
+            "id": "solid_count",
+            "status": "passed",
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0
+          },
+          {
+            "id": "volume",
+            "status": "passed",
+            "passed": true,
+            "actual": 11148.672587712812,
+            "expected": 11148.67,
+            "tolerance": 1
+          },
+          {
+            "id": "hole_diameter",
+            "status": "passed",
+            "passed": true,
+            "actual": 4,
+            "expected": 4,
+            "tolerance": 0.01
+          }
+        ],
+        "units": "mm",
+        "geometry_units": "mm",
+        "limitations": [
+          "Circular diameter check establishes an edge diameter, not hole depth or placement.",
+          "Unlisted requirements and manufacturing suitability are not verified."
+        ]
+      },
+      "artifacts": [
+        {
+          "kind": "step",
+          "bytes": 45560,
+          "sha256": "351be188b98864f698ce60f4e0959c94b763846df7593e25c7286a05ecf46cb5"
+        },
+        {
+          "kind": "glb",
+          "bytes": 25620,
+          "sha256": "380fcf0c7530a5d29b42f938d31625e156c5efdab59e99971bead93409b1bedd"
+        },
+        {
+          "kind": "thumbnail",
+          "bytes": 139280,
+          "sha256": "921774b3539242c31b2884353d74a6140b6fb1e23d9c6c6900e9486ed1f02455"
+        }
+      ],
+      "runtime": {
+        "cadgen": "0.7.21",
+        "build123d": "0.11.1",
+        "ocp": "7.9.3.1.1",
+        "playwright": "1.63.0",
+        "upstream": "24573128ceaab564f497d7c12f995c41784c9539",
+        "executor": "cad-execute/1",
+        "image": "cad-tree-1814c9a180a81cf9e511644601bb5a8bf3e73ead5a8b00837a384ffeb287cf86"
+      },
+      "timings": {
+        "build": 26347,
+        "check": 9466,
+        "glb": 10755,
+        "thumbnail": 22108
+      },
+      "blockedAssertions": [
+        "pocket depth independently measured",
+        "hole pattern preservation",
+        "UI preview, placement, size, connections and reload"
+      ],
+      "finishedAt": "2026-10-17T20:21:19.481Z"
+    },
+    {
+      "name": "clarification only",
+      "status": "passed",
+      "startedAt": "2026-10-17T20:21:19.484Z",
+      "jobId": "cj.ODE4Nzc3MDgtZmE4MC00ZTQxLWJjY2MtMTM2OTc1MDRjZDE5.12dcacc458ad4e1e963c88e0e6746191",
+      "question": "Please give the interface dimensions and units for the existing hardware: hole diameters and center-to-center spacing (with hole count and a datum edge or point), bracket outline and thickness, any slot, boss or counterbore details, and the mating surface or fastener sizes.",
+      "assertions": [
+        "question returned",
+        "no guessed geometry"
+      ],
+      "manualReviewRequired": "Question must request actual interface dimensions and units; no answer or follow-on request sent.",
+      "finishedAt": "2026-10-17T20:21:26.128Z"
+    }
+  ],
+  "limits": [
+    "No automatic scenario retry or new jobs beyond four.",
+    "Actual provider count/cost require per-operation ledger reconciliation; monthly usage is not attributed cost.",
+    "Hole count, centers, pocket depth and feature preservation require additional trusted inspection; current validator cannot establish them.",
+    "This API harness does not substitute for deployed UI placement/preview/reload browser evidence."
+  ],
+  "recovery": {
+    "startingProviderRequests": 4,
+    "startingActualCostUsd": 0.061158,
+    "expectedAdditionalProviderRequests": 4,
+    "maximumAdditionalProviderRequests": 7,
+    "remainingProviderCeilingUsd": 1.038842,
+    "remainingExecutorAttempts": 1,
+    "countsScope": "This recovery pass only; earlier failures and reconstructed ENOSPC evidence remain separate",
+    "reconstructedReceiptSha256": "42712102d28ac7b2b7402b0bbeedd2886c01d6ffa7d09e4df545265d996c4c9c",
+    "reviewRetryIssued": true
+  },
+  "usageBefore": {
+    "usedMicros": 61158,
+    "reservedMicros": 0,
+    "estimatedMicros": 0,
+    "unknownAttempts": 0,
+    "unknownReservedMicros": 0
+  },
+  "usageAfter": {
+    "usedMicros": 117674,
+    "reservedMicros": 0,
+    "estimatedMicros": 0,
+    "unknownAttempts": 0,
+    "unknownReservedMicros": 0
+  },
+  "elapsedMs": 114484,
+  "jobsCreated": 2,
+  "cumulativeJobsCreated": 4,
+  "counts": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "interrupted": 0
+  },
+  "receiptNote": "Original scenario receipt preserved; providerRequestCount and actualCostUsd remain null because this harness does not reconcile the ledger. See separate usage-ledger.json."
+}

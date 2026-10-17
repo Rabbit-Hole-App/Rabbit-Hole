@@ -1,6 +1,6 @@
 # CAD executor: implementation and proposed dev infrastructure
 
-Status (2026-10-17): dedicated authorized dev executor deployed; deterministic Linux build, trusted inspection, GLB, thumbnail, STL and 3MF execution passed. Admission remains disabled pending integration model guards. No generated Python ran on the developer host. Real-model verification remains separate.
+Status (2026-10-17): dedicated authorized dev executor deployed; deterministic Linux build, trusted inspection, GLB, thumbnail, STL and 3MF execution passed. The temporary dev executor was subsequently removed after integrated verification; saved artifacts remain available, but new builds need separately authorized infrastructure. No generated Python ran on the developer host. Real-model verification remains separate.
 
 ## Reuse and concrete gap
 
@@ -47,3 +47,6 @@ STL readback: 12 triangles, 40x20x6 coordinates. 3MF readback: millimeter units,
 Registry manifest reports 995,955,736 compressed layer bytes and 10,695 config bytes. This is an upper bound on unique layer upload content, not measured network retransmissions or billing. One remote Depot build only; estimated cost approximately $0.19 using the published $0.05/minute rate, not verified billing. No second build is permitted within this pass without renewed accounting. Reserve 750MiB in the existing 800MiB service ledger, leaving 50MiB for app egress; persistence was verified across a machine restart with rootfs persistence set to always. Root job limits must be at most 10MiB aggregate, reserving 11MiB per attempt; four attempts consume at most 44MiB. Registry bytes plus the full 50MiB allowance leave roughly 25MiB for manifest/TLS/SSH/log overhead. The known evidence download is separately recorded above. Stop before any uncertain bound could be exceeded.
 
 Absolute admission deadline: 2026-10-17 22:15 UTC (15:15 Pacific), earlier than four aggregate machine-hours after creation. Five-minute idle process exit is enabled; shutdown must also disable proxy autostart and preserve evidence before removing the dedicated dev resources. Actual provider invoice and wire-byte totals are unavailable. Real-model calls by the executor lane: zero.
+
+
+Final status: temporary app destroyed by2026-10-17T20:24:25Z after two additional keyless timeout/cancellation probes passed. Final transfer reservation left6MiB. See [final cleanup receipt](cad-evidence/runtime-receipt-2026-10-17.md#final-cleanup--2026-10-17). Original first-attempt publication failure remains unexplained.
