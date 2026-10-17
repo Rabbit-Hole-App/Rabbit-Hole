@@ -32,10 +32,32 @@ check('Refine receives the current proposal and preserves the original until Acc
 check('Accept changes the existing card once, preserving its identity, dimensions and neighbours',async()=>{const before=await state();await editor().locator('[data-inline-accept]').click();await until(async()=>(await savedCard()).title==='Refined explanation','Accepted edit not persisted');const after=await state(),edited=after.blocks.find(b=>b.id==='editable');assert.equal(after.blocks.length,before.blocks.length);for(const key of ['id','type','w','h','dx','dy'])assert.equal(edited[key],original[key],key);assert.deepEqual(after.blocks.find(b=>b.id==='neighbour'),before.blocks.find(b=>b.id==='neighbour'));assert.equal(edited.body,proposal.body);const box=await geometry('editable'),neighbor=await geometry('neighbour');for(const key of ['x','y','width'])near(box[key],originalBox[key],`edited ${key}`);for(const key of ['x','y','width','height'])near(neighbor[key],neighborBox[key],`neighbour ${key}`);if(mode==='full')assert.ok(box.height<originalBox.height-100,'Full content shrinks after shortening');else near(box.height,originalBox.height,'Scrollable outer height');});
 check('one Undo restores original content and one Redo restores the accepted edit',async()=>{if(await editor().count())await page.keyboard.press('Escape');await page.locator('[data-canvas-surface]').click({position:{x:150,y:650}});await page.keyboard.press('Control+z');await until(async()=>(await savedCard()).body===original.body,'One Undo did not restore original');await page.keyboard.press('Control+Shift+z');await until(async()=>(await savedCard()).body===proposal.body,'One Redo did not restore accepted revision');});
 check('accepted structured content survives server reload',async()=>{await page.reload();await card().waitFor();assert.equal((await savedCard()).body,proposal.body);assert.deepEqual((await savedCard()).more,[]);await page.screenshot({path:resolve(OUT,'accepted-reloaded.png')});});
+if(mode==='full')check('a longer accepted proposal expands natural height without moving neighbours, and one Undo restores it',async()=>{
+ const before=await state(),shortCard=await savedCard(),shortBox=await geometry('editable'),nearBox=await geometry('neighbour');
+ proposal={title:'Expanded explanation',body:Array.from({length:36},(_,i)=>`Expanded paragraph ${i}: a readable explanation with the equation $x^2$ and a concrete detail.`).join('\n\n'),more:[]};
+ assert.ok(JSON.stringify(proposal).length<4000,'expansion fixture remains within the structured output budget');
+ await select();await send('Expand this explanation with more detail while preserving the equation.');
+ assert.deepEqual(await savedCard(),shortCard,'the expansion preview must not alter the board');
+ await editor().locator('[data-inline-accept]').click();
+ await until(async()=>(await savedCard()).title==='Expanded explanation','Expansion did not persist');
+ await until(async()=>(await geometry('editable')).height>shortBox.height+100,'Full-content height did not grow naturally');
+ const grown=await geometry('editable'),after=await state(),edited=await savedCard(),nearAfter=await geometry('neighbour');
+ for(const key of ['x','y','width'])near(grown[key],shortBox[key],`expanded ${key}`);
+ for(const key of ['x','y','width','height'])near(nearAfter[key],nearBox[key],`expansion neighbour ${key}`);
+ assert.deepEqual(edited.cardLayout,shortCard.cardLayout,'natural height must not rewrite persisted width/slot policy');
+ assert.deepEqual(after.blocks.find(b=>b.id==='neighbour'),before.blocks.find(b=>b.id==='neighbour'),'neighbour metadata unchanged');
+ assert.equal(after.blocks.length,before.blocks.length,'expansion replaces the existing card');
+ await page.screenshot({path:resolve(OUT,'expanded-full.png')});
+ await page.locator('[data-canvas-surface]').click({position:{x:150,y:650}});await page.keyboard.press('Control+z');
+ await until(async()=>(await savedCard()).body===shortCard.body,'One Undo did not restore the pre-expansion content');
+ await until(async()=>Math.abs((await geometry('editable')).height-shortBox.height)<2,'One Undo did not restore natural height');
+ assert.deepEqual((await savedCard()).cardLayout,shortCard.cardLayout,'Undo preserves the original layout policy');
+});
 check('browser remains error-free and no nonfixture model request escaped',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);assert.ok(requests.length>=3);});
 let setupError;
 try{
  const auth=await fetch(CP+'/test/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:`cardedit-${run}@example.com`,secret})});assert.ok(auth.ok);session=(await auth.json()).session;
+ await api('/api/profile','PUT',{handle:`cardedit_${run}`});
  canvas=await api('/api/canvases','POST',{title:`Card edit acceptance ${run}`});await api(`/api/learn/boards/${canvas.name}/main`,'PUT',{state:{strokes:[],shapes:[],items:[],links:[],groups:[],areas:[],exchanges:[],blocks:[original,{id:'neighbour',type:'explanation',title:'Unchanged neighbour',body:'Not an edit target.',dx:700,dy:0}]}});
  browser=await chromium.launch();const context=await browser.newContext({viewport:{width:1500,height:1000}});await context.addCookies([{name:'small_session',value:session,url:BASE}]);
  await context.route('**/*',route=>{const req=route.request(),url=new URL(req.url());if(![BASE,CP].includes(url.origin)&&!['data:','blob:'].includes(url.protocol))return route.abort();
