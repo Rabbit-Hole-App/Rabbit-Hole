@@ -289,3 +289,37 @@ test('on the Workers path the body streams to R2 with its length and R2 checks t
   assert.deepEqual([stored.status, stored.body.source.status], [200, 'stored']);
   assert.equal(sha([...objects.values()][0].bytes), sha(bytes));
 });
+
+// Owner checks (a)-(e) for file sources, 2026-10-16, on the Workers path (FixedLengthStream stand-in; R2 verifies sha256).
+test('owner checks (a)-(e), file sources: a wrong length or sha256 is never finalized, the no-length boundary, nothing kept', async t => {
+  const { call, saveBoard, objects, sqlite } = setup(t);
+  globalThis.FixedLengthStream = class extends TransformStream { constructor(length) { let seen = 0; super({ transform(chunk, controller) { seen += chunk.byteLength; if (seen > length) throw new TypeError('more bytes than the stream length'); controller.enqueue(chunk); }, flush() { if (seen !== length) throw new TypeError('fewer bytes than the stream length'); } }); } };
+  t.after(() => { delete globalThis.FixedLengthStream; });
+  await saveBoard(STATE);
+  const declare = async (bytes, name) => (await call('POST', '/api/learn/files', { as: 'owner', body: { app: 'demo-app', name, type: 'video/webm', size: bytes.byteLength, sha256: sha(bytes), family: 'video' } })).body;
+  const status = id => sqlite.prepare('SELECT status FROM file_sources WHERE id = ?').get(id).status;
+  const send = (url, bytes, declared) => call('PUT', url, { as: 'owner', raw: bytes, headers: declared === null ? {} : { 'Content-Length': String(declared) } });
+  const real = webm(4000);
+  const a = await declare(real, 'a.webm');
+  // (a) claims the declared size but sends fewer bytes.
+  assert.equal((await send(a.upload.url, real.slice(0, 1000), 4000)).status, 400, '(a)');
+  // (b) claims fewer than declared (the declared size no longer matches), and claims the size with more bytes behind it.
+  assert.equal((await send(a.upload.url, real, 1000)).status, 400, '(b) a Content-Length under the declared size');
+  assert.equal((await send(a.upload.url, webm(25 * MiB), 4000)).status, 400, '(b) the declared size with a far larger body');
+  assert.equal((await send(a.upload.url, real, 4001)).status, 413, '(b) a Content-Length over the declared size');
+  // (d) the declared size with other bytes: R2's sha256 check fails.
+  const other = webm(4000); other[2000] ^= 1;
+  assert.equal((await send(a.upload.url, other, 4000)).status, 400, '(d)');
+  assert.equal(status(a.source.id), 'uploading', '(d, e) never stored after any refusal');
+  assert.equal(objects.size, 0, '(e) no object for any refused upload');
+  assert.equal((await call('GET', `/api/learn/files/${a.source.id}`, { as: 'owner' })).status, 404, '(e) nothing to download');
+  // (c) no Content-Length: counted up to 1 MiB.
+  const mib = webm(1048576), over = webm(1048577);
+  const c1 = await declare(mib, 'c1.webm'), c2 = await declare(over, 'c2.webm');
+  assert.equal((await send(c1.upload.url, mib, null)).status, 200, '(c) 1048576 without a length');
+  const refused = await send(c2.upload.url, over, null);
+  assert.deepEqual([refused.status, refused.body.error, status(c2.source.id)], [411, 'Send this file with its Content-Length.', 'uploading'], '(c) 1048577 without a length');
+  // And the real upload still finalizes.
+  assert.equal((await send(a.upload.url, real, 4000)).status, 200);
+  assert.equal(status(a.source.id), 'stored');
+});

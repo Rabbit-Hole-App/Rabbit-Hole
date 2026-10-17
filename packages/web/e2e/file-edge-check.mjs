@@ -109,6 +109,54 @@ const putWrong = await fetch(`${BASE}${madeWrong.upload?.url}`, { method: 'PUT',
 ok('30 MiB whose sha256 is not the declared one: R2 refuses it and nothing is stored', putWrong.status === 400 && (await fetch(`${BASE}/api/learn/files/${madeWrong.source?.id}`, { headers: authed })).status === 404, String(putWrong.status));
 ok('a 30 MiB file source uploads, hashes and downloads byte for byte on the edge', upSource.status === 200 && gotSource.ok && sha(new Uint8Array(await gotSource.arrayBuffer())) === sha(source), `${upSource.status} ${gotSource.status}`);
 
+// 7. Owner checks (a)-(e), 2026-10-16, on both routes over a raw socket: the request line, headers and body exactly as sent.
+// end: the client also ends its side after the body. Only for a body shorter than its Content-Length; otherwise the socket stays
+// open for the answer, as a browser's does (the edge closes a half-closed request whose body the Worker did not read).
+const rawPut = (path, declared, bytes, type = 'video/webm', { end = false } = {}) => new Promise(resolve => {
+  const socket = connect({ host, port: 443, servername: host, ALPNProtocols: ['http/1.1'] }, () => {
+    socket.write([`PUT ${path} HTTP/1.1`, `Host: ${host}`, `Cookie: small_session=${session}`, 'User-Agent: file-edge-check', `Content-Type: ${type}`,
+      ...(declared === null ? ['Transfer-Encoding: chunked'] : [`Content-Length: ${declared}`]), 'Connection: close', '', ''].join('\r\n'));
+    const body = declared === null ? Buffer.concat([Buffer.from(`${bytes.length.toString(16)}\r\n`), Buffer.from(bytes), Buffer.from('\r\n0\r\n\r\n')]) : Buffer.from(bytes);
+    if (end) socket.end(body); else socket.write(body);
+  });
+  let text = '';
+  socket.on('data', data => { text += data.toString('latin1'); if (/\}\s*$/.test(text)) setTimeout(() => socket.destroy(), 300); });
+  socket.on('error', error => resolve(`error ${error.code || error.message}`));
+  socket.on('close', () => resolve(text ? `${text.split('\r\n')[0].replace('HTTP/1.1 ', '')} ${text.match(/\{"(error|key|source)".*\}/s)?.[0]?.slice(0, 120) || ''}` : 'closed with no response'));
+  setTimeout(() => { socket.destroy(); resolve(`no answer in 120 s${text ? `: ${text.split('\r\n')[0]}` : ''}`); }, 120000);
+});
+const assetPath = key => new URL(assetUrl(key)).pathname;
+const storedSize = async key => { const r = await fetch(assetUrl(key), { headers: authed }); return r.ok ? (await r.arrayBuffer()).byteLength : r.status; };
+// (b) board: a declared size inside the cap with a larger body behind it: only the declared bytes are read and stored.
+const capTrick = await rawPut(assetPath(`edge:${run}:captrick`), 50 * MiB, webmOf(60 * MiB));
+ok('(b) board: Content-Length 52428800 with 60 MiB behind it stores exactly 52428800 bytes', (await storedSize(`edge:${run}:captrick`)) === 50 * MiB, capTrick);
+// (c) board: no length (chunked) at the 1 MiB boundary.
+const at = await rawPut(assetPath(`edge:${run}:mib`), null, new Uint8Array(1048576), 'application/octet-stream');
+const past = await rawPut(assetPath(`edge:${run}:mib1`), null, new Uint8Array(1048577), 'application/octet-stream');
+const atSize = await storedSize(`edge:${run}:mib`), pastSize = await storedSize(`edge:${run}:mib1`);
+ok('(c) board: chunked 1048576 bytes is stored', atSize === 1048576, `${at}; stored ${atSize}`);
+ok('(c) board: chunked 1048577 bytes is refused with 411, or stored whole when the edge hands the Worker its length', (/^411 .*Send this file with its Content-Length/.test(past) && pastSize === 404) || (/^200 /.test(past) && pastSize === 1048577), `${past}; stored ${pastSize}`);
+// Files: a source declared 4000 bytes.
+const fsBytes = webmOf(4000).map((b, i) => (i < 4 ? b : i % 199));
+const fsMade = await (await fetch(`${BASE}/api/learn/files`, { method: 'POST', headers: { ...authed, 'Content-Type': 'application/json' }, body: JSON.stringify({ app: made.name, board: 'main', name: 'raw.webm', type: 'video/webm', size: 4000, sha256: sha(fsBytes), family: 'video' }) })).json();
+const fsPath = new URL(`${BASE}${fsMade.upload?.url}`).pathname;
+const notStored = async () => (await fetch(`${BASE}/api/learn/files/${fsMade.source?.id}`, { headers: authed })).status === 404;
+const fa = await rawPut(fsPath, 4000, fsBytes.slice(0, 1000), 'video/webm', { end: true });
+ok('(a) files: Content-Length 4000 with 1000 bytes sent is not finalized', !/^200 /.test(fa) && await notStored(), fa);
+const fb1 = await rawPut(fsPath, 1000, fsBytes);
+ok('(b) files: Content-Length 1000 for a 4000-byte source is refused, not finalized', /^400 /.test(fb1) && await notStored(), fb1);
+const fb2 = await rawPut(fsPath, 4001, webmOf(4001));
+ok('(b) files: Content-Length over the declared size is refused, not finalized', /^413 /.test(fb2) && await notStored(), fb2);
+const changed = Uint8Array.from(fsBytes); changed[3000] ^= 1;
+const fd = await rawPut(fsPath, 4000, Buffer.concat([Buffer.from(changed), Buffer.alloc(1000)]));
+ok('(d) files: the declared size of other bytes (and more behind them): R2 refuses the sha256, not finalized', /^400 /.test(fd) && await notStored(), fd);
+const fc = await rawPut(fsPath, null, fsBytes.slice(0, 3000));
+ok('(b, chunked) files: a chunked body short of the declared size is refused, not finalized', /^(400|411) /.test(fc) && await notStored(), fc);
+const fine = await rawPut(fsPath, 4000, fsBytes);
+ok('files: the declared bytes then finalize', /^200 /.test(fine) && !(await notStored()), fine);
+const owned = await listed();
+ok('(e) no refused upload left a board file', !owned.includes(`edge:${run}:mib1`) || pastSize === 1048577, owned.filter(key => key.startsWith('edge:')).join(', '));
+
 // 6. A 25-50 MiB video through the page, then a fresh browser context on the same account: loads, plays, seeks.
 const browser = await chromium.launch();
 const clip = await largeVideo(browser);
