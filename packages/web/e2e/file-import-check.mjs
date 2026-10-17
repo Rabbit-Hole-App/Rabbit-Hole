@@ -74,6 +74,10 @@ if (process.env.OFFLINE !== '1') {
   // Import acceptance never requires paid inference; next steps are a wiring-only fixture.
   for (const path of ['ask', 'selection', 'tutor/plan', 'artifact', 'home-ask', 'journey', 'course', 'media']) await context.route('**/api/learn/' + path, route => route.abort());
   await context.route('**/api/learn/tutor/next-steps', route => route.fulfill({ json: { steps: [] } }));
+  // The app's existing notebook shell/prewarm is trusted UI, not a URL from the imported file.
+  // Keep it offline as a blank fixture; arbitrary external requests still reach the refusal above.
+  let notebookShells = 0;
+  await context.route(url => url.origin === 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev' && url.pathname === '/lab/index.html', route => { notebookShells++; return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Notebook shell fixture</title>' }); });
   // Every toast the page shows (ui.jsx toast() dispatches small:toast), so a refusal is read from its own message.
   await context.addInitScript(() => { window.__toasts = []; addEventListener('small:toast', e => window.__toasts.push(String(e.detail?.message || ''))); });
   const page = await context.newPage();
@@ -135,7 +139,7 @@ if (process.env.OFFLINE !== '1') {
         continue;
       }
       await choose(want.chooser);
-      const after = await until(async () => { const b = await board(name); return addedBlocks(before.state, b.state).length ? b : null; }, 60000, 'the saved board to gain the card');
+      const after = await until(async () => { const b = await board(name); const card = addedBlocks(before.state, b.state).find(block => block.type === want.card.type && (!want.card.kind || block.kind === want.card.kind)); return card && originalsOf(card).length ? b : null; }, 120000, 'the saved card to retain its uploaded original reference');
       const added = addedBlocks(before.state, after.state);
       const card = added.find(b => b.type === want.card.type && (!want.card.kind || b.kind === want.card.kind));
       const compact = compactness(before.text, after.text, { sourceBytes: fixture.bytes });
@@ -153,6 +157,7 @@ if (process.env.OFFLINE !== '1') {
       await page.goto('about:blank').catch(() => {});
     }
   }
+  console.log('Notebook shell fixture responses: ' + notebookShells);
   await browser.close();
 }
 
