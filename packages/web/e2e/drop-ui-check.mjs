@@ -1,6 +1,10 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
+const BASE = process.env.BASE || 'http://localhost:5189';
+const origin = new URL(BASE);
+if (origin.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(origin.hostname) || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw Error('drop-ui-check requires a local HTTP origin');
+
 // Dropped-file cards plus the strip/toolbar/text/shape UI changes, against a
 // stubbed worker. What unit tests cannot see: a real OS-style drop landing as
 // a card, image_context riding the next question, the level pill styling a
@@ -38,7 +42,7 @@ const ok = (name, condition, extra = '') => { if (!condition) failed += 1; conso
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 const surface = canvas.locator('div.touch-none').first();
 
-await page.goto('http://localhost:5189/apps/repo-drop-nanogpt?tab=learn');
+await page.goto(`${origin.origin}/apps/repo-drop-nanogpt?tab=learn`);
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(3000);
 
