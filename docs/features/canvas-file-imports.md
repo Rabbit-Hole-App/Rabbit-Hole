@@ -560,3 +560,7 @@ bundled FFmpeg) and Chrome 155 MediaRecorder; they are generated test data, and 
 ### Integration follow-up: failed conversion Retry
 
 STEP cards now expose owner-only Retry for failed/cancelled jobs and initial submission failures. Existing jobs use the shared `retryFileJob` endpoint action (also used by audio), retain the job/source/card identity and restart status polling. Focused client/state tests pass; browser and real converter acceptance remain pending.
+
+## Current release scope (owner follow-up, 2026-10-16)
+
+Legacy Word `.doc` is deferred from this file-import release: the owner explicitly chose “okay defer for now. make a note so we can revisit later”. `.docx` remains included. Keep the existing `.doc` refusal; revisit its converter-backed import, preview, Context, reload, sharing and recovery acceptance in a later release. Backend converter support alone does not establish shipped UI support.
