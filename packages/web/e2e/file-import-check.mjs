@@ -142,7 +142,7 @@ if (process.env.OFFLINE !== '1') {
       const flags = await page.evaluate(names => names.filter(n => window[n] !== undefined), FLAGS);
       const kept = sums.includes(fixture.sha256);
       check(label, !!card && compact.ok && kept && !flags.length && !outside.length, {
-        card: card ? [card.type, card.kind] : added.map(b => [b.type, b.kind]), expected: [want.card.type, want.card.kind], ...(card?.fileRef?.status ? { status: card.fileRef.status } : {}),
+        card: card ? [card.type, card.kind] : added.map(b => [b.type, b.kind]), expected: [want.card.type, want.card.kind], fileRef: card?.fileRef ? { v: card.fileRef.v, family: card.fileRef.family } : null, ...(card?.fileRef?.status ? { status: card.fileRef.status } : {}),
         board: compact, original: kept ? 'sha256 matches' : { want: fixture.sha256, got: sums }, ...(flags.length ? { ran: flags } : {}), ...(outside.length ? { outside } : {}),
       });
     } catch (error) {
