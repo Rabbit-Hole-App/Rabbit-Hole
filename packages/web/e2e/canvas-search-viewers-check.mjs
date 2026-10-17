@@ -8,6 +8,11 @@ import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5441', CP = process.env.SMALL_CP || 'http://127.0.0.1:9093';
 for (const value of [BASE, CP]) assert.match(value, /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/, 'local fixtures only');
+// A local dev-worker intentionally refuses invitation forwarding. Its same-database
+// control plane may be specified explicitly for real invitation setup, never a mock.
+const MEMBER_API = process.env.MEMBER_API || BASE;
+const MEMBER_ORIGIN = process.env.MEMBER_ORIGIN || MEMBER_API;
+for (const value of [MEMBER_API, MEMBER_ORIGIN]) assert.match(value, /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/, 'local invitation fixtures only');
 const OUT = process.env.OUT || 'canvas-search-viewers-shots';
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
@@ -19,7 +24,8 @@ const sessionFor = async name => {
 };
 const owner = await sessionFor('searchowner'), member = await sessionFor('searchmember');
 const as = session => async (path, body, method = body === undefined ? 'GET' : 'POST') => {
-  const response = await fetch(`${BASE}${path}`, { method, headers: { cookie: `small_session=${session}`, origin: BASE, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const memberRoute = /^\/api\/learn\/(invites\/|c\/[^/]+\/members)/.test(path);
+  const response = await fetch(`${memberRoute ? MEMBER_API : BASE}${path}`, { method, headers: { cookie: `small_session=${session}`, origin: memberRoute ? MEMBER_ORIGIN : BASE, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   return { status: response.status, body: await response.json().catch(() => null) };
 };
 const api = as(owner), memberApi = as(member);
