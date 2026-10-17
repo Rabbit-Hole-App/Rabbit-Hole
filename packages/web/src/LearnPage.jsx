@@ -9,6 +9,7 @@ import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
+import { setFileScope } from './file-source-client.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading } from './LearnExtras.jsx';
@@ -1017,6 +1018,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // this browser has none, and once the board is on the server, any file not yet uploaded goes up.
   useEffect(() => {
     setRemoteAssets(key => fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, { headers: wsHeaders() }));
+    setFileScope({ app: app.name, board: boardName }); // imported files read through this board (file-source-client.js)
     // Notebook workspaces: saved once the board has its server row (a review board: while shared or published), and
     // not after a 409; loaded only into an empty workspace (this owner on another browser), never over local files.
     const workspaceUrl = id => `${boardPath}/assets/${encodeURIComponent(`notebook:${id}`)}`;
@@ -1027,7 +1029,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         : null),
       fresh: false,
     });
-    return () => { setRemoteAssets(null); setWorkspaceStore(null); };
+    return () => { setRemoteAssets(null); setWorkspaceStore(null); setFileScope(null); };
   }, [boardPath]);
   const uploadedAssets = useRef(null);
   const refusedAssets = useRef(new Set()); // board files the server refused: said once per open

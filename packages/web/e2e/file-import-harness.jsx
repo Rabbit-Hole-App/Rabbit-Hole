@@ -6,10 +6,13 @@ import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import AdaptiveCanvas from '../src/AdaptiveCanvas.jsx';
 import { useDocImport } from '../src/DocImport.jsx';
+import { setFileScope } from '../src/file-source-client.js';
 import '../src/index.css';
 
 const KEY = 'harness:file-import';
 window.toasts = [];
+// The owner's canvas scope, as LearnPage sets it: uploads go to /api/learn/files, which the check answers itself.
+setFileScope({ app: 'harness-app', board: 'main' });
 
 function Harness() {
   const [exchanges, setExchanges] = useState([]);

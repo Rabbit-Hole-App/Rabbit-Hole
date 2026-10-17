@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, Loader2, MessageSquarePlus, Presentation, Sheet, Table2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, Download, FileSpreadsheet, FileText, Loader2, MessageSquarePlus, Presentation, RotateCw, Sheet, Table2 } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
-import { loadAsset } from './learn-board-assets.js';
 import { Md } from './Md.jsx';
 import { parse } from './file-parse.js';
 import { TEXT_ENCODINGS, decodeText, textChunks, textExcerpt } from './file-text.js';
@@ -9,14 +8,23 @@ import { DELIMITERS, DELIMITER_NAMES, columnName, tableExcerpt } from './file-ta
 import { cellText, describeCell } from './file-workbook.js';
 import { slidesExcerpt } from './file-office.js';
 import { describeFileCard, setFileExcerpt } from './file-excerpts.js';
+import { withView } from './file-doc-import.js';
+import { canWrite, fileScope, loadSource, scopeQuery, startUpload, uploadState, watchUpload } from './file-source-client.js';
+import { EXTRACTOR, documentUnits, extractionOptions, fitBytes, lineUnits, slideUnits, tableUnits, workbookUnits } from './file-text-units.js';
+import { fileChatRef } from './file-chat-ref.js';
+import { fetchDerivatives, isTerminal, stageLabel, submitFileJob, watchFileJobs } from './file-jobs-client.js';
+import { jobRequest } from './file-job.js';
 import { selectionRef } from './selection-ref.js';
+import { wsHeaders } from './api.js';
 import { cn } from './ui.jsx';
 
 // The body of a lane 2 file card (docs/features/canvas-file-imports.md): a text, Markdown, table, workbook, Word document or
-// presentation card inside the shared CanvasNode frame, so it selects, moves, resizes, saves and undoes like any card. The
-// original stays under the card's asset key; this reads it (this browser's cache, then the board's server copy), parses it in
-// the file worker and renders a bounded view that says how much it shows. Nothing here runs a macro or script, opens a link, and
-// nothing calls a model. Controls and scrolling areas stop the press, so they never drag the card; the header drags it.
+// presentation card inside the shared CanvasNode frame, so it selects, moves, resizes, saves and undoes like any card. A new
+// card is a fileRef card: its original uploads to the account (file-source-client.js) and the card says so until the upload
+// is stored, with Retry on failure; a local preview is never called saved. An older card reads its board file (assetKey) as
+// before. The original is parsed in the file worker and drawn bounded, saying how much it shows; once stored, the owner's
+// browser keeps the extracted text as the source's text derivative for chat. Nothing here runs a macro or script, opens a
+// link, or calls a model. Controls and scrolling areas stop the press, so they never drag the card; the header drags it.
 const stop = event => event.stopPropagation();
 const BUTTON = 'pointer-events-auto inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50';
 const ICON = { text: FileText, markdown: FileText, table: Table2, workbook: FileSpreadsheet, document: FileText, presentation: Presentation };
@@ -25,18 +33,20 @@ const size = n => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MiB` : `${Math.ma
 const count = n => Number(n || 0).toLocaleString('en-US');
 
 // The original file: { status: 'loading' | 'ready' | 'missing', blob }.
-function useOriginal(assetKey) {
+function useOriginal(block) {
+  const ref = block.fileRef;
+  const key = ref ? `${ref.source?.id || ''}@${ref.source?.rev || ''}|${ref.local || ''}` : block.assetKey;
   const [state, setState] = useState({ status: 'loading', blob: null });
   useEffect(() => {
     let active = true;
-    setState({ status: 'loading', blob: null });
-    loadAsset(assetKey).then(value => {
+    setState(previous => (previous.blob ? previous : { status: 'loading', blob: null })); // a stored upload keeps its preview
+    loadSource(block).then(value => {
       if (!active) return;
-      if (value == null) setState({ status: 'missing', blob: null });
+      if (value == null) setState(previous => (previous.blob ? previous : { status: 'missing', blob: null }));
       else setState({ status: 'ready', blob: typeof value === 'string' ? new Blob([value], { type: 'text/plain' }) : value });
     });
     return () => { active = false; };
-  }, [assetKey]);
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return state;
 }
 
@@ -58,8 +68,67 @@ function useParsed(blob, kind, options) {
   return state;
 }
 
+// The upload of a fileRef card that is not stored yet: started here (shared per local key, so cards from one file share it,
+// and a card mounted after a reload resumes from this browser's copy), its state watched, and the stored source written
+// into the card, so the next board save names it (which writes the reference the server authorizes reads by).
+function useUpload(block, update) {
+  const ref = block.fileRef, key = ref && !ref.source?.id ? ref.local : null;
+  const [state, setState] = useState(() => (key ? uploadState(key) : null));
+  useEffect(() => {
+    if (!key) { setState(null); return undefined; }
+    const take = next => {
+      setState(next);
+      if (next?.stage === 'stored') update(current => (current.fileRef?.source?.id ? current : { ...current, fileRef: { ...current.fileRef, source: { id: next.source.id, rev: next.source.rev }, local: undefined } }));
+    };
+    const unwatch = watchUpload(key, take);
+    if (canWrite()) startUpload(key, { family: ref.family, name: block.label });
+    take(uploadState(key)); // an upload that finished before this card mounted
+    return unwatch;
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const retry = () => { if (key) startUpload(key, { family: ref.family, name: block.label }); };
+  return { state, retry };
+}
+
+// Once stored, the owner's browser keeps the extracted text (file-text-units.js) as the source's text derivative, once per
+// revision and extraction (cards made from one file share the one store); the card then says chat can read it
+// (fileRef.status.context). A failed store is forgotten, so the next view of the card tries again.
+const storing = new Map();
+const storeText = (sourceId, extraction, body, options) => {
+  const key = `${sourceId}|${extraction}`;
+  if (!storing.has(key)) {
+    storing.set(key, fetch(`/api/learn/files/${encodeURIComponent(sourceId)}/text`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ ...body, extractor: EXTRACTOR, options }) })
+      .then(response => { if (!response.ok) throw Error(String(response.status)); return true; })
+      .catch(() => { storing.delete(key); return false; }));
+  }
+  return storing.get(key);
+};
+function useTextDerivative(block, update, units) {
+  const ref = block.fileRef, source = ref?.source;
+  const extraction = JSON.stringify(extractionOptions(block));
+  const done = ref?.status?.extraction === extraction; // a delimiter or encoding change is a new extraction
+  useEffect(() => {
+    if (!units || units.key !== extraction || !source?.id || done || !canWrite()) return; // units of this extraction only
+    let active = true;
+    const body = fitBytes(units.body);
+    storeText(source.id, extraction, body, extractionOptions(block))
+      .then(stored => {
+        if (!active || !stored) return;
+        update(current => ({ ...current, fileRef: { ...current.fileRef, status: { ...current.fileRef.status, extraction, context: body.complete ? 'extracted' : 'partial', ...(body.limited ? { limited: body.limited.slice(0, 120) } : {}) } } }));
+      });
+    return () => { active = false; };
+  }, [units, source?.id, done, extraction]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export default function FileDocCard({ block, onChange }) {
-  const original = useOriginal(block.assetKey);
+  // Every change goes through the latest block, so a late upload or extraction never writes over a newer edit.
+  const latest = useRef(block);
+  latest.current = block;
+  const change = next => onChange?.(withView(next, {}));
+  const update = fn => { const next = fn(latest.current); if (next !== latest.current) change(next); };
+  const original = useOriginal(block);
+  const upload = useUpload(block, update);
+  const [units, setUnits] = useState(null);
+  useTextDerivative(block, update, units);
   const chat = useChatWorkspace();
   const Icon = ICON[block.kind] || FileText;
   const [meta, setMeta] = useState('');
@@ -69,11 +138,12 @@ export default function FileDocCard({ block, onChange }) {
     a.href = url; a.download = block.label || 'file'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  // Add to chat: the card's own selection ref (card:<id>), so selecting it and pressing Add to chat is one attachment.
-  const addToChat = () => chat?.addToChat?.(selectionRef({ ids: [block.id], kind: 'card', name: block.label, content: block.label, text: () => describeFileCard(block)?.text ?? '' }));
+  // Add to chat: a stored fileRef card is its file ref (file-chat-ref.js), the same one its selection gives, so selecting it
+  // and pressing Add to chat is one attachment; an older card or one not stored yet is its card ref, as before.
+  const addToChat = () => chat?.addToChat?.(fileChatRef(block) || selectionRef({ ids: [block.id], kind: 'card', name: block.label, content: block.label, text: () => describeFileCard(block)?.text ?? '' }));
   useEffect(() => () => setFileExcerpt(block.id, null), [block.id]);
   return (
-    <div data-file-doc-card={block.kind} data-format={block.format} className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div data-file-doc-card={block.kind} data-format={block.format} data-saved={block.fileRef ? (block.fileRef.source?.id ? 'stored' : 'pending') : 'board-file'} className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header data-drag-zone className="flex min-w-0 shrink-0 cursor-grab items-center gap-2 px-3 pt-1 pb-2 active:cursor-grabbing">
         <Icon size={16} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-2" />
         <span className="flex min-w-0 flex-1 flex-col">
@@ -85,11 +155,24 @@ export default function FileDocCard({ block, onChange }) {
         <button type="button" data-file-doc-download className={BUTTON} disabled={!original.blob} title="Download the original file" onClick={download}><Download size={13} aria-hidden />Download</button>
         <button type="button" data-file-doc-chat className={BUTTON} disabled={!chat?.addToChat} title="Keep this file with the chat" onClick={addToChat}><MessageSquarePlus size={13} aria-hidden />Add to chat</button>
       </div>
+      {block.fileRef && !block.fileRef.source?.id && <SaveState state={upload.state} onRetry={upload.retry} />}
       {original.status === 'loading' && <Status>Opening the file…</Status>}
-      {original.status === 'missing' && <p data-file-doc-missing className="px-3 py-2 text-xs text-ink-2">This file is not in this browser or saved with the board yet.</p>}
-      {original.blob && <Body block={block} blob={original.blob} onChange={onChange} setMeta={setMeta} />}
+      {original.status === 'missing' && <p data-file-doc-missing className="px-3 py-2 text-xs text-ink-2">{block.fileRef && !block.fileRef.source?.id ? 'This file was never saved to the account and is not in this browser. Drop it on the canvas again.' : 'This file is not in this browser or saved with the board yet.'}</p>}
+      {original.blob && <Body block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), body })} />}
     </div>
   );
+}
+
+// A fileRef card not stored yet: how far its upload is, or why it failed and Retry. Never "saved" before the server says so.
+function SaveState({ state, onRetry }) {
+  if (state?.stage === 'failed') return <div role="alert" data-file-doc-save="failed" className="flex shrink-0 items-start gap-1.5 border-b border-line px-3 py-1.5 text-xs text-danger" onPointerDown={stop}>
+    <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden /><span className="min-w-0 flex-1">Not saved: {state.error}</span>
+    {state.retryable && <button type="button" data-file-doc-retry className={BUTTON} onClick={onRetry}><RotateCw size={13} aria-hidden />Retry</button>}
+  </div>;
+  const percent = state?.total ? Math.floor((100 * (state.sent || 0)) / state.total) : 0;
+  const line = !state ? (canWrite() ? 'Saving to your account…' : 'Not saved yet: the upload from the browser that added this file has not finished.')
+    : state.stage === 'uploading' ? `Saving to your account… ${percent}%` : state.stage === 'hashing' ? 'Preparing to save…' : 'Saving to your account…';
+  return <p role="status" data-file-doc-save={state?.stage || 'waiting'} className="flex shrink-0 items-center gap-1.5 border-b border-line px-3 py-1 text-[11px] text-ink-2"><CloudUpload size={13} aria-hidden />{line}</p>;
 }
 
 const Status = ({ children }) => <p role="status" className="flex items-center gap-1.5 px-3 py-2 text-xs text-ink-2"><Loader2 size={13} className="animate-spin" aria-hidden />{children}</p>;
@@ -113,7 +196,7 @@ function useExcerpt(block, excerpt) {
 }
 
 // ─── Text and Markdown: decoded with its encoding, drawn in chunks; Show more draws the next one. ───
-function TextBody({ block, blob, onChange, setMeta }) {
+function TextBody({ block, blob, onChange, setMeta, onUnits }) {
   const [decoded, setDecoded] = useState({ status: 'loading' });
   const [shown, setShown] = useState(1);
   useEffect(() => {
@@ -125,6 +208,7 @@ function TextBody({ block, blob, onChange, setMeta }) {
   }, [blob, block.encoding, block.label]);
   const view = useMemo(() => (decoded.status === 'ready' ? textChunks(decoded.text) : null), [decoded]);
   useExcerpt(block, decoded.status === 'ready' ? { ...textExcerpt(decoded.text), where: `${decoded.encoding.toUpperCase()}, ${count(decoded.text.length)} characters` } : null);
+  useEffect(() => { if (decoded.status === 'ready') onUnits?.(lineUnits(decoded.text)); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (decoded.status === 'ready') setMeta(`${decoded.encoding.toUpperCase()}${decoded.newline !== 'none' && decoded.newline !== 'lf' ? ` · ${decoded.newline.toUpperCase()} line ends` : ''}`); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
   if (decoded.status === 'loading') return <Status>Reading the text…</Status>;
   if (decoded.status === 'failed') return <div onPointerDown={stop}><Failed>{decoded.error}</Failed>{decoded.code === 'encoding' && <EncodingChoice value={block.encoding} onPick={encoding => onChange?.({ ...block, encoding })} />}</div>;
@@ -216,9 +300,10 @@ function VirtualTable({ rows, header = null, letters = false, onCell, selected }
 }
 
 // ─── CSV / TSV: the first record is the header; delimiter and encoding can be corrected on the card. ───
-function TableBody({ block, blob, onChange, setMeta }) {
+function TableBody({ block, blob, onChange, setMeta, onUnits }) {
   const parsed = useParsed(blob, 'table', { name: block.label, delimiter: block.delimiter || null, encoding: block.encoding || null });
   const t = parsed.result;
+  useEffect(() => { if (t) onUnits?.(tableUnits(t)); }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
   useExcerpt(block, t ? { ...tableExcerpt(t), where: `${count(t.totalRows)} rows × ${count(t.totalCols)} columns, ${DELIMITER_NAMES[t.delimiter] || 'custom'}-delimited` } : null);
   useEffect(() => { if (t) setMeta(`${count(Math.max(0, t.totalRows - 1))} rows × ${count(t.totalCols)} columns`); }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
   if (parsed.status === 'loading') return <Status>Reading the table…</Status>;
@@ -238,13 +323,14 @@ function TableBody({ block, blob, onChange, setMeta }) {
 }
 
 // ─── Workbooks: one sheet at a time (the selector lists the sheets this card holds), formulas marked and explained. ───
-function WorkbookBody({ block, blob, onChange, setMeta }) {
+function WorkbookBody({ block, blob, onChange, setMeta, onUnits }) {
   const parsed = useParsed(blob, 'workbook', { name: block.label });
   const [picked, setPicked] = useState(null);
   const book = parsed.result;
   const sheets = book ? book.sheets.filter(sheet => !block.sheets || block.sheets.includes(sheet.name)) : [];
   const sheet = sheets.find(entry => entry.name === block.sheet) || sheets[0] || null;
   useEffect(() => { setPicked(null); }, [sheet?.name]);
+  useEffect(() => { if (book) onUnits?.(workbookUnits(book)); }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
   useExcerpt(block, sheet ? { ...tableExcerpt({ rows: sheet.rows.map(row => row.map(cellText)), totalRows: sheet.totalRows, totalCols: sheet.totalCols }, { sheet: sheet.name }), where: `sheet ${sheet.name}, ${count(sheet.totalRows)} rows × ${count(sheet.totalCols)} columns; formula cells show the value cached in the file` } : null);
   useEffect(() => { if (book) setMeta(`${sheets.length} of ${book.sheets.length} sheet${book.sheets.length === 1 ? '' : 's'}`); }, [book, sheets.length]); // eslint-disable-line react-hooks/exhaustive-deps
   if (parsed.status === 'loading') return <Status>Reading the workbook…</Status>;
@@ -274,13 +360,14 @@ const quote = name => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `'${name.r
 
 // ─── Word documents: mammoth's structure as React elements (never HTML), images from the original, conversion notes said. ───
 const BLOCKS_PER_PAGE = 300;
-function DocumentBody({ block, blob, setMeta }) {
+function DocumentBody({ block, blob, setMeta, onUnits }) {
   const legacy = block.format === 'doc';
   const parsed = useParsed(legacy ? null : blob, 'document', { name: block.label });
   const [pages, setPages] = useState(1);
   const urls = useMemo(() => new Map((parsed.result?.images || []).map(image => [image.id, URL.createObjectURL(new Blob([image.bytes], { type: image.type }))])), [parsed.result]);
   useEffect(() => () => { for (const url of urls.values()) URL.revokeObjectURL(url); }, [urls]);
   const doc = parsed.result;
+  useEffect(() => { if (doc) onUnits?.(documentUnits(doc)); }, [doc]); // eslint-disable-line react-hooks/exhaustive-deps
   useExcerpt(block, doc ? { ...textExcerpt(doc.text), where: 'text and structure read from the .docx; layout not reproduced' } : null);
   useEffect(() => { if (doc) setMeta(`${count(doc.text.length)} characters${doc.images.length ? ` · ${doc.images.length} image${doc.images.length === 1 ? '' : 's'}` : ''}`); }, [doc]); // eslint-disable-line react-hooks/exhaustive-deps
   // ponytail: awaiting converter. A .doc (Word 97-2003) needs the office-pdf conversion job (file-job.js); until a card holds
@@ -312,12 +399,14 @@ function DocNode({ node, urls }) {
 }
 
 // ─── Presentations: a slide navigator over the deck's own slide numbers; text extracted here, slide images await the converter. ───
-function PresentationBody({ block, onChange, blob, setMeta }) {
+function PresentationBody({ block, onChange, update, blob, setMeta, onUnits }) {
   const parsed = useParsed(blob, 'presentation', { name: block.label });
   const deck = parsed.result;
   const [from, to] = block.slides || [1, deck?.count || 1];
   const slides = deck ? deck.slides.filter(slide => slide.number >= from && slide.number <= to) : [];
   const current = slides.find(slide => slide.number === block.slide) || slides[0] || null;
+  useEffect(() => { if (deck) onUnits?.(slideUnits(deck)); }, [deck]); // eslint-disable-line react-hooks/exhaustive-deps
+  const images = useSlideImages(block, update, deck);
   useExcerpt(block, deck && slides.length ? { ...slidesExcerpt(block.slides ? slides : [current, ...slides.filter(s => s !== current)]), where: block.slides ? `slides ${from}-${to} of ${deck.count}` : `${deck.count} slides; text only, slide images not read` } : null);
   useEffect(() => { if (deck) setMeta(block.slides ? `slide${from === to ? '' : 's'} ${from}${from === to ? '' : `-${to}`} of ${deck.count}` : `${deck.count} slides`); }, [deck, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
   if (parsed.status === 'loading') return <Status>Reading the presentation…</Status>;
@@ -333,12 +422,49 @@ function PresentationBody({ block, onChange, blob, setMeta }) {
       <button type="button" aria-label="Next slide" data-file-doc-next className={BUTTON} disabled={index >= slides.length - 1} onClick={() => go(1)}><ChevronRight size={14} aria-hidden /></button>
     </div>
     <div data-scroll className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 pb-2" onPointerDown={stop}>
-      <div data-file-doc-slide-frame className="relative w-full overflow-hidden rounded-md border border-line bg-white p-4 dark:bg-side" style={{ aspectRatio: String(deck.size.ratio) }}>
-        <p className="text-base font-semibold text-ink">{current.title || <span className="text-ink-3">(no title)</span>}</p>
-        {lines.map((line, i) => <p key={i} className="mt-1 text-sm text-ink-2">{line}</p>)}
-      </div>
+      {images.urls.get(current.number)
+        ? <img data-file-doc-slide-image src={images.urls.get(current.number)} alt={`Slide ${current.number}: ${current.title || 'untitled'}`} className="w-full rounded-md border border-line bg-white" style={{ aspectRatio: String(deck.size.ratio) }} />
+        : <div data-file-doc-slide-frame className="relative w-full overflow-hidden rounded-md border border-line bg-white p-4 dark:bg-side" style={{ aspectRatio: String(deck.size.ratio) }}>
+          <p className="text-base font-semibold text-ink">{current.title || <span className="text-ink-3">(no title)</span>}</p>
+          {lines.map((line, i) => <p key={i} className="mt-1 text-sm text-ink-2">{line}</p>)}
+        </div>}
       {current.notes && <div data-file-doc-notes className="mt-2 rounded-md bg-hover/50 px-2 py-1.5 text-xs text-ink-2"><span className="font-semibold">Speaker notes:</span> {current.notes}</div>}
     </div>
-    <Note data-file-doc-awaiting>Slide text only. Slide images need the presentation converter, which is not connected yet; the original keeps every slide.</Note>
+    {images.urls.size ? <Note data-file-doc-slide-images>Slide images from the presentation converter{images.job?.state === 'ready_with_limitations' ? ' (with limitations: animations and embedded media are not shown)' : ''}.</Note>
+      : <Note data-file-doc-awaiting>{images.line || 'Slide text only. Slide images need the presentation converter, which is not connected yet; the original keeps every slide.'}</Note>}
   </>;
+}
+
+// Slide images through the converter's slides job (file-jobs-client.js; JOBS lane): the owner's canvas submits it once the
+// original is stored (one key per card, converter and revision, so a reload or a second press never makes a second job) and
+// keeps its id on the card; every page then reads the job's state and, once ready, the slide images of that revision.
+// The images are named slide-NNN.png by the deck's own slide number (converter API 1.6). Text stays when there are none.
+function useSlideImages(block, update, deck) {
+  const ref = block.fileRef, source = ref?.source;
+  const [state, setState] = useState({ job: null, urls: new Map(), line: '' });
+  const request = jobRequest('pptx', block.slides ? { from: block.slides[0], to: block.slides[1] } : {});
+  useEffect(() => {
+    if (!source?.id || ref.job || !deck || !canWrite()) return;
+    const at = fileScope();
+    submitFileJob(globalThis.fetch, { sourceId: source.id, sourceRev: source.rev, cardId: block.id, converter: request.converter, options: request.options, app: at.app, board: at.board })
+      .then(job => update(current => (current.fileRef?.job ? current : { ...current, fileRef: { ...current.fileRef, job: job.id } })),
+        error => setState(previous => ({ ...previous, line: `Slide text only. Slide images: ${error.message}` })));
+  }, [source?.id, ref?.job, !!deck]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!ref?.job || !source?.id) return undefined;
+    const at = fileScope();
+    let live = true;
+    const watch = watchFileJobs({ blocks: [block], fetchImpl: (url, init) => globalThis.fetch(url, init), share: at?.share || null, onJob: async (_, job) => {
+      if (!live) return;
+      const failed = job.state === 'failed' || job.state === 'cancelled';
+      setState(previous => ({ ...previous, job, line: failed ? `Slide text only. Slide images: ${stageLabel(job)}${job.error ? ` (${job.error})` : ''}` : isTerminal(job) ? previous.line : `Slide images: ${stageLabel(job)}…` }));
+      if (job.state !== 'ready' && job.state !== 'ready_with_limitations') return;
+      const list = await fetchDerivatives(globalThis.fetch, { sourceId: source.id, rev: source.rev, converter: request.converter, options: request.options, app: at?.app || null, board: at?.board || 'main', share: at?.share || null }).catch(() => null);
+      if (!live || !list) return;
+      const slide = list.filter(d => d.kind === 'slide' && d.name.startsWith('slide-') && d.name.endsWith('.png'));
+      setState(previous => ({ ...previous, urls: new Map(slide.map(d => [Number(d.name.slice(6, -4)), `/api/learn/files/${source.id}/d/${d.id}${scopeQuery(at)}`])) }));
+    } });
+    return () => { live = false; watch.stop(); };
+  }, [ref?.job, source?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return state;
 }

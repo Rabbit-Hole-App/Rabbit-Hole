@@ -52,26 +52,42 @@ export async function fileHead(file) {
 }
 
 const fileName = name => String(name || 'file').split(/[/\\]/).pop();
-const base = ({ name, size, assetKey }) => ({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, assetKey, label: fileName(name), size });
+const FAMILY_OF_KIND = { table: 'delimited', workbook: 'workbook', presentation: 'presentation', text: 'text', markdown: 'markdown' };
+const familyFor = (kind, format) => (kind === 'document' ? (format === 'doc' ? 'word-legacy' : 'word') : FAMILY_OF_KIND[kind]);
+// A new card is a fileRef card (canvas-file-imports.md section 3): source null until its upload is stored, the original cached
+// in this browser under fileRef.local meanwhile (file-source-client.js startUpload reads it from there, after a reload too).
+// It never has a block assetKey, so it is never also a board file. view mirrors the card's own sheet/slide for chat scope.
+function base({ name, size, assetKey, type = '', kind, format, view = {} }) {
+  const label = fileName(name);
+  return {
+    id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, format, label, size,
+    fileRef: { v: 1, source: null, family: familyFor(kind, format), meta: { name: label, type, size, title: label.replace(/\.[^.]+$/, '') }, view, local: assetKey, job: null, status: { preview: 'ready', context: 'none' } },
+  };
+}
+// The fileRef view keys a card's view state maps to (file-chat-ref.js fileScope reads slide and sheet).
+export const refView = block => ({ ...(block.sheet ? { sheet: block.sheet } : {}), ...(Number.isInteger(block.slide) ? { slide: block.slide } : {}) });
+// A view change (sheet tab, slide) on a card, kept on the block and mirrored into its fileRef.
+export const withView = (block, patch) => { const next = { ...block, ...patch }; return next.fileRef ? { ...next, fileRef: { ...next.fileRef, view: refView(next) } } : next; };
 
 // docBlock: one card for a file. view: workbook { sheets, sheet }, presentation { slides: [from, to] | null }.
-export function docBlock({ name, size, assetKey, kind, format, view = {} }) {
-  const block = { ...base({ name, size, assetKey }), kind, format };
+export function docBlock({ name, size, assetKey, type, kind, format, view = {} }) {
+  const block = base({ name, size, assetKey, type, kind, format });
   if (kind === 'workbook') { if (view.sheets?.length) block.sheets = view.sheets; if (view.sheet) block.sheet = view.sheet; }
   if (kind === 'presentation' && view.slides) { block.slides = view.slides; block.slide = view.slides[0]; }
+  block.fileRef.view = refView(block);
   return block;
 }
 
 // The cards a confirmed workbook or presentation choice makes, in input order: one card, or one per sheet / per slide.
-export function docBlocks({ name, size, assetKey, kind, format }, choice) {
-  if (kind === 'workbook' && choice.mode === 'sheets') return choice.sheets.map(sheet => docBlock({ name, size, assetKey, kind, format, view: { sheets: [sheet], sheet } }));
-  if (kind === 'workbook') return [docBlock({ name, size, assetKey, kind, format, view: { sheets: choice.sheets, sheet: choice.sheets[0] } })];
+export function docBlocks({ name, size, assetKey, type, kind, format }, choice) {
+  if (kind === 'workbook' && choice.mode === 'sheets') return choice.sheets.map(sheet => docBlock({ name, size, assetKey, type, kind, format, view: { sheets: [sheet], sheet } }));
+  if (kind === 'workbook') return [docBlock({ name, size, assetKey, type, kind, format, view: { sheets: choice.sheets, sheet: choice.sheets[0] } })];
   if (kind === 'presentation' && choice.mode === 'slides') {
     const out = [];
-    for (let n = choice.from; n <= choice.to; n++) out.push(docBlock({ name, size, assetKey, kind, format, view: { slides: [n, n] } }));
+    for (let n = choice.from; n <= choice.to; n++) out.push(docBlock({ name, size, assetKey, type, kind, format, view: { slides: [n, n] } }));
     return out;
   }
-  return [docBlock({ name, size, assetKey, kind, format })];
+  return [docBlock({ name, size, assetKey, type, kind, format })];
 }
 
 // Validated From/To for a slide range (inclusive, 1-based): { from, to } or { error }.
@@ -85,4 +101,4 @@ export function slideRange(from, to, count) {
 }
 
 // Text and Markdown cards (the Add to canvas dialog's Text card and Markdown card choices).
-export const textBlock = ({ name, size, assetKey, kind }) => ({ ...base({ name, size, assetKey }), kind, format: kind === 'markdown' ? 'md' : 'txt' });
+export const textBlock = ({ name, size, assetKey, type = '', kind }) => base({ name, size, assetKey, type, kind, format: kind === 'markdown' ? 'md' : 'txt' });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cacheAsset } from './learn-asset-cache.js';
+import { startUpload } from './file-source-client.js';
 import { DOC_CARD, checkDocFile, docBlocks, docKind, fileHead, slideRange } from './file-doc-import.js';
 import { parse } from './file-parse.js';
 import { ConfirmDialog, cn } from './ui.jsx';
@@ -14,7 +15,9 @@ export function useDocImport({ canvas, toast }) {
   const [pending, setPending] = useState(null); // { file, kind, format, assetKey, at, info, error }
   const place = async ({ file, kind, format, at }, choice, assetKey = `import:${crypto.randomUUID()}`) => {
     await cacheAsset(assetKey, file);
-    const blocks = docBlocks({ name: file.name, size: file.size, assetKey, kind, format }, choice);
+    const blocks = docBlocks({ name: file.name, size: file.size, assetKey, type: file.type, kind, format }, choice);
+    // One upload for every card made from this file, started now from the file in hand; the cards show its progress.
+    startUpload(assetKey, { family: blocks[0].fileRef.family, file });
     const surface = canvas();
     if (blocks.length === 1) return [surface?.insertImported({ ...blocks[0], w: DOC_CARD[kind].w, h: DOC_CARD[kind].h }, at)];
     // Several cards from one file: one group in free space, in the file's own order, one Undo step.

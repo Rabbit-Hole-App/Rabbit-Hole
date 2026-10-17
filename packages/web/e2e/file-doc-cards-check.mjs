@@ -1,5 +1,6 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 // Browser check for file imports lane 2 (docs/features/canvas-file-imports.md): text, Markdown, CSV/TSV, workbook, Word and
 // presentation cards rendered by the real AdaptiveCanvas in e2e/canvas-editing-harness.html under Vite dev - no server, no
@@ -16,7 +17,7 @@ const small = name => readFileSync(new URL(`../test/fixtures/file-imports/${name
 const TYPES = { csv: 'text/csv', tsv: 'text/tab-separated-values', txt: 'text/plain', md: 'text/markdown', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
 
 const results = [];
-const total = 16;
+const total = 20;
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? '✓' : '✗'} ${name}${detail ? ` - ${detail}` : ''}`); };
 const browser = await chromium.launch();
 const errors = [];
@@ -183,6 +184,38 @@ const byId = (page, id) => page.locator(`[data-block-id="${id}"]`);
   const page = await context.newPage();
   page.setDefaultNavigationTimeout(180000);
   page.on('pageerror', error => errors.push(`import: ${error.message}`));
+  // The file source routes (lane 1 learn-files.js, lane 2 learn-file-text.js, JOBS submit), answered here with their contract
+  // shapes, so the client's upload, read, extracted-text and job paths run for real in the browser without a stack.
+  const server = { sources: new Map(), creates: 0, puts: 0, gets: [], texts: [], jobs: 0, fail: false };
+  const route = async r => {
+    const request = r.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
+    const reply = (status, body) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (path === '/api/learn/files' && method === 'POST') {
+      server.creates++;
+      if (server.fail) return reply(500, { error: 'The server could not save this file just now.' });
+      const body = JSON.parse(request.postData());
+      const same = [...server.sources.values()].find(s => s.sha === body.sha256 && s.stored);
+      if (same) return reply(200, { source: { id: same.id, rev: same.sha, status: 'stored' }, upload: null });
+      const id = `fs_${String(server.sources.size + 1).padStart(24, '0')}`;
+      server.sources.set(id, { id, sha: body.sha256, size: body.size, name: body.name, stored: false });
+      return reply(201, { source: { id, rev: body.sha256, status: 'uploading' }, upload: { method: 'PUT', url: `/api/learn/files/${id}` } });
+    }
+    const one = path.match(/^\/api\/learn\/files\/(fs_\d{24})(\/text|\/jobs)?$/);
+    const source = one && server.sources.get(one[1]);
+    if (!source) return reply(404, { error: 'Not available' });
+    if (one[2] === '/text') { server.texts.push({ id: source.id, body: JSON.parse(request.postData()) }); return reply(201, { derivative: { id: 'fd_1' } }); }
+    if (one[2] === '/jobs') { server.jobs++; return reply(503, { error: 'File conversion is not available on this server.' }); }
+    if (method === 'PUT') {
+      server.puts++;
+      const bytes = request.postDataBuffer();
+      if (createHash('sha256').update(bytes).digest('hex') !== source.sha) return reply(400, { error: 'These bytes do not match the sha256 this upload declared.' });
+      Object.assign(source, { stored: true, bytes });
+      return reply(200, { source: { id: source.id, rev: source.sha, status: 'stored' } });
+    }
+    server.gets.push(`${path}${url.search}`);
+    return source.stored ? r.fulfill({ status: 200, contentType: 'application/octet-stream', body: source.bytes }) : reply(404, { error: 'Not available' });
+  };
+  await context.route('**/api/learn/files**', route);
   await page.goto(IMPORT);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
@@ -216,7 +249,7 @@ const byId = (page, id) => page.locator(`[data-block-id="${id}"]`);
   const afterBook = (await board()).blocks || [];
   const perSheet = afterBook.filter(b => b.kind === 'workbook');
   check('14 a workbook asks which sheets and how; A card per sheet makes one card per chosen sheet, sharing one original', JSON.stringify(sheets) === JSON.stringify(['Q1', 'Notes', 'Empty']) && perSheet.length === 2
-    && perSheet.map(b => b.sheet).join() === 'Q1,Notes' && new Set(perSheet.map(b => b.assetKey)).size === 1, perSheet.map(b => b.sheet).join());
+    && perSheet.map(b => b.sheet).join() === 'Q1,Notes' && new Set(perSheet.map(b => b.fileRef.source?.id || b.fileRef.local)).size === 1, perSheet.map(b => b.sheet).join());
   await drop('deck.pptx', small('deck.pptx'));
   const deck = page.locator('[data-doc-import-dialog="presentation"]');
   await deck.locator('[role="dialog"]').waitFor();
@@ -239,7 +272,50 @@ const byId = (page, id) => page.locator(`[data-block-id="${id}"]`);
   check('16 misnamed and fake files are refused with their reason before any parser runs; a .doc says it needs the converter; nothing else is placed',
     toasts.some(t => /renamed\.xlsx is actually a Word document/.test(t)) && toasts.some(t => /fake\.pptx is not a valid PowerPoint presentation/.test(t)) && toasts.some(t => /old\.doc: Word 97-2003 \(\.doc\) previews need the document converter/.test(t))
     && total2 === 6 && slideLabels.join('|') === 'Slide 2 of 4|Slide 3 of 4', `${toasts.join(' / ')} | ${slideLabels.join('|')}`);
+  await page.waitForTimeout(1500);
+  const stored = (await board()).blocks || [];
+  const savedCards = await page.locator('[data-file-doc-card][data-saved="stored"]').count();
+  check('17 every imported card is a fileRef card saved as a source (one upload per file, bytes checked by sha256), with no board file',
+    stored.length === 6 && stored.every(b => /^fs_\d{24}$/.test(b.fileRef?.source?.id || '') && !b.assetKey && !b.fileRef.local) && savedCards === 6 && server.creates === 4 && server.puts === 4 && [...server.sources.values()].every(s => s.stored),
+    `${savedCards} stored cards, ${server.creates} creates, ${server.puts} puts`);
+  const texts = new Map(server.texts.map(t => [server.sources.get(t.id).name, t.body]));
+  const csvText = texts.get('quoted.csv'), deckText = texts.get('deck.pptx'), bookText = texts.get('workbook.xlsx');
+  check('18 the owner\'s browser stores each source\'s extracted text once, with its locations, and the card says chat can read it',
+    texts.size === 4 && server.texts.length === 4 && csvText?.v === 1 && JSON.stringify(csvText.units[0].loc) === '{"rows":[1,4]}' && /00123\tSmith, Jane/.test(csvText.units[0].text) && deckText?.units.map(u => u.loc.slide).join() === '1,2,3,4'
+    && bookText?.units[0].loc.sheet === 'Q1' && texts.get('document.docx')?.units[0].loc.start === 1 && csvText.extractor === 'lane2-1'
+    && stored.every(b => ['extracted', 'partial'].includes(b.fileRef.status.context)), `${server.texts.length} text PUTs: ${[...texts.keys()].join(', ')}`);
+  const jobLine = await page.locator('[data-file-doc-awaiting]').first().innerText();
+  server.fail = true;
+  await drop('data.tsv', small('data.tsv'));
+  const failedCard = page.locator('[data-file-doc-card="table"][data-saved="pending"]');
+  await failedCard.locator('[data-file-doc-save="failed"]').waitFor({ timeout: 15000 });
+  const failedLine = await failedCard.locator('[data-file-doc-save="failed"]').innerText();
+  const previewWhileFailed = await failedCard.locator('[role="gridcell"]').count();
+  server.fail = false;
+  await failedCard.locator('[data-file-doc-retry]').click();
+  await page.locator('[data-file-doc-card="table"][data-saved="pending"]').waitFor({ state: 'detached', timeout: 15000 });
+  const tsv = ((await board()).blocks || []).find(b => b.label === 'data.tsv');
+  check('19 a failed upload says Not saved with its reason and Retry, while the local preview shows; Retry saves it',
+    /^Not saved: The server could not save this file just now\.\s*Retry$/.test(failedLine.trim()) && previewWhileFailed > 0 && /^fs_/.test(tsv?.fileRef?.source?.id || ''), failedLine.trim());
   await shot(page, '5-imported');
+  // A fresh browser profile on the same board: nothing cached, every original read from the server through the board scope.
+  const boardCopy = await page.evaluate(() => localStorage.getItem('harness:file-import'));
+  const fresh = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
+  await fresh.route('**/api/learn/files**', route);
+  const second = await fresh.newPage();
+  second.setDefaultNavigationTimeout(180000);
+  second.on('pageerror', error => errors.push(`fresh: ${error.message}`));
+  await second.goto(IMPORT);
+  await second.evaluate(copy => localStorage.setItem('harness:file-import', copy), boardCopy);
+  server.gets.length = 0;
+  await second.reload();
+  await second.locator('[data-file-doc-card="table"] [role="gridcell"]').first().waitFor({ timeout: 30000 });
+  await second.locator('[data-file-doc-card="document"] [data-file-doc-document] h1').first().waitFor({ timeout: 30000 });
+  const freshCells = await second.locator('[data-file-doc-card="table"] [role="gridcell"]').allInnerTexts();
+  check('20 a fresh browser reopens the cards from the account (read through ?app=&board=), and a presentation says its slide images could not be converted here',
+    freshCells.includes('00123') && server.gets.length >= 4 && server.gets.every(g => g.endsWith('?app=harness-app&board=main')) && server.jobs >= 1 && /Slide images: File conversion is not available on this server\./.test(jobLine),
+    `${server.gets.length} reads; ${jobLine}`);
+  await fresh.close();
   await context.close();
 }
 

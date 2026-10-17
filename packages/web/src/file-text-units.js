@@ -12,6 +12,30 @@ export const ROWS_PER_UNIT = 100;
 export const MAX_TEXT_CHARS = 4 * 1024 * 1024;
 
 const n = value => Number(value).toLocaleString('en-US');
+
+// The extraction's name and options, stored with the derivative (learn-file-text.js converter_version browser-extract/<this>,
+// options_hash of the options): a new extractor or another delimiter/encoding is another derivative, never a silent overwrite.
+export const EXTRACTOR = 'lane2-1';
+export const extractionOptions = block => ({
+  kind: block?.kind || null,
+  ...(block?.delimiter ? { delimiter: block.delimiter } : {}),
+  ...(block?.encoding ? { encoding: block.encoding } : {}),
+});
+// The route stores at most 2 MiB (learn-file-text.js TEXT_BODY_LIMIT): drop trailing units until the body fits, and say so.
+export const MAX_BODY_BYTES = 2 * 1024 * 1024 - 4096;
+export function fitBytes(body, max = MAX_BODY_BYTES) {
+  const bytes = value => new TextEncoder().encode(JSON.stringify(value)).byteLength;
+  let size = bytes(body);
+  if (size <= max) return body;
+  let units = body.units;
+  while (units.length && size > max) {
+    units = units.slice(0, Math.max(0, Math.min(units.length - 1, Math.floor(units.length * (max / size) * 0.95))));
+    size = bytes({ ...body, units });
+  }
+  const last = units.at(-1)?.loc;
+  const where = !last ? 'nothing' : last.end ? `lines 1-${last.end}` : last.rows ? `rows 1-${last.rows[1]}` : last.slide ? `slides through ${last.slide}` : last.cells ? `through ${last.sheet}!${last.cells}` : `${units.length} parts`;
+  return { ...body, units, complete: false, limited: `${where} (2 MiB extraction limit)${body.limited ? `; ${body.limited}` : ''}`.slice(0, 200) };
+}
 // Units are added until the character bound; the first that would pass it ends the list.
 function bounded(units, limit) {
   const out = [];

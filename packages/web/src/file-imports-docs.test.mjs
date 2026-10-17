@@ -13,7 +13,7 @@ import { columnName, detectDelimiter, parseDelimited, quoteSheet, tableExcerpt }
 import { cellText, describeCell, readWorkbook } from './file-workbook.js';
 import { officeKind, paragraphsOf, readPresentation, slidesExcerpt, unescapeXml } from './file-office.js';
 import { htmlTree, readDocx, treeText } from './file-docx.js';
-import { checkDocFile, docBlock, docBlocks, docKind, slideRange, textBlock } from './file-doc-import.js';
+import { checkDocFile, docBlock, docBlocks, docKind, slideRange, textBlock, withView } from './file-doc-import.js';
 import { describeFileCard, setFileExcerpt } from './file-excerpts.js';
 import { idempotencyKey, jobRequest, jobView } from './file-job.js';
 import { parseFile } from './file-parse-core.js';
@@ -182,17 +182,21 @@ test('Word: the HTML tree keeps only allowed elements and safe targets; nothing 
   assert.equal(htmlTree('<p>a</p>'.repeat(10), { maxNodes: 5 }).truncated, true);
 });
 
-test('cards keep only a reference and view state; one asset key for every card made from one file', () => {
+test('new cards are fileRef cards: no board file, one local copy and one upload per file, view mirrored for chat scope', () => {
   const file = { name: 'deck.pptx', size: 44512, assetKey: 'import:k1', kind: 'presentation', format: 'pptx' };
   const slides = docBlocks(file, { mode: 'slides', from: 2, to: 3 });
-  assert.deepEqual(slides.map(block => [block.slides, block.slide, block.assetKey]), [[[2, 2], 2, 'import:k1'], [[3, 3], 3, 'import:k1']]);
+  assert.deepEqual(slides.map(block => [block.slides, block.slide, block.fileRef.local, block.fileRef.view]), [[[2, 2], 2, 'import:k1', { slide: 2 }], [[3, 3], 3, 'import:k1', { slide: 3 }]]);
+  assert.deepEqual(slides[0].fileRef, { v: 1, source: null, family: 'presentation', meta: { name: 'deck.pptx', type: '', size: 44512, title: 'deck' }, view: { slide: 2 }, local: 'import:k1', job: null, status: { preview: 'ready', context: 'none' } });
+  assert.equal(withView(slides[0], { slide: 3 }).fileRef.view.slide, 3, 'a slide change moves the chat scope with it');
   assert.equal(docBlocks(file, { mode: 'whole' }).length, 1);
   const book = { name: 'w.xlsx', size: 11660, assetKey: 'import:k2', kind: 'workbook', format: 'xlsx' };
   assert.deepEqual(docBlocks(book, { mode: 'workbook', sheets: ['Q1', 'Notes'] }).map(b => [b.sheets, b.sheet]), [[['Q1', 'Notes'], 'Q1']]);
   assert.deepEqual(docBlocks(book, { mode: 'sheets', sheets: ['Q1', 'Notes'] }).map(b => [b.sheets, b.sheet]), [[['Q1'], 'Q1'], [['Notes'], 'Notes']]);
   const blocks = [...slides, docBlock({ ...book, view: {} }), textBlock({ name: 'a/b/notes.md', size: 5, assetKey: 'import:k3', kind: 'markdown' })];
-  assert.deepEqual(assetKeysOf({ blocks }), ['import:k1', 'import:k2', 'import:k3'], 'the board saves each original once');
-  for (const block of blocks) assert.ok(JSON.stringify(block).length < 400, 'a card is a compact reference');
+  assert.deepEqual(assetKeysOf({ blocks }), [], 'a fileRef card is never a board file: its original uploads as a source');
+  assert.deepEqual(blocks.map(block => block.fileRef.family), ['presentation', 'presentation', 'workbook', 'markdown']);
+  assert.equal(docBlock({ name: 'old.doc', size: 1, assetKey: 'k', kind: 'document', format: 'doc' }).fileRef.family, 'word-legacy');
+  for (const block of blocks) assert.ok(JSON.stringify(block.fileRef).length < 2048 && JSON.stringify(block).length < 700, 'a card is a compact reference');
   assert.deepEqual(slideRange('2', '3', 4), { from: 2, to: 3 });
   assert.equal(slideRange('0', '3', 4).error, 'Slides run from 1 to 4.');
   assert.equal(slideRange('3', '2', 4).error, 'From must not be after To.');
@@ -257,4 +261,14 @@ test('extracted text derivative: one unit per natural location, complete or limi
   assert.deepEqual(nb.units.map(unit => unit.loc), [{ cell: 'a1' }, { cell: '2' }]);
   assert.equal(nb.units[1].text, '[code cell]\nprint(1)\nOutput:\n1\n\n[output not read: text/html]');
   for (const derivative of [text, table, book, deck, doc, nb]) assert.doesNotThrow(() => JSON.parse(JSON.stringify(derivative)));
+});
+
+// Lane 5 finding (2026-10-16): SheetJS reads a UTF-8 TSV buffer as a single-byte code page. Lane 2 never hands CSV/TSV to
+// SheetJS: the bytes are decoded first (BOM or strict UTF-8, file-text.js) and parsed as text. Fixture: Lane 5's
+// delimited/data.tsv (make_basic.py, UTF-8 without BOM), copied as lane5-data.tsv.
+test('a UTF-8 TSV without a BOM keeps its non-ASCII text (Lane 5 fixture)', async () => {
+  const table = await parseFile('table', fixture('lane5-data.tsv'), { name: 'data.tsv' });
+  assert.deepEqual([table.delimiter, table.encoding, table.totalRows, table.totalCols], ['\t', 'utf-8', 4, 3]);
+  assert.deepEqual(table.rows[3], ['3', 'São Paulo', '12330000']);
+  assert.ok(!JSON.stringify(table.rows).includes('Ã'), 'no code-page mojibake');
 });
