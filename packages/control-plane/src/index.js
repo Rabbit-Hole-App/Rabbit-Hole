@@ -3,6 +3,7 @@ import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
+import { fileContext } from './file-context.js';
 import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
 import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
@@ -1202,7 +1203,11 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     const readCode = repository?.selected || seam?.selected;
     const code = readCode && chat.contextRefs ? chat.contextRefs.filter(ref => ref.kind === 'code') : [];
     if (code.length) context = `${context}\n\n${JSON.stringify(await readCode(code))}`;
-    context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null);
+    // Imported files (canvas-file-imports.md section 6): bounded excerpts of their ready text derivatives, each ref labelled with
+    // what was read. member_board: the member board a canvas member asks on (canvas-comments.js memberContext).
+    const fileRefs = (chat.contextRefs || []).filter(ref => ref.kind === 'file');
+    const files = fileRefs.length && env.LEARN_DB ? await fileContext(req, env, fileRefs, { user, app: scopedApp?.name ?? scope.app ?? null, member: body.member_board ?? null }).catch(() => null) : null;
+    context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null, files);
     system = chatSystem(system, answerMetaSystem({ repository: !!repository }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };

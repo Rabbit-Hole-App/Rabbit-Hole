@@ -8,6 +8,7 @@
 
 import { cardText, semanticSnapshot } from './canvas-semantics.js';
 import { docText } from './doc-text.js';
+import { fileCoverage } from './file-chat-ref.js';
 
 export const CONTEXT_VERSION = 'inline-context-2';
 // relevant: the score a supporting object needs (structure, grouping, section, reading order, shared terms - never
@@ -451,6 +452,13 @@ export function boardObjects(board) {
   const objects = [
     ...snap.cards.map(card => {
       const block = blocks.get(card.id), type = block ? cardType(block) : 'chat', kind = block && (block.type === 'file' ? block.kind : block.type);
+      // An imported file card (fileRef, canvas-file-imports.md section 3) is listed by its name with what was extracted from it
+      // (file-chat-ref.js fileCoverage); its content never rides in the canvas package, only through its attached file ref,
+      // which the server reads from the extracted text. A picture or player never makes it read.
+      if (block?.fileRef && !(MEDIA.has(type) && type !== 'file')) {
+        return { id: card.id, type: 'file', ...(block.fileRef.family ? { kind: String(block.fileRef.family) } : {}), text: '', label: String(block.fileRef.meta?.name || card.title || 'File'),
+          ...place(card.id), ...ties(card), file: fileCoverage(block.fileRef) };
+      }
       // A card with no words to show holds its content some other way (a scene, a drawing): listed, its content unavailable.
       const unreadable = block && !MEDIA.has(type) && !card.text.trim() && !['heading', 'divider'].includes(block.type);
       return { id: card.id, type, ...(kind && kind !== type ? { kind } : {}), text: card.text, ...(card.title.trim() ? { label: card.title } : {}), ...place(card.id), ...ties(card),
@@ -482,6 +490,8 @@ export function boardObjects(board) {
 
 // Per-object excerpt caps (selected or attached, any other, a region's or group's representative), the label steps, and the
 // server's caps (Toolbar answers a 400 past them); json keeps 1,000 under the server's 64,000, inventoryJson leaves the rest room.
+// A file card's line in the canvas package: listed, with what an attached copy of it would give (canvas-file-imports.md 6).
+const FILE_REASON = { listed: 'file: listed only, not extracted', extracted: 'file: extracted, read when attached', partial: 'file: partly extracted, when attached', unavailable: 'file: content unavailable' };
 export const CANVAS = Object.freeze({ focus: 3000, other: 1200, spread: 300, minPassage: 40, labels: [80, 60, 40, 24], id: 120, excerpts: 200,
   explicit: 600, inferred: 600, coverage: 300, json: 63000, inventoryJson: 40000, document: 6000, passages: 20 });
 const TYPE = /^[a-z][a-z0-9_-]{0,39}$/;
@@ -544,7 +554,7 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
   for (const o of objects) add({ id: o.id, type: TYPE.test(o.type) ? o.type : 'card', kind: o.kind, text: String(o.text ?? ''), name: o.label,
     group: o.group_id == null ? null : String(o.group_id), section: o.section_id == null ? null : String(o.section_id),
     box: placed(o) ? { x: o.x, y: o.y, w: o.w, h: o.h } : null, region: REGIONS.flat().includes(o.region) ? o.region : null,
-    media: !!o.media, inspected: !!(o.media && o.inspected), dark: o.type === 'ink' || !!o.unreadable });
+    media: !!o.media, inspected: !!(o.media && o.inspected), dark: o.type === 'ink' || !!o.unreadable || !!o.file, file: o.file || null });
   const links = connectors.filter(c => byId.has(String(c.from)) && byId.has(String(c.to)));
   for (const c of links) if (c.explicit) add({ id: c.id, type: 'connector', text: String(c.label ?? '') });
   for (const g of groups) add({ id: g.id, type: 'group', text: String(g.label ?? ''), members: true });
@@ -634,6 +644,7 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
     if (!fits(e.id)) return { status: 'unavailable', reason: 'unreadable', hidden: true }; // an id the server cannot take
     if (!listedIds.has(e.id)) return { status: 'omitted', reason: 'cap' };
     if (e.media) return e.inspected ? { status: 'media' } : { status: 'unavailable', reason: 'media' };
+    if (e.file) return { status: 'listed', reason: FILE_REASON[e.file] || FILE_REASON.listed };
     if (e.dark) return { status: 'unavailable', reason: 'unreadable' };
     const cut = cuts.get(e.id);
     if (cut) return cut.omitted ? { status: 'partial', reason: 'budget', omitted_chars: cut.omitted } : { status: 'full' };

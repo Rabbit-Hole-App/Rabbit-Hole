@@ -1,3 +1,4 @@
+import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
 import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
@@ -251,7 +252,7 @@ async function activeChat(req, env, user, url) {
 // A Chat thread's saved state (chat-workspace-CONTRACT.md A3): its mode, attached ContextRefs (A2) and draft, upserted into
 // chat_thread_state by PUT /api/learn/chat/threads/<id>/state. last_activity_at is the turn's (apiAsk), never touched here.
 const CHAT_STATE = /^\/api\/learn\/chat\/threads\/((?:canvaschat|repochat)-[a-f0-9-]+)\/(state)$/;
-const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'] };
+const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'], file: ['file'] };
 const short = (value, limit) => typeof value === 'string' && value.length <= limit;
 // null, or exactly one of the A2 range shapes.
 function validRange(range) {
@@ -264,7 +265,7 @@ function validRange(range) {
     case 'cardIds': return Array.isArray(range.cardIds) && range.cardIds.length > 0 && range.cardIds.length <= 50 && range.cardIds.every(id => short(id, 200));
     case 'end,path,start': return short(range.path, 500) && Number.isInteger(range.start) && range.start > 0 && Number.isInteger(range.end) && range.end >= range.start;
     case 'startSec': case 'endSec,startSec': return Number.isFinite(range.startSec) && range.startSec >= 0 && (range.endSec === undefined || (Number.isFinite(range.endSec) && range.endSec >= range.startSec));
-    default: return false;
+    default: return validFileRange(range); // an imported file's scope (file-chat-ref.js): slide, sheet, rows, cell, object
   }
 }
 // A2 limits: at most 20 refs, each at most 2 KB as JSON without its text, text only on card/group/image/media (<= 8000),
@@ -277,6 +278,7 @@ export function validContextRefs(refs) {
     const { text, ...rest } = ref;
     if (text !== undefined && !(['card', 'group', 'image', 'media'].includes(ref.kind) && short(text, 8000))) return false;
     texts += text?.length || 0;
+    if (ref.kind === 'file' && !(FILE_SOURCE.test(String(ref.sourceId)) && validFileRange(ref.range))) return false;
     return Object.hasOwn(REF_PREFIXES, ref.kind) && short(ref.sourceId, 1000) && REF_PREFIXES[ref.kind].includes(ref.sourceId.split(':')[0]) && ref.sourceId.indexOf(':') < ref.sourceId.length - 1
       && short(ref.name, 120) && ref.name.length > 0 && short(ref.version, 200) && validRange(ref.range) && JSON.stringify(rest).length <= 2048;
   });
