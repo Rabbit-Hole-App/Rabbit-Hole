@@ -26,7 +26,7 @@ async function exercise(card,label){
   await page.mouse.move(x,y);
   if(gesture==='zoom')await page.mouse.wheel(0,-180);
   else{await page.mouse.down({button:gesture==='pan'?'right':'left'});await page.mouse.move(x+45,y+20,{steps:8});await page.mouse.up({button:gesture==='pan'?'right':'left'});}
-  const after=await stableImage(canvas);assert.notEqual(after,before,`${label} ${gesture} must change rendered model pixels`);boxEqual(bounds,await card.boundingBox());gestures.push({label,gesture,beforeSha256:before,afterSha256:after});
+  const after=await stableImage(canvas),afterBounds=await card.boundingBox();gestures.push({label,gesture,beforeSha256:before,afterSha256:after,beforeBounds:bounds,afterBounds});assert.notEqual(after,before,`${label} ${gesture} must change rendered model pixels`);boxEqual(bounds,afterBounds);
  }
  await viewer.getByRole('button',{name:'Done',exact:true}).focus();await page.keyboard.press('Escape');assert.equal(await viewer.getByRole('button',{name:'Interact',exact:true}).count(),1);await page.screenshot({path:`${out}/${label}.png`});
 }

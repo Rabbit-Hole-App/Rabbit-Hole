@@ -35,6 +35,14 @@ export function CadPreview({ manifest, active = false, ownerRead = false }) {
   const host = useRef(null), engine = useRef(null), viewerId = useRef(`cad-viewer:${crypto.randomUUID()}`);
   const [visible,setVisible] = useState(false), [slot,setSlot] = useState(false), [interacting,setInteracting] = useState(false);
   useEffect(()=>{if(!active)setInteracting(false);},[active]);
+  // Match ModelCard: stop the native wheel before the canvas's native listener,
+  // which runs earlier than React's delegated onWheel handler.
+  useEffect(()=>{
+    const element=host.current;if(!element || !interacting)return;
+    const keep=event=>event.stopPropagation();
+    element.addEventListener('wheel',keep,{passive:true});
+    return()=>element.removeEventListener('wheel',keep);
+  },[interacting]);
   useEffect(()=>{engine.current?.interact(interacting);if(interacting)activateViewer(viewerId.current,()=>setInteracting(false));return()=>deactivateViewer(viewerId.current);},[interacting]);
   useEffect(()=>{const observer=new IntersectionObserver(([entry])=>setVisible(entry.isIntersecting));if(host.current)observer.observe(host.current);return()=>observer.disconnect();},[]);
   useEffect(()=>{if(active && visible)setSlot(claimViewer(viewerId.current,()=>setSlot(false)));else{setSlot(false);releaseViewer(viewerId.current);}return()=>releaseViewer(viewerId.current);},[active,visible]);
@@ -67,7 +75,7 @@ export function CadPreview({ manifest, active = false, ownerRead = false }) {
     }).catch(problem=>{if(!disposed)setError(problem.message);});
     return ()=>{disposed=true;abort.abort();instance?.destroy();engine.current=null;};
   },[active,slot,glb?.url,ownerRead]);
-  return <div data-cad-viewer data-viewer-active={interacting || undefined} className="relative min-h-40 flex-1 overflow-hidden rounded-lg border border-line bg-hover" onPointerDown={event=>event.stopPropagation()} onWheel={event=>event.stopPropagation()} tabIndex={0} onKeyDown={event=>{if(interacting){event.stopPropagation();if(event.key==='Escape'){event.preventDefault();setInteracting(false);}}}}>
+  return <div data-cad-viewer data-viewer-active={interacting || undefined} className="relative min-h-40 flex-1 overflow-hidden rounded-lg border border-line bg-hover" onContextMenu={event=>{if(interacting){event.preventDefault();event.stopPropagation();}}} onPointerDown={event=>event.stopPropagation()} onWheel={event=>event.stopPropagation()} tabIndex={0} onKeyDown={event=>{if(interacting){event.stopPropagation();if(event.key==='Escape'){event.preventDefault();setInteracting(false);}}}}>
     <div ref={host} className="absolute inset-0"/>{active && glb ? <><button disabled={!ready} className={`${button} absolute left-2 top-2 bg-surface`} onClick={()=>setInteracting(value=>!value)}>{interacting?'Done':'Interact'}</button><button disabled={!ready} className={`${button} absolute right-2 top-2 bg-surface`} onClick={()=>engine.current?.fit()}>Fit view</button></> : poster ? <img src={poster} alt={manifest?.title || 'CAD model preview'} className="absolute inset-0 h-full w-full object-contain"/> : <p className="p-5 text-center text-xs text-ink-2">{glb ? 'Select the card to explore the model.' : 'The interactive preview is not available yet.'}</p>}
     {error && <p role="alert" className="absolute inset-x-0 bottom-0 bg-surface p-2 text-xs">{error}</p>}
   </div>;
