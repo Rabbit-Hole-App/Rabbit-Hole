@@ -41,7 +41,11 @@ test('families: only shipped ones are offered, and a planned one claims nothing'
   for (const f of FAMILIES.filter(f => f.status === 'planned')) assert.deepEqual(Object.values(f.can), [false, false, false, false, false], f.id);
   assert.equal(family('video').limits.bytes, 50 * MiB);
   const extensions = FAMILIES.flatMap(f => f.extensions);
-  assert.equal(new Set(extensions).size, extensions.length, 'each extension belongs to one family');
+  // Each extension belongs to one family a file can be dropped as; model-part (a model's own files, lead ruling 2026-10-16)
+  // shares the image extensions for textures inside a model bundle, and familyOf() answers image for a standalone picture.
+  const droppable = FAMILIES.filter(f => f.id !== 'model-part').flatMap(f => f.extensions);
+  assert.equal(new Set(droppable).size, droppable.length, 'each extension belongs to one droppable family');
+  assert.equal(familyOf({ name: 'photo.png' }).id, 'image');
   assert.ok(!extensions.includes('kspalt') && extensions.includes('ksplat'));
 });
 
@@ -52,7 +56,8 @@ test('every shipped extension reaches a card today, and the picker offers exactl
   for (const f of FAMILIES.filter(f => f.status === 'shipped')) {
     for (const ext of f.extensions) {
       if (f.route === 'import') assert.ok(importKind(`file.${ext.toUpperCase()}`), `.${ext} opens the import dialog`);
-      else if (f.route === 'model') assert.ok(f.card === null || isModelDrop([{ name: `file.${ext}` }]), `.${ext} goes to the model importer`);
+      else if (f.route === 'model') assert.ok(isModelDrop([{ name: `file.${ext}` }]), `.${ext} goes to the model importer`);
+      else if (f.route === 'model-part') continue; // a model's own file: never a card alone
       else assert.ok(classifyDrop({ type: f.mime[0], size: 1, name: `file.${ext}` }).kind, `.${ext} is a ${f.id} drop`);
     }
   }

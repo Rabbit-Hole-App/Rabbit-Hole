@@ -16,8 +16,10 @@ const file = (path, extra = {}) => Object.assign(new File([F[path]], path.split(
 
 test('the registry offers every model format, package and part; the drop routes exactly the model cards', () => {
   const lane4 = FAMILIES.filter(f => f.lane === 4);
-  assert.ok(lane4.every(f => f.status === 'shipped' && f.route === 'model'));
-  assert.deepEqual(lane4.flatMap(f => f.extensions).filter(e => !['bin', 'mtl', 'zip'].includes(e)).sort(), Object.keys(ENTRY_FORMATS).sort(), 'registry and detector name the same formats');
+  assert.ok(lane4.every(f => f.status === 'shipped' && f.route === (f.id === 'model-part' ? 'model-part' : 'model')));
+  assert.deepEqual(lane4.filter(f => f.id !== 'model-part').flatMap(f => f.extensions).filter(e => e !== 'zip').sort(), Object.keys(ENTRY_FORMATS).sort(), 'registry and detector name the same formats');
+  assert.equal(familyOf({ name: 'tex.png' }).id, 'image', 'a standalone picture stays an image (5 MiB)');
+  assert.equal(FAMILIES.find(f => f.id === 'model-part').limits.bytes, 25 * 1048576, 'a texture inside a model bundle may be 25 MiB');
   const offered = acceptList().split(',');
   for (const ext of [...Object.keys(ENTRY_FORMATS), 'zip', 'bin', 'mtl']) { assert.ok(offered.includes(`.${ext}`), ext); assert.ok(MODEL_ACCEPT.split(',').includes(`.${ext}`), ext); }
   for (const ext of [...Object.keys(ENTRY_FORMATS), 'zip']) assert.ok(isModelDrop([new File(['x'], `a.${ext.toUpperCase()}`)]), ext);

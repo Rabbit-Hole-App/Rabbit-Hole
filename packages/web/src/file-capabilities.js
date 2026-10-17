@@ -61,9 +61,12 @@ export const FAMILIES = [
     card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'header decides mesh, point cloud or Gaussian splat; inconsistent schemas refused' },
   { id: 'splat', label: 'Gaussian splat', lane: 4, status: 'shipped', extensions: ['splat', 'ksplat', 'spz', 'sog'], mime: [], sniff: null,
     card: 'file:model', chooser: null, route: 'model', can: MODEL_CAN, limits: MODEL_LIMITS, notes: 'Spark 2.3.1: .splat, .ksplat, .spz v1-3, .sog (and an unpacked SOG folder), splat PLY' },
-  // A model's own files: offered so Upload takes a .gltf with its parts; never a card alone (an unused one is refused).
-  { id: 'model-part', label: 'Model file', lane: 4, status: 'shipped', extensions: ['bin', 'mtl'], mime: [], sniff: null,
-    card: null, chooser: null, route: 'model', can: { store: true, preview: false, edit: false, download: true, context: false }, limits: { bytes: MODEL_LIMITS.bytes }, notes: 'a glTF buffer or an OBJ material library, stored with its model' },
+  // A model's own files (lead ruling 2026-10-16): buffers, material libraries and textures inside a model bundle, 25 MiB
+  // each like the package; never a card alone. Textures share the image extensions but not the image family's 5 MiB cap:
+  // familyOf() still answers 'image' for a standalone picture (image comes first). The GPU budget holds at decode
+  // (textureBytes, measured: DamagedHelmet's 5 textures, 80 MiB decoded, at 60 fps). KTX2 is not offered (no transcoder).
+  { id: 'model-part', label: 'Model file', lane: 4, status: 'shipped', extensions: ['bin', 'mtl', 'png', 'jpg', 'jpeg', 'webp'], mime: [], sniff: null,
+    card: null, chooser: null, route: 'model-part', can: { store: true, preview: false, edit: false, download: true, context: false }, limits: { bytes: MODEL_LIMITS.bytes, preview: { textureBytes: MODEL_LIMITS.preview.textureBytes } }, notes: 'a glTF buffer, an OBJ material library or a texture, stored with its model' },
   // Its head sniff is the ZIP signature; the whole-archive check (guards plus a model or splat entry point) is
   // model-formats.js modelPackageCheck, which the upload route can run on the full body.
   { id: 'model-package', label: 'Model package', lane: 4, status: 'shipped', extensions: ['zip'], mime: ['application/zip'], sniff: b => b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04,

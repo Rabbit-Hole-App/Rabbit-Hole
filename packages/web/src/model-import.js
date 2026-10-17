@@ -17,9 +17,9 @@ const MAX_ENTRIES_LISTED = 20;
 
 export const CARD_SIZE = { w: 560, h: 460 };
 
-// The registry family each stored file of a bundle is uploaded as, so the server checks it as what it is: a texture as an
-// image, a SOG meta.json as JSON, another model by its own family, a .bin / .mtl as a model part.
-export const partFamily = path => { const f = familyOf({ name: path }); return f && f.id !== 'model-package' ? f.id : 'model-part'; };
+// The registry family each stored file of a bundle is uploaded as: another model by its own family, a SOG meta.json as
+// JSON (code), everything else - buffers, material libraries, textures - as a model part (lead ruling: 25 MiB each).
+export const partFamily = path => { const f = familyOf({ name: path }); return f?.route === 'model' && f.id !== 'model-package' ? f.id : f?.id === 'code' ? 'code' : 'model-part'; };
 
 // The card's compact record (no bytes, no dependency lists: those are re-read from the stored original when it opens).
 export function modelBlock({ assetKey, label, size, entry, entries = null, packageKind, download, counts = {}, units = null }) {
@@ -92,7 +92,7 @@ export async function importModelFiles(files) {
     }
     // A texture no model named goes back to the ordinary drop path (an image becomes an image card); a .bin, .mtl or
     // .json nobody named is said so here, since it is no card on its own.
-    for (const path of plan.unused) { const f = read.find(r => r.path === path).file; if (partFamily(path) === 'model-part' || /\.json$/i.test(path)) errors.push(`${f.name}: no model in this drop uses this file`); else leftovers.push(f); }
+    for (const path of plan.unused) { const f = read.find(r => r.path === path).file; if (familyOf({ name: path })?.id === 'image') leftovers.push(f); else errors.push(`${f.name}: no model in this drop uses this file`); }
   } else leftovers.push(...candidates);
 
   // A ZIP or a folder is one package: one card.

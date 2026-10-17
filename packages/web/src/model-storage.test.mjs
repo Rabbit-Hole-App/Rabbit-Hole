@@ -23,7 +23,7 @@ test('a .gltf with its .bin and texture: three sources, the entry is fileRef.sou
   const { cards } = await importModelFiles([file('gltf-separate/cube.gltf'), file('gltf-separate/cube.bin'), file('gltf-separate/textures/checker.png')]);
   const block = await storeModelCard(cards[0], ctx);
   assert.equal(block.assetKey, undefined, 'no board asset: the files are sources');
-  assert.deepEqual(client.uploads.map(u => [u.name, u.family, u.app, u.board]), [['cube.gltf', 'gltf', 'demo', 'main'], ['cube.bin', 'model-part', 'demo', 'main'], ['checker.png', 'image', 'demo', 'main']]);
+  assert.deepEqual(client.uploads.map(u => [u.name, u.family, u.app, u.board]), [['cube.gltf', 'gltf', 'demo', 'main'], ['cube.bin', 'model-part', 'demo', 'main'], ['checker.png', 'model-part', 'demo', 'main']]);
   assert.deepEqual(block.fileRef.source, { id: client.uploads[0].id, rev: `r${client.uploads[0].id}` });
   assert.equal(block.fileRef.view.entry, 'cube.gltf');
   assert.deepEqual(block.fileRef.bundle.map(b => b.path), ['cube.bin', 'checker.png']);
@@ -72,7 +72,7 @@ test('a missing dependency becomes a new bundle source when the learner adds it'
   assert.deepEqual((await openModelFiles(block)).plan.entries[0].missing.sort(), ['checker.png', 'cube.bin']);
   const next = await addModelFiles(block, [file('gltf-separate/cube.bin'), file('gltf-separate/textures/checker.png')]);
   assert.deepEqual(next.fileRef.bundle.map(b => b.path), ['cube.bin', 'checker.png']);
-  assert.deepEqual(client.uploads.slice(1).map(u => [u.family, u.app, u.board]), [['model-part', 'demo', 'main'], ['image', 'demo', 'main']]);
+  assert.deepEqual(client.uploads.slice(1).map(u => [u.family, u.app, u.board]), [['model-part', 'demo', 'main'], ['model-part', 'demo', 'main']]);
   assert.deepEqual((await openModelFiles(next)).plan.entries[0].missing, []);
   await assert.rejects(addModelFiles(block, [new File(['x'], 'notes.txt')]), /model's own files/);
   setSourceClient(null);

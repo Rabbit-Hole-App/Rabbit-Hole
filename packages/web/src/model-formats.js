@@ -312,7 +312,7 @@ export function planBundle(files) {
     if (!isModelEntryName(f.path)) continue;
     const entry = { path: f.path, deps: [], missing: [], blocked: [], unsupported: [], units: null };
     const sniffed = sniffModel(f.path, f.bytes);
-    if (sniffed.error) { entries.push({ ...entry, format: extensionOf(f.path), error: sniffed.error }); continue; }
+    if (sniffed.error) { entries.push({ ...entry, format: extensionOf(f.path), error: sniffed.error }); used.add(f.path); continue; }
     Object.assign(entry, { format: sniffed.format, family: sniffed.family, render: sniffed.render, label: sniffed.label });
     const resolve = (from, uris) => {
       const found = [];
