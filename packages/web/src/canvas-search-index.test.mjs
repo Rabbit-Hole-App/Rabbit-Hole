@@ -123,3 +123,19 @@ test('accessible card results expose stable cached-poster keys without fetching 
   assert.equal(query(value).results[0].previewKey, 'visible');
   assert.equal(query(value).results.length, 1);
 });
+
+test('notebook file names are searchable metadata while only stored notebook cells supply bodies', () => {
+  const value = index({ blocks: [{ id: 'n', type: 'notebook', active_path: 'src/helper.py', ipynb_path: 'analysis.ipynb', files: ['analysis.ipynb', 'src/helper.py', 'data.csv'], ipynb: { cells: [{ id: 'c', cell_type: 'code', source: 'stored body' }] } }] });
+  for (const name of ['analysis.ipynb', 'src/helper.py', 'data.csv']) assert.equal(query(value, name, 'code').results[0].objectId, 'n');
+  assert.equal(query(value, 'src/helper.py').totalOccurrences, 1);
+  assert.equal(query(value, 'stored body').results[0].location.path, 'analysis.ipynb');
+  assert.equal(query(value).results[0].availability.status, 'partial');
+  assert.match(query(value).results[0].availability.message, /workspace file bodies/);
+});
+test('papers, PDF pages and images state metadata-only limits and never invent OCR content', () => {
+  const value = index({ blocks: [{ id: 'p', type: 'paper', title: 'Research', paper: { id: '2501.12345' } }, { id: 'page', type: 'slide', pdf: 'doc:1', number: 1 }, { id: 'image', type: 'image', label: 'Photo', alt: 'Owner supplied caption', src: 'data:image/png;base64,not-searchable-hidden-words' }] });
+  assert.equal(query(value).results.every(result => result.availability.status === 'partial'), true);
+  assert.equal(query(value, 'Owner supplied caption').results[0].objectId, 'image');
+  assert.equal(query(value, 'not-searchable-hidden-words').results.length, 0);
+  assert.match(query(value).results.find(result => result.objectId === 'image').availability.message, /OCR/);
+});

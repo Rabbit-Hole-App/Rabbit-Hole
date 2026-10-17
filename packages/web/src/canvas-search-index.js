@@ -26,16 +26,20 @@ function referencesFor(object, supplied) {
   return refs.map(safeReference).filter(ref => { const key = referenceKey(ref); if (seen.has(key)) return false; seen.add(key); return true; });
 }
 function notebookFields(object) {
-  return array(object.ipynb?.cells).flatMap((cell, position) => {
+  const names = [...new Set([object.ipynb_path || 'notebook.ipynb', object.active_path, ...array(object.files)].filter(value => typeof value === 'string' && value))];
+  return [...names.flatMap((name, i) => fields(`name:${i}`, name, 'metadata', { path: name })), ...array(object.ipynb?.cells).flatMap((cell, position) => {
     const location = { cell: cell.id || String(position + 1), path: object.ipynb_path || 'notebook.ipynb' };
     const source = Array.isArray(cell.source) ? cell.source.join('') : string(cell.source);
     // Text outputs are already stored. Images/HTML are not turned into searchable text.
     const outputs = array(cell.outputs).map(output => output.output_type === 'stream' ? [].concat(output.text || '').join('') : output.output_type === 'error' ? `${output.ename || ''}: ${output.evalue || ''}` : [].concat(output.data?.['text/plain'] || '').join('')).filter(Boolean);
     return [...fields(`cell:${position}`, source, 'card', location), ...outputs.flatMap((text, i) => fields(`cell:${position}:output:${i}`, text, 'card', location))];
-  });
+  })];
 }
 function availabilityFor(object, loaded) {
   if (loaded) return { status: loaded.status || (loaded.complete === false ? 'partial' : 'ready'), ...(loaded.limited ? { limited: loaded.limited, message: loaded.limited } : loaded.message ? { message: loaded.message } : {}) };
+  if (object.type === 'notebook' && (!object.ipynb?.cells || [object.active_path, ...array(object.files)].some(path => path && path !== (object.ipynb_path || 'notebook.ipynb')))) return { status: 'partial', message: 'Stored notebook text and file names only; other workspace file bodies are not read.' };
+  if (object.type === 'paper' || (object.type === 'slide' && object.pdf)) return { status: 'partial', message: 'Only the paper or page title and reference metadata are available to Search.' };
+  if (object.type === 'image') return { status: 'partial', message: 'Image labels and supplied captions only; no OCR.' };
   if (object.type === 'repo-code' || object.type === 'file' || object.type === 'pdf') return { status: 'partial', message: 'Only the file name is available to Search.' };
   return { status: 'ready' };
 }
@@ -116,7 +120,7 @@ export function querySearchIndex(index, { query = '', filter = 'all', includeRes
       matcher.lastIndex = 0;
       for (let found; (found = matcher.exec(field.text));) {
         occurrenceCount++;
-        const score = field.key === 'title' ? 0 : 1;
+        const score = field.key === 'title' || field.key.startsWith('name:') ? 0 : 1;
         if (!first || score < rank) { first = { field, at: found.index, length: found[0].length }; rank = score; }
       }
     }
