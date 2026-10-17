@@ -50,6 +50,13 @@ function fixture(t, { concurrency = 2 } = {}) {
   const submit = (extra = {}, opts = {}) => send(`/api/learn/files/${SOURCE}/jobs`, { method: 'POST', body: { converter: 'slides', options: {}, card: 'card-1', app: 'repo-x', idempotency_key: 'import:card-1:slides', ...extra }, ...opts });
   const step = (id, now) => stepJob(env, id, memoFor(id), now);
   const job = id => sqlite.prepare('SELECT * FROM file_jobs WHERE id = ?').get(id);
+  // A board write as saveOwn/fork make it (file-refs.js): the state and, in the same step, the board's file_source_refs.
+  // `refs: false` writes only the state, as a card that merely names a source id would.
+  const place = (boardId, blocks, { refs = true, ...columns } = {}) => {
+    sqlite.prepare(`UPDATE learn_boards SET state_json = ?${Object.keys(columns).map(k => `, ${k} = ?`).join('')} WHERE id = ?`).run(JSON.stringify({ blocks }), ...Object.values(columns), String(boardId));
+    sqlite.prepare('DELETE FROM file_source_refs WHERE board_id = ?').run(String(boardId));
+    if (refs) for (const id of new Set(blocks.map(b => b.fileRef?.source?.id).filter(Boolean))) sqlite.prepare('INSERT INTO file_source_refs(source_id, board_id) VALUES(?, ?)').run(id, String(boardId));
+  };
   const auth = async (id, attempt, now = T0) => ({ Authorization: `Bearer ${(await callbackToken(env, id, attempt, now)).token}` });
   const cb = async (id, attempt, action, body, { now = T0, mintAt = now, tokenAttempt = attempt, headers = {} } = {}) => send(`/api/learn/files/jobs/${id}/attempts/${attempt}/${action}`,
     { method: action.startsWith('outputs/') ? 'PUT' : 'POST', body, now, headers: { ...(await auth(id, tokenAttempt, mintAt)), ...headers } });
@@ -61,7 +68,7 @@ function fixture(t, { concurrency = 2 } = {}) {
     coverage: { text: 'extracted', units: 'slides', count: 1 }, limitations: [], ...extra });
   // Upload both outputs and complete: the converter's happy path for one attempt.
   const finish = async (id, attempt, opts = {}) => { await output(id, attempt, 'preview.pdf', PDF, opts); await output(id, attempt, 'slide-001.png', PNG, opts); return cb(id, attempt, 'complete', manifest(id, attempt, opts.manifest), opts); };
-  return { sqlite, env, bucket, failNext, calls, converter, send, submit, step, job, cb, output, finish, manifest, alarms, memoFor, PDF, PNG };
+  return { sqlite, env, bucket, place, failNext, calls, converter, send, submit, step, job, cb, output, finish, manifest, alarms, memoFor, PDF, PNG };
 }
 const derivatives = f => f.sqlite.prepare('SELECT * FROM file_derivatives ORDER BY name').all();
 
@@ -294,13 +301,16 @@ test('status is read through the board: owner, or a share viewer whose board sti
   assert.equal((await f.send(path, { headers: { 'x-email': 'stranger@test' } })).status, 404);
   assert.equal((await f.send(share, { headers: { 'x-email': 'stranger@test' } })).status, 404, 'the board has no card on this job');
   const card = { id: 'card-1', type: 'pdf', fileRef: { v: 1, source: { id: SOURCE, rev: sha(SOURCE_BYTES) }, family: 'presentation', job: job.id } };
-  f.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = 7').run(JSON.stringify({ blocks: [card] }));
+  f.place(7, [card]);
+  f.place(7, [card], { refs: false });
+  assert.equal((await f.send(share, { headers: { 'x-email': 'stranger@test' } })).status, 404, 'a card that only names the source grants nothing');
+  f.place(7, [card]);
   const seen = await f.send(share, { headers: { 'x-email': 'stranger@test' } });
   assert.equal(seen.status, 200); assert.equal((await seen.json()).job.id, job.id);
   // Removing the card, or revoking the link, removes the access.
-  f.sqlite.prepare("UPDATE learn_boards SET state_json = '{\"blocks\":[]}' WHERE id = '7'").run();
+  f.place(7, []);
   assert.equal((await f.send(share, { headers: { 'x-email': 'stranger@test' } })).status, 404);
-  f.sqlite.prepare('UPDATE learn_boards SET state_json = ?, shared = 0 WHERE id = 7').run(JSON.stringify({ blocks: [card] }));
+  f.place(7, [card], { shared: 0 });
   assert.equal((await f.send(share, { headers: { 'x-email': 'stranger@test' } })).status, 404);
   // Cancel and retry are the owner's.
   assert.equal((await f.send(`${path}/cancel`, { method: 'POST', headers: { 'x-email': 'stranger@test' } })).status, 404);
@@ -382,9 +392,13 @@ test('derivatives by source revision: a fork and a link viewer see ready results
   assert.equal(await jobOptionsHash({ width: 1280, from: 1 }), await optionsHash({ from: 1, width: 1280 }), 'browser and server hash options alike');
   const path = (q = '') => `/api/learn/files/sources/${SOURCE}/derivatives?sha=${rev}&converter=slides&options=${options}${q}`;
   const card = { id: 'card-1', type: 'pdf', fileRef: { v: 1, source: { id: SOURCE, rev }, family: 'presentation', job: null } };
-  f.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = 7').run(JSON.stringify({ blocks: [card] }));
-  f.sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, updated_at) VALUES('f1', 'team', 'forker@test', 'canvas-fork', 'main', ?, datetime('now'))").run(JSON.stringify({ blocks: [card] }));
-  f.sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, updated_at) VALUES('s1', 'team', 'stranger@test', 'canvas-own', 'main', '{\"blocks\":[]}', datetime('now'))").run();
+  f.place(7, [card]);
+  // The fork inherits the references of the board it was read from; the stranger's board names the source in a card but
+  // holds no reference, so it reads nothing.
+  f.sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, updated_at) VALUES('f1', 'team', 'forker@test', 'canvas-fork', 'main', '{}', datetime('now'))").run();
+  f.place('f1', [card]);
+  f.sqlite.prepare("INSERT INTO learn_boards(id, org, owner_email, app, board, state_json, updated_at) VALUES('s1', 'team', 'stranger@test', 'canvas-own', 'main', '{}', datetime('now'))").run();
+  f.place('s1', [card], { refs: false });
   const fork = q => f.send(path(q), { headers: { 'x-email': 'forker@test' } });
   // Before the job commits nothing is ready: the forked card shows its "Converting in the original canvas" state.
   assert.deepEqual((await (await fork('&app=canvas-fork')).json()).derivatives, []);
@@ -427,7 +441,7 @@ test('a canvas member reads job status and derivatives through membership; a rem
   const { job } = await (await f.submit({ app: canvas })).json();
   await f.step(job.id, T0); await f.finish(job.id, 1);
   const card = { id: 'card-1', type: 'pdf', fileRef: { v: 1, source: { id: SOURCE, rev }, family: 'presentation', job: job.id } };
-  f.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ?').run(JSON.stringify({ blocks: [card] }), boardId);
+  f.place(boardId, [card]);
   const member = { 'x-email': 'member@test', 'x-user': 'u-member' };
   const status = () => f.send(`/api/learn/files/jobs/${job.id}?member=${boardId}`, { headers: member });
   const listed = async () => f.send(`/api/learn/files/sources/${SOURCE}/derivatives?sha=${rev}&converter=slides&options=${await optionsHash({})}&member=${boardId}`, { headers: member });
