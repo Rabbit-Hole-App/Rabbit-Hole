@@ -1,0 +1,38 @@
+{
+  "candidate": "28015081 web c08d99c9-009b-42d3-a307-55890b89e446",
+  "base": "https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev",
+  "elapsedMs": 11023,
+  "canvas": "canvas-43851db5",
+  "counts": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "interrupted": 0
+  },
+  "results": [
+    {
+      "name": "existing Compare route receives both selected code IDs and leaves originals untouched during preview",
+      "status": "passed"
+    },
+    {
+      "name": "Accept is idempotent and comparison provenance survives reload",
+      "status": "passed"
+    },
+    {
+      "name": "selected code range creates separate learning artifact with exact saved range provenance",
+      "status": "passed"
+    },
+    {
+      "name": "cancelled preview and late response cannot create another card",
+      "status": "passed"
+    },
+    {
+      "name": "no provider, execution or browser errors; only existing routes are claimed",
+      "status": "passed"
+    }
+  ],
+  "errors": [],
+  "unexpected": [],
+  "fixtureGenerations": 4,
+  "limitation": "Deterministic model fixtures only; no real-provider quality claim."
+}

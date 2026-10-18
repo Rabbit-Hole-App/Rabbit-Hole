@@ -1,0 +1,24 @@
+{
+  "candidate": "28015081 web c08d99c9-009b-42d3-a307-55890b89e446",
+  "base": "https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev",
+  "elapsedMs": 18948,
+  "canvas": "canvas-44159805",
+  "counts": {
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0,
+    "interrupted": 4
+  },
+  "results": [
+    {
+      "name": "existing Compare route receives both selected code IDs and leaves originals untouched during preview",
+      "status": "failed",
+      "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-inline-ai]').locator('[data-inline-preview=\"card\"]') to be visible\u001b[22m\n"
+    }
+  ],
+  "errors": [],
+  "unexpected": [],
+  "fixtureGenerations": 0,
+  "setupError": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-inline-ai]').locator('[data-inline-preview=\"card\"]') to be visible\u001b[22m\n\n    at preview (C:\\Users\\cyudhist\\Desktop\\workspace\\small-parallel\\.worktrees\\code-box-autocomplete-acceptance\\packages\\web\\e2e\\ctrlk-explain-provenance-check.mjs:21:80)\n    at C:\\Users\\cyudhist\\Desktop\\workspace\\small-parallel\\.worktrees\\code-box-autocomplete-acceptance\\packages\\web\\e2e\\ctrlk-explain-provenance-check.mjs:24:200\n    at async file:///C:/Users/cyudhist/Desktop/workspace/small-parallel/.worktrees/code-box-autocomplete-acceptance/packages/web/e2e/ctrlk-explain-provenance-check.mjs:39:37",
+  "limitation": "Deterministic model fixtures only; no real-provider quality claim."
+}
