@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { inlineEditToolFor, INLINE_IMAGE_TRANSFORM_SYSTEM } from '../src/agents/learn-inline.js';
+import { jevDecideRequest, modelDecideRequest } from '../src/learn-inline-route.js';
+import { freezeInlineTools } from '../../web/src/inline-tool-plan.js';
 
 test('only a validated image selection enables the bounded image plan schema', () => {
   const schema = inlineEditToolFor(true, false, true).input_schema;
@@ -27,4 +29,19 @@ test('image preparation cannot advertise pixel recognition, removal or paid imag
   assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/cannot remove a subject background/);
   assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/Do not invent source pixels/);
   assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/no provider image generation or code execution/);
+});
+test('both decision transports advertise precise image transforms without contradictory blanket refusal', () => {
+  const block={id:'image',type:'image',assetKey:'saved-image',dx:0,dy:0};
+  const snapshot=freezeInlineTools({blocks:[block],items:[],shapes:[],links:[]},['image']);
+  assert.ok(snapshot);
+  const request={kind:'selection',mode:'edit',targetIds:['image'],prompt:'Rotate this image clockwise',context:{toolSnapshot:snapshot,target:{ids:['image'],objects:[{id:'image',type:'image',text:'Saved image'}]}}};
+  const jev=jevDecideRequest(request,{capability:'edit'},'fixture-validator');
+  const model=modelDecideRequest(request,{capability:'edit'});
+  for(const payload of [jev,model]) {
+    const text=JSON.stringify(payload);
+    assert.match(text,/transform_image/);
+    assert.match(text,/quarter-turn rotation/);
+    assert.match(text,/No background removal/);
+    assert.doesNotMatch(text,/external source edits, image edits/);
+  }
 });

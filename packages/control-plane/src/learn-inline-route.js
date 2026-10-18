@@ -23,6 +23,8 @@ const malformed = () => Object.assign(new Error('The request check returned no u
 const hasTools = request => request?.mode === 'edit' && validInlineToolSnapshot(request.context?.toolSnapshot);
 const hasAnnotations = request => request?.mode==='explain' && request.context?.toolSnapshot?.intent==='explain' && validInlineToolSnapshot(request.context.toolSnapshot);
 const TOOL_SCOPE = 'Selected-object appearance and measured alignment; complete editable native table sort, exact deduplication and explicitly specified scaling; selected boxed diagram nodes/connectors may be relabelled, added, removed or rewired with dependency checks. Explicitly selected notebook cells may have source edited only when notebook scope is supplied, without execution. Related graph objects remain read-only. No grouping, external source edits, image edits or execution.';
+const IMAGE_SCOPE = 'One selected editable image supports only precise crop, quarter-turn rotation, resize or padding through transform_image. Crop uses explicit original-image pixel coordinates and dimensions; resize/padding require explicit dimensions, otherwise clarify. Preserve original bytes and card placement. No background removal, regional recoloring, image generation, extraction or execution. Metadata alone does not establish visual inspection.';
+const toolScope = request => hasTools(request) && request.context.toolSnapshot.selection.length === 1 && request.context.toolSnapshot.selection[0].kind === 'image' ? IMAGE_SCOPE : TOOL_SCOPE;
 
 // What a validator reads: the mode, whether anything is selected, the learner's words, the output a command already
 // fixed, and the compact material (inline-ai-decide.js summaryOf) - never the context package or the canvas.
@@ -35,7 +37,7 @@ function view(request, fixed) {
     ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : (CAPABILITIES[fixed.capability] || EXPLICIT_ROUTES[fixed.capability]).label } : {}),
     material: summaryOf({...request,context:inlineProviderContext(request.context)}),
     ...(equationEdit ? {equationEdit:'Replace the selected equation LaTeX according to the request, preserving its identity, position and styling. No other object changes.'} : {}),
-    ...(hasTools(request) ? {availableSelectionTools:TOOL_SCOPE} : {}),
+    ...(hasTools(request) ? {availableSelectionTools:toolScope(request)} : {}),
     ...(hasAnnotations(request) ? {availableAnnotations:'Explicitly requested anchored explanatory callouts or bounded highlights, added separately without changing selected objects. Ordinary Explain remains a note.'} : {}),
   };
 }
@@ -49,13 +51,13 @@ export function jevDecideRequest(request, fixed, model) {
     state: {
       mode: seen.mode === 'edit' ? seen.equationEdit ? seen.equationEdit : hasTools(request) ? 'edit: changes the selected content using legacy text edits or the explicitly supplied validated selection tools' : 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
       ...(request.context?.nativeTools ? {nativeTools:'set_appearance on selected native objects; arrange_selection on selected boxed shapes/text/notes, computed from measured bounds'} : {}),
-      ...(hasTools(request) ? {toolSnapshot:TOOL_SCOPE} : {}),
+      ...(hasTools(request) ? {toolSnapshot:toolScope(request)} : {}),
       ...(hasAnnotations(request) ? {annotations:seen.availableAnnotations} : {}),
       selected: seen.selected ? 'yes' : 'no, nothing is selected: the material is what is around the place the learner chose to add to', request: seen.request,
       ...(seen.output ? { output: `${seen.output} (${request.revising ? 'the result shown, which the learner is refining: "it" and "this" mean that result' : 'chosen by the command the learner typed'})` } : {}), material: seen.material,
     },
     questions: {
-      decision: { type: 'choice', instructions: `May the inline editor act on this request? ${GUARD} When the meaning is uncertain, clarify.`, criteria: hasTools(request) ? {...DECISION_CRITERIA,unsupported:`Meaningful but outside the available outputs or these selected-object tools: ${TOOL_SCOPE}`} : DECISION_CRITERIA },
+      decision: { type: 'choice', instructions: `May the inline editor act on this request? ${GUARD} When the meaning is uncertain, clarify.`, criteria: hasTools(request) ? {...DECISION_CRITERIA,unsupported:`Meaningful but outside the available outputs or these selected-object tools: ${toolScope(request)}`} : DECISION_CRITERIA },
       ...(fixed?.capability ? {} : { route: { type: 'choice', instructions: `Which output does the request ask for? ${GUARD} Negations count: "explain it, but don't make a video" does not ask for a video.`, criteria: { ...outputs(), ...META } } }),
       missing: { type: 'choice', instructions: `If one essential piece of information is missing, which? ${GUARD}`, criteria: { ...MISSING_CRITERIA, nothing: 'Nothing essential is missing.' } },
     },
@@ -80,7 +82,7 @@ export function readJevVerdict(body, fixed) {
 // ponytail: kept only to rerun the evaluation (docs/features/inline-ai-validation.md: JEV won); delete it if JEV stays.
 export function modelDecideRequest(request, fixed) {
   return {
-    max_tokens: 400, system: INLINE_DECIDE_SYSTEM + (hasTools(request) ? `\nFor this edit request, the explicitly available selection tools also support: ${TOOL_SCOPE} These operations are supported when the selection supplies their inputs; never reinterpret Explain as Edit.` : ''), tools: [INLINE_DECIDE_TOOL], tool_choice: { type: 'tool', name: INLINE_DECIDE_TOOL.name, disable_parallel_tool_use: true },
+    max_tokens: 400, system: INLINE_DECIDE_SYSTEM + (hasTools(request) ? `\nFor this edit request, the explicitly available selection tools also support: ${toolScope(request)} These operations are supported when the selection supplies their inputs; never reinterpret Explain as Edit.` : ''), tools: [INLINE_DECIDE_TOOL], tool_choice: { type: 'tool', name: INLINE_DECIDE_TOOL.name, disable_parallel_tool_use: true },
     messages: [{ role: 'user', content: JSON.stringify({ ...view(request, fixed), outputs: outputs() }) }],
   };
 }
