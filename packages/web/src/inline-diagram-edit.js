@@ -1,4 +1,5 @@
 import { NODE_KINDS, validateDiagram, layoutDiagram, toCanvasObjects } from './inline-diagram.js';
+import { previewVerticalDiagram } from './inline-diagram-layout.js';
 import {runsOf,reconcileRuns,textPatch} from './learn-rich-text.js';
 
 const plain = x => !!x && typeof x === 'object' && !Array.isArray(x);
@@ -12,7 +13,7 @@ const failure = (message,dependencies=[]) => ({ok:false,changes:[],additions:[],
 // Pure proposal only. The caller binds this to an authorized frozen request and
 // runs it again at Accept. New node positions come from the existing layout code.
 export function previewDiagramEdit(input,{board,frozen,requestId,readOnly=false}={}) {
- try { return preview(input,{board,frozen,requestId,readOnly}); }
+ try { return input&&Object.hasOwn(input,'layout')?previewVerticalDiagram(input,{board,frozen,readOnly}):preview(input,{board,frozen,requestId,readOnly}); }
  catch { return failure('The diagram request or frozen state is malformed.'); }
 }
 function preview(input,{board,frozen,requestId,readOnly}) {

@@ -153,9 +153,13 @@ function ranksOf(ids, connectors) {
 
 // Positions for a checked spec, in the diagram's own frame (top-left at 0,0). Deterministic: the same spec and style give
 // the same layout. The model never gives coordinates; spacing comes from the region's style times the spec's hint.
-export function layoutDiagram(spec, style = DEFAULT_STYLE) {
+export function layoutDiagram(spec, style = DEFAULT_STYLE, measuredSizes = null) {
   const ids = spec.shapes.map(shape => shape.id), index = new Map(ids.map((id, i) => [id, i]));
-  const size = new Map(spec.shapes.map(shape => [shape.id, sizeOf(shape.label, style)]));
+  const size = new Map(spec.shapes.map(shape => {
+    const measured=measuredSizes?.[shape.id];
+    if(measuredSizes&&(!measured||!['w','h'].every(key=>Number.isFinite(measured[key])&&measured[key]>0&&measured[key]<=10000)))throw new Error('Existing diagram dimensions are invalid.');
+    return [shape.id, measuredSizes?{w:measured.w,h:measured.h}:sizeOf(shape.label, style)];
+  }));
   const gap = num(style.gap, DEFAULT_STYLE.gap, 8, 400) * spec.layout.spacing, layerGap = num(style.layerGap, DEFAULT_STYLE.layerGap, 8, 600) * spec.layout.spacing;
   const at = new Map();
   const { arrange, flow } = spec.layout;
