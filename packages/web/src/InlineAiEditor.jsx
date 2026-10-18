@@ -161,7 +161,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // A result checked against the board as it is now (inline-ai-apply.js): the preview it becomes, or why not.
   function validateResult(result, frozen) {
     let extraction;
-    if(result.extraction){
+    if(Object.hasOwn(result,'extraction')){
       if(!['equation','diagram'].includes(result.kind)||!frozen.extractionScope||frozen.equationItem)return{ok:false,errors:['Image interpretation is not available for this result or canvas yet.']};
       const checked=validateExtraction(result.extraction,{block:frozen.extractionImage,ids:frozen.ids});
       if(!checked.ok)return{ok:false,errors:[checked.error]};
@@ -337,7 +337,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     const at = anchorPoint();
     if (!at) return null;
     const style = regionStyle(board(), at), layout = layoutDiagram(spec, style);
-    const spot = placeResult(layout.bounds, at, obstaclesNow(target.ids), canvas.visibleWorld());
+    const spot = placeResult(layout.bounds, at, obstaclesNow([]), canvas.visibleWorld());
     if (spot.offscreen) canvas.reveal?.({ x: spot.x, y: spot.y, w: layout.bounds.w, h: layout.bounds.h });
     return { kind: 'diagram', style, layout, x: spot.x, y: spot.y, dx: spot.dx, dy: spot.dy, offscreen: spot.offscreen, size: { w: layout.bounds.w, h: layout.bounds.h }, final: true };
   };
@@ -387,23 +387,38 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   }, [state.status, state.preview]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => canvas.cardGhost?.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const accept = async () => {
+  const refreshBlockedPlacement = preview => {
     // A7: the spot the ghost shows must still be free. If something now takes it, the note is placed again and its new
     // ghost shown; Accept is pressed again. It never lands somewhere the learner did not see.
-    const shown = (state.preview?.kind === 'note' || state.preview?.kind === 'diagram' || isCard(state.preview)) && placements[state.preview.requestId];
+    const shown = (preview?.kind === 'note' || preview?.kind === 'diagram' || isCard(preview)) && placements[preview.requestId];
     if (shown?.size && !freeSpot({ x: shown.x, y: shown.y, ...shown.size }, canvas.obstacles(target.ids), unionBox(target.ids.map(boxOfTarget)))) {
-      const again = state.preview.kind === 'diagram' ? placeDiagram(state.preview.spec) : placeFor(shown.size);
+      const again = preview.kind === 'diagram' ? placeDiagram(preview.spec) : placeFor(shown.size);
       if (again) {
         // A card's offset is from its slot at the end of the column: the slot is where its ghost is drawn less its offset.
-        const drawn = isCard(state.preview) && canvas.cardGhost.measure();
+        const drawn = isCard(preview) && canvas.cardGhost.measure();
         const slot = drawn ? { x: drawn.x - shown.dx, y: drawn.y - shown.dy } : null;
-        keep(state.preview.requestId, { ...again, final: true, ...(slot ? { dx: again.x - slot.x, dy: again.y - slot.y } : {}) });
-        setMoved(state.preview.requestId);
-        return;
+        keep(preview.requestId, { ...again, final: true, ...(slot ? { dx: again.x - slot.x, dy: again.y - slot.y } : {}) });
+        setMoved(preview.requestId);
+        return true;
       }
     }
+    return false;
+  };
+  const accept = async () => {
+    if(!state.preview?.extraction&&refreshBlockedPlacement(state.preview))return;
     setMoved(null);
     const out = await session.accept(async preview => {
+      let verifiedExtraction=null;
+      if(preview.extraction){
+        if(!config.verifyExtraction)return{error:'Image interpretation is unavailable in this canvas.'};
+        const frozen=preview.frozen,image=frozen.extractionImage;
+        const current=()=>({block:board().blocks.find(block=>block.id===image.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly,locked:canvas.locked?.(image.id)});
+        verifiedExtraction=await config.verifyExtraction({extraction:preview.extraction,before:image,ids:frozen.ids,scope:frozen.extractionScope,current});
+        if(!cadLive.current)return{stale:{gone:true,text:'This editor closed.'}};
+        // Source reads finish before measuring/placing native output. No asynchronous
+        // work separates these checks from the native transaction below.
+        if(refreshBlockedPlacement(preview))return{error:'The result moved to a free place. Check its preview, then Accept again.'};
+      }
       const notebook=preview.frozen.toolSnapshot?.notebook;
       if(notebook){const current=await notebookEditor(notebook.id).capture();if(!cadLive.current)return{stale:{gone:true,text:'This editor closed.'}};canvas.syncNotebook(current);if(current.revision!==notebook.revision||JSON.stringify(current.cellIds)!==JSON.stringify(notebook.cellIds))return{stale:{content:true,text:'The notebook or selected cells changed.'}};}
       let appliedNotebook=null;
@@ -455,15 +470,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const place = drawn ? { side: spot.side, dx: spot.x - (drawn.x - spot.dx), dy: spot.y - (drawn.y - spot.dy) } : null;
         tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route, place });
       }
-      if(preview.extraction){
-        if(!config.verifyExtraction)return{error:'Image interpretation is unavailable in this canvas.'};
-        const image=frozen.extractionImage;
-        const current=()=>({block:board().blocks.find(block=>block.id===image.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly,locked:canvas.locked?.(image.id)});
-        const verified=await config.verifyExtraction({extraction:preview.extraction,before:image,ids:frozen.ids,scope:frozen.extractionScope,current});
-        const fresh=staleness(frozen,board(),canvas.cache,canvas.boardKey,canvas.describe);
-        if(!cadLive.current||fresh.gone.length||fresh.content||fresh.relations)return{stale:{content:true,text:'The selection changed while accepting the interpretation.'}};
-        tx=withExtraction(tx,{...verified,provenance:inlineProvenance({requestId:preview.requestId,mode:'explain',route:preview.route,frozen})});
-      }
+      if(verifiedExtraction)tx=withExtraction(tx,{...verifiedExtraction,provenance:inlineProvenance({requestId:preview.requestId,mode:'explain',route:preview.route,frozen})});
       const stillCurrent=!notebook||validateEdit(preview.raw,frozen,{...board(),boxes:canvas.layout()}).ok;
       const applied=cadLive.current&&stillCurrent&&canvas.apply(tx, preview.requestId, id => session.persisted(id));
       if(!applied&&appliedNotebook)await notebookEditor(notebook.id).restore({path:notebook.path,expectedRevision:appliedNotebook.revision,ipynb:JSON.parse(notebook.revision)});
