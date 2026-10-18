@@ -128,7 +128,7 @@ export function imageEditProvider({ apiKey, transport = fetch } = {}) {
         body.set('prompt', regional ? `Edit the transparent mask region according to this request. Preserve other content as closely as possible.\n${input.prompt.trim()}` : 'Remove the background and return the main subject on a transparent background. Preserve the subject as closely as possible.');
         signal.throwIfAborted();
         started = true;
-        const response = await transport(ENDPOINT, { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${apiKey}` }, body, signal });
+        const response = await transport(ENDPOINT, { method: 'POST', redirect: 'manual', headers: { Authorization: `Bearer ${apiKey}` }, body, signal });
         if (!response.ok) { await response.body?.cancel().catch(() => {}); throw failure('provider_error', `Image provider request failed (${response.status}).`); }
         const result = await boundedJson(response, signal);
         signal.throwIfAborted();

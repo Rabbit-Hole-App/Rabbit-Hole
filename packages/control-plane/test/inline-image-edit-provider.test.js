@@ -13,7 +13,7 @@ const response=()=>Response.json({data:[{b64_json:output.toString('base64')}],us
 const input={operation:'remove_background',image};
 
 test('removal uses one fixed multipart low-quality transparent PNG request',async()=>{
- let calls=0;const provider=imageEditProvider({apiKey:'fixture-only',transport:async(url,init)=>{calls++;assert.equal(url,'https://api.openai.com/v1/images/edits');assert.equal(init.redirect,'error');assert.equal(init.headers.Authorization,'Bearer fixture-only');for(const [key,value]of Object.entries({model:'gpt-image-2.5-sunburst-2026-09-08',n:'1',quality:'low',size:'1024x1024',output_format:'png',background:'transparent'}))assert.equal(init.body.get(key),value);assert.equal(init.body.has('mask'),false);assert.deepEqual(new Uint8Array(await init.body.get('image').arrayBuffer()),new Uint8Array(image));return response();}});
+ let calls=0;const provider=imageEditProvider({apiKey:'fixture-only',transport:async(url,init)=>{calls++;assert.equal(url,'https://api.openai.com/v1/images/edits');assert.equal(init.redirect,'manual');assert.equal(init.headers.Authorization,'Bearer fixture-only');for(const [key,value]of Object.entries({model:'gpt-image-2.5-sunburst-2026-09-08',n:'1',quality:'low',size:'1024x1024',output_format:'png',background:'transparent'}))assert.equal(init.body.get(key),value);assert.equal(init.body.has('mask'),false);assert.deepEqual(new Uint8Array(await init.body.get('image').arrayBuffer()),new Uint8Array(image));return response();}});
  const result=await provider.edit(input);assert.equal(calls,1);assert.deepEqual(result.bytes,new Uint8Array(output));assert.equal(result.width,1024);assert.equal(result.usage.total_tokens,12);assert.match(result.limitations.join(' '),/pixels/);
 });
 test('regional edit requires explicit alpha mask and sends original plus mask',async()=>{
@@ -97,5 +97,13 @@ test('removal rejects blank alpha0 and uniformly translucent alpha254 outputs',a
   const raw=Buffer.alloc(1024*(1024*4+1));for(let y=0;y<1024;y++)for(let x=0;x<1024;x++)raw[y*(1024*4+1)+1+x*4+3]=alpha;
   const provider=imageEditProvider({apiKey:'fixture',transport:async()=>Response.json({data:[{b64_json:png(1024,1024,{raw}).toString('base64')}]})});
   await assert.rejects(provider.edit(input),error=>error.code==='invalid_output'&&error.outcomeUnknown);
+ }
+});
+
+test('Worker-compatible manual redirect rejects redirection without retry or following',async()=>{
+ for (const status of [301,302,307]) {
+  let calls=0;
+  await assert.rejects(imageEditProvider({apiKey:'fixture-only',transport:async(url,init)=>{calls++;assert.equal(url,'https://api.openai.com/v1/images/edits');assert.equal(init.redirect,'manual');return new Response(null,{status,headers:{Location:'https://untrusted.invalid'}});}}).edit(input),{code:'provider_error'});
+  assert.equal(calls,1);
  }
 });
