@@ -99,4 +99,6 @@ test('job identity freezes canvas scope and rejects invalid scope before reservi
   const result = await coordinator.create(request()); assert.deepEqual(result.scope, request().scope);
   await assert.rejects(coordinator.create({ ...request(), scope: { app: 'canvas-87654321', board: 'main' } }), /conflicts/);
   assert.equal((await db.get('code:budget')).runs, 1);
+  const dotted = await coordinator.create({ ...request(2), scope: { app: 'canvas-12345678', board: 'chapter.1' } });
+  assert.equal(dotted.scope.board, 'chapter.1');
 });

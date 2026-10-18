@@ -23,7 +23,7 @@ export function createInlineCodeCoordinator({ storage, execute, policy, now = Da
   async function create({ id, owner, scope, language, code, input = null, executionConfirmed, maxReservedMicros }) {
     if (!scope || typeof scope !== 'object' || Array.isArray(scope) || Object.keys(scope).some(key => !['app', 'board'].includes(key))
       || typeof scope.app !== 'string' || !/^[a-z0-9-]{1,100}$/.test(scope.app)
-      || typeof scope.board !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(scope.board)) throw Error('An explicit canvas scope is required.');
+      || typeof scope.board !== 'string' || !/^[A-Za-z0-9_.:-]{1,200}$/.test(scope.board)) throw Error('An explicit canvas scope is required.');
     if (typeof id !== 'string' || !ID.test(id) || !owner || !['org', 'email'].every(key => typeof owner[key] === 'string' && owner[key] && owner[key].length <= 200)
       || language !== 'javascript' || typeof code !== 'string' || !code.trim() || bytes(code) > 32768 || executionConfirmed !== true
       || !Number.isSafeInteger(maxReservedMicros) || maxReservedMicros < limits.reserveMicros) throw Error('Explicit bounded JavaScript execution consent is required.');
