@@ -1,7 +1,7 @@
 import { equationTransaction } from './inline-equation-apply.js';
 import { cadPersistenceChanged } from './CadCard.jsx';
 import { cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
-import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -16,6 +16,7 @@ import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
+const CodeBoxEditor = lazy(() => import('./CodeBoxEditor.jsx'));
 import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
@@ -923,7 +924,7 @@ function NotebookButton({ entry, onNotebook, className = '' }) {
 
 // The Text / Code switch on a selected text box (docs/features/canvas-editing.md): the same object, words, place and
 // size; Code shows it literally in monospace and keeps the text formatting aside for the switch back. Nothing runs.
-function ModePill({ mode, onMode, lang = 'python', onLang = null, notebook = null }) {
+function ModePill({ mode, onMode, lang = 'text', onLang = null, notebook = null }) {
   return (
     <div role="group" aria-label="Text or code" data-keep-focus data-thumbnail-hide style={{ fontSize: 12, fontWeight: 400, fontStyle: 'normal', textDecoration: 'none' }}
       className="flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 font-sans shadow-md"
@@ -955,7 +956,7 @@ const itemBase = item => {
 
 // editOn: { id, n } - the canvas asking this item to open for typing (Enter on a selected text box). onEditStart: the
 // edit began (its undo step opens). onCommit(id, runs, how): the edit ended. onEditorApi: the open editor's handle.
-function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null, onNotebook = null }) {
+function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null, onNotebook = null, onInlineAI = null, onDiscardCode = null }) {
   const [editing, setEditing] = useState(!!item.fresh);
   // A Code box not being edited is drawn in its language's colors, once they are ready for exactly these words.
   const [colors, setColors] = useState(null);
@@ -968,7 +969,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
     return () => { live = false; };
   }, [colorKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [point, setPoint] = useState(null);
-  const edit = useContext(CanvasEdit), locked = edit.locked.has(item.id);
+  const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(item.id);
   const body = useRef(null);
   // A divider's old title keeps its plain editor; it is pinned while editing so a re-render never wipes it.
   const shown = useRef(item.text);
@@ -996,7 +997,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
     // on the box's own padding (a note's blank lower part) keeps the editor's focus and puts the caret at the end.
     if (editing) {
       event.stopPropagation();
-      if (!event.target.closest('[data-rich-editor]')) {
+      if (!event.target.closest('[data-rich-editor],[data-code-box-editor]')) {
         event.preventDefault();
         const editor = event.currentTarget.querySelector('[data-rich-editor]');
         if (editor) { editor.focus({ preventScroll: true }); document.getSelection()?.selectAllChildren(editor); document.getSelection()?.collapseToEnd(); }
@@ -1076,11 +1077,20 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
           </div>
         </div>
       )}
-      <RichText entry={item} base={base} colorOf={ink} code={code} colors={colors?.key === colorKey ? colors.runs : null} editing={editing} point={point}
+      {code && editing ? <Suspense fallback={<div role="status">Loading code editor…</div>}>
+        <CodeBoxEditor key={item.id} value={item.text || ''} language={item.lang} filename={item.filename} base={base}
+          readOnly={locked} zoom={zoom} cameraKey={cameraKey} getTooltipSpace={getTooltipSpace} onApi={onEditorApi}
+          onLanguageChange={value => !locked && onLang?.(item.id, value)} onInlineAI={!locked ? onInlineAI : null}
+          onDiscard={() => { setEditing(false); setPoint(null); onDiscardCode?.(); }}
+          onExit={({ value, reason, conflict, expectedText }) => {
+            if (conflict || onCommit(item.id, [{ t: value }], reason, { expectedText }) === false) return false;
+            setEditing(false); setPoint(null); return true;
+          }} />
+      </Suspense> : <RichText entry={item} base={base} colorOf={ink} code={code} colors={colors?.key === colorKey ? colors.runs : null} editing={editing} point={point}
         placeholder={sticky ? 'Note…' : code ? 'Code…' : 'Text…'} aria-label={sticky ? 'Sticky note' : code ? 'Code' : 'Text'}
         style={{ ...objectStyle(item, base, ink), ...(code ? { fontWeight: 400, fontStyle: 'normal', textAlign: 'left' } : {}) }}
         className={`${sticky ? 'flex-1 empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}
-        onApi={onEditorApi} onCommit={(runs, how) => { setEditing(false); setPoint(null); onCommit(item.id, runs, how); }} />
+        onApi={onEditorApi} onCommit={(runs, how) => { setEditing(false); setPoint(null); onCommit(item.id, runs, how); }} />}
       {/* Text gets the same corner control as a note: the box scales, the
           type does not - wrapping is what changes, never the font size. The
           glyph is the card nodes' diagonal-lines corner, not a square. */}
@@ -2892,6 +2902,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Text / Code: an open edit is committed first, so its words are what switches; the switch is its own undo step.
   const setTextMode = (id, mode) => {
     if (editorRef.current) flushSync(() => editorRef.current.commit('blur'));
+    if (editorRef.current || readOnlyRef.current) return;
     const sketch = drawTargetRef.current ? blocksRef.current.find(block => block.id === drawTargetRef.current)?.sketch : null;
     const before = (sketch ? sketch.items || [] : itemsRef.current).find(item => item.id === id);
     if (!before || (before.mode || 'text') === mode || lockedRef.current.has(id)) return;
@@ -2901,6 +2912,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A Code box's language (canvas-editing.md section 3): its own undo step, after any open edit is committed.
   const setCodeLang = (id, lang) => {
     if (editorRef.current) flushSync(() => editorRef.current.commit('blur'));
+    if (editorRef.current || readOnlyRef.current) return;
     const sketch = drawTargetRef.current ? blocksRef.current.find(block => block.id === drawTargetRef.current)?.sketch : null;
     const before = (sketch ? sketch.items || [] : itemsRef.current).find(item => item.id === id);
     if (!before || codeLang(before) === lang || lockedRef.current.has(id)) return;
@@ -2920,7 +2932,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!ids.length) return;
     // The open editor's characters let go too; the object's own preset changes below.
     if (editorRef.current && ids.includes(editStep.current?.id)) editorRef.current.strip(['s', 'b']);
-    if (!editorRef.current) snapshot();
+    if (!editorRef.current || editorRef.current.state().code) snapshot();
     const lists = markLists();
     lists.setItems(previous => previous.map(item => (ids.includes(item.id) ? presetPatch(item, value) : item)));
     lists.setShapes(previous => previous.map(shape => (ids.includes(shape.id) ? presetPatch(shape, value) : shape)));
@@ -2951,11 +2963,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // A text edit is one undo step: opened when typing starts, dropped at the end if the edit changed nothing.
   const editStep = useRef(null);
-  const beginEdit = id => { editStep.current = { id, entry: snapshot() }; };
+  const beginEdit = id => {
+    // CodeMirror keeps drafts local: create history only when a draft is accepted.
+    // Discarding a stale draft must preserve newer content and the existing redo stack.
+    const localCodeDraft = present.current.items.some(item => item.id === id && item.mode === 'code');
+    editStep.current = { id, entry: localCodeDraft ? null : snapshot() };
+  };
   const endEdit = (changed, list) => {
     const step = editStep.current;
     editStep.current = null;
-    if (!step || changed) return;
+    if (!step?.entry || changed) return;
     // A shape that grew while it was written in changed too.
     const was = step.entry[list]?.find(entry => entry.id === step.id), now = present.current[list]?.find(entry => entry.id === step.id);
     if (was === now && history.current[history.current.length - 1] === step.entry) history.current.pop();
@@ -3086,14 +3103,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const inlineTarget = (fromKey = false) => {
     if (!inlineAiRef.current || presentingRef.current !== null) return null;
     const board = inlineBoard();
-    const editing = document.activeElement?.closest?.('[data-rich-editor]');
+    const editing = document.activeElement?.closest?.('[data-rich-editor],[data-code-box-input]');
     if (editing && shell.current?.contains(editing)) {
       const owner = editing.closest('[data-item-id],[data-shape-id],[data-connection]');
       const id = owner?.dataset.itemId || owner?.dataset.shapeId || owner?.dataset.connection || null;
       if (!id) return null;
-      const text = plainOf(readRuns(editing)), at = offsetsOf(editing);
+      const codeSelection = editing.matches('[data-code-box-input]') ? editorRef.current?.getSelection?.() : null;
+      const text = codeSelection ? codeSelection.source : plainOf(readRuns(editing)), at = codeSelection || offsetsOf(editing);
       const range = at && at.to > at.from ? { id, from: at.from, to: at.to, text: text.slice(at.from, at.to) } : null;
-      const target = freezeTarget(board, [id], range ? { range } : {});
+      const target = freezeTarget(codeSelection ? semanticBoard() : board, [id], range ? { range } : {});
       return target && { target };
     }
     const held = document.activeElement;
@@ -3126,7 +3144,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const quickEditKey = useRef(null), addToChatKey = useRef(null);
   quickEditKey.current = (event, field) => {
     if (!inlineAiRef.current) return false;
-    if (!quickEditAllowed({ field, ownField: !!document.activeElement?.closest?.('[data-rich-editor],[data-inline-ai]') })) return false;
+    if (!quickEditAllowed({ field, ownField: !!document.activeElement?.closest?.('[data-rich-editor],[data-code-box-input],[data-inline-ai]') })) return false;
     // Nothing eligible: the key stays on the canvas and says what it does, never Search.
     if (!openInline(performance.now(), true)) setInlineHint(n => n + 1);
     return true;
@@ -3262,7 +3280,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The inline editor owns its keys while it has the focus: Esc closes it first, never the selection.
       if (document.activeElement?.closest?.('[data-inline-ai]')) return;
       // An open text editor (RichText) owns every key while it is open: Enter, Esc, undo, clipboard and the arrows.
-      if (document.activeElement?.closest?.('[data-rich-editor]')) return;
+      if (document.activeElement?.closest?.('[data-rich-editor],[data-code-box-editor]')) return;
       // The document's editor (blocknote-canvas.md section 9) owns every key while it has the focus: typing, Space, Ctrl+A,
       // Delete, undo, its formatting and link shortcuts, Esc for its own menus. Never a canvas tool or selection.
       if (document.activeElement?.closest?.('[data-canvas-doc]')) return;
@@ -4407,7 +4425,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // While a text edit is open, its undo step (opened when typing started) covers the change: one gesture, one step.
   const applyStyle = (patch, targets, quiet = false) => {
     if (!targets.length) return;
-    if (!quiet && !editorRef.current) snapshot();
+    if (!quiet && (!editorRef.current || editorRef.current.state().code)) snapshot();
     const lists = markLists();
     // Words keep their own colour (docs/features/canvas-editing.md): a shape or line whose text followed its stroke takes
     // that colour as its text colour before the stroke changes, so a new outline never recolours the words.
@@ -4676,14 +4694,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // A text box or note's edit ends (RichText onCommit): its words and formatting saved as one undo step - the edit's, or
   // for a fresh box its placement's. Code mode keeps the text formatting aside, carried over onto the edited words.
-  const commitItemText = (id, runs, how) => {
+  const commitItemText = (id, runs, how, codeGuard = null) => {
     const before = present.current.items.find(item => item.id === id);
     if (!before) return;
+    if (codeGuard && (readOnlyRef.current || lockedRef.current.has(id) || (before.text || '') !== codeGuard.expectedText)) return false;
     const patch = before.mode === 'code'
       ? { text: plainOf(runs), runs: compactRuns(reconcileRuns(runsOf(before), plainOf(runs))) || undefined }
       : textPatch(runs);
     const changed = patch.text !== (before.text || '') || JSON.stringify(patch.runs || null) !== JSON.stringify(before.runs || null);
-    if (changed && !editStep.current && !before.fresh) snapshot();
+    if (changed && !editStep.current?.entry && !before.fresh) snapshot();
     if (changed || before.fresh) setItems(previous => previous.map(item => item.id === id ? { ...item, ...patch, fresh: false } : item));
     endEdit(changed, 'items');
     // Esc or Ctrl/Cmd+Enter finish typing and leave the box selected, as Excalidraw does.
@@ -4864,7 +4883,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (editor && !editor.state().code) { editor.format(key, value); return; }
     const ids = panel.textTargets;
     if (!ids.length) return;
-    if (!editorRef.current) snapshot();
+    if (!editorRef.current || editorRef.current.state().code) snapshot();
     const apply = entry => (ids.includes(entry.id) ? formatEntry(entry, key, value) : entry);
     const lists = markLists();
     lists.setShapes(previous => previous.map(apply));
@@ -4875,7 +4894,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const patchText = patch => {
     const ids = panel.textTargets;
     if (!ids.length) return;
-    if (!editorRef.current) snapshot();
+    if (!editorRef.current || editorRef.current.state().code) snapshot();
     const apply = entry => (ids.includes(entry.id) ? { ...entry, ...patch } : entry);
     const lists = markLists();
     lists.setShapes(previous => previous.map(apply));
@@ -5274,7 +5293,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} generation={equationGeneration(item)} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi} />)}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
+            cameraKey={`${view.x}:${view.y}:${view.z}`} getTooltipSpace={() => { const area = visibleArea(), frame = surface.current.getBoundingClientRect(); return { left: frame.left + area.left, right: frame.left + area.right, top: frame.top + area.top, bottom: frame.top + area.bottom }; }}
+            onInlineAI={readOnly ? null : () => openInline(performance.now(), true)} onDiscardCode={() => endEdit(false, 'items')} />)}
           {equationDraft&&!readOnly&&<EquationItem key={equationDraft.id} item={equationDraft} zoom={view.z} tool="select" selected onSelect={()=>{}} onMove={()=>{}} onGesture={()=>{}} onDelete={()=>setEquationDraft(null)} onPatch={()=>{}} onDone={finishEquation} onDraft={()=>{}} generation={equationGeneration(equationDraft)}/>}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}

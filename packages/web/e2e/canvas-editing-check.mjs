@@ -212,13 +212,14 @@ await run('text code', async () => {
   check('Code mode shows the words in monospace, literally', mode === 'code' && /monospace|Menlo|Consolas/.test(font[0]) && font[1] === 'pre' && font[2].includes('    return 1'), JSON.stringify(font));
   // Edit in code mode: indentation typed survives; the bold "def" is kept aside.
   await page.locator('[data-item-id="t1"]').dblclick();
+  await page.locator('[data-code-box-input]').waitFor();
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Tab');
   await page.keyboard.type('# done');
   await page.keyboard.press('Escape');
   let item = (await saved()).items.find(entry => entry.id === 't1');
-  check('code edits keep line breaks and indentation', item.text === 'def f():\n    return 1\n  # done', JSON.stringify(item.text));
+  check('code edits retain automatic indentation plus explicit Tab indentation', item.text === 'def f():\n    return 1\n      # done', JSON.stringify(item.text));
   check('nothing ran and no notebook appeared', (await page.locator('[data-block-id]').count()) === 0);
   await page.locator('[data-item-id="t1"]').click();
   await page.locator('[data-item-id="t1"] [data-text-mode="text"]').click();
@@ -234,7 +235,25 @@ await run('text code', async () => {
 });
 
 // Language and colors (canvas-editing.md section 3, owner 2026-10-13): colors only, so the box keeps its size; plain while
-// it is edited; the language is one undo step.
+// inactive; the active CodeMirror editor uses its own syntax support. The language is one undo step.
+await run('code draft history', async () => {
+  const { page, context, saved } = await open('code-draft-history', { items: [textItem('t1', 100, 100, { mode: 'code', lang: 'text', text: 'literal_source' })] });
+  await page.locator('[data-item-id="t1"]').dblclick();
+  await page.locator('[data-code-box-input]').waitFor();
+  await page.getByRole('button', { name: 'Bold', exact: true }).click();
+  check('formatting during a local code draft changes only presentation', (await itemOf(saved, 't1')).bold === true && (await itemOf(saved, 't1')).text === 'literal_source');
+  await page.locator('[data-code-box-input]').click();
+  await page.keyboard.press('Control+Enter');
+  await page.keyboard.press('Control+z');
+  check('formatting-only changes during Code editing remain undoable', !(await itemOf(saved, 't1')).bold && (await itemOf(saved, 't1')).text === 'literal_source');
+  await page.locator('[data-item-id="t1"]').dblclick();
+  await page.locator('[data-code-box-input]').waitFor();
+  await page.keyboard.press('Control+Enter');
+  await page.keyboard.press('Control+y');
+  check('opening and closing an unchanged code draft preserves canvas Redo', (await itemOf(saved, 't1')).bold === true && (await itemOf(saved, 't1')).text === 'literal_source');
+  await context.close();
+});
+
 await run('code colors', async () => {
   const { page, context, saved } = await open('code-colors', { items: [textItem('t1', 100, 100, { w: undefined, text: 'const a = 1;\nfunction f() { return a }', mode: 'code' })] });
   const box = page.locator('[data-item-id="t1"]'), code = box.locator('[aria-label="Code"]');
@@ -243,7 +262,7 @@ await run('code colors', async () => {
   const size = () => code.evaluate(node => [node.offsetWidth, node.offsetHeight, node.innerText]);
   const colorsBack = () => page.waitForFunction(() => document.querySelectorAll('[data-item-id="t1"] [aria-label="Code"] span[style*="--shiki-dark"]').length > 0, null, { timeout: 15000 }).then(() => true, () => false);
   await box.click();
-  check('a Code box offers the language list, Python first', (await lang.count()) === 1 && (await lang.inputValue()) === 'python', String(await lang.count()));
+  check('a new unspecified Code box starts in Plain text', (await lang.count()) === 1 && (await lang.inputValue()) === 'text', String(await lang.count()));
   await lang.selectOption('text');
   const plain = await size();
   check('Plain text has no colors', (await colored()) === 0);
@@ -260,13 +279,14 @@ await run('code colors', async () => {
   });
   check('the dark theme draws its own token colors', themed.light !== themed.dark, JSON.stringify(themed));
   await page.keyboard.press('Control+z');
-  check('changing the language is one undo step', (await saved()).items.find(entry => entry.id === 't1').lang === 'text');
+  check('changing the language is one undo step', ((await saved()).items.find(entry => entry.id === 't1').lang || 'text') === 'text');
   await page.keyboard.press('Control+y');
   await colorsBack();
   await box.dblclick();
+  await page.locator('[data-code-box-input]').waitFor();
   await page.keyboard.press('Control+End');
   await page.keyboard.type(' // more');
-  check('while edited the box is plain', (await colored()) === 0);
+  check('while edited the code box uses its local editor', await page.locator('[data-code-box-input]').isVisible());
   await page.keyboard.press('Escape');
   check('leaving the editor draws the colors again', await colorsBack());
   check('the edit is kept', (await saved()).items.find(entry => entry.id === 't1').text.endsWith('// more'));
@@ -280,7 +300,7 @@ await run('open in notebook', async () => {
   const after = { id: 'after', type: 'snippet', dx: 0, dy: 0, title: 'Next', brief: 'After the exercise.', code: 'x = 1', output: '' };
   const { page, context, saved, shot } = await open('open-notebook', {
     blocks: [exercise, after],
-    items: [textItem('py', 760, 120, { w: undefined, text: 'print(1)\n  # two spaces kept', mode: 'code' }), textItem('js', 760, 320, { w: undefined, text: 'let a = 1', mode: 'code', lang: 'javascript' })],
+    items: [textItem('py', 760, 120, { w: undefined, text: 'print(1)\n  # two spaces kept', mode: 'code', lang: 'python' }), textItem('js', 760, 320, { w: undefined, text: 'let a = 1', mode: 'code', lang: 'javascript' })],
     shapes: [{ id: 's1', kind: 'rect', x1: 40, y1: 640, x2: 520, y2: 700, ...style }],
   });
   const notebooks = async () => (await saved()).blocks.filter(block => block.type === 'notebook');

@@ -65,10 +65,13 @@ export default forwardRef(function CodeBoxEditor(
     onChange,
     onLanguageChange,
     onExit,
+    onDiscard,
     onInlineAI,
     onApi,
     autoFocus = true,
     zoom = 1,
+    cameraKey,
+    base = {},
     getTooltipSpace,
   },
   ref,
@@ -85,6 +88,7 @@ export default forwardRef(function CodeBoxEditor(
     dirty = useRef(false),
     conflict = useRef(false),
     composing = useRef(false);
+  const baseline = useRef(String(value ?? ''));
   const [length, setLength] = useState(String(value || "").length),
     [notice, setNotice] = useState("");
   const lang = resolveCodeLanguage(language, filename);
@@ -92,6 +96,8 @@ export default forwardRef(function CodeBoxEditor(
     onChange,
     onLanguageChange,
     onExit,
+    onDiscard,
+    base,
     onInlineAI,
     onApi,
     readOnly,
@@ -126,11 +132,17 @@ export default forwardRef(function CodeBoxEditor(
       if (done.current) return;
       done.current = true;
       closeCompletion(view.current);
-      latest.current.onExit?.({
+      const accepted = latest.current.onExit?.({
         value: view.current.state.doc.toString(),
         reason,
         conflict: conflict.current,
+        expectedText: baseline.current,
       });
+      if (accepted === false) {
+        done.current = false;
+        conflict.current = true;
+        setNotice('The source changed or is no longer editable. Copy your draft or discard it to keep the latest source.');
+      }
     };
     const editor = new EditorView({
       parent: host.current,
@@ -149,7 +161,7 @@ export default forwardRef(function CodeBoxEditor(
             EditorState.readOnly.of(readOnly),
             EditorView.editable.of(!readOnly),
           ]),
-          completionSlot.current.of(autocompletion()),
+          completionSlot.current.of(autocompletion({ defaultKeymap: false })),
           tooltips({
             parent: document.body,
             position: "fixed",
@@ -211,11 +223,17 @@ export default forwardRef(function CodeBoxEditor(
           ),
           keymap.of([
             ...closeBracketsKeymap,
-            ...completionKeymap,
+            ...completionKeymap.filter(binding => binding.key !== 'Enter'),
             ...defaultKeymap,
             ...historyKeymap,
           ]),
           EditorView.domEventHandlers({
+            blur: (event) => {
+              if (event.relatedTarget?.closest?.('[data-keep-focus],.cm-tooltip')) return;
+              queueMicrotask(() => {
+                if (view.current && !host.current?.parentElement?.contains(document.activeElement) && !document.activeElement?.closest?.('[data-keep-focus],.cm-tooltip')) commit('blur');
+              });
+            },
             compositionstart: () => {
               composing.current = true;
             },
@@ -301,8 +319,9 @@ export default forwardRef(function CodeBoxEditor(
         runs: [{ t: editor.state.doc.toString() }],
         code: true,
         pending: {},
-        base: {},
+        base: latest.current.base,
       }),
+      strip: () => {},
       undo: () => undo(editor),
       redo: () => redo(editor),
     };
@@ -321,10 +340,11 @@ export default forwardRef(function CodeBoxEditor(
     loadCodeLanguage(lang)
       .then((support) => {
         if (!live || !view.current) return;
+        const localSource = localCodeCompletion(lang);
         const completion =
           COMPLETION_LANGUAGES.includes(lang) && length <= CODE_COMPLETION_LIMIT
             ? EditorState.languageData.of(() => [
-                { autocomplete: localCodeCompletion(lang) },
+                { autocomplete: localSource },
               ])
             : [];
         view.current.dispatch({
@@ -353,6 +373,7 @@ export default forwardRef(function CodeBoxEditor(
     view.current?.dispatch({
       effects: completionSlot.current.reconfigure(
         autocompletion({
+          defaultKeymap: false,
           override:
             readOnly ||
             length > CODE_COMPLETION_LIMIT ||
@@ -373,6 +394,7 @@ export default forwardRef(function CodeBoxEditor(
       );
       return;
     }
+    baseline.current = String(value ?? '');
     editor.dispatch({
       changes: {
         from: 0,
@@ -387,7 +409,14 @@ export default forwardRef(function CodeBoxEditor(
   }, [value]);
   useEffect(() => {
     if (view.current) closeCompletion(view.current);
-  }, [zoom]);
+  }, [zoom, cameraKey]);
+  useEffect(() => {
+    const close = () => { if (view.current) closeCompletion(view.current); };
+    const observer = new ResizeObserver(close);
+    if (host.current) observer.observe(host.current);
+    window.addEventListener('resize', close);
+    return () => { observer.disconnect(); window.removeEventListener('resize', close); };
+  }, []);
   return (
     <div
       data-code-box-editor
@@ -418,6 +447,10 @@ export default forwardRef(function CodeBoxEditor(
         </span>
       </div>
       <div ref={host} className="min-h-0 flex-1" />
+      {conflict.current && <div className="flex gap-2 text-xs" data-keep-focus>
+        <button type="button" onClick={() => navigator.clipboard.writeText(view.current?.state.doc.toString() || '').catch(() => setNotice('Select and copy your draft with the keyboard.'))}>Copy draft</button>
+        <button type="button" onClick={() => latest.current.onDiscard?.()}>Discard draft</button>
+      </div>}
       {(notice ||
         length > CODE_COMPLETION_LIMIT ||
         !COMPLETION_LANGUAGES.includes(lang)) && (

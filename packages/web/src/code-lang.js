@@ -7,8 +7,8 @@ export const CODE_LANGS = [
   ['rust', 'Rust'], ['markdown', 'Markdown'], ['text', 'Plain text'],
 ];
 
-// No lang, or one not in the list: Python.
-export const codeLang = item => (CODE_LANGS.some(([id]) => id === item?.lang) ? item.lang : 'python');
+// Missing/unknown languages stay Plain text; never silently assume a language.
+export const codeLang = item => (CODE_LANGS.some(([id]) => id === item?.lang) ? item.lang : 'text');
 
 // A new list with one box's language; the list it came from is left as it was (the undo step's snapshot).
 export const withCodeLang = (items, id, lang) => items.map(item => (item.id === id ? { ...item, lang } : item));

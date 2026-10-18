@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CODE_LANGS, codeLang, withCodeLang, highlightCode } from './code-lang.js';
 
-test('a Code box is Python unless it holds a listed language', () => {
+test('a Code box stays Plain text unless it holds a listed language', () => {
   assert.equal(CODE_LANGS.length, 15);
-  assert.equal(codeLang({}), 'python');
-  assert.equal(codeLang({ lang: 'cobol' }), 'python');
+  assert.equal(codeLang({}), 'text');
+  assert.equal(codeLang({ lang: 'cobol' }), 'text');
   assert.equal(codeLang({ lang: 'javascript' }), 'javascript');
 });
 
@@ -17,7 +17,7 @@ test('the language persists on the item and the undo snapshot still holds the ol
   const saved = JSON.parse(JSON.stringify(after));
   assert.equal(codeLang(saved[0]), 'javascript');
   // Undo restores the list captured before the change.
-  assert.equal(codeLang(before[0]), 'python');
+  assert.equal(codeLang(before[0]), 'text');
 });
 
 test('highlighted runs spell the text exactly and carry colors only', async () => {
