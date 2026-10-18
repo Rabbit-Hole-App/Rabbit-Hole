@@ -51,7 +51,7 @@ export default function BackgroundRemovalPreview({ controller, savedEnvelope = n
     <p>Remove the background of this saved PNG image. Your original image and its canvas position stay available until you apply the preview.</p>
     <p>Generation can cost money before Apply. Closing or requesting cancellation does not guarantee a refund. The actual charge is not yet known.</p>
     {quote?.available && <p data-image-reservation>Maximum reserved for this request: ${String(quote.maximumReservedUsd)}. This is a reservation, not a confirmed charge.</p>}
-    {!quote && !error && <p role="status">Checking availability…</p>}
+    {!quote && !error && <p role="status">Checking availability...</p>}
     {quote && !quote.available && <p role="status">Background removal is not configured. No request will be started.</p>}
     {phase === 'quote' && quote?.available && !busy && <PaidConfirm message="Approve the displayed reservation to start background removal." onGenerate={start} onCancel={close}/>}
     {phase === 'saved' && <div>
