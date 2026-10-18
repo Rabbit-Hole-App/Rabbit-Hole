@@ -23,7 +23,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { inspectSavedCad } from './cad-inspection.js';
 import { isUploadedMediaId } from './learn-media.js';
-import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM, INLINE_EXPLAIN_TOOL, INLINE_ANNOTATION_SYSTEM, inlineProviderContext, INLINE_IMAGE_TRANSFORM_SYSTEM } from './agents/learn-inline.js';
+import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM, INLINE_EXPLAIN_TOOL, INLINE_ANNOTATION_SYSTEM, inlineProviderContext, INLINE_IMAGE_TRANSFORM_SYSTEM, INLINE_NOTEBOOK_SPLIT_SYSTEM } from './agents/learn-inline.js';
 import { decide, proceedGate } from './learn-inline-route.js';
 import { commandOf, generationPrompt } from '../../web/src/inline-ai-decide.js';
 import { diagramOf, validateDiagram } from '../../web/src/inline-diagram.js';
@@ -266,6 +266,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   };
   let upstream;
   if (imageTransform) request.system += `\n${INLINE_IMAGE_TRANSFORM_SYSTEM}`;
+  if (edit && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.notebook) request.system += `\n${INLINE_NOTEBOOK_SPLIT_SYSTEM}`;
   try { upstream = await callModel(env, request, LEARN_TASKS.artifact.model, null); }
   catch (error) { log({ stage: 'generate', request_id: requestId, mode, outcome: 'error', ms: Date.now() - started }); return json({ error: error.message || 'Generation failed.', code: 'error' }, 502); }
   if (!upstream.ok) {
