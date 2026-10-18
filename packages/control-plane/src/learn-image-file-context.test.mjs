@@ -14,7 +14,7 @@ function fixture({ authorized = true, sha = revision, size = bytes.length } = {}
     } }; } }; } },
     LEARN_MEDIA: { async get(key) { reads.push(key); return { size, body: bytes, async arrayBuffer() { return bytes.buffer; } }; } },
   };
-  return { env, reads, row: { id: 'board' }, block: { type: 'file', kind: 'image', assetKey: 'obsolete-legacy', fileRef: { source: { id: 'source', rev: revision } } } };
+  return { env, reads, row: { id: 'board' }, block: { id: 'image-card', type: 'file', kind: 'image', assetKey: 'obsolete-legacy', fileRef: { source: { id: 'source', rev: revision } } } };
 }
 
 test('vision reads the saved authorized file revision instead of a retained original asset', async () => {
@@ -22,6 +22,7 @@ test('vision reads the saved authorized file revision instead of a retained orig
   const result = await boardImageContext(f.env, f.row, f.block);
   assert.ok(result.blocks.some(block => block.type === 'image'));
   assert.deepEqual(f.reads, ['trusted-key']);
+  assert.deepEqual(result.imageSource, { blockId: 'image-card', source: { id: 'source', rev: revision }, coverage: 'whole-image' });
 });
 
 test('unauthorized and stale file references never fall back to legacy bytes', async () => {
@@ -31,6 +32,7 @@ test('unauthorized and stale file references never fall back to legacy bytes', a
     assert.equal(result.blocks.some(block => block.type === 'image'), false);
     assert.match(result.notice, /could not be read/);
     assert.deepEqual(f.reads, []);
+    assert.equal(result.imageSource, undefined, 'unavailable bytes never receive a read receipt');
   }
 });
 
@@ -47,6 +49,9 @@ test('legacy images still resolve through their existing board asset path', asyn
   assert.ok(result.blocks.some(block => block.type === 'image'));
   assert.equal(f.reads.length, 1);
   assert.match(f.reads[0], /^learn-boards\/board\//);
+  const { createHash } = await import('node:crypto');
+  assert.deepEqual(result.imageSource, { blockId: 'image-card', contentSha256: createHash('sha256').update(bytes).digest('hex'), coverage: 'whole-image' });
+  assert.equal(JSON.stringify(result.imageSource).includes('obsolete-legacy'), false, 'no storage locator is exposed');
 });
 
 test('malformed current revision cannot silently downgrade to retained legacy asset', async () => {

@@ -12,6 +12,15 @@ const imageBlocks = (bytes, title) => {
   if (!type || !bytes.length || bytes.length > MEDIA_UPLOAD_LIMIT) return unavailable();
   return { blocks: [{ type: 'text', text: `Image: ${uploadedMediaTitle(title)}` }, { type: 'image', source: { type: 'base64', media_type: type, data: base64(bytes) } }] };
 };
+// A read receipt identifies only the image actually supplied to vision. It is
+// not a claim that its text was recognized correctly or its facts verified.
+async function boardImageBlocks(bytes, block, source = null) {
+  const result = imageBlocks(bytes, block.label || block.title);
+  if (!result.blocks.some(part => part.type === 'image')) return result;
+  const identity = source ? { source: { id: source.id, rev: source.rev } }
+    : { contentSha256: Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('') };
+  return { ...result, imageSource: { blockId: block.id, ...identity, coverage: 'whole-image' } };
+}
 export const imageCard = (state, id) => (Array.isArray(state?.blocks) ? state.blocks : []).find(block => block?.id === id && block.type === 'file' && block.kind === 'image');
 
 // The caller has already authorized this row (owner, share or publication). No fallback to an original owner's upload.
@@ -29,12 +38,12 @@ export async function boardImageContext(env, row, block, expectedSource = null) 
       if (allowed instanceof Response || allowed.source.family !== 'image' || allowed.source.sha256 !== ref.rev) return unavailable();
       const object = await env.LEARN_MEDIA.get(allowed.source.r2_key);
       if (!object || object.size > MEDIA_UPLOAD_LIMIT) return unavailable();
-      return imageBlocks(new Uint8Array(await object.arrayBuffer()), block.label || block.title);
+      return await boardImageBlocks(new Uint8Array(await object.arrayBuffer()), block, ref);
     }
     if (!block?.assetKey) return unavailable();
     const response = await getAsset(env, row, block.assetKey);
     if (!response.ok) return unavailable();
-    return imageBlocks(new Uint8Array(await response.arrayBuffer()), block.label || block.title);
+    return await boardImageBlocks(new Uint8Array(await response.arrayBuffer()), block);
   } catch { return unavailable(); }
 }
 
