@@ -253,6 +253,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     }
     pictures = got.blocks;
     imageSource = got.imageSource || null;
+    if (route !== 'note' && !imageSource) return json({ error: 'This image can be explained, but its source identity cannot be retained for editable extraction. Use a saved canvas image with an available source revision.', code: 'source_identity_unavailable' }, 409);
   }
   const imageExtraction = !edit && !!imageSource && (equation || shapes);
   if (imageExtraction) tool = imageExtractionTool(tool);

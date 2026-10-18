@@ -161,11 +161,24 @@ test('card Explain receives authorized image pixels alongside existing context d
   const document = { type: 'text', text: 'Authorized document' };
   let supplied;
   const response = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'code', prompt: 'Explain this image with code', context: { ...context, image: { id: 'img1' } } })), KEY_ENV, {
-    authorize, images: async () => ({ blocks: [picture] }), documents: async () => [document],
+    authorize, images: async () => ({ blocks: [picture], imageSource: { blockId: 'img1', contentSha256: 'a'.repeat(64), coverage: 'whole-image' } }), documents: async () => [document],
     artifact: async (_env, input) => { supplied = input; return { result: 'artifact' }; },
   });
   assert.equal(response.status, 200);
   assert.deepEqual(supplied.documents, [document, picture]);
+});
+
+test('structured image interpretation without a source receipt stops before provider or artifact calls', async () => {
+  let calls = 0;
+  for (const route of ['equation', 'shapes', 'code']) {
+    const response = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route, prompt: 'Extract this image', context: { ...context, image: { id: 'img1', mediaId: 'media:0123456789ab' } } })), KEY_ENV, {
+      authorize, images: async () => ({ blocks: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } }] }),
+      callModel: async () => { calls++; throw Error('must not generate'); }, artifact: async () => { calls++; throw Error('must not generate'); },
+    });
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, 'source_identity_unavailable');
+  }
+  assert.equal(calls, 0);
 });
 
 test('image equation generation retains recognition limits and server-derived source in one call', async () => {
