@@ -96,9 +96,9 @@ function validate(plan,snapshot,board,currentBounds,{mode='edit',requestId,readO
  for(const [index,step] of plan.steps.entries()){
   let result;
   if(step.tool==='edit_notebook_cells'){
-   if(step.targetIds.length!==1||step.targetIds[0]!==snapshot.notebook?.id||Object.keys(step.input).some(key=>!['cellIds','edits'].includes(key)))return fail('Notebook edits require explicit selected cells.');
-   result=previewNotebookCellEdit({targetId:step.targetIds[0],...step.input},{block:working.blocks.find(item=>item.id===step.targetIds[0]),frozen:snapshot.notebook,readOnly});
-   if(result.ok){result.changes=result.changes.map(change=>({...change,field:'notebookCells',cellIds:step.input.cellIds,staleCellIds:result.staleCellIds}));limitations.push('Source edit only. Affected code outputs are cleared; no cells were executed.');}
+   if(step.targetIds.length!==1||step.targetIds[0]!==snapshot.notebook?.id||Object.keys(step.input).some(key=>!['cellIds','edits','splits'].includes(key)))return fail('Notebook edits require explicit selected cells.');
+   result=previewNotebookCellEdit({targetId:step.targetIds[0],...step.input},{block:working.blocks.find(item=>item.id===step.targetIds[0]),frozen:snapshot.notebook,readOnly,requestId});
+   if(result.ok){result.changes=result.changes.map(change=>({...change,field:'notebookCells',cellIds:step.input.cellIds,staleCellIds:result.staleCellIds,addedCellIds:result.addedCellIds||[]}));limitations.push('Source edit only. Affected code outputs are cleared; no cells were executed.');}
   }else if(step.tool==='annotate_selection'){
    if(typeof requestId!=='string'||!requestId||Object.keys(step.input).some(key=>key!=='annotations'))return fail('Invalid annotation request.');
    const frozen={...snapshot,ids:step.targetIds};

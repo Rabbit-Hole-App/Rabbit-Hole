@@ -439,7 +439,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           if(!cadLive.current||!validateEdit(preview.raw,frozen,{...board(),boxes:canvas.layout()}).ok)return{stale:{content:true,text:'The image changed while accepting.'}};
           tx={...editTx({requestId:preview.requestId,changes:[{id:again.imageTransform.id,list:'blocks',field:'imageRevision',before:revision.before,after:revision.after}]}),retainedSources:revision.retainedSource?[revision.retainedSource]:[]};
         }
-        if(notebook){const step=preview.raw.plan.steps[0];appliedNotebook=await notebookEditor(notebook.id).apply({path:notebook.path,expectedRevision:notebook.revision,cellIds:notebook.cellIds,edits:step.input.edits});}
+        if(notebook){const step=preview.raw.plan.steps[0];appliedNotebook=await notebookEditor(notebook.id).apply({path:notebook.path,expectedRevision:notebook.revision,cellIds:notebook.cellIds,edits:step.input.edits,splits:step.input.splits,requestId:preview.requestId});}
       } else {
         const block = preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
         // The ghost's spot, from the slot the card will take at the end of the column (where its ghost is drawn now).

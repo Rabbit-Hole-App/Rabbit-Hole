@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freezeInlineTools,validInlineToolSnapshot,inlineToolSnapshotBoard,validateInlinePlan} from './inline-tool-plan.js';
-import {applyTx,editTx} from './inline-ai-apply.js';
+import {applyTx,editTx,describeChange} from './inline-ai-apply.js';
 import {earlierResult} from './inline-ai-session.js';
 const table={id:'table',type:'table',columns:['value'],rows:[['2'],['1']],title:'Numbers',x:10,y:20};
 const a={id:'a',kind:'rect',text:'A',x1:0,y1:0,x2:100,y2:100};
@@ -94,4 +94,12 @@ test('notebook tools require explicit cell scope and retain unselected source wh
  const request=plan(['nb'],[{tool:'edit_notebook_cells',targetIds:['nb'],input:{cellIds:['one'],edits:[{id:'one',source:'x=4'}]}}]);
  const result=validateInlinePlan(request,snapshot,source);assert.equal(result.ok,true);assert.equal(result.changes[0].after.ipynb.cells[1].source,'x+1');assert.deepEqual(result.changes[0].staleCellIds,['one','two']);
  request.steps[0].input.edits[0].id='two';assert.equal(validateInlinePlan(request,snapshot,source).ok,false);
+});
+test('notebook split preview shows every exact fragment with trusted IDs and no unselected source edits',()=>{
+ const notebook={id:'nb',type:'notebook',notebook_id:'workspace',active_path:'notebook.ipynb',ipynb_path:'notebook.ipynb',ipynb:{nbformat:4,cells:[{id:'one',cell_type:'code',source:'x=1\ny=2',outputs:[],execution_count:null},{id:'two',cell_type:'code',source:'x+y',outputs:[],execution_count:null}]}};
+ const source={shapes:[],links:[],items:[],blocks:[notebook]},scope={id:'nb',notebookId:'workspace',path:'notebook.ipynb',cellIds:['one'],revision:JSON.stringify(notebook.ipynb)};
+ const snapshot=freezeInlineTools(source,['nb'],{},{notebook:scope});const request=plan(['nb'],[{tool:'edit_notebook_cells',targetIds:['nb'],input:{cellIds:['one'],edits:[],splits:[{id:'one',offsets:[4]}]}}]);
+ assert.equal(validateInlinePlan(request,snapshot,source).ok,false,'No caller-supplied ID fallback');
+ const result=validateInlinePlan(request,snapshot,source,{}, {requestId:'split-request-123'});assert.equal(result.ok,true);const change=result.changes[0],preview=describeChange(change);
+ assert.equal(change.addedCellIds.length,1);assert.equal(preview.fields.length,2);assert.equal(preview.fields.map(field=>field.after).join(''),'x=1\ny=2');assert.match(preview.fields[1].label,/New split cell/);assert.equal(change.after.ipynb.cells.at(-1).source,'x+y');assert.equal(notebook.ipynb.cells.length,2);
 });
