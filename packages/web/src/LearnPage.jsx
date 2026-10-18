@@ -1,3 +1,5 @@
+import { createBackgroundRemovalController } from './inline-background-removal.js';
+import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
@@ -890,6 +892,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return result;
   };
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
+    backgroundOwnerKey: `${app.org}:${app.email || app.owner_email}`,
+    prepareBackground: !board && !hole && canEditCanvas ? ({block,current}) => {
+      const scope=fileScope(),ownerKey=`${app.org}:${app.email || app.owner_email}`;
+      const key=`small.image-job:${JSON.stringify([ownerKey,scope.app,scope.board,block.id,block.fileRef?.source])}`;
+      let savedEnvelope=null;try{savedEnvelope=JSON.parse(localStorage.getItem(key)||'null');}catch{}
+      const headers=wsHeaders();
+      const controller=createBackgroundRemovalController({block,scope,ownerKey,current,headers,jobClient:createImageJobClient({headers}),prepareRevision:prepareImageRevision,persistTicket:value=>localStorage.setItem(key,JSON.stringify(value))});
+      return{controller,savedEnvelope,key,clear:()=>localStorage.removeItem(key)};
+    } : null,
     repositoryEvidence: isRepository && !board && !hole && repository?.canEdit && /^[a-f0-9]{40}$/.test(repositoryContext?.commit || repository?.commit || '') ? {scope:{app:app.name,repo:app.repo,commit:repositoryContext?.commit || repository.commit},headers:wsHeaders(),onOpenSource:ref=>openCanvasFile(ref.path,ref.start,ref.end,ref)} : null,
     verifyExtraction: !board && !hole && canEditCanvas ? options => verifyExtractionRead({...options,headers:wsHeaders()}) : null,
     imageScope: () => !board && !hole && canEditCanvas ? fileScope() : null,

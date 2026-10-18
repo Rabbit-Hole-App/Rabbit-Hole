@@ -1,3 +1,4 @@
+import BackgroundRemovalPreview from './BackgroundRemovalPreview.jsx';
 import InlineRepositoryEvidence from './InlineRepositoryEvidence.jsx';
 import { MathText } from './MathText.jsx';
 import { validateEquationResult } from './inline-equation-result.js';
@@ -118,6 +119,22 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [state, setState] = useState({ status: 'idle' });
   const [equationLatex,setEquationLatex]=useState('');
   const [imageRevision,setImageRevision]=useState(null), [imageError,setImageError]=useState('');
+  const [removal,setRemoval]=useState(null),[removalError,setRemovalError]=useState('');
+  const openRemoval=()=>{
+    if(!imageTarget||!config.prepareBackground)return;
+    try{
+      const original=structuredClone(imageTarget);
+      const current=()=>({block:board().blocks.find(block=>block.id===original.id),scope:imageAccess.current.config.imageScope?.(),ownerKey:imageAccess.current.config.backgroundOwnerKey,readOnly:imageAccess.current.readOnly,locked:!imageAccess.current.imageTarget||canvas.locked?.(original.id)});
+      setRemoval(config.prepareBackground({block:original,current}));setRemovalError('');
+    }catch(error){setRemovalError(error.message);}
+  };
+  const applyRemoval=change=>{
+    const current=board().blocks.find(block=>block.id===change.before.id);
+    if(!cadLive.current||imageAccess.current.readOnly||!imageAccess.current.imageTarget||canvas.locked?.(change.before.id)||JSON.stringify(current)!==JSON.stringify(change.before))return{ok:false,error:'The image or its permissions changed.'};
+    const requestId=crypto.randomUUID(),tx={...editTx({requestId,changes:[{id:change.before.id,list:'blocks',field:'imageRevision',before:change.before,after:change.after}]}),retainedSources:change.retainedSource?[change.retainedSource]:[]};
+    if(!canvas.apply(tx,requestId))return{ok:false,error:'The image revision could not be applied.'};
+    removal?.clear();onClose(true);return{ok:true};
+  };
   const imageAccess=useRef(null);imageAccess.current={readOnly,imageTarget,config};
   useEffect(()=>{
     const preview=state.preview,descriptor=preview?.imageTransform;
@@ -806,6 +823,13 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         )}
         {/* The count, only near the supported limit or past it: nothing is cut, Send waits and says what to do. */}
         {outgoing.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${outgoing.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{outgoing.length} / {PROMPT_MAX}{outgoing.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
+        {imageTarget&&config.prepareBackground&&<div className="mt-2 rounded-lg border border-line p-2 text-xs">
+          {removal?<BackgroundRemovalPreview key={removal.key} controller={removal.controller} savedEnvelope={removal.savedEnvelope} onApply={applyRemoval} onClose={()=>setRemoval(null)}/>:<>
+            <button type="button" data-inline-remove-background disabled={busy(status)||!imageTarget.fileRef?.source||imageTarget.fileRef?.meta?.type!=='image/png'} onClick={openRemoval} className="rounded border border-line px-2 py-1 disabled:opacity-50">Remove background</button>
+            <p className="mt-1 text-ink-3">Requires a saved PNG image. Availability and maximum reservation are checked before explicit confirmation.</p>
+          </>}
+          {removalError&&<p role="alert">{removalError}</p>}
+        </div>}
         {config.repositoryEvidence&&<details data-inline-repository-evidence className="mt-2 rounded-lg border border-line p-2 text-xs">
           <summary className="cursor-pointer text-ink-2">Search this repository</summary>
           <div className="mt-2 max-h-64 overflow-auto" data-scroll><InlineRepositoryEvidence {...config.repositoryEvidence} contextKey={canvas.boardKey}/></div>
