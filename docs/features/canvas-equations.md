@@ -93,3 +93,14 @@ On a shared canvas, the server words a selected equation, and the board text, fr
 Toolbar Generate and Ctrl+K use the existing authenticated, signed `/api/learn/inline/decide` and `/api/learn/inline/generate` path. Generated output is bounded LaTeX, optional label and assumptions; safe KaTeX validation establishes renderer compatibility, not mathematical correctness. The toolbar retains all manual palette tabs. New equation placement stays local until accepted/manual completion; generated replacements preserve identity, position, style and connections and refuse changed originals. Accepted results use the existing canvas edit transaction and Undo/persistence path. Manual preview LaTeX changes are local.
 
 Implementation checkpoint only: 56 focused tests pass and changed JSX compiles. Actual app/browser coverage, deployment and real-model quality checks are pending; component fixtures are not those checks. No provider calls were made in this integration. Real-model verification requires its separately approved budget.
+
+
+### Dev preview evidence ? `cc9fed07`
+
+Deployed to https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev (version `5c659c0d-9f1e-4d94-8b06-230c517912d5`). Build 11.74s, upload 10.59s, triggers 0.82s. The focused actual-app fixture check passes **7 / 7**, with **0 failed, 0 skipped, 0 interrupted**, in 15.873s. Six fixture generations, zero actual provider requests and zero browser exceptions. Screenshots and receipts: `e2e/shots/equation-inline-run3/` (`toolbar-prompt.png`, `toolbar-preview.png`, `native-equations.png`, `results.json`).
+
+Verified toolbar opening/typing makes no request or saved insertion; preview plus local LaTeX editing, native Insert, one Undo/Redo and reload; Ctrl+K Edit preserves exact identity/position/style; Explain leaves its equation unchanged; selected text remains intact when a separate equation is created; empty-selection creation, invalid LaTeX refusal, clarification and closing without insertion. This is deterministic generation coverage, not mathematical or real-model verification.
+
+Earlier attempts are preserved: run1 **3 passed / 1 failed / 0 skipped / 3 interrupted** due to a fixture missing the existing `fresh:false` restore normalization; run2 **5 passed / 1 failed / 0 skipped / 1 interrupted** because a fixed background click hit the toolbar after camera movement. The final harness uses a measured unobstructed canvas point and retains exact source/identity assertions; application code was unchanged between runs.
+
+Remaining verification: the full existing manual equation palette/history regression, integrated stale/late-response/read-only/spend-limit scenarios and zoom/long-equation behavior. Pure replacement guards and isolated component cancellation/read-only checks pass at their original helper SHAs; they are not substitutes for these app checks. Real-model mathematical quality awaits an explicitly approved budget.

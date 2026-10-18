@@ -1,0 +1,57 @@
+// Actual app + existing local integration stack; deterministic decide/generate fixtures only.
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+const BASE=process.env.BASE||'http://127.0.0.1:5174',CP=process.env.SMALL_CP||'http://127.0.0.1:9093',OUT=resolve(process.env.OUT||'e2e/shots/equation-inline');
+const approvedDev=new Set(['https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev','https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']);
+for(const origin of [BASE,CP])assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)||approvedDev.has(origin),'Only the named dev preview or local integration stack is allowed');
+const secret=process.env.TEST_BYPASS_SECRET||(process.env.VARS&&readFileSync(process.env.VARS,'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1]?.trim().replace(/^(['"])(.*)\1$/,'$2'));assert.ok(secret,'Set named TEST_BYPASS_SECRET or VARS');
+mkdirSync(OUT,{recursive:true});const startedAt=Date.now(),run=startedAt.toString(36),results=[],errors=[],requests=[],unexpected=[];let browser,page,session,canvas,setupError;
+const original={id:'eq-original',fresh:false,kind:'equation',x:170,y:180,latex:'x^2',size:32,color:'#37352f'},text={id:'source',fresh:false,kind:'text',x:400,y:300,text:'The area of a circle with radius r',w:260};
+const api=async(path,method='GET',body)=>{const r=await fetch(BASE+path,{method,headers:{cookie:`small_session=${session}`,origin:BASE,'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.ok(r.ok,`${method} ${path}: ${r.status}`);return r.json();};
+const state=async()=>(await api(`/api/learn/boards/${canvas.name}/main`)).state;
+const until=async(fn,message)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,100));}throw Error(message);};
+const editor=()=>page.locator('[data-inline-ai]');
+const clear=async()=>{const surface=page.locator('[data-canvas-surface]');const position=await surface.evaluate(node=>{const r=node.getBoundingClientRect();for(let y=r.height-100;y>100;y-=80)for(let x=120;x<r.width-80;x+=100){const hit=document.elementFromPoint(r.left+x,r.top+y);if(hit?.closest('[data-canvas-surface]')===node&&!hit.closest('button,input,textarea,[data-block],[data-tool-gutter],[data-inline-ai],[data-shape-id]'))return{x,y};}return null;});assert.ok(position,'No unobstructed canvas background');await surface.click({position});};
+const open=async(id,mode='explain')=>{if(id)await page.locator(`[data-item-id="${id}"]`).click();else await clear();await page.keyboard.press('Control+k');await editor().waitFor();await editor().locator('[data-inline-mode-toggle]').click();await editor().locator(`[data-inline-mode="${mode}"]`).click();};
+const submit=async prompt=>{await editor().locator('[data-inline-prompt]').fill(prompt);await editor().locator('[data-inline-submit]').click();};
+const checks=[];const check=(name,fn)=>checks.push({name,fn});let inserted;
+check('toolbar preserves manual controls and opening/typing Generate inserts nothing or calls no model',async()=>{
+ await page.getByRole('button',{name:'Equation',exact:true}).click();await page.locator('[data-canvas-surface]').click({position:{x:500,y:500}});await page.locator('[data-equation-palette]').waitFor();
+ for(const name of ['Fraction','Greek','Root','LaTeX'])assert.equal(await page.getByRole('tab',{name,exact:true}).count(),1);
+ await page.getByRole('tab',{name:'Generate',exact:true}).click();await page.getByLabel('Equation description').fill('Write a quadratic equation');assert.equal(requests.length,0);assert.equal((await state()).items.length,2);await page.screenshot({path:resolve(OUT,'toolbar-prompt.png')});
+});
+check('toolbar preview validates and local LaTeX editing makes no extra request; Insert creates native equation',async()=>{
+ const gen=page.locator('[data-equation-generator]');await gen.getByRole('button',{name:'Generate',exact:true}).click();await gen.locator('[data-equation-proposal]').waitFor();assert.equal((await state()).items.length,2);assert.equal(requests.length,1);assert.equal(requests[0].request.output,'equation');
+ await gen.getByLabel('Generated LaTeX').fill('x^4');assert.equal(requests.length,1);await page.screenshot({path:resolve(OUT,'toolbar-preview.png')});await gen.getByRole('button',{name:'Insert',exact:true}).click();await until(async()=>(await state()).items.length===3,'No native equation inserted');inserted=(await state()).items.find(item=>item.id!=='eq-original'&&item.id!=='source');assert.equal(inserted.kind,'equation');assert.equal(inserted.latex,'x^4');assert.equal(inserted.fresh,undefined);
+});
+check('one Undo/Redo and reload preserve the generated native equation without generation',async()=>{
+ await clear();await page.keyboard.press('Control+z');await until(async()=>(await state()).items.length===2,'Undo failed');await page.keyboard.press('Control+Shift+z');await until(async()=>(await state()).items.length===3,'Redo failed');await page.reload();await page.locator(`[data-item-id="${inserted.id}"]`).waitFor();assert.equal((await state()).items.find(item=>item.id===inserted.id).latex,'x^4');assert.equal(requests.length,1);
+});
+check('Ctrl K Edit previews replacement and preserves equation identity, position and style',async()=>{
+ await open('eq-original','edit');await submit('Change the exponent to three');await editor().locator('[data-inline-preview="equation"]').waitFor();assert.deepEqual((await state()).items.find(item=>item.id==='eq-original'),original);await editor().locator('[data-inline-equation-latex]').fill('x^3');await editor().locator('[data-inline-accept]').click();await until(async()=>(await state()).items.find(item=>item.id==='eq-original').latex==='x^3','Replacement not saved');assert.deepEqual((await state()).items.find(item=>item.id==='eq-original'),{...original,latex:'x^3'});
+});
+check('Explain preserves selected equation; selected text can produce a separate equation',async()=>{
+ await open('eq-original','explain');await submit('Explain this equation');await editor().locator('[data-inline-preview="note"]').waitFor();await page.keyboard.press('Escape');assert.equal((await state()).items.find(item=>item.id==='eq-original').latex,'x^3');
+ await open('source','explain');await submit('Write the equation for this description');await editor().locator('[data-inline-preview="equation"]').waitFor();await editor().locator('[data-inline-accept]').click();await until(async()=>(await state()).items.length===4,'Separate equation missing');assert.deepEqual((await state()).items.find(item=>item.id==='source'),text);
+});
+check('Ctrl K creation without selection produces native equation; invalid output inserts nothing',async()=>{
+ await open(null);await submit('Write a new equation');await editor().locator('[data-inline-preview="equation"]').waitFor();await editor().locator('[data-inline-accept]').click();await until(async()=>(await state()).items.length===5,'Creation missing');
+ await open(null);await submit('invalid-fixture');await editor().getByText('The LaTeX cannot be rendered by the current equation renderer.').waitFor();assert.equal((await state()).items.length,5);await page.keyboard.press('Escape');
+});
+check('clarification and cancellation preserve canvas; no provider or browser errors',async()=>{
+ await open(null);await submit('clarify-fixture');await editor().getByText('Which variable should be isolated?').waitFor();await page.keyboard.press('Escape');assert.equal((await state()).items.length,5);assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[]);await page.screenshot({path:resolve(OUT,'native-equations.png')});
+});
+try{
+ const auth=await fetch(CP+'/test/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:`native-${run}@example.com`,secret})});assert.ok(auth.ok,`Session ${auth.status}`);session=(await auth.json()).session;
+ canvas=await api('/api/canvases','POST',{title:`Native tools ${run}`});await api(`/api/learn/boards/${canvas.name}/main`,'PUT',{state:{strokes:[],shapes:[],items:[original,text],links:[],groups:[],areas:[],exchanges:[],blocks:[]}});
+ browser=await chromium.launch();const context=await browser.newContext({viewport:{width:1500,height:1000}});await context.addCookies([{name:'small_session',value:session,url:BASE}]);
+ await context.route('**/*',route=>{const req=route.request(),url=new URL(req.url());if(![BASE,CP].includes(url.origin)&&!['data:','blob:'].includes(url.protocol))return route.abort();
+  if(url.pathname==='/api/learn/inline/decide'){const body=req.postDataJSON(),r=body.request;if(r.prompt==='clarify-fixture')return route.fulfill({json:{decision:'clarify',message:'Which variable should be isolated?',missing:['target'],paid:false}});const capability=r.mode==='edit'?'edit':r.prompt.startsWith('Explain')?'note':'equation';return route.fulfill({json:{decision:'proceed',route:{capability,outcome:capability==='note'?'text':capability},paid:false,token:'equation-fixture'}});}
+  if(url.pathname==='/api/learn/inline/generate'){const body=req.postDataJSON();requests.push(body);const result=body.request.prompt.startsWith('Explain')?{kind:'note',text:'This expression squares the variable x.'}:{kind:'equation',latex:body.request.prompt==='invalid-fixture'?'\\frac{':'x^2',label:'Quadratic expression',assumptions:['x is a scalar.']};return route.fulfill({contentType:'text/event-stream',body:`event: done\ndata: ${JSON.stringify({result})}\n\n`.replaceAll('\\n','\n')});}
+  if(['/api/learn/tutor/next-steps','/api/learn/next-steps'].includes(url.pathname))return route.fulfill({json:{set_id:run,generated_at:new Date().toISOString(),options:[],suggestions:[],fingerprint:null}});
+  if(!['GET','HEAD','OPTIONS'].includes(req.method())&&/^\/api\/(ask$|learn\/(ask|selection|tutor|plan|artifact|assess|grade|home-ask|course|image|media|inline\/(generate|route)|journey|scene|transcribe|tts|voice|dive|explore))/.test(url.pathname)){unexpected.push(url.pathname);return route.abort();}return route.continue();});
+ page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));await page.goto(BASE+'/apps/'+canvas.name);await page.locator('[data-item-id="eq-original"]').waitFor();
+ for(const {name,fn} of checks){try{await fn();results.push({name,status:'passed'});console.log('PASS '+name);}catch(e){results.push({name,status:'failed',error:e.message});throw e;}}
+}catch(e){setupError=e.stack;process.exitCode=1;console.error(e.message);await page?.screenshot({path:resolve(OUT,'failure.png')}).catch(()=>{});}finally{await browser?.close();const counts={passed:results.filter(r=>r.status==='passed').length,failed:results.filter(r=>r.status==='failed').length,skipped:0,interrupted:checks.length-results.length};writeFileSync(resolve(OUT,'results.json'),JSON.stringify({candidate:process.env.CANDIDATE_SHA||'working tree',base:BASE,elapsedMs:Date.now()-startedAt,canvas:canvas?.name,counts,results,errors,unexpected,fixtureGenerations:requests.length,setupError,limitation:'Deterministic model fixtures only; no real-provider quality claim.'},null,2));console.log(JSON.stringify(counts));}
