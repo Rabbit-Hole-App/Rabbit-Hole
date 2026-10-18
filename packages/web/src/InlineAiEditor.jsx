@@ -94,7 +94,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   },[cadJob?.id,cadJob?.state]);
   const cadAccept=async(action)=>{setCadPending(true);setCadError('');try{await config.cadAction(cadJob.id,action,action==='accept'?{expectedRevisionId:cadJob.baseRevisionId}:{});if(cadLive.current)onClose();}catch(problem){if(cadLive.current)setCadError(problem.message);}finally{if(cadLive.current)setCadPending(false);}};
   const notebookTarget=target.notebook&&target.ids?.length===1&&target.notebook.id===target.ids[0];
-  const imageTarget = !!config.prepareImage && !readOnly && !target.creation && target.ids?.length===1 && canvas.board?.().blocks?.find(block=>block.id===target.ids[0]&&editableImage(block));
+  const imageTarget = !!config.prepareImage && !readOnly && !target.creation && target.ids?.length===1 && !canvas.locked?.(target.ids[0]) && canvas.board?.().blocks?.find(block=>block.id===target.ids[0]&&editableImage(block));
   const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
@@ -124,7 +124,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     let live=true,revision;const controller=new AbortController();
     if(!config.prepareImage){setImageError('Image editing is unavailable in this canvas.');return;}
     const original=preview.frozen.toolSnapshot.objects[descriptor.id];
-    const current=()=>({block:board().blocks.find(block=>block.id===descriptor.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly,locked:!imageAccess.current.imageTarget});
+    const current=()=>({block:board().blocks.find(block=>block.id===descriptor.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly,locked:!imageAccess.current.imageTarget||canvas.locked?.(descriptor.id)});
     config.prepareImage({block:original,scope:config.imageScope?.(),operation:descriptor.operation,signal:controller.signal,current}).then(value=>{revision=value;if(live)setImageRevision({requestId:preview.requestId,value});else value.dispose();},error=>{if(live)setImageError(error.message||'The image could not be prepared.');});
     return()=>{live=false;controller.abort();revision?.dispose();};
   },[state.preview?.requestId]);

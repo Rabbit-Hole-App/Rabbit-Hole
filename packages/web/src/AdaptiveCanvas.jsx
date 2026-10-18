@@ -3228,6 +3228,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Every kind of thing on the board as boxes with their ids (obstaclesOf): the inline editor's obstacles, and linked answers'.
   const boardObstacles = (exclude = []) => obstaclesOf({ boxes: contentBoxes(), paths: inlinePaths(), frames: inlineScreenBoxes('[data-group-box]', 'groupBox'), areas: areas.map(stored => ({ ...areaBox(stored), id: stored.id })), pins: inlineScreenBoxes('[data-comment-pin]') }, exclude);
   const inlineCanvas = {
+    locked: id => lockedRef.current.has(id),
     boardKey: inlineKey.current, cache: inlineCache.current,
     board: inlineBoard,
     renderNativeShape: shape => <ShapeView shape={{...shape,id:`inline-preview:${shape.id}`}} tool="preview" zoom={view.z} selected={false} />,
