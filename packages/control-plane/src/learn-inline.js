@@ -163,7 +163,7 @@ export function checkDiagram(input) {
 
 // A card or media capability decided to proceed: its /command's own handler (learn-artifact.js), with no insert. /image
 // and /motion make nothing here (a photo search and a paid proposal the editor stages without a model).
-async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures = [] }) {
+async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures = [], imageSource = null }) {
   if (route === 'image' || route === 'motion') return json({ error: 'This output is staged in the editor, not generated here.', code: 'invalid' }, 400);
   const command = commandOf(decided);
   const input = commandInput({ route, via: command ? 'command' : 'jev', args: command?.args || '' }, { prompt: decided.prompt, context });
@@ -174,7 +174,7 @@ async function inlineCard({ env, allowed, decided, route, context, revise, reque
   try { docs = await documents(env, allowed); } catch (error) { return json({ error: `Context documents: ${error.message}`, code: 'error' }, 502); }
   try {
     const sources = [...docs, ...pictures];
-    const out = await artifact(env, { command: route, args: input.args, selection, context: artifactContext(context, revise), ...(sources.length ? { documents: sources } : {}) });
+    const out = await artifact(env, { command: route, args: input.args, selection, context: artifactContext(context, revise), ...(sources.length ? { documents: sources } : {}), ...(imageSource ? { imageSource } : {}) });
     log({ stage: 'generate', request_id: requestId, mode: 'explain', route, outcome: out.result, total_ms: Date.now() - started });
     return json(out);
   } catch (error) {
@@ -256,7 +256,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   }
   const imageExtraction = !edit && !!imageSource && (equation || shapes);
   if (imageExtraction) tool = imageExtractionTool(tool);
-  if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures });
+  if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures, imageSource });
   // Signed selected IDs identify saved cards; caller-supplied measurements/URLs are never trusted.
   // This deterministic inspection adds no model or executor request.
   if (!edit && !creation) {
