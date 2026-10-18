@@ -17,7 +17,7 @@ function fixture() {
   const env = { INLINE_IMAGE_EDIT_ENABLED:'true',OPENAI_API_KEY:'fixture-not-a-key',INLINE_IMAGE_EDIT_RESERVED_USD:'0.2', LEARN_MEDIA:{get:async()=>({size:3,arrayBuffer:async()=>image.buffer})}, LEARN_DB:{prepare(sql){return {bind(){return {first:async()=>sql.includes('learn_boards')?board:sql.includes('file_source_refs')?{ok:1}:source};}}}} };
   env.FILE_JOBS={idFromName:name=>name,get:()=>({fetch:req=>imageJobFetch(state,env,req,deps)})};
   const access={board:async()=>({owner:{org:'org',email:'owner'},row:board}),source:async()=>({source}),identity:async()=>({org:'org',email:'owner'})};
-  const body={operation:'remove_background',sourceId,app:'canvas',cardId:'card',idempotencyKey:'unique-key',paidConfirmation:true};
+  const body={operation:'remove_background',sourceId,app:'canvas',cardId:'card',idempotencyKey:'unique-key',paidConfirmation:true,maxReservedUsd:0.2};
   const submit=async(patch={},dependencies=access)=>inlineImageJobsRoute('/api/learn/files/image-edits',new Request('https://app/api/learn/files/image-edits',{method:'POST',body:JSON.stringify({...body,...patch})}),env,dependencies);
   const status=async(id,who='owner',action='status')=>imageJobFetch(state,env,new Request('https://internal/image-edit/'+action,{method:'POST',body:JSON.stringify({id,identity:{org:'org',email:who}})}),deps);
   return {records,alarms,calls,state,source,board,deps,env,access,submit,status};
@@ -103,4 +103,14 @@ test('real migration schema accepts immutable publication and retains original s
  assert.equal(row.family,'image');assert.equal(row.status,'stored');assert.equal(row.owner_email,'owner');assert.equal(row.org,'org');assert.equal(row.bytes,1);
  assert.equal(db.prepare('SELECT count(*) AS n FROM file_sources').get().n,2);assert.equal(writes.length,1);
  assert.equal(db.prepare('SELECT state_json FROM learn_boards').get().state_json,h.board.state_json);
+});
+test('quote exposes only authenticated availability and maximum; consent bounds fail before scheduling',async()=>{
+ const h=fixture(),url='/api/learn/files/image-edits';
+ const quoted=await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,h.access);
+ assert.deepEqual(await quoted.json(),{available:true,maximumReservedUsd:.2,model:'gpt-image-2.5-sunburst-2026-09-08'});
+ assert.equal((await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,{...h.access,identity:async()=>new Response(null,{status:401})})).status,401);
+ for(const maxReservedUsd of [undefined,'0.2',0,-1,.19])assert.equal((await h.submit({maxReservedUsd})).status,409);
+ assert.equal(h.records.size,0);assert.equal(h.calls.admit,0);
+ h.env.INLINE_IMAGE_EDIT_ENABLED='false';
+ assert.deepEqual(await(await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,h.access)).json(),{available:false,maximumReservedUsd:null,model:null});
 });

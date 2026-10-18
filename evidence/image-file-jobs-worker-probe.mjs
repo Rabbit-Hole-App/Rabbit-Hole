@@ -34,7 +34,7 @@ try{
  await db.prepare('INSERT INTO learn_boards VALUES(?,?,?,?,?,?)').bind('board','fixture','owner','canvas','main',JSON.stringify(board)).run();
  await db.prepare("INSERT INTO file_sources(id,org,owner_email,app,family,name,media_type,bytes,sha256,r2_key,status,created_at) VALUES(?,?,?,'canvas','image','fixture.png','image/png',?,?,?,'stored',0)").bind(sourceId,'fixture','owner',original.length,hash,'original').run();
  await db.prepare('INSERT INTO file_source_refs(source_id,board_id) VALUES(?,?)').bind(sourceId,'board').run();await bucket.put('original',original);
- const path='/api/learn/files/image-edits',body={operation:'remove_background',sourceId,app:'canvas',board:'main',cardId:'card',idempotencyKey:'runtime-fixture',paidConfirmation:true};
+ const path='/api/learn/files/image-edits',body={operation:'remove_background',sourceId,app:'canvas',board:'main',cardId:'card',idempotencyKey:'runtime-fixture',paidConfirmation:true,maxReservedUsd:0.2};
  assert.equal((await request(path,'POST',body,'other')).status,403);
  const created=await request(path,'POST',body);assert.equal(created.status,201);const id=(await created.json()).job.id;
  assert.equal((await request(path+'/'+id,'GET',null,'other')).status,404);
@@ -48,4 +48,3 @@ try{
  assert.equal((await db.prepare('SELECT state_json FROM learn_boards').first()).state_json,JSON.stringify(board));assert.deepEqual(Buffer.from(await(await bucket.get('original')).arrayBuffer()),original);assert.equal(forbiddenOutbound,0);
  console.log(JSON.stringify({source:'3b429e7c (runtime run used equivalent 8827632c plus redirect-only source diff)',runtime:'Miniflare/workerd',passed:7,failed:0,skipped:0,fakeProviderCalls,realProviderCalls:0,forbiddenOutbound,totalWallMs:performance.now()-started,coverage:['owner refusal','status ACL','automatic real FileJobs alarm + actual ledger/adapter decode/publication','duplicate creation','owner artifact read + foreign refusal','settled held bound','original + board unchanged'],limits:['External session/board-owner resolution is fixture-injected.','Provider response is deterministic, no quality/billing verification.','No full web dev-worker routing, cancellation race or maximum-memory qualification.']},null,2));
 }finally{clearTimeout(watchdog);await mf.dispose();}
-

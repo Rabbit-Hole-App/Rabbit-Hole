@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createImageJobClient } from './inline-image-job-client.js';
 const id='ij_'+'a'.repeat(32),sourceId='fs_'+'b'.repeat(24),artifactId='fs_'+'c'.repeat(24),sourceSha256='d'.repeat(64);
-const input={operation:'remove_background',app:'canvas',board:'main',cardId:'image',sourceId,sourceSha256,idempotencyKey:'unique-key',paidConfirmation:true};
+const input={operation:'remove_background',app:'canvas',board:'main',cardId:'image',sourceId,sourceSha256,idempotencyKey:'unique-key',paidConfirmation:true,maxReservedUsd:0.2};
 const ticket={version:1,id,binding:input};
 const job=(phase='queued',extra={})=>({id,sourceSha256,phase,reservation:'held',...(phase==='ready'?{artifactId}:{}),...extra});
 function fixture(replies) {
@@ -83,4 +83,12 @@ test('JSON array identities cannot bypass immutable ticket validation',async()=>
  await assert.rejects(h.client.submit({...input,operation:'edit_image',maskSourceId:[artifactId],prompt:'sky'}),{code:'invalid_input'});
  assert.equal(h.calls.length,0);
  for(const patch of [{id:[id]},{artifactId:[artifactId]}]) await assert.rejects(fixture([job('ready',patch)]).client.resume(ticket),{code:'invalid_response'});
+});
+test('numeric consent bound persists on reload ticket and reaches server without coercion',async()=>{
+ const h=fixture([job()]);for(const maxReservedUsd of [undefined,'0.2',0,-1,Infinity])await assert.rejects(h.client.submit({...input,maxReservedUsd}),{code:'invalid_binding'});
+ const saved=await h.client.submit(input);assert.equal(saved.binding.maxReservedUsd,.2);assert.equal(JSON.parse(h.calls[0].options.body).maxReservedUsd,.2);
+});
+test('quote is readonly and validates configured maximum without submitting',async()=>{
+ const calls=[];const client=createImageJobClient({fetchImpl:async(path,init)=>{calls.push(init.method);return Response.json({available:true,maximumReservedUsd:.2,model:'fixture'});}});
+ assert.equal((await client.quote()).maximumReservedUsd,.2);assert.deepEqual(calls,['GET']);
 });

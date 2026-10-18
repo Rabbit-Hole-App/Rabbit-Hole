@@ -41,11 +41,18 @@ export async function inlineImageJobsRoute(path, req, env, dependencies = defaul
   if (!submit && !match) return null;
   if (!env.LEARN_DB || !env.FILE_JOBS || !learnMedia(env)) return unavailable();
   if (submit) {
+    if (req.method === 'GET') {
+      const user = await dependencies.identity(req, env);
+      if (user instanceof Response) return user;
+      const available = enabled(env);
+      return json({ available, maximumReservedUsd: available ? Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) : null, model: available ? 'gpt-image-2.5-sunburst-2026-09-08' : null });
+    }
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     if (!enabled(env)) return unavailable();
     let body; try { body = await boundedJson(req); } catch { return json({ error: 'Invalid JSON' }, 400); }
     if (!body || !['remove_background', 'edit_image'].includes(body.operation) || !SOURCE.test(body.sourceId || '') || typeof body.app !== 'string' || !body.app || body.app.length > 200 || (body.board != null && (typeof body.board !== 'string' || body.board.length > 200)) || typeof body.cardId !== 'string' || body.cardId.length > 200 || !/^[A-Za-z0-9_.:-]{8,128}$/.test(body.idempotencyKey || '') || body.paidConfirmation !== true) return json({ error: 'A confirmed, bounded image request is required.' }, 400);
     if (body.operation === 'edit_image' ? !SOURCE.test(body.maskSourceId || '') || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000 : body.maskSourceId != null || body.prompt != null) return json({ error: 'Invalid image operation inputs.' }, 400);
+    if (typeof body.maxReservedUsd !== 'number' || !Number.isFinite(body.maxReservedUsd) || body.maxReservedUsd <= 0 || Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) > body.maxReservedUsd) return json({ error: 'The configured reservation exceeds the approved amount.', code: 'consent_bound' }, 409);
     const scope = await dependencies.board(req, env, body);
     if (scope instanceof Response) return scope;
     if (!scope?.row || !scope.owner?.org || !scope.owner?.email) return denied();
