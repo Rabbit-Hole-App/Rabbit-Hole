@@ -39,6 +39,8 @@ export async function inlineImageJobsRoute(path, req, env, dependencies = defaul
   const submit = path === '/api/learn/files/image-edits';
   const match = path.match(/^\/api\/learn\/files\/image-edits\/(ij_[a-f0-9]{32})(?:\/(cancel))?$/);
   if (!submit && !match) return null;
+  const origin = req.headers.get('origin');
+  if (req.method !== 'GET' && req.method !== 'HEAD' && origin && origin !== new URL(req.url).origin) return json({ error: 'Origin not allowed' }, 403);
   if (!env.LEARN_DB || !env.FILE_JOBS || !learnMedia(env)) return unavailable();
   if (submit) {
     if (req.method === 'GET') {

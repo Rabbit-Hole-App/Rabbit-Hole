@@ -114,3 +114,14 @@ test('quote exposes only authenticated availability and maximum; consent bounds 
  h.env.INLINE_IMAGE_EDIT_ENABLED='false';
  assert.deepEqual(await(await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,h.access)).json(),{available:false,maximumReservedUsd:null,model:null});
 });
+
+test('cross-origin submit and cancel refuse before DO access; same-origin and trusted absent Origin remain allowed',async()=>{
+ const h=fixture();let accesses=0;const get=h.env.FILE_JOBS.get;h.env.FILE_JOBS.get=(...args)=>{accesses++;return get(...args);};
+ for(const path of ['/api/learn/files/image-edits','/api/learn/files/image-edits/ij_'+ 'a'.repeat(32)+'/cancel']){
+  const response=await inlineImageJobsRoute(path,new Request('https://app'+path,{method:'POST',headers:{Origin:'https://foreign.invalid'},body:'{}'}),h.env,h.access);assert.equal(response.status,403);
+ }
+ assert.equal(accesses,0);assert.equal(h.calls.admit,0);
+ const body={operation:'remove_background',sourceId,app:'canvas',cardId:'card',idempotencyKey:'unique-key',paidConfirmation:true,maxReservedUsd:.2};
+ assert.equal((await inlineImageJobsRoute('/api/learn/files/image-edits',new Request('https://app/api/learn/files/image-edits',{method:'POST',headers:{Origin:'https://app'},body:JSON.stringify(body)}),h.env,h.access)).status,201);
+ assert.equal((await h.submit()).status,201);
+});
