@@ -75,3 +75,12 @@ test('abort during ready notification cannot deliver a stale proposal',async()=>
  await assert.rejects(h.client.resume(ticket,{signal:controller.signal,onProgress:()=>controller.abort()}),{code:'wait_aborted'});
  assert.equal(h.calls.length,1);
 });
+
+test('JSON array identities cannot bypass immutable ticket validation',async()=>{
+ const h=fixture([]);
+ for(const key of ['sourceId','sourceSha256','idempotencyKey']) await assert.rejects(h.client.submit({...input,[key]:[input[key]]}),{code:'invalid_binding'});
+ await assert.rejects(h.client.status({...ticket,id:[id]}),{code:'invalid_ticket'});
+ await assert.rejects(h.client.submit({...input,operation:'edit_image',maskSourceId:[artifactId],prompt:'sky'}),{code:'invalid_input'});
+ assert.equal(h.calls.length,0);
+ for(const patch of [{id:[id]},{artifactId:[artifactId]}]) await assert.rejects(fixture([job('ready',patch)]).client.resume(ticket),{code:'invalid_response'});
+});

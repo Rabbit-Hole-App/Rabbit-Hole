@@ -2,24 +2,25 @@
 // current canvas/revision checks before presenting or applying the proposal.
 const ROOT = '/api/learn/files/image-edits';
 const ID = /^ij_[a-f0-9]{32}$/, SOURCE = /^fs_[a-f0-9]{24}$/, HASH = /^[a-f0-9]{64}$/;
+const matches = (pattern, value) => typeof value === 'string' && pattern.test(value);
 const PHASES = new Set(['queued', 'admitting', 'started', 'publishing', 'ready', 'cancelled', 'refused', 'unknown']);
 const TERMINAL = new Set(['ready', 'cancelled', 'refused', 'unknown']);
 const fault = (code, message, extra = {}) => Object.assign(new Error(message), { code, ...extra });
 function bindingOf(input) {
-  if (!input || !SOURCE.test(input.sourceId) || !HASH.test(input.sourceSha256) ||
+  if (!input || !matches(SOURCE, input.sourceId) || !matches(HASH, input.sourceSha256) ||
       ['app', 'board', 'cardId'].some(key => typeof input[key] !== 'string' || !input[key] || input[key].length > 200) ||
-      !['remove_background', 'edit_image'].includes(input.operation) || !/^[A-Za-z0-9_.:-]{8,128}$/.test(input.idempotencyKey)) {
+      !['remove_background', 'edit_image'].includes(input.operation) || !matches(/^[A-Za-z0-9_.:-]{8,128}$/, input.idempotencyKey)) {
     throw fault('invalid_binding', 'A saved source and exact canvas scope are required.');
   }
   return Object.freeze(Object.fromEntries(['sourceId', 'sourceSha256', 'app', 'board', 'cardId', 'operation', 'idempotencyKey'].map(key => [key, input[key]])));
 }
 function ticketOf(raw) {
-  if (raw?.version !== 1 || !ID.test(raw.id)) throw fault('invalid_ticket', 'Invalid image job ticket.');
+  if (raw?.version !== 1 || !matches(ID, raw.id)) throw fault('invalid_ticket', 'Invalid image job ticket.');
   return Object.freeze({ version: 1, id: raw.id, binding: bindingOf(raw.binding) });
 }
 function validateJob(job, ticket) {
-  if (!job || !ID.test(job.id) || ticket.id && job.id !== ticket.id || job.sourceSha256 !== ticket.binding.sourceSha256 ||
-      !PHASES.has(job.phase) || job.phase === 'ready' && !SOURCE.test(job.artifactId)) {
+  if (!job || !matches(ID, job.id) || ticket.id && job.id !== ticket.id || job.sourceSha256 !== ticket.binding.sourceSha256 ||
+      !PHASES.has(job.phase) || job.phase === 'ready' && !matches(SOURCE, job.artifactId)) {
     throw fault('invalid_response', 'The image job does not match this source.');
   }
   return Object.freeze({ id: job.id, phase: job.phase, cancelRequested: !!job.cancelRequested,
@@ -57,7 +58,7 @@ export function createImageJobClient({ fetchImpl = globalThis.fetch, headers = {
       const payload = { ...binding, paidConfirmation: true };
       delete payload.sourceSha256; // Server independently binds the saved immutable revision.
       if (binding.operation === 'edit_image') {
-        if (!SOURCE.test(input.maskSourceId) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 2000) throw fault('invalid_input', 'Regional editing requires a mask and prompt.');
+        if (!matches(SOURCE, input.maskSourceId) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 2000) throw fault('invalid_input', 'Regional editing requires a mask and prompt.');
         payload.maskSourceId = input.maskSourceId;
         payload.prompt = input.prompt;
       } else if (input.maskSourceId != null || input.prompt != null) throw fault('invalid_input', 'Background removal does not accept a mask or prompt.');
