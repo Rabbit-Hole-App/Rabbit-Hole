@@ -220,6 +220,12 @@ export const explainConnects = (ids, board) => ids.length === 1 && ((board.shape
 export const noteId = requestId => `inline-${requestId}-note`;
 export const linkId = requestId => `inline-${requestId}-link`;
 export const cardId = requestId => `inline-${requestId}-card`;
+// Record only the frozen selection actually supplied; object IDs do not imply
+// that a linked file or its complete contents were read.
+export const inlineProvenance = ({ requestId, mode = 'explain', route, frozen }) => ({
+  requestId, mode, route, sources: frozen.ids.slice(),
+  ...(frozen.range ? { range: { id: frozen.range.id, from: frozen.range.from, to: frozen.range.to } } : {}),
+});
 const NOTE_W = 260;
 // The note's size: its text box takes 88% of the width (TEXT_BOX.rect), and words never overflow it on load. measure
 // (the canvas's measureHeight) gives the real height in a browser; the estimate keeps it pure for the tests.
@@ -236,7 +242,7 @@ export const noteSize = (text, measure = null) => {
 export function explainTx({ requestId, text, frozen, board, boxes, size, visible, mode = 'explain', route = 'note', place: shown = null }) {
   const targetBox = boxes.target;
   const place = shown || placeNote(targetBox, size, boxes.obstacles, visible);
-  const inline = { requestId, mode, route, sources: frozen.ids.slice(), ...(frozen.range ? { range: { id: frozen.range.id, from: frozen.range.from, to: frozen.range.to } } : {}) };
+  const inline = inlineProvenance({ requestId, mode, route, frozen });
   const note = { id: noteId(requestId), kind: 'rect', x1: place.x, y1: place.y, x2: place.x + size.w, y2: place.y + size.h,
     color: '#6b7280', width: 2, dash: 'dashed', fill: null, opacity: 1, round: true, text: String(text), textColor: '#37352f', align: 'left', valign: 'top', inline };
   const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
@@ -251,7 +257,7 @@ export function explainTx({ requestId, text, frozen, board, boxes, size, visible
 // place (A7): the spot its ghost showed - the card goes at the end of the column (end: no other card moves), offset
 // (dx, dy) to that spot, its connector on the facing sides. Without one, it follows the target card in the column.
 export function cardTx({ requestId, block, frozen, board, route, place = null }) {
-  const inline = { requestId, mode: 'explain', route, sources: frozen.ids.slice() };
+  const inline = inlineProvenance({ requestId, route, frozen });
   const card = { ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline };
   const after = place ? null : frozen.ids.find(id => (board.blocks || []).some(entry => entry.id === id)) || null;
   const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;

@@ -6,6 +6,21 @@ import { flowBoard, treeBoard, withBoxes } from './inline-ai-fixtures.js';
 
 const frozenOf = (board, ids, range) => freezeTarget(board, ids, range ? { range } : {});
 
+test('derived cards preserve the exact selected range through Accept and saved reload', () => {
+  const board = flowBoard();
+  const before = JSON.stringify(board);
+  const frozen = frozenOf(board, ['para'], { id: 'para', from: 19, to: 51, text: 'Then the table renders every row' });
+  const tx = cardTx({ requestId: 'range-card', block: { type: 'text', text: 'Explanation' }, frozen, board, route: 'explain' });
+  const saved = JSON.parse(JSON.stringify(applyTx(board, tx)));
+  const card = saved.blocks.find(entry => entry.id === tx.block.id);
+  assert.deepEqual(card.inline.sources, ['para']);
+  assert.deepEqual(card.inline.range, { id: 'para', from: 19, to: 51 });
+  assert.equal(JSON.stringify(board), before, 'source board remains untouched');
+  assert.equal(applyTx(saved, tx).blocks.length, saved.blocks.length, 'repeated Accept adds no duplicate');
+  frozen.range.from = 0;
+  assert.equal(tx.block.inline.range.from, 19, 'provenance is detached from mutable request state');
+});
+
 test('an edit may touch only the authorized ids, through the listed operations', () => {
   const board = flowBoard();
   const frozen = frozenOf(board, ['g1']);
