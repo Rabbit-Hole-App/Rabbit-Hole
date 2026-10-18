@@ -1,3 +1,4 @@
+import { inspectPngPixels } from './inline-image-png.js';
 ﻿// Unexposed leaf adapter: caller must provide authorized bytes and durable spend/job admission.
 // Existing provider/model: packages/web/dev-worker.js /api/learn/image.
 // https://developers.openai.com/api/reference/resources/images/methods/edit
@@ -20,7 +21,7 @@ function crc32(bytes) {
   return (value ^ 0xffffffff) >>> 0;
 }
 
-// Container validation only: no pixel decoder, alpha inspection or segmentation claim.
+// Container validation precedes bounded pixel decoding; neither establishes segmentation quality.
 function pngInfo(bytes, maximum, code) {
   const bad = () => { throw failure(code, 'A bounded, structurally valid PNG is required.'); };
   if (!(bytes instanceof Uint8Array) || bytes.byteLength < 57 || bytes.byteLength > maximum) bad();
@@ -28,6 +29,7 @@ function pngInfo(bytes, maximum, code) {
   if (signature.some((value, index) => bytes[index] !== value)) bad();
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let offset = 8, header, data = false, ended = false, chunks = 0;
+  const idat = [];
   while (offset + 12 <= bytes.length) {
     if (++chunks > 4096) bad();
     const length = view.getUint32(offset), end = offset + 12 + length;
@@ -46,6 +48,7 @@ function pngInfo(bytes, maximum, code) {
     } else if (type === 'IDAT') {
       if (!length) bad();
       data = true;
+      idat.push(bytes.subarray(offset + 8, end - 4));
     } else if (type === 'IEND') {
       if (length || !data || end !== bytes.length) bad();
       ended = true;
@@ -54,7 +57,12 @@ function pngInfo(bytes, maximum, code) {
     offset = end;
   }
   if (!ended) bad();
-  return header;
+  return { ...header, idat };
+}
+
+async function checkedPixels(info, signal, code) {
+  try { return await inspectPngPixels(info, signal); }
+  catch { signal.throwIfAborted(); throw failure(code, 'PNG pixels could not be decoded within the expected dimensions.'); }
 }
 
 async function boundedJson(response, signal) {
@@ -105,10 +113,12 @@ export function imageEditProvider({ apiKey, transport = fetch } = {}) {
         signal = input.signal ? AbortSignal.any([input.signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS);
         signal.throwIfAborted();
         const original = pngInfo(input.image, MAX_IMAGE, 'invalid_input');
+        await checkedPixels(original, signal, 'invalid_input');
         const regional = input.operation === 'edit_image';
         if (regional) {
           const mask = pngInfo(input.mask, MAX_MASK, 'invalid_input');
           if (!mask.alphaChannel || mask.width !== original.width || mask.height !== original.height) throw failure('invalid_input', 'The explicit alpha mask must match the original dimensions.');
+          if (!(await checkedPixels(mask, signal, 'invalid_input')).transparentPixels) throw failure('invalid_input', 'The regional mask must contain fully transparent pixels.');
           if (typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 2000) throw failure('invalid_input', 'A regional edit prompt of 1–2000 characters is required.');
         } else if (input.mask != null || input.prompt != null) throw failure('invalid_input', 'Background removal does not accept a mask or custom prompt.');
         const body = new FormData();
@@ -127,7 +137,9 @@ export function imageEditProvider({ apiKey, transport = fetch } = {}) {
         const binary = atob(encoded), bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
         const info = pngInfo(bytes, MAX_OUTPUT, 'invalid_output');
         if (info.width !== 1024 || info.height !== 1024 || (!regional && !info.alphaChannel)) throw failure('invalid_output', 'Image provider output dimensions or alpha channel are invalid.');
-        return { bytes, mimeType: 'image/png', width: info.width, height: info.height, model: 'gpt-image-1', usage: reportedUsage(result.usage), validation: 'png-container', limitations: ['Fixed low-quality 1024×1024 output; original dimensions are not preserved.', 'PNG container validation does not verify decoded pixels, transparency, subject segmentation or unchanged subject pixels.', 'Provider-reported token usage is not settled billing.'] };
+        const pixels = await checkedPixels(info, signal, 'invalid_output');
+        if (!regional && !pixels.nonopaquePixels) throw failure('invalid_output', 'Background removal returned an entirely opaque image.');
+        return { bytes, mimeType: 'image/png', width: info.width, height: info.height, model: 'gpt-image-1', usage: reportedUsage(result.usage), validation: 'png-pixels', limitations: ['Fixed low-quality 1024×1024 output; original dimensions are not preserved.', 'Decoded PNG and alpha checks do not verify correct subject segmentation or unchanged subject pixels.', 'Provider-reported token usage is not settled billing.'] };
       } catch (error) {
         const code = signal?.aborted ? (input?.signal?.aborted ? 'cancelled' : 'timeout') : error?.[adapterFailure] ? error.code : 'provider_error';
         const message = error?.[adapterFailure] ? error.message : code === 'cancelled' ? 'Image editing was cancelled.' : code === 'timeout' ? 'Image editing timed out.' : 'Image provider request failed.';

@@ -1,11 +1,12 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
+import { inspectPngPixels } from '../src/inline-image-png.js';
 import { imageEditProvider } from '../src/inline-image-edit-provider.js';
 
 function crc(bytes) { let value=0xffffffff; for(const byte of bytes){value^=byte;for(let i=0;i<8;i++)value=(value>>>1)^((value&1)?0xedb88320:0);}return (value^0xffffffff)>>>0; }
 function chunk(type, data) { const value=Buffer.concat([Buffer.from(type),data]),head=Buffer.alloc(4),tail=Buffer.alloc(4);head.writeUInt32BE(data.length);tail.writeUInt32BE(crc(value));return Buffer.concat([head,value,tail]); }
-function png(width=2,height=2) { const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=6;return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(Buffer.alloc(height*(width*4+1)))),chunk('IEND',Buffer.alloc(0))]); }
+function png(width=2,height=2,{raw,compressed}={}) { const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=6;return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',compressed||deflateSync(raw||Buffer.alloc(height*(width*4+1)))),chunk('IEND',Buffer.alloc(0))]); }
 const image=png(),output=png(1024,1024);
 const response=()=>Response.json({data:[{b64_json:output.toString('base64')}],usage:{input_tokens:4,output_tokens:8,total_tokens:12,input_tokens_details:{text_tokens:1,image_tokens:3}}});
 const input={operation:'remove_background',image};
@@ -60,4 +61,32 @@ test('cancellation interrupts a stalled response body and marks request outcome 
  const controller=new AbortController();let cancelled=false;
  const provider=imageEditProvider({apiKey:'fixture',transport:async()=>new Response(new ReadableStream({start(){setTimeout(()=>controller.abort(),5);},cancel(){cancelled=true;}}))});
  await assert.rejects(provider.edit({...input,signal:controller.signal}),error=>error.code==='cancelled'&&error.outcomeUnknown);assert.equal(cancelled,true);
+});
+
+test('PNG valid CRC is insufficient: invalid deflate, truncated rows, excess pixels and invalid filters fail before request',async()=>{
+ let calls=0;const provider=imageEditProvider({apiKey:'fixture',transport:async()=>{calls++;return response();}});
+ for(const options of [{compressed:Buffer.from('invalid zlib')},{raw:Buffer.alloc(1)},{raw:Buffer.alloc(100)},{raw:Buffer.alloc(18,255)}])await assert.rejects(provider.edit({...input,image:png(2,2,options)}),{code:'invalid_input'});assert.equal(calls,0);
+});
+function opaque(width,height){const raw=Buffer.alloc(height*(width*4+1),255);for(let y=0;y<height;y++)raw[y*(width*4+1)]=0;return png(width,height,{raw});}
+test('regional mask requires actual fully transparent pixels, not merely an alpha channel',async()=>{
+ let calls=0;const provider=imageEditProvider({apiKey:'fixture',transport:async()=>{calls++;return response();}});
+ await assert.rejects(provider.edit({operation:'edit_image',image,mask:opaque(2,2),prompt:'red hat'}),{code:'invalid_input'});assert.equal(calls,0);
+});
+test('opaque removal output is rejected after one request with ambiguous paid outcome',async()=>{
+ let calls=0;const provider=imageEditProvider({apiKey:'fixture',transport:async()=>{calls++;return Response.json({data:[{b64_json:opaque(1024,1024).toString('base64')}]});}});
+ await assert.rejects(provider.edit(input),error=>error.code==='invalid_output'&&error.providerRequestStarted&&error.outcomeUnknown);assert.equal(calls,1);
+});
+
+test('all five PNG filters reconstruct real alpha values across pixels and rows',async()=>{
+ // Two 2-pixel rows: alpha [0,128] then [255,0]. Encoded fixture bytes are fixed.
+ const secondAlpha=[0,1,128,65,1];
+ for(let filter=0;filter<=4;filter++){
+   const raw=Buffer.from([filter,0,0,0,0,0,0,0,128, filter,0,0,0,255,0,0,0,secondAlpha[filter]]);
+   const result=await inspectPngPixels({width:2,height:2,alphaChannel:true,idat:[deflateSync(raw)]});
+   assert.deepEqual(result,{transparentPixels:2,nonopaquePixels:3},`filter ${filter}`);
+ }
+});
+test('provider PNG with valid container but invalid deflate is rejected before publication',async()=>{
+ const provider=imageEditProvider({apiKey:'fixture',transport:async()=>Response.json({data:[{b64_json:png(1024,1024,{compressed:Buffer.from('bad zlib')}).toString('base64')}]})});
+ await assert.rejects(provider.edit(input),error=>error.code==='invalid_output'&&error.outcomeUnknown);
 });

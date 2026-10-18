@@ -71,7 +71,7 @@ export function createImageEditJobCoordinator({ storage, admitSpend, settleSpend
       // started is durable BEFORE entering the provider adapter, including its preflight.
       const result = await edit({ operation: started.request.operation, image: bytes.image, ...(bytes.mask ? { mask: bytes.mask } : {}), ...(started.request.prompt ? { prompt: started.request.prompt } : {}), signal });
       if (signal.aborted || (await get(id)).cancelRequested) return hold(id, 'cancelled_after_start');
-      if (!(result?.bytes instanceof Uint8Array) || !result.bytes.length || result.bytes.length > 10 * 1024 * 1024 || result.mimeType !== 'image/png' || result.validation !== 'png-container') return hold(id, 'unvalidated_output');
+      if (!(result?.bytes instanceof Uint8Array) || !result.bytes.length || result.bytes.length > 10 * 1024 * 1024 || result.mimeType !== 'image/png' || result.validation !== 'png-pixels') return hold(id, 'unvalidated_output');
       const outputSha256 = await digest(result.bytes);
       const publishing = await change(id, job => job.phase === 'started' && !job.cancelRequested ? { ...job, phase: 'publishing', outputSha256, usage: result.usage || null, updatedAt: now() } : job);
       if (publishing.phase !== 'publishing' || publishing.cancelRequested) return hold(id, 'publication_fence_changed');
