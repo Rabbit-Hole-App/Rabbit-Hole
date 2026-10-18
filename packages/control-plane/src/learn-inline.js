@@ -1,4 +1,5 @@
 import { validateNativePlan, nativeSnapshotBoard, validNativeSnapshot } from '../../web/src/inline-native-plan.js';
+import { validInlineToolSnapshot, inlineToolSnapshotBoard, validateInlinePlan } from '../../web/src/inline-tool-plan.js';
 import { validateCardContent } from '../../web/src/inline-card-edit.js';
 // The inline AI editor's worker routes (docs/features/inline-ai-editor.md §6-§12, A2, A3, A5).
 //
@@ -21,7 +22,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { inspectSavedCad } from './cad-inspection.js';
 import { isUploadedMediaId } from './learn-media.js';
-import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, INLINE_EDIT_TOOL, INLINE_NOTE_SYSTEM } from './agents/learn-inline.js';
+import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM } from './agents/learn-inline.js';
 import { decide, proceedGate } from './learn-inline-route.js';
 import { commandOf, generationPrompt } from '../../web/src/inline-ai-decide.js';
 import { diagramOf, validateDiagram } from '../../web/src/inline-diagram.js';
@@ -111,10 +112,18 @@ export function checkNote(text) {
   if (note.length > NOTE_MAX_CHARS) return { error: 'The explanation came back too long for a note.' };
   return { result: { kind: 'note', text: note } };
 }
-export function checkEdit(input, targetIds, context = null) {
+export function checkEdit(input, targetIds, context = null, { requestId, mode = 'edit' } = {}) {
   if (!input || typeof input !== 'object' || !Array.isArray(input.ops)) return { error: 'The model returned no edit.' };
   if(input.plan){
     if(input.ops.length)return {error:'Native tool plans cannot mix legacy text operations.'};
+    if (context?.toolSnapshot) {
+      const snapshot = context.toolSnapshot;
+      if (mode !== 'edit' || !REQUEST_ID.test(requestId || '') || !validInlineToolSnapshot(snapshot) || !Array.isArray(targetIds) || snapshot.ids.length !== targetIds.length || new Set(targetIds).size !== targetIds.length || targetIds.some(id => !snapshot.ids.includes(id))) return {error:'The frozen tool selection or request identity is invalid.'};
+      const board = inlineToolSnapshotBoard(snapshot);
+      const checked = validateInlinePlan(input.plan, snapshot, board, snapshot.bounds, {mode, requestId});
+      if (!checked.ok) return {error:checked.errors[0]};
+      return {result:{kind:'edit',summary:String(input.summary || '').slice(0,200),ops:[],plan:input.plan}};
+    }
     const snapshot=context?.nativeTools;
     if(!validNativeSnapshot(snapshot)||snapshot.ids.length!==targetIds.length||targetIds.some(id=>!snapshot.ids.includes(id)))return {error:'Native tool targets were not supplied.'};
     const board=nativeSnapshotBoard(snapshot);if(!board)return {error:'Invalid native selection snapshot.'};
@@ -215,7 +224,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   if (allowed instanceof Response) return allowed;
   const edit = mode === 'edit', shapes = route === 'shapes', started = Date.now(), requestId = body.request_id;
   if (!edit && route !== 'note' && !shapes) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
-  const tool = edit ? INLINE_EDIT_TOOL : shapes ? INLINE_DIAGRAM_TOOL : null;
+  const tool = edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot)) : shapes ? INLINE_DIAGRAM_TOOL : null;
   // A flattened image goes to the vision-capable explanation model as one picture of the board's own card - never to JEV.
   let pictures = [];
   if (!edit && typeof context.image?.id === 'string') {
@@ -289,7 +298,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
         else if (tool) {
           let input = null;
           try { input = got.tool?.name === tool.name ? JSON.parse(got.json || '{}') : null; } catch { input = null; }
-          checked = edit ? checkEdit(input, targetIds, context) : checkDiagram(input);
+          checked = edit ? checkEdit(input, targetIds, context, { requestId, mode }) : checkDiagram(input);
         } else checked = checkNote(got.text);
         if (checked.error) send('error', { error: checked.error, code: 'invalid' });
         else { outcome = 'done'; send('done', { result: checked.result, usage: { input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null }, ms: { first: got.first == null ? null : got.first - started, total: Date.now() - started } }); }

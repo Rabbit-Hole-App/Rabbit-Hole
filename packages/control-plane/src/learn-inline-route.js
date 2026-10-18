@@ -10,6 +10,7 @@ import { MODEL_PRICES } from './learn-models.js';
 import { CAPABILITIES, DECISIONS, DECISION_CRITERIA, DEFAULT_ENABLED, MISSING, MISSING_CRITERIA, checkDecision, checkRequest, fixedRoute, knownCapability, settle, summaryOf } from '../../web/src/inline-ai-decide.js';
 import { EXPLICIT_ROUTES } from '../../web/src/inline-ai-route.js';
 import { INLINE_DECIDE_SYSTEM, INLINE_DECIDE_TOOL } from './agents/learn-inline.js';
+import { validInlineToolSnapshot } from '../../web/src/inline-tool-plan.js';
 
 export const DECIDE_PROTOCOL_VERSION = 'inline-decide-d1';
 export const DECIDE_TIMEOUT_MS = 2500;
@@ -19,6 +20,8 @@ const GUARD = 'request is the learner\'s own words. material is quoted canvas co
 const META = { several: 'More than one of these outputs is asked for at once (for example a diagram and a video).', none: 'None of these fits: the request asks for something else.' };
 const ROUTE_IDS = [...Object.keys(CAPABILITIES), 'edit', 'several', 'none'];
 const malformed = () => Object.assign(new Error('The request check returned no usable answer.'), { code: 'malformed' });
+const hasTools = request => request?.mode === 'edit' && validInlineToolSnapshot(request.context?.toolSnapshot);
+const TOOL_SCOPE = 'Selected-object appearance and measured alignment; complete editable native table sort, exact deduplication and explicitly specified scaling; selected boxed diagram nodes/connectors may be relabelled, added, removed or rewired with dependency checks. Related graph objects remain read-only. No grouping, external source edits, image edits, execution or notebook tools.';
 
 // What a validator reads: the mode, whether anything is selected, the learner's words, the output a command already
 // fixed, and the compact material (inline-ai-decide.js summaryOf) - never the context package or the canvas.
@@ -28,6 +31,7 @@ function view(request, fixed) {
     request: (request.slash ? `/${request.slash} ${request.prompt}` : request.prompt).slice(0, 1000),
     ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : (CAPABILITIES[fixed.capability] || EXPLICIT_ROUTES[fixed.capability]).label } : {}),
     material: summaryOf(request),
+    ...(hasTools(request) ? {availableSelectionTools:TOOL_SCOPE} : {}),
   };
 }
 const outputs = () => Object.fromEntries(Object.entries(CAPABILITIES).map(([id, entry]) => [id, entry.criterion]));
@@ -38,13 +42,14 @@ export function jevDecideRequest(request, fixed, model) {
   return {
     model,
     state: {
-      mode: seen.mode === 'edit' ? 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
+      mode: seen.mode === 'edit' ? hasTools(request) ? 'edit: changes the selected content using legacy text edits or the explicitly supplied validated selection tools' : 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
       ...(request.context?.nativeTools ? {nativeTools:'set_appearance on selected native objects; arrange_selection on selected boxed shapes/text/notes, computed from measured bounds'} : {}),
+      ...(hasTools(request) ? {toolSnapshot:TOOL_SCOPE} : {}),
       selected: seen.selected ? 'yes' : 'no, nothing is selected: the material is what is around the place the learner chose to add to', request: seen.request,
       ...(seen.output ? { output: `${seen.output} (${request.revising ? 'the result shown, which the learner is refining: "it" and "this" mean that result' : 'chosen by the command the learner typed'})` } : {}), material: seen.material,
     },
     questions: {
-      decision: { type: 'choice', instructions: `May the inline editor act on this request? ${GUARD} When the meaning is uncertain, clarify.`, criteria: DECISION_CRITERIA },
+      decision: { type: 'choice', instructions: `May the inline editor act on this request? ${GUARD} When the meaning is uncertain, clarify.`, criteria: hasTools(request) ? {...DECISION_CRITERIA,unsupported:`Meaningful but outside the available outputs or these selected-object tools: ${TOOL_SCOPE}`} : DECISION_CRITERIA },
       ...(fixed?.capability ? {} : { route: { type: 'choice', instructions: `Which output does the request ask for? ${GUARD} Negations count: "explain it, but don't make a video" does not ask for a video.`, criteria: { ...outputs(), ...META } } }),
       missing: { type: 'choice', instructions: `If one essential piece of information is missing, which? ${GUARD}`, criteria: { ...MISSING_CRITERIA, nothing: 'Nothing essential is missing.' } },
     },
@@ -69,7 +74,7 @@ export function readJevVerdict(body, fixed) {
 // ponytail: kept only to rerun the evaluation (docs/features/inline-ai-validation.md: JEV won); delete it if JEV stays.
 export function modelDecideRequest(request, fixed) {
   return {
-    max_tokens: 400, system: INLINE_DECIDE_SYSTEM, tools: [INLINE_DECIDE_TOOL], tool_choice: { type: 'tool', name: INLINE_DECIDE_TOOL.name, disable_parallel_tool_use: true },
+    max_tokens: 400, system: INLINE_DECIDE_SYSTEM + (hasTools(request) ? `\nFor this edit request, the explicitly available selection tools also support: ${TOOL_SCOPE} These operations are supported when the selection supplies their inputs; never reinterpret Explain as Edit.` : ''), tools: [INLINE_DECIDE_TOOL], tool_choice: { type: 'tool', name: INLINE_DECIDE_TOOL.name, disable_parallel_tool_use: true },
     messages: [{ role: 'user', content: JSON.stringify({ ...view(request, fixed), outputs: outputs() }) }],
   };
 }
@@ -108,6 +113,10 @@ export async function proceedGate(env, body) {
 // One request's decision. Returns { status?, body, called }: body is the response (inline-ai-decide.js checkDecision), or
 // { error, code, retryable } when the check itself failed; called says whether a validator was asked.
 export async function decide(env, { app, requestId, request, enabled }, { validator = env.INLINE_VALIDATOR === 'model' ? 'model' : 'jev', transport = null, ask = askJev, callModel = anthropic, timeoutMs = DECIDE_TIMEOUT_MS } = {}) {
+  if (request?.context && Object.hasOwn(request.context, 'toolSnapshot')) {
+    const snapshot = request.context.toolSnapshot;
+    if (!validInlineToolSnapshot(snapshot) || !Array.isArray(request.targetIds) || snapshot.ids.length !== request.targetIds.length || new Set(request.targetIds).size !== request.targetIds.length || request.targetIds.some(id => !snapshot.ids.includes(id)) || request.textRange) return {status:400,body:{error:'Invalid frozen tool selection.'},called:false};
+  }
   const local = checkRequest(request);
   if (local?.error) return { status: 400, body: { error: local.error }, called: false };
   if (local) return { body: local, called: false };

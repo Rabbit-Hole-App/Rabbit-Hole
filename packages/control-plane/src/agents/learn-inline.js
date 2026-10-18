@@ -33,8 +33,10 @@ ${DATA}
 The selection is \`canvas.target.objects\`: it is what the request refers to, and its objects are the only ones you may change, by their \`id\`. The new text may be on any subject the request asks for: a mismatch with the canvas's title or topic is never a reason to refuse. Everything else in \`canvas\` (related, relations, connections, metadata) is read-only background for understanding the request. When an object has a \`range\`, only those selected words may change: use one replace_range with exactly that range's from and to, and return only the replacement words.
 For a card with editable, use replace_card_content with the complete editable.content object and exactly its field names. Preserve Markdown headings, lists, fenced code and LaTeX within strings, explanation sections and rectangular table rows. Never flatten a structured card into text. All editable fields were supplied whole; if truncated or editLimitation is present, return a limitation, not a rewrite. Keep the replacement JSON within 4000 characters. Snippet output is not editable: changing code clears its prior output without running code. Source-backed/citation-bearing cards are not rewritable here; never invent citations or associate a listed-only source with new claims. Metadata conversation is bounded background and sources with coverage listed are metadata only, not source contents.
 Operations: replace_card_content (a complete supported card content object), replace_text (an object's whole text), replace_range, set_style (fontSize 8-160, level h1|h2|h3|h4|body, bold, italic, underline, textColor #rrggbb).
-When canvas.nativeTools exists, a native appearance or layout request uses ops:[] and plan:{mode:"edit",targetIds:[all frozen native IDs],steps:[{tool:"set_appearance",targetIds:[selected IDs],input:{patch:{fill:"#rrggbb"}}},{tool:"arrange_selection",targetIds:[selected IDs],input:{how:"left"}}]}. At most four steps and one arrangement. Use only set_appearance and arrange_selection. Appearance uses real native properties (color stroke, fill, width stroke width, opacity, fillOpacity, noStroke, dash, round, typography, startHead/endHead); do not use image pixels or unsupported property keys. Arrangement how is left|center|right|top|middle|bottom|spread-x|spread-y, calculated by the app from measured bounds; do not invent coordinates. Arrange only boxed shapes and independent text/notes, not connectors. Preserve text/content; combine appearance and arrangement in one plan. Do not mix plan with legacy text ops. Without nativeTools, native operations are unavailable.
-Never add, delete, regroup or reconnect objects, and never change anything outside the target. Only the supported native arrangement may move selected objects. If the request needs that, return an empty ops list and one sentence in \`limitation\` saying what to select or do instead.
+When canvas.toolSnapshot is absent and canvas.nativeTools exists, a native appearance or layout request uses ops:[] and plan:{mode:"edit",targetIds:[all frozen native IDs],steps:[{tool:"set_appearance",targetIds:[selected IDs],input:{patch:{fill:"#rrggbb"}}},{tool:"arrange_selection",targetIds:[selected IDs],input:{how:"left"}}]}. At most four steps and one arrangement. Use only set_appearance and arrange_selection. Appearance uses real native properties (color stroke, fill, width stroke width, opacity, fillOpacity, noStroke, dash, round, typography, startHead/endHead); do not use image pixels or unsupported property keys. Arrangement how is left|center|right|top|middle|bottom|spread-x|spread-y, calculated by the app from measured bounds; do not invent coordinates. Arrange only boxed shapes and independent text/notes, not connectors. Preserve text/content; combine appearance and arrangement in one plan. Do not mix plan with legacy text ops. Without nativeTools, native operations are unavailable.
+When canvas.toolSnapshot exists, use its exact ids as plan.targetIds, ops:[], and at most four validated steps. Its objects are selected mutation scope; readOnlyGraph contains read-only incident links and endpoints, never extra mutation permission. Available tools are set_appearance, arrange_selection, transform_table and edit_diagram. Native appearance/arrangement use the forms above. transform_table input is {operation:"sort",column:zero-based-index-or-exact-name,direction:"asc"|"desc",sortType:"numeric"|"text"}, {operation:"deduplicate",column?:index-or-name}, or {operation:"scale",column:index-or-name,factor:number,unitFrom:"explicit units",unitTo:"explicit units"}. Never infer units or claim unit compatibility was verified; ask for missing conversion details through a limitation. Tables must be complete editable native tables, never source-backed or citation-bearing content.
+edit_diagram input has optional add:{shapes:[{id,kind?,label}],links:[{id,from,to,label?}]}, removeIds:[selected IDs], changes:[{id:selected ID,patch:{text:"node label"}} or {id:selected connector ID,patch:{label?,from?,to?}}]. At most one diagram step, last. New IDs are short unique aliases resolved by the app; never invent coordinates. Only selected boxed shapes/connectors may change or be removed. New links connect selected or newly added nodes; unchanged existing endpoints may remain read-only. Include dependent connectors in the explicit selection before removing their nodes; otherwise return a limitation asking to expand selection. No grouping, card conversions or changes to readOnlyGraph. Without toolSnapshot, table and structural diagram tools are unavailable.
+Never add, delete, regroup or reconnect objects except through the explicitly supplied toolSnapshot edit_diagram capability, and never change anything outside the target. Only supported native arrangement may move selected objects. If the request exceeds these capabilities, return an empty ops list and one sentence in \`limitation\` saying what to select or do instead.
 Code (mode "code"): return the corrected code as the new text. Never claim to have run it and never state its output.
 Keep everything the learner did not ask to change exactly as it is.
 ${EARLIER}`;
@@ -72,6 +74,31 @@ export const INLINE_EDIT_TOOL = {
     },
   },
 };
+
+// Expose additional operations only for clients that supplied the frozen adapter
+// snapshot. The shared validator remains authoritative for tool-specific fields.
+export function inlineEditToolFor(toolSnapshotAvailable) {
+  if (!toolSnapshotAvailable) return INLINE_EDIT_TOOL;
+  const tool = structuredClone(INLINE_EDIT_TOOL);
+  const step = tool.input_schema.properties.plan.properties.steps.items.properties;
+  step.tool.enum.push('transform_table', 'edit_diagram');
+  const id = {type:'string',minLength:1,maxLength:160};
+  const label = {type:'string',maxLength:80};
+  const link = {type:'object',additionalProperties:false,required:['id','from','to'],properties:{id,from:id,to:id,label}};
+  Object.assign(step.input.properties, {
+    operation:{type:'string',enum:['sort','deduplicate','scale']},
+    column:{anyOf:[{type:'integer',minimum:0,maximum:199},{type:'string',maxLength:2000}]},
+    direction:{type:'string',enum:['asc','desc']},sortType:{type:'string',enum:['numeric','text']},
+    factor:{type:'number'},unitFrom:{type:'string',maxLength:80},unitTo:{type:'string',maxLength:80},
+    add:{type:'object',additionalProperties:false,properties:{
+      shapes:{type:'array',maxItems:20,items:{type:'object',additionalProperties:false,required:['id','label'],properties:{id,kind:{type:'string',enum:['rect','ellipse','triangle','diamond','hexagon','star']},label}}},
+      links:{type:'array',maxItems:30,items:link},
+    }},
+    removeIds:{type:'array',maxItems:20,items:id},
+    changes:{type:'array',maxItems:20,items:{type:'object',additionalProperties:false,required:['id','patch'],properties:{id,patch:{type:'object',additionalProperties:false,properties:{text:label,label,from:id,to:id}}}}},
+  });
+  return tool;
+}
 
 // ---------- Creation, native diagrams and the request check (owner briefs 2026-10-13: creation §5-§7, validation) ----------
 // The diagram tool takes its rules from inline-diagram.js and the check's words from inline-ai-decide.js, so the
