@@ -890,6 +890,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return result;
   };
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
+    repositoryEvidence: isRepository && !board && !hole && repository?.canEdit && /^[a-f0-9]{40}$/.test(repositoryContext?.commit || repository?.commit || '') ? {scope:{app:app.name,repo:app.repo,commit:repositoryContext?.commit || repository.commit},headers:wsHeaders(),onOpenSource:ref=>openCanvasFile(ref.path,ref.start,ref.end,ref)} : null,
     verifyExtraction: !board && !hole && canEditCanvas ? options => verifyExtractionRead({...options,headers:wsHeaders()}) : null,
     imageScope: () => !board && !hole && canEditCanvas ? fileScope() : null,
     prepareImage: !board && !hole && canEditCanvas ? options => prepareImageRevision({...options,headers:wsHeaders(),upload:uploadSource}) : null,

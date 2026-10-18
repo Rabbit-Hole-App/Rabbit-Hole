@@ -1,3 +1,4 @@
+import InlineRepositoryEvidence from './InlineRepositoryEvidence.jsx';
 import { MathText } from './MathText.jsx';
 import { validateEquationResult } from './inline-equation-result.js';
 import { equationTransaction } from './inline-equation-apply.js';
@@ -805,6 +806,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         )}
         {/* The count, only near the supported limit or past it: nothing is cut, Send waits and says what to do. */}
         {outgoing.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${outgoing.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{outgoing.length} / {PROMPT_MAX}{outgoing.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
+        {config.repositoryEvidence&&<details data-inline-repository-evidence className="mt-2 rounded-lg border border-line p-2 text-xs">
+          <summary className="cursor-pointer text-ink-2">Search this repository</summary>
+          <div className="mt-2 max-h-64 overflow-auto" data-scroll><InlineRepositoryEvidence {...config.repositoryEvidence} contextKey={canvas.boardKey}/></div>
+        </details>}
         <div className="mt-2 flex items-center gap-2">
           <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"
             onClick={() => { setModeOpen(false); setContextOpen(open => !open); }}
