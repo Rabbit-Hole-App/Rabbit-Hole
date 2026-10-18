@@ -460,7 +460,9 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
     target: { ids: present, gone, ...(target.range ? { range: true } : {}), objects: targets, ...(group ? { group } : {}) },
     connections, related, relations, complete,
     metadata,
-    ...(image ? { image: { id: image.id, ...(imageEntity?.mediaId ? { mediaId: imageEntity.mediaId } : {}) } } : {}),
+    ...(image ? { image: { id: image.id, ...(imageEntity?.fileRef
+      ? { source: { id: imageEntity.fileRef.source?.id, rev: imageEntity.fileRef.source?.rev } }
+      : imageEntity?.mediaId ? { mediaId: imageEntity.mediaId } : {}) } } : {}),
     selectionOnly: !!selectionOnly,
     omitted, counts,
     // How many objects on the canvas were weighed for this context: what it says it chose from, never "everything".

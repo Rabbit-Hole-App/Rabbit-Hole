@@ -134,6 +134,10 @@ test('generate: a flattened image goes to the explanation model as one picture; 
   // An uploaded image is read by its media id under the app's identity; anything else that looks like one is ignored.
   await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: { ...context, image: { id: 'img1', mediaId: 'media:0123456789ab' } } })), KEY_ENV, { authorize, callModel, images }), () => {});
   assert.deepEqual(asked.image_context, { id: 'media:0123456789ab' });
+  const source = { id: 'current-source', rev: 'a'.repeat(64) };
+  await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: { ...context, image: { id: 'img1', mediaId: 'media:0123456789ab', source } } })), KEY_ENV, { authorize, callModel, images }), () => {});
+  assert.deepEqual(asked.image_context, { block_id: 'img1' }, 'current revision wins over retained original upload');
+  assert.deepEqual(asked.image_source, source, 'frozen source identity and revision reach the authorized reader');
   await readGeneration(await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'note', prompt: 'explain', context: { ...context, image: { id: 'img1', mediaId: '../etc/passwd' } } })), KEY_ENV, { authorize, callModel, images }), () => {});
   assert.deepEqual(asked.image_context, { block_id: 'img1' });
 });

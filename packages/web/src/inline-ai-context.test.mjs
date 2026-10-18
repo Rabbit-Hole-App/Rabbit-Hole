@@ -11,6 +11,16 @@ const build = (board, selection, options = {}) => {
 };
 const ids = (context, relation) => context.related.filter(entry => entry.relation === relation).map(entry => entry.id).sort();
 
+test('accepted image revisions take precedence over retained original upload IDs', () => {
+  const source = { id: 'source', rev: 'a'.repeat(64) };
+  const board = { shapes: [], items: [], links: [], groups: [], blocks: [{ id: 'image', type: 'file', kind: 'image', mediaId: 'media:123456abcdef', fileRef: { source } }] };
+  const { context } = build(board, ['image']);
+  assert.deepEqual(context.image, { id: 'image', source });
+  assert.equal(context.image.mediaId, undefined, 'the original upload cannot win caller precedence');
+  delete board.blocks[0].fileRef;
+  assert.equal(build(board, ['image']).context.image.mediaId, 'media:123456abcdef', 'uploaded-only fallback remains');
+});
+
 test('node 23: its parent, its sibling through that parent, the label on it, the rest of its tree - and it is a leaf, completely known', () => {
   const board = withBoxes(treeBoard());
   const { context } = build(board, ['n23']);

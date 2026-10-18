@@ -56,3 +56,10 @@ test('malformed current revision cannot silently downgrade to retained legacy as
   assert.equal(result.blocks.some(block => block.type === 'image'), false);
   assert.deepEqual(f.reads, []);
 });
+
+test('a frozen request cannot read a newer accepted image revision', async () => {
+  const f = fixture();
+  const result = await boardImageContext(f.env, f.row, f.block, { id: 'source', rev: 'b'.repeat(64) });
+  assert.equal(result.blocks.some(block => block.type === 'image'), false);
+  assert.deepEqual(f.reads, []);
+});

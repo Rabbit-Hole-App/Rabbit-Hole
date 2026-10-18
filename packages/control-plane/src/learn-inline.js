@@ -245,8 +245,8 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   let pictures = [];
   if (!edit && typeof context.image?.id === 'string') {
     // The card's uploaded copy when it has one (read under this app's identity), else the board's own card.
-    const ref = isUploadedMediaId(context.image.mediaId) ? { id: context.image.mediaId } : { block_id: context.image.id };
-    const got = await images(env, allowed, { image_context: ref, board: typeof body.board === 'string' ? body.board : 'main' }).catch(() => null);
+    const ref = !context.image.source && isUploadedMediaId(context.image.mediaId) ? { id: context.image.mediaId } : { block_id: context.image.id };
+    const got = await images(env, allowed, { image_context: ref, ...(context.image.source ? { image_source: context.image.source } : {}), board: typeof body.board === 'string' ? body.board : 'main' }).catch(() => null);
     if (got?.blocks) pictures = got.blocks;
   }
   // Signed selected IDs identify saved cards; caller-supplied measurements/URLs are never trusted.
