@@ -1,5 +1,5 @@
 import { freezeNativeTools } from './inline-native-plan.js';
-import { freezeInlineTools } from './inline-tool-plan.js';
+import { freezeInlineTools, validateInlinePlan } from './inline-tool-plan.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CadPreview, cadCanMutate } from './CadCard.jsx';
 import { cadRunning, cadStage } from './cad-client.js';
@@ -138,6 +138,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // A result checked against the board as it is now (inline-ai-apply.js): the preview it becomes, or why not.
   function validateResult(result, frozen) {
     if (result.kind === 'note') return { ok: true, preview: { text: result.text } };
+    if(result.kind==='annotations'){
+      const checked=validateInlinePlan(result.plan,frozen.toolSnapshot,board(),canvas.layout(),{mode:'explain',requestId:frozen.requestId,readOnly});
+      return checked.ok?{ok:true,preview:{summary:result.summary,changes:checked.changes.map(describeChange),additions:checked.additions,removals:checked.removals,limitations:checked.limitations,raw:result}}:checked;
+    }
     if (result.kind === 'edit') {
       const checked = validateEdit(result, frozen, {...board(),boxes:canvas.layout()});
       return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), additions:checked.additions||[],removals:checked.removals||[],limitations:checked.limitations||[], raw: result } } : checked;
@@ -150,7 +154,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // A1: context prepared while the learner writes - local work only, scheduled off the input path; refreshed at submit.
   // request: the learner's words, at submit - what the context is chosen for, with the selection (owner 2026-10-13).
-  const prepare = (only = selectionOnly, request = '') => {
+  const prepare = (only = selectionOnly, request = '', intent = mode) => {
     const started = performance.now(), misses = canvas.cache.stats.misses;
     const live = { ...board(), boxes: canvas.layout() };
     // A creation reads the region around its anchor; its look (style) travels apart from its subject (creation §4).
@@ -158,7 +162,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       ? buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request, extras: config.extras?.() || {}, style: regionStyle(live, target.anchor) })
       : buildContext(live, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     if(!target.creation&&!target.range){const native=freezeNativeTools(live,target.ids,live.boxes);if(native)context.nativeTools=native;}
-    if(!target.creation&&!target.range){const tools=freezeInlineTools(live,target.ids,live.boxes);if(tools)context.toolSnapshot=tools;}
+    if(!target.creation&&!target.range){const tools=freezeInlineTools(live,target.ids,live.boxes,{mode:intent});if(tools)context.toolSnapshot=tools;}
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses, only };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -204,7 +208,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         // An open text editor's words are saved first, so what the model reads and the fingerprint Accept checks come
         // from the same saved text - never from words captured when the editor opened.
         canvas.flushEdits?.();
-        const made = prepare(selectionOnly, text);
+        const made = prepare(selectionOnly, text, how);
         setPrepared(made);
         // The request the check decides and generation gets: the selection's ids or its exact words, and the context.
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
@@ -390,10 +394,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         if (!spot?.layout) return { error: 'There is no place on the canvas for this diagram.' };
         const taken = new Set(['shapes', 'items', 'links', 'blocks', 'groups'].flatMap(list => (now[list] || []).map(entry => entry.id)));
         tx = toCanvasObjects(preview.spec, spot.layout, { requestId: preview.requestId, at: { x: spot.x, y: spot.y }, style: spot.style, taken });
-      } else if (preview.kind === 'edit') {
-        const again = validateEdit(preview.raw, frozen, {...now,boxes:canvas.layout()});
+      } else if (preview.kind === 'edit'||preview.kind==='annotations') {
+        const again = preview.kind==='annotations'?validateInlinePlan(preview.raw.plan,frozen.toolSnapshot,now,canvas.layout(),{mode:'explain',requestId:preview.requestId,readOnly}):validateEdit(preview.raw, frozen, {...now,boxes:canvas.layout()});
         if (!again.ok) return { stale: { content: true, text: again.errors[0] || 'The edit no longer fits the selection.' } };
-        tx = editTx({ requestId: preview.requestId, changes: again.changes,additions:again.additions,removals:again.removals });
+        tx = {...editTx({ requestId: preview.requestId, changes: again.changes,additions:again.additions,removals:again.removals }),kind:preview.kind};
       } else {
         const block = preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
         // The ghost's spot, from the slot the card will take at the end of the column (where its ghost is drawn now).
@@ -560,7 +564,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             </div>
           );
         })()}
-        {preview?.kind==='edit'&&status==='preview'&&((preview.additions?.length||0)+(preview.removals?.length||0)>0)&&(()=>{
+        {['edit','annotations'].includes(preview?.kind)&&status==='preview'&&((preview.additions?.length||0)+(preview.removals?.length||0)>0)&&(()=>{
           const additions=preview.additions||[],shapes=additions.filter(entry=>entry.list==='shapes');
           const boxOf=id=>{const shape=shapes.find(entry=>entry.id===id)?.after;return shape?{x:Math.min(shape.x1,shape.x2),y:Math.min(shape.y1,shape.y2),w:Math.abs(shape.x2-shape.x1),h:Math.abs(shape.y2-shape.y1)}:canvas.boxOf(id);};
           return <svg data-inline-structural-preview className="absolute overflow-visible opacity-70" style={{left:0,top:0,width:1,height:1,pointerEvents:'none'}}><g transform={`translate(${view.x} ${view.y}) scale(${z})`}>
@@ -579,7 +583,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             const at = place(id);
             return at && <div key={id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={id} className={frame} style={{ ...at, fontSize: 14 * z }}>{text}</div>;
           });
-          if (preview?.kind !== 'edit' || status === 'streaming') return null;
+          if (!['edit','annotations'].includes(preview?.kind) || status === 'streaming') return null;
           return (preview.changes || []).map(change => {
             const at = place(change.id);
             if (!at) return null;
@@ -639,8 +643,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             <p className="mt-1 text-[11px] text-ink-3">Writing… (checked before you can accept)</p>
           </div>
         )}
-        {preview?.kind === 'edit' && !busy(status) && (
-          <div data-inline-preview="edit" data-scroll className="mt-2 max-h-48 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
+        {['edit','annotations'].includes(preview?.kind) && !busy(status) && (
+          <div data-inline-preview={preview.kind} data-scroll className="mt-2 max-h-48 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             {preview.summary && <p className="mb-1 text-ink-2">{preview.summary}</p>}
             {(preview.additions||[]).map(entry=><p key={entry.id} data-inline-addition={entry.id} className="text-[#1a7f37]">Add {entry.list==='links'?'connector':'shape'}: {entry.after.text||entry.after.label||`${entry.after.from} → ${entry.after.to}`}</p>)}
             {(preview.removals||[]).map(entry=><p key={entry.id} data-inline-removal={entry.id} className="text-[#b42318]">Remove {entry.list==='links'?'connector':'shape'}: {entry.before.text||entry.before.label||entry.id}</p>)}

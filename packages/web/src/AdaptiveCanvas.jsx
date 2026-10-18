@@ -3147,7 +3147,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const applyInline = (tx, requestId, onPersisted) => {
     if (!alive.current || readOnlyRef.current) return false;
     editorRef.current?.commit('blur');
-    if (tx.kind === 'edit') {
+    if (tx.kind === 'edit'||tx.kind==='annotations') {
       const live = inlineBoard();
       if (tx.changes.some(change => !live[change.list]?.some(entry => entry.id === change.id) || lockedRef.current.has(change.id))) return false;
       if((tx.removals||[]).some(change=>!live[change.list]?.some(entry=>entry.id===change.id)||lockedRef.current.has(change.id)))return false;

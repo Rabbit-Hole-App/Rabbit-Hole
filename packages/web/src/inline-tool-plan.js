@@ -3,16 +3,17 @@ import { validateInlineToolPlan } from './inline-tool-capabilities.js';
 import { cardEditSpec, validateCardContent } from './inline-card-edit.js';
 import { transformTable } from './inline-table-tools.js';
 import { previewDiagramEdit } from './inline-diagram-edit.js';
+import { previewAnnotations } from './inline-annotation-tools.js';
 
 const LISTS=['shapes','items','links','blocks'];
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const fail=message=>({ok:false,errors:[message],changes:[],additions:[],removals:[],dependencies:[],limitations:[]});
 const kind=(list,item)=>list==='blocks'?item.type==='table'?'table':'card':list==='links'?'connector':list==='shapes'?'shape':'text';
-const adapters=Object.fromEntries(['set_appearance','arrange_selection','transform_table','edit_diagram'].map(key=>[key,{available:true}]));
+const adapters=Object.fromEntries(['set_appearance','arrange_selection','transform_table','edit_diagram','annotate_selection'].map(key=>[key,{available:true}]));
 
 // Explicit selected data only. Incident graph records are read-only dependencies;
 // they never enlarge the set of IDs an edit may change.
-export function freezeInlineTools(board,ids,bounds={}) {
+export function freezeInlineTools(board,ids,bounds={}, {mode='edit'}={}) {
  try {
   if(!Array.isArray(ids)||!ids.length||ids.length>20||new Set(ids).size!==ids.length)return null;
   const objects={},lists={},boxes={},selection=[];
@@ -20,7 +21,7 @@ export function freezeInlineTools(board,ids,bounds={}) {
    const found=LISTS.flatMap(list=>(board[list]||[]).filter(item=>item.id===id).map(item=>({list,item})));
    if(found.length!==1)return null;
    const {list,item}=found[0];
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||list==='blocks'&&(item.type!=='table'||!cardEditSpec(item).ok))return null;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&(item.type!=='table'||!cardEditSpec(item).ok))return null;
    objects[id]=structuredClone(item);lists[id]=list;
    if(bounds[id]){const {x,y,w,h}=bounds[id];boxes[id]={x,y,w,h};}
    selection.push({id,kind:kind(list,item),locked:!!item.locked});
@@ -28,17 +29,18 @@ export function freezeInlineTools(board,ids,bounds={}) {
   const links=(board.links||[]).filter(link=>ids.includes(link.id)||ids.includes(link.from)||ids.includes(link.to));
   const endpoints=new Set(links.flatMap(link=>[link.from,link.to]));
   const readOnlyGraph={links:links.filter(link=>!ids.includes(link.id)),shapes:(board.shapes||[]).filter(item=>endpoints.has(item.id)&&!ids.includes(item.id))};
-  const snapshot={version:1,ids:[...ids],objects,lists,bounds:boxes,selection,readOnlyGraph:structuredClone(readOnlyGraph)};
+  const snapshot={version:1,intent:mode,ids:[...ids],objects,lists,bounds:boxes,selection,readOnlyGraph:structuredClone(readOnlyGraph)};
   return validInlineToolSnapshot(snapshot)?snapshot:null;
  }catch{return null;}
 }
 export function validInlineToolSnapshot(snapshot){
  try{
   if(snapshot?.version!==1||!Array.isArray(snapshot.ids)||!snapshot.ids.length||snapshot.ids.length>20||new Set(snapshot.ids).size!==snapshot.ids.length||!snapshot.objects||!snapshot.lists||!snapshot.bounds||!Array.isArray(snapshot.selection)||snapshot.selection.length!==snapshot.ids.length)return false;
+  if(!['edit','explain'].includes(snapshot.intent||'edit'))return false;
   for(const id of snapshot.ids){
    const item=snapshot.objects[id],list=snapshot.lists[id],entry=snapshot.selection.find(value=>value?.id===id);
    if(typeof id!=='string'||!id||id.length>160||!Object.hasOwn(snapshot.objects,id)||!LISTS.includes(list)||!item||item.id!==id||!entry||entry.kind!==kind(list,item)||entry.locked!==!!item.locked)return false;
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||list==='blocks'&&(item.type!=='table'||!cardEditSpec(item).ok))return false;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&(item.type!=='table'||!cardEditSpec(item).ok))return false;
   }
   const graph=snapshot.readOnlyGraph;
   if(!graph||!Array.isArray(graph.links)||!Array.isArray(graph.shapes)||graph.links.length>80||graph.shapes.length>80)return false;
@@ -59,12 +61,13 @@ export function validateInlinePlan(plan,snapshot,board,currentBounds={},options=
 }
 function validate(plan,snapshot,board,currentBounds,{mode='edit',requestId,readOnly=false}){
  if(!validInlineToolSnapshot(snapshot))return fail('Tools were unavailable for this frozen selection.');
+ if((snapshot.intent||'edit')!==mode)return fail('The frozen request mode changed.');
  const envelope=validateInlineToolPlan(plan,{mode,selection:snapshot.selection,readOnly,adapters});
  if(!envelope.ok)return fail(envelope.reason);
  for(const step of plan.steps)if(step.tool==='arrange_selection'&&step.targetIds.some(id=>!same(snapshot.bounds[id],currentBounds[id])))return fail('The selected layout changed. Request a new preview.');
  for(const id of snapshot.ids){
   const current=board[snapshot.lists[id]]?.find(item=>item.id===id);
-  if(!current||current.locked||!same(current,snapshot.objects[id]))return fail('The selected object changed. Request a new preview.');
+  if(!current||mode==='edit'&&current.locked||!same(current,snapshot.objects[id]))return fail('The selected object changed. Request a new preview.');
  }
  for(const list of ['links','shapes'])for(const item of snapshot.readOnlyGraph[list]){
   if(!same(board[list]?.find(value=>value.id===item.id),item))return fail('A diagram dependency changed. Request a new preview.');
@@ -78,9 +81,14 @@ function validate(plan,snapshot,board,currentBounds,{mode='edit',requestId,readO
  const structural=plan.steps.filter(step=>step.tool==='edit_diagram');
  if(structural.length>1||structural.length&&plan.steps.at(-1).tool!=='edit_diagram')return fail('Use one structural diagram step, last in the preview.');
  if(plan.steps.filter(step=>step.tool==='arrange_selection').length>1)return fail('Use one arrangement per preview.');
+ if(plan.steps.some(step=>step.tool==='annotate_selection')&&plan.steps.length!==1)return fail('Keep annotations in one separate preview.');
  for(const [index,step] of plan.steps.entries()){
   let result;
-  if(step.tool==='transform_table'){
+  if(step.tool==='annotate_selection'){
+   if(typeof requestId!=='string'||!requestId||Object.keys(step.input).some(key=>key!=='annotations'))return fail('Invalid annotation request.');
+   const frozen={...snapshot,ids:step.targetIds};
+   result=previewAnnotations({requestId,mode,annotations:step.input.annotations},{board:working,frozen,currentBounds,readOnly});
+  }else if(step.tool==='transform_table'){
    const tableChanges=[];
    for(const id of step.targetIds){
     const item=working.blocks.find(value=>value.id===id),spec=cardEditSpec(item);

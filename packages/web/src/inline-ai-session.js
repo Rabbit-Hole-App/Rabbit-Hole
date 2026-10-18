@@ -26,7 +26,7 @@ export const routeColumn = entry => (entry.routing === 'jev' || String(entry.rou
 // At most EARLIER_MAX characters, the worker's limit: a longer edit has each operation's text cut to fit, and says so.
 export function earlierResult(preview) {
   if (preview.kind === 'note') return String(preview.text || '').slice(0, EARLIER_MAX);
-  if (preview.kind === 'edit') {
+  if (preview.kind === 'edit'||preview.kind==='annotations') {
     if(preview.raw?.plan){const full=JSON.stringify({summary:preview.summary||'',plan:preview.raw.plan});return full.length<=EARLIER_MAX?full:null;}
     const summary = preview.summary || '', ops = preview.raw?.ops || [];
     const full = JSON.stringify({ summary, ops });

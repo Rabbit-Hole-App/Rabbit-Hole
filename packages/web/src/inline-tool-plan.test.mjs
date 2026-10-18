@@ -67,3 +67,21 @@ test('annotation connectors cannot become structural diagram edges',()=>{
  const request=plan(['edge'],[{tool:'edit_diagram',targetIds:['edge'],input:{changes:[{id:'edge',patch:{label:'new'}}]}}]);
  assert.match(validateInlinePlan(request,frozen,source,{}, {requestId:'r'}).errors[0],/not structural/);
 });
+test('Explain annotations add native callouts without changing even locked source cards',()=>{
+ const source=board();Object.assign(source.blocks[0],{fileRef:{source:{id:'original'}},locked:true});
+ const bounds={table:{x:10,y:20,w:420,h:220}},frozen=freezeInlineTools(source,['table'],bounds,{mode:'explain'});
+ assert.ok(frozen);const request={mode:'explain',targetIds:['table'],steps:[{tool:'annotate_selection',targetIds:['table'],input:{annotations:[{targetId:'table',text:'Read this column first'}]}}]};
+ const result=validateInlinePlan(request,frozen,source,bounds,{mode:'explain',requestId:'annotation-request'});
+ assert.equal(result.ok,true);assert.equal(result.changes.length,0);assert.equal(result.additions.length,2);
+ const accepted=applyTx(source,{...editTx({requestId:'annotation-request',...result}),kind:'annotations'});
+ assert.deepEqual(accepted.blocks,source.blocks);assert.equal(accepted.links.at(-1).kind,'annotation');
+ assert.equal(validateInlinePlan({...request,mode:'edit'},frozen,source,bounds,{mode:'edit',requestId:'r'}).ok,false);
+ assert.equal(validateInlinePlan(request,frozen,source,bounds,{mode:'explain',requestId:'r',readOnly:true}).ok,false);
+});
+test('annotation placement refuses bounds drift and out-of-scope highlights',()=>{
+ const source=board(),bounds={a:{x:0,y:0,w:100,h:100}},frozen=freezeInlineTools(source,['a'],bounds,{mode:'explain'});
+ const request={mode:'explain',targetIds:['a'],steps:[{tool:'annotate_selection',targetIds:['a'],input:{annotations:[{targetId:'a',text:'A',highlight:{x:200,y:200,w:10,h:10}}]}}]};
+ assert.equal(validateInlinePlan(request,frozen,source,bounds,{mode:'explain',requestId:'r'}).ok,false);
+ delete request.steps[0].input.annotations[0].highlight;
+ assert.equal(validateInlinePlan(request,frozen,source,{a:{...bounds.a,w:105}},{mode:'explain',requestId:'r'}).ok,false);
+});
