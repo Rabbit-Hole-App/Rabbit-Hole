@@ -55,6 +55,7 @@ export async function verifyExtractionRead({extraction,before,ids,scope,current,
 
 export function withExtraction(tx,{extraction,provenance,retainedSource}){
  const stamp=value=>({...value,inline:{...value.inline,...structuredClone(provenance),extraction:structuredClone(extraction)}});
+ if(tx.kind==='card'&&tx.block)return{...tx,block:stamp(tx.block),links:(tx.links||[]).map(stamp),retainedSources:retainedSource?[retainedSource]:[]};
  if(tx.kind==='diagram')return{...tx,...Object.fromEntries(['shapes','links','groups'].map(key=>[key,(tx[key]||[]).map(stamp)])),retainedSources:retainedSource?[retainedSource]:[]};
  if(tx.kind==='edit'&&!tx.changes?.length&&!tx.removals?.length&&tx.additions?.length&&tx.additions.every(item=>item.list==='items'&&item.after.kind==='equation'))return{...tx,additions:tx.additions.map(item=>({...item,after:stamp(item.after)})),retainedSources:retainedSource?[retainedSource]:[]};
  throw Error('Image interpretation can only create a separate native result.');

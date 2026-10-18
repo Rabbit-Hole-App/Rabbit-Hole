@@ -162,7 +162,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   function validateResult(result, frozen) {
     let extraction;
     if(Object.hasOwn(result,'extraction')){
-      if(!['equation','diagram'].includes(result.kind)||!frozen.extractionScope||frozen.equationItem)return{ok:false,errors:['Image interpretation is not available for this result or canvas yet.']};
+      if(!['equation','diagram','card','proposal'].includes(result.kind)||!frozen.extractionScope||frozen.equationItem)return{ok:false,errors:['Image interpretation is not available for this result or canvas yet.']};
       const checked=validateExtraction(result.extraction,{block:frozen.extractionImage,ids:frozen.ids});
       if(!checked.ok)return{ok:false,errors:[checked.error]};
       extraction=checked.extraction;
@@ -179,7 +179,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     }
     // A native diagram: checked again here (a schema is a request, not a guarantee); laid out and placed once, below.
     if (result.kind === 'diagram') { const checked = validateDiagram(result.spec); return checked.ok ? { ok: true, preview: { spec: checked.spec, ...(extraction?{extraction}:{}) } } : { ok: false, errors: checked.errors.slice(0, 1) }; }
-    if (result.kind === 'card' || result.kind === 'proposal') return { ok: true, preview: { block: result.block, primitive: result.primitive, message: result.message, describe: canvas.describe(result.block) } };
+    if (result.kind === 'card' || result.kind === 'proposal') return { ok: true, preview: { ...(extraction?{extraction}:{}), block: result.block, primitive: result.primitive, message: result.message, describe: canvas.describe(result.block) } };
     return { ok: false, errors: ['That result is not something the canvas can show.'] };
   }
 
@@ -712,7 +712,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <p className="font-medium">Image interpretation</p>
           <p>Check this result against the original image. Recognition is not verified, even when no uncertainty is reported.</p>
           {preview.extraction.uncertainties.map((item,index)=><p key={index} className="mt-1"><strong>{item.location}:</strong> {item.message}</p>)}
-          <p className="mt-1 text-ink-3">Uses the selected image revision. Accept adds a separate editable result and retains the original.</p>
+          <p className="mt-1 text-ink-3">Uses the selected image revision. Acceptance adds a separate result and retains the original.</p>
         </div>}
         {preview?.kind==='equation'&&<div data-inline-preview="equation" className="mt-2 space-y-2 rounded-lg border border-line p-2">
           {preview.label&&<p className="text-xs font-medium">{preview.label}</p>}

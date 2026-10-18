@@ -41,3 +41,11 @@ test('legacy image reads stop at the byte limit before buffering the complete re
  const body=new ReadableStream({pull(controller){controller.enqueue(new Uint8Array(1024*1024));},cancel(){cancelled=true;}});
  await assert.rejects(verifyExtractionRead({...options(),before:legacy,extraction,current:()=>({...current(),block:legacy}),fetchImpl:async()=>new Response(body)}),/supported read limit/);assert.equal(cancelled,true);
 });
+
+test('generated card and paid proposal transaction retain detached extraction provenance',()=>{
+ for(const confirmedStart of [undefined,true]){
+  const tx={kind:'card',block:{id:'derived',type:'table',columns:['x'],rows:[['1']],...(confirmedStart?{confirmedStart}:{})},links:[{id:'annotation',kind:'annotation'}]};
+  const result=withExtraction(tx,{extraction:receipt,provenance:{sources:['image']},retainedSource:{id:'original'}});
+  assert.deepEqual(result.block.inline.extraction,receipt);assert.deepEqual(result.links[0].inline.extraction,receipt);assert.deepEqual(result.retainedSources,[{id:'original'}]);assert.equal(result.block.confirmedStart,confirmedStart);assert.equal(tx.block.inline,undefined);
+ }
+});
