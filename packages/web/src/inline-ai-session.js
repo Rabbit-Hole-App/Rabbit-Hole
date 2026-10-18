@@ -130,8 +130,10 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     const answer = route === 'image' ? await transport.artifact({ requestId: id, command: route, args: input.args, context: request.context }, { signal }) : await transport.card(decided, { signal });
     if (!live(mine)) return null;
     mark(id, 'firstOutput');
-    if (answer.result === 'artifact') return { kind: 'card', route, block: answer.block, primitive: answer.primitive };
-    if (answer.result === 'paid_proposal') return { kind: 'proposal', route, block: answer.block, message: answer.message, primitive: answer.primitive };
+    // Keep the receipt intact for the preview validator; silently dropping it would present extracted content as unqualified.
+    const receipt = Object.hasOwn(answer, 'extraction') ? { extraction: answer.extraction } : {};
+    if (answer.result === 'artifact') return { kind: 'card', route, block: answer.block, primitive: answer.primitive, ...receipt };
+    if (answer.result === 'paid_proposal') return { kind: 'proposal', route, block: answer.block, message: answer.message, primitive: answer.primitive, ...receipt };
     if (answer.result === 'clarification') return { kind: 'clarify', question: answer.question };
     if (answer.result === 'unsupported') return { kind: 'unsupported', message: answer.message };
     throw Object.assign(new Error(answer.error || 'That could not be made. Try again.'), { code: answer.result || 'error' });

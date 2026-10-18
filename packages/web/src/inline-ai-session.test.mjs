@@ -19,6 +19,22 @@ const make = (transport, extra = {}) => {
   const session = createInlineSession({ transport: scripted(transport), boardKey: 'board-a', enabled: ['note', 'diagram', 'code', 'motion'], validate: okValidate, now, flushMs: 0, onChange: state => changes.push(state), onMetrics: entry => metrics.push(entry), ...extra });
   return { session, changes, metrics };
 };
+for (const result of ['artifact', 'paid_proposal']) test(`${result} preserves extraction receipts through validation and cached reuse`, async () => {
+  const extraction = { source: { blockId: 'image-1', source: { id: 'source-1', rev: 'rev-1' }, coverage: 'whole-image' }, uncertainties: [{ location: 'row 2', message: 'Digit unclear' }] };
+  let calls = 0;
+  const seen = [];
+  const { session } = make({ artifact: async () => { calls++; return { result, primitive: 'code', block: { type: 'code', code: 'x=1' }, extraction }; } }, {
+    validate: value => { seen.push(value); return { ok: true, preview: { block: value.block, extraction: value.extraction } }; },
+  });
+  await session.submit({ mode: 'explain', prompt: '/code extract this', prepare: snapshot() });
+  assert.deepEqual(seen[0].extraction, extraction);
+  assert.deepEqual(session.state.preview.extraction, extraction);
+  session.reject();
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/code extract this', prepare: snapshot() }), 'reused');
+  assert.deepEqual(seen[1].extraction, extraction);
+  assert.equal(calls, 1);
+  if (result === 'paid_proposal') assert.equal(session.state.status, 'proposal', 'reuse does not authorize paid execution');
+});
 test('notebook preparation is awaited, cancellation drops it before any request',async()=>{
  const waiting=deferred();let calls=0;
  const {session}=make({generate:async()=>{calls++;return{result:{kind:'note',text:'unused'}};}});
