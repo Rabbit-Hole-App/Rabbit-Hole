@@ -3,7 +3,7 @@ import PaidConfirm from './PaidConfirm.jsx';
 
 // Inline seam only. Parent creates an owner/canvas-scoped controller and applies
 // accepted transactions through the existing canvas edit/Undo mechanism.
-export default function BackgroundRemovalPreview({ controller, savedEnvelope = null, onApply, onClose }) {
+export default function BackgroundRemovalPreview({ controller, savedEnvelope = null, onApply, onClose, regional = false }) {
   const [quote, setQuote] = useState(null), [phase, setPhase] = useState(savedEnvelope ? 'saved' : 'quote');
   const [error, setError] = useState(''), [revision, setRevision] = useState(null);
   const [busy, setBusy] = useState(false), [applyAttempted, setApplyAttempted] = useState(false);
@@ -46,21 +46,21 @@ export default function BackgroundRemovalPreview({ controller, savedEnvelope = n
     } catch (failure) { if (isCurrent()) setError(failure.message || 'The image revision could not be applied.'); }
     finally { if (isCurrent()) setBusy(false); }
   };
-  return <section data-background-removal aria-label="Remove image background" className="space-y-3 text-xs text-ink-2"
+  return <section data-background-removal aria-label={regional ? 'Edit image region' : 'Remove image background'} className="space-y-3 text-xs text-ink-2"
     onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }}>
-    <p>Remove the background of this saved PNG image. Your original image and its canvas position stay available until you apply the preview.</p>
+    <p>{regional ? 'Edit the selected rectangle of this saved PNG image.' : 'Remove the background of this saved PNG image.'} Your original image and its canvas position stay available until you apply the preview.</p>
     <p>Generation can cost money before Apply. Closing or requesting cancellation does not guarantee a refund. The actual charge is not yet known.</p>
     {quote?.available && <p data-image-reservation>Maximum reserved for this request: ${String(quote.maximumReservedUsd)}. This is a reservation, not a confirmed charge.</p>}
     {!quote && !error && <p role="status">Checking availability...</p>}
-    {quote && !quote.available && <p role="status">Background removal is not configured. No request will be started.</p>}
-    {phase === 'quote' && quote?.available && !busy && <PaidConfirm message="Approve the displayed reservation to start background removal." onGenerate={start} onCancel={close}/>}
+    {quote && !quote.available && <p role="status">{regional ? 'Regional editing' : 'Background removal'} is not configured. No request will be started.</p>}
+    {phase === 'quote' && quote?.available && !busy && <PaidConfirm message={regional ? 'Approve the displayed reservation to upload the mask and start regional editing.' : 'Approve the displayed reservation to start background removal.'} onGenerate={start} onCancel={close}/>}
     {phase === 'saved' && <div>
       <p>A saved image job was found for this owner and canvas. Resume checks its status without starting another request.</p>
       {savedEnvelope?.ticket ? <button type="button" onClick={resume} disabled={busy} className="h-7 rounded-lg border border-line px-2.5">Resume image job</button> : <p role="status">The earlier submission was not confirmed. It will not be automatically resubmitted.</p>}
     </div>}
     {!['quote','saved','applied'].includes(phase) && <p role="status">Image job: {phase}. {phase === 'unknown' || phase === 'uncertain' ? 'The reservation may remain held. No automatic retry will run.' : ''}</p>}
     {busy && !applyAttempted && <button type="button" onClick={cancel} className="h-7 rounded-lg border border-line px-2.5">Request cancellation</button>}
-    {revision && <div data-background-removal-preview><img src={revision.previewURL} alt="Background removal preview" className="max-h-48 w-full object-contain"/>
+    {revision && <div data-background-removal-preview><img src={revision.previewURL} alt={regional ? 'Regional image edit preview' : 'Background removal preview'} className="max-h-48 w-full object-contain"/>
       <p>Review the subject and edges. Generated pixels may differ from the original.</p>
       <button type="button" onClick={apply} disabled={busy || applyAttempted} className="h-7 rounded-lg bg-ink px-2.5 text-white">Apply image revision</button>
     </div>}

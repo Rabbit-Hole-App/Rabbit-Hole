@@ -1,3 +1,4 @@
+import RegionalImageEdit from './RegionalImageEdit.jsx';
 import BackgroundRemovalPreview from './BackgroundRemovalPreview.jsx';
 import InlineRepositoryEvidence from './InlineRepositoryEvidence.jsx';
 import { MathText } from './MathText.jsx';
@@ -120,12 +121,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [equationLatex,setEquationLatex]=useState('');
   const [imageRevision,setImageRevision]=useState(null), [imageError,setImageError]=useState('');
   const [removal,setRemoval]=useState(null),[removalError,setRemovalError]=useState('');
-  const openRemoval=()=>{
+  const openRemoval=(regional=false)=>{
     if(!imageTarget||!config.prepareBackground)return;
     try{
       const original=structuredClone(imageTarget);
       const current=()=>({block:board().blocks.find(block=>block.id===original.id),scope:imageAccess.current.config.imageScope?.(),ownerKey:imageAccess.current.config.backgroundOwnerKey,readOnly:imageAccess.current.readOnly,locked:!imageAccess.current.imageTarget||canvas.locked?.(original.id)});
-      setRemoval(config.prepareBackground({block:original,current}));setRemovalError('');
+      setRemoval(regional?{...config.prepareRegional({block:original,current}),regional:true}:config.prepareBackground({block:original,current}));setRemovalError('');
     }catch(error){setRemovalError(error.message);}
   };
   const applyRemoval=change=>{
@@ -824,8 +825,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {/* The count, only near the supported limit or past it: nothing is cut, Send waits and says what to do. */}
         {outgoing.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${outgoing.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{outgoing.length} / {PROMPT_MAX}{outgoing.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
         {imageTarget&&config.prepareBackground&&<div className="mt-2 rounded-lg border border-line p-2 text-xs">
-          {removal?<BackgroundRemovalPreview key={removal.key} controller={removal.controller} savedEnvelope={removal.savedEnvelope} onApply={applyRemoval} onClose={()=>setRemoval(null)}/>:<>
-            <button type="button" data-inline-remove-background disabled={busy(status)||!imageTarget.fileRef?.source||imageTarget.fileRef?.meta?.type!=='image/png'} onClick={openRemoval} className="rounded border border-line px-2 py-1 disabled:opacity-50">Remove background</button>
+          {removal?.regional?<RegionalImageEdit key={removal.key} session={removal} onApply={applyRemoval} onClose={()=>setRemoval(null)}/>:removal?<BackgroundRemovalPreview key={removal.key} controller={removal.controller} savedEnvelope={removal.savedEnvelope} onApply={applyRemoval} onClose={()=>setRemoval(null)}/>:<>
+            <button type="button" data-inline-remove-background disabled={busy(status)||!imageTarget.fileRef?.source||imageTarget.fileRef?.meta?.type!=='image/png'} onClick={()=>openRemoval(false)} className="rounded border border-line px-2 py-1 disabled:opacity-50">Remove background</button>
+            {config.prepareRegional&&<button type="button" data-inline-edit-region disabled={busy(status)||!imageTarget.fileRef?.source||imageTarget.fileRef?.meta?.type!=='image/png'} onClick={()=>openRemoval(true)} className="ml-2 rounded border border-line px-2 py-1 disabled:opacity-50">Edit image region</button>}
             <p className="mt-1 text-ink-3">Requires a saved PNG image. Availability and maximum reservation are checked before explicit confirmation.</p>
           </>}
           {removalError&&<p role="alert">{removalError}</p>}

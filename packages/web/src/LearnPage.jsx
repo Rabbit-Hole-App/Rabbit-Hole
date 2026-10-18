@@ -1,4 +1,5 @@
-import { createBackgroundRemovalController } from './inline-background-removal.js';
+import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
+import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -900,6 +901,18 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const headers=wsHeaders();
       const controller=createBackgroundRemovalController({block,scope,ownerKey,current,headers,jobClient:createImageJobClient({headers}),prepareRevision:prepareImageRevision,persistTicket:value=>localStorage.setItem(key,JSON.stringify(value))});
       return{controller,savedEnvelope,key,clear:()=>localStorage.removeItem(key)};
+    } : null,
+    prepareRegional: !board && !hole && canEditCanvas ? ({block,current}) => {
+      const scope=structuredClone(fileScope()),ownerKey=`${app.org}:${app.email || app.owner_email}`,headers=wsHeaders();
+      const key=`small.image-region-job:${JSON.stringify([ownerKey,scope.app,scope.board,block.id,block.fileRef?.source])}`;
+      let savedEnvelope=null;try{savedEnvelope=JSON.parse(localStorage.getItem(key)||'null');}catch{}
+      const check=()=>{const now=current();if(now.ownerKey!==ownerKey||now.readOnly||now.locked||JSON.stringify(now.scope)!==JSON.stringify(scope)||JSON.stringify(now.block)!==JSON.stringify(block))throw Error('The image or its permissions changed.');};
+      const read=async signal=>{check();const original=await readRegionalOriginal({block,scope,headers,signal});check();return original;};
+      return {key,savedEnvelope,read,clear:()=>localStorage.removeItem(key),prepare:edit=>({savedEnvelope,controller:createRegionalImageEditController({block,scope,ownerKey,current,edit,headers,jobClient:createImageJobClient({headers}),prepareRevision:prepareImageRevision,persistTicket:value=>localStorage.setItem(key,JSON.stringify(value)),prepareMask:async({edit,signal})=>{
+        const original=await read(signal),blob=await regionalMaskBlob(edit.region,original.width,original.height);check();signal.throwIfAborted();
+        const stored=await uploadSource(new File([blob],'regional-mask.png',{type:'image/png'}),{app:scope.app,board:scope.board,family:'image'});
+        check();signal.throwIfAborted();return{maskSourceId:stored.source.id,maskSha256:stored.source.rev};
+      }})})};
     } : null,
     repositoryEvidence: isRepository && !board && !hole && repository?.canEdit && /^[a-f0-9]{40}$/.test(repositoryContext?.commit || repository?.commit || '') ? {scope:{app:app.name,repo:app.repo,commit:repositoryContext?.commit || repository.commit},headers:wsHeaders(),onOpenSource:ref=>openCanvasFile(ref.path,ref.start,ref.end,ref)} : null,
     verifyExtraction: !board && !hole && canEditCanvas ? options => verifyExtractionRead({...options,headers:wsHeaders()}) : null,
