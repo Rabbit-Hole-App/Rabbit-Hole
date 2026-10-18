@@ -9,7 +9,7 @@ import { hmacHex, sha256, sign, verify } from './token.js';
 import { MODEL_PRICES } from './learn-models.js';
 import { CAPABILITIES, DECISIONS, DECISION_CRITERIA, DEFAULT_ENABLED, MISSING, MISSING_CRITERIA, checkDecision, checkRequest, fixedRoute, knownCapability, settle, summaryOf } from '../../web/src/inline-ai-decide.js';
 import { EXPLICIT_ROUTES } from '../../web/src/inline-ai-route.js';
-import { INLINE_DECIDE_SYSTEM, INLINE_DECIDE_TOOL } from './agents/learn-inline.js';
+import { INLINE_DECIDE_SYSTEM, INLINE_DECIDE_TOOL, inlineProviderContext } from './agents/learn-inline.js';
 import { validInlineToolSnapshot } from '../../web/src/inline-tool-plan.js';
 
 export const DECIDE_PROTOCOL_VERSION = 'inline-decide-d1';
@@ -22,7 +22,7 @@ const ROUTE_IDS = [...Object.keys(CAPABILITIES), 'edit', 'several', 'none'];
 const malformed = () => Object.assign(new Error('The request check returned no usable answer.'), { code: 'malformed' });
 const hasTools = request => request?.mode === 'edit' && validInlineToolSnapshot(request.context?.toolSnapshot);
 const hasAnnotations = request => request?.mode==='explain' && request.context?.toolSnapshot?.intent==='explain' && validInlineToolSnapshot(request.context.toolSnapshot);
-const TOOL_SCOPE = 'Selected-object appearance and measured alignment; complete editable native table sort, exact deduplication and explicitly specified scaling; selected boxed diagram nodes/connectors may be relabelled, added, removed or rewired with dependency checks. Related graph objects remain read-only. No grouping, external source edits, image edits, execution or notebook tools.';
+const TOOL_SCOPE = 'Selected-object appearance and measured alignment; complete editable native table sort, exact deduplication and explicitly specified scaling; selected boxed diagram nodes/connectors may be relabelled, added, removed or rewired with dependency checks. Explicitly selected notebook cells may have source edited only when notebook scope is supplied, without execution. Related graph objects remain read-only. No grouping, external source edits, image edits or execution.';
 
 // What a validator reads: the mode, whether anything is selected, the learner's words, the output a command already
 // fixed, and the compact material (inline-ai-decide.js summaryOf) - never the context package or the canvas.
@@ -31,7 +31,7 @@ function view(request, fixed) {
     mode: request.mode, selected: request.kind === 'selection',
     request: (request.slash ? `/${request.slash} ${request.prompt}` : request.prompt).slice(0, 1000),
     ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : (CAPABILITIES[fixed.capability] || EXPLICIT_ROUTES[fixed.capability]).label } : {}),
-    material: summaryOf(request),
+    material: summaryOf({...request,context:inlineProviderContext(request.context)}),
     ...(hasTools(request) ? {availableSelectionTools:TOOL_SCOPE} : {}),
     ...(hasAnnotations(request) ? {availableAnnotations:'Explicitly requested anchored explanatory callouts or bounded highlights, added separately without changing selected objects. Ordinary Explain remains a note.'} : {}),
   };

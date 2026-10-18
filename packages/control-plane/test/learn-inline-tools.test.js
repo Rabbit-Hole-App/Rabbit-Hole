@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { checkEdit, checkExplanation, inlineGenerateFetch } from '../src/learn-inline.js';
 import { decide, jevDecideRequest, modelDecideRequest } from '../src/learn-inline-route.js';
-import { inlineEditToolFor } from '../src/agents/learn-inline.js';
+import { inlineEditToolFor, inlineProviderContext } from '../src/agents/learn-inline.js';
 import { freezeInlineTools, inlineToolSnapshotBoard, validateInlinePlan } from '../../web/src/inline-tool-plan.js';
 import { KEY_ENV, decided } from './learn-inline-fixture.js';
 import { readGeneration } from '../../web/src/inline-ai-transport.js';
@@ -104,4 +104,19 @@ test('signed Explain generation returns annotations with one generation call, no
   const response=await inlineGenerateFetch(new Request('https://test/api/learn/inline/generate',{method:'POST',body:JSON.stringify(body)}),KEY_ENV,{authorize:async()=>({name:'canvas-test',email:'owner@test'}),callModel:async(_env,request)=>{calls++;assert.equal(request.tools[0].name,'inline_explain');return Response.json({content:[{type:'tool_use',name:'inline_explain',input:{plan}}],stop_reason:'tool_use'});}});
   const result=await readGeneration(response,()=>{});
   assert.equal(calls,1);assert.equal(result.result.kind,'annotations');assert.equal(result.result.plan.mode,'explain');
+});
+test('notebook provider projection excludes hidden cells, outputs and full validation revision', () => {
+  const cell=(id,source)=>({id,source,cell_type:'code',metadata:{},outputs:[{text:'PRIVATE_OUTPUT'}],execution_count:1});
+  const block={id:'nb',type:'notebook',notebook_id:'workspace',active_path:'a.ipynb',ipynb_path:'a.ipynb',ipynb:{nbformat:4,cells:[cell('selected','x = 1'),cell('hidden','PRIVATE_UNSELECTED')]}};
+  const scope={id:'nb',notebookId:'workspace',path:'a.ipynb',revision:JSON.stringify(block.ipynb),cellIds:['selected']};
+  const snapshot=freezeInlineTools({blocks:[block]},['nb'],{}, {mode:'edit',notebook:scope});assert.ok(snapshot);
+  const context={target:{ids:['nb'],objects:[structuredClone(block)]},toolSnapshot:snapshot,related:[structuredClone(block)]};
+  const text=JSON.stringify(inlineProviderContext(context));
+  assert.ok(text.includes('x = 1'));assert.ok(!text.includes('PRIVATE_UNSELECTED'));assert.ok(!text.includes('PRIVATE_OUTPUT'));assert.ok(!text.includes('revision'));assert.ok(!text.includes('ipynb":'));
+  assert.ok(JSON.stringify(context).includes('PRIVATE_UNSELECTED'),'Frozen validation remains intact');
+  const plan={mode:'edit',targetIds:['nb'],steps:[{tool:'edit_notebook_cells',targetIds:['nb'],input:{cellIds:['selected'],edits:[{id:'selected',source:'x = 2'}]}}]};
+  assert.ok(checkEdit(edit(plan),['nb'],context,{requestId}).result);
+  plan.steps[0].input.edits[0].id='hidden';assert.ok(checkEdit(edit(plan),['nb'],context,{requestId}).error);
+  assert.ok(inlineEditToolFor(true,true).input_schema.properties.plan.properties.steps.items.properties.tool.enum.includes('edit_notebook_cells'));
+  assert.ok(!inlineEditToolFor(true).input_schema.properties.plan.properties.steps.items.properties.tool.enum.includes('edit_notebook_cells'));
 });

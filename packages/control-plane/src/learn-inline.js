@@ -22,7 +22,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { inspectSavedCad } from './cad-inspection.js';
 import { isUploadedMediaId } from './learn-media.js';
-import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM, INLINE_EXPLAIN_TOOL, INLINE_ANNOTATION_SYSTEM } from './agents/learn-inline.js';
+import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM, INLINE_EXPLAIN_TOOL, INLINE_ANNOTATION_SYSTEM, inlineProviderContext } from './agents/learn-inline.js';
 import { decide, proceedGate } from './learn-inline-route.js';
 import { commandOf, generationPrompt } from '../../web/src/inline-ai-decide.js';
 import { diagramOf, validateDiagram } from '../../web/src/inline-diagram.js';
@@ -234,7 +234,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const edit = mode === 'edit', shapes = route === 'shapes', started = Date.now(), requestId = body.request_id;
   if (!edit && route !== 'note' && !shapes) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
   const annotations = !edit && route==='note' && !creation && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.intent==='explain';
-  const tool = edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot)) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
+  const tool = edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
   // A flattened image goes to the vision-capable explanation model as one picture of the board's own card - never to JEV.
   let pictures = [];
   if (!edit && typeof context.image?.id === 'string') {
@@ -249,12 +249,12 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     const inspection = await inspectSavedCad(req, env, { access: allowed, board: typeof body.board === 'string' ? body.board : 'main', targetIds, includePreview: !context.image && !pictures.length });
     pictures.push(...inspection.blocks);
   }
-  const text = JSON.stringify({ request: prompt, canvas: context, ...(revise ? { earlier: { request: revise.prompt, result: revise.result } } : {}) });
+  const text = JSON.stringify({ request: prompt, canvas: inlineProviderContext(context), ...(revise ? { earlier: { request: revise.prompt, result: revise.result } } : {}) });
   const request = {
     // The subscription bridge replays a streamed answer as text only, which would drop a tool call (an edit, a diagram):
     // those ask for the whole answer there (the non-streaming branch below reads it).
     max_tokens: tool ? EDIT_MAX_TOKENS : NOTE_MAX_TOKENS, stream: !(tool && env.SUBSCRIPTION_ONLY === 'true'),
-    system: edit ? `${INLINE_EDIT_SYSTEM}\nWith toolSnapshot, annotate_selection may edit an already-selected native annotation callout using one step input {annotations:[{annotationId,text}]}; it cannot create callouts in Edit or modify original source objects.` : shapes ? INLINE_DIAGRAM_SYSTEM : annotations ? INLINE_ANNOTATION_SYSTEM : creation ? INLINE_CREATE_SYSTEM : INLINE_NOTE_SYSTEM,
+    system: edit ? `${INLINE_EDIT_SYSTEM}\nWith toolSnapshot, annotate_selection may edit an already-selected native annotation callout using one step input {annotations:[{annotationId,text}]}; it cannot create callouts in Edit or modify original source objects. When toolSnapshot.notebook exists, edit_notebook_cells uses one step targeting that notebook with input {cellIds:[all explicitly selected cell IDs],edits:[{id:"selected cell ID",source:"complete revised source"}]}. Only supplied selectedCells source is readable/editable. Preserve cell types/IDs/metadata; never edit unselected cells, claim knowledge of hidden cells, include outputs or execute code. The app clears affected stale outputs without execution.` : shapes ? INLINE_DIAGRAM_SYSTEM : annotations ? INLINE_ANNOTATION_SYSTEM : creation ? INLINE_CREATE_SYSTEM : INLINE_NOTE_SYSTEM,
     messages: [{ role: 'user', content: pictures.length ? [...pictures, { type: 'text', text }] : text }],
     ...(tool ? { tools: [tool], tool_choice: { type: 'any', disable_parallel_tool_use: true } } : {}),
   };

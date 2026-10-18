@@ -77,11 +77,12 @@ export const INLINE_EDIT_TOOL = {
 
 // Expose additional operations only for clients that supplied the frozen adapter
 // snapshot. The shared validator remains authoritative for tool-specific fields.
-export function inlineEditToolFor(toolSnapshotAvailable) {
+export function inlineEditToolFor(toolSnapshotAvailable, notebookAvailable=false) {
   if (!toolSnapshotAvailable) return INLINE_EDIT_TOOL;
   const tool = structuredClone(INLINE_EDIT_TOOL);
   const step = tool.input_schema.properties.plan.properties.steps.items.properties;
   step.tool.enum.push('transform_table', 'edit_diagram', 'annotate_selection');
+  if(notebookAvailable)step.tool.enum.push('edit_notebook_cells');
   const id = {type:'string',minLength:1,maxLength:160};
   const label = {type:'string',maxLength:80};
   const link = {type:'object',additionalProperties:false,required:['id','from','to'],properties:{id,from:id,to:id,label}};
@@ -97,8 +98,29 @@ export function inlineEditToolFor(toolSnapshotAvailable) {
     removeIds:{type:'array',maxItems:20,items:id},
     changes:{type:'array',maxItems:20,items:{type:'object',additionalProperties:false,required:['id','patch'],properties:{id,patch:{type:'object',additionalProperties:false,properties:{text:label,label,from:id,to:id}}}}},
     annotations:{type:'array',minItems:1,maxItems:10,items:{type:'object',additionalProperties:false,required:['annotationId','text'],properties:{annotationId:id,text:{type:'string',maxLength:300}}}},
+    cellIds:{type:'array',minItems:1,maxItems:20,items:{type:'string',minLength:1,maxLength:64}},
+    edits:{type:'array',minItems:1,maxItems:20,items:{type:'object',additionalProperties:false,required:['id','source'],properties:{id:{type:'string',minLength:1,maxLength:64},source:{type:'string',maxLength:20000}}}},
   });
   return tool;
+}
+
+// The full signed document is validation state, not permission to send every
+// cell/output to a provider. The same projection is used by routing and generation.
+export function inlineProviderContext(context) {
+  const scope=context?.toolSnapshot?.notebook;
+  if (!scope) return context;
+  const snapshot=context.toolSnapshot, block=snapshot.objects?.[scope.id];
+  const selected=block.ipynb.cells.filter(cell=>scope.cellIds.includes(cell.id)).map(cell=>({id:cell.id,cell_type:cell.cell_type,source:Array.isArray(cell.source)?cell.source.join(''):cell.source}));
+  const safe={id:block.id,type:'notebook',notebook_id:block.notebook_id,active_path:scope.path,selectedCells:selected};
+  const clean=value=>{
+    if(Array.isArray(value))return value.map(clean);
+    if(!value||typeof value!=='object')return value;
+    if(value.id===scope.id||value.type==='notebook')return value.id===scope.id?safe:{id:value.id,type:'notebook',coverage:'metadata-only'};
+    return Object.fromEntries(Object.entries(value).filter(([key])=>!['ipynb','revision','outputs','execution_count'].includes(key)).map(([key,item])=>[key,clean(item)]));
+  };
+  const projected=clean(context);
+  projected.toolSnapshot={...projected.toolSnapshot,objects:{[scope.id]:safe},notebook:{id:scope.id,notebookId:scope.notebookId,path:scope.path,cellIds:[...scope.cellIds]}};
+  return projected;
 }
 
 export const INLINE_EXPLAIN_TOOL = {
