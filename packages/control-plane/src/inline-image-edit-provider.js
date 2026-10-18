@@ -122,7 +122,7 @@ export function imageEditProvider({ apiKey, transport = fetch } = {}) {
           if (typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 2000) throw failure('invalid_input', 'A regional edit prompt of 1–2000 characters is required.');
         } else if (input.mask != null || input.prompt != null) throw failure('invalid_input', 'Background removal does not accept a mask or custom prompt.');
         const body = new FormData();
-        for (const [key, value] of Object.entries({ model: 'gpt-image-1', n: '1', quality: 'low', size: '1024x1024', output_format: 'png', background: regional ? 'auto' : 'transparent' })) body.set(key, value);
+        for (const [key, value] of Object.entries({ model: 'gpt-image-2.5-sunburst-2026-09-08', n: '1', quality: 'low', size: '1024x1024', output_format: 'png', background: regional ? 'auto' : 'transparent' })) body.set(key, value);
         body.set('image', new Blob([input.image], { type: 'image/png' }), 'original.png');
         if (regional) body.set('mask', new Blob([input.mask], { type: 'image/png' }), 'mask.png');
         body.set('prompt', regional ? `Edit the transparent mask region according to this request. Preserve other content as closely as possible.\n${input.prompt.trim()}` : 'Remove the background and return the main subject on a transparent background. Preserve the subject as closely as possible.');
@@ -139,7 +139,7 @@ export function imageEditProvider({ apiKey, transport = fetch } = {}) {
         if (info.width !== 1024 || info.height !== 1024 || (!regional && !info.alphaChannel)) throw failure('invalid_output', 'Image provider output dimensions or alpha channel are invalid.');
         const pixels = await checkedPixels(info, signal, 'invalid_output');
         if (!regional && (!pixels.transparentPixels || pixels.transparentPixels === info.width * info.height)) throw failure('invalid_output', 'Background removal must retain visible content and contain fully cleared pixels.');
-        return { bytes, mimeType: 'image/png', width: info.width, height: info.height, model: 'gpt-image-1', usage: reportedUsage(result.usage), validation: 'png-pixels', limitations: ['Fixed low-quality 1024×1024 output; original dimensions are not preserved.', 'Decoded PNG and alpha checks do not verify correct subject segmentation or unchanged subject pixels.', 'Provider-reported token usage is not settled billing.'] };
+        return { bytes, mimeType: 'image/png', width: info.width, height: info.height, model: 'gpt-image-2.5-sunburst-2026-09-08', usage: reportedUsage(result.usage), validation: 'png-pixels', limitations: ['Fixed low-quality 1024×1024 output; original dimensions are not preserved.', 'Decoded PNG and alpha checks do not verify correct subject segmentation or unchanged subject pixels.', 'Provider-reported token usage is not settled billing.'] };
       } catch (error) {
         const code = signal?.aborted ? (input?.signal?.aborted ? 'cancelled' : 'timeout') : error?.[adapterFailure] ? error.code : 'provider_error';
         const message = error?.[adapterFailure] ? error.message : code === 'cancelled' ? 'Image editing was cancelled.' : code === 'timeout' ? 'Image editing timed out.' : 'Image provider request failed.';
