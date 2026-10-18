@@ -8,6 +8,8 @@ import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
 import './card-layout.css';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
+import { notebookEditor } from './notebook-inline-client.js';
+import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
@@ -1120,7 +1122,8 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
   const [editing, setEditing] = useState(!!item.fresh);
   const size = item.size || EQUATION_SIZE;
   const still = item.latex ? <MathText expression={item.latex} display /> : <span className="text-[0.6em] text-ink-3 italic">Empty equation</span>;
-  const edit = useContext(CanvasEdit), locked = edit.locked.has(item.id);
+  const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(item.id);
+  useEffect(()=>{if(locked)setEditing(false);},[locked]);
   const down = event => {
     if (event.button !== 0) return;
     if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); if (!locked) onDelete(item.id); return; }
@@ -1137,7 +1140,7 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
     <div data-block data-item-id={item.id} data-equation={editing ? 'editing' : ''} style={{ left: item.x, top: item.y, fontSize: size, color: inkAware(item.color || COLORS[0]) }}
       className={`absolute z-10 -mx-1 rounded border px-1 [&_[data-chat-math]]:my-0 [&_[data-chat-math]]:py-0 ${editing ? 'cursor-text border-line bg-white' : `cursor-grab border-transparent active:cursor-grabbing ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-select ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={() => { if (tool === 'select' && !locked) setEditing(true); }}>
-      {editing
+      {editing && !locked
         ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} generation={generation?{...generation,onAccept:async result=>{const out=await generation.onAccept(result);if(out?.ok)setEditing(false);return out;}}:null} onDraft={latex => onDraft(item.id, latex)} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
         : still}
       {/* The size ladder, where a text box shows its H1-to-text one; never while the LaTeX is edited (the palette is there). */}
@@ -2943,6 +2946,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   present.current = { strokes, shapes, items, links, blocks };
   const history = useRef([]);
   const future = useRef([]);
+  const notebookHistory=useRef(null);
+  if(!notebookHistory.current)notebookHistory.current=notebookHistoryController();
   // withExchanges captures the chat blocks too, so deleting a block undoes.
   const capture = (withExchanges = false) => ({ ...present.current, ...(withExchanges ? { exchanges: exchangesRef.current } : {}) });
   const snapshot = (withExchanges = false) => {
@@ -2984,20 +2989,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); setSelected(null);
     if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
-  const undo = () => {
-    const previous = history.current.pop();
-    if (!previous) return;
-    // Carry the exchange list onto the redo entry whenever the step it undoes
-    // held one, or redoing a deleted chat card would not bring it back.
-    future.current.push(capture(!!previous.exchanges));
-    restore(previous);
+  const travelHistory = (from,to) => {
+    if(readOnlyRef.current||notebookHistory.current.pending)return;
+    const next=from.current.at(-1);if(!next)return;
+    const before=capture(!!next.exchanges),fingerprint=JSON.stringify(before),sourceStack=from.current,destinationStack=to.current;
+    const result=notebookHistory.current.run({before,after:next,editor:notebookEditor,
+      current:()=>alive.current&&!readOnlyRef.current&&from.current===sourceStack&&to.current===destinationStack&&from.current.at(-1)===next&&JSON.stringify(capture(!!next.exchanges))===fingerprint,
+      commit:()=>{from.current.pop();to.current.push(before);restore(next);}});
+    result?.catch?.(error=>toast(error.message));
   };
-  const redo = () => {
-    const next = future.current.pop();
-    if (!next) return;
-    history.current.push(capture(!!next.exchanges));
-    restore(next);
-  };
+  const undo = () => travelHistory(history,future);
+  const redo = () => travelHistory(future,history);
   useEffect(() => { setView(v => (autoView.current = { ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
   // the page behind the canvas does not scroll. Empty space in the tools'
@@ -4715,6 +4717,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const equationDraftRef=useRef(null);equationDraftRef.current=equationDraft;
   const equationCandidates=useRef(new Map());
   const finishEquation = (id, latex) => {
+    if(readOnlyRef.current||lockedRef.current.has(id))return false;
     if(equationDraftRef.current?.id===id){const draft=equationDraftRef.current;if(latex&&!readOnlyRef.current){snapshot();setItems(previous=>[...previous,{...draft,latex,fresh:false}]);}setEquationDraft(null);return;}
     const before = present.current.items.find(item => item.id === id);
     if (!before) return;
@@ -4722,12 +4725,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!before.fresh && before.latex !== latex) snapshot();
     setItems(previous => previous.map(item => item.id === id ? { ...item, latex, fresh: false } : item));
   };
-  const equationGeneration=item=>!inlineAiRef.current||readOnly||item.locked?null:{
+  const equationGeneration=item=>!inlineAiRef.current||readOnly||item.locked||lockedRef.current.has(item.id)?null:{
     scopeKey:`${inlineKey.current}:${item.id}`,mode:equationDraft?.id===item.id?'insert':'replace',
     onGenerate:async({prompt,requestId,signal,latex})=>{
       if(readOnlyRef.current)throw new Error('This canvas is read-only.');
       const key=inlineKey.current,config=inlineAiRef.current,live={...inlineBoard(),boxes:inlineCanvas.layout()},original=live.items.find(entry=>entry.id===item.id),draft=equationDraftRef.current?.id===item.id;
-      if(!draft&&(!original||original.locked))throw new Error('The equation is unavailable.');
+      if(!draft&&(!original||original.locked||lockedRef.current.has(item.id)))throw new Error('The equation is unavailable.');
       const options={cache:inlineCache.current,boardKey:key,describeCard:describeObject,request:prompt,extras:config.extras?.()||{}};
       const context=draft?buildCreationContext(live,{x:item.x,y:item.y},options):buildContext(live,freezeTarget(live,[item.id]),options);
       if(!draft)context.target.objects=context.target.objects.map(entry=>entry.id===item.id?{...entry,text:latex}:entry);
@@ -4737,7 +4740,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if(decision.decision==='clarify')return{result:{kind:'clarify',question:decision.message}};
       if(decision.decision!=='proceed')throw new Error(decision.message||decision.error||'The equation request could not proceed.');
       const answer=await config.transport.generate({requestId,request,token:decision.token},{signal,onEvent:()=>{}});
-      if(signal.aborted||inlineKey.current!==key)throw new DOMException('Cancelled','AbortError');
+      if(signal.aborted||inlineKey.current!==key||readOnlyRef.current||lockedRef.current.has(item.id))throw new DOMException('Cancelled','AbortError');
       if(answer.result?.kind==='equation')equationCandidates.current.set(item.id,{key,requestId,frozen:original?structuredClone(original):null,point:{x:item.x,y:item.y}});
       return answer;
     },

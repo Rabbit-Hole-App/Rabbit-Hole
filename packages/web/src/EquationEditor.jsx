@@ -28,6 +28,7 @@ export default function EquationEditor({ latex, zoom, onDone, onDraft, generatio
   const root = useRef(null), field = useRef(null), finished = useRef(false);
   const [tab, setTab] = useState(EQUATION_PALETTE[0].id);
   const [source, setSource] = useState(latex);
+  useEffect(()=>{if(!generation&&tab==='generate')setTab(EQUATION_PALETTE[0].id);},[generation,tab]);
   const draftCallback = useRef(onDraft);
   draftCallback.current = onDraft;
   const updateSource = next => { setSource(next); draftCallback.current?.(next); };
@@ -60,7 +61,7 @@ export default function EquationEditor({ latex, zoom, onDone, onDraft, generatio
     field.current.insert(template, { format: 'latex', selectionMode: 'placeholder', focus: true });
     updateSource(sourceOf(field.current));
   };
-  const group = EQUATION_PALETTE.find(entry => entry.id === tab);
+  const group = EQUATION_PALETTE.find(entry => entry.id === tab) || EQUATION_PALETTE[0];
   const tabClass = on => `rounded px-1.5 py-0.5 text-[11px] ${on ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`;
   return (
     <div ref={root} data-equation-editor data-keep-focus className="relative"
@@ -77,7 +78,7 @@ export default function EquationEditor({ latex, zoom, onDone, onDraft, generatio
           <button type="button" role="tab" aria-selected={tab === LATEX_TAB} title="Type or paste LaTeX" onClick={() => setTab(LATEX_TAB)} className={tabClass(tab === LATEX_TAB)}>LaTeX</button>
           {generation&&<button type="button" role="tab" data-equation-generate-tab aria-selected={tab==='generate'} onClick={()=>setTab('generate')} className={tabClass(tab==='generate')}>Generate</button>}
         </div>
-        {tab==='generate'?<EquationGenerator scopeKey={generation.scopeKey} mode={generation.mode} onGenerate={input=>generation.onGenerate({...input,latex:source})} onAccept={async result=>{const out=await generation.onAccept(result);if(out?.ok)finished.current=true;return out;}} onCancel={()=>{setTab(EQUATION_PALETTE[0].id);field.current?.focus();}}/>:tab === LATEX_TAB
+        {tab==='generate'&&generation?<EquationGenerator scopeKey={generation.scopeKey} mode={generation.mode} onGenerate={input=>generation.onGenerate({...input,latex:source})} onAccept={async result=>{const out=await generation.onAccept(result);if(out?.ok)finished.current=true;return out;}} onCancel={()=>{setTab(EQUATION_PALETTE[0].id);field.current?.focus();}}/>:tab === LATEX_TAB
           ? <input data-equation-source aria-label="LaTeX source" autoFocus spellCheck={false} value={source} placeholder="\frac{a}{b}"
               onChange={event => { updateSource(event.target.value); field.current.setValue(event.target.value, { silenceNotifications: true }); }}
               className="mt-1 h-7 w-[340px] rounded border border-line bg-white px-2 font-mono text-xs text-ink outline-none focus:border-ink-3" />

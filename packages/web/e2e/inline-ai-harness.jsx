@@ -17,7 +17,7 @@ import { ERRORS, HANDLERS, MOTION } from './inline-ai-handler-fixtures.js';
 import '../src/index.css';
 
 const params = new URLSearchParams(location.search);
-const readOnly = params.get('readonly') === '1';
+const initialReadOnly = params.get('readonly') === '1';
 const motionOn = params.get('motion') !== '0';
 const delay = (ms, signal) => new Promise((resolve, reject) => {
   const timer = setTimeout(resolve, ms);
@@ -152,6 +152,9 @@ const config = {
 let openSearch = () => {};
 
 function Harness() {
+  const [readOnly,setReadOnly]=useState(initialReadOnly);
+  window.__setCanvasReadOnly=setReadOnly;
+  window.__inlineTransport=transport;
   const [board, setBoard] = useState(params.get('board') || 'inline-ai');
   const [exchanges, setExchanges] = useState([]);
   const [searchSeed, setSearchSeed] = useState(null);
