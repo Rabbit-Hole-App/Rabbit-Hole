@@ -4,6 +4,32 @@ import {cadBudgetAlert,notifyCadBudget} from '../src/cad-budget-alert.js';
 const token='fixture-token-'.repeat(4), month=new Date().toISOString().slice(0,7);
 const env={CAD_BUDGET_ALERT_TOKEN:token,CAD_BUDGET_ALERT_EMAIL:'owner@example.test'};
 const request=(body={month,kind:'model'},auth=token)=>new Request('https://cp/internal/cad-budget-alert',{method:'POST',headers:{authorization:`Bearer ${auth}`},body:typeof body==='string'?body:JSON.stringify(body)});
+
+test('explicit delivery test uses fixed content and a separate repeatable provider idempotency key',async()=>{
+  const sent=[]; const deps={sendEmail:async(...args)=>{sent.push(args);return true;}};
+  for(let i=0;i<2;i++)assert.equal((await cadBudgetAlert(request({month,kind:'delivery-test'}),env,deps)).status,200);
+  assert.equal(sent[0][1],env.CAD_BUDGET_ALERT_EMAIL);
+  assert.equal(sent[0][2],'CAD budget alert delivery test');
+  assert.match(sent[0][3],/does not indicate budget exhaustion/);
+  assert.match(sent[0][3],/does not change CAD budgets or pause work/);
+  assert.deepEqual(sent[0][4],{idempotencyKey:`cad-budget-delivery-test-${month}`});
+  assert.deepEqual(sent[1],sent[0]);
+  assert.equal((await cadBudgetAlert(request(),env,deps)).status,200);
+  assert.notEqual(sent[2][4].idempotencyKey,sent[0][4].idempotencyKey);
+});
+
+test('delivery test cannot bypass authentication, customize email or be emitted by budget actors',async()=>{
+  let calls=0;const deps={sendEmail:async()=>{calls++;return true;}};
+  const body={month,kind:'delivery-test'};
+  assert.equal((await cadBudgetAlert(request(body,'wrong'),env,deps)).status,401);
+  for(const extra of [{to:'other@example.test'},{message:'private'},{prompt:'private'},{month:'2000-01'}])
+    assert.equal((await cadBudgetAlert(request({...body,...extra}),env,deps)).status,400);
+  assert.equal((await cadBudgetAlert(new Request('https://cp/internal/cad-budget-alert'),env,deps)).status,405);
+  assert.equal(await notifyCadBudget({...env,CONTROL_PLANE:{fetch:async()=>{calls++;}}},body),false);
+  assert.equal(calls,0);
+  const failure=await cadBudgetAlert(request(body),env,{sendEmail:async()=>{throw Error('secret');}});
+  assert.equal(failure.status,502);assert.deepEqual(await failure.json(),{ok:false});
+});
 test('fixed owner, sanitized message and monthly idempotency key for each budget',async()=>{
   for(const kind of ['model','transfer','infrastructure']){
     let captured;

@@ -1,7 +1,8 @@
 const PATH = '/internal/cad-budget-alert';
-const valid = value => value && typeof value === 'object' && !Array.isArray(value) &&
+const valid = (value, allowDeliveryTest = false) => value && typeof value === 'object' && !Array.isArray(value) &&
   Object.keys(value).every(key => key === 'month' || key === 'kind') &&
-  value.month === new Date().toISOString().slice(0, 7) && ['model', 'transfer', 'infrastructure'].includes(value.kind);
+  value.month === new Date().toISOString().slice(0, 7) &&
+  (['model', 'transfer', 'infrastructure'].includes(value.kind) || (allowDeliveryTest && value.kind === 'delivery-test'));
 const configuredToken = env => typeof env.CAD_BUDGET_ALERT_TOKEN === 'string' && env.CAD_BUDGET_ALERT_TOKEN.length >= 32;
 const result = (status, ok = false) => Response.json({ok}, {status});
 
@@ -25,11 +26,14 @@ export async function cadBudgetAlert(req, env, {sendEmail}) {
     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
     body=JSON.parse(new TextDecoder().decode(bytes));
   } catch { return result(400); }
-  if(!valid(body))return result(400);
+  if(!valid(body,true))return result(400);
+  const deliveryTest=body.kind==='delivery-test';
   try {
-    const sent=await sendEmail(env,recipient,'Rabbit Hole CAD monthly budget reached',
-      `CAD ${body.kind} budget reached for ${body.month} (UTC). Further CAD work is paused until its budget permits it.`,
-      {idempotencyKey:`cad-budget-${body.month}-${body.kind}`});
+    const sent=await sendEmail(env,recipient,
+      deliveryTest?'CAD budget alert delivery test':'Rabbit Hole CAD monthly budget reached',
+      deliveryTest?`This is a CAD budget alert delivery test for ${body.month} (UTC). It does not indicate budget exhaustion and does not change CAD budgets or pause work.`:
+        `CAD ${body.kind} budget reached for ${body.month} (UTC). Further CAD work is paused until its budget permits it.`,
+      {idempotencyKey:deliveryTest?`cad-budget-delivery-test-${body.month}`:`cad-budget-${body.month}-${body.kind}`});
     return result(sent?200:502,Boolean(sent));
   } catch { return result(502); }
 }
