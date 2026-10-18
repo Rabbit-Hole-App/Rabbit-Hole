@@ -22,7 +22,7 @@ test('immutable create binding, positive reservation, and source hash are enforc
 test('duplicate invocation admits, generates, publishes and settles only once',async()=>{
  const h=harness();await create(h.job);const [a,b]=await Promise.all([run(h.job),run(h.job)]);assert.equal(a.phase,'ready');assert.deepEqual(a,b);await run(h.job);
  for(const key of ['admit','edit','publish','settle'])assert.equal(h.calls[key].length,1);
- assert.equal(h.calls.admit[0].category,'image_edit');assert.equal(h.calls.admit[0].opId,'image_edit:job1');assert.equal(h.calls.settle[0][1].costUsd,null);assert.equal(a.reservation,'settled_at_reserved_bound');
+ assert.equal(h.calls.admit[0].category,'image_edit');assert.equal(h.calls.admit[0].opId,'image_edit:job1');assert.equal(h.calls.settle[0][1].costUsd,null);assert.equal(h.calls.settle[0][1].model,'gpt-image-2.5-sunburst-2026-09-08');assert.equal(a.reservation,'settled_at_reserved_bound');
  assert.equal(JSON.stringify([...h.records.values()]).includes('"bytes"'),false);
 });
 test('cancel before start generates no admission or provider request',async()=>{

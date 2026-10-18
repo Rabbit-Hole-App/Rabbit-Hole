@@ -85,7 +85,7 @@ export function createImageEditJobCoordinator({ storage, admitSpend, settleSpend
       if (ready.phase !== 'ready') return ready;
       try {
         // Missing verified price never becomes zero. Existing ledger retains its reserved bound.
-        await settleSpend(ready.operationId, { status: 'settled', calls: 1, costUsd: null, provider: 'openai', model: 'gpt-image-1' });
+        await settleSpend(ready.operationId, { status: 'settled', calls: 1, costUsd: null, provider: 'openai', model: 'gpt-image-2.5-sunburst-2026-09-08' });
         return change(id, job => ({ ...job, reservation: 'settled_at_reserved_bound', updatedAt: now() }));
       } catch { return ready; } // Reconciliation may settle accounting later; never re-run generation.
     } catch {
