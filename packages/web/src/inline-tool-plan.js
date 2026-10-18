@@ -1,3 +1,4 @@
+import { editableImage, imageOperation } from './inline-image-plan.js';
 import { arrangementCardEligible, previewInlineArrangement } from './inline-card-arrangement.js';
 import { freezeNativeTools, validateNativePlan } from './inline-native-plan.js';
 import { validateInlineToolPlan } from './inline-tool-capabilities.js';
@@ -11,8 +12,8 @@ import { activePath, ipynbPath } from './learn-notebook.js';
 const LISTS=['shapes','items','links','blocks'];
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const fail=message=>({ok:false,errors:[message],changes:[],additions:[],removals:[],dependencies:[],limitations:[]});
-const kind=(list,item)=>list==='blocks'?['table','notebook'].includes(item.type)?item.type:'card':list==='links'?'connector':list==='shapes'?'shape':'text';
-const adapters=Object.fromEntries(['set_appearance','arrange_selection','transform_table','edit_diagram','annotate_selection','edit_notebook_cells'].map(key=>[key,{available:true}]));
+const kind=(list,item)=>list==='blocks'?editableImage(item)?'image':['table','notebook'].includes(item.type)?item.type:'card':list==='links'?'connector':list==='shapes'?'shape':'text';
+const adapters=Object.fromEntries(['set_appearance','arrange_selection','transform_table','edit_diagram','annotate_selection','edit_notebook_cells','transform_image'].map(key=>[key,{available:true}]));
 function validNotebookScope(scope,item){return !!scope&&item?.type==='notebook'&&!item.locked&&!item.fileRef&&!item.source&&!item.sources?.length&&!item.citations?.length&&scope.id===item.id&&scope.notebookId===item.notebook_id&&scope.path===activePath(item)&&scope.path===ipynbPath(item)&&scope.revision===JSON.stringify(item.ipynb)&&Array.isArray(scope.cellIds)&&scope.cellIds.length>0&&scope.cellIds.length<=20&&new Set(scope.cellIds).size===scope.cellIds.length&&scope.cellIds.every(id=>typeof id==='string'&&item.ipynb?.cells?.some(cell=>cell.id===id));}
 
 // Explicit selected data only. Incident graph records are read-only dependencies;
@@ -25,7 +26,7 @@ export function freezeInlineTools(board,ids,bounds={}, {mode='edit',notebook=nul
    const found=LISTS.flatMap(list=>(board[list]||[]).filter(item=>item.id===id).map(item=>({list,item})));
    if(found.length!==1)return null;
    const {list,item}=found[0];
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||ids.length===1&&validNotebookScope(notebook,item)))return null;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||ids.length===1&&(editableImage(item)||validNotebookScope(notebook,item))))return null;
    objects[id]=structuredClone(item);lists[id]=list;
    if(bounds[id]){const {x,y,w,h}=bounds[id];boxes[id]={x,y,w,h};}
    selection.push({id,kind:kind(list,item),locked:!!item.locked});
@@ -44,7 +45,7 @@ export function validInlineToolSnapshot(snapshot){
   for(const id of snapshot.ids){
    const item=snapshot.objects[id],list=snapshot.lists[id],entry=snapshot.selection.find(value=>value?.id===id);
    if(typeof id!=='string'||!id||id.length>160||!Object.hasOwn(snapshot.objects,id)||!LISTS.includes(list)||!item||item.id!==id||!entry||entry.kind!==kind(list,item)||entry.locked!==!!item.locked)return false;
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||snapshot.ids.length===1&&validNotebookScope(snapshot.notebook,item)))return false;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||snapshot.ids.length===1&&(editableImage(item)||validNotebookScope(snapshot.notebook,item))))return false;
   }
   const graph=snapshot.readOnlyGraph;
   if(!graph||!Array.isArray(graph.links)||!Array.isArray(graph.shapes)||graph.links.length>80||graph.shapes.length>80)return false;
@@ -80,6 +81,11 @@ function validate(plan,snapshot,board,currentBounds,{mode='edit',requestId,readO
  const liveLinks=(board.links||[]).filter(link=>snapshot.ids.includes(link.id)||snapshot.ids.includes(link.from)||snapshot.ids.includes(link.to));
  const frozenLinks=[...snapshot.readOnlyGraph.links,...snapshot.ids.filter(id=>snapshot.lists[id]==='links').map(id=>snapshot.objects[id])];
  if(!same(liveLinks.map(item=>item.id).sort(),frozenLinks.map(item=>item.id).sort()))return fail('Diagram connections changed. Request a new preview.');
+ if(plan.steps.some(step=>step.tool==='transform_image')){
+  const step=plan.steps[0];
+  if(plan.steps.length!==1||snapshot.ids.length!==1||step.targetIds.length!==1||!editableImage(snapshot.objects[step.targetIds[0]]))return fail('Transform one editable image in a separate preview.');
+  return {ok:true,changes:[],additions:[],removals:[],dependencies:[],limitations:['The original image is retained; no background removal or generative image editing is performed.'],imageTransform:{id:step.targetIds[0],operation:imageOperation(step.input)}};
+ }
  let working=structuredClone(board);
  const changes=new Map(),additions=[],removals=[],dependencies=[],limitations=[];
  const structural=plan.steps.filter(step=>step.tool==='edit_diagram');

@@ -3188,6 +3188,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     // A placed card (A7) goes at the end of the column, offset to the spot its ghost showed; no other card moves.
     if (tx.kind === 'card' && !tx.after && !tx.end) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
+    if(tx.retainedSources?.length && !inlineAiRef.current?.retainImageSources?.(tx.retainedSources))return false;
     setCardGhost(null);
     snapshot();
     // A native diagram brings its groups too (inline-diagram.js): one transaction, one snapshot, one Undo.

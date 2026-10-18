@@ -1,6 +1,7 @@
 import { MathText } from './MathText.jsx';
 import { validateEquationResult } from './inline-equation-result.js';
 import { equationTransaction } from './inline-equation-apply.js';
+import { editableImage } from './inline-image-plan.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { freezeNativeTools } from './inline-native-plan.js';
 import { freezeInlineTools, validateInlinePlan } from './inline-tool-plan.js';
@@ -93,8 +94,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   },[cadJob?.id,cadJob?.state]);
   const cadAccept=async(action)=>{setCadPending(true);setCadError('');try{await config.cadAction(cadJob.id,action,action==='accept'?{expectedRevisionId:cadJob.baseRevisionId}:{});if(cadLive.current)onClose();}catch(problem){if(cadLive.current)setCadError(problem.message);}finally{if(cadLive.current)setCadPending(false);}};
   const notebookTarget=target.notebook&&target.ids?.length===1&&target.notebook.id===target.ids[0];
-  const cardEditReason = !notebookTarget && !cadTarget && !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
-  const fileLocked = !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
+  const imageTarget = !!config.prepareImage && !readOnly && !target.creation && target.ids?.length===1 && canvas.board?.().blocks?.find(block=>block.id===target.ids[0]&&editableImage(block));
+  const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
+  const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
@@ -113,6 +115,19 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const prepared = built?.only === selectionOnly ? built : null;
   const [state, setState] = useState({ status: 'idle' });
   const [equationLatex,setEquationLatex]=useState('');
+  const [imageRevision,setImageRevision]=useState(null), [imageError,setImageError]=useState('');
+  const imageAccess=useRef(null);imageAccess.current={readOnly,imageTarget,config};
+  useEffect(()=>{
+    const preview=state.preview,descriptor=preview?.imageTransform;
+    setImageRevision(null);setImageError('');
+    if(!descriptor)return;
+    let live=true,revision;const controller=new AbortController();
+    if(!config.prepareImage){setImageError('Image editing is unavailable in this canvas.');return;}
+    const original=preview.frozen.toolSnapshot.objects[descriptor.id];
+    const current=()=>({block:board().blocks.find(block=>block.id===descriptor.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly,locked:!imageAccess.current.imageTarget});
+    config.prepareImage({block:original,scope:config.imageScope?.(),operation:descriptor.operation,signal:controller.signal,current}).then(value=>{revision=value;if(live)setImageRevision({requestId:preview.requestId,value});else value.dispose();},error=>{if(live)setImageError(error.message||'The image could not be prepared.');});
+    return()=>{live=false;controller.abort();revision?.dispose();};
+  },[state.preview?.requestId]);
   useEffect(()=>{if(state.preview?.kind==='equation')setEquationLatex(state.preview.latex);},[state.preview?.requestId,state.preview?.latex]);
   // A7: each candidate's placement, by request id - computed once, before its ghost shows, and the one Accept applies.
   const [placements, setPlacements] = useState({});
@@ -152,7 +167,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     }
     if (result.kind === 'edit') {
       const checked = validateEdit(result, frozen, {...board(),boxes:canvas.layout()});
-      return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), additions:checked.additions||[],removals:checked.removals||[],limitations:checked.limitations||[], raw: result } } : checked;
+      return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), additions:checked.additions||[],removals:checked.removals||[],limitations:checked.limitations||[],imageTransform:checked.imageTransform, raw: result } } : checked;
     }
     // A native diagram: checked again here (a schema is a request, not a guarantee); laid out and placed once, below.
     if (result.kind === 'diagram') { const checked = validateDiagram(result.spec); return checked.ok ? { ok: true, preview: { spec: checked.spec } } : { ok: false, errors: checked.errors.slice(0, 1) }; }
@@ -223,7 +238,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, ...(how==='edit'&&target.ids?.length===1&&board().items?.find(item=>item.id===target.ids[0]&&item.kind==='equation')?{equationItem:structuredClone(board().items.find(item=>item.id===target.ids[0]))}:{}), nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):imageTarget?(!made.context.toolSnapshot?'Image tools are unavailable for this selection.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, ...(how==='edit'&&target.ids?.length===1&&board().items?.find(item=>item.id===target.ids[0]&&item.kind==='equation')?{equationItem:structuredClone(board().items.find(item=>item.id===target.ids[0]))}:{}), nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       };
         if(notebookTarget)return notebookEditor(target.ids[0]).capture().then(scope=>{if(JSON.stringify(scope.cellIds)!==JSON.stringify(target.notebook.cellIds))throw new Error('The selected cells changed. Close this preview and select the cells again.');canvas.syncNotebook(scope);return build(scope);});
         return build(null);
@@ -418,6 +433,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const again = preview.kind==='annotations'?validateInlinePlan(preview.raw.plan,frozen.toolSnapshot,now,canvas.layout(),{mode:'explain',requestId:preview.requestId,readOnly}):validateEdit(preview.raw, frozen, {...now,boxes:canvas.layout()});
         if (!again.ok) return { stale: { content: true, text: again.errors[0] || 'The edit no longer fits the selection.' } };
         tx = {...editTx({ requestId: preview.requestId, changes: again.changes,additions:again.additions,removals:again.removals }),kind:preview.kind};
+        if(again.imageTransform){
+          if(imageRevision?.requestId!==preview.requestId)return{error:imageError||'Wait for the image preview.'};
+          const revision=await imageRevision.value.accept();
+          if(!cadLive.current||!validateEdit(preview.raw,frozen,{...board(),boxes:canvas.layout()}).ok)return{stale:{content:true,text:'The image changed while accepting.'}};
+          tx={...editTx({requestId:preview.requestId,changes:[{id:again.imageTransform.id,list:'blocks',field:'imageRevision',before:revision.before,after:revision.after}]}),retainedSources:revision.retainedSource?[revision.retainedSource]:[]};
+        }
         if(notebook){const step=preview.raw.plan.steps[0];appliedNotebook=await notebookEditor(notebook.id).apply({path:notebook.path,expectedRevision:notebook.revision,cellIds:notebook.cellIds,edits:step.input.edits});}
       } else {
         const block = preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
@@ -511,7 +532,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const considered = prepared?.context.considered ?? 0;
   const writing = status === 'streaming' || (busy(status) && !preview);
   const equationChecked=preview?.kind==='equation'?validateEquationResult({latex:equationLatex}):null;
-  const acceptable = (status === 'preview' || status === 'proposal') && preview && !state.accepted && (!equationChecked||equationChecked.ok);
+  const acceptable = (status === 'preview' || status === 'proposal') && preview && !state.accepted && (!equationChecked||equationChecked.ok) && (!preview.imageTransform || imageRevision?.requestId===preview.requestId);
   const z = view.z;
   return (
     <>
@@ -695,6 +716,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             {target.range && <p className="text-[11px] text-ink-3">Only the selected words change; the rest stays as it is.</p>}
           </div>
         )}
+        {preview?.imageTransform && !busy(status) && <div data-inline-image-preview className="mt-2 rounded-lg bg-hover/60 p-2 text-xs">
+          {imageRevision?.requestId===preview.requestId?<img src={imageRevision.value.previewURL} alt="Proposed image revision" className="max-h-48 w-full object-contain"/>:<p role="status">{imageError||'Preparing image preview...'}</p>}
+          <p className="mt-1 text-ink-2">Accept replaces this image with a saved revision. The original remains retained. Cancel may leave an unused stored upload; it never deletes the original.</p>
+        </div>}
         {preview?.kind === 'diagram' && !busy(status) && (
           <div data-inline-preview="diagram" data-scroll className="mt-2 max-h-40 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             <p className="font-medium text-ink">Diagram: {preview.spec.shapes.length} shapes, {preview.spec.connectors.length} connectors{preview.spec.groups.length ? `, ${preview.spec.groups.length} groups` : ''}</p>

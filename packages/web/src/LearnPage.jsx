@@ -9,7 +9,8 @@ import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
-import { setFileScope } from './file-source-client.js';
+import { setFileScope, fileScope, uploadSource } from './file-source-client.js';
+import { prepareImageRevision } from './inline-image-revision.js';
 import { fileChatRef } from './file-chat-ref.js';
 import { fileContextManifest } from './file-context-manifest.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
@@ -888,6 +889,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return result;
   };
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
+    imageScope: () => !board && !hole && canEditCanvas ? fileScope() : null,
+    prepareImage: !board && !hole && canEditCanvas ? options => prepareImageRevision({...options,headers:wsHeaders(),upload:uploadSource}) : null,
+    retainImageSources: list => {
+      if(board || hole || !canEditCanvas)return false;
+      let next=sourcesRef.current;
+      for(const source of list)next=withSource(next,source);
+      sourcesRef.current=next;setSources(next);return true;
+    },
     cad: startCad,
     cadRead: id => cadClient(api,app.name,boardName).get(id),
     cadAction: async (id,action,body) => {
