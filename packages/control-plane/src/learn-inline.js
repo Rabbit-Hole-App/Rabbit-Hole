@@ -2,6 +2,7 @@ import { validateNativePlan, nativeSnapshotBoard, validNativeSnapshot } from '..
 import { validInlineToolSnapshot, inlineToolSnapshotBoard, validateInlinePlan } from '../../web/src/inline-tool-plan.js';
 import { validateCardContent } from '../../web/src/inline-card-edit.js';
 import { INLINE_EQUATION_SYSTEM, INLINE_EQUATION_TOOL, checkEquation } from './inline-equation.js';
+import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 // The inline AI editor's worker routes (docs/features/inline-ai-editor.md §6-§12, A2, A3, A5).
 //
 //   POST /api/learn/inline/route     one JEV Choice question: which existing capability makes an Explain output. The
@@ -240,9 +241,9 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const equation = route === 'equation' || equationEdit;
   const annotations = !edit && route==='note' && !creation && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.intent==='explain';
   const imageTransform = edit && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.selection.length === 1 && context.toolSnapshot.selection[0].kind === 'image';
-  const tool = equation ? INLINE_EQUATION_TOOL : edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook, imageTransform) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
+  let tool = equation ? INLINE_EQUATION_TOOL : edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook, imageTransform) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
   // A flattened image goes to the vision-capable explanation model as one picture of the board's own card - never to JEV.
-  let pictures = [];
+  let pictures = [], imageSource = null;
   if (!edit && typeof context.image?.id === 'string') {
     // The card's uploaded copy when it has one (read under this app's identity), else the board's own card.
     const ref = !context.image.source && isUploadedMediaId(context.image.mediaId) ? { id: context.image.mediaId } : { block_id: context.image.id };
@@ -251,7 +252,10 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
       return json({ error: 'The selected image is unavailable or has changed. Refresh the selection before trying again.', code: 'source_unavailable' }, 409);
     }
     pictures = got.blocks;
+    imageSource = got.imageSource || null;
   }
+  const imageExtraction = !edit && !!imageSource && (equation || shapes);
+  if (imageExtraction) tool = imageExtractionTool(tool);
   if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures });
   // Signed selected IDs identify saved cards; caller-supplied measurements/URLs are never trusted.
   // This deterministic inspection adds no model or executor request.
@@ -270,6 +274,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   };
   let upstream;
   if (imageTransform) request.system += `\n${INLINE_IMAGE_TRANSFORM_SYSTEM}`;
+  if (imageExtraction) request.system += `\n${IMAGE_EXTRACTION_SYSTEM}`;
   if (edit && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.notebook) request.system += `\n${INLINE_NOTEBOOK_SPLIT_SYSTEM}`;
   try { upstream = await callModel(env, request, LEARN_TASKS.artifact.model, null); }
   catch (error) { log({ stage: 'generate', request_id: requestId, mode, outcome: 'error', ms: Date.now() - started }); return json({ error: error.message || 'Generation failed.', code: 'error' }, 502); }
@@ -320,7 +325,8 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
         else if (tool) {
           let input = null;
           try { input = got.tool?.name === tool.name ? JSON.parse(got.json || '{}') : null; } catch { input = null; }
-          checked = equation ? checkEquation(input) : edit ? checkEdit(input, targetIds, context, { requestId, mode }) : annotations ? checkExplanation(input,targetIds,context,requestId) : checkDiagram(input);
+          checked = imageExtraction ? checkImageExtraction(input, equation ? checkEquation : checkDiagram, imageSource)
+            : equation ? checkEquation(input) : edit ? checkEdit(input, targetIds, context, { requestId, mode }) : annotations ? checkExplanation(input,targetIds,context,requestId) : checkDiagram(input);
         } else checked = checkNote(got.text);
         if (checked.error) send('error', { error: checked.error, code: 'invalid' });
         else { outcome = 'done'; send('done', { result: checked.result, usage: { input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null }, ms: { first: got.first == null ? null : got.first - started, total: Date.now() - started } }); }

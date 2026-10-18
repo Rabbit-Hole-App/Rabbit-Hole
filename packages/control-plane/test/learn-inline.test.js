@@ -168,6 +168,28 @@ test('card Explain receives authorized image pixels alongside existing context d
   assert.deepEqual(supplied.documents, [document, picture]);
 });
 
+test('image equation generation retains recognition limits and server-derived source in one call', async () => {
+  const source = { blockId: 'img1', source: { id: 'original', rev: 'a'.repeat(64) }, coverage: 'whole-image' };
+  const uncertainties = [{ location: 'exponent', message: 'The handwriting may say 2 or 3.' }];
+  let calls = 0;
+  const response = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'equation', prompt: 'Extract this equation', context: { ...context, image: { id: 'img1' } } })), KEY_ENV, {
+    authorize,
+    images: async () => ({ imageSource: source, blocks: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } }] }),
+    callModel: async (_env, request) => {
+      calls++;
+      assert.ok(request.tools[0].input_schema.properties.content);
+      assert.equal(request.tools[0].input_schema.properties.uncertainties.maxItems, 8);
+      assert.equal(request.tools[0].input_schema.properties.clarify.properties.question.maxLength, 240);
+      assert.match(request.system, /uncertain recognition/);
+      return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', name: 'inline_equation', input: { content: { latex: 'x^2' }, uncertainties } }] });
+    },
+  });
+  const out = await readGeneration(response, () => {});
+  assert.equal(out.result.kind, 'equation');
+  assert.deepEqual(out.result.extraction, { source, uncertainties });
+  assert.equal(calls, 1);
+});
+
 test('telemetry: one row per request id (a retry writes none), content-free whatever is sent, fail-soft without the table', async t => {
   const { sqlite, LEARN_DB } = learnDb(t);
   const row = { request_id: RID, route: 'jev', capability: 'note', outcome: 'accepted', streaming: true, mocked: false,
