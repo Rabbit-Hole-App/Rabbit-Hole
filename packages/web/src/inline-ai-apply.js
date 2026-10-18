@@ -149,6 +149,11 @@ export function wordDiff(before, after) {
 
 // What the preview shows for one change: before and after words, and which style keys moved.
 export function describeChange(change) {
+  if(change.field==='notebookCells'){
+    const source=cell=>Array.isArray(cell.source)?cell.source.join(''):cell.source;
+    const fields=change.cellIds.map(id=>{const before=change.before.ipynb.cells.find(cell=>cell.id===id),after=change.after.ipynb.cells.find(cell=>cell.id===id);return{key:id,label:`Cell ${id}`,before:source(before),after:source(after),code:before.cell_type==='code'};});
+    return{id:change.id,structured:true,fields,before:fields.map(field=>field.before).join('\n'),after:fields.map(field=>field.after).join('\n'),style:[],notice:`Source only; ${change.staleCellIds.length} code cell outputs will be cleared. No code has been run.`};
+  }
   if(change.field==='native')return {id:change.id,native:true,before:String(change.before.text||change.before.label||''),after:String(change.after.text||change.after.label||''),style:Object.keys(change.after).filter(key=>JSON.stringify(change.before[key])!==JSON.stringify(change.after[key])).map(key=>[key,change.before[key]??null,change.after[key]??null]),list:change.list,bounds:change.list==='shapes'?{x:Math.min(change.after.x1,change.after.x2),y:Math.min(change.after.y1,change.after.y2),w:Math.abs(change.after.x2-change.after.x1),h:Math.abs(change.after.y2-change.after.y1)}:{x:change.after.x,y:change.after.y,w:change.after.w,h:change.after.h},appearance:change.after};
   if (change.field === 'cardContent') return { id: change.id, structured: true, fields: cardEditComparison(cardEditSpec(change.before).content, cardEditSpec(change.after).content), before: cardEditText(cardEditSpec(change.before).content), after: cardEditText(cardEditSpec(change.after).content), style: [], ...(change.before.type === 'snippet' && change.before.code !== change.after.code && change.before.output ? { notice: 'The previous code output will be cleared; the revised code has not been run.' } : {}) };
   const field = change.field || 'text';

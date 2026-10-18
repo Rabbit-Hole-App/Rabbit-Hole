@@ -4,16 +4,19 @@ import { cardEditSpec, validateCardContent } from './inline-card-edit.js';
 import { transformTable } from './inline-table-tools.js';
 import { previewDiagramEdit } from './inline-diagram-edit.js';
 import { previewAnnotations } from './inline-annotation-tools.js';
+import { previewNotebookCellEdit } from './inline-notebook-edit.js';
+import { activePath, ipynbPath } from './learn-notebook.js';
 
 const LISTS=['shapes','items','links','blocks'];
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const fail=message=>({ok:false,errors:[message],changes:[],additions:[],removals:[],dependencies:[],limitations:[]});
-const kind=(list,item)=>list==='blocks'?item.type==='table'?'table':'card':list==='links'?'connector':list==='shapes'?'shape':'text';
-const adapters=Object.fromEntries(['set_appearance','arrange_selection','transform_table','edit_diagram','annotate_selection'].map(key=>[key,{available:true}]));
+const kind=(list,item)=>list==='blocks'?['table','notebook'].includes(item.type)?item.type:'card':list==='links'?'connector':list==='shapes'?'shape':'text';
+const adapters=Object.fromEntries(['set_appearance','arrange_selection','transform_table','edit_diagram','annotate_selection','edit_notebook_cells'].map(key=>[key,{available:true}]));
+function validNotebookScope(scope,item){return !!scope&&item?.type==='notebook'&&!item.locked&&!item.fileRef&&!item.source&&!item.sources?.length&&!item.citations?.length&&scope.id===item.id&&scope.notebookId===item.notebook_id&&scope.path===activePath(item)&&scope.path===ipynbPath(item)&&scope.revision===JSON.stringify(item.ipynb)&&Array.isArray(scope.cellIds)&&scope.cellIds.length>0&&scope.cellIds.length<=20&&new Set(scope.cellIds).size===scope.cellIds.length&&scope.cellIds.every(id=>typeof id==='string'&&item.ipynb?.cells?.some(cell=>cell.id===id));}
 
 // Explicit selected data only. Incident graph records are read-only dependencies;
 // they never enlarge the set of IDs an edit may change.
-export function freezeInlineTools(board,ids,bounds={}, {mode='edit'}={}) {
+export function freezeInlineTools(board,ids,bounds={}, {mode='edit',notebook=null}={}) {
  try {
   if(!Array.isArray(ids)||!ids.length||ids.length>20||new Set(ids).size!==ids.length)return null;
   const objects={},lists={},boxes={},selection=[];
@@ -21,7 +24,7 @@ export function freezeInlineTools(board,ids,bounds={}, {mode='edit'}={}) {
    const found=LISTS.flatMap(list=>(board[list]||[]).filter(item=>item.id===id).map(item=>({list,item})));
    if(found.length!==1)return null;
    const {list,item}=found[0];
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&(item.type!=='table'||!cardEditSpec(item).ok))return null;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&!(item.type==='table'&&cardEditSpec(item).ok||ids.length===1&&validNotebookScope(notebook,item)))return null;
    objects[id]=structuredClone(item);lists[id]=list;
    if(bounds[id]){const {x,y,w,h}=bounds[id];boxes[id]={x,y,w,h};}
    selection.push({id,kind:kind(list,item),locked:!!item.locked});
@@ -29,7 +32,7 @@ export function freezeInlineTools(board,ids,bounds={}, {mode='edit'}={}) {
   const links=(board.links||[]).filter(link=>ids.includes(link.id)||ids.includes(link.from)||ids.includes(link.to));
   const endpoints=new Set(links.flatMap(link=>[link.from,link.to]));
   const readOnlyGraph={links:links.filter(link=>!ids.includes(link.id)),shapes:(board.shapes||[]).filter(item=>endpoints.has(item.id)&&!ids.includes(item.id))};
-  const snapshot={version:1,intent:mode,ids:[...ids],objects,lists,bounds:boxes,selection,readOnlyGraph:structuredClone(readOnlyGraph)};
+  const snapshot={version:1,intent:mode,ids:[...ids],objects,lists,bounds:boxes,selection,readOnlyGraph:structuredClone(readOnlyGraph),...(notebook?{notebook:structuredClone(notebook)}:{})};
   return validInlineToolSnapshot(snapshot)?snapshot:null;
  }catch{return null;}
 }
@@ -40,7 +43,7 @@ export function validInlineToolSnapshot(snapshot){
   for(const id of snapshot.ids){
    const item=snapshot.objects[id],list=snapshot.lists[id],entry=snapshot.selection.find(value=>value?.id===id);
    if(typeof id!=='string'||!id||id.length>160||!Object.hasOwn(snapshot.objects,id)||!LISTS.includes(list)||!item||item.id!==id||!entry||entry.kind!==kind(list,item)||entry.locked!==!!item.locked)return false;
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&(item.type!=='table'||!cardEditSpec(item).ok))return false;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&!(item.type==='table'&&cardEditSpec(item).ok||snapshot.ids.length===1&&validNotebookScope(snapshot.notebook,item)))return false;
   }
   const graph=snapshot.readOnlyGraph;
   if(!graph||!Array.isArray(graph.links)||!Array.isArray(graph.shapes)||graph.links.length>80||graph.shapes.length>80)return false;
@@ -82,9 +85,14 @@ function validate(plan,snapshot,board,currentBounds,{mode='edit',requestId,readO
  if(structural.length>1||structural.length&&plan.steps.at(-1).tool!=='edit_diagram')return fail('Use one structural diagram step, last in the preview.');
  if(plan.steps.filter(step=>step.tool==='arrange_selection').length>1)return fail('Use one arrangement per preview.');
  if(plan.steps.some(step=>step.tool==='annotate_selection')&&plan.steps.length!==1)return fail('Keep annotations in one separate preview.');
+ if(plan.steps.some(step=>step.tool==='edit_notebook_cells')&&plan.steps.length!==1)return fail('Keep selected-cell edits in one separate preview.');
  for(const [index,step] of plan.steps.entries()){
   let result;
-  if(step.tool==='annotate_selection'){
+  if(step.tool==='edit_notebook_cells'){
+   if(step.targetIds.length!==1||step.targetIds[0]!==snapshot.notebook?.id||Object.keys(step.input).some(key=>!['cellIds','edits'].includes(key)))return fail('Notebook edits require explicit selected cells.');
+   result=previewNotebookCellEdit({targetId:step.targetIds[0],...step.input},{block:working.blocks.find(item=>item.id===step.targetIds[0]),frozen:snapshot.notebook,readOnly});
+   if(result.ok){result.changes=result.changes.map(change=>({...change,field:'notebookCells',cellIds:step.input.cellIds,staleCellIds:result.staleCellIds}));limitations.push('Source edit only. Affected code outputs are cleared; no cells were executed.');}
+  }else if(step.tool==='annotate_selection'){
    if(typeof requestId!=='string'||!requestId||Object.keys(step.input).some(key=>key!=='annotations'))return fail('Invalid annotation request.');
    const frozen={...snapshot,ids:step.targetIds};
    result=previewAnnotations({requestId,mode,annotations:step.input.annotations},{board:working,frozen,currentBounds,readOnly});

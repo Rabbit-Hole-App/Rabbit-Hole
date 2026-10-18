@@ -4,12 +4,13 @@ import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl,
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
 import { toast } from './ui.jsx';
 import { perfMark } from './learn-perf.js';
+import { registerNotebookEditor } from './notebook-inline-client.js';
 
 // The body of a notebook card (docs/features/canvas-notebook.md): Rabbit Hole's
 // header, then the card's Jupyter workspace in an iframe on the isolated
 // notebook origin. The workspace keeps its own files; the card keeps the
 // manifest and a copy of the active notebook, reported over the bridge.
-export default function NotebookBody({ block, onSelect, onDocument, onManifest }) {
+export default function NotebookBody({ block, onSelect, onDocument, onManifest, onEditCells }) {
   const frame = useRef(null);
   const [loaded, setLoaded] = useState(false);
   // If the notebook site never answers (unreachable, or not deployed where
@@ -27,6 +28,27 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
   const [menu, setMenu] = useState(false);
   const [kind, setKind] = useState('notebook');
   const ready = useRef(false);
+  const pending=useRef(new Map()),frameRevision=useRef(null),applying=useRef(false);
+  const [cellBusy,setCellBusy]=useState(false);
+  const requestCells=(type,extra={})=>new Promise((resolve,reject)=>{
+    if(!ready.current)return reject(new Error('The notebook is not ready.'));
+    const requestId=crypto.randomUUID(),timer=setTimeout(()=>{pending.current.delete(requestId);reject(new Error('This notebook site did not acknowledge selected-cell editing.'));},5000);
+    pending.current.set(requestId,{resolve,reject,timer});send(type,{...extra,requestId});
+  });
+  useEffect(()=>registerNotebookEditor(block.id,{
+    capture:async()=>{const result=await requestCells('cells-snapshot');frameRevision.current=result.revision;latest.current.onDocument(result.path,result.ipynb);return {...result,id:block.id,notebookId:block.notebook_id};},
+    apply:async input=>{applying.current=true;try{const result=await requestCells('cells-apply',input);frameRevision.current=result.revision;return result;}finally{applying.current=false;}},
+    restore:async input=>{applying.current=true;try{const result=await requestCells('cells-restore',input);frameRevision.current=result.revision;return result;}finally{applying.current=false;}},
+  }),[block.id,block.notebook_id]);
+  useEffect(()=>()=>{for(const entry of pending.current.values()){clearTimeout(entry.timer);entry.reject(new Error('The notebook closed.'));}pending.current.clear();},[]);
+  useEffect(()=>{
+    const revision=JSON.stringify(block.ipynb);
+    if(!ready.current||!frameRevision.current||revision===frameRevision.current||applying.current)return;
+    applying.current=true;
+    requestCells('cells-restore',{path:ipynbPath(block),expectedRevision:frameRevision.current,ipynb:block.ipynb})
+      .then(result=>{frameRevision.current=result.revision;}).catch(error=>toast(error.message)).finally(()=>{applying.current=false;});
+  },[block.ipynb]);
+  const editCells=async()=>{setCellBusy(true);try{const result=await requestCells('cells-snapshot');frameRevision.current=result.revision;latest.current.onDocument(result.path,result.ipynb);onEditCells?.({...result,id:block.id,notebookId:block.notebook_id});}catch(error){toast(error.message);}finally{setCellBusy(false);}};
   // Only the first load sends the card's copy; later edits flow the other way.
   const initial = useRef({ ipynb: block.ipynb, ipynb_path: ipynbPath(block), active_path: activePath(block), seed_files: block.seed_files || null });
   const latest = useRef({ onDocument, onManifest });
@@ -56,6 +78,14 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
     const receive = event => {
       if (event.source !== frame.current?.contentWindow || event.origin !== NOTEBOOK_ORIGIN || event.data?.protocol !== NOTEBOOK_PROTOCOL) return;
       const { type } = event.data;
+      if(type==='edit-selection'&&event.data.result){const result=event.data.result;frameRevision.current=result.revision;latest.current.onDocument(result.path,result.ipynb);onEditCells?.({...result,id:block.id,notebookId:block.notebook_id});return;}
+      if(type==='cell-error'){toast(event.data.error||'The selected notebook cells could not be read.');return;}
+      if(type==='cells-result'){
+        const entry=pending.current.get(event.data.requestId);if(!entry)return;
+        clearTimeout(entry.timer);pending.current.delete(event.data.requestId);
+        if(event.data.ok)entry.resolve(event.data.result);else entry.reject(new Error(event.data.error||'The selected notebook cells could not be checked.'));
+        return;
+      }
       if (type === 'loaded') {
         ready.current = true;
         setLoaded(true);
@@ -74,7 +104,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
         setKind(event.data.active_kind);
         latest.current.onManifest({ active_path: event.data.active_path, files: (event.data.files || []).filter(path => typeof path === 'string') });
       }
-      if (type === 'change' && event.data.ipynb?.cells && typeof event.data.path === 'string') latest.current.onDocument(event.data.path, trimOutputs(event.data.ipynb));
+      if (type === 'change' && event.data.ipynb?.cells && typeof event.data.path === 'string'&&!applying.current){frameRevision.current=JSON.stringify(event.data.ipynb);latest.current.onDocument(event.data.path, trimOutputs(event.data.ipynb));}
     };
     // Focus moving into the notebook is the canvas's only sign of a click
     // there, so it selects the card.
@@ -104,6 +134,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
         <span className="text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Notebook</span>
         <span className="text-[11px] text-ink-3">· Python</span>
         <span className="flex-1" />
+        {onEditCells&&<button type="button" data-notebook-edit-cells className={action} disabled={!loaded||kind!=='notebook'||cellBusy||block.locked} onPointerDown={stop} onClick={editCells}>{cellBusy?'Reading cells…':'Edit selected cells'}</button>}
         <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
         <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('run-all')}><Play size={12} />Run all</button>
         <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>

@@ -19,6 +19,20 @@ const make = (transport, extra = {}) => {
   const session = createInlineSession({ transport: scripted(transport), boardKey: 'board-a', enabled: ['note', 'diagram', 'code', 'motion'], validate: okValidate, now, flushMs: 0, onChange: state => changes.push(state), onMetrics: entry => metrics.push(entry), ...extra });
   return { session, changes, metrics };
 };
+test('notebook preparation is awaited, cancellation drops it before any request',async()=>{
+ const waiting=deferred();let calls=0;
+ const {session}=make({generate:async()=>{calls++;return{result:{kind:'note',text:'unused'}};}});
+ const pending=session.submit({mode:'edit',prompt:'Edit selected cells',prepare:()=>waiting.promise});
+ session.cancel();waiting.resolve(snapshot()());assert.equal(await pending,'dropped');assert.equal(calls,0);
+});
+test('async notebook acceptance remains pending and duplicate Accept cannot apply twice',async()=>{
+ const {session}=make({generate:async()=>({result:{kind:'note',text:'ready'}})});
+ await session.submit({mode:'explain',prompt:'Explain',prepare:snapshot()});
+ const waiting=deferred();let applies=0;
+ const pending=session.accept(()=>{applies++;return waiting.promise;});
+ assert.deepEqual(session.accept(()=>{applies++;return{ok:true};}),{ignored:true});
+ waiting.resolve({ok:true});assert.deepEqual(await pending,{ok:true});assert.equal(applies,1);assert.equal(session.state.status,'accepted');
+});
 
 test('a plain explain: one check (its route fixed), one generation, streamed text coalesced, then a validated preview', async () => {
   const calls = { route: 0, generate: 0 };

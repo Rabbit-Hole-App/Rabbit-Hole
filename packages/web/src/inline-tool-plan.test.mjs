@@ -85,3 +85,13 @@ test('annotation placement refuses bounds drift and out-of-scope highlights',()=
  delete request.steps[0].input.annotations[0].highlight;
  assert.equal(validateInlinePlan(request,frozen,source,{a:{...bounds.a,w:105}},{mode:'explain',requestId:'r'}).ok,false);
 });
+test('notebook tools require explicit cell scope and retain unselected source while clearing dependent outputs',()=>{
+ const notebook={id:'nb',type:'notebook',notebook_id:'workspace',active_path:'notebook.ipynb',ipynb_path:'notebook.ipynb',ipynb:{nbformat:4,cells:[{id:'one',cell_type:'code',source:'x=1',outputs:[{text:'old'}],execution_count:1},{id:'two',cell_type:'code',source:'x+1',outputs:[{text:'2'}],execution_count:2}]}};
+ const source={shapes:[],links:[],items:[],blocks:[notebook]};
+ assert.equal(freezeInlineTools(source,['nb']),null);
+ const scope={id:'nb',notebookId:'workspace',path:'notebook.ipynb',cellIds:['one'],revision:JSON.stringify(notebook.ipynb)};
+ const snapshot=freezeInlineTools(source,['nb'],{},{notebook:scope});assert.ok(snapshot);
+ const request=plan(['nb'],[{tool:'edit_notebook_cells',targetIds:['nb'],input:{cellIds:['one'],edits:[{id:'one',source:'x=4'}]}}]);
+ const result=validateInlinePlan(request,snapshot,source);assert.equal(result.ok,true);assert.equal(result.changes[0].after.ipynb.cells[1].source,'x+1');assert.deepEqual(result.changes[0].staleCellIds,['one','two']);
+ request.steps[0].input.edits[0].id='two';assert.equal(validateInlinePlan(request,snapshot,source).ok,false);
+});

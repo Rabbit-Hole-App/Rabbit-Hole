@@ -69,6 +69,11 @@
     return out;
   };
   const isNotebook = widget => !!widget?.content?.model?.cells && !!widget.sessionContext;
+  document.addEventListener('keydown',event=>{
+    if(!app||!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='k')return;
+    event.preventDefault();event.stopPropagation();
+    try{post({type:'edit-selection',result:globalThis.RHNotebookCells.capture(app.shell.currentWidget)});}catch(error){post({type:'cell-error',error:error.message});}
+  },true);
 
   // The whole workspace as { path: entry }, for a shared board's copy: text
   // files as text, binary files as base64, notebooks as JSON, folders empty.
@@ -195,6 +200,16 @@
     }
     if (!app) return;
     const widget = app.shell.currentWidget;
+    if(['cells-snapshot','cells-apply','cells-restore'].includes(type)){
+      const requestId=event.data.requestId;
+      if(typeof requestId!=='string'||!/^[A-Za-z0-9-]{1,100}$/.test(requestId))return;
+      try{
+        if(!globalThis.RHNotebookCells)throw new Error('Selected-cell editing is unavailable on this notebook site.');
+        const result=type==='cells-snapshot'?globalThis.RHNotebookCells.capture(widget):await globalThis.RHNotebookCells[type==='cells-apply'?'apply':'restore'](widget,event.data);
+        post({type:'cells-result',requestId,ok:true,result});
+      }catch(error){post({type:'cells-result',requestId,ok:false,error:error.message||'The notebook edit could not be checked.'});}
+      return;
+    }
     if (type === 'files') drawer(!!event.data.open);
     if (type === 'export') {
       try { post({ type: 'workspace', files: await snapshot() }); }

@@ -192,7 +192,9 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       controller?.abort();
       controller = new AbortController();
       mark(id, 'submit');
-      const snapshot = prepare();
+      let snapshot;
+      try{snapshot=prepare();if(snapshot?.then){set({status:'routing',stage:'Reading selected notebook cells…'});snapshot=await snapshot;if(!live(mine))return 'dropped';}}
+      catch(error){if(!live(mine))return 'dropped';set({status:shown('error'),error:error.message||'The selected content could not be read.'});finish(id,'invalid');return 'invalid';}
       if (snapshot.error) { set({ error: snapshot.error, notice: null }); finish(id, 'unsupported'); return 'unsupported'; }
       mark(id, 'refreshed');
       Object.assign(metric(id), { context: snapshot.shape || null, prep: { ms: snapshot.prepMs ?? null, cacheHit: !!snapshot.cacheHit } });
@@ -289,6 +291,8 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       let out;
       // An Accept that cannot apply (it threw, or said why not) is undone, says so, and leaves Accept usable.
       try { out = apply(state.preview); } catch (error) { out = { error: `That could not be added to the canvas: ${error.message || 'an unexpected error'}.` }; }
+      const settle=out=>{
+      if(closed)return {ignored:true};
       if (out?.error) {
         state.accepted = false;
         count(id, 'errors');
@@ -306,6 +310,8 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       set({ status: 'accepted' });
       finish(id, 'accepted');
       return out || { ok: true };
+      };
+      return out?.then?out.then(settle,error=>settle({error:error.message||'The notebook edit could not be saved.'})):settle(out);
     },
     reject() { if (state.preview) finish(state.preview.requestId, 'rejected'); token += 1; controller?.abort(); stopTimers(); set({ status: 'idle', preview: null, stream: null, proposal: null, stale: null, declined: null, retry: false }); },
     // The editor closed, the board changed or the canvas unmounted: nothing of this session lands anywhere after this.

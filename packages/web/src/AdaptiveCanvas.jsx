@@ -794,7 +794,7 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
 
 // A real Jupyter notebook on the canvas (docs/features/canvas-notebook.md).
 // Notebook edits are saved quietly: they are not canvas undo steps.
-function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap }) {
+function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap }) {
   const latest = useRef(block);
   latest.current = block;
   // Two reports can land before a re-render, so each builds on the last one.
@@ -810,7 +810,7 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
       connected={connected} width={640} height={block.h || 540} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      <NotebookBody block={block} onSelect={onSelect} onDocument={copyNotebook} onManifest={manifest} />
+      <NotebookBody block={block} onSelect={onSelect} onDocument={copyNotebook} onManifest={manifest} onEditCells={notebook=>window.dispatchEvent(new CustomEvent('learn:notebook-inline',{detail:{appName,id:block.id,notebook}}))} />
     </CanvasNode>
   );
 }
@@ -840,7 +840,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
-  if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Expand grows it unless the learner sized it.
   if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={block.expanded ? CODE_CARD.h * 2 : CODE_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} onChange={onChange} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CanvasRefCard block={block} /></CanvasNode>;
@@ -3141,6 +3141,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     window.addEventListener('learn:cad-inline',open);return()=>window.removeEventListener('learn:cad-inline',open);
   },[appName]);
   const quickEdit = () => openInline(performance.now(), false, 'edit');
+  const syncNotebook=snapshot=>{
+    const block=blocksRef.current.find(item=>item.id===snapshot.id);
+    if(readOnlyRef.current||block?.type!=='notebook'||block.locked||block.notebook_id!==snapshot.notebookId||activePath(block)!==snapshot.path)throw new Error('This notebook can no longer be edited.');
+    flushSync(()=>setBlocks(previous=>previous.map(item=>item.id===snapshot.id?{...item,ipynb:snapshot.ipynb,ipynb_path:snapshot.path}:item)));
+  };
+  useEffect(()=>{
+    const open=event=>{const {appName:owner,id,notebook}=event.detail||{};if(owner!==appName||readOnlyRef.current||inlineRef.current)return;
+      try{syncNotebook(notebook);const target=freezeTarget(inlineBoard(),[id]);if(!target)return;selectedRef.current=[id];setSelection([id]);setInline({target:{...target,notebook},opened:performance.now(),mode:'edit',cold:inlineOpens.current===0,opener:document.activeElement,n:(inlineOpens.current+=1)});}catch(error){toast(error.message);}
+    };
+    window.addEventListener('learn:notebook-inline',open);return()=>window.removeEventListener('learn:notebook-inline',open);
+  },[appName]);
   useEffect(() => { if (!inlineHint) return undefined; const timer = setTimeout(() => setInlineHint(0), 2200); return () => clearTimeout(timer); }, [inlineHint]);
   // The accepted result as one transaction and one undo step, applied to the lists as they are now: an unrelated edit made
   // meanwhile stays (§11). Then the existing save path at once, so persistence is measured apart from acceptance (A3).
@@ -3240,6 +3251,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     },
     // An open text editor's words land first (flushed), so Accept's stale check reads them, not the last committed copy.
     flushEdits: () => { if (editorRef.current) flushSync(() => editorRef.current.commit('blur')); },
+    syncNotebook,
     telemetry: rows => { for (const row of rows) telemetryQueue.current.set(row.request_id, row); clearTimeout(telemetryTimer.current); telemetryTimer.current = setTimeout(() => flushTelemetry(), 4000); },
   };
   // Delete/Backspace removes the selected sticky, text or shape; ctrl+z

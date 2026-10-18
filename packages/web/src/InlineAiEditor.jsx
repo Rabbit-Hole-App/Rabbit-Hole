@@ -1,3 +1,4 @@
+import { notebookEditor } from './notebook-inline-client.js';
 import { freezeNativeTools } from './inline-native-plan.js';
 import { freezeInlineTools, validateInlinePlan } from './inline-tool-plan.js';
 import PaidConfirm from './PaidConfirm.jsx';
@@ -88,7 +89,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     timer=setTimeout(read,1500);return()=>{live=false;clearTimeout(timer);};
   },[cadJob?.id,cadJob?.state]);
   const cadAccept=async(action)=>{setCadPending(true);setCadError('');try{await config.cadAction(cadJob.id,action,action==='accept'?{expectedRevisionId:cadJob.baseRevisionId}:{});if(cadLive.current)onClose();}catch(problem){if(cadLive.current)setCadError(problem.message);}finally{if(cadLive.current)setCadPending(false);}};
-  const cardEditReason = !cadTarget && !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
+  const notebookTarget=target.notebook&&target.ids?.length===1&&target.notebook.id===target.ids[0];
+  const cardEditReason = !notebookTarget && !cadTarget && !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
   const fileLocked = !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
@@ -154,7 +156,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // A1: context prepared while the learner writes - local work only, scheduled off the input path; refreshed at submit.
   // request: the learner's words, at submit - what the context is chosen for, with the selection (owner 2026-10-13).
-  const prepare = (only = selectionOnly, request = '', intent = mode) => {
+  const prepare = (only = selectionOnly, request = '', intent = mode, notebookScope=target.notebook) => {
     const started = performance.now(), misses = canvas.cache.stats.misses;
     const live = { ...board(), boxes: canvas.layout() };
     // A creation reads the region around its anchor; its look (style) travels apart from its subject (creation §4).
@@ -162,7 +164,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       ? buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request, extras: config.extras?.() || {}, style: regionStyle(live, target.anchor) })
       : buildContext(live, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     if(!target.creation&&!target.range){const native=freezeNativeTools(live,target.ids,live.boxes);if(native)context.nativeTools=native;}
-    if(!target.creation&&!target.range){const tools=freezeInlineTools(live,target.ids,live.boxes,{mode:intent});if(tools)context.toolSnapshot=tools;}
+    if(!target.creation&&!target.range){const tools=freezeInlineTools(live,target.ids,live.boxes,{mode:intent,notebook:notebookScope?Object.fromEntries(['id','notebookId','path','revision','cellIds'].map(key=>[key,notebookScope[key]])):null});if(tools)context.toolSnapshot=tools;}
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses, only };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -205,16 +207,20 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     session.submit({
       mode: how, prompt: text,
       prepare: () => {
+        const build=scope=>{
         // An open text editor's words are saved first, so what the model reads and the fingerprint Accept checks come
         // from the same saved text - never from words captured when the editor opened.
         canvas.flushEdits?.();
-        const made = prepare(selectionOnly, text, how);
+        const made = prepare(selectionOnly, text, how,scope);
         setPrepared(made);
         // The request the check decides and generation gets: the selection's ids or its exact words, and the context.
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { error: how === 'edit' ? cardEditSelectionReason(target.ids || [], board()) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+      };
+        if(notebookTarget)return notebookEditor(target.ids[0]).capture().then(scope=>{if(JSON.stringify(scope.cellIds)!==JSON.stringify(target.notebook.cellIds))throw new Error('The selected cells changed. Close this preview and select the cells again.');canvas.syncNotebook(scope);return build(scope);});
+        return build(null);
       },
     });
   };
@@ -352,7 +358,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   }, [state.status, state.preview]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => canvas.cardGhost?.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const accept = () => {
+  const accept = async () => {
     // A7: the spot the ghost shows must still be free. If something now takes it, the note is placed again and its new
     // ghost shown; Accept is pressed again. It never lands somewhere the learner did not see.
     const shown = (state.preview?.kind === 'note' || state.preview?.kind === 'diagram' || isCard(state.preview)) && placements[state.preview.requestId];
@@ -368,7 +374,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       }
     }
     setMoved(null);
-    const out = session.accept(preview => {
+    const out = await session.accept(async preview => {
+      const notebook=preview.frozen.toolSnapshot?.notebook;
+      if(notebook){const current=await notebookEditor(notebook.id).capture();if(!cadLive.current)return{stale:{gone:true,text:'This editor closed.'}};canvas.syncNotebook(current);if(current.revision!==notebook.revision||JSON.stringify(current.cellIds)!==JSON.stringify(notebook.cellIds))return{stale:{content:true,text:'The notebook or selected cells changed.'}};}
+      let appliedNotebook=null;
       canvas.flushEdits?.();
       const now = board();
       const frozen = preview.frozen;
@@ -398,6 +407,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const again = preview.kind==='annotations'?validateInlinePlan(preview.raw.plan,frozen.toolSnapshot,now,canvas.layout(),{mode:'explain',requestId:preview.requestId,readOnly}):validateEdit(preview.raw, frozen, {...now,boxes:canvas.layout()});
         if (!again.ok) return { stale: { content: true, text: again.errors[0] || 'The edit no longer fits the selection.' } };
         tx = {...editTx({ requestId: preview.requestId, changes: again.changes,additions:again.additions,removals:again.removals }),kind:preview.kind};
+        if(notebook){const step=preview.raw.plan.steps[0];appliedNotebook=await notebookEditor(notebook.id).apply({path:notebook.path,expectedRevision:notebook.revision,cellIds:notebook.cellIds,edits:step.input.edits});}
       } else {
         const block = preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
         // The ghost's spot, from the slot the card will take at the end of the column (where its ghost is drawn now).
@@ -405,7 +415,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const place = drawn ? { side: spot.side, dx: spot.x - (drawn.x - spot.dx), dy: spot.y - (drawn.y - spot.dy) } : null;
         tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route, place });
       }
-      return canvas.apply(tx, preview.requestId, id => session.persisted(id)) ? { ok: true } : { stale: { gone: true, text: 'This canvas closed.' } };
+      const stillCurrent=!notebook||validateEdit(preview.raw,frozen,{...board(),boxes:canvas.layout()}).ok;
+      const applied=cadLive.current&&stillCurrent&&canvas.apply(tx, preview.requestId, id => session.persisted(id));
+      if(!applied&&appliedNotebook)await notebookEditor(notebook.id).restore({path:notebook.path,expectedRevision:appliedNotebook.revision,ipynb:JSON.parse(notebook.revision)});
+      return applied ? { ok: true } : { stale: { gone: true, text: 'This canvas closed.' } };
     });
     if (out?.ok) onClose(true);
   };
