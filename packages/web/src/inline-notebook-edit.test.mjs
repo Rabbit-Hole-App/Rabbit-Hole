@@ -45,3 +45,29 @@ test('malformed snapshots and execution/output injection are rejected', () => {
   for (const frozen of [null, {}, { ...f.frozen, cellIds: [null] }]) assert.equal(previewNotebookCellEdit(f.input, { block: f.block, frozen }).ok, false);
   f.input.edits[0].outputs = []; assert.equal(previewNotebookCellEdit(f.input, f).ok, false);
 });
+test('selected code splits preserve exact source, first identity and metadata; only downstream outputs become stale', () => {
+  const f=fixture();f.input.edits=[];f.input.splits=[{id:'first',offsets:[4]}];
+  const result=previewNotebookCellEdit(f.input,{...f,requestId:'request-split-123'});
+  assert.equal(result.ok,true);
+  const cells=result.changes[0].after.ipynb.cells;
+  assert.equal(cells.slice(0,2).map(cell=>cell.source).join(''),f.block.ipynb.cells[0].source.join(''));
+  assert.equal(cells[0].id,'first');assert.deepEqual(cells[0].metadata,{custom:true});
+  assert.equal(cells[1].id,'split_request-split-123_0_1');assert.deepEqual(cells[1].metadata,{});
+  assert.deepEqual(cells[2],f.block.ipynb.cells[1]);assert.deepEqual(cells[3].source,f.block.ipynb.cells[2].source);
+  assert.deepEqual(result.staleCellIds,['first',cells[1].id,'last']);
+});
+test('Markdown split retains attachment resources without changing code outputs', () => {
+  const f=fixture();f.block.ipynb.cells[1].attachments={image:{'image/png':'bytes'}};f.frozen.revision=JSON.stringify(f.block.ipynb);
+  f.frozen.cellIds=f.input.cellIds=['md'];f.input.edits=[];f.input.splits=[{id:'md',offsets:[2]}];
+  const result=previewNotebookCellEdit(f.input,{...f,requestId:'request-markdown'});
+  assert.equal(result.ok,true);const cells=result.changes[0].after.ipynb.cells;
+  assert.deepEqual(cells[1].attachments,cells[2].attachments);assert.deepEqual(cells.at(-1),f.block.ipynb.cells.at(-1));
+});
+test('split bounds, target scope, ID collisions and simultaneous source replacement fail closed', () => {
+  for(const mutate of [f=>f.input.splits[0].offsets=[0],f=>f.input.splits[0].offsets=[99],f=>f.input.splits[0].offsets=[2,2],f=>f.input.splits[0].id='last',f=>f.input.edits=[{id:'first',source:'new'}],f=>f.block.ipynb.cells[2].id='split_request-split-123_0_1']) {
+    const f=fixture();f.input.edits=[];f.input.splits=[{id:'first',offsets:[2]}];mutate(f);f.frozen.revision=JSON.stringify(f.block.ipynb);
+    assert.equal(previewNotebookCellEdit(f.input,{...f,requestId:'request-split-123'}).ok,false);
+  }
+  const f=fixture();f.block.ipynb.cells[0].source='a😀b';f.frozen.revision=JSON.stringify(f.block.ipynb);f.input.edits=[];f.input.splits=[{id:'first',offsets:[2]}];
+  assert.equal(previewNotebookCellEdit(f.input,{...f,requestId:'request-unicode'}).ok,false);
+});
