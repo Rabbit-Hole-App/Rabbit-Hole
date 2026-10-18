@@ -287,7 +287,10 @@ await run('code colors', async () => {
   await page.keyboard.press('Control+End');
   await page.keyboard.type(' // more');
   check('while edited the code box uses its local editor', await page.locator('[data-code-box-input]').isVisible());
-  await page.keyboard.press('Escape');
+  // Completion owns the first Escape, including an in-flight query. This case
+  // checks saved syntax colors; the component checks cover popup dismissal.
+  await page.keyboard.press('Control+Enter');
+  await page.locator('[data-code-box-input]').waitFor({ state: 'hidden' });
   check('leaving the editor draws the colors again', await colorsBack());
   check('the edit is kept', (await saved()).items.find(entry => entry.id === 't1').text.endsWith('// more'));
   await context.close();

@@ -21,3 +21,9 @@ The focused completion regression initially failed because a newly created compl
 Sandbox process-launch restrictions and missing local dependencies prevented earlier starts; they did not exercise product assertions. Disk exhaustion interrupted a write; the task-owned editor was restored and re-reviewed before the final component and history checks.
 
 Deployed integrated app verification, shared-view access, panel/zoom popup bounds, duplicate/reload and Ctrl+K selection checks remain pending. Component checks alone are not a release-readiness claim. No production changes are included.
+
+### Subsequent focused color/save regression
+
+Tested implementation `a20f0e92e6784c23553fe2666b46609beaabe8b5` with only the color-check harness changed to use explicit Ctrl+Enter finish: 11 passed, 0 failed, 0 skipped, 0 interrupted (8.657 seconds). Saved text and restored syntax colors retain their original assertions. The earlier broader code run had 23 passed / 2 failed; a single Escape did not finish editing. Completion can consume Escape while a query is pending or visible, but that run did not capture the exact popup state. The focused check tests save/color behavior; separate component checks cover Escape dismissing completion.
+
+Deployed acceptance supersedes the pending-app note above: implementation `51e11889` covers ten scenarios across runs, with seven earlier passes reused and a final 3 passed / 0 failed / 7 skipped / 0 interrupted. See `test/code-box-autocomplete-app` commit `9e017216`, `evidence/autocomplete-51e11889-receipt.md`. Skipped cases in the final run are not counted as executions. No provider calls. Physical IME and real-model behavior remain unverified.
