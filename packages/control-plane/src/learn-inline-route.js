@@ -21,6 +21,7 @@ const META = { several: 'More than one of these outputs is asked for at once (fo
 const ROUTE_IDS = [...Object.keys(CAPABILITIES), 'edit', 'several', 'none'];
 const malformed = () => Object.assign(new Error('The request check returned no usable answer.'), { code: 'malformed' });
 const hasTools = request => request?.mode === 'edit' && validInlineToolSnapshot(request.context?.toolSnapshot);
+const hasAnnotations = request => request?.mode==='explain' && request.context?.toolSnapshot?.intent==='explain' && validInlineToolSnapshot(request.context.toolSnapshot);
 const TOOL_SCOPE = 'Selected-object appearance and measured alignment; complete editable native table sort, exact deduplication and explicitly specified scaling; selected boxed diagram nodes/connectors may be relabelled, added, removed or rewired with dependency checks. Related graph objects remain read-only. No grouping, external source edits, image edits, execution or notebook tools.';
 
 // What a validator reads: the mode, whether anything is selected, the learner's words, the output a command already
@@ -32,6 +33,7 @@ function view(request, fixed) {
     ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : (CAPABILITIES[fixed.capability] || EXPLICIT_ROUTES[fixed.capability]).label } : {}),
     material: summaryOf(request),
     ...(hasTools(request) ? {availableSelectionTools:TOOL_SCOPE} : {}),
+    ...(hasAnnotations(request) ? {availableAnnotations:'Explicitly requested anchored explanatory callouts or bounded highlights, added separately without changing selected objects. Ordinary Explain remains a note.'} : {}),
   };
 }
 const outputs = () => Object.fromEntries(Object.entries(CAPABILITIES).map(([id, entry]) => [id, entry.criterion]));
@@ -45,6 +47,7 @@ export function jevDecideRequest(request, fixed, model) {
       mode: seen.mode === 'edit' ? hasTools(request) ? 'edit: changes the selected content using legacy text edits or the explicitly supplied validated selection tools' : 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
       ...(request.context?.nativeTools ? {nativeTools:'set_appearance on selected native objects; arrange_selection on selected boxed shapes/text/notes, computed from measured bounds'} : {}),
       ...(hasTools(request) ? {toolSnapshot:TOOL_SCOPE} : {}),
+      ...(hasAnnotations(request) ? {annotations:seen.availableAnnotations} : {}),
       selected: seen.selected ? 'yes' : 'no, nothing is selected: the material is what is around the place the learner chose to add to', request: seen.request,
       ...(seen.output ? { output: `${seen.output} (${request.revising ? 'the result shown, which the learner is refining: "it" and "this" mean that result' : 'chosen by the command the learner typed'})` } : {}), material: seen.material,
     },
@@ -115,7 +118,7 @@ export async function proceedGate(env, body) {
 export async function decide(env, { app, requestId, request, enabled }, { validator = env.INLINE_VALIDATOR === 'model' ? 'model' : 'jev', transport = null, ask = askJev, callModel = anthropic, timeoutMs = DECIDE_TIMEOUT_MS } = {}) {
   if (request?.context && Object.hasOwn(request.context, 'toolSnapshot')) {
     const snapshot = request.context.toolSnapshot;
-    if (!validInlineToolSnapshot(snapshot) || !Array.isArray(request.targetIds) || snapshot.ids.length !== request.targetIds.length || new Set(request.targetIds).size !== request.targetIds.length || request.targetIds.some(id => !snapshot.ids.includes(id)) || request.textRange) return {status:400,body:{error:'Invalid frozen tool selection.'},called:false};
+    if (!validInlineToolSnapshot(snapshot) || (snapshot.intent||'edit')!==request.mode || !Array.isArray(request.targetIds) || snapshot.ids.length !== request.targetIds.length || new Set(request.targetIds).size !== request.targetIds.length || request.targetIds.some(id => !snapshot.ids.includes(id)) || request.textRange) return {status:400,body:{error:'Invalid frozen tool selection.'},called:false};
   }
   const local = checkRequest(request);
   if (local?.error) return { status: 400, body: { error: local.error }, called: false };

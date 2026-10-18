@@ -81,7 +81,7 @@ export function inlineEditToolFor(toolSnapshotAvailable) {
   if (!toolSnapshotAvailable) return INLINE_EDIT_TOOL;
   const tool = structuredClone(INLINE_EDIT_TOOL);
   const step = tool.input_schema.properties.plan.properties.steps.items.properties;
-  step.tool.enum.push('transform_table', 'edit_diagram');
+  step.tool.enum.push('transform_table', 'edit_diagram', 'annotate_selection');
   const id = {type:'string',minLength:1,maxLength:160};
   const label = {type:'string',maxLength:80};
   const link = {type:'object',additionalProperties:false,required:['id','from','to'],properties:{id,from:id,to:id,label}};
@@ -96,9 +96,28 @@ export function inlineEditToolFor(toolSnapshotAvailable) {
     }},
     removeIds:{type:'array',maxItems:20,items:id},
     changes:{type:'array',maxItems:20,items:{type:'object',additionalProperties:false,required:['id','patch'],properties:{id,patch:{type:'object',additionalProperties:false,properties:{text:label,label,from:id,to:id}}}}},
+    annotations:{type:'array',minItems:1,maxItems:10,items:{type:'object',additionalProperties:false,required:['annotationId','text'],properties:{annotationId:id,text:{type:'string',maxLength:300}}}},
   });
   return tool;
 }
+
+export const INLINE_EXPLAIN_TOOL = {
+  name:'inline_explain',description:'One explanation note, or explicit anchored annotations. Never edit selected source objects.',
+  input_schema:{type:'object',additionalProperties:false,properties:{
+    text:{type:'string',maxLength:1200},
+    plan:{type:'object',additionalProperties:false,required:['mode','targetIds','steps'],properties:{
+      mode:{type:'string',enum:['explain']},targetIds:{type:'array',minItems:1,maxItems:20,items:{type:'string',maxLength:160}},
+      steps:{type:'array',minItems:1,maxItems:1,items:{type:'object',additionalProperties:false,required:['tool','targetIds','input'],properties:{
+        tool:{type:'string',enum:['annotate_selection']},targetIds:{type:'array',minItems:1,maxItems:20,items:{type:'string',maxLength:160}},
+        input:{type:'object',additionalProperties:false,required:['annotations'],properties:{annotations:{type:'array',minItems:1,maxItems:10,items:{type:'object',additionalProperties:false,required:['targetId','text'],properties:{
+          targetId:{type:'string',maxLength:160},text:{type:'string',minLength:1,maxLength:300},
+          highlight:{type:'object',additionalProperties:false,required:['x','y','w','h'],properties:{x:{type:'number'},y:{type:'number'},w:{type:'number',exclusiveMinimum:0},h:{type:'number',exclusiveMinimum:0}}},
+        }}}}},
+      }}},
+    }},
+  }},
+};
+export const INLINE_ANNOTATION_SYSTEM = `${INLINE_NOTE_SYSTEM}\nCall inline_explain once instead of returning prose directly. For an ordinary explanation, return {text:"the short note"}. Only when the learner explicitly requests anchored callouts, annotations or highlights, return {plan:{mode:"explain",targetIds:[all canvas.toolSnapshot.ids],steps:[{tool:"annotate_selection",targetIds:[selected IDs],input:{annotations:[{targetId:"selected ID",text:"short explanation",highlight?:{x,y,w,h}}]}}]}}. Use text OR plan, never both. Highlights are optional world-coordinate rectangles strictly inside supplied measured target bounds. Never invent unread source content. Selected originals and readOnlyGraph remain unchanged; this adds separate native annotations. Explain never becomes an edit.`;
 
 // ---------- Creation, native diagrams and the request check (owner briefs 2026-10-13: creation §5-§7, validation) ----------
 // The diagram tool takes its rules from inline-diagram.js and the check's words from inline-ai-decide.js, so the

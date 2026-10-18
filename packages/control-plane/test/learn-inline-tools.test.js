@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkEdit, inlineGenerateFetch } from '../src/learn-inline.js';
+import { checkEdit, checkExplanation, inlineGenerateFetch } from '../src/learn-inline.js';
 import { decide, jevDecideRequest, modelDecideRequest } from '../src/learn-inline-route.js';
 import { inlineEditToolFor } from '../src/agents/learn-inline.js';
 import { freezeInlineTools, inlineToolSnapshotBoard, validateInlinePlan } from '../../web/src/inline-tool-plan.js';
@@ -48,7 +48,7 @@ test('external graph objects cannot become edit targets or disappear through imp
 test('unconfigured clients get only legacy native tools, no new adapter advertisement', () => {
   const tools = value => inlineEditToolFor(value).input_schema.properties.plan.properties.steps.items.properties.tool.enum;
   assert.deepEqual(tools(false),['set_appearance','arrange_selection']);
-  assert.deepEqual(tools(true),['set_appearance','arrange_selection','transform_table','edit_diagram']);
+  assert.deepEqual(tools(true),['set_appearance','arrange_selection','transform_table','edit_diagram','annotate_selection']);
   assert.deepEqual(tools(false),['set_appearance','arrange_selection']);
   const {context,ids} = fixture();
   const request={mode:'edit',kind:'selection',targetIds:ids,prompt:'Add a check',context};
@@ -82,4 +82,26 @@ test('source-backed, citation-bearing and locked tables cannot enter tool contex
   }
   const {context,ids,plan}=fixture(true);context.toolSnapshot.objects.table.locked=true;context.toolSnapshot.selection[0].locked=true;
   assert.ok(checkEdit(edit(plan),ids,context,{requestId}).error);
+});
+test('Explain annotations add separate objects and never reinterpret ordinary notes as edits', () => {
+  const {board}=fixture();const bounds={a:{x:0,y:0,w:80,h:40}};
+  const snapshot=freezeInlineTools(board,['a'],bounds,{mode:'explain'});
+  const context={toolSnapshot:snapshot};
+  const plan={mode:'explain',targetIds:['a'],steps:[{tool:'annotate_selection',targetIds:['a'],input:{annotations:[{targetId:'a',text:'A useful callout'}]}}]};
+  assert.deepEqual(checkExplanation({text:'Ordinary explanation'},['a'],context,requestId).result,{kind:'note',text:'Ordinary explanation'});
+  assert.equal(checkExplanation({plan},['a'],context,requestId).result.kind,'annotations');
+  assert.ok(checkExplanation({text:'Mixed',plan},['a'],context,requestId).error);
+  assert.ok(checkExplanation({plan:{...plan,mode:'edit'}},['a'],context,requestId).error);
+  assert.ok(checkExplanation({plan:{...plan,steps:[{tool:'set_appearance',targetIds:['a'],input:{patch:{fill:'#ff0000'}}}]}},['a'],context,requestId).error);
+  assert.ok(checkEdit(edit({...plan,mode:'edit'}),['a'],context,{requestId}).error);
+});
+test('signed Explain generation returns annotations with one generation call, not Edit', async () => {
+  const {board}=fixture();const ids=['a'];
+  const context={target:{ids,objects:[{id:'a',text:'a'}]},toolSnapshot:freezeInlineTools(board,ids,{a:{x:0,y:0,w:80,h:40}},{mode:'explain'})};
+  const plan={mode:'explain',targetIds:ids,steps:[{tool:'annotate_selection',targetIds:ids,input:{annotations:[{targetId:'a',text:'An annotation'}]}}]};
+  const body=await decided({app:'canvas-test',request_id:requestId,mode:'explain',route:'note',prompt:'Annotate this node',context});
+  let calls=0;
+  const response=await inlineGenerateFetch(new Request('https://test/api/learn/inline/generate',{method:'POST',body:JSON.stringify(body)}),KEY_ENV,{authorize:async()=>({name:'canvas-test',email:'owner@test'}),callModel:async(_env,request)=>{calls++;assert.equal(request.tools[0].name,'inline_explain');return Response.json({content:[{type:'tool_use',name:'inline_explain',input:{plan}}],stop_reason:'tool_use'});}});
+  const result=await readGeneration(response,()=>{});
+  assert.equal(calls,1);assert.equal(result.result.kind,'annotations');assert.equal(result.result.plan.mode,'explain');
 });

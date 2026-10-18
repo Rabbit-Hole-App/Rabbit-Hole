@@ -22,7 +22,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { inspectSavedCad } from './cad-inspection.js';
 import { isUploadedMediaId } from './learn-media.js';
-import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM } from './agents/learn-inline.js';
+import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM, INLINE_EXPLAIN_TOOL, INLINE_ANNOTATION_SYSTEM } from './agents/learn-inline.js';
 import { decide, proceedGate } from './learn-inline-route.js';
 import { commandOf, generationPrompt } from '../../web/src/inline-ai-decide.js';
 import { diagramOf, validateDiagram } from '../../web/src/inline-diagram.js';
@@ -111,6 +111,15 @@ export function checkNote(text) {
   if (!note) return { error: 'The model wrote no explanation.' };
   if (note.length > NOTE_MAX_CHARS) return { error: 'The explanation came back too long for a note.' };
   return { result: { kind: 'note', text: note } };
+}
+export function checkExplanation(input, targetIds, context, requestId) {
+  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key=>!['text','plan'].includes(key))) return {error:'Invalid explanation response.'};
+  if (Object.hasOwn(input,'text')) return Object.hasOwn(input,'plan') || typeof input.text !== 'string' ? {error:'Choose one explanation or annotation preview.'} : checkNote(input.text);
+  const snapshot=context?.toolSnapshot;
+  if (!REQUEST_ID.test(requestId || '') || !validInlineToolSnapshot(snapshot) || snapshot.intent!=='explain' || !Array.isArray(targetIds) || targetIds.length!==snapshot.ids.length || new Set(targetIds).size!==targetIds.length || targetIds.some(id=>!snapshot.ids.includes(id)) || input.plan?.steps?.length!==1 || input.plan.steps[0]?.tool!=='annotate_selection') return {error:'Invalid frozen annotation request.'};
+  const checked=validateInlinePlan(input.plan,snapshot,inlineToolSnapshotBoard(snapshot),snapshot.bounds,{mode:'explain',requestId});
+  if (!checked.ok || checked.changes.length || checked.removals.length) return {error:checked.errors?.[0] || 'Explain cannot modify existing objects.'};
+  return {result:{kind:'annotations',plan:input.plan}};
 }
 export function checkEdit(input, targetIds, context = null, { requestId, mode = 'edit' } = {}) {
   if (!input || typeof input !== 'object' || !Array.isArray(input.ops)) return { error: 'The model returned no edit.' };
@@ -224,7 +233,8 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   if (allowed instanceof Response) return allowed;
   const edit = mode === 'edit', shapes = route === 'shapes', started = Date.now(), requestId = body.request_id;
   if (!edit && route !== 'note' && !shapes) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
-  const tool = edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot)) : shapes ? INLINE_DIAGRAM_TOOL : null;
+  const annotations = !edit && route==='note' && !creation && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.intent==='explain';
+  const tool = edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot)) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
   // A flattened image goes to the vision-capable explanation model as one picture of the board's own card - never to JEV.
   let pictures = [];
   if (!edit && typeof context.image?.id === 'string') {
@@ -244,7 +254,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     // The subscription bridge replays a streamed answer as text only, which would drop a tool call (an edit, a diagram):
     // those ask for the whole answer there (the non-streaming branch below reads it).
     max_tokens: tool ? EDIT_MAX_TOKENS : NOTE_MAX_TOKENS, stream: !(tool && env.SUBSCRIPTION_ONLY === 'true'),
-    system: edit ? INLINE_EDIT_SYSTEM : shapes ? INLINE_DIAGRAM_SYSTEM : creation ? INLINE_CREATE_SYSTEM : INLINE_NOTE_SYSTEM,
+    system: edit ? `${INLINE_EDIT_SYSTEM}\nWith toolSnapshot, annotate_selection may edit an already-selected native annotation callout using one step input {annotations:[{annotationId,text}]}; it cannot create callouts in Edit or modify original source objects.` : shapes ? INLINE_DIAGRAM_SYSTEM : annotations ? INLINE_ANNOTATION_SYSTEM : creation ? INLINE_CREATE_SYSTEM : INLINE_NOTE_SYSTEM,
     messages: [{ role: 'user', content: pictures.length ? [...pictures, { type: 'text', text }] : text }],
     ...(tool ? { tools: [tool], tool_choice: { type: 'any', disable_parallel_tool_use: true } } : {}),
   };
@@ -298,7 +308,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
         else if (tool) {
           let input = null;
           try { input = got.tool?.name === tool.name ? JSON.parse(got.json || '{}') : null; } catch { input = null; }
-          checked = edit ? checkEdit(input, targetIds, context, { requestId, mode }) : checkDiagram(input);
+          checked = edit ? checkEdit(input, targetIds, context, { requestId, mode }) : annotations ? checkExplanation(input,targetIds,context,requestId) : checkDiagram(input);
         } else checked = checkNote(got.text);
         if (checked.error) send('error', { error: checked.error, code: 'invalid' });
         else { outcome = 'done'; send('done', { result: checked.result, usage: { input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null }, ms: { first: got.first == null ? null : got.first - started, total: Date.now() - started } }); }
