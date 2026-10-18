@@ -125,3 +125,20 @@ test('cross-origin submit and cancel refuse before DO access; same-origin and tr
  assert.equal((await inlineImageJobsRoute('/api/learn/files/image-edits',new Request('https://app/api/learn/files/image-edits',{method:'POST',headers:{Origin:'https://app'},body:JSON.stringify(body)}),h.env,h.access)).status,201);
  assert.equal((await h.submit()).status,201);
 });
+
+ test('regional status and cancel echo only the stored immutable operation binding',async()=>{
+ const h=fixture();
+ const {job}=await (await h.submit({operation:'edit_image',maskSourceId:sourceId,prompt:'Replace selected sky'})).json();
+ for(const value of [job,(await (await h.status(job.id)).json()).job,(await (await h.status(job.id,'owner','cancel')).json()).job]){
+  assert.equal(value.operation,'edit_image');assert.equal(value.maskSourceId,sourceId);
+  assert.equal(value.maskSha256,digest);assert.equal(value.prompt,'Replace selected sky');
+  assert.equal(value.r2_key,undefined);assert.equal(value.email,undefined);
+ }
+ assert.equal((await h.status(job.id,'foreign')).status,404);
+ });
+
+test('supplied regional mask revision mismatch refuses before scheduling',async()=>{
+ const h=fixture();
+ assert.equal((await h.submit({operation:'edit_image',maskSourceId:sourceId,maskSha256:'f'.repeat(64),prompt:'Sky'})).status,409);
+ assert.equal(h.records.size,0);assert.equal(h.calls.admit,0);
+});

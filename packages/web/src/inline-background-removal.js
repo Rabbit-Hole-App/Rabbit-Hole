@@ -3,9 +3,18 @@
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const clone = value => structuredClone(value);
 const fail = (code, message) => Object.assign(new Error(message), { code });
-export function createBackgroundRemovalController({ block, scope, ownerKey, current, jobClient,
+export function createBackgroundRemovalController(options) { return createImageController({ ...options, edit: null }); }
+export function createRegionalImageEditController(options) {
+  const edit = options.edit;
+  if (!edit || typeof edit.prompt !== 'string' || !edit.prompt.trim() || edit.prompt.length > 2000 ||
+      !edit.region || ['x', 'y', 'width', 'height'].some(key => !Number.isInteger(edit.region[key]) || edit.region[key] < (key === 'x' || key === 'y' ? 0 : 1)) ||
+      edit.region.x + edit.region.width > 8192 || edit.region.y + edit.region.height > 8192) throw fail('invalid_region', 'Choose an explicit region and describe its edit.');
+  return createImageController({ ...options, edit: clone(edit) });
+}
+function createImageController({ block, scope, ownerKey, current, jobClient, edit, prepareMask,
   prepareRevision, persistTicket, fetchImpl = globalThis.fetch, headers = {}, objectURLs = URL }) {
   const before = clone(block), at = clone(scope), lifetime = new AbortController();
+  const operation = edit ? 'edit_image' : 'remove_background';
   let attempted = false, saved = null, revision = null, disposed = false;
   if (typeof ownerKey !== 'string' || !ownerKey || typeof prepareRevision !== 'function' || typeof persistTicket !== 'function') throw fail('unavailable', 'Image editing setup is incomplete.');
   const source = before?.fileRef?.source;
@@ -38,18 +47,18 @@ export function createBackgroundRemovalController({ block, scope, ownerKey, curr
     const result = await prepareRevision({ block: clone(before), scope: clone(at), signal: lifetime.signal,
       current: () => { check(); return current(); }, headers, fetchImpl, objectURLs,
       transform: async () => ({ ok: true, blob, width, height }),
-      upload: async () => ({ source: { id: proposal.artifactId, rev, name: 'background-removed.png', type: 'image/png', size: length } }) });
+      upload: async () => ({ source: { id: proposal.artifactId, rev, name: edit ? 'region-edited.png' : 'background-removed.png', type: 'image/png', size: length } }) });
     try { check(); } catch (error) { result.dispose(); throw error; }
     revision?.dispose(); revision = result;
     return revision;
   }
   async function resume(envelope, { onProgress } = {}) {
     check();
-    if (envelope?.version !== 1 || envelope.ownerKey !== ownerKey || !equal(envelope.scope, at) || !equal(envelope.before, before)) throw fail('stale_ticket', 'This saved job belongs to a different image or owner.');
+    if (envelope?.version !== 1 || envelope.ownerKey !== ownerKey || !equal(envelope.scope, at) || !equal(envelope.before, before) || edit && !equal(envelope.edit, edit)) throw fail('stale_ticket', 'This saved job belongs to a different image or owner.');
     attempted = true; saved = clone(envelope);
     if (!saved.ticket) throw fail('submission_unknown', 'The earlier submission was not confirmed. Do not start another automatically.');
     const binding = saved.ticket.binding;
-    if (binding?.operation !== 'remove_background' || binding.sourceId !== source.id || binding.sourceSha256 !== source.rev || binding.app !== at.app || binding.board !== at.board || binding.cardId !== before.id) throw fail('stale_ticket', 'The saved job does not match this image.');
+    if (binding?.operation !== operation || edit && (binding.prompt !== edit.prompt || binding.maskSourceId !== saved.mask?.maskSourceId || binding.maskSha256 !== saved.mask?.maskSha256) || binding.sourceId !== source.id || binding.sourceSha256 !== source.rev || binding.app !== at.app || binding.board !== at.board || binding.cardId !== before.id) throw fail('stale_ticket', 'The saved job does not match this image.');
     const result = await jobClient.resume(saved.ticket, { signal: lifetime.signal, onProgress });
     check();
     await remember({ ...saved, state: result.job.phase });
@@ -62,10 +71,20 @@ export function createBackgroundRemovalController({ block, scope, ownerKey, curr
       check();
       if (attempted) throw fail('already_started', 'Resume the existing job instead of starting another.');
       if (consent?.approved !== true || typeof consent.maxReservedUsd !== 'number' || !Number.isFinite(consent.maxReservedUsd) || consent.maxReservedUsd <= 0) throw fail('consent_required', 'Approve the displayed maximum reservation before starting.');
+      if (edit && typeof prepareMask !== 'function') throw fail('unavailable', 'Mask preparation is unavailable. Resume a saved job instead.');
       attempted = true;
-      await remember({ version: 1, ownerKey, scope: at, before, state: 'submission_pending', ticket: null, idempotencyKey, maxReservedUsd: consent.maxReservedUsd });
+      await remember({ version: 1, ownerKey, scope: at, before, state: 'submission_pending', ticket: null, idempotencyKey, maxReservedUsd: consent.maxReservedUsd, ...(edit ? { edit } : {}) });
       check();
-      const ticket = await jobClient.submit({ operation: 'remove_background', app: at.app, board: at.board, cardId: before.id,
+      let mask = null;
+      if (edit) {
+        const prepared = await prepareMask({ edit: clone(edit), block: clone(before), scope: clone(at), signal: lifetime.signal });
+        check();
+        if (typeof prepared?.maskSourceId !== 'string' || !/^fs_[a-f0-9]{24}$/.test(prepared.maskSourceId) || typeof prepared.maskSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(prepared.maskSha256)) throw fail('invalid_mask', 'The saved mask has no valid immutable identity.');
+        mask = { maskSourceId: prepared.maskSourceId, maskSha256: prepared.maskSha256 };
+        await remember({ ...saved, mask });
+        check();
+      }
+      const ticket = await jobClient.submit({ operation, ...(edit ? { ...mask, prompt: edit.prompt } : {}), app: at.app, board: at.board, cardId: before.id,
         sourceId: source.id, sourceSha256: source.rev, idempotencyKey, paidConfirmation: true, maxReservedUsd: consent.maxReservedUsd }, { signal: lifetime.signal });
       await remember({ ...saved, state: 'queued', ticket });
       return resume(saved, { onProgress });

@@ -33,7 +33,7 @@ const stubFor = (env, id) => env.FILE_JOBS.get(env.FILE_JOBS.idFromName(`image-e
 const call = (env, id, action, body) => stubFor(env, id).fetch(new Request(`https://image-job.internal/image-edit/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
 const editableImage = card => card && (card.type === 'image' || card.type === 'file' && card.kind === 'image') && !card.locked && !card.sources?.length && !card.citations?.length && !card.references?.length;
 const sourceBinding = source => ({ id: source.id, sha256: source.sha256, bytes: source.bytes, r2_key: source.r2_key });
-const publicJob = job => job && ({ id: job.id, phase: job.phase, cancelRequested: job.cancelRequested, reason: job.reason || null, artifactId: job.phase === 'ready' ? job.artifactId : null, reservation: job.reservation, sourceSha256: job.request.sourceSha256 });
+const publicJob = (job, context) => job && ({ id: job.id, phase: job.phase, cancelRequested: job.cancelRequested, reason: job.reason || null, artifactId: job.phase === 'ready' ? job.artifactId : null, reservation: job.reservation, sourceSha256: job.request.sourceSha256, ...(job.request.operation === 'edit_image' ? { operation: 'edit_image', maskSourceId: context.mask.id, maskSha256: job.request.maskSha256, prompt: job.request.prompt } : {}) });
 
 export async function inlineImageJobsRoute(path, req, env, dependencies = defaults) {
   const submit = path === '/api/learn/files/image-edits';
@@ -69,6 +69,7 @@ export async function inlineImageJobsRoute(path, req, env, dependencies = defaul
       // An unsaved mask may be owned by the requester but not referenced on the board yet.
       const owned = await env.LEARN_DB.prepare("SELECT * FROM file_sources WHERE id = ? AND org = ? AND owner_email = ? AND status = 'stored'").bind(body.maskSourceId, scope.owner.org, scope.owner.email).first();
       if (!owned || owned.media_type !== 'image/png' || owned.bytes >= 4 * 1024 * 1024) return denied();
+      if (body.maskSha256 != null && (typeof body.maskSha256 !== 'string' || body.maskSha256 !== owned.sha256)) return json({ error: 'The mask revision changed.' }, 409);
       mask = sourceBinding(owned);
     }
     const id = `ij_${(await sha(JSON.stringify([scope.owner.org, scope.owner.email, body.idempotencyKey]))).slice(0, 32)}`;
@@ -128,14 +129,14 @@ export async function imageJobFetch(state, env, req, dependencies) {
       const job = await (await coordinator(state, env, dependencies)).create(body.request);
       await state.storage.put('image:id', body.id);
       if (job.phase === 'queued') await state.storage.setAlarm(Date.now() + 50);
-      return json({ job: publicJob(job) }, 201);
+      return json({ job: publicJob(job, body.context) }, 201);
     } catch (error) { return json({ error: 'Invalid or conflicting image job' }, error.code === 'conflict' ? 409 : 400); }
   }
   const context = await state.storage.get('image:context');
   if (await state.storage.get('image:id') !== body.id || !context || context.org !== body.identity?.org || context.email !== body.identity?.email) return denied();
   const control = await coordinator(state, env, dependencies);
   const job = action === 'cancel' ? await control.cancel(body.id) : action === 'status' ? await control.get(body.id) : null;
-  return job ? json({ job: publicJob(job) }) : denied();
+  return job ? json({ job: publicJob(job, context) }) : denied();
 }
 
 export async function imageJobAlarm(state, env, dependencies) {

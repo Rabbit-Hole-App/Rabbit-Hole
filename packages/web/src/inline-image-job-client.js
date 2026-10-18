@@ -12,14 +12,17 @@ function bindingOf(input) {
       !['remove_background', 'edit_image'].includes(input.operation) || !matches(/^[A-Za-z0-9_.:-]{8,128}$/, input.idempotencyKey)) {
     throw fault('invalid_binding', 'A saved source and exact canvas scope are required.');
   }
-  return Object.freeze(Object.fromEntries(['sourceId', 'sourceSha256', 'app', 'board', 'cardId', 'operation', 'idempotencyKey', 'maxReservedUsd'].map(key => [key, input[key]])));
+  if (input.operation === 'edit_image' && (!matches(SOURCE, input.maskSourceId) || !matches(HASH, input.maskSha256) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 2000)) throw fault('invalid_input', 'Regional editing requires an immutable mask and prompt.');
+  const regional = input.operation === 'edit_image' ? ['maskSourceId', 'maskSha256', 'prompt'] : [];
+  return Object.freeze(Object.fromEntries(['sourceId', 'sourceSha256', 'app', 'board', 'cardId', 'operation', 'idempotencyKey', 'maxReservedUsd', ...regional].map(key => [key, input[key]])));
 }
 function ticketOf(raw) {
   if (raw?.version !== 1 || !matches(ID, raw.id)) throw fault('invalid_ticket', 'Invalid image job ticket.');
   return Object.freeze({ version: 1, id: raw.id, binding: bindingOf(raw.binding) });
 }
 function validateJob(job, ticket) {
-  if (!job || !matches(ID, job.id) || ticket.id && job.id !== ticket.id || job.sourceSha256 !== ticket.binding.sourceSha256 ||
+  const regionalMismatch = ticket.binding.operation === 'edit_image' && ['operation', 'maskSourceId', 'maskSha256', 'prompt'].some(key => job?.[key] !== ticket.binding[key]);
+  if (regionalMismatch || !job || !matches(ID, job.id) || ticket.id && job.id !== ticket.id || job.sourceSha256 !== ticket.binding.sourceSha256 ||
       !PHASES.has(job.phase) || job.phase === 'ready' && !matches(SOURCE, job.artifactId)) {
     throw fault('invalid_response', 'The image job does not match this source.');
   }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createBackgroundRemovalController } from './inline-background-removal.js';
+import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 const sourceId='fs_'+'a'.repeat(24),artifactId='fs_'+'b'.repeat(24),rev='c'.repeat(64),jobId='ij_'+'d'.repeat(32);
 const block={id:'image',type:'file',kind:'image',x:41,y:52,width:300,height:200,fileRef:{source:{id:sourceId,rev}}},scope={app:'canvas',board:'main'};
 const bytes=new Uint8Array(24);bytes.set([137,80,78,71,13,10,26,10]);new DataView(bytes.buffer).setUint32(16,1024);new DataView(bytes.buffer).setUint32(20,1024);
@@ -43,4 +43,31 @@ test('dispose only stops local wait; explicit cancel delegates and retains serve
 });
 test('tampered derivative identity fails before preview preparation',async()=>{
  const h=fixture();h.options.fetchImpl=async()=>new Response(bytes,{headers:{'Content-Type':'image/png','X-Source-Rev':rev}});h.controller=createBackgroundRemovalController(h.options);await assert.rejects(start(h),{code:'invalid_artifact'});assert.equal(h.calls.prepare,0);
+});
+
+const edit={prompt:'Replace the selected sky',region:{x:1,y:2,width:30,height:40}};
+const mask={maskSourceId:'fs_'+'e'.repeat(24),maskSha256:'f'.repeat(64)};
+test('regional mask uploads only after consent; reload preserves exact edit without preparing another mask',async()=>{
+ const h=fixture();let uploads=0;
+ h.controller=createRegionalImageEditController({...h.options,edit,prepareMask:async()=>{uploads++;return mask;}});
+ await h.controller.quote();assert.equal(uploads,0);
+ await assert.rejects(h.controller.start({consent:{approved:false}}),{code:'consent_required'});assert.equal(uploads,0);
+ await start(h);assert.equal(uploads,1);assert.equal(h.calls.submit,1);
+ const saved=h.calls.persist.at(-1);assert.deepEqual(saved.edit,edit);assert.deepEqual(saved.mask,mask);
+ assert.equal(saved.ticket.binding.prompt,edit.prompt);assert.equal(saved.ticket.binding.maskSha256,mask.maskSha256);
+ const fresh=fixture();fresh.controller=createRegionalImageEditController({...fresh.options,edit:structuredClone(saved.edit)});
+ await fresh.controller.resume(saved);assert.equal(fresh.calls.submit,0);assert.equal(fresh.calls.poll,1);
+ const mismatch=fixture();mismatch.controller=createRegionalImageEditController({...mismatch.options,edit:{...edit,prompt:'Different'}});
+ await assert.rejects(mismatch.controller.resume(saved),{code:'stale_ticket'});assert.equal(mismatch.calls.poll,0);
+});
+test('mask preparation failures and source changes during upload prevent provider submission',async()=>{
+ for(const prepare of [async()=>{throw Error('upload failed');},async h=>{h.now.block.x++;return mask;}]){
+  const h=fixture();h.controller=createRegionalImageEditController({...h.options,edit,prepareMask:()=>prepare(h)});
+  await assert.rejects(start(h));assert.equal(h.calls.submit,0);assert.equal(h.calls.poll,0);assert.equal(h.calls.accept,0);
+ }
+});
+test('regional selection is explicit, bounded and detached from later caller changes',async()=>{
+ const h=fixture();for(const bad of [undefined,{...edit,region:null},{...edit,region:{x:0,y:0,width:0,height:2}}])assert.throws(()=>createRegionalImageEditController({...h.options,edit:bad}),{code:'invalid_region'});
+ const choice=structuredClone(edit);h.controller=createRegionalImageEditController({...h.options,edit:choice,prepareMask:async({edit:frozen})=>{assert.deepEqual(frozen,edit);return mask;}});
+ choice.prompt='changed';choice.region.x=100;await start(h);assert.equal(h.calls.persist.at(-1).edit.prompt,edit.prompt);
 });

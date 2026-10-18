@@ -52,11 +52,22 @@ test('mismatched source, job, invalid phase and missing artifact fail closed',as
   const h=fixture([invalid]);await assert.rejects(h.client.resume(ticket),{code:'invalid_response'});assert.equal(h.calls.length,1);
  }
 });
-test('regional inputs require explicit owned-source mask ID and bounded prompt',async()=>{
- const h=fixture([job()]);await assert.rejects(h.client.submit({...input,operation:'edit_image'}),{code:'invalid_input'});
- await h.client.submit({...input,operation:'edit_image',maskSourceId:artifactId,prompt:'Replace the sky'});
- const sent=JSON.parse(h.calls[0].options.body);assert.equal(sent.maskSourceId,artifactId);assert.equal(sent.prompt,'Replace the sky');
+test('regional tickets bind mask revision and exact prompt across reload and reject substituted echoes',async()=>{
+ const region={...input,operation:'edit_image',maskSourceId:artifactId,maskSha256:'e'.repeat(64),prompt:'Replace the sky'};
+ const echo={operation:region.operation,maskSourceId:region.maskSourceId,maskSha256:region.maskSha256,prompt:region.prompt};
+ const h=fixture([job('queued',echo),job('ready',echo)]);
+ const saved=await h.client.submit(region);
+ assert.equal(saved.binding.maskSha256,region.maskSha256);assert.equal(saved.binding.prompt,region.prompt);
+ const proposal=(await h.client.resume(JSON.parse(JSON.stringify(saved)))).proposal;
+ assert.equal(proposal.binding.maskSourceId,artifactId);
+ for(const key of ['operation','maskSourceId','maskSha256','prompt']){
+  await assert.rejects(fixture([job('ready',{...echo,[key]:'different'})]).client.status(saved),{code:'invalid_response'});
+ }
+ const invalid=fixture([]);
+ await assert.rejects(invalid.client.submit({...region,maskSha256:undefined}),{code:'invalid_input'});
+ assert.equal(invalid.calls.length,0);
 });
+
 test('status failure does not resubmit or retry; invalid ticket causes no fetch',async()=>{
  const calls=[];const client=createImageJobClient({fetchImpl:async(...args)=>{calls.push(args);return new Response(null,{status:404});}});
  await assert.rejects(client.resume(ticket),{code:'http_error',status:404});assert.equal(calls.length,1);
