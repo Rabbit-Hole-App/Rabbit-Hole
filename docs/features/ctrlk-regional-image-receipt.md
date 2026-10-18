@@ -1,0 +1,11 @@
+# Regional image editing checkpoint
+
+Implementation `eb3cc15140e6020d1e15d2a0c922613ff37ba4ec`, following immutable job binding `7211e759`. Dev version `72dd4d98-83da-453f-91ef-ee34d6d9718a` at https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev/apps/canvas-674dbe7c. Main and production untouched.
+
+The existing Ctrl+K image inspector now offers **Edit image region**. Select an explicit rectangle by dragging or entering original-pixel coordinates, write a prompt, then review the reservation. No region is preselected. Only explicit Generate uploads the transparent-region PNG mask and submits a job. Saved owner/canvas/source/mask/prompt identity supports explicit Resume without reupload or resubmission. Apply rechecks source/access and uses the existing immutable image transaction with original retention and Undo/Redo. Original card geometry stays unchanged; generated pixels outside the rectangle may change. Rectangles and saved PNG sources only; an uploaded but unused mask is not deleted automatically.
+
+Focused fixtures: **44 passed**, zero skipped. Initial immutable-binding baseline: **27 passed / 2 failed**, corrected before UI integration. Build **11.97 seconds**, deployment upload **9.93 seconds**, triggers **0.44 seconds**.
+
+Actual deployed browser fixture: **5 passed / 0 failed / 0 skipped / 0 interrupted**, **26.220 seconds**. Artifacts: `e2e/shots/ctrlk-regional-run1/results.json`, `started.png`, `reloaded.png`; log `regional-browser-run1.log`. Checks include actual disabled-provider availability; no mask upload before consent; one stored mask with exact 512x512 dimensions, transparent selected pixels and opaque outside pixels; one intercepted job; reload/explicit Resume without another upload; stale source refusal; actual stored derivative Apply, original retention, Undo/Redo and reload.
+
+Job submission/status/results use deterministic fixtures. Source, mask and derivative storage and UI interactions are actual dev operations. **Zero provider requests; no real regional-edit quality verification.** Provider configuration remains disabled. Natural-language action routing is a separate pending integration; this checkpoint exposes the explicit inspector action. Broader Ctrl+K requirements remain unfinished.
