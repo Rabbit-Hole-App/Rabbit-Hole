@@ -1,5 +1,7 @@
 # Ctrl+K tools: contract and wave-one audit
 
+Current review checkpoint: [4341f4ad deployed receipt](ctrlk-4341f4ad-dev-receipt.md). Chronological notes below retain original pending states and SHA attribution; this receipt supersedes their readiness status. The complete Ctrl+K brief and real-model quality checks remain ongoing.
+
 Authoritative brief: `C:/Users/cyudhist/Desktop/ctrl_k_tools.txt`, read in full. Base `d16c3a456b19ad1cb816c5470380e997e102e9a3`; branch `feature/ctrlk-tools-wave1`. Owner: CAD UI lane, isolated `cad-ui/ctrlk-tools` worktree. Existing CAD work remains untouched in its original worktrees. This is a new feature, not CAD release scope.
 
 ## Existing mechanisms to extend
