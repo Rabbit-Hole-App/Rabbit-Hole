@@ -142,6 +142,32 @@ test('generate: a flattened image goes to the explanation model as one picture; 
   assert.deepEqual(asked.image_context, { block_id: 'img1' });
 });
 
+test('image Explain refuses unavailable pixels before note or card generation', async () => {
+  for (const route of ['note', 'code']) for (const blocks of [null, [], [{ type: 'text', text: 'Image unavailable' }]]) {
+    let calls = 0;
+    const response = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route, prompt: 'Explain this image', context: { ...context, image: { id: 'img1' } } })), KEY_ENV, {
+      authorize, images: async () => ({ blocks }), documents: async () => [],
+      callModel: async () => { calls++; return Response.json({}); },
+      artifact: async () => { calls++; return { result: 'artifact' }; },
+    });
+    assert.equal(response.status, 409, route);
+    assert.equal((await response.json()).code, 'source_unavailable');
+    assert.equal(calls, 0, 'unavailable selected pixels must never become a text-only answer');
+  }
+});
+
+test('card Explain receives authorized image pixels alongside existing context documents', async () => {
+  const picture = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } };
+  const document = { type: 'text', text: 'Authorized document' };
+  let supplied;
+  const response = await inlineGenerateFetch(post('/api/learn/inline/generate', await decided({ app: who.name, request_id: RID, mode: 'explain', route: 'code', prompt: 'Explain this image with code', context: { ...context, image: { id: 'img1' } } })), KEY_ENV, {
+    authorize, images: async () => ({ blocks: [picture] }), documents: async () => [document],
+    artifact: async (_env, input) => { supplied = input; return { result: 'artifact' }; },
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(supplied.documents, [document, picture]);
+});
+
 test('telemetry: one row per request id (a retry writes none), content-free whatever is sent, fail-soft without the table', async t => {
   const { sqlite, LEARN_DB } = learnDb(t);
   const row = { request_id: RID, route: 'jev', capability: 'note', outcome: 'accepted', streaming: true, mocked: false,

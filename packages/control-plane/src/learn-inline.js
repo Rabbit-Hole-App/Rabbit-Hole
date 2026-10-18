@@ -162,7 +162,7 @@ export function checkDiagram(input) {
 
 // A card or media capability decided to proceed: its /command's own handler (learn-artifact.js), with no insert. /image
 // and /motion make nothing here (a photo search and a paid proposal the editor stages without a model).
-async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents }) {
+async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures = [] }) {
   if (route === 'image' || route === 'motion') return json({ error: 'This output is staged in the editor, not generated here.', code: 'invalid' }, 400);
   const command = commandOf(decided);
   const input = commandInput({ route, via: command ? 'command' : 'jev', args: command?.args || '' }, { prompt: decided.prompt, context });
@@ -172,7 +172,8 @@ async function inlineCard({ env, allowed, decided, route, context, revise, reque
   let docs;
   try { docs = await documents(env, allowed); } catch (error) { return json({ error: `Context documents: ${error.message}`, code: 'error' }, 502); }
   try {
-    const out = await artifact(env, { command: route, args: input.args, selection, context: artifactContext(context, revise), ...(docs.length ? { documents: docs } : {}) });
+    const sources = [...docs, ...pictures];
+    const out = await artifact(env, { command: route, args: input.args, selection, context: artifactContext(context, revise), ...(sources.length ? { documents: sources } : {}) });
     log({ stage: 'generate', request_id: requestId, mode: 'explain', route, outcome: out.result, total_ms: Date.now() - started });
     return json(out);
   } catch (error) {
@@ -237,7 +238,6 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const equationEdit = edit && !decided.textRange && targetIds.length === 1 && Array.isArray(equationTarget) && equationTarget.length === 1
     && equationTarget[0].id === targetIds[0] && equationTarget[0].type === 'equation' && typeof equationTarget[0].text === 'string';
   const equation = route === 'equation' || equationEdit;
-  if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
   const annotations = !edit && route==='note' && !creation && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.intent==='explain';
   const imageTransform = edit && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.selection.length === 1 && context.toolSnapshot.selection[0].kind === 'image';
   const tool = equation ? INLINE_EQUATION_TOOL : edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook, imageTransform) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
@@ -247,8 +247,12 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     // The card's uploaded copy when it has one (read under this app's identity), else the board's own card.
     const ref = !context.image.source && isUploadedMediaId(context.image.mediaId) ? { id: context.image.mediaId } : { block_id: context.image.id };
     const got = await images(env, allowed, { image_context: ref, ...(context.image.source ? { image_source: context.image.source } : {}), board: typeof body.board === 'string' ? body.board : 'main' }).catch(() => null);
-    if (got?.blocks) pictures = got.blocks;
+    if (!Array.isArray(got?.blocks) || !got.blocks.some(block => block.type === 'image')) {
+      return json({ error: 'The selected image is unavailable or has changed. Refresh the selection before trying again.', code: 'source_unavailable' }, 409);
+    }
+    pictures = got.blocks;
   }
+  if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures });
   // Signed selected IDs identify saved cards; caller-supplied measurements/URLs are never trusted.
   // This deterministic inspection adds no model or executor request.
   if (!edit && !creation) {
