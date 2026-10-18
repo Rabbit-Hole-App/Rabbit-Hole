@@ -1,0 +1,73 @@
+{
+  "candidate": "51e11889",
+  "dirty": "clean deployed integration version40549dc7-a458-46eb-9a05-5a4564460264",
+  "base": "https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev",
+  "canvas": "canvas-d366f99a",
+  "elapsedMs": 39030,
+  "counts": {
+    "passed": 1,
+    "failed": 1,
+    "skipped": 7,
+    "interrupted": 1
+  },
+  "results": [
+    {
+      "name": "only active Code box mounts editor; new unspecified language is Plain text",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "local keyword completion replaces range; one editor Undo/Redo restores completion",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "identifiers, arrows, Tab, Escape and ordinary indentation remain local",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "editing does not move/delete canvas objects; native history remains one exit transaction",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "literal Text-Code roundtrip, language and reload preserve native identity",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "Duplicate persists literal source and language without upload or generation",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "Ctrl+K opens existing inline editor for the exact active code selection without generation",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "completion popup stays within usable canvas at two zooms with Search open",
+      "status": "passed"
+    },
+    {
+      "name": "signed-out shared viewer can read code but cannot edit or change language",
+      "status": "failed",
+      "error": "locator.dblclick: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-item-id=\"code-main\"]')\u001b[22m\n\u001b[2m    - locator resolved to <div data-block=\"true\" data-text-mode=\"code\" data-item-id=\"code-main\" class=\"absolute z-10 cursor-default min-w-24 -mx-1 -my-0.5 rounded border px-1 py-0.5 leading-snug border-line bg-hover/60  \">…</div>\u001b[22m\n\u001b[2m  - attempting dblclick action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-canvas-surface=\"true\" class=\"relative min-h-0 flex-1 touch-none overflow-hidden cursor-grab active:cursor-grabbing \">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying dblclick action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-canvas-surface=\"true\" class=\"relative min-h-0 flex-1 touch-none overflow-hidden cursor-grab active:cursor-grabbing \">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying dblclick action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-canvas-surface=\"true\" class=\"relative min-h-0 flex-1 touch-none overflow-hidden cursor-grab active:cursor-grabbing \">…</div> intercepts pointer events\u001b[22m\n\u001b[2m     - retrying dblclick action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    }
+  ],
+  "errors": [],
+  "forbidden": [],
+  "external": [
+    "https://rabbit-hole-canvas-notebook-dev-ctrlk-tools.tryrabbithole.workers.dev"
+  ],
+  "writes": [
+    "PUT /api/learn/boards/canvas-d366f99a/main",
+    "PUT /api/learn/boards/canvas-d366f99a/main/thumbnail"
+  ],
+  "setupError": "locator.dblclick: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-item-id=\"code-main\"]')\u001b[22m\n\u001b[2m    - locator resolved to <div data-block=\"true\" data-text-mode=\"code\" data-item-id=\"code-main\" class=\"absolute z-10 cursor-default min-w-24 -mx-1 -my-0.5 rounded border px-1 py-0.5 leading-snug border-line bg-hover/60  \">…</div>\u001b[22m\n\u001b[2m  - attempting dblclick action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-canvas-surface=\"true\" class=\"relative min-h-0 flex-1 touch-none overflow-hidden cursor-grab active:cursor-grabbing \">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying dblclick action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-canvas-surface=\"true\" class=\"relative min-h-0 flex-1 touch-none overflow-hidden cursor-grab active:cursor-grabbing \">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying dblclick action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-canvas-surface=\"true\" class=\"relative min-h-0 flex-1 touch-none overflow-hidden cursor-grab active:cursor-grabbing \">…</div> intercepts pointer events\u001b[22m\n\u001b[2m     - retrying dblclick action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at C:\\Users\\cyudhist\\Desktop\\workspace\\small-parallel\\.worktrees\\code-box-autocomplete-acceptance\\packages\\web\\e2e\\code-box-autocomplete-check.mjs:114:155\n    at async file:///C:/Users/cyudhist/Desktop/workspace/small-parallel/.worktrees/code-box-autocomplete-acceptance/packages/web/e2e/code-box-autocomplete-check.mjs:122:247",
+  "limitations": [
+    "Prepared actual-app harness; only a completed run establishes coverage.",
+    "IME, stale remote-conflict and fork/trash-restore need separate focused scenarios; not covered by these counts."
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "candidate": "51e11889",
+  "dirty": "clean deployed integration version40549dc7-a458-46eb-9a05-5a4564460264",
+  "base": "https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev",
+  "canvas": "canvas-e6c7f467",
+  "elapsedMs": 45042,
+  "counts": {
+    "passed": 7,
+    "failed": 1,
+    "skipped": 0,
+    "interrupted": 2
+  },
+  "results": [
+    {
+      "name": "only active Code box mounts editor; new unspecified language is Plain text",
+      "status": "passed"
+    },
+    {
+      "name": "local keyword completion replaces range; one editor Undo/Redo restores completion",
+      "status": "passed"
+    },
+    {
+      "name": "identifiers, arrows, Tab, Escape and ordinary indentation remain local",
+      "status": "passed"
+    },
+    {
+      "name": "editing does not move/delete canvas objects; native history remains one exit transaction",
+      "status": "passed"
+    },
+    {
+      "name": "literal Text-Code roundtrip, language and reload preserve native identity",
+      "status": "passed"
+    },
+    {
+      "name": "Duplicate persists literal source and language without upload or generation",
+      "status": "passed"
+    },
+    {
+      "name": "Ctrl+K opens existing inline editor for the exact active code selection without generation",
+      "status": "passed"
+    },
+    {
+      "name": "completion popup stays within usable canvas at two zooms with Search open",
+      "status": "failed",
+      "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-canvas-search]') to be visible\u001b[22m\n\u001b[2m    33 × locator resolved to hidden <div role=\"tabpanel\" data-canvas-find=\"true\" data-canvas-search=\"true\" aria-label=\"Find text on canvas\" class=\"hidden min-h-0 flex-1 flex-col\">…</div>\u001b[22m\n"
+    }
+  ],
+  "errors": [],
+  "forbidden": [],
+  "external": [
+    "https://rabbit-hole-canvas-notebook-dev-ctrlk-tools.tryrabbithole.workers.dev",
+    "https://rabbit-hole-canvas-notebook-dev-ctrlk-tools.tryrabbithole.workers.dev"
+  ],
+  "writes": [
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main",
+    "PUT /api/learn/boards/canvas-e6c7f467/main/thumbnail"
+  ],
+  "setupError": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-canvas-search]') to be visible\u001b[22m\n\u001b[2m    33 × locator resolved to hidden <div role=\"tabpanel\" data-canvas-find=\"true\" data-canvas-search=\"true\" aria-label=\"Find text on canvas\" class=\"hidden min-h-0 flex-1 flex-col\">…</div>\u001b[22m\n\n    at C:\\Users\\cyudhist\\Desktop\\workspace\\small-parallel\\.worktrees\\code-box-autocomplete-acceptance\\packages\\web\\e2e\\code-box-autocomplete-check.mjs:98:109\n    at async file:///C:/Users/cyudhist/Desktop/workspace/small-parallel/.worktrees/code-box-autocomplete-acceptance/packages/web/e2e/code-box-autocomplete-check.mjs:121:37",
+  "limitations": [
+    "Prepared actual-app harness; only a completed run establishes coverage.",
+    "IME, stale remote-conflict and fork/trash-restore need separate focused scenarios; not covered by these counts."
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "candidate": "51e11889",
+  "dirty": "clean deployed integration version40549dc7-a458-46eb-9a05-5a4564460264",
+  "base": "https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev",
+  "canvas": "canvas-8b040aa8",
+  "elapsedMs": 9928,
+  "counts": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 7,
+    "interrupted": 0
+  },
+  "results": [
+    {
+      "name": "only active Code box mounts editor; new unspecified language is Plain text",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "local keyword completion replaces range; one editor Undo/Redo restores completion",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "identifiers, arrows, Tab, Escape and ordinary indentation remain local",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "editing does not move/delete canvas objects; native history remains one exit transaction",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "literal Text-Code roundtrip, language and reload preserve native identity",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "Duplicate persists literal source and language without upload or generation",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "Ctrl+K opens existing inline editor for the exact active code selection without generation",
+      "status": "skipped",
+      "reason": "ponytail: reuse seven passed checks from autocomplete-51e11889-run8; this run targets remaining checks only"
+    },
+    {
+      "name": "completion popup stays within usable canvas at two zooms with Search open",
+      "status": "passed"
+    },
+    {
+      "name": "signed-out shared viewer can read code but cannot edit or change language",
+      "status": "passed"
+    },
+    {
+      "name": "no provider/execution/upload requests or browser exceptions",
+      "status": "passed"
+    }
+  ],
+  "errors": [],
+  "forbidden": [],
+  "external": [
+    "https://rabbit-hole-canvas-notebook-dev-ctrlk-tools.tryrabbithole.workers.dev"
+  ],
+  "writes": [
+    "PUT /api/learn/boards/canvas-8b040aa8/main"
+  ],
+  "limitations": [
+    "Prepared actual-app harness; only a completed run establishes coverage.",
+    "IME, stale remote-conflict and fork/trash-restore need separate focused scenarios; not covered by these counts."
+  ]
+}
