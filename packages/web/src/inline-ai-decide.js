@@ -21,6 +21,7 @@ export const REGION_MAX = 1500, TARGETS_MAX = 200;
 const { diagram: _card, ...OTHERS } = ROUTES;
 export const CAPABILITIES = Object.freeze({
   ...OTHERS,
+  equation: { label: 'Equation', criterion: 'A rendered, editable mathematical equation or formula in LaTeX, including a natural-language description of a desired equation. Explaining mathematics in prose remains a text explanation.' },
   note: { label: 'Text explanation', criterion: 'An editable written explanation on the canvas, with no special format: why and how questions, "explain this", definitions, and any request that declines a format (for example "but don\'t make a video").' },
   shapes: { label: 'Diagram', criterion: 'An editable diagram drawn on the canvas from shapes, text and arrows: a tree, flowchart, cycle, hierarchy, timeline, or a map of how parts connect.' },
 });
@@ -28,8 +29,8 @@ export const INLINE_SLASH = Object.freeze({ diagram: 'shapes' });
 // A capability the editor can run: one the validator may choose (CAPABILITIES), or one only its explicit command reaches
 // (EXPLICIT_ROUTES: never offered to the validator's route question, so automatic routing is unchanged).
 export const knownCapability = capability => !!(CAPABILITIES[capability] || EXPLICIT_ROUTES[capability]);
-export const DEFAULT_ENABLED = Object.freeze(['note', 'shapes']);
-export const outcomeOf = capability => (capability === 'edit' ? 'edit' : capability === 'note' ? 'text' : capability === 'shapes' ? 'diagram' : ['image', 'video', '3d', 'motion'].includes(capability) ? 'media' : 'card');
+export const DEFAULT_ENABLED = Object.freeze(['note', 'shapes', 'equation']);
+export const outcomeOf = capability => (capability === 'edit' ? 'edit' : capability === 'equation' ? 'equation' : capability === 'note' ? 'text' : capability === 'shapes' ? 'diagram' : ['image', 'video', '3d', 'motion'].includes(capability) ? 'media' : 'card');
 // Whether the capability can start paid generation: Motion, or a command whose family holds a paid primitive. The router
 // only says so; the handler's proposal, cost disclosure and Generate step stay where they are.
 export const paidOf = capability => capability === 'motion' || (SLASH.find(entry => entry.name === capability)?.family || []).some(id => primitive(id).paid);
@@ -64,6 +65,8 @@ export const commandOf = request => (request.slash ? { name: request.slash.toLow
 export function checkRequest(request) {
   const bad = { error: 'Invalid inline request' };
   if (!request || typeof request !== 'object' || typeof request.prompt !== 'string' || !['edit', 'explain'].includes(request.mode)) return bad;
+  if (request.output != null && (request.output !== 'equation' || request.mode !== 'explain'
+    || commandOf(request) || (request.revising != null && request.revising !== request.output))) return bad;
   // A refine names the output it revises (the session's previous route): only a known one.
   if (request.revising != null && !(request.revising === 'edit' || knownCapability(request.revising))) return bad;
   if (request.slash != null && (typeof request.slash !== 'string' || !/^[\w-]{1,40}$/.test(request.slash))) return bad;
@@ -90,6 +93,7 @@ export function checkRequest(request) {
 export function fixedRoute(request, enabled = DEFAULT_ENABLED) {
   const command = commandOf(request);
   const stop = (decision, message, extra = {}) => ({ decision, message, paid: false, ...extra });
+  if (request.output === 'equation' && request.mode === 'explain' && !command) return enabled.includes('equation') ? { capability: 'equation' } : stop('unsupported', 'Equation generation is unavailable here.');
   // A refine keeps its output: the check validates the new words for it ("make it shorter" means the result shown).
   if (request.revising && request.mode === 'explain' && !command) return enabled.includes(request.revising) || request.revising === 'note' ? { capability: request.revising, revising: true } : stop('unsupported', unavailableText(request.revising).text);
   if (request.mode === 'edit') return command ? stop('unsupported', `/${command.name} adds something new. Switch to Explain to use it, or describe the change you want.`) : { capability: 'edit' };

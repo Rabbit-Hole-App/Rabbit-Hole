@@ -1,6 +1,7 @@
 import { validateNativePlan, nativeSnapshotBoard, validNativeSnapshot } from '../../web/src/inline-native-plan.js';
 import { validInlineToolSnapshot, inlineToolSnapshotBoard, validateInlinePlan } from '../../web/src/inline-tool-plan.js';
 import { validateCardContent } from '../../web/src/inline-card-edit.js';
+import { INLINE_EQUATION_SYSTEM, INLINE_EQUATION_TOOL, checkEquation } from './inline-equation.js';
 // The inline AI editor's worker routes (docs/features/inline-ai-editor.md §6-§12, A2, A3, A5).
 //
 //   POST /api/learn/inline/route     one JEV Choice question: which existing capability makes an Explain output. The
@@ -232,9 +233,13 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const allowed = await access(req, env, body, authorize);
   if (allowed instanceof Response) return allowed;
   const edit = mode === 'edit', shapes = route === 'shapes', started = Date.now(), requestId = body.request_id;
-  if (!edit && route !== 'note' && !shapes) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
+  const equationTarget = context.target?.objects;
+  const equationEdit = edit && !decided.textRange && targetIds.length === 1 && Array.isArray(equationTarget) && equationTarget.length === 1
+    && equationTarget[0].id === targetIds[0] && equationTarget[0].type === 'equation' && typeof equationTarget[0].text === 'string';
+  const equation = route === 'equation' || equationEdit;
+  if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
   const annotations = !edit && route==='note' && !creation && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.intent==='explain';
-  const tool = edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
+  const tool = equation ? INLINE_EQUATION_TOOL : edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
   // A flattened image goes to the vision-capable explanation model as one picture of the board's own card - never to JEV.
   let pictures = [];
   if (!edit && typeof context.image?.id === 'string') {
@@ -254,7 +259,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     // The subscription bridge replays a streamed answer as text only, which would drop a tool call (an edit, a diagram):
     // those ask for the whole answer there (the non-streaming branch below reads it).
     max_tokens: tool ? EDIT_MAX_TOKENS : NOTE_MAX_TOKENS, stream: !(tool && env.SUBSCRIPTION_ONLY === 'true'),
-    system: edit ? `${INLINE_EDIT_SYSTEM}\nWith toolSnapshot, annotate_selection may edit an already-selected native annotation callout using one step input {annotations:[{annotationId,text}]}; it cannot create callouts in Edit or modify original source objects. When toolSnapshot.notebook exists, edit_notebook_cells uses one step targeting that notebook with input {cellIds:[all explicitly selected cell IDs],edits:[{id:"selected cell ID",source:"complete revised source"}]}. Only supplied selectedCells source is readable/editable. Preserve cell types/IDs/metadata; never edit unselected cells, claim knowledge of hidden cells, include outputs or execute code. The app clears affected stale outputs without execution.` : shapes ? INLINE_DIAGRAM_SYSTEM : annotations ? INLINE_ANNOTATION_SYSTEM : creation ? INLINE_CREATE_SYSTEM : INLINE_NOTE_SYSTEM,
+    system: equation ? `${INLINE_EQUATION_SYSTEM}\nIntent: ${equationEdit ? 'equationEdit: replace only the selected equation; preserve its identity, position and styling.' : 'equationInsert: produce a new equation, never replace selected context.'}` : edit ? `${INLINE_EDIT_SYSTEM}\nWith toolSnapshot, annotate_selection may edit an already-selected native annotation callout using one step input {annotations:[{annotationId,text}]}; it cannot create callouts in Edit or modify original source objects. When toolSnapshot.notebook exists, edit_notebook_cells uses one step targeting that notebook with input {cellIds:[all explicitly selected cell IDs],edits:[{id:"selected cell ID",source:"complete revised source"}]}. Only supplied selectedCells source is readable/editable. Preserve cell types/IDs/metadata; never edit unselected cells, claim knowledge of hidden cells, include outputs or execute code. The app clears affected stale outputs without execution.` : shapes ? INLINE_DIAGRAM_SYSTEM : annotations ? INLINE_ANNOTATION_SYSTEM : creation ? INLINE_CREATE_SYSTEM : INLINE_NOTE_SYSTEM,
     messages: [{ role: 'user', content: pictures.length ? [...pictures, { type: 'text', text }] : text }],
     ...(tool ? { tools: [tool], tool_choice: { type: 'any', disable_parallel_tool_use: true } } : {}),
   };
@@ -289,7 +294,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
             text: piece => { firstNow(); got.text += piece; if (!tool && piece) send('delta', { text: piece }); },
             json: piece => {
               firstNow(); got.json += piece;
-              if (edit) for (const part of partialEdits(got.json)) if (sent.get(part.id) !== part.text) { sent.set(part.id, part.text); send('preview', part); }
+              if (edit && !equation) for (const part of partialEdits(got.json)) if (sent.get(part.id) !== part.text) { sent.set(part.id, part.text); send('preview', part); }
             },
             delta: event => { got.stop = event.delta?.stop_reason || got.stop; got.usage = { ...got.usage, ...(event.usage || {}) }; },
           });
@@ -308,7 +313,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
         else if (tool) {
           let input = null;
           try { input = got.tool?.name === tool.name ? JSON.parse(got.json || '{}') : null; } catch { input = null; }
-          checked = edit ? checkEdit(input, targetIds, context, { requestId, mode }) : annotations ? checkExplanation(input,targetIds,context,requestId) : checkDiagram(input);
+          checked = equation ? checkEquation(input) : edit ? checkEdit(input, targetIds, context, { requestId, mode }) : annotations ? checkExplanation(input,targetIds,context,requestId) : checkDiagram(input);
         } else checked = checkNote(got.text);
         if (checked.error) send('error', { error: checked.error, code: 'invalid' });
         else { outcome = 'done'; send('done', { result: checked.result, usage: { input_tokens: got.usage.input_tokens ?? null, output_tokens: got.usage.output_tokens ?? null }, ms: { first: got.first == null ? null : got.first - started, total: Date.now() - started } }); }

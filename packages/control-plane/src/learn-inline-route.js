@@ -27,11 +27,14 @@ const TOOL_SCOPE = 'Selected-object appearance and measured alignment; complete 
 // What a validator reads: the mode, whether anything is selected, the learner's words, the output a command already
 // fixed, and the compact material (inline-ai-decide.js summaryOf) - never the context package or the canvas.
 function view(request, fixed) {
+  const objects=request.context?.target?.objects;
+  const equationEdit=request.mode==='edit' && !request.textRange && request.targetIds?.length===1 && objects?.length===1 && objects[0].id===request.targetIds[0] && objects[0].type==='equation' && typeof objects[0].text==='string';
   return {
     mode: request.mode, selected: request.kind === 'selection',
     request: (request.slash ? `/${request.slash} ${request.prompt}` : request.prompt).slice(0, 1000),
     ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : (CAPABILITIES[fixed.capability] || EXPLICIT_ROUTES[fixed.capability]).label } : {}),
     material: summaryOf({...request,context:inlineProviderContext(request.context)}),
+    ...(equationEdit ? {equationEdit:'Replace the selected equation LaTeX according to the request, preserving its identity, position and styling. No other object changes.'} : {}),
     ...(hasTools(request) ? {availableSelectionTools:TOOL_SCOPE} : {}),
     ...(hasAnnotations(request) ? {availableAnnotations:'Explicitly requested anchored explanatory callouts or bounded highlights, added separately without changing selected objects. Ordinary Explain remains a note.'} : {}),
   };
@@ -44,7 +47,7 @@ export function jevDecideRequest(request, fixed, model) {
   return {
     model,
     state: {
-      mode: seen.mode === 'edit' ? hasTools(request) ? 'edit: changes the selected content using legacy text edits or the explicitly supplied validated selection tools' : 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
+      mode: seen.mode === 'edit' ? seen.equationEdit ? seen.equationEdit : hasTools(request) ? 'edit: changes the selected content using legacy text edits or the explicitly supplied validated selection tools' : 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
       ...(request.context?.nativeTools ? {nativeTools:'set_appearance on selected native objects; arrange_selection on selected boxed shapes/text/notes, computed from measured bounds'} : {}),
       ...(hasTools(request) ? {toolSnapshot:TOOL_SCOPE} : {}),
       ...(hasAnnotations(request) ? {annotations:seen.availableAnnotations} : {}),

@@ -8,6 +8,13 @@ import { PROMPT_MAX } from './inline-ai-route.js';
 const context = { target: { ids: ['n1'], objects: [{ id: 'n1', type: 'shape', kind: 'rect', text: 'Photosynthesis' }] } };
 const pick = (prompt, extra = {}) => ({ kind: 'selection', mode: 'explain', targetIds: ['n1'], prompt, context, ...extra });
 const create = (prompt, extra = {}) => ({ kind: 'creation', mode: 'explain', anchor: { x: 120, y: -40 }, region: 'near: a flowchart of an order checkout', prompt, context: {}, ...extra });
+test('explicit equation output is Explain-only and cannot conflict with commands or refinement', () => {
+  const request=create('A quadratic formula',{output:'equation'});
+  assert.equal(checkRequest(request),null);assert.deepEqual(fixedRoute(request),{capability:'equation'});
+  for(const extra of [{output:'image'},{mode:'edit'},{slash:'diagram'},{revising:'note'},{prompt:'/diagram a tree'}])assert.ok(checkRequest({...request,...extra}).error);
+  assert.equal(checkRequest({...request,revising:'equation'}),null);
+  assert.equal(fixedRoute(request,['note']).decision,'unsupported');
+});
 
 test('local checks: empty, whitespace-only and over-long input are invalid with a message, at no cost', () => {
   for (const prompt of ['', '   ', '\n\t ']) assert.deepEqual(checkRequest(pick(prompt)), { decision: 'invalid', message: MESSAGES.invalid, paid: false });

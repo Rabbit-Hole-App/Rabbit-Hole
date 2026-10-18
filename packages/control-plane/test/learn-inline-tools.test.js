@@ -8,6 +8,18 @@ import { KEY_ENV, decided } from './learn-inline-fixture.js';
 import { readGeneration } from '../../web/src/inline-ai-transport.js';
 
 const requestId = 'req-tools-12345678';
+test('equation insert and selected equation replacement use one validated tool generation', async () => {
+  for (const mode of ['explain','edit']) {
+    const context={target:{ids:['eq'],objects:[{id:'eq',type:'equation',text:'x^2',native:true,mode:'text'}]}};
+    const body=await decided({app:'canvas-test',request_id:requestId,mode,route:mode==='edit'?'edit':'equation',prompt:'Use the cube of x',context});
+    let calls=0;
+    const response=await inlineGenerateFetch(new Request('https://test/api/learn/inline/generate',{method:'POST',body:JSON.stringify(body)}),KEY_ENV,{authorize:async()=>({name:'canvas-test',email:'owner@test'}),callModel:async(_env,request)=>{
+      calls++;assert.equal(request.tools[0].name,'inline_equation');assert.match(request.system,mode==='edit'?/equationEdit: replace only/:/equationInsert: produce a new/);
+      return Response.json({content:[{type:'tool_use',name:'inline_equation',input:{latex:'x^3'}}],stop_reason:'tool_use'});
+    }});
+    const output=await readGeneration(response,()=>{});assert.equal(calls,1);assert.deepEqual(output.result,{kind:'equation',latex:'x^3'});
+  }
+});
 const shape = id => ({id,kind:'rect',text:id,x1:0,y1:0,x2:80,y2:40});
 function fixture(table = false) {
   const board = {shapes:[shape('a'),shape('b')],links:[{id:'ab',from:'a',to:'b'}],items:[],blocks:[{id:'table',type:'table',title:'Values',columns:['Value'],rows:[['2'],['1']]}]};
