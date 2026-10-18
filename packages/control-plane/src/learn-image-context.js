@@ -17,7 +17,7 @@ export const imageCard = (state, id) => (Array.isArray(state?.blocks) ? state.bl
 // The caller has already authorized this row (owner, share or publication). No fallback to an original owner's upload.
 export async function boardImageContext(env, row, block, expectedSource = null) {
   try {
-    if (expectedSource && (expectedSource.id !== block?.fileRef?.source?.id || expectedSource.rev !== block?.fileRef?.source?.rev)) return unavailable();
+    if (expectedSource !== null && (typeof expectedSource?.id !== 'string' || !expectedSource.id || !/^[0-9a-f]{64}$/.test(expectedSource?.rev || '') || expectedSource.id !== block?.fileRef?.source?.id || expectedSource.rev !== block?.fileRef?.source?.rev)) return unavailable();
     // fileRef is the current immutable revision. A retained legacy asset may be
     // the original before an accepted transform; never silently read it instead.
     if (block?.fileRef) {
@@ -51,7 +51,7 @@ export async function tutorImageContext(env, access, body) {
     const row = env.LEARN_DB && await ownerRow(env, access, access.name, board);
     const block = row && imageCard(JSON.parse(row.state_json || '{}'), ref.block_id);
     if (!block) return { error: 'That image is not on this board.', status: 403 };
-    return boardImageContext(env, row, block, body.image_source || null);
+    return boardImageContext(env, row, block, body.image_source === undefined ? null : body.image_source);
   }
   try {
     const media = await readUploadedMedia(env, paperIdentity(access), ref.id);

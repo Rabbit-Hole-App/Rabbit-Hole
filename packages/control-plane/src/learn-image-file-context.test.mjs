@@ -63,3 +63,13 @@ test('a frozen request cannot read a newer accepted image revision', async () =>
   assert.equal(result.blocks.some(block => block.type === 'image'), false);
   assert.deepEqual(f.reads, []);
 });
+
+test('malformed explicit frozen sources cannot match absent legacy fields', async () => {
+  for (const source of [{}, false, '', { id: 'source' }]) {
+    const f = fixture();
+    delete f.block.fileRef;
+    const result = await boardImageContext(f.env, f.row, f.block, source);
+    assert.equal(result.blocks.some(block => block.type === 'image'), false);
+    assert.deepEqual(f.reads, []);
+  }
+});
