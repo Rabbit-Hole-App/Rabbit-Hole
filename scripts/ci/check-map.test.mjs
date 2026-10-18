@@ -30,6 +30,24 @@ test('every none glob has a reason, and no reason is orphaned', () => {
 // Fix round 1 (controller review 2026-10-13).
 const tracked = execFileSync('git', ['ls-files'], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim().split('\n');
 const sel = (...paths) => select(paths.map(path => ({ status: 'M', path })), map);
+
+test('file conversion mappings report guarded manual coverage without starting its service or demos', () => {
+  for (const path of ['packages/file-convert/server.mjs', 'packages/control-plane/file-jobs-dev-demo.mjs', 'packages/web/src/file-jobs-client.js']) {
+    const selected = sel(path);
+    assert.equal(classify(path, map), 'mapped');
+    assert.deepEqual(selected.checks, [], 'no automatic converter, restart or paid execution');
+    assert.ok(selected.notCovered.includes('file-converter-ui-check.mjs'));
+    assert.ok(selected.notCovered.includes('file-step-retry-check.mjs'));
+  }
+});
+
+test('import and model paths select their real checks while pointer diagnostics retain both consumers', () => {
+  assert.ok(sel('packages/web/src/FileDocCard.jsx').notCovered.includes('file-doc-cards-check.mjs'));
+  assert.ok(sel('packages/web/src/ModelCard.jsx').notCovered.includes('model-viewer-check.mjs'));
+  assert.ok(sel('packages/web/src/file-source-client.js').notCovered.includes('file-sources-check.mjs'));
+  assert.ok(sel('packages/web/src/TocConversation.jsx').notCovered.includes('toc-tutor-check.mjs'));
+  assert.deepEqual(sel('packages/web/e2e/pointer-diagnostics.mjs').checks, ['project-menu-check.mjs', 'workspace-check.mjs']);
+});
 test('markdown that the bundles import at run time is broad, not docs', () => {
   for (const p of ['docs/courses/nanogpt/lesson-01-plan.md', 'docs/courses/nanogpt/lesson-02-plan.md', 'docs/courses/nanogpt/quickstart-curriculum.md']) assert.equal(classify(p, map), 'broad', p);
   assert.equal(classify('docs/features/coaching.md', map), 'docs');
