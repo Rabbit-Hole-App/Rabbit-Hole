@@ -25,7 +25,7 @@ export function previewVerticalDiagram(input,{board,frozen,readOnly=false}={}){
     if(!['x1','y1','x2','y2'].every(key=>Number.isFinite(node[key])))return fail('The saved node geometry is invalid.');
     sizes[aliases.get(node.id)]={w:Math.abs(node.x2-node.x1),h:Math.abs(node.y2-node.y1)};
   }
-  const spec={shapes:nodes.map(node=>({id:aliases.get(node.id),label:'',kind:node.kind})),connectors:incident.filter(link=>nodeIds.has(link.from)&&nodeIds.has(link.to)).map(link=>({from:aliases.get(link.from),to:aliases.get(link.to)})),layout:{arrange:'layered',flow:'down',spacing:1}};
+  const spec={shapes:nodes.map(node=>({id:aliases.get(node.id),label:'',kind:node.kind})),connectors:incident.filter(link=>link.kind!=='annotation'&&nodeIds.has(link.from)&&nodeIds.has(link.to)).map(link=>({from:aliases.get(link.from),to:aliases.get(link.to)})),layout:{arrange:'layered',flow:'down',spacing:1}};
   const layout=layoutDiagram(spec,undefined,sizes);
   const origin={x:Math.min(...nodes.flatMap(node=>[node.x1,node.x2])),y:Math.min(...nodes.flatMap(node=>[node.y1,node.y2]))};
   const changes=nodes.map((node,index)=>{

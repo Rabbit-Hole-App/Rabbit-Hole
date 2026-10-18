@@ -5,6 +5,10 @@ import { freezeInlineTools,validateInlinePlan } from './inline-tool-plan.js';
 const node=(id,x,w=100,h=60)=>({id,kind:'rect',text:`Label ${id}`,runs:[{t:`Label ${id}`,b:true}],x1:x,y1:20,x2:x+w,y2:20+h,color:'#123456'});
 function fixture(){const board={shapes:[node('a',0,600,350),node('b',700),node('c',1000)],links:[{id:'ab',from:'a',to:'b',label:'edge',route:'elbow'},{id:'bc',from:'b',to:'c',label:'continue'}],items:[],blocks:[]};return{board,frozen:{ids:['a','b','c'],objects:Object.fromEntries(board.shapes.map(n=>[n.id,structuredClone(n)]))},requestId:'vertical-test'};}
 const input={targetIds:['a','b','c'],layout:{flow:'down'}};
+test('explanation annotations never change structural graph ranks',()=>{
+ const plain=fixture(),annotated=fixture();plain.board.links=[];annotated.board.links=[{id:'explanation',kind:'annotation',from:'a',to:'b'}];
+ assert.deepEqual(previewDiagramEdit(input,annotated).changes,previewDiagramEdit(input,plain).changes);
+});
 test('vertical layout reuses graph ranks with measured sizes and preserves all nonposition fields',()=>{
   const f=fixture(),result=previewDiagramEdit(input,f);assert.equal(result.ok,true);
   assert.deepEqual(result,previewDiagramEdit(input,fixture()));assert.deepEqual(result.additions,[]);assert.deepEqual(result.removals,[]);

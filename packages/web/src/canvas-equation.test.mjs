@@ -88,9 +88,10 @@ test('copy and duplicate keep the source: an item copy is the whole item under a
   assert.equal(copy.size, 40);
 });
 
-test('undo covers an equation: placing snapshots, a changed source snapshots, an emptied one is deleted with its own step', () => {
+test('equation placement is provisional; committing snapshots, changed source snapshots, deletion has its own step', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.match(canvas, /tool === 'equation' && store\.equations\) \{[\s\S]{0,200}snapshot\(\);\s*store\.setItems\(previous => \[\.\.\.previous, newEquation\(store\.local\(event\)\)\]\);/);
+  assert.match(canvas, /tool === 'equation' && store\.equations\) \{[\s\S]{0,250}setEquationDraft\(newEquation\(store\.local\(event\)\)\);/);
+  assert.match(canvas, /if\(latex&&!readOnlyRef\.current\)\{snapshot\(\);setItems\(previous=>\[\.\.\.previous,\{\.\.\.draft,latex,fresh:false\}\]\);/);
   assert.match(canvas, /if \(!latex\) \{ if \(before\.fresh\) setItems\(previous => previous\.filter\(item => item\.id !== id\)\); else deleteItem\(id\); return; \}/);
   assert.match(canvas, /if \(!before\.fresh && before\.latex !== latex\) snapshot\(\);/);
 });
@@ -129,7 +130,7 @@ test('typing in an equation is typing: the canvas keys stand down for its field'
   assert.match(canvas, /focused\?\.closest\?\.\('\[data-equation-editor\]'\)\) && focused\.closest\(/);
   const editor = read('./EquationEditor.jsx');
   assert.match(editor, /data-equation-editor data-keep-focus/);
-  assert.match(editor, /onBlur=\{event => \{ if \(!root\.current\.contains\(event\.relatedTarget\)\) finish\(\); \}\}/);
+  assert.match(editor, /onBlur=\{event => \{ if \(tab!=='generate'&&!root\.current\.contains\(event\.relatedTarget\)\) finish\(\); \}\}/);
 });
 
 test('MathLive loads with the first equation edited, never with the canvas', () => {

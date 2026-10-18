@@ -31,8 +31,15 @@ const DEV_CONFIGS = [...WEB, CP_DEV];
 const d1 = c => Object.fromEntries((c.d1_databases || []).map(d => [d.binding, [d.database_name, d.database_id]]));
 const r2 = c => Object.fromEntries((c.r2_buckets || []).map(b => [b.binding, b.bucket_name]));
 
+test('the session notebook review clone serves static assets without execution or data bindings',()=>{
+ const c=config('../../web/wrangler.ctrlk-notebook-dev.jsonc');
+ assert.equal(c.name,'rabbit-hole-canvas-notebook-dev-ctrlk-tools');
+ assert.ok(c.assets?.directory);
+ for(const key of ['main','services','d1_databases','r2_buckets','durable_objects','queues','ai'])assert.equal(c[key],undefined,key);
+});
+
 test('every dev and review config deploys to the rabbit-hole account and names no production or personal resource', () => {
-  assert.deepEqual(WEB.map(p => p.split('/').pop()).sort(), ['wrangler.canvas-notebook-parallel.jsonc', 'wrangler.dev.jsonc', 'wrangler.notebook-dev.jsonc', 'wrangler.parallel.jsonc']);
+  assert.deepEqual(WEB.map(p => p.split('/').pop()).sort(), ['wrangler.canvas-notebook-parallel.jsonc', 'wrangler.ctrlk-notebook-dev.jsonc', 'wrangler.dev.jsonc', 'wrangler.notebook-dev.jsonc', 'wrangler.parallel.jsonc']);
   for (const path of DEV_CONFIGS) {
     const c = config(path);
     assert.equal(c.account_id, RABBIT_HOLE, `${path} account_id`);

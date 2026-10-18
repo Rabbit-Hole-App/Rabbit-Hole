@@ -1,7 +1,7 @@
 import { equationTransaction } from './inline-equation-apply.js';
 import { cadPersistenceChanged } from './CadCard.jsx';
 import { cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
-import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -18,7 +18,7 @@ import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
-const CodeBoxEditor = lazy(() => import('./CodeBoxEditor.jsx'));
+const CodeBoxEditor = lazyFeature(() => import('./CodeBoxEditor.jsx'), 'The code editor');
 import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';

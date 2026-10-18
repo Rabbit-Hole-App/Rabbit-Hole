@@ -85,9 +85,9 @@ test('a typed command Ctrl+K does not offer is said and sends nothing, never a d
 });
 
 test('/flashcards runs only by its command: automatic routing decides exactly as before (lead ruling 2026-10-16)', () => {
-  // The routing criteria, pinned: no flashcards, and the same capabilities as before Release B.
+  // Flashcards remain explicit-only. Native equation is the separately authorized capability.
   assert.deepEqual(Object.keys(ROUTES), ['note', 'explain', 'code', 'diagram', 'graph', 'walkthrough', 'compare', 'animate', 'image', 'video', '3d', 'motion']);
-  assert.deepEqual(Object.keys(CAPABILITIES), ['note', 'explain', 'code', 'graph', 'walkthrough', 'compare', 'animate', 'image', 'video', '3d', 'motion', 'shapes']);
+  assert.deepEqual(Object.keys(CAPABILITIES), ['note', 'explain', 'code', 'graph', 'walkthrough', 'compare', 'animate', 'image', 'video', '3d', 'motion', 'equation', 'shapes']);
   assert.equal(Object.hasOwn(routeRequest({ prompt: 'make flashcards', selection: '' }, 'm').questions.route.criteria, 'flashcards'), false);
   assert.ok(EXPLICIT_ROUTES.flashcards);
   const request = { kind: 'selection', mode: 'explain', targetIds: ['a'], prompt: '/flashcards cells', context: { target: { objects: [{ id: 'a', text: 'Cell' }] } } };

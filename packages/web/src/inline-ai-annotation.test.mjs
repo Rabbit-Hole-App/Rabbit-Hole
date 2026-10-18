@@ -64,6 +64,7 @@ test('annotation: Dive and the owned Tutor outline do not read links at all', ()
 // Every module that reads a board's `links`, and what it does with them. A new reader fails this check until it is
 // listed here after its annotation handling is reviewed. Matches that are not a board's links say so.
 const READERS = {
+  'web/src/inline-diagram-layout.js': 'annotation links remain protected dependencies but never influence structural graph ranks',
   'control-plane/src/agents/learn-inline.js': 'tool schema describes proposed graph links; shared validator rejects annotation connectors as structural targets',
   'web/src/inline-native-plan.js': 'explicit selected appearance/layout only; no inferred graph structure',
   'web/src/inline-native-tools.js': 'explicit selected native appearance; no inferred graph structure',
