@@ -7,7 +7,8 @@ import { imageEditProvider } from '../src/inline-image-edit-provider.js';
 function crc(bytes) { let value=0xffffffff; for(const byte of bytes){value^=byte;for(let i=0;i<8;i++)value=(value>>>1)^((value&1)?0xedb88320:0);}return (value^0xffffffff)>>>0; }
 function chunk(type, data) { const value=Buffer.concat([Buffer.from(type),data]),head=Buffer.alloc(4),tail=Buffer.alloc(4);head.writeUInt32BE(data.length);tail.writeUInt32BE(crc(value));return Buffer.concat([head,value,tail]); }
 function png(width=2,height=2,{raw,compressed}={}) { const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=6;return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',compressed||deflateSync(raw||Buffer.alloc(height*(width*4+1)))),chunk('IEND',Buffer.alloc(0))]); }
-const image=png(),output=png(1024,1024);
+const outputRaw=Buffer.alloc(1024*(1024*4+1));outputRaw[4]=255;outputRaw[8]=128;
+const image=png(),output=png(1024,1024,{raw:outputRaw});
 const response=()=>Response.json({data:[{b64_json:output.toString('base64')}],usage:{input_tokens:4,output_tokens:8,total_tokens:12,input_tokens_details:{text_tokens:1,image_tokens:3}}});
 const input={operation:'remove_background',image};
 
@@ -89,4 +90,12 @@ test('all five PNG filters reconstruct real alpha values across pixels and rows'
 test('provider PNG with valid container but invalid deflate is rejected before publication',async()=>{
  const provider=imageEditProvider({apiKey:'fixture',transport:async()=>Response.json({data:[{b64_json:png(1024,1024,{compressed:Buffer.from('bad zlib')}).toString('base64')}]})});
  await assert.rejects(provider.edit(input),error=>error.code==='invalid_output'&&error.outcomeUnknown);
+});
+
+test('removal rejects blank alpha0 and uniformly translucent alpha254 outputs',async()=>{
+ for(const alpha of [0,254]){
+  const raw=Buffer.alloc(1024*(1024*4+1));for(let y=0;y<1024;y++)for(let x=0;x<1024;x++)raw[y*(1024*4+1)+1+x*4+3]=alpha;
+  const provider=imageEditProvider({apiKey:'fixture',transport:async()=>Response.json({data:[{b64_json:png(1024,1024,{raw}).toString('base64')}]})});
+  await assert.rejects(provider.edit(input),error=>error.code==='invalid_output'&&error.outcomeUnknown);
+ }
 });

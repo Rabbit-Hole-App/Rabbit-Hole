@@ -138,7 +138,7 @@ export function imageEditProvider({ apiKey, transport = fetch } = {}) {
         const info = pngInfo(bytes, MAX_OUTPUT, 'invalid_output');
         if (info.width !== 1024 || info.height !== 1024 || (!regional && !info.alphaChannel)) throw failure('invalid_output', 'Image provider output dimensions or alpha channel are invalid.');
         const pixels = await checkedPixels(info, signal, 'invalid_output');
-        if (!regional && !pixels.nonopaquePixels) throw failure('invalid_output', 'Background removal returned an entirely opaque image.');
+        if (!regional && (!pixels.transparentPixels || pixels.transparentPixels === info.width * info.height)) throw failure('invalid_output', 'Background removal must retain visible content and contain fully cleared pixels.');
         return { bytes, mimeType: 'image/png', width: info.width, height: info.height, model: 'gpt-image-1', usage: reportedUsage(result.usage), validation: 'png-pixels', limitations: ['Fixed low-quality 1024×1024 output; original dimensions are not preserved.', 'Decoded PNG and alpha checks do not verify correct subject segmentation or unchanged subject pixels.', 'Provider-reported token usage is not settled billing.'] };
       } catch (error) {
         const code = signal?.aborted ? (input?.signal?.aborted ? 'cancelled' : 'timeout') : error?.[adapterFailure] ? error.code : 'provider_error';
