@@ -58,7 +58,7 @@ test('Open in Notebook: a Code box gives one cell holding its text verbatim, and
   assert.deepEqual(block.ipynb.cells.map(cell => [cell.cell_type, cell.source]), [['code', box.text]]);
   assert.deepEqual({ ...block.ipynb, cells: [] }, { ...emptyNotebook(), cells: [] });
   assert.equal(JSON.stringify(box), before);
-  assert.equal(notebookFromCode({ kind: 'text', mode: 'code', text: 'y' }).block.ipynb.cells[0].source, 'y');
+  assert.equal(notebookFromCode({ kind: 'text', mode: 'code', lang: 'python', text: 'y' }).block.ipynb.cells[0].source, 'y');
 });
 
 test('Open in Notebook: a Code exercise gives its Given setup, then its current code, never its checks', () => {
@@ -83,6 +83,9 @@ test('Open in notebook: a Code sample gives its code verbatim in one cell, never
 });
 
 test('Open in Notebook is Python only, and only for a code card', () => {
+  for (const lang of [undefined, 'text', 'unknown-language']) {
+    assert.deepEqual(notebookFromCode({ kind: 'text', mode: 'code', ...(lang ? { lang } : {}), text: 'x = 1' }), { disabled: 'Notebooks run Python only' }, 'Plain text or unknown code must not silently become Python');
+  }
   assert.deepEqual(notebookFromCode({ kind: 'text', mode: 'code', lang: 'javascript', text: 'let a' }), { disabled: 'Notebooks run Python only' });
   assert.deepEqual(notebookFromCode({ type: 'code', language: 'r', starter: 'x <- 1' }), { disabled: 'Notebooks run Python only' });
   assert.deepEqual(notebookFromCode({ type: 'snippet', language: 'javascript', code: 'let a = 1' }), { disabled: 'Notebooks run Python only' });
