@@ -23,7 +23,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { inspectSavedCad } from './cad-inspection.js';
 import { isUploadedMediaId } from './learn-media.js';
-import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM, INLINE_EXPLAIN_TOOL, INLINE_ANNOTATION_SYSTEM, inlineProviderContext } from './agents/learn-inline.js';
+import { INLINE_CREATE_SYSTEM, INLINE_DIAGRAM_SYSTEM, INLINE_DIAGRAM_TOOL, INLINE_EDIT_SYSTEM, inlineEditToolFor, INLINE_NOTE_SYSTEM, INLINE_EXPLAIN_TOOL, INLINE_ANNOTATION_SYSTEM, inlineProviderContext, INLINE_IMAGE_TRANSFORM_SYSTEM } from './agents/learn-inline.js';
 import { decide, proceedGate } from './learn-inline-route.js';
 import { commandOf, generationPrompt } from '../../web/src/inline-ai-decide.js';
 import { diagramOf, validateDiagram } from '../../web/src/inline-diagram.js';
@@ -239,7 +239,8 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const equation = route === 'equation' || equationEdit;
   if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents });
   const annotations = !edit && route==='note' && !creation && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.intent==='explain';
-  const tool = equation ? INLINE_EQUATION_TOOL : edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
+  const imageTransform = edit && validInlineToolSnapshot(context.toolSnapshot) && context.toolSnapshot.selection.length === 1 && context.toolSnapshot.selection[0].kind === 'image';
+  const tool = equation ? INLINE_EQUATION_TOOL : edit ? inlineEditToolFor(validInlineToolSnapshot(context.toolSnapshot), !!context.toolSnapshot?.notebook, imageTransform) : shapes ? INLINE_DIAGRAM_TOOL : annotations ? INLINE_EXPLAIN_TOOL : null;
   // A flattened image goes to the vision-capable explanation model as one picture of the board's own card - never to JEV.
   let pictures = [];
   if (!edit && typeof context.image?.id === 'string') {
@@ -264,6 +265,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
     ...(tool ? { tools: [tool], tool_choice: { type: 'any', disable_parallel_tool_use: true } } : {}),
   };
   let upstream;
+  if (imageTransform) request.system += `\n${INLINE_IMAGE_TRANSFORM_SYSTEM}`;
   try { upstream = await callModel(env, request, LEARN_TASKS.artifact.model, null); }
   catch (error) { log({ stage: 'generate', request_id: requestId, mode, outcome: 'error', ms: Date.now() - started }); return json({ error: error.message || 'Generation failed.', code: 'error' }, 502); }
   if (!upstream.ok) {

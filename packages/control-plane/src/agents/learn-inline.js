@@ -77,10 +77,26 @@ export const INLINE_EDIT_TOOL = {
 
 // Expose additional operations only for clients that supplied the frozen adapter
 // snapshot. The shared validator remains authoritative for tool-specific fields.
-export function inlineEditToolFor(toolSnapshotAvailable, notebookAvailable=false) {
+export function inlineEditToolFor(toolSnapshotAvailable, notebookAvailable=false, imageAvailable=false) {
   if (!toolSnapshotAvailable) return INLINE_EDIT_TOOL;
   const tool = structuredClone(INLINE_EDIT_TOOL);
   const step = tool.input_schema.properties.plan.properties.steps.items.properties;
+  if (imageAvailable) {
+    tool.input_schema.properties.ops.maxItems = 0;
+    tool.input_schema.properties.plan.properties.targetIds.maxItems = 1;
+    tool.input_schema.properties.plan.properties.steps.maxItems = 1;
+    step.tool.enum = ['transform_image'];
+    step.targetIds.maxItems = 1;
+    step.input = { type:'object', additionalProperties:false, required:['type'], properties:{
+      type:{type:'string',enum:['crop','rotate','resize','pad']},
+      x:{type:'integer',minimum:0,maximum:8192}, y:{type:'integer',minimum:0,maximum:8192},
+      width:{type:'integer',minimum:1,maximum:8192}, height:{type:'integer',minimum:1,maximum:8192},
+      quarterTurns:{type:'integer',enum:[-3,-2,-1,1,2,3]},
+      fit:{type:'string',enum:['contain','stretch']},
+      color:{type:'string',pattern:'^(transparent|#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?)$'},
+    } };
+    return tool;
+  }
   step.tool.enum.push('transform_table', 'edit_diagram', 'annotate_selection');
   step.input.properties.how.enum.push('equal-width');
   step.input.properties.width={type:'number',exclusiveMinimum:0,maximum:1200};
@@ -109,6 +125,8 @@ export function inlineEditToolFor(toolSnapshotAvailable, notebookAvailable=false
   });
   return tool;
 }
+
+export const INLINE_IMAGE_TRANSFORM_SYSTEM = 'For one frozen image target, only transform_image is available: return ops:[] and one plan step with the exact target ID. Input is {type:"crop",x,y,width,height} in explicit original-image pixels, {type:"rotate",quarterTurns:1|-1|2}, {type:"resize",width,height,fit:"contain"|"stretch"}, or {type:"pad",width,height,color:"transparent"|"#rrggbb"}. Use explicit dimensions/regions from the request; ask a limitation when they are missing. Default resize to contain; stretch requires an explicit request. Do not invent source pixels, object masks, image dimensions or claim visual inspection from metadata. This deterministic adapter cannot remove a subject background, recolor a region, extract or reconstruct content. Do not substitute padding or cropping for those requests. Preview and application preserve original bytes, card identity, placement and size; no provider image generation or code execution occurs.';
 
 // The full signed document is validation state, not permission to send every
 // cell/output to a provider. The same projection is used by routing and generation.
