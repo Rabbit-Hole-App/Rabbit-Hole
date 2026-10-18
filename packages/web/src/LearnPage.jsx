@@ -10,6 +10,7 @@ import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope, fileScope, uploadSource } from './file-source-client.js';
+import { verifyExtractionRead } from './inline-extraction.js';
 import { prepareImageRevision } from './inline-image-revision.js';
 import { fileChatRef } from './file-chat-ref.js';
 import { fileContextManifest } from './file-context-manifest.js';
@@ -889,6 +890,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return result;
   };
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {
+    verifyExtraction: !board && !hole && canEditCanvas ? options => verifyExtractionRead({...options,headers:wsHeaders()}) : null,
     imageScope: () => !board && !hole && canEditCanvas ? fileScope() : null,
     prepareImage: !board && !hole && canEditCanvas ? options => prepareImageRevision({...options,headers:wsHeaders(),upload:uploadSource}) : null,
     retainImageSources: list => {

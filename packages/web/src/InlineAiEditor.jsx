@@ -1,6 +1,7 @@
 import { MathText } from './MathText.jsx';
 import { validateEquationResult } from './inline-equation-result.js';
 import { equationTransaction } from './inline-equation-apply.js';
+import { validateExtraction, withExtraction } from './inline-extraction.js';
 import { editableImage } from './inline-image-plan.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { freezeNativeTools } from './inline-native-plan.js';
@@ -14,7 +15,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { buildContext, buildCreationContext, clippedOf, contextShape, regionSummary, staleness, unionBox } from './inline-ai-context.js';
-import { cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
+import { inlineProvenance, cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
 import { placeResult, regionStyle } from './inline-placement.js';
@@ -159,7 +160,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // A result checked against the board as it is now (inline-ai-apply.js): the preview it becomes, or why not.
   function validateResult(result, frozen) {
-    if(result.kind==='equation'){const {kind,...input}=result,checked=validateEquationResult(input);return checked.ok&&checked.result.kind==='equation'?{ok:true,preview:{...checked.result}}:{ok:false,errors:[checked.error||'Invalid equation.']};}
+    let extraction;
+    if(result.extraction){
+      if(!['equation','diagram'].includes(result.kind)||!frozen.extractionScope||frozen.equationItem)return{ok:false,errors:['Image interpretation is not available for this result or canvas yet.']};
+      const checked=validateExtraction(result.extraction,{block:frozen.extractionImage,ids:frozen.ids});
+      if(!checked.ok)return{ok:false,errors:[checked.error]};
+      extraction=checked.extraction;
+    }
+    if(result.kind==='equation'){const {kind,extraction:receipt,...input}=result,checked=validateEquationResult(input);return checked.ok&&checked.result.kind==='equation'?{ok:true,preview:{...checked.result,...(extraction?{extraction}:{})}}:{ok:false,errors:[checked.error||'Invalid equation.']};}
     if (result.kind === 'note') return { ok: true, preview: { text: result.text } };
     if(result.kind==='annotations'){
       const checked=validateInlinePlan(result.plan,frozen.toolSnapshot,board(),canvas.layout(),{mode:'explain',requestId:frozen.requestId,readOnly});
@@ -170,7 +178,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), additions:checked.additions||[],removals:checked.removals||[],limitations:checked.limitations||[],imageTransform:checked.imageTransform, raw: result } } : checked;
     }
     // A native diagram: checked again here (a schema is a request, not a guarantee); laid out and placed once, below.
-    if (result.kind === 'diagram') { const checked = validateDiagram(result.spec); return checked.ok ? { ok: true, preview: { spec: checked.spec } } : { ok: false, errors: checked.errors.slice(0, 1) }; }
+    if (result.kind === 'diagram') { const checked = validateDiagram(result.spec); return checked.ok ? { ok: true, preview: { spec: checked.spec, ...(extraction?{extraction}:{}) } } : { ok: false, errors: checked.errors.slice(0, 1) }; }
     if (result.kind === 'card' || result.kind === 'proposal') return { ok: true, preview: { block: result.block, primitive: result.primitive, message: result.message, describe: canvas.describe(result.block) } };
     return { ok: false, errors: ['That result is not something the canvas can show.'] };
   }
@@ -238,7 +246,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):imageTarget?(!made.context.toolSnapshot?'Image tools are unavailable for this selection.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, ...(how==='edit'&&target.ids?.length===1&&board().items?.find(item=>item.id===target.ids[0]&&item.kind==='equation')?{equationItem:structuredClone(board().items.find(item=>item.id===target.ids[0]))}:{}), nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):imageTarget?(!made.context.toolSnapshot?'Image tools are unavailable for this selection.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, ...(how==='edit'&&target.ids?.length===1&&board().items?.find(item=>item.id===target.ids[0]&&item.kind==='equation')?{equationItem:structuredClone(board().items.find(item=>item.id===target.ids[0]))}:{}), extractionImage:how==='explain'&&made.context.image?.id?structuredClone(board().blocks.find(block=>block.id===made.context.image.id)):null, extractionScope:how==='explain'?structuredClone(config.imageScope?.()||null):null, nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       };
         if(notebookTarget)return notebookEditor(target.ids[0]).capture().then(scope=>{if(JSON.stringify(scope.cellIds)!==JSON.stringify(target.notebook.cellIds))throw new Error('The selected cells changed. Close this preview and select the cells again.');canvas.syncNotebook(scope);return build(scope);});
         return build(null);
@@ -446,6 +454,15 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const spot = placements[preview.requestId], drawn = spot?.size && canvas.cardGhost?.measure();
         const place = drawn ? { side: spot.side, dx: spot.x - (drawn.x - spot.dx), dy: spot.y - (drawn.y - spot.dy) } : null;
         tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route, place });
+      }
+      if(preview.extraction){
+        if(!config.verifyExtraction)return{error:'Image interpretation is unavailable in this canvas.'};
+        const image=frozen.extractionImage;
+        const current=()=>({block:board().blocks.find(block=>block.id===image.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly,locked:canvas.locked?.(image.id)});
+        const verified=await config.verifyExtraction({extraction:preview.extraction,before:image,ids:frozen.ids,scope:frozen.extractionScope,current});
+        const fresh=staleness(frozen,board(),canvas.cache,canvas.boardKey,canvas.describe);
+        if(!cadLive.current||fresh.gone.length||fresh.content||fresh.relations)return{stale:{content:true,text:'The selection changed while accepting the interpretation.'}};
+        tx=withExtraction(tx,{...verified,provenance:inlineProvenance({requestId:preview.requestId,mode:'explain',route:preview.route,frozen})});
       }
       const stillCurrent=!notebook||validateEdit(preview.raw,frozen,{...board(),boxes:canvas.layout()}).ok;
       const applied=cadLive.current&&stillCurrent&&canvas.apply(tx, preview.requestId, id => session.persisted(id));
@@ -684,6 +701,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             <p className="mt-1 text-[11px] text-ink-3">{status === 'streaming' ? 'Writing… (not on the canvas until you accept)' : target.creation ? 'Adds an editable note at the insertion point.' : `Adds an editable note${target.ids.length === 1 ? ' with an arrow' : ''} beside the selection.`}</p>
           </div>
         ) : null}
+        {preview?.extraction&&<div data-inline-extraction className="mt-2 rounded-lg border border-line p-2 text-xs">
+          <p className="font-medium">Image interpretation</p>
+          <p>Check this result against the original image. Recognition is not verified, even when no uncertainty is reported.</p>
+          {preview.extraction.uncertainties.map((item,index)=><p key={index} className="mt-1"><strong>{item.location}:</strong> {item.message}</p>)}
+          <p className="mt-1 text-ink-3">Uses the selected image revision. Accept adds a separate editable result and retains the original.</p>
+        </div>}
         {preview?.kind==='equation'&&<div data-inline-preview="equation" className="mt-2 space-y-2 rounded-lg border border-line p-2">
           {preview.label&&<p className="text-xs font-medium">{preview.label}</p>}
           <div data-equation-preview className="max-h-44 overflow-auto" style={{fontSize:24}}>{equationChecked?.ok?<MathText expression={equationLatex} display/>:<p role="alert" className="text-xs">{equationChecked?.error}</p>}</div>
