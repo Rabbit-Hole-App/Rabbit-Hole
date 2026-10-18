@@ -1,3 +1,4 @@
+import { describeChange } from './inline-ai-apply.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { freezeInlineTools, validateInlinePlan } from './inline-tool-plan.js';
@@ -45,3 +46,5 @@ test('boxed shape equal widths preserve reversed coordinates and identities',()=
   const boxes={a:{x:0,y:0,w:100,h:80},b:{x:200,y:0,w:200,h:80}},snapshot=freezeInlineTools(board,['a','b'],boxes);
   const result=check({how:'equal-width'},{board,boxes,snapshot});assert.equal(result.ok,true);assert.deepEqual(result.changes[0].after,{...board.shapes[0],x1:200});
 });
+
+test('card layout preview uses measured world bounds rather than absent card x/y',()=>{const bounds={x:100,y:200,w:500,h:300};const change={id:'card',list:'blocks',field:'native',before:{type:'table',dx:0,dy:0},after:{type:'table',dx:20,dy:30},bounds};assert.deepEqual(describeChange(change).bounds,bounds);assert.equal(change.after.x,undefined);});

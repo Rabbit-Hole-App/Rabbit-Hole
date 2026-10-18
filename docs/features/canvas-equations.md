@@ -95,7 +95,7 @@ Toolbar Generate and Ctrl+K use the existing authenticated, signed `/api/learn/i
 Implementation checkpoint only: 56 focused tests pass and changed JSX compiles. Actual app/browser coverage, deployment and real-model quality checks are pending; component fixtures are not those checks. No provider calls were made in this integration. Real-model verification requires its separately approved budget.
 
 
-### Dev preview evidence ? `cc9fed07`
+### Dev preview evidence: `cc9fed07`
 
 Deployed to https://rabbit-hole-web-dev-ctrlk-tools.tryrabbithole.workers.dev (version `5c659c0d-9f1e-4d94-8b06-230c517912d5`). Build 11.74s, upload 10.59s, triggers 0.82s. The focused actual-app fixture check passes **7 / 7**, with **0 failed, 0 skipped, 0 interrupted**, in 15.873s. Six fixture generations, zero actual provider requests and zero browser exceptions. Screenshots and receipts: `e2e/shots/equation-inline-run3/` (`toolbar-prompt.png`, `toolbar-preview.png`, `native-equations.png`, `results.json`).
 
@@ -104,3 +104,10 @@ Verified toolbar opening/typing makes no request or saved insertion; preview plu
 Earlier attempts are preserved: run1 **3 passed / 1 failed / 0 skipped / 3 interrupted** due to a fixture missing the existing `fresh:false` restore normalization; run2 **5 passed / 1 failed / 0 skipped / 1 interrupted** because a fixed background click hit the toolbar after camera movement. The final harness uses a measured unobstructed canvas point and retains exact source/identity assertions; application code was unchanged between runs.
 
 Remaining verification: the full existing manual equation palette/history regression, integrated stale/late-response/read-only/spend-limit scenarios and zoom/long-equation behavior. Pure replacement guards and isolated component cancellation/read-only checks pass at their original helper SHAs; they are not substitutes for these app checks. Real-model mathematical quality awaits an explicitly approved budget.
+
+
+### Existing manual regression: same cc9fed07 bundle
+
+Local frontend 5174 reused the unchanged keyless stack on 9091/9093. Run1 stopped before assertions because the legacy harness did not strip quotes around its named test secret. Run2 passed all **14 functional checks**, with **0 failed / 0 skipped / 1 interrupted**: the final provider-ledger assertion tried the frontend origin, which returned HTML. Separate immediate reads of both actual stack ledgers returned **0 provider hits**. This supplemental evidence does not turn the interrupted harness assertion into a pass. Screenshots remain under `e2e/shots/equation-manual-run2/`.
+
+The passing checks cover Fraction, subscript, Matrix, pasted LaTeX, click-out/reopen, shortcut isolation, move/resize/delete Undo/Redo, duplicate, size ladder, Chat context, server reload and a fresh browser profile. The harness now supports the explicit local-only `TRIPWIRE_APP` origin and authentication preflight; its two placement assertions intentionally require an unsaved visible draft until completion. Remaining checks are integrated stale/late/read-only/spend-limit behavior, zoom/long formulas and approved real-model quality verification.

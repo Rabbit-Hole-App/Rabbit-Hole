@@ -13,14 +13,18 @@ import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
-for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('equation-check runs against the local stack only');
+const TRIPWIRE_APP = process.env.TRIPWIRE_APP || BASE;
+for (const url of [BASE, CP, TRIPWIRE_APP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('equation-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'equation-shots';
 mkdirSync(SHOTS, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = process.env.TEST_BYPASS_SECRET || readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim().replace(/^(['"])(.*)\1$/, '$2');
 const run = Date.now().toString(36);
-const session = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `eq-owner-${run}@example.com`, secret, handle: `eq_${run}` }) })).json()).session;
+const auth = await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `eq-owner-${run}@example.com`, secret, handle: `eq_${run}` }) });
+assert.ok(auth.ok, `Local test session failed: HTTP ${auth.status}`);
+const session = (await auth.json()).session;
+assert.equal(typeof session, 'string', 'Local test session must return a cookie');
 const api = async (path, init = {}) => {
-  const response = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json', ...(init.headers || {}) } });
+  const response = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, origin: BASE, 'content-type': 'application/json', ...(init.headers || {}) } });
   return { status: response.status, body: await response.json().catch(() => null) };
 };
 const until = async (what, fn, timeout = 20000) => { const end = Date.now() + timeout; while (Date.now() < end) { const value = await fn(); if (value) return value; await new Promise(r => setTimeout(r, 300)); } throw Error(`timed out: ${what}`); };
@@ -117,11 +121,9 @@ await check('a click places an editable equation, with the palette open and the 
   const palettes = await page.locator('[data-equation-palette]').count();
   assert.equal(palettes, 1, `palettes open: ${palettes}, expected 1`);
   for (const name of ['Fraction', 'Root', 'Greek', 'Sum', 'Matrix', 'LaTeX']) assert.equal(await tab(name).count(), 1, name);
-  // The board's local save is debounced 400 ms after the placement, and the field can take the focus before that (React's
-  // Suspense reveal, then MathLive's focus: about 370 to 490 ms locally), so wait for the saved state, not a fixed time.
-  await page.waitForFunction(key => (JSON.parse(localStorage.getItem(key) || '{}').items || []).some(item => item.kind === 'equation'), INK, { timeout: 5000 }).catch(() => {});
-  const saved = (await equations()).length;
-  assert.equal(saved, 1, `equations in the local save: ${saved}, expected 1`);
+  // Placement is a local draft until manual finish or generated Insert; no saved blank object.
+  assert.equal((await equations()).length,0,'the provisional equation is not persisted');
+  assert.equal(await shown().count(),1,'one editable draft is visible');
   await region('2-palette-editing');
 });
 
@@ -142,7 +144,8 @@ await check('typing in the equation never fires the canvas or page shortcuts (De
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Delete');
   await settle();
-  assert.equal((await equations()).length, 1, 'still one equation: no duplicate, no delete, no canvas undo');
+  assert.equal((await equations()).length, 0, 'draft typing did not persist or duplicate an equation');
+  assert.equal(await shown().count(),1,'still one visible draft: no duplicate, delete or canvas undo');
   assert.equal(await page.locator('[data-equation="editing"]').count(), 1, 'still editing');
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'MATH-FIELD');
   assert.equal(await fieldLatex(), '', 'the keys edited the field');
@@ -400,7 +403,13 @@ await check('save and reload keep the LaTeX and the size level (L): this browser
 
 await context.close();
 await browser.close();
-const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json()).hits.length));
+const tripwire = await Promise.all([TRIPWIRE_APP, CP].map(async origin => {
+  const response = await fetch(`${origin}/__provider-tripwire`);
+  assert.ok(response.ok, `Provider tripwire HTTP ${response.status}`);
+  const body = await response.json();
+  assert.ok(Array.isArray(body.hits), 'Provider tripwire returns its hit ledger');
+  return body.hits.length;
+}));
 console.log('provider tripwire hits', tripwire.join(' / '), 'refused', refused.length ? [...new Set(refused)].join(', ') : 'none', 'page errors', errors.length ? errors.join(' | ') : 'none');
 results.push(tripwire.every(hits => hits === 0));
 console.log(`${results.at(-1) ? 'PASS' : 'FAIL'} no model call`);

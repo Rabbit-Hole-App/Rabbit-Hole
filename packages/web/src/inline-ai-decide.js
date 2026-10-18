@@ -12,7 +12,7 @@ import { EXPLICIT_ROUTES, NOTE_COMMANDS, NOT_INLINE, PROMPT_MAX, ROUTES, command
 
 export const DECISIONS = Object.freeze(['proceed', 'clarify', 'invalid', 'unsupported', 'blocked']);
 export const MISSING = Object.freeze(['subject', 'target', 'format', 'data']);
-export const OUTCOMES = Object.freeze(['edit', 'text', 'diagram', 'card', 'media']);
+export const OUTCOMES = Object.freeze(['edit', 'text', 'diagram', 'equation', 'card', 'media']);
 export const REGION_MAX = 1500, TARGETS_MAX = 200;
 
 // What Explain can make. /diagram's own handler makes a flow or Mermaid card: a picture drawn inside a card, not canvas
