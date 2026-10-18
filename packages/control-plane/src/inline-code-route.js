@@ -1,4 +1,4 @@
-﻿// Unregistered leaf route: execution remains unavailable until explicitly configured.
+// Unregistered leaf route: execution remains unavailable until explicitly configured.
 const ROOT = '/api/learn/code-runs';
 const ID = /^cj_[a-f0-9]{32}$/;
 const encoder = new TextEncoder();
@@ -43,7 +43,7 @@ function validCreate(body) {
     typeof body.id==='string' && ID.test(body.id) &&
     typeof body.app==='string' && /^[a-z0-9-]{1,100}$/.test(body.app) &&
     typeof body.board==='string' && /^[A-Za-z0-9_.:-]{1,200}$/.test(body.board) &&
-    body.language==='javascript' && typeof body.code==='string' && encoder.encode(body.code).byteLength<=32768 &&
+    body.language==='javascript' && typeof body.code==='string' && !!body.code.trim() && encoder.encode(body.code).byteLength<=32768 &&
     Object.hasOwn(body,'input') && encoder.encode(JSON.stringify(body.input)).byteLength<=16384 &&
     body.executionConfirmed===true && Number.isSafeInteger(body.maxReservedMicros) && body.maxReservedMicros>0;
 }

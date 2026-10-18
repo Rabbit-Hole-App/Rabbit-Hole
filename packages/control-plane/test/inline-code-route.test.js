@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {inlineCodeRoute,inlineCodePolicy} from '../src/inline-code-route.js';
 const root='/api/learn/code-runs',id='cj_'+'a'.repeat(32);
@@ -23,7 +23,7 @@ test('cross-origin mutations refuse before identity or actor; trusted CLI and sa
  const response=await inlineCodeRoute(root+'/'+id+'/cancel',new Request('https://app'+root+'/'+id+'/cancel',{method:'POST',headers:{origin:'https://foreign'}}),h.env,h.deps);assert.equal(response.status,403);assert.equal(h.calls.length,2);
 });
 test('strict request fields, explicit consent, IDs, language, bytes and reservation are required',async()=>{
- const h=fixture();for(const patch of [{id:[id]},{executionConfirmed:false},{owner:h.owner},{language:'python'},{code:'é'.repeat(17000)},{input:'x'.repeat(16385)},{maxReservedMicros:'5000'},{board:'../private'},{app:['canvas-12345678']}])assert.equal((await h.send(patch)).status,400);
+ const h=fixture();for(const patch of [{id:[id]},{executionConfirmed:false},{code:'   '},{owner:h.owner},{language:'python'},{code:'é'.repeat(17000)},{input:'x'.repeat(16385)},{maxReservedMicros:'5000'},{board:'../private'},{app:['canvas-12345678']}])assert.equal((await h.send(patch)).status,400);
  assert.equal((await h.send({maxReservedMicros:4999})).status,409);assert.equal(h.calls.length,0);
 });
 test('owner identity and board access required; viewer/foreign org/missing board refused',async()=>{
