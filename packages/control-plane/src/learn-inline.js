@@ -32,6 +32,7 @@ import { commandInput } from '../../web/src/inline-ai-route.js';
 import { artifactContext } from '../../web/src/inline-ai-transport.js';
 import { generateArtifact } from './learn-artifact.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
+import { inlineRepositoryEvidence } from './inline-evidence.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 // A note needs little room; an edit may rewrite a code block. Both inside LEARN_TASKS.artifact's 4000.
@@ -49,6 +50,13 @@ async function access(req, env, body, authorize) {
   const allowed = await authorize(req, env, body.app, body.pending);
   if (allowed instanceof Response) return allowed;
   return subscriptionOwnerRefusal(env, allowed) || allowed;
+}
+// Explicit repository retrieval is read-only and does not invoke the paid router.
+export async function inlineEvidenceFetch(req, env, deps = {}) {
+  const { body, response } = await readBody(req, 2048);
+  if (response) return response;
+  const result = await inlineRepositoryEvidence(req, env, body, deps);
+  return result instanceof Response ? result : json(result);
 }
 // One log line per stage, keyed by request id: timings, counts and status only - never the prompt or canvas content.
 const log = fields => { try { console.log(JSON.stringify({ event: 'inline_ai', ...fields })); } catch { /* never worth a failed answer */ } };

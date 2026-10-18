@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inlineRepositoryEvidence } from './inline-evidence.js';
+import { inlineEvidenceFetch } from './learn-inline.js';
 
 const commit = 'a'.repeat(40), app = { name: 'repo-demo', repo: 'owner/demo' };
 const input = { app: app.name, commit, query: 'call(x)' };
@@ -32,4 +33,20 @@ test('invalid or implicit scope inputs are refused before authorization or stora
     assert.equal(result.status, 400);
   }
   assert.equal(calls, 0);
+});
+test('HTTP evidence handler enforces same-origin POST and bounds before storage', async () => {
+  let calls = 0;
+  const deps = { authorize: async () => { calls++; return app; }, load: async () => snapshot };
+  const url = 'https://example.test/api/learn/inline/evidence';
+  for (const [request, status] of [
+    [new Request(url), 405],
+    [new Request(url, { method: 'POST', headers: { origin: 'https://other.test' }, body: JSON.stringify(input) }), 403],
+    [new Request(url, { method: 'POST', body: 'x'.repeat(2049) }), 413],
+    [new Request(url, { method: 'POST', body: '{' }), 400],
+  ]) assert.equal((await inlineEvidenceFetch(request, {}, deps)).status, status);
+  assert.equal(calls, 0);
+  const response = await inlineEvidenceFetch(new Request(url, { method: 'POST', headers: { origin: 'https://example.test' }, body: JSON.stringify(input) }), {}, deps);
+  assert.equal(response.status, 200); assert.match(response.headers.get('cache-control'), /no-store/);
+  assert.equal((await response.json()).kind, 'repository-evidence');
+  assert.equal(calls, 1);
 });

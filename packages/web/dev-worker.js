@@ -48,7 +48,7 @@ import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
-import { inlineDecideFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
+import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
@@ -301,6 +301,7 @@ const routes = {
     // The inline AI editor (docs/features/inline-ai-editor.md): JEV routing, the streamed note or edit, and its telemetry.
     if (path === '/api/learn/inline/route') return inlineRouteFetch(req, env);
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);
+    if (path === '/api/learn/inline/evidence') return inlineEvidenceFetch(req, env);
     if (path === '/api/learn/inline/generate') return inlineGenerateFetch(req, env);
     if (path === '/api/learn/inline/telemetry') return inlineTelemetryFetch(req, env);
     if (path === '/api/learn/board') return boardFetch(req, env);
