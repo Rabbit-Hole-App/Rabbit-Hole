@@ -1,0 +1,56 @@
+{
+  "status": "ongoing-monthly-authorization-activation-pending-access-and-verification",
+  "baseMain": "d16c3a456b19ad1cb816c5470380e997e102e9a3",
+  "worker": "rabbit-hole-app",
+  "appendBinding": {
+    "name": "CAD_JOBS",
+    "class_name": "CadJobs"
+  },
+  "appendMigration": {
+    "tag": "cad-jobs-1",
+    "new_sqlite_classes": [
+      "CadJobs"
+    ]
+  },
+  "varsAfterApproval": {
+    "CAD_MODEL_ENABLED": "false",
+    "CAD_PRODUCTION_REQUIRED": "true",
+    "CAD_PRODUCTION_ENABLED": "false",
+    "CAD_PRODUCTION_MONTHLY_MODEL_USD": "10",
+    "CAD_MODEL_REQUIRE_DEDICATED": "true",
+    "CAD_EXECUTOR_URL": "https://rabbit-hole-cad-prod.fly.dev",
+    "CAD_JOB_ORIGIN": "https://digrabbithole.com",
+    "CAD_MAX_CALLS": "2",
+    "CAD_MAX_USD": "0.20",
+    "CAD_MAX_REPAIRS": "0",
+    "CAD_MAX_ARTIFACT_BYTES": "10485760",
+    "CAD_MAX_TOTAL_BYTES": "10485760"
+  },
+  "secretNames": [
+    "CAD_JOB_SECRET",
+    "CAD_EXECUTOR_TOKEN",
+    "CAD_MODEL_API_KEY",
+    "CAD_MODEL_WORKSPACE_ID",
+    "CAD_BUDGET_ALERT_TOKEN"
+  ],
+  "verificationOnly": {
+    "CAD_VERIFICATION_BOARD_ID": "REPLACE_WITH_APPROVED_FRESH_PRODUCTION_CANVAS_ID",
+    "CAD_VERIFICATION_MAX_CALLS": "2",
+    "CAD_VERIFICATION_MAX_USD": "0.20"
+  },
+  "activationConditions": [
+    "Exact candidate passes normal release and preview gates",
+    "Owner authorized ongoing global calendar-month limits: 35 USD infrastructure and 10 USD model",
+    "Dedicated model workspace and monthly spend cap verified; no fallback",
+    "Measured fixed infrastructure reserve plus cumulative retained storage and recorded monthly adjustments fit within 35 USD; missing config fails closed",
+    "Persistent monthly executor ledger initialized once and restart-tested; cross-month work reserved",
+    "Executor image digest recorded and deterministic cold-start build passes",
+    "Enable only verification canvas first; expand only after successful receipt"
+  ],
+  "requiredMeasuredInfrastructureConfig": {
+    "CAD_PRODUCTION_FIXED_INFRA_USD": "VERIFY_FULL_MONTH_MACHINE_VOLUME_ROOTFS_TRANSFER_AND_OPERATION_RESERVE_BEFORE_SETTING",
+    "CAD_PRODUCTION_STORAGE_USD_PER_GB_MONTH": "VERIFY_CONSERVATIVE_RETAINED_STORAGE_RATE",
+    "CAD_PRODUCTION_SETUP_INFRA_USD": "RECORD_CURRENT_MONTH_SETUP_COST_AND_HEADROOM",
+    "CAD_PRODUCTION_SETUP_INFRA_MONTH": "UTC_YYYY_MM_OF_SETUP"
+  }
+}

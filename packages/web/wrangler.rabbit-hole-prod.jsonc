@@ -18,13 +18,15 @@
     "bindings": [
       { "name": "LEARN_VIDEOS", "class_name": "LearnVideos" },
       { "name": "LEARN_SCENES", "class_name": "LearnScenes" },
-      { "name": "REPOSITORY_IMPORTS", "class_name": "RepositoryImports" }
+      { "name": "REPOSITORY_IMPORTS", "class_name": "RepositoryImports" },
+      { "name": "CAD_JOBS", "class_name": "CadJobs" }
     ]
   },
   "migrations": [
     { "tag": "learn-videos-1", "new_sqlite_classes": ["LearnVideos"] },
     { "tag": "learn-scenes-1", "new_sqlite_classes": ["LearnScenes"] },
-    { "tag": "repository-imports-1", "new_sqlite_classes": ["RepositoryImports"] }
+    { "tag": "repository-imports-1", "new_sqlite_classes": ["RepositoryImports"] },
+    { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
@@ -43,6 +45,16 @@
   // The one public origin; the control plane sets the same value.
   "vars": {
     "PUBLIC_ORIGIN": "https://digrabbithole.com",
+    "CAD_PRODUCTION_REQUIRED": "true",
+    "CAD_MODEL_REQUIRE_DEDICATED": "true",
+    "CAD_PRODUCTION_MONTHLY_MODEL_USD": "10",
+    "CAD_EXECUTOR_URL": "https://rabbit-hole-cad-prod.fly.dev",
+    "CAD_JOB_ORIGIN": "https://digrabbithole.com",
+    "CAD_MAX_CALLS": "2",
+    "CAD_MAX_USD": "0.20",
+    "CAD_MAX_REPAIRS": "0",
+    "CAD_MAX_ARTIFACT_BYTES": "10485760",
+    "CAD_MAX_TOTAL_BYTES": "10485760",
     // Repository import: the Rabbit Hole-owned production renderer (Fly org rabbit-hole), never a dev one.
     // Its bearer SCENE_WORKER_TOKEN is a fresh production-only secret set on both sides at the production GO.
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev",
@@ -52,4 +64,7 @@
   // Secrets (required): ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key needs the workspace header), TYPESAFE_API_KEY,
   // FISH_AUDIO_API_KEY, ELEVENLABS_API_KEY, SCENE_WORKER_TOKEN. Optional: OPENAI_API_KEY and the paid-provider keys.
   // Never here: RESEND_API_KEY or OAuth secrets (rabbit-hole-cp only).
+  // CAD activation switches CAD_PRODUCTION_ENABLED/CAD_MODEL_ENABLED are managed
+  // server bindings: absent means disabled. Do not overwrite them on later releases.
+  // Verification scope/caps and dedicated CAD credentials are installed before enabling.
 }

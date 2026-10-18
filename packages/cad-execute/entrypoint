@@ -1,5 +1,13 @@
 #!/bin/sh
 set -eu
+# Fly remounts volumes as root. Restore only the accounting directory's
+# ownership before dropping privileges; never recreate or reset its ledger.
+if [ "${CAD_BUDGET_MODE:-}" = production ]; then
+  mountpoint -q /var/cad/budget
+  [ ! -L /var/cad/budget ]
+  chown cad-svc:cad /var/cad/budget
+  chmod 0700 /var/cad/budget
+fi
 # One slot; total job storage is kernel-capped, including malicious output trees.
 mount -t tmpfs -o size=512m,mode=2770,nosuid,nodev tmpfs /var/cad/jobs
 chown cad-svc:cad /var/cad/jobs

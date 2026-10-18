@@ -58,11 +58,17 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.deepEqual(app.services, [{ binding: 'CONTROL_PLANE', service: 'rabbit-hole-cp' }]);
   // Same classes and migration tags as dev, so the Durable Object model is the one tested there. FileJobs (file imports)
   // is dev and parallel only until its release adds it here (lead ruling 2026-10-16, docs/features/canvas-file-imports.md).
-  // CAD is an isolated-dev candidate; production activation is separately approved.
-  assert.ok(!app.durable_objects.bindings.some(b => b.class_name === 'CadJobs'));
-  const devOnly = { bindings: dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs'].includes(b.class_name)) };
+  // Owner authorized ongoing production CAD on 2026-10-17; binding is required,
+  // while actual admission remains disabled until bounded production verification.
+  assert.ok(app.durable_objects.bindings.some(b => b.name === 'CAD_JOBS' && b.class_name === 'CadJobs'));
+  assert.equal(app.vars.CAD_PRODUCTION_REQUIRED, 'true');
+  assert.equal(app.vars.CAD_MODEL_REQUIRE_DEDICATED, 'true');
+  assert.equal(app.vars.CAD_PRODUCTION_MONTHLY_MODEL_USD, '10');
+  assert.equal(app.vars.CAD_PRODUCTION_ENABLED, undefined);
+  assert.equal(app.vars.CAD_MODEL_ENABLED, undefined);
+  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}] };
   assert.deepEqual(app.durable_objects, devOnly);
-  assert.deepEqual(app.migrations, dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1'].includes(m.tag)));
+  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}]);
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
   assert.equal(app.assets.directory, './dist-dev');
   // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).
