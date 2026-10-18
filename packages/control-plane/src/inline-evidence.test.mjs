@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
 import { inlineRepositoryEvidence } from './inline-evidence.js';
 import { inlineEvidenceFetch } from './learn-inline.js';
 
@@ -49,4 +51,24 @@ test('HTTP evidence handler enforces same-origin POST and bounds before storage'
   assert.equal(response.status, 200); assert.match(response.headers.get('cache-control'), /no-store/);
   assert.equal((await response.json()).kind, 'repository-evidence');
   assert.equal(calls, 1);
+});
+test('real repository ACL and SQLite version lookup deny foreign owners before bucket reads without writes', async t => {
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.prepare('INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(?,?,?,?,?,?,?,?)').run(1, 'team', app.name, 'owner@test', app.repo, 'main', commit, 'ready');
+  sqlite.prepare('INSERT INTO repository_versions(app_id,commit_sha,storage_key) VALUES(?,?,?)').run(1, commit, 'stored-snapshot');
+  const changes = () => sqlite.prepare('SELECT total_changes() AS n').get().n;
+  const before = changes(); let reads = 0;
+  const env = { SMALL_ENV: 'test', LEARN_DB: { prepare(sql) { const statement = sqlite.prepare(sql); let args = []; return { bind(...values) { args = values; return this; }, first: async () => statement.get(...args) || null }; } },
+    CONTROL_PLANE: { fetch: async request => request.headers.get('cookie') === 'denied' ? new Response(null, { status: 401 }) : Response.json({ org: 'team', email: request.headers.get('x-email') || 'owner@test', apps: [] }) },
+    REPOSITORY_SNAPSHOTS: { get: async key => { reads++; assert.equal(key, 'stored-snapshot'); return { json: async () => snapshot }; } },
+  };
+  const request = headers => new Request('https://example.test/api/learn/inline/evidence', { method: 'POST', headers, body: JSON.stringify(input) });
+  for (const [headers, status] of [[{ cookie: 'denied' }, 401], [{ 'x-email': 'foreign@test' }, 404], [{ 'x-small-workspace': 'foreign' }, 403]]) {
+    assert.equal((await inlineEvidenceFetch(request(headers), env)).status, status);
+  }
+  assert.equal(reads, 0);
+  const accepted = await inlineEvidenceFetch(request({}), env);
+  assert.equal(accepted.status, 200); assert.equal((await accepted.json()).matches[0].sourceId, `code:owner/demo@${commit}:src/main.js`);
+  assert.equal(reads, 1); assert.equal(changes(), before, 'retrieval writes neither Chat nor repository state');
 });
