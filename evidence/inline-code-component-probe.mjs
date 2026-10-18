@@ -1,0 +1,10 @@
+﻿import {build} from '../../../node_modules/esbuild/lib/main.js';
+import {createRequire} from 'node:module';
+import assert from 'node:assert/strict';
+const entry=`import React from 'react';import{renderToStaticMarkup}from'react-dom/server';import Preview from './packages/web/src/InlineCodeRunPreview.jsx';export function render(props){return renderToStaticMarkup(React.createElement(Preview,props));}`;
+const result=await build({stdin:{contents:entry,resolveDir:process.cwd(),sourcefile:'inline-code-component.js'},bundle:true,format:'cjs',platform:'node',jsx:'automatic',write:false,logLevel:'silent'});
+const module={exports:{}};new Function('require','module','exports',result.outputFiles[0].text)(createRequire(import.meta.url),module,module.exports);
+let calls=0;const client={quote(){calls++;},run(){calls++;},resume(){calls++;}};
+const html=module.exports.render({client});assert.match(html,/Run JavaScript/);assert.match(html,/Closing stops local waiting only/);assert.match(html,/Python is not supported/);assert.equal(calls,0);
+const resumed=module.exports.render({client,savedTicket:{id:'fixture'}});assert.match(resumed,/Resume execution status/);assert.match(resumed,/Request cancellation/);assert.doesNotMatch(resumed,/Run with this reservation/);assert.equal(calls,0);
+console.log(JSON.stringify({passed:2,failed:0,skipped:0,coverage:'JSX build/static rendering only; effects and browser interaction are not verified.'},null,2));
