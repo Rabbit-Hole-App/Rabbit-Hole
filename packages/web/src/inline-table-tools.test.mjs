@@ -3,6 +3,31 @@ import assert from 'node:assert/strict';
 import {transformTable} from './inline-table-tools.js';
 const table={columns:['Name','Value'],rows:[['z','10'],['a','2'],['b','2'],['c','-1']]};
 const freeze=value=>{Object.freeze(value);for(const child of Object.values(value))if(child&&typeof child==='object')freeze(child);return value;};
+const percentage={operation:'percentage_change',fromColumn:'Before',toColumn:'After',outputColumn:'Change (%)',unitFrom:'ms',unitTo:'ms',decimalPlaces:2};
+test('percentage change appends a derived column with exact decimal arithmetic and preserved inputs',()=>{
+  const input=freeze({columns:['Before','After','Note'],rows:[['0.1','0.3','keep'],['3','2','keep'],['9007199254740992','9007199254740993','exact']]});
+  const result=transformTable(input,{...percentage,decimalPlaces:16});
+  assert.equal(result.ok,true);assert.deepEqual(result.content.columns,['Before','After','Note','Change (%)']);
+  assert.deepEqual(result.content.rows,[['0.1','0.3','keep','200'],['3','2','keep','-33.3333333333333333'],['9007199254740992','9007199254740993','exact','0.0000000000000111']]);
+  assert.equal(input.columns.length,3);assert.equal(result.changes.length,3);assert.match(result.limitations.join(' '),/round|Round/);
+});
+test('percentage change rounds halves away from zero and normalizes negative zero',()=>{
+  const input={columns:['Before','After'],rows:[['32','33'],['32','31'],['100000','99999.99999']]};
+  assert.deepEqual(transformTable(input,percentage).content.rows.map(row=>row[2]),['3.13','-3.13','0']);
+});
+test('percentage change refuses ambiguous units, columns, rounding and nonpositive baselines atomically',()=>{
+  const input={columns:['Before','After'],rows:[['10','15']]};
+  for(const extra of [{unitFrom:undefined},{unitTo:'s'},{unitFrom:' ms',unitTo:'ms'},{outputColumn:'Before'},{outputColumn:''},{outputColumn:'  Change  '},{fromColumn:'Missing'},{fromColumn:1,toColumn:1},{decimalPlaces:-1},{decimalPlaces:17},{decimalPlaces:1.5},{formula:'eval'}])assert.equal(transformTable(input,{...percentage,...extra}).ok,false,JSON.stringify(extra));
+  for(const value of ['0','-1','NaN','1 ms',' 1','1,000','=1+1','']){
+    const result=transformTable({columns:['Before','After'],rows:[['1','2'],[value,'2']]},percentage);
+    assert.equal(result.ok,false,value);assert.equal(result.content,undefined);
+  }
+});
+test('percentage change supports explicit dimensionless units and empty tables without altering existing headers',()=>{
+  const result=transformTable({columns:['Before','After'],rows:[]},{...percentage,unitFrom:'dimensionless',unitTo:'dimensionless'});
+  assert.equal(result.ok,true);assert.deepEqual(result.content,{columns:['Before','After','Change (%)'],rows:[]});
+  assert.equal(transformTable({columns:Array.from({length:200},(_,i)=>String(i)),rows:[]},{...percentage,fromColumn:0,toColumn:1}).ok,false);
+});
 test('numeric sort is stable and preserves exact cell strings and frozen input',()=>{
   const input=freeze(structuredClone(table));
   const result=transformTable(input,{operation:'sort',column:'Value',direction:'asc'});
