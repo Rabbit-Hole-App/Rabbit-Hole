@@ -42,7 +42,7 @@ export function inlineToolAvailability(name,{mode,selection=[],readOnly=false,ad
 export function validateInlineToolPlan(plan,{mode,selection=[],readOnly=false,adapters={},executionRequested=false}={}) {
   const fail=reason=>({ok:false,reason});
   if(!plan||plan.mode!==mode||!['edit','explain'].includes(mode))return fail('The request mode changed.');
-  if(!selection.length||selection.length>INLINE_TOOL_LIMITS.targets||new Set(selection.map(item=>item.id)).size!==selection.length||selection.some(item=>typeof item.id!=='string'||!item.id))return fail('Invalid frozen selection.');
+  if(!selection.length||selection.length>INLINE_TOOL_LIMITS.targets||new Set(selection.map(item=>item?.id)).size!==selection.length||selection.some(item=>!item||typeof item.id!=='string'||!item.id))return fail('Invalid frozen selection.');
   const ids=selection.map(item=>item.id);
   if(!Array.isArray(plan.targetIds)||plan.targetIds.length!==ids.length||new Set(plan.targetIds).size!==ids.length||plan.targetIds.some(id=>!ids.includes(id)))return fail('The request targets changed.');
   if(!Array.isArray(plan.steps)||!plan.steps.length||plan.steps.length>INLINE_TOOL_LIMITS.steps)return fail('The tool-step limit was exceeded.');

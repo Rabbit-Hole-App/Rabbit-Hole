@@ -38,7 +38,8 @@ export function jevDecideRequest(request, fixed, model) {
   return {
     model,
     state: {
-      mode: seen.mode === 'edit' ? 'edit: changes only the selected material\'s words and text style' : 'explain: adds new material to the canvas',
+      mode: seen.mode === 'edit' ? 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
+      ...(request.context?.nativeTools ? {nativeTools:'set_appearance on selected native objects; arrange_selection on selected boxed shapes/text/notes, computed from measured bounds'} : {}),
       selected: seen.selected ? 'yes' : 'no, nothing is selected: the material is what is around the place the learner chose to add to', request: seen.request,
       ...(seen.output ? { output: `${seen.output} (${request.revising ? 'the result shown, which the learner is refining: "it" and "this" mean that result' : 'chosen by the command the learner typed'})` } : {}), material: seen.material,
     },

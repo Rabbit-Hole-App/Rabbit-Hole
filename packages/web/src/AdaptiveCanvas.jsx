@@ -1352,7 +1352,7 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
     ? [[x1, y1, 'start'], [x2, y2, 'end']]
     : [[x, y, [0, 0]], [x + w, y, [1, 0]], [x + w, y + h, [1, 1]], [x, y + h, [0, 1]]];
   return (
-    <g data-shape-id={shape.id} data-locked={locked ? '' : undefined} className="group" style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? (locked ? 'default' : 'move') : undefined }} onPointerDown={down}
+    <g data-shape-id={shape.id} data-locked={locked ? '' : undefined} className="group" style={{ pointerEvents: tool === 'preview' ? 'none' : 'visiblePainted', cursor: tool === 'select' ? (locked ? 'default' : 'move') : undefined }} onPointerDown={down}
       onDoubleClick={event => {
         // A double-click inside the open editor selects a word; it never starts the edit again.
         if (tool !== 'select' || locked || editing || labelEditing) return;
@@ -3197,6 +3197,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const inlineCanvas = {
     boardKey: inlineKey.current, cache: inlineCache.current,
     board: inlineBoard,
+    renderNativeShape: shape => <ShapeView shape={{...shape,id:`inline-preview:${shape.id}`}} tool="preview" zoom={view.z} selected={false} />,
     layout: () => Object.fromEntries(contentBoxes().filter(box => box.id).map(({ id, ...box }) => [id, box])),
     boxOf: id => boxesOf([id])[0] || null,
     // Every kind of thing on the board (A7): measured boxes, connectors along their drawn paths, group frames, areas and

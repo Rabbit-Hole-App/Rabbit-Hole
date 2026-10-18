@@ -6,6 +6,7 @@
 import { reconcileRuns, runsOf, sliceRuns, spliceRuns, textPatch, fontSize as validSize, hexColor } from './learn-rich-text.js';
 import { TEXT_LEVELS } from './learn-style-panel.js';
 import { cardEditSpec, cardEditText, cardEditComparison, validateCardContent } from './inline-card-edit.js';
+import { validateNativePlan } from './inline-native-plan.js';
 import { LIMITS } from './inline-ai-context.js';
 
 export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style', 'replace_card_content'];
@@ -47,6 +48,11 @@ const levelPatch = (entity, level) => {
 export function validateEdit(edit, frozen, board) {
   const errors = [], changes = new Map();
   const limitation = typeof edit?.limitation === 'string' && edit.limitation.trim() ? edit.limitation.trim().slice(0, 300) : null;
+  if(edit?.plan){
+    if(edit.ops?.length)return {ok:false,errors:['Combine native changes in one tool plan; text operations must use a separate preview.'],changes:[]};
+    if(frozen.range)return {ok:false,errors:['Native changes require whole objects.'],changes:[]};
+    return validateNativePlan(edit.plan,frozen.nativeTools,board,board.boxes||{});
+  }
   const ops = Array.isArray(edit?.ops) ? edit.ops : null;
   if (!ops) return { ok: false, errors: ['The edit had no operations.'], changes: [], limitation };
   if (!ops.length) return { ok: false, errors: limitation ? [] : ['The edit changed nothing.'], changes: [], limitation };
@@ -142,6 +148,7 @@ export function wordDiff(before, after) {
 
 // What the preview shows for one change: before and after words, and which style keys moved.
 export function describeChange(change) {
+  if(change.field==='native')return {id:change.id,native:true,before:String(change.before.text||change.before.label||''),after:String(change.after.text||change.after.label||''),style:Object.keys(change.after).filter(key=>JSON.stringify(change.before[key])!==JSON.stringify(change.after[key])).map(key=>[key,change.before[key]??null,change.after[key]??null]),list:change.list,bounds:change.list==='shapes'?{x:Math.min(change.after.x1,change.after.x2),y:Math.min(change.after.y1,change.after.y2),w:Math.abs(change.after.x2-change.after.x1),h:Math.abs(change.after.y2-change.after.y1)}:{x:change.after.x,y:change.after.y,w:change.after.w,h:change.after.h},appearance:change.after};
   if (change.field === 'cardContent') return { id: change.id, structured: true, fields: cardEditComparison(cardEditSpec(change.before).content, cardEditSpec(change.after).content), before: cardEditText(cardEditSpec(change.before).content), after: cardEditText(cardEditSpec(change.after).content), style: [], ...(change.before.type === 'snippet' && change.before.code !== change.after.code && change.before.output ? { notice: 'The previous code output will be cleared; the revised code has not been run.' } : {}) };
   const field = change.field || 'text';
   const styleKeys = STYLE_KEYS.filter(key => change.before[key] !== change.after[key]);

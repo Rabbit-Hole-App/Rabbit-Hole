@@ -1,3 +1,4 @@
+import { freezeNativeTools } from './inline-native-plan.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CadPreview, cadCanMutate } from './CadCard.jsx';
 import { cadRunning, cadStage } from './cad-client.js';
@@ -137,7 +138,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   function validateResult(result, frozen) {
     if (result.kind === 'note') return { ok: true, preview: { text: result.text } };
     if (result.kind === 'edit') {
-      const checked = validateEdit(result, frozen, board());
+      const checked = validateEdit(result, frozen, {...board(),boxes:canvas.layout()});
       return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), raw: result } } : checked;
     }
     // A native diagram: checked again here (a schema is a request, not a guarantee); laid out and placed once, below.
@@ -155,6 +156,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     const context = target.creation
       ? buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request, extras: config.extras?.() || {}, style: regionStyle(live, target.anchor) })
       : buildContext(live, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
+    if(!target.creation&&!target.range){const native=freezeNativeTools(live,target.ids,live.boxes);if(native)context.nativeTools=native;}
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses, only };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -206,7 +208,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { error: how === 'edit' ? cardEditSelectionReason(target.ids || [], board()) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: how === 'edit' ? cardEditSelectionReason(target.ids || [], board()) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, nativeTools:made.context.nativeTools, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
     });
   };
@@ -387,7 +389,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const taken = new Set(['shapes', 'items', 'links', 'blocks', 'groups'].flatMap(list => (now[list] || []).map(entry => entry.id)));
         tx = toCanvasObjects(preview.spec, spot.layout, { requestId: preview.requestId, at: { x: spot.x, y: spot.y }, style: spot.style, taken });
       } else if (preview.kind === 'edit') {
-        const again = validateEdit(preview.raw, frozen, now);
+        const again = validateEdit(preview.raw, frozen, {...now,boxes:canvas.layout()});
         if (!again.ok) return { stale: { content: true, text: again.errors[0] || 'The edit no longer fits the selection.' } };
         tx = editTx({ requestId: preview.requestId, changes: again.changes });
       } else {
@@ -570,6 +572,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           return (preview.changes || []).map(change => {
             const at = place(change.id);
             if (!at) return null;
+            if(change.native&&change.list==='shapes'&&canvas.renderNativeShape)return <svg key={change.id} data-inline-native-preview data-ghost-for={change.id} className="absolute overflow-visible opacity-75" style={{left:0,top:0,width:1,height:1,pointerEvents:'none'}}><g transform={`translate(${view.x} ${view.y}) scale(${z})`}>{canvas.renderNativeShape(change.appearance)}</g></svg>;
+            if(change.native){const proposed=change.bounds;return <div key={change.id} data-inline-native-preview data-ghost-for={change.id} className={frame} style={{...at,left:Number.isFinite(proposed.x)?proposed.x*z+view.x:at.left,top:Number.isFinite(proposed.y)?proposed.y*z+view.y:at.top,color:change.appearance.textColor,background:change.appearance.fill||undefined}}>{change.after||'Proposed style'}</div>;}
             if (change.structured) return <div key={change.id} data-inline-ghost data-ghost-kind="edit" data-ghost-for={change.id} data-card-edit-ghost className="absolute overflow-hidden rounded-md border border-dashed border-ai bg-white p-3 text-ink shadow-sm dark:bg-[#202020]" style={{ left: at.left, top: at.top, width: at.minWidth, height: at.minHeight }}>
               <p className="mb-2 text-xs font-semibold text-ink-2">Proposed revision</p>
               <CardEditPreview fields={change.fields} proposedOnly />

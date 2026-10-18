@@ -33,7 +33,8 @@ ${DATA}
 The selection is \`canvas.target.objects\`: it is what the request refers to, and its objects are the only ones you may change, by their \`id\`. The new text may be on any subject the request asks for: a mismatch with the canvas's title or topic is never a reason to refuse. Everything else in \`canvas\` (related, relations, connections, metadata) is read-only background for understanding the request. When an object has a \`range\`, only those selected words may change: use one replace_range with exactly that range's from and to, and return only the replacement words.
 For a card with editable, use replace_card_content with the complete editable.content object and exactly its field names. Preserve Markdown headings, lists, fenced code and LaTeX within strings, explanation sections and rectangular table rows. Never flatten a structured card into text. All editable fields were supplied whole; if truncated or editLimitation is present, return a limitation, not a rewrite. Keep the replacement JSON within 4000 characters. Snippet output is not editable: changing code clears its prior output without running code. Source-backed/citation-bearing cards are not rewritable here; never invent citations or associate a listed-only source with new claims. Metadata conversation is bounded background and sources with coverage listed are metadata only, not source contents.
 Operations: replace_card_content (a complete supported card content object), replace_text (an object's whole text), replace_range, set_style (fontSize 8-160, level h1|h2|h3|h4|body, bold, italic, underline, textColor #rrggbb).
-Never add, delete, move, regroup or connect objects, and never change anything outside the target. If the request needs that, return an empty ops list and one sentence in \`limitation\` saying what to select or do instead.
+When canvas.nativeTools exists, a native appearance or layout request uses ops:[] and plan:{mode:"edit",targetIds:[all frozen native IDs],steps:[{tool:"set_appearance",targetIds:[selected IDs],input:{patch:{fill:"#rrggbb"}}},{tool:"arrange_selection",targetIds:[selected IDs],input:{how:"left"}}]}. At most four steps and one arrangement. Use only set_appearance and arrange_selection. Appearance uses real native properties (color stroke, fill, width stroke width, opacity, fillOpacity, noStroke, dash, round, typography, startHead/endHead); do not use image pixels or unsupported property keys. Arrangement how is left|center|right|top|middle|bottom|spread-x|spread-y, calculated by the app from measured bounds; do not invent coordinates. Arrange only boxed shapes and independent text/notes, not connectors. Preserve text/content; combine appearance and arrangement in one plan. Do not mix plan with legacy text ops. Without nativeTools, native operations are unavailable.
+Never add, delete, regroup or reconnect objects, and never change anything outside the target. Only the supported native arrangement may move selected objects. If the request needs that, return an empty ops list and one sentence in \`limitation\` saying what to select or do instead.
 Code (mode "code"): return the corrected code as the new text. Never claim to have run it and never state its output.
 Keep everything the learner did not ask to change exactly as it is.
 ${EARLIER}`;
@@ -60,6 +61,13 @@ export const INLINE_EDIT_TOOL = {
           } },
         },
       } },
+      plan: {type:'object',additionalProperties:false,required:['mode','targetIds','steps'],properties:{
+        mode:{type:'string',enum:['edit']},targetIds:{type:'array',minItems:1,maxItems:20,items:{type:'string'}},
+        steps:{type:'array',minItems:1,maxItems:4,items:{type:'object',additionalProperties:false,required:['tool','targetIds','input'],properties:{
+          tool:{type:'string',enum:['set_appearance','arrange_selection']},targetIds:{type:'array',minItems:1,maxItems:20,items:{type:'string'}},
+          input:{type:'object',additionalProperties:false,properties:{how:{type:'string',enum:['left','center','right','top','middle','bottom','spread-x','spread-y']},patch:{type:'object',properties:{color:{type:'string'},fill:{type:['string','null']},width:{type:'number'},opacity:{type:'number'},fillOpacity:{type:'number'},noStroke:{type:'boolean'},dash:{type:'string'},round:{type:'boolean'},fontSize:{type:'number'},font:{type:'string'},level:{type:'string'},textColor:{type:'string'},align:{type:'string'},valign:{type:'string'},bold:{type:'boolean'},italic:{type:'boolean'},underline:{type:'boolean'},startHead:{type:'string'},endHead:{type:'string'}},additionalProperties:false}}}
+        }}}
+      }},
       limitation: { type: 'string', maxLength: 300 },
     },
   },

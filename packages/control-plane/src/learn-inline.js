@@ -1,3 +1,4 @@
+import { validateNativePlan, nativeSnapshotBoard, validNativeSnapshot } from '../../web/src/inline-native-plan.js';
 import { validateCardContent } from '../../web/src/inline-card-edit.js';
 // The inline AI editor's worker routes (docs/features/inline-ai-editor.md §6-§12, A2, A3, A5).
 //
@@ -112,6 +113,15 @@ export function checkNote(text) {
 }
 export function checkEdit(input, targetIds, context = null) {
   if (!input || typeof input !== 'object' || !Array.isArray(input.ops)) return { error: 'The model returned no edit.' };
+  if(input.plan){
+    if(input.ops.length)return {error:'Native tool plans cannot mix legacy text operations.'};
+    const snapshot=context?.nativeTools;
+    if(!validNativeSnapshot(snapshot)||snapshot.ids.length!==targetIds.length||targetIds.some(id=>!snapshot.ids.includes(id)))return {error:'Native tool targets were not supplied.'};
+    const board=nativeSnapshotBoard(snapshot);if(!board)return {error:'Invalid native selection snapshot.'};
+    const checked=validateNativePlan(input.plan,snapshot,board,snapshot.bounds);
+    if(!checked.ok)return {error:checked.errors[0]};
+    return {result:{kind:'edit',summary:String(input.summary||'').slice(0,200),ops:[],plan:input.plan}};
+  }
   const ops = input.ops.slice(0, 40);
   const outside = ops.find(op => !targetIds.includes(op?.id));
   if (outside) return { error: `The edit reached outside the selection (${String(outside?.id).slice(0, 60)}).` };
