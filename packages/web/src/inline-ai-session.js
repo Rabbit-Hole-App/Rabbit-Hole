@@ -11,7 +11,7 @@
 //   (owner 2026-10-13, point 7). A move changes none of these.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
 import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, routeLabel } from './inline-ai-route.js';
-import { DEFAULT_ENABLED, INLINE_SLASH, checkRequest, commandOf, generationPrompt as generationArgs } from './inline-ai-decide.js';
+import { DEFAULT_ENABLED, INLINE_SLASH, checkRequest, commandOf, generationPrompt as generationArgs, inlineRouteTool } from './inline-ai-decide.js';
 
 export const STAGES = Object.freeze({ routing: 'Checking the request…', note: 'Writing the explanation…', edit: 'Preparing the edit…', shapes: 'Drawing the diagram…', artifact: 'Making the {label}…' });
 const busyStates = new Set(['routing', 'generating', 'streaming']);
@@ -138,7 +138,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
   }
 
   async function run(mine, id, plan, request) {
-    Object.assign(metric(id), { capability: plan.route, via: plan.via });
+    Object.assign(metric(id), { capability: plan.route, tool: inlineRouteTool(plan.route), via: plan.via });
     let result;
     try { result = await generate(mine, id, plan, request); }
     catch (error) {

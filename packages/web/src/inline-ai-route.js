@@ -16,14 +16,14 @@ export const ROUTE_PROTOCOL_VERSION = 'inline-route-r2';
 // registry commands whose handler makes explanatory canvas material. Each keeps its own handler (A6: /animate, /video
 // and /motion are three routes, never one).
 export const ROUTES = Object.freeze({
-  note: { label: 'Short note', criterion: 'A short written explanation placed beside the selection, with no special format. The default for plain "explain this" requests, why/how questions, and any request that declines a format (for example "but don\'t make a video").' },
-  explain: { label: 'Explanation card', criterion: 'A longer teaching card: a full lesson-style explanation or a table, rather than a short note.' },
-  code: { label: 'Code example', criterion: 'An explanation with a code example or program, for example "with Python" or "show me the code".' },
-  diagram: { label: 'Diagram', criterion: 'A new diagram or flowchart that draws structure or steps.' },
-  graph: { label: 'Graph', criterion: 'A plotted graph or chart of a function or data.' },
-  walkthrough: { label: 'Walkthrough', criterion: 'A step-by-step walkthrough the learner clicks through.' },
-  compare: { label: 'Comparison', criterion: 'A side-by-side comparison of the selection with something else.' },
-  animate: { label: 'Animation', criterion: 'An animation that plays on the canvas, such as a maths animation of a process.' },
+  note: { tool: 'create_learning_artifact', label: 'Short note', criterion: 'A short written explanation placed beside the selection, with no special format. The default for plain "explain this" requests, why/how questions, and any request that declines a format (for example "but don\'t make a video").' },
+  explain: { tool: 'create_learning_artifact', label: 'Explanation card', criterion: 'A longer teaching card: a full lesson-style explanation or a table, rather than a short note.' },
+  code: { tool: 'create_learning_artifact', label: 'Code example', criterion: 'An explanation with a code example or program, for example "with Python" or "show me the code".' },
+  diagram: { tool: 'create_learning_artifact', label: 'Diagram', criterion: 'A new diagram or flowchart that draws structure or steps.' },
+  graph: { tool: 'create_learning_artifact', label: 'Graph', criterion: 'A plotted graph or chart of a function or data.' },
+  walkthrough: { tool: 'create_learning_artifact', label: 'Walkthrough', criterion: 'A step-by-step walkthrough the learner clicks through.' },
+  compare: { tool: 'compare_selection', label: 'Comparison', criterion: 'A side-by-side comparison of the selection with something else.' },
+  animate: { tool: 'create_learning_artifact', label: 'Animation', criterion: 'An animation that plays on the canvas, such as a maths animation of a process.' },
   image: { label: 'Picture', criterion: 'A real photo or picture of the thing.' },
   video: { label: 'Video clip', criterion: 'A video clip of a real-world process or footage (not a narrated explainer of the selection).' },
   '3d': { label: '3D model', criterion: 'A 3D model or scene.' },
@@ -46,7 +46,7 @@ export const NOT_INLINE = Object.freeze({
 // Routes reached only by their explicit command, never by automatic routing: they are not in ROUTES, so no routing
 // question or validator lists them (Release B lead ruling, 2026-10-16: owner 1A puts /flashcards in Ctrl+K; Auto decides
 // exactly as before). Each runs its own handler, as the Chat command does.
-export const EXPLICIT_ROUTES = Object.freeze({ flashcards: { label: 'Flashcards' }, cad: { label: 'CAD' } });
+export const EXPLICIT_ROUTES = Object.freeze({ flashcards: { tool: 'create_learning_artifact', label: 'Flashcards' }, cad: { label: 'CAD' } });
 export const routeLabel = route => ROUTES[route]?.label || EXPLICIT_ROUTES[route]?.label || route;
 // Every Learn command has exactly one inline status - checked against the registry by the tests.
 export const inlineStatus = name => (ROUTES[name] ? 'route' : EXPLICIT_ROUTES[name] ? 'explicit' : NOTE_COMMANDS[name] ? 'note' : NOT_INLINE[name] ? 'n/a' : 'unknown');

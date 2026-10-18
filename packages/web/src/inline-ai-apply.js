@@ -9,6 +9,7 @@ import { cardEditSpec, cardEditText, cardEditComparison, validateCardContent } f
 import { validateNativePlan } from './inline-native-plan.js';
 import { validateInlinePlan } from './inline-tool-plan.js';
 import { LIMITS } from './inline-ai-context.js';
+import { inlineRouteTool } from './inline-ai-decide.js';
 
 export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style', 'replace_card_content'];
 const STYLE_KEYS = ['fontSize', 'level', 'bold', 'italic', 'underline', 'textColor'];
@@ -224,6 +225,7 @@ export const cardId = requestId => `inline-${requestId}-card`;
 // that a linked file or its complete contents were read.
 export const inlineProvenance = ({ requestId, mode = 'explain', route, frozen }) => ({
   requestId, mode, route, sources: frozen.ids.slice(),
+  ...(mode === 'explain' && inlineRouteTool(route) ? { tool: inlineRouteTool(route) } : {}),
   ...(frozen.range ? { range: { id: frozen.range.id, from: frozen.range.from, to: frozen.range.to } } : {}),
 });
 const NOTE_W = 260;

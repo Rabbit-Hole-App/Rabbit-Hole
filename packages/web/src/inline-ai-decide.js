@@ -8,6 +8,7 @@
 //   { kind: 'creation', mode: 'explain', anchor: { x, y } (world), region: '<compact subject+style summary>', prompt, slash?, context }
 // Response: { decision, message?, route?: { capability, outcome }, missing?: [...], paid, token? }
 import { SLASH, primitive } from './agent/slash.js';
+import { INLINE_TOOLS } from './inline-tool-capabilities.js';
 import { EXPLICIT_ROUTES, NOTE_COMMANDS, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
 
 export const DECISIONS = Object.freeze(['proceed', 'clarify', 'invalid', 'unsupported', 'blocked']);
@@ -21,14 +22,19 @@ export const REGION_MAX = 1500, TARGETS_MAX = 200;
 const { diagram: _card, ...OTHERS } = ROUTES;
 export const CAPABILITIES = Object.freeze({
   ...OTHERS,
-  equation: { label: 'Equation', criterion: 'A rendered, editable mathematical equation or formula in LaTeX, including a natural-language description of a desired equation. Explaining mathematics in prose remains a text explanation.' },
-  note: { label: 'Text explanation', criterion: 'An editable written explanation on the canvas, with no special format: why and how questions, "explain this", definitions, and any request that declines a format (for example "but don\'t make a video").' },
-  shapes: { label: 'Diagram', criterion: 'An editable diagram drawn on the canvas from shapes, text and arrows: a tree, flowchart, cycle, hierarchy, timeline, or a map of how parts connect.' },
+  equation: { tool: 'create_learning_artifact', label: 'Equation', criterion: 'A rendered, editable mathematical equation or formula in LaTeX, including a natural-language description of a desired equation. Explaining mathematics in prose remains a text explanation.' },
+  note: { tool: 'create_learning_artifact', label: 'Text explanation', criterion: 'An editable written explanation on the canvas, with no special format: why and how questions, "explain this", definitions, and any request that declines a format (for example "but don\'t make a video").' },
+  shapes: { tool: 'create_learning_artifact', label: 'Diagram', criterion: 'An editable diagram drawn on the canvas from shapes, text and arrows: a tree, flowchart, cycle, hierarchy, timeline, or a map of how parts connect.' },
 });
 export const INLINE_SLASH = Object.freeze({ diagram: 'shapes' });
 // A capability the editor can run: one the validator may choose (CAPABILITIES), or one only its explicit command reaches
 // (EXPLICIT_ROUTES: never offered to the validator's route question, so automatic routing is unchanged).
 export const knownCapability = capability => !!(CAPABILITIES[capability] || EXPLICIT_ROUTES[capability]);
+// Existing signed routes back these tools; they are not native edit-plan steps.
+export const inlineRouteTool = capability => {
+  const name = (CAPABILITIES[capability] || EXPLICIT_ROUTES[capability])?.tool;
+  return Object.hasOwn(INLINE_TOOLS, name) ? name : null;
+};
 export const DEFAULT_ENABLED = Object.freeze(['note', 'shapes', 'equation']);
 export const outcomeOf = capability => (capability === 'edit' ? 'edit' : capability === 'equation' ? 'equation' : capability === 'note' ? 'text' : capability === 'shapes' ? 'diagram' : ['image', 'video', '3d', 'motion'].includes(capability) ? 'media' : 'card');
 // Whether the capability can start paid generation: Motion, or a command whose family holds a paid primitive. The router
