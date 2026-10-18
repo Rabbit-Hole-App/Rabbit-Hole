@@ -5,6 +5,7 @@ import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 const BASE=process.env.BASE||'http://127.0.0.1:5441', CP=process.env.SMALL_CP||'http://127.0.0.1:9093';
 for(const origin of [BASE,CP])assert.match(origin,/^http:\/\/(127\.0\.0\.1|localhost):\d+$/);
+const APP_API=process.env.APP_API||BASE;assert.match(APP_API,/^http:\/\/(127\.0\.0\.1|localhost):\d+$/);
 const OUT=resolve(process.env.OUT||'e2e/shots/card-edit');mkdirSync(OUT,{recursive:true});
 const secret=process.env.TEST_BYPASS_SECRET||(process.env.VARS&&readFileSync(process.env.VARS,'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1]?.trim().replace(/^(['"])(.*)\1$/,'$2'));
 assert.ok(secret,'Set named TEST_BYPASS_SECRET or VARS');
@@ -17,7 +18,7 @@ if(mode==='full')original.cardLayout={mode:'full',fullWidth:560,scrollableSize:{
 let originalBox,neighborBox;
 const geometry=async id=>page.locator(`[data-block-id="${id}"]`).boundingBox();
 const near=(a,b,label)=>assert.ok(Math.abs(a-b)<2,`${label}: ${a} vs ${b}`);
-const api=async(path,method='GET',body)=>{const r=await fetch(BASE+path,{method,headers:{cookie:`small_session=${session}`,origin:BASE,'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.ok(r.ok,`${method} ${path}: ${r.status}`);return r.json();};
+const api=async(path,method='GET',body)=>{const r=await fetch(APP_API+path,{method,headers:{cookie:`small_session=${session}`,origin:APP_API,'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.ok(r.ok,`${method} ${path}: ${r.status}`);return r.json();};
 const until=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,80));}throw Error(label);};
 const state=async()=>(await api(`/api/learn/boards/${canvas.name}/main`)).state;
 const savedCard=async()=>(await state()).blocks.find(b=>b.id==='editable');
