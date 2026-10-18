@@ -246,7 +246,7 @@
     "packages/web/src/inline-notebook-edit.js": ["ctrlk-notebook-check.mjs"],
     "packages/web/src/notebook-inline-client.js": ["ctrlk-notebook-check.mjs"],
     "packages/web/src/notebook-history.js": ["ctrlk-notebook-check.mjs"],
-    "packages/web/src/CodeBoxEditor.jsx": ["code-box-autocomplete-check.mjs", "code-colors-check.mjs"],
+    "packages/web/src/CodeBoxEditor.jsx": ["code-box-autocomplete-check.mjs", "canvas-editing-check.mjs"],
     "packages/web/e2e/code-box-editor-component.mjs": ["code-box-autocomplete-check.mjs"],
     "packages/web/e2e/equation-generator-component.mjs": ["equation-inline-check.mjs"],
     "packages/web/e2e/inline-image-transforms-pixels.mjs": ["ctrlk-image-check.mjs"],
