@@ -8,7 +8,7 @@ function fixture(patch = {}) {
   const scope = { app: 'canvas-test', board: 'board-test' };
   const state = { block: structuredClone(block), scope, readOnly: false, locked: false };
   const calls = [], revoked = [];
-  const options = { block, scope, operation: { type: 'rotate', turns: 1 }, current: () => state,
+  const options = { block, scope, operation: { type: 'rotate', quarterTurns: 1 }, current: () => state,
     fetchImpl: async (path, init) => { calls.push({ path, ...init }); return new Response(new Blob(['fs_111111111111111111111111']), { headers: { 'x-source-rev': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }); },
     transform: async () => ({ ok: true, blob: new Blob(['pixels'], { type: 'image/png' }), width: 20, height: 30 }),
     upload: async (file, at) => { calls.push({ upload: file, at }); return { source: { id: 'fs_222222222222222222222222', rev: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: file.name, size: file.size } }; },
