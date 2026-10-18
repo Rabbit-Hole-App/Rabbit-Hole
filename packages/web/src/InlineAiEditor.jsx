@@ -1,3 +1,6 @@
+import { MathText } from './MathText.jsx';
+import { validateEquationResult } from './inline-equation-result.js';
+import { equationTransaction } from './inline-equation-apply.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { freezeNativeTools } from './inline-native-plan.js';
 import { freezeInlineTools, validateInlinePlan } from './inline-tool-plan.js';
@@ -109,6 +112,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // entries beside the selection-only note (fast-e2e 38625249408 on Linux).
   const prepared = built?.only === selectionOnly ? built : null;
   const [state, setState] = useState({ status: 'idle' });
+  const [equationLatex,setEquationLatex]=useState('');
+  useEffect(()=>{if(state.preview?.kind==='equation')setEquationLatex(state.preview.latex);},[state.preview?.requestId,state.preview?.latex]);
   // A7: each candidate's placement, by request id - computed once, before its ghost shows, and the one Accept applies.
   const [placements, setPlacements] = useState({});
   const [moved, setMoved] = useState(null); // the request whose spot was taken: its new place is shown, Accept again
@@ -139,6 +144,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // A result checked against the board as it is now (inline-ai-apply.js): the preview it becomes, or why not.
   function validateResult(result, frozen) {
+    if(result.kind==='equation'){const {kind,...input}=result,checked=validateEquationResult(input);return checked.ok&&checked.result.kind==='equation'?{ok:true,preview:{...checked.result}}:{ok:false,errors:[checked.error||'Invalid equation.']};}
     if (result.kind === 'note') return { ok: true, preview: { text: result.text } };
     if(result.kind==='annotations'){
       const checked=validateInlinePlan(result.plan,frozen.toolSnapshot,board(),canvas.layout(),{mode:'explain',requestId:frozen.requestId,readOnly});
@@ -217,7 +223,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, ...(how==='edit'&&target.ids?.length===1&&board().items?.find(item=>item.id===target.ids[0]&&item.kind==='equation')?{equationItem:structuredClone(board().items.find(item=>item.id===target.ids[0]))}:{}), nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       };
         if(notebookTarget)return notebookEditor(target.ids[0]).capture().then(scope=>{if(JSON.stringify(scope.cellIds)!==JSON.stringify(target.notebook.cellIds))throw new Error('The selected cells changed. Close this preview and select the cells again.');canvas.syncNotebook(scope);return build(scope);});
         return build(null);
@@ -398,6 +404,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const spot = placements[preview.requestId];
         if (!spot?.size) return { error: 'There is no place on the canvas beside the selection for this note.' };
         tx = explainTx({ requestId: preview.requestId, text: preview.text, frozen, board: now, boxes: { target: spot.target }, size: spot.size, place: spot, route: preview.route });
+      } else if(preview.kind==='equation'){
+        const candidate={kind:'equation',latex:equationLatex,...(preview.label?{label:preview.label}:{}),...(preview.assumptions?{assumptions:preview.assumptions}:{})};
+        const point=target.creation?target.anchor:placeFor({w:420,h:90});
+        const made=equationTransaction(candidate,{item:frozen.equationItem?now.items.find(item=>item.id===frozen.equationItem.id):null,frozen:frozen.equationItem,point,requestId:preview.requestId,readOnly,taken:now.items.map(item=>item.id)});
+        if(!made.ok)return{error:made.error};tx=made.tx;
       } else if (preview.kind === 'diagram') {
         const spot = placements[preview.requestId];
         if (!spot?.layout) return { error: 'There is no place on the canvas for this diagram.' };
@@ -499,7 +510,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // from and what the limits left out - never a reading of the whole canvas.
   const considered = prepared?.context.considered ?? 0;
   const writing = status === 'streaming' || (busy(status) && !preview);
-  const acceptable = (status === 'preview' || status === 'proposal') && preview && !state.accepted;
+  const equationChecked=preview?.kind==='equation'?validateEquationResult({latex:equationLatex}):null;
+  const acceptable = (status === 'preview' || status === 'proposal') && preview && !state.accepted && (!equationChecked||equationChecked.ok);
   const z = view.z;
   return (
     <>
@@ -650,6 +662,13 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             <p className="mt-1 text-[11px] text-ink-3">{status === 'streaming' ? 'Writing… (not on the canvas until you accept)' : target.creation ? 'Adds an editable note at the insertion point.' : `Adds an editable note${target.ids.length === 1 ? ' with an arrow' : ''} beside the selection.`}</p>
           </div>
         ) : null}
+        {preview?.kind==='equation'&&<div data-inline-preview="equation" className="mt-2 space-y-2 rounded-lg border border-line p-2">
+          {preview.label&&<p className="text-xs font-medium">{preview.label}</p>}
+          <div data-equation-preview className="max-h-44 overflow-auto" style={{fontSize:24}}>{equationChecked?.ok?<MathText expression={equationLatex} display/>:<p role="alert" className="text-xs">{equationChecked?.error}</p>}</div>
+          <textarea data-inline-equation-latex aria-label="Equation LaTeX" value={equationLatex} onChange={event=>setEquationLatex(event.target.value)} className="w-full rounded border border-line p-1 font-mono text-xs"/>
+          {preview.assumptions?.map((text,index)=><p key={index} className="text-xs text-ink-2">Assumption: {text}</p>)}
+          <p className="text-[11px] text-ink-3">{preview.frozen.equationItem?'Replaces this equation after acceptance.':'Adds a native editable equation; selected content stays unchanged.'} Rendering does not verify the mathematics.</p>
+        </div>}
         {(state.stream?.edits && busy(status)) && (
           <div data-inline-preview="edit-stream" data-scroll className="mt-2 h-40 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             {Object.entries(state.stream.edits).map(([id, text]) => <pre key={id} className="whitespace-pre-wrap font-mono text-[12px] text-[#1a7f37]">{text}</pre>)}

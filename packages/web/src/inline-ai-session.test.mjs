@@ -264,3 +264,9 @@ test('the check: an empty request is invalid with no call; unsupported, blocked 
   assert.equal(session.state.clarify.question, 'What values or content should it use?');
   assert.deepEqual([checks, generations], [3, 0]);
 });
+
+test('typed equation uses signed inline generation rather than the artifact transport',async()=>{
+ let generated=0,artifacts=0;
+ const {session}=make({route:async()=>({choice:'equation',confidence:1}),generate:async input=>{generated++;assert.equal(input.route,'equation');return{result:{kind:'equation',latex:'x^2'}};},artifact:async()=>{artifacts++;throw new Error('wrong transport');}},{enabled:['note','equation'],validate:result=>({ok:true,preview:{latex:result.latex}})});
+ assert.equal(await session.submit({mode:'explain',prompt:'Write the quadratic formula',prepare:snapshot()}),'preview');assert.equal(session.state.preview.kind,'equation');assert.equal(generated,1);assert.equal(artifacts,0);
+});

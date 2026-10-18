@@ -1,3 +1,4 @@
+import EquationGenerator from './EquationGenerator.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MathfieldElement } from 'mathlive';
 import katex from 'katex';
@@ -23,7 +24,7 @@ const LATEX_TAB = 'latex';
 
 // latex in, the field's source out on finish: when focus leaves the field and its palette (a click away, Esc, a tab
 // away). Typing or pasting LaTeX works in the field itself; the LaTeX tab shows the source as plain text to edit.
-export default function EquationEditor({ latex, zoom, onDone, onDraft }) {
+export default function EquationEditor({ latex, zoom, onDone, onDraft, generation }) {
   const root = useRef(null), field = useRef(null), finished = useRef(false);
   const [tab, setTab] = useState(EQUATION_PALETTE[0].id);
   const [source, setSource] = useState(latex);
@@ -63,19 +64,20 @@ export default function EquationEditor({ latex, zoom, onDone, onDraft }) {
   const tabClass = on => `rounded px-1.5 py-0.5 text-[11px] ${on ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`;
   return (
     <div ref={root} data-equation-editor data-keep-focus className="relative"
-      onBlur={event => { if (!root.current.contains(event.relatedTarget)) finish(); }}>
+      onBlur={event => { if (tab!=='generate'&&!root.current.contains(event.relatedTarget)) finish(); }}>
       <style>{CSS}</style>
       {/* Counter-scaled so it reads the same at any zoom. A press on a button keeps the caret in the field. */}
       <div data-equation-palette role="toolbar" aria-label="Equation palette" style={{ transform: `scale(${1 / zoom})` }}
         className={`absolute left-0 z-30 w-max max-w-[420px] ${below ? 'top-full mt-2 origin-top-left' : 'bottom-full mb-2 origin-bottom-left'} rounded-lg border border-line bg-white p-1 text-ink shadow-md`}
-        onPointerDown={event => { if (event.target.tagName !== 'INPUT') event.preventDefault(); event.stopPropagation(); }}>
+        onPointerDown={event => { if (!['INPUT','TEXTAREA','BUTTON'].includes(event.target.tagName)&&!event.target.closest('[data-equation-generator]')) event.preventDefault(); event.stopPropagation(); }}>
         <div role="tablist" aria-label="Equation parts" className="flex gap-0.5 border-b border-line pb-1">
           {EQUATION_PALETTE.map(entry => (
             <button key={entry.id} type="button" role="tab" aria-selected={tab === entry.id} title={entry.name} onClick={() => setTab(entry.id)} className={tabClass(tab === entry.id)}>{entry.tab}</button>
           ))}
           <button type="button" role="tab" aria-selected={tab === LATEX_TAB} title="Type or paste LaTeX" onClick={() => setTab(LATEX_TAB)} className={tabClass(tab === LATEX_TAB)}>LaTeX</button>
+          {generation&&<button type="button" role="tab" data-equation-generate-tab aria-selected={tab==='generate'} onClick={()=>setTab('generate')} className={tabClass(tab==='generate')}>Generate</button>}
         </div>
-        {tab === LATEX_TAB
+        {tab==='generate'?<EquationGenerator scopeKey={generation.scopeKey} mode={generation.mode} onGenerate={input=>generation.onGenerate({...input,latex:source})} onAccept={async result=>{const out=await generation.onAccept(result);if(out?.ok)finished.current=true;return out;}} onCancel={()=>{setTab(EQUATION_PALETTE[0].id);field.current?.focus();}}/>:tab === LATEX_TAB
           ? <input data-equation-source aria-label="LaTeX source" autoFocus spellCheck={false} value={source} placeholder="\frac{a}{b}"
               onChange={event => { updateSource(event.target.value); field.current.setValue(event.target.value, { silenceNotifications: true }); }}
               className="mt-1 h-7 w-[340px] rounded border border-line bg-white px-2 font-mono text-xs text-ink outline-none focus:border-ink-3" />

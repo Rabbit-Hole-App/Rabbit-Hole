@@ -86,3 +86,10 @@ On a shared canvas, the server words a selected equation, and the board text, fr
   - the pill, Ask's prefill, and Send carrying the LaTeX;
   - save and reload, including a fresh profile from the server copy;
   - no model call.
+
+
+## Plain-language generation integration checkpoint
+
+Toolbar Generate and Ctrl+K use the existing authenticated, signed `/api/learn/inline/decide` and `/api/learn/inline/generate` path. Generated output is bounded LaTeX, optional label and assumptions; safe KaTeX validation establishes renderer compatibility, not mathematical correctness. The toolbar retains all manual palette tabs. New equation placement stays local until accepted/manual completion; generated replacements preserve identity, position, style and connections and refuse changed originals. Accepted results use the existing canvas edit transaction and Undo/persistence path. Manual preview LaTeX changes are local.
+
+Implementation checkpoint only: 56 focused tests pass and changed JSX compiles. Actual app/browser coverage, deployment and real-model quality checks are pending; component fixtures are not those checks. No provider calls were made in this integration. Real-model verification requires its separately approved budget.

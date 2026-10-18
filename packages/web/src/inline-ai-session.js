@@ -25,6 +25,7 @@ export const routeColumn = entry => (entry.routing === 'jev' || String(entry.rou
 // title and text.
 // At most EARLIER_MAX characters, the worker's limit: a longer edit has each operation's text cut to fit, and says so.
 export function earlierResult(preview) {
+  if(preview.kind==='equation')return JSON.stringify({latex:preview.latex,label:preview.label,assumptions:preview.assumptions});
   if (preview.kind === 'note') return String(preview.text || '').slice(0, EARLIER_MAX);
   if (preview.kind === 'edit'||preview.kind==='annotations') {
     if(preview.raw?.plan){const full=JSON.stringify({summary:preview.summary||'',plan:preview.raw.plan});return full.length<=EARLIER_MAX?full:null;}
@@ -112,7 +113,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     }
     // Generation gets the decided request, exactly, and the server's proceed for it (its own words, mode and context).
     const decided = { requestId: id, request: request.wire, token: request.token, ...(request.revise ? { revise: request.revise } : {}) };
-    if (route === 'note' || route === 'edit' || route === 'shapes') {
+    if (route === 'note' || route === 'edit' || route === 'shapes' || route === 'equation') {
       set({ status: 'generating', stage: STAGES[route], stream: null });
       mark(id, 'providerStart');
       count(id, 'modelCalls');

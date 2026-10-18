@@ -1,3 +1,4 @@
+import { equationTransaction } from './inline-equation-apply.js';
 import { cadPersistenceChanged } from './CadCard.jsx';
 import { cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -1105,7 +1106,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onCommit, onMove, on
 
 // An equation (docs/features/canvas-equations.md): its LaTeX rendered by KaTeX, and while edited MathLive's field with
 // the palette above it (EquationEditor.jsx, loaded on the first edit). Double-click edits; a click away or Esc finishes.
-function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture, onDelete, onSnap, onPatch, onDone, onDraft }) {
+function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture, onDelete, onSnap, onPatch, onDone, onDraft, generation }) {
   const [editing, setEditing] = useState(!!item.fresh);
   const size = item.size || EQUATION_SIZE;
   const still = item.latex ? <MathText expression={item.latex} display /> : <span className="text-[0.6em] text-ink-3 italic">Empty equation</span>;
@@ -1127,7 +1128,7 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
       className={`absolute z-10 -mx-1 rounded border px-1 [&_[data-chat-math]]:my-0 [&_[data-chat-math]]:py-0 ${editing ? 'cursor-text border-line bg-white' : `cursor-grab border-transparent active:cursor-grabbing ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-select ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={() => { if (tool === 'select' && !locked) setEditing(true); }}>
       {editing
-        ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} onDraft={latex => onDraft(item.id, latex)} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
+        ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} generation={generation?{...generation,onAccept:async result=>{const out=await generation.onAccept(result);if(out?.ok)setEditing(false);return out;}}:null} onDraft={latex => onDraft(item.id, latex)} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
         : still}
       {/* The size ladder, where a text box shows its H1-to-text one; never while the LaTeX is edited (the palette is there). */}
       {selected && !editing && !locked && tool === 'select' && (
@@ -4182,8 +4183,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     } else if (tool === 'equation' && store.equations) {
       // An equation opens for editing where it is placed (canvas-equations.md); an Explain Back sketch holds none.
       event.preventDefault();
-      snapshot();
-      store.setItems(previous => [...previous, newEquation(store.local(event))]);
+      setEquationDraft(newEquation(store.local(event)));
       if (!lock) setTool('select');
     } else return false;
     return true;
@@ -4690,12 +4690,42 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (how !== 'blur') { selectedRef.current = [id]; setSelection([id]); }
   };
   // An equation's edit ends with its source. A fresh one is still its placement's undo step; one left empty goes.
+  const [equationDraft,setEquationDraft]=useState(null);
+  const equationDraftRef=useRef(null);equationDraftRef.current=equationDraft;
+  const equationCandidates=useRef(new Map());
   const finishEquation = (id, latex) => {
+    if(equationDraftRef.current?.id===id){const draft=equationDraftRef.current;if(latex&&!readOnlyRef.current){snapshot();setItems(previous=>[...previous,{...draft,latex,fresh:false}]);}setEquationDraft(null);return;}
     const before = present.current.items.find(item => item.id === id);
     if (!before) return;
     if (!latex) { if (before.fresh) setItems(previous => previous.filter(item => item.id !== id)); else deleteItem(id); return; }
     if (!before.fresh && before.latex !== latex) snapshot();
     setItems(previous => previous.map(item => item.id === id ? { ...item, latex, fresh: false } : item));
+  };
+  const equationGeneration=item=>!inlineAiRef.current||readOnly||item.locked?null:{
+    scopeKey:`${inlineKey.current}:${item.id}`,mode:equationDraft?.id===item.id?'insert':'replace',
+    onGenerate:async({prompt,requestId,signal,latex})=>{
+      if(readOnlyRef.current)throw new Error('This canvas is read-only.');
+      const key=inlineKey.current,config=inlineAiRef.current,live={...inlineBoard(),boxes:inlineCanvas.layout()},original=live.items.find(entry=>entry.id===item.id),draft=equationDraftRef.current?.id===item.id;
+      if(!draft&&(!original||original.locked))throw new Error('The equation is unavailable.');
+      const options={cache:inlineCache.current,boardKey:key,describeCard:describeObject,request:prompt,extras:config.extras?.()||{}};
+      const context=draft?buildCreationContext(live,{x:item.x,y:item.y},options):buildContext(live,freezeTarget(live,[item.id]),options);
+      if(!draft)context.target.objects=context.target.objects.map(entry=>entry.id===item.id?{...entry,text:latex}:entry);
+      const request=draft?{kind:'creation',mode:'explain',output:'equation',anchor:{x:item.x,y:item.y},region:'',prompt,context}:{kind:'selection',mode:'edit',targetIds:[item.id],prompt,context};
+      const decision=await config.transport.decide({requestId,request,enabled:[...(config.enabled||[]),'equation']},{signal});
+      if(signal.aborted)throw new DOMException('Cancelled','AbortError');
+      if(decision.decision==='clarify')return{result:{kind:'clarify',question:decision.message}};
+      if(decision.decision!=='proceed')throw new Error(decision.message||decision.error||'The equation request could not proceed.');
+      const answer=await config.transport.generate({requestId,request,token:decision.token},{signal,onEvent:()=>{}});
+      if(signal.aborted||inlineKey.current!==key)throw new DOMException('Cancelled','AbortError');
+      if(answer.result?.kind==='equation')equationCandidates.current.set(item.id,{key,requestId,frozen:original?structuredClone(original):null,point:{x:item.x,y:item.y}});
+      return answer;
+    },
+    onAccept:result=>{
+      const record=equationCandidates.current.get(item.id);if(!record||record.key!==inlineKey.current)return{ok:false,error:'Request a new equation preview.'};
+      const live=inlineBoard(),made=equationTransaction(result,{item:record.frozen?live.items.find(entry=>entry.id===item.id):null,frozen:record.frozen,point:record.point,requestId:record.requestId,readOnly:readOnlyRef.current,taken:live.items.map(entry=>entry.id)});
+      if(!made.ok)return made;if(!applyInline(made.tx,record.requestId,()=>{}))return{ok:false,error:'This canvas closed.'};
+      equationCandidates.current.delete(item.id);if(equationDraftRef.current?.id===item.id)setEquationDraft(null);return{ok:true};
+    },
   };
   const patchItem = (id, patch) => setItems(previous => previous.map(item => item.id === id ? { ...item, ...patch } : item));
   const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setLinks(previous => previous.filter(link => link.from !== id && link.to !== id)); setSelection(previous => previous.filter(other => other !== id)); };
@@ -5242,9 +5272,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         })}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => item.kind === 'equation'
-            ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} />
+            ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} generation={equationGeneration(item)} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
             onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi} />)}
+          {equationDraft&&!readOnly&&<EquationItem key={equationDraft.id} item={equationDraft} zoom={view.z} tool="select" selected onSelect={()=>{}} onMove={()=>{}} onGesture={()=>{}} onDelete={()=>setEquationDraft(null)} onPatch={()=>{}} onDone={finishEquation} onDraft={()=>{}} generation={equationGeneration(equationDraft)}/>}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}
           {shapes.filter(shape => TEXT_BOX[shape.kind] && !lockedIds.has(shape.id) && (editingShape === shape.id || (tool === 'select' && selection.length === 1 && selection[0] === shape.id))).map(shape => (

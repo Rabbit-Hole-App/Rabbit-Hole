@@ -897,7 +897,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return result;
     },
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
-    enabled: ['note', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
+    enabled: ['note', 'equation', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
     motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
     // Current Chat's live transcript and deliberately attached source metadata support the selected edit.
     // The existing context builder budgets these separately from the complete editable target. A listed reference
