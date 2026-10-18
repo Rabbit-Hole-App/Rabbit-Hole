@@ -27,6 +27,7 @@ export const routeColumn = entry => (entry.routing === 'jev' || String(entry.rou
 export function earlierResult(preview) {
   if (preview.kind === 'note') return String(preview.text || '').slice(0, EARLIER_MAX);
   if (preview.kind === 'edit') {
+    if(preview.raw?.plan){const full=JSON.stringify({summary:preview.summary||'',plan:preview.raw.plan});return full.length<=EARLIER_MAX?full:null;}
     const summary = preview.summary || '', ops = preview.raw?.ops || [];
     const full = JSON.stringify({ summary, ops });
     if (full.length <= EARLIER_MAX) return full;
@@ -196,7 +197,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       mark(id, 'refreshed');
       Object.assign(metric(id), { context: snapshot.shape || null, prep: { ms: snapshot.prepMs ?? null, cacheHit: !!snapshot.cacheHit } });
       const key = idempotencyKey({ boardKey, prints: snapshot.prints, mode, prompt: previous ? `${previous.requestId}|${prompt}` : prompt, selectionOnly: snapshot.selectionOnly });
-      const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: snapshot.frozen, key,
+      const request = { mode, prompt, context: snapshot.context, summary: snapshot.summary, frozen: {...snapshot.frozen,requestId:id}, key,
         ...(previous ? { replaces: previous.requestId, revise: { prompt: String(previous.origin || ''), result: earlier } } : {}) };
       set({ requestId: id, mode, error: null, notice: null, clarify: null, stale: null, declined: null, retry: false });
       const kept = results.get(key);

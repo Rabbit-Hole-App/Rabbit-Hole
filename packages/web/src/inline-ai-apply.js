@@ -7,6 +7,7 @@ import { reconcileRuns, runsOf, sliceRuns, spliceRuns, textPatch, fontSize as va
 import { TEXT_LEVELS } from './learn-style-panel.js';
 import { cardEditSpec, cardEditText, cardEditComparison, validateCardContent } from './inline-card-edit.js';
 import { validateNativePlan } from './inline-native-plan.js';
+import { validateInlinePlan } from './inline-tool-plan.js';
 import { LIMITS } from './inline-ai-context.js';
 
 export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style', 'replace_card_content'];
@@ -51,7 +52,7 @@ export function validateEdit(edit, frozen, board) {
   if(edit?.plan){
     if(edit.ops?.length)return {ok:false,errors:['Combine native changes in one tool plan; text operations must use a separate preview.'],changes:[]};
     if(frozen.range)return {ok:false,errors:['Native changes require whole objects.'],changes:[]};
-    return validateNativePlan(edit.plan,frozen.nativeTools,board,board.boxes||{});
+    return frozen.toolSnapshot?validateInlinePlan(edit.plan,frozen.toolSnapshot,board,board.boxes||{},{requestId:frozen.requestId}):validateNativePlan(edit.plan,frozen.nativeTools,board,board.boxes||{});
   }
   const ops = Array.isArray(edit?.ops) ? edit.ops : null;
   if (!ops) return { ok: false, errors: ['The edit had no operations.'], changes: [], limitation };
@@ -253,7 +254,7 @@ export function cardTx({ requestId, block, frozen, board, route, place = null })
   return { id: requestId, kind: 'card', block: card, after, ...(place ? { end: true } : {}), links: link ? [link] : [] };
 }
 
-export const editTx = ({ requestId, changes }) => ({ id: requestId, kind: 'edit', changes: changes.map(({ id, list, after }) => ({ id, list, after })) });
+export const editTx = ({ requestId, changes, additions=[], removals=[] }) => ({ id: requestId, kind: 'edit', changes: changes.map(({ id, list, after }) => ({ id, list, after })), additions, removals });
 
 // The transaction against the current lists (§11): edits patch only their own ids (an unrelated concurrent edit
 // stays), additions skip ids already there (a second Accept adds nothing).
@@ -262,6 +263,8 @@ export function applyTx(state, tx) {
   const has = (list, id) => (state[list] || []).some(entry => entry.id === id);
   if (tx.kind === 'edit') {
     for (const change of tx.changes) next[change.list] = (next[change.list] || state[change.list] || []).map(entry => (entry.id === change.id ? change.after : entry));
+    for(const removal of tx.removals||[])next[removal.list]=(next[removal.list]||[]).filter(entry=>entry.id!==removal.id);
+    for(const addition of tx.additions||[])if(!(next[addition.list]||[]).some(entry=>entry.id===addition.id))next[addition.list]=[...(next[addition.list]||[]),addition.after];
     return next;
   }
   if (tx.shapes?.length) next.shapes = [...state.shapes, ...tx.shapes.filter(shape => !has('shapes', shape.id))];

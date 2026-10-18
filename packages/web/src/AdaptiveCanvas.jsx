@@ -3150,6 +3150,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (tx.kind === 'edit') {
       const live = inlineBoard();
       if (tx.changes.some(change => !live[change.list]?.some(entry => entry.id === change.id) || lockedRef.current.has(change.id))) return false;
+      if((tx.removals||[]).some(change=>!live[change.list]?.some(entry=>entry.id===change.id)||lockedRef.current.has(change.id)))return false;
+      if((tx.additions||[]).some(change=>Object.values(live).some(list=>Array.isArray(list)&&list.some(entry=>entry.id===change.id))))return false;
       const boxes = measureNow();
       tx = { ...tx, changes: tx.changes.map(change => change.list === 'blocks'
         ? { ...change, after: preserveCardEditLayout(change.after, boxes[change.id]) } : change) };

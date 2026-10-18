@@ -64,6 +64,11 @@ test('annotation: Dive and the owned Tutor outline do not read links at all', ()
 // Every module that reads a board's `links`, and what it does with them. A new reader fails this check until it is
 // listed here after its annotation handling is reviewed. Matches that are not a board's links say so.
 const READERS = {
+  'web/src/inline-native-plan.js': 'explicit selected appearance/layout only; no inferred graph structure',
+  'web/src/inline-native-tools.js': 'explicit selected native appearance; no inferred graph structure',
+  'web/src/inline-tool-plan.js': 'rejects selected annotation connectors for structural edits; keeps incident annotations as protected deletion dependencies',
+  'web/src/inline-diagram-edit.js': 'bounded explicit graph edit helper; caller rejects annotation selection, dependent annotations prevent implicit deletion',
+  'web/src/inline-annotation-tools.js': 'writes and edits native annotations; does not promote them to structural edges',
   'web/src/canvas-search-index.js': 'local literal Search indexes stored annotation labels; never model context',
   'web/src/use-canvas-search.jsx': 'Search resolves already-authorized canvas reference metadata, not model context',
   'web/src/AdaptiveCanvas.jsx': 'draws them (dashed from kind), selects, styles, copies, cascades deletes; no structure',

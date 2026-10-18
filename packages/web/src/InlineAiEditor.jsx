@@ -1,4 +1,5 @@
 import { freezeNativeTools } from './inline-native-plan.js';
+import { freezeInlineTools } from './inline-tool-plan.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CadPreview, cadCanMutate } from './CadCard.jsx';
 import { cadRunning, cadStage } from './cad-client.js';
@@ -139,7 +140,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if (result.kind === 'note') return { ok: true, preview: { text: result.text } };
     if (result.kind === 'edit') {
       const checked = validateEdit(result, frozen, {...board(),boxes:canvas.layout()});
-      return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), raw: result } } : checked;
+      return checked.ok ? { ok: true, preview: { summary: result.summary, changes: checked.changes.map(describeChange), additions:checked.additions||[],removals:checked.removals||[],limitations:checked.limitations||[], raw: result } } : checked;
     }
     // A native diagram: checked again here (a schema is a request, not a guarantee); laid out and placed once, below.
     if (result.kind === 'diagram') { const checked = validateDiagram(result.spec); return checked.ok ? { ok: true, preview: { spec: checked.spec } } : { ok: false, errors: checked.errors.slice(0, 1) }; }
@@ -157,6 +158,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       ? buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request, extras: config.extras?.() || {}, style: regionStyle(live, target.anchor) })
       : buildContext(live, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     if(!target.creation&&!target.range){const native=freezeNativeTools(live,target.ids,live.boxes);if(native)context.nativeTools=native;}
+    if(!target.creation&&!target.range){const tools=freezeInlineTools(live,target.ids,live.boxes);if(tools)context.toolSnapshot=tools;}
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses, only };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -208,7 +210,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { error: how === 'edit' ? cardEditSelectionReason(target.ids || [], board()) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, nativeTools:made.context.nativeTools, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: how === 'edit' ? cardEditSelectionReason(target.ids || [], board()) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       },
     });
   };
@@ -391,7 +393,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       } else if (preview.kind === 'edit') {
         const again = validateEdit(preview.raw, frozen, {...now,boxes:canvas.layout()});
         if (!again.ok) return { stale: { content: true, text: again.errors[0] || 'The edit no longer fits the selection.' } };
-        tx = editTx({ requestId: preview.requestId, changes: again.changes });
+        tx = editTx({ requestId: preview.requestId, changes: again.changes,additions:again.additions,removals:again.removals });
       } else {
         const block = preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
         // The ghost's spot, from the slot the card will take at the end of the column (where its ghost is drawn now).
@@ -558,6 +560,15 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             </div>
           );
         })()}
+        {preview?.kind==='edit'&&status==='preview'&&((preview.additions?.length||0)+(preview.removals?.length||0)>0)&&(()=>{
+          const additions=preview.additions||[],shapes=additions.filter(entry=>entry.list==='shapes');
+          const boxOf=id=>{const shape=shapes.find(entry=>entry.id===id)?.after;return shape?{x:Math.min(shape.x1,shape.x2),y:Math.min(shape.y1,shape.y2),w:Math.abs(shape.x2-shape.x1),h:Math.abs(shape.y2-shape.y1)}:canvas.boxOf(id);};
+          return <svg data-inline-structural-preview className="absolute overflow-visible opacity-70" style={{left:0,top:0,width:1,height:1,pointerEvents:'none'}}><g transform={`translate(${view.x} ${view.y}) scale(${z})`}>
+            {shapes.map(entry=><g key={entry.id}>{canvas.renderNativeShape?.(entry.after)}</g>)}
+            {additions.filter(entry=>entry.list==='links').map(entry=>{const a=boxOf(entry.after.from),b=boxOf(entry.after.to);return a&&b&&<line key={entry.id} x1={a.x+a.w/2} y1={a.y+a.h/2} x2={b.x+b.w/2} y2={b.y+b.h/2} stroke="#6b7280" strokeWidth={2} strokeDasharray="6 4"/>;})}
+            {(preview.removals||[]).map(entry=>{const at=canvas.boxOf(entry.id);return at&&<rect key={entry.id} x={at.x} y={at.y} width={at.w} height={at.h} fill="#b4231820" stroke="#b42318" strokeDasharray="6 4"/>;})}
+          </g></svg>;
+        })()}
         {/* A7: an edit, pale, in place over each object it changes - removed words struck through, added words marked, a
             style change shown on the new text. While it streams, the new words so far. The object is untouched until Accept. */}
         {(() => {
@@ -631,6 +642,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {preview?.kind === 'edit' && !busy(status) && (
           <div data-inline-preview="edit" data-scroll className="mt-2 max-h-48 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             {preview.summary && <p className="mb-1 text-ink-2">{preview.summary}</p>}
+            {(preview.additions||[]).map(entry=><p key={entry.id} data-inline-addition={entry.id} className="text-[#1a7f37]">Add {entry.list==='links'?'connector':'shape'}: {entry.after.text||entry.after.label||`${entry.after.from} → ${entry.after.to}`}</p>)}
+            {(preview.removals||[]).map(entry=><p key={entry.id} data-inline-removal={entry.id} className="text-[#b42318]">Remove {entry.list==='links'?'connector':'shape'}: {entry.before.text||entry.before.label||entry.id}</p>)}
+            {(preview.limitations||[]).map(text=><p key={text} className="text-ink-2">{text}</p>)}
             {preview.changes.map(change => (
               <div key={change.id} data-inline-change={change.id} className="mb-1.5">
                 {change.structured ? <CardEditPreview fields={change.fields} /> : change.before !== change.after && <>
