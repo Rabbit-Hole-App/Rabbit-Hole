@@ -1,3 +1,4 @@
+import { inlineImageJobsRoute } from '../control-plane/src/inline-image-jobs.js';
 import { paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
@@ -280,6 +281,7 @@ const routes = {
     if (path.startsWith('/api/learn/provenance/')) { const provenance = await provenanceRoute(path, req, env); if (provenance) return provenance; }
     // Durable file-conversion jobs and the converter's callbacks (docs/features/canvas-file-imports.md section 5).
     if (path.startsWith('/api/learn/cad/')) return cadRoute(path, req, env);
+    if (path.startsWith('/api/learn/files/image-edits')) { const imageJobs = await inlineImageJobsRoute(path, req, env); if (imageJobs) return imageJobs; }
     if (path.startsWith('/api/learn/files/')) { const jobs = await fileJobsRoute(path, req, env); if (jobs) return jobs; }
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
     // Imported file sources (canvas-file-imports.md section 4.2); null for /api/learn/files paths it does not own (the JOBS routes).
