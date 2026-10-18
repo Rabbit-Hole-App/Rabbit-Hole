@@ -96,5 +96,6 @@
   if(!same(widget.context.model.toJSON(),next))error('The notebook changed while restoring.');
   return {path:current.path,cellIds:current.cellIds,ipynb:next,revision:JSON.stringify(next)};
  }
- globalThis.RHNotebookCells=Object.freeze({capture,proposal,apply,restore});
+ const request=(widget,message)=>message.type==='cells-snapshot'?capture(widget):message.type==='cells-apply'?apply(widget,{...message,requestId:message.operationId}):message.type==='cells-restore'?restore(widget,message):error('Unknown notebook cell request.');
+ globalThis.RHNotebookCells=Object.freeze({capture,proposal,apply,restore,request});
 })();

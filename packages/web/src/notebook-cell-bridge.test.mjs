@@ -3,9 +3,19 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {previewNotebookCellEdit} from './inline-notebook-edit.js';
+import {notebookCellRequest} from './notebook-inline-client.js';
 const scope=vm.createContext({});vm.runInContext(readFileSync(new URL('../notebook-canvas/cell-tools.js',import.meta.url),'utf8'),scope);const tools=scope.RHNotebookCells;
 const original={nbformat:4,nbformat_minor:5,metadata:{},cells:[{id:'a',cell_type:'code',source:'x=1',outputs:[{text:'old'}],execution_count:1,metadata:{}},{id:'b',cell_type:'code',source:'x+1',outputs:[{text:'2'}],execution_count:2,metadata:{}}]};
 function fixture(){let value=structuredClone(original),saved=0;const widget={context:{path:'notebook.ipynb',model:{toJSON:()=>structuredClone(value),fromJSON:next=>{value=structuredClone(next);}},save:async()=>{saved++;}},content:{model:{cells:{}},widgets:[{model:{id:'a'}},{model:{id:'b'}}],isSelectedOrActive:cell=>cell.model.id==='a'}};return{widget,get:()=>value,saved:()=>saved};}
+test('card transport and bridge dispatcher preserve operation identity independently of response correlation',async()=>{
+ const f=fixture(),before=tools.capture(f.widget),operationId='operation-split-123',transportId='transport-456';
+ const block={id:'block',type:'notebook',notebook_id:'workspace',active_path:before.path,ipynb_path:before.path,ipynb:structuredClone(original)},frozen={id:'block',notebookId:'workspace',path:before.path,cellIds:['a'],revision:before.revision};
+ const input={targetId:'block',cellIds:['a'],edits:[],splits:[{id:'a',offsets:[2]}]},preview=previewNotebookCellEdit(input,{block,frozen,requestId:operationId});
+ const message={type:'cells-apply',...notebookCellRequest({...input,path:before.path,expectedRevision:before.revision,requestId:operationId},transportId)};
+ assert.equal(message.requestId,transportId);assert.equal(message.operationId,operationId);
+ const result=await tools.request(f.widget,message);assert.equal(JSON.stringify(result.ipynb),JSON.stringify(preview.changes[0].after.ipynb));assert.ok(!JSON.stringify(result.ipynb).includes(transportId));
+ const other=fixture();await assert.rejects(()=>tools.request(other.widget,{...message,operationId:undefined}),/identity/);assert.equal(other.saved(),0);
+});
 test('captures actual explicit cell selection and refuses missing selection',()=>{const {widget}=fixture();assert.equal(JSON.stringify(tools.capture(widget).cellIds),'["a"]');widget.content.isSelectedOrActive=()=>false;assert.throws(()=>tools.capture(widget),/Select one/);});
 test('guarded apply edits selected source, invalidates downstream outputs and saves without execution',async()=>{const f=fixture(),before=tools.capture(f.widget);const result=await tools.apply(f.widget,{path:before.path,cellIds:before.cellIds,expectedRevision:before.revision,edits:[{id:'a',source:'x=3'}]});assert.equal(f.get().cells[0].source,'x=3');assert.equal(f.get().cells[1].source,'x+1');assert.equal(JSON.stringify(result.staleCellIds),'["a","b"]');assert.ok(f.get().cells.every(cell=>cell.outputs.length===0&&cell.execution_count===null));assert.equal(f.saved(),1);});
 test('stale document, changed selection and out-of-scope source fail without saving',async()=>{for(const mutation of ['document','selection','scope']){const f=fixture(),before=tools.capture(f.widget);if(mutation==='document')f.widget.context.model.fromJSON({...original,metadata:{changed:true}});if(mutation==='selection')f.widget.content.isSelectedOrActive=cell=>cell.model.id==='b';await assert.rejects(()=>tools.apply(f.widget,{path:before.path,cellIds:before.cellIds,expectedRevision:before.revision,edits:[{id:mutation==='scope'?'b':'a',source:'new'}]}));assert.equal(f.saved(),0);}});

@@ -4,7 +4,7 @@ import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl,
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
 import { toast } from './ui.jsx';
 import { perfMark } from './learn-perf.js';
-import { registerNotebookEditor } from './notebook-inline-client.js';
+import { registerNotebookEditor, notebookCellRequest } from './notebook-inline-client.js';
 
 // The body of a notebook card (docs/features/canvas-notebook.md): Rabbit Hole's
 // header, then the card's Jupyter workspace in an iframe on the isolated
@@ -33,7 +33,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   const requestCells=(type,extra={})=>new Promise((resolve,reject)=>{
     if(!ready.current)return reject(new Error('The notebook is not ready.'));
     const requestId=crypto.randomUUID(),timer=setTimeout(()=>{pending.current.delete(requestId);reject(new Error('This notebook site did not acknowledge selected-cell editing.'));},5000);
-    pending.current.set(requestId,{resolve,reject,timer});send(type,{...extra,requestId});
+    pending.current.set(requestId,{resolve,reject,timer});send(type,notebookCellRequest(extra,requestId));
   });
   useEffect(()=>registerNotebookEditor(block.id,{
     capture:async()=>{const result=await requestCells('cells-snapshot');frameRevision.current=result.revision;latest.current.onDocument(result.path,result.ipynb);return {...result,id:block.id,notebookId:block.notebook_id};},

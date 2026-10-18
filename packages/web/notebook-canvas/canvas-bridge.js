@@ -205,7 +205,7 @@
       if(typeof requestId!=='string'||!/^[A-Za-z0-9-]{1,100}$/.test(requestId))return;
       try{
         if(!globalThis.RHNotebookCells)throw new Error('Selected-cell editing is unavailable on this notebook site.');
-        const result=type==='cells-snapshot'?globalThis.RHNotebookCells.capture(widget):await globalThis.RHNotebookCells[type==='cells-apply'?'apply':'restore'](widget,event.data);
+        const result=await globalThis.RHNotebookCells.request(widget,event.data);
         post({type:'cells-result',requestId,ok:true,result});
       }catch(error){post({type:'cells-result',requestId,ok:false,error:error.message||'The notebook edit could not be checked.'});}
       return;
