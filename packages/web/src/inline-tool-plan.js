@@ -1,3 +1,4 @@
+import { arrangementCardEligible, previewInlineArrangement } from './inline-card-arrangement.js';
 import { freezeNativeTools, validateNativePlan } from './inline-native-plan.js';
 import { validateInlineToolPlan } from './inline-tool-capabilities.js';
 import { cardEditSpec, validateCardContent } from './inline-card-edit.js';
@@ -24,7 +25,7 @@ export function freezeInlineTools(board,ids,bounds={}, {mode='edit',notebook=nul
    const found=LISTS.flatMap(list=>(board[list]||[]).filter(item=>item.id===id).map(item=>({list,item})));
    if(found.length!==1)return null;
    const {list,item}=found[0];
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&!(item.type==='table'&&cardEditSpec(item).ok||ids.length===1&&validNotebookScope(notebook,item)))return null;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||ids.length===1&&validNotebookScope(notebook,item)))return null;
    objects[id]=structuredClone(item);lists[id]=list;
    if(bounds[id]){const {x,y,w,h}=bounds[id];boxes[id]={x,y,w,h};}
    selection.push({id,kind:kind(list,item),locked:!!item.locked});
@@ -43,7 +44,7 @@ export function validInlineToolSnapshot(snapshot){
   for(const id of snapshot.ids){
    const item=snapshot.objects[id],list=snapshot.lists[id],entry=snapshot.selection.find(value=>value?.id===id);
    if(typeof id!=='string'||!id||id.length>160||!Object.hasOwn(snapshot.objects,id)||!LISTS.includes(list)||!item||item.id!==id||!entry||entry.kind!==kind(list,item)||entry.locked!==!!item.locked)return false;
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&!(item.type==='table'&&cardEditSpec(item).ok||snapshot.ids.length===1&&validNotebookScope(snapshot.notebook,item)))return false;
+   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||snapshot.ids.length===1&&validNotebookScope(snapshot.notebook,item)))return false;
   }
   const graph=snapshot.readOnlyGraph;
   if(!graph||!Array.isArray(graph.links)||!Array.isArray(graph.shapes)||graph.links.length>80||graph.shapes.length>80)return false;
@@ -96,6 +97,8 @@ function validate(plan,snapshot,board,currentBounds,{mode='edit',requestId,readO
    if(typeof requestId!=='string'||!requestId||Object.keys(step.input).some(key=>key!=='annotations'))return fail('Invalid annotation request.');
    const frozen={...snapshot,ids:step.targetIds};
    result=previewAnnotations({requestId,mode,annotations:step.input.annotations},{board:working,frozen,currentBounds,readOnly});
+  }else if(step.tool==='arrange_selection'){
+   result=previewInlineArrangement(step.input,{ids:step.targetIds,snapshot:{...snapshot,objects:Object.fromEntries(snapshot.ids.map(id=>[id,working[snapshot.lists[id]].find(item=>item.id===id)]))},board:working,currentBounds,readOnly});
   }else if(step.tool==='transform_table'){
    const tableChanges=[];
    for(const id of step.targetIds){
