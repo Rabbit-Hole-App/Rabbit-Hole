@@ -28,3 +28,9 @@ This checkpoint integrates guarded appearance/arrangement, tables, native diagra
 Notebook topology Undo requires bounded live-frame receipts; frame replacement loses them. Multi-notebook history restoration is refused. Image transforms support eligible owner main-canvas images; original provenance survives Undo, and cancelled uploads may remain unreferenced. Read-only, source/citation and locked-object restrictions remain intentional.
 
 CI/release-branch readiness and remaining specification work continue separately. This receipt neither authorizes production promotion nor declares the complete Ctrl+K brief finished. Generated local build output was removed after deployment/verification to recover disk space; source and evidence remain intact.
+
+## Static production bundle and affected-check accounting
+
+At documentation head `f8b4f21f` (same application implementation), the production bundle built in **9.88s** using exactly `BUILD_ENV` from `scripts/prod-release.mjs`; `production-bundle-check.mjs` passed. The first attempt used Vite production mode alone, omitted Rabbit Hole/origin build variables and correctly failed the bundle gate; that command configuration was corrected, not the gate. Production preparation remains blocked by missing `VITE_TLDRAW_LICENSE_KEY`; no license was fabricated and `prod-release prepare` was not run.
+
+The existing affected-check planner against main `6962d351` selects **26 Linux-ready checks**, reports **118 Windows/manual checks not covered**, and finds **zero unmapped paths**. Those are selections/limitations, not execution passes. Current focused manual receipts cover only their stated scenarios and original SHAs. Remaining CI qualification belongs to the review checkpoint; no release-gate assertions were weakened.
