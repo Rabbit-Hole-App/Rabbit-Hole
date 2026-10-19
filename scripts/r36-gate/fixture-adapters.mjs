@@ -62,16 +62,26 @@ const PAN_HELPER = `const safePanPoint = async (page, requested) => page.evaluat
 const intendedSelectionPoint = async (page, kind, box, side) => page.evaluate(({ id, item, box, side }) => {
   const target = document.querySelector(item ? \`[data-item-id="\${id}"]\` : \`[data-block-id="\${id}"]\`);
   if (!target) return null;
-  const x = side && !item ? box.x + 40 : box.x + box.width / 2;
-  const y = item ? box.y + box.height / 2 : box.y + 8;
-  const hit = document.elementFromPoint(x, y);
-  if (hit && (hit === target || target.contains(hit))) return { x, y };
-  // A view-only board (the hand tool) gives its cards and notes no pointer events and selects by the press point
-  // (AdaptiveCanvas): there the point is the bare canvas surface inside the target's rectangle, under no panel.
+  const handle = item ? null : target.querySelector('[data-drag-handle]');
+  const hr = handle?.getBoundingClientRect();
+  // Use rendered geometry: the 24px strip is only 4.8 screen pixels tall at 20% zoom.
+  // A fixed y+8 can hit a notebook action which stops pointer propagation instead of selecting.
+  const points = !item && hr?.width > 0 && hr?.height > 0
+    ? (side ? [0.3, 0.7, 0.5] : [0.5, 0.3, 0.7]).map(fraction => ({ x: hr.left + hr.width * fraction, y: hr.top + hr.height / 2 }))
+    : [{ x: side && !item ? box.x + 40 : box.x + box.width / 2, y: item ? box.y + box.height / 2 : box.y + 8 }];
+  const controls = 'button,a,input,textarea,select,[role="button"],[contenteditable="true"],iframe,[data-port]';
+  const covered = '[data-block-id],[data-item-id],[role="dialog"],[data-shared-ask],[data-learn-dock],[data-chat-pane],[data-comments-panel],[data-hooks-slot]';
   const r = target.getBoundingClientRect();
-  const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-  const covered = '[data-block-id],[data-item-id],[role="dialog"],[data-shared-ask],[data-learn-dock],[data-chat-pane],[data-comments-panel],[data-hooks-slot],button,a,iframe';
-  return inside && hit?.closest('[data-canvas-surface]') && !hit.closest(covered) ? { x, y } : null;
+  for (const { x, y } of points) {
+    const hit = document.elementFromPoint(x, y);
+    if (!hit || hit.closest(controls)) continue;
+    if ((hit === target || target.contains(hit)) && (item || !handle || hit.closest('[data-drag-handle]') === handle)) return { x, y };
+    // A view-only board (the hand tool) gives its cards and notes no pointer events and selects by the press point
+    // (AdaptiveCanvas): there the point is the bare canvas surface inside the target's rectangle, under no panel.
+    const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    if (inside && hit.closest('[data-canvas-surface]') && !hit.closest(covered)) return { x, y };
+  }
+  return null;
 }, { id: kind.id, item: Boolean(kind.item), box, side });
 `;
 
