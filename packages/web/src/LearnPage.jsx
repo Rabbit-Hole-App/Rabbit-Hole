@@ -1,3 +1,4 @@
+import {createInlineCodeClient} from './inline-code-client.js';
 import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
@@ -902,13 +903,19 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const controller=createBackgroundRemovalController({block,scope,ownerKey,current,headers,jobClient:createImageJobClient({headers}),prepareRevision:prepareImageRevision,persistTicket:value=>localStorage.setItem(key,JSON.stringify(value))});
       return{controller,savedEnvelope,key,clear:()=>localStorage.removeItem(key)};
     } : null,
-    prepareRegional: !board && !hole && canEditCanvas ? ({block,current}) => {
+    prepareCodeRun: !board && !hole && canEditCanvas ? ({item,input,current}) => {
+      const ownerKey=`${app.org}:${app.email || app.owner_email}`,scope={app:app.name,board:boardName,sourceId:item.id};
+      const key=`small.code-run:${JSON.stringify([ownerKey,scope])}`;
+      let savedTicket=null;try{savedTicket=JSON.parse(localStorage.getItem(key)||'null');}catch{}
+      return {key,savedTicket,client:createInlineCodeClient({ownerKey,scope,language:'javascript',code:item.text,input,current,headers:wsHeaders(),persistTicket:ticket=>localStorage.setItem(key,JSON.stringify(ticket))})};
+    } : null,
+    prepareRegional: !board && !hole && canEditCanvas ? ({block,current,initialPrompt=''}) => {
       const scope=structuredClone(fileScope()),ownerKey=`${app.org}:${app.email || app.owner_email}`,headers=wsHeaders();
       const key=`small.image-region-job:${JSON.stringify([ownerKey,scope.app,scope.board,block.id,block.fileRef?.source])}`;
       let savedEnvelope=null;try{savedEnvelope=JSON.parse(localStorage.getItem(key)||'null');}catch{}
       const check=()=>{const now=current();if(now.ownerKey!==ownerKey||now.readOnly||now.locked||JSON.stringify(now.scope)!==JSON.stringify(scope)||JSON.stringify(now.block)!==JSON.stringify(block))throw Error('The image or its permissions changed.');};
       const read=async signal=>{check();const original=await readRegionalOriginal({block,scope,headers,signal});check();return original;};
-      return {key,savedEnvelope,read,clear:()=>localStorage.removeItem(key),prepare:edit=>({savedEnvelope,controller:createRegionalImageEditController({block,scope,ownerKey,current,edit,headers,jobClient:createImageJobClient({headers}),prepareRevision:prepareImageRevision,persistTicket:value=>localStorage.setItem(key,JSON.stringify(value)),prepareMask:async({edit,signal})=>{
+      return {key,savedEnvelope,read,initialPrompt,clear:()=>localStorage.removeItem(key),prepare:edit=>({savedEnvelope,controller:createRegionalImageEditController({block,scope,ownerKey,current,edit,headers,jobClient:createImageJobClient({headers}),prepareRevision:prepareImageRevision,persistTicket:value=>localStorage.setItem(key,JSON.stringify(value)),prepareMask:async({edit,signal})=>{
         const original=await read(signal),blob=await regionalMaskBlob(edit.region,original.width,original.height);check();signal.throwIfAborted();
         const stored=await uploadSource(new File([blob],'regional-mask.png',{type:'image/png'}),{app:scope.app,board:scope.board,family:'image'});
         check();signal.throwIfAborted();return{maskSourceId:stored.source.id,maskSha256:stored.source.rev};

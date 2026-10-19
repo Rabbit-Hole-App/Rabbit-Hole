@@ -1,3 +1,5 @@
+import {validateImageAction} from './inline-image-action.js';
+import InlineCodeRunPreview from './InlineCodeRunPreview.jsx';
 import RegionalImageEdit from './RegionalImageEdit.jsx';
 import BackgroundRemovalPreview from './BackgroundRemovalPreview.jsx';
 import InlineRepositoryEvidence from './InlineRepositoryEvidence.jsx';
@@ -120,13 +122,22 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [state, setState] = useState({ status: 'idle' });
   const [equationLatex,setEquationLatex]=useState('');
   const [imageRevision,setImageRevision]=useState(null), [imageError,setImageError]=useState('');
+  const codeTarget=!readOnly&&!target.creation&&target.ids?.length===1&&!canvas.locked?.(target.ids[0])&&canvas.board?.().items?.find(item=>item.id===target.ids[0]&&item.kind==='text'&&item.mode==='code');
+  const [codeRun,setCodeRun]=useState(null),[codeInput,setCodeInput]=useState('null'),[codeRunError,setCodeRunError]=useState('');
+  const codeLive=useRef(null);codeLive.current={config,readOnly,codeTarget};
+  const openCodeRun=()=>{try{
+    const item=structuredClone(codeTarget),input=JSON.parse(codeInput);
+    if(item.lang!=='javascript')throw Error('Only explicitly selected JavaScript is supported.');
+    const current=()=>{const live=codeLive.current,at=live.config.imageScope?.(),now=board().items.find(value=>value.id===item.id);return{ownerKey:live.config.backgroundOwnerKey,scope:at?{app:at.app,board:at.board,sourceId:item.id}:null,language:now?.lang,code:now?.text,input,readOnly:live.readOnly||live.codeTarget?.id!==item.id||canvas.locked?.(item.id)||now?.mode!=='code'};};
+    setCodeRun(config.prepareCodeRun({item,input,current}));setCodeRunError('');
+  }catch(e){setCodeRunError(e.message);}};
   const [removal,setRemoval]=useState(null),[removalError,setRemovalError]=useState('');
-  const openRemoval=(regional=false)=>{
+  const openRemoval=(regional=false,initialPrompt='')=>{
     if(!imageTarget||!config.prepareBackground)return;
     try{
       const original=structuredClone(imageTarget);
       const current=()=>({block:board().blocks.find(block=>block.id===original.id),scope:imageAccess.current.config.imageScope?.(),ownerKey:imageAccess.current.config.backgroundOwnerKey,readOnly:imageAccess.current.readOnly,locked:!imageAccess.current.imageTarget||canvas.locked?.(original.id)});
-      setRemoval(regional?{...config.prepareRegional({block:original,current}),regional:true}:config.prepareBackground({block:original,current}));setRemovalError('');
+      setRemoval(regional?{...config.prepareRegional({block:original,current,initialPrompt}),regional:true}:config.prepareBackground({block:original,current}));setRemovalError('');
     }catch(error){setRemovalError(error.message);}
   };
   const applyRemoval=change=>{
@@ -179,6 +190,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // A result checked against the board as it is now (inline-ai-apply.js): the preview it becomes, or why not.
   function validateResult(result, frozen) {
+    if(result.kind==='image_action')return validateImageAction(result,frozen,board(),{readOnly,locked:canvas.locked?.(result.targetId)});
     let extraction;
     if(Object.hasOwn(result,'extraction')){
       if(!['equation','diagram','card','proposal'].includes(result.kind)||!frozen.extractionScope||frozen.equationItem)return{ok:false,errors:['Image interpretation is not available for this result or canvas yet.']};
@@ -424,6 +436,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return false;
   };
   const accept = async () => {
+    if(state.preview?.kind==='image_action'){
+      const preview=state.preview,checked=validateImageAction(preview.raw,preview.frozen,board(),{readOnly:imageAccess.current.readOnly,locked:canvas.locked?.(preview.targetId)});
+      if(!checked.ok){setRemovalError(checked.errors[0]);return;}
+      openRemoval(preview.action==='edit_image',preview.origin||preview.frozen.words||'');return;
+    }
     if(!state.preview?.extraction&&refreshBlockedPlacement(state.preview))return;
     setMoved(null);
     const out = await session.accept(async preview => {
@@ -733,6 +750,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           {preview.extraction.uncertainties.map((item,index)=><p key={index} className="mt-1"><strong>{item.location}:</strong> {item.message}</p>)}
           <p className="mt-1 text-ink-3">Uses the selected image revision. Acceptance adds a separate result and retains the original.</p>
         </div>}
+        {preview?.kind==='image_action'&&<p data-inline-image-action className="mt-2 text-xs">{preview.summary} Continue to {preview.action==='edit_image'?'select a region and review its cost':'review cost and confirmation'}. No image job has started.</p>}
         {preview?.kind==='equation'&&<div data-inline-preview="equation" className="mt-2 space-y-2 rounded-lg border border-line p-2">
           {preview.label&&<p className="text-xs font-medium">{preview.label}</p>}
           <div data-equation-preview className="max-h-44 overflow-auto" style={{fontSize:24}}>{equationChecked?.ok?<MathText expression={equationLatex} display/>:<p role="alert" className="text-xs">{equationChecked?.error}</p>}</div>
@@ -819,11 +837,19 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <div className="mt-2 flex items-center justify-end gap-1.5">
             <button type="button" data-inline-reject onClick={reject} className="h-6 rounded-md border border-line bg-white px-2 text-xs text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ai">Reject</button>
             <button type="button" data-inline-accept onClick={accept} disabled={!acceptable || readOnly} title={busy(status) ? 'Waiting for the new version' : 'Accept (Ctrl Enter)'}
-              className="flex h-6 items-center gap-1 rounded-md bg-ink px-2 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40"><Check size={12} />Accept</button>
+              className="flex h-6 items-center gap-1 rounded-md bg-ink px-2 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40"><Check size={12} />{preview.kind==='image_action'?'Review image action':'Accept'}</button>
           </div>
         )}
         {/* The count, only near the supported limit or past it: nothing is cut, Send waits and says what to do. */}
         {outgoing.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${outgoing.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{outgoing.length} / {PROMPT_MAX}{outgoing.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
+        {codeTarget&&config.prepareCodeRun&&<div className="mt-2 rounded-lg border border-line p-2 text-xs">
+          {codeRun?<InlineCodeRunPreview key={codeRun.key} {...codeRun} onClose={()=>setCodeRun(null)}/>:<>
+            <p>Run this entire Code box as a JavaScript async function body. Use an explicit return; Python and other languages are unavailable. Results never modify the canvas.</p>
+            <label>JSON input<textarea data-inline-code-input onKeyDown={e=>e.stopPropagation()} value={codeInput} onChange={e=>setCodeInput(e.target.value)} className="w-full rounded border border-line p-1"/></label>
+            <button type="button" data-inline-code-review disabled={busy(status)||codeTarget.lang!=='javascript'} onClick={openCodeRun} className="rounded border border-line px-2 py-1">Review execution</button>
+          </>}
+          {codeRunError&&<p role="alert">{codeRunError}</p>}
+        </div>}
         {imageTarget&&config.prepareBackground&&<div className="mt-2 rounded-lg border border-line p-2 text-xs">
           {removal?.regional?<RegionalImageEdit key={removal.key} session={removal} onApply={applyRemoval} onClose={()=>setRemoval(null)}/>:removal?<BackgroundRemovalPreview key={removal.key} controller={removal.controller} savedEnvelope={removal.savedEnvelope} onApply={applyRemoval} onClose={()=>setRemoval(null)}/>:<>
             <button type="button" data-inline-remove-background disabled={busy(status)||!imageTarget.fileRef?.source||imageTarget.fileRef?.meta?.type!=='image/png'} onClick={()=>openRemoval(false)} className="rounded border border-line px-2 py-1 disabled:opacity-50">Remove background</button>

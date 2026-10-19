@@ -1,3 +1,4 @@
+import { inlineCodeActorFetch, inlineCodeActorAlarm } from './inline-code-actor.js';
 import { imageJobFetch, imageJobAlarm } from './inline-image-jobs.js';
 // Durable file-conversion jobs (docs/features/canvas-file-imports.md section 5; converter half:
 // docs/features/canvas-file-converter.md section 1). D1 `file_jobs` is the truth; one FileJobs Durable Object per job
@@ -228,6 +229,7 @@ export async function cleanupJob(env, id, now = Date.now()) {
 export class FileJobs {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(req) {
+    if (new URL(req.url).pathname.startsWith('/inline-code/')) return inlineCodeActorFetch(this.state, this.env, req);
     if (new URL(req.url).pathname.startsWith('/image-edit/')) return imageJobFetch(this.state, this.env, req);
     const { id, delayMs = 0 } = await req.json();
     if (typeof id !== 'string' || !/^fj_[a-f0-9]{24}$/.test(id)) return json({ error: 'Invalid job' }, 400);
@@ -237,6 +239,7 @@ export class FileJobs {
     return json({ ok: true });
   }
   async alarm() {
+    if (await inlineCodeActorAlarm(this.state, this.env)) return;
     if (await imageJobAlarm(this.state, this.env)) return;
     const id = await this.state.storage.get('id');
     if (!id) return;

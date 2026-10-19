@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import BackgroundRemovalPreview from './BackgroundRemovalPreview.jsx';
 import {validateMaskRegion} from './inline-regional-mask.js';
 export default function RegionalImageEdit({session,onApply,onClose}) {
-  const [original,setOriginal]=useState(null),[region,setRegion]=useState(session.savedEnvelope?.edit?.region||null),[prompt,setPrompt]=useState(session.savedEnvelope?.edit?.prompt||''),[error,setError]=useState('');
+  const [original,setOriginal]=useState(null),[region,setRegion]=useState(session.savedEnvelope?.edit?.region||null),[prompt,setPrompt]=useState(session.savedEnvelope?.edit?.prompt||session.initialPrompt||''),[error,setError]=useState('');
   const [prepared,setPrepared]=useState(null),drag=useRef(null);
   useEffect(()=>{const abort=new AbortController();let url;
     session.read(abort.signal).then(value=>{if(abort.signal.aborted)return;url=URL.createObjectURL(value.blob);setOriginal({...value,url});}).catch(e=>{if(!abort.signal.aborted)setError(e.message);});
@@ -12,7 +12,7 @@ export default function RegionalImageEdit({session,onApply,onClose}) {
   const point=e=>{const b=e.currentTarget.getBoundingClientRect();return{x:Math.max(0,Math.min(original.width,Math.round((e.clientX-b.left)/b.width*original.width))),y:Math.max(0,Math.min(original.height,Math.round((e.clientY-b.top)/b.height*original.height)))}};
   const move=e=>{if(!drag.current)return;const p=point(e),a=drag.current;setRegion({x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),width:Math.abs(p.x-a.x),height:Math.abs(p.y-a.y)});};
   if(prepared)return <BackgroundRemovalPreview {...prepared} regional onApply={onApply} onClose={onClose}/>;
-  return <section data-regional-image-edit className="space-y-2" onKeyDown={e=>e.stopPropagation()}>
+  return <section data-regional-image-edit className="space-y-2" onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();onClose();}}}>
     <p>Select a rectangle and describe the change. The mask is uploaded only after cost confirmation. Generated pixels outside the region may also change.</p>
     {original&&<><div data-region-canvas className="relative touch-none select-none" style={{width:'100%',aspectRatio:`${original.width}/${original.height}`}} onPointerDown={e=>{if(session.savedEnvelope)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);drag.current=point(e);setRegion(null);}} onPointerMove={move} onPointerUp={e=>{move(e);drag.current=null;}}>
       <img src={original.url} alt="Original image for region selection" draggable={false} className="h-full w-full pointer-events-none"/>

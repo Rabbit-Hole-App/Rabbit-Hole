@@ -167,7 +167,8 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       finish(id, checked.limitation ? 'limitation' : 'invalid');
       return;
     }
-    results.set(request.key, { result, plan });
+    // Action handoffs carry the signed request identity; never replay one for a new request.
+    if(result.kind!=='image_action')results.set(request.key, { result, plan });
     mark(id, 'complete');
     set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind, frozen: request.frozen, mode: request.mode, origin: request.revise?.prompt ?? request.prompt }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
     if (result.kind !== 'proposal') finish(id, 'previewed');
