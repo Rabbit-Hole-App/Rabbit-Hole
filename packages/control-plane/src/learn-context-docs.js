@@ -72,6 +72,15 @@ const ownDocument = async (db, who, id) => {
   return row && { ...row, attached: row.attached > 0, removed: row.attached < 0 };
 };
 const homeOf = (who, doc) => (doc.home ? { ...who, app: doc.home } : who);
+// This learner's own context PDF by id, read exactly as the bytes route reads it (ownDocument): { name, bytes } or null.
+// pdf-excerpts.js calls it on every highlight and crop request, so access is re-checked each time.
+export async function readOwnDocument(env, app, id) {
+  if (!ID.test(id) || !app?.email || !env?.LEARN_DB) return null;
+  const who = owner(app), doc = await ownDocument(env.LEARN_DB, who, id);
+  if (!doc || doc.kind !== 'pdf') return null;
+  const object = await learnMedia(env).get(await objectKey(homeOf(who, doc), id));
+  return object && { name: doc.name, bytes: new Uint8Array(await object.arrayBuffer()) };
+}
 
 // The browser encodes the id's colon (ctx%3A...), so match the decoded path.
 const decodedPath = url => { try { return decodeURIComponent(url.pathname); } catch { return url.pathname; } };

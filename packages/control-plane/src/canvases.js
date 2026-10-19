@@ -257,7 +257,7 @@ async function activeChat(req, env, user, url) {
 // A Chat thread's saved state (chat-workspace-CONTRACT.md A3): its mode, attached ContextRefs (A2) and draft, upserted into
 // chat_thread_state by PUT /api/learn/chat/threads/<id>/state. last_activity_at is the turn's (apiAsk), never touched here.
 const CHAT_STATE = /^\/api\/learn\/chat\/threads\/((?:canvaschat|repochat)-[a-f0-9-]+)\/(state)$/;
-const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'], file: ['file'] };
+const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'], file: ['file'], excerpt: ['excerpt'] };
 const short = (value, limit) => typeof value === 'string' && value.length <= limit;
 // null, or exactly one of the A2 range shapes.
 function validRange(range) {
@@ -277,17 +277,19 @@ function validRange(range) {
 // and all texts together at most 32000 chars.
 export function validContextRefs(refs) {
   if (!Array.isArray(refs) || refs.length > 20) return false;
-  let texts = 0;
+  let texts = 0, excerpts = 0;
   const valid = refs.every(ref => {
     if (!ref || typeof ref !== 'object' || Array.isArray(ref)) return false;
     const { text, ...rest } = ref;
-    if (text !== undefined && !(['card', 'group', 'image', 'media'].includes(ref.kind) && short(text, 8000))) return false;
-    texts += text?.length || 0;
+    // A pinned PDF excerpt keeps its verbatim text on its own budget (chat-modes.js EXCERPT_TEXT, EXCERPTS_TEXT).
+    if (ref.kind === 'excerpt') { if (!(/^excerpt:pdfx_[0-9a-f]{24}$/.test(String(ref.sourceId)) && (text === undefined || short(text, 12000)))) return false; excerpts += text?.length || 0; }
+    else if (text !== undefined && !(['card', 'group', 'image', 'media'].includes(ref.kind) && short(text, 8000))) return false;
+    else texts += text?.length || 0;
     if (ref.kind === 'file' && !(FILE_SOURCE.test(String(ref.sourceId)) && validFileRange(ref.range))) return false;
     return Object.hasOwn(REF_PREFIXES, ref.kind) && short(ref.sourceId, 1000) && REF_PREFIXES[ref.kind].includes(ref.sourceId.split(':')[0]) && ref.sourceId.indexOf(':') < ref.sourceId.length - 1
       && short(ref.name, 120) && ref.name.length > 0 && short(ref.version, 200) && validRange(ref.range) && JSON.stringify(rest).length <= 2048;
   });
-  return valid && texts <= 32000;
+  return valid && texts <= 32000 && excerpts <= 96000;
 }
 // The columns a state PUT writes: only what it sends. draft: null clears the saved draft.
 export function chatThreadState(body) {

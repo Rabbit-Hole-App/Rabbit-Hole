@@ -5,6 +5,7 @@ import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
 import { profileFetch, profileRoute } from '../control-plane/src/profile.js';
 import { contextDocsFetch, contextDocsRoute } from '../control-plane/src/learn-context-docs.js';
+import { pdfExcerptsFetch, pdfExcerptsRoute } from '../control-plane/src/pdf-excerpts.js';
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 import { libraryTrashFetch, libraryTrashRoute } from '../control-plane/src/library-trash.js';
 import { chatMessageFetch, chatMessageRoute } from '../control-plane/src/chat-message-routes.js';
@@ -128,6 +129,8 @@ const routes = {
     if (profileRoute(new URL(req.url))) return profileFetch(req, env);
     // Canvas context documents (docs/features/canvas-context-docs.md): upload, list, toggle, delete.
     if (contextDocsRoute(new URL(req.url))) return contextDocsFetch(req, env);
+    // PDF reader highlights and excerpt crops (C:/s/spec/pdf-excerpts/contract.md): owner-only, re-checked per call.
+    if (pdfExcerptsRoute(path)) return pdfExcerptsFetch(req, env);
     if (path === '/api/apps' && req.method === 'GET') {
       const user = await repositoryIdentity(req, env);
       if (user instanceof Response) return user;

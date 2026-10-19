@@ -11,8 +11,13 @@ import { authorizeFileSource } from './file-access.js';
 import { memberContext } from './canvas-comments.js';
 import { ownerRow } from './learn-boards.js';
 import { FILE_SOURCE } from '../../web/src/file-chat-ref.js';
+import { MEDIA_UPLOAD_LIMIT, sniffImageType } from './learn-media.js';
+import { base64 } from './token.js';
 
-export const FILE_CONTEXT = Object.freeze({ perRef: 4000, perTurn: 12000 });
+// imageBytes: the pictures one turn may send (an image ref rides as itself, not as text). 5 MiB keeps a turn with three
+// switched-on 5 MB PDFs (learn-context-docs.js ATTACHED_BYTES) inside the API's 32 MB request.
+export const FILE_CONTEXT = Object.freeze({ perRef: 4000, perTurn: 12000, imageBytes: MEDIA_UPLOAD_LIMIT });
+const PICTURE = /^image\/(png|jpeg|webp)$/;
 
 const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 // A unit's location as a citation label: "p. 3", "slide 2", "Q1!A1:C9", "rows 2-9", "L10-42", "cell c7", "0:12-0:40", "part Wheel".
@@ -82,10 +87,13 @@ async function authorized(req, env, sourceId, { user, app, member, row: board })
 }
 
 // refs: the turn's validated context refs (only kind 'file' are read). Returns { coverage: Map(refKey -> label),
-// blocks: [text] } for chatContext. user: { org, email } of the asker; app: the canvas asked on; member: a member board id.
+// blocks: [text], images: [model content blocks] } for chatContext and the model message. user: { org, email } of the asker;
+// app: the canvas asked on; member: a member board id.
+// A whole PNG/JPEG/WebP image source (a dropped image, a PDF region crop) of at most 5 MiB rides as an image block, labelled
+// 'image included': the model was given the picture, which never says it read or understood it.
 export async function fileContext(req, env, refs, { user = null, app = null, member = null, row = null, limits = FILE_CONTEXT } = {}) {
-  const coverage = new Map(), blocks = [];
-  let left = limits.perTurn;
+  const coverage = new Map(), blocks = [], images = [];
+  let left = limits.perTurn, pictures = limits.imageBytes ?? FILE_CONTEXT.imageBytes;
   for (const ref of (refs || []).filter(r => r.kind === 'file')) {
     const key = `${ref.sourceId}|${JSON.stringify(ref.range ?? null)}`;
     const say = label => coverage.set(key, label);
@@ -95,6 +103,18 @@ export async function fileContext(req, env, refs, { user = null, app = null, mem
     let access = null;
     try { access = await authorized(req, env, sourceId, { user, app, member, row }); } catch { access = null; }
     if (!access || access.source.sha256 !== rev) { say('unavailable'); continue; }
+    const src = access.source;
+    if (src.family === 'image' && PICTURE.test(src.media_type) && src.bytes <= MEDIA_UPLOAD_LIMIT && ref.range == null) {
+      if (src.bytes > pictures) { say('omitted'); continue; }
+      let bytes = null;
+      try { const object = await env.LEARN_MEDIA.get(src.r2_key); bytes = object && new Uint8Array(await object.arrayBuffer()); } catch { bytes = null; }
+      const type = bytes && bytes.length === src.bytes && sniffImageType(bytes);
+      if (!type) { say('unavailable'); continue; }
+      pictures -= bytes.length;
+      say('image included');
+      images.push({ type: 'text', text: `Image ${JSON.stringify(ref.name)} (${ref.sourceId}), attached by the learner:` }, { type: 'image', source: { type: 'base64', media_type: type, data: base64(bytes) } });
+      continue;
+    }
     const derivative = await env.LEARN_DB.prepare("SELECT id, kind, media_type, r2_key, converter_version FROM file_derivatives WHERE source_id = ? AND source_sha256 = ? AND kind IN ('text', 'transcript') AND status = 'ready' ORDER BY updated_at DESC LIMIT 1")
       .bind(sourceId, rev).first();
     if (!derivative) { say('listed'); continue; }
@@ -118,6 +138,6 @@ export async function fileContext(req, env, refs, { user = null, app = null, mem
     const note = cut ? ` - partial: ${why.join('; ')}` : '';
     blocks.push(`${derivative.kind === 'transcript' ? 'Transcript' : 'Extracted text'} of ${JSON.stringify(ref.name)} (${ref.sourceId}${ref.range ? ` range ${JSON.stringify(ref.range)}` : ''}, extraction ${derivative.converter_version || 'v1'})${note}; cite by the bracketed locations:\n${text}${text.length < full.length ? '\n[file excerpt truncated]' : ''}`);
   }
-  return { coverage, blocks };
+  return { coverage, blocks, images };
 }
 
