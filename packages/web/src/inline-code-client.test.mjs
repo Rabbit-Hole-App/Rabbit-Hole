@@ -37,3 +37,11 @@ test('no consent, failed persistence or pre-abort produces no execution request'
 test('unknown is terminal and never retries',async()=>{
  const h=fixture();h.setPhase('unknown');const value=await h.client.run({confirmed:true,maxReservedMicros:5000});assert.equal(value.job.phase,'unknown');assert.equal(h.calls.length,2);
 });
+
+test('saved execution keys separate source/input snapshots without storing their private contents',async()=>{
+ const {inlineCodeTicketKey}=await import('./inline-code-client.js');
+ const value={ownerKey:'owner',scope:{app:'canvas',board:'main',sourceId:'code'},code:'return privateInput;',input:{secret:'private-input'}};
+ const first=await inlineCodeTicketKey(value);assert.equal(await inlineCodeTicketKey(structuredClone(value)),first);
+ for(const changed of [{...value,code:'return 2;'},{...value,input:2},{...value,ownerKey:'other'}])assert.notEqual(await inlineCodeTicketKey(changed),first);
+ assert.ok(!first.includes('privateInput'));assert.ok(!first.includes('private-input'));
+});

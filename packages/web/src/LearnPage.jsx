@@ -1,4 +1,4 @@
-import {createInlineCodeClient} from './inline-code-client.js';
+import {createInlineCodeClient,inlineCodeTicketKey} from './inline-code-client.js';
 import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
@@ -903,9 +903,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const controller=createBackgroundRemovalController({block,scope,ownerKey,current,headers,jobClient:createImageJobClient({headers}),prepareRevision:prepareImageRevision,persistTicket:value=>localStorage.setItem(key,JSON.stringify(value))});
       return{controller,savedEnvelope,key,clear:()=>localStorage.removeItem(key)};
     } : null,
-    prepareCodeRun: !board && !hole && canEditCanvas ? ({item,input,current}) => {
+    prepareCodeRun: !board && !hole && canEditCanvas ? async ({item,input,current}) => {
       const ownerKey=`${app.org}:${app.email || app.owner_email}`,scope={app:app.name,board:boardName,sourceId:item.id};
-      const key=`small.code-run:${JSON.stringify([ownerKey,scope])}`;
+      const key=await inlineCodeTicketKey({ownerKey,scope,code:item.text,input});
       let savedTicket=null;try{savedTicket=JSON.parse(localStorage.getItem(key)||'null');}catch{}
       return {key,savedTicket,client:createInlineCodeClient({ownerKey,scope,language:'javascript',code:item.text,input,current,headers:wsHeaders(),persistTicket:ticket=>localStorage.setItem(key,JSON.stringify(ticket))})};
     } : null,

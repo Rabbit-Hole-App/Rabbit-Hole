@@ -11,6 +11,11 @@ function scopeOf(scope){
   if(!scope||!scalar(scope.app,100)||!scalar(scope.board,200)||!scalar(scope.sourceId,200))throw fault('An explicit source and canvas are required.');
   return {app:scope.app,board:scope.board,sourceId:scope.sourceId};
 }
+export async function inlineCodeTicketKey({ownerKey,scope,code,input}) {
+  if(!scalar(ownerKey)||typeof code!=='string')throw fault('An explicit owner and code snapshot are required.');
+  const boundScope=scopeOf(scope),snapshot=await hash(JSON.stringify([code,input]));
+  return `small.code-run:${JSON.stringify([ownerKey,boundScope,snapshot])}`;
+}
 async function readResponse(response){
   if(!response.ok)throw fault(`Execution request was not confirmed (${response.status}). Do not automatically resubmit.`);
   const reader=response.body?.getReader();if(!reader)throw fault('Missing execution response.');

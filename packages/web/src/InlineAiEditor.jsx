@@ -124,12 +124,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [imageRevision,setImageRevision]=useState(null), [imageError,setImageError]=useState('');
   const codeTarget=!readOnly&&!target.creation&&target.ids?.length===1&&!canvas.locked?.(target.ids[0])&&canvas.board?.().items?.find(item=>item.id===target.ids[0]&&item.kind==='text'&&item.mode==='code');
   const [codeRun,setCodeRun]=useState(null),[codeInput,setCodeInput]=useState('null'),[codeRunError,setCodeRunError]=useState('');
-  const codeLive=useRef(null);codeLive.current={config,readOnly,codeTarget};
-  const openCodeRun=()=>{try{
+  const codeLive=useRef(null);codeLive.current={config,readOnly,codeTarget,codeInput};
+  const openCodeRun=async()=>{try{
     const item=structuredClone(codeTarget),input=JSON.parse(codeInput);
     if(item.lang!=='javascript')throw Error('Only explicitly selected JavaScript is supported.');
-    const current=()=>{const live=codeLive.current,at=live.config.imageScope?.(),now=board().items.find(value=>value.id===item.id);return{ownerKey:live.config.backgroundOwnerKey,scope:at?{app:at.app,board:at.board,sourceId:item.id}:null,language:now?.lang,code:now?.text,input,readOnly:live.readOnly||live.codeTarget?.id!==item.id||canvas.locked?.(item.id)||now?.mode!=='code'};};
-    setCodeRun(config.prepareCodeRun({item,input,current}));setCodeRunError('');
+    const current=()=>{const live=codeLive.current,at=live.config.imageScope?.(),now=board().items.find(value=>value.id===item.id);return{ownerKey:live.config.backgroundOwnerKey,scope:at?{app:at.app,board:at.board,sourceId:item.id}:null,language:now?.lang,code:now?.text,input:JSON.parse(live.codeInput),readOnly:live.readOnly||live.codeTarget?.id!==item.id||canvas.locked?.(item.id)||now?.mode!=='code'};};
+    const prepared=await config.prepareCodeRun({item,input,current});await prepared.client.validateCurrent();if(!cadLive.current)return;setCodeRun(prepared);setCodeRunError('');
   }catch(e){setCodeRunError(e.message);}};
   const [removal,setRemoval]=useState(null),[removalError,setRemovalError]=useState('');
   const openRemoval=(regional=false,initialPrompt='')=>{
