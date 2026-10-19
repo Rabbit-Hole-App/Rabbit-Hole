@@ -52,7 +52,7 @@ export function validateDesign(value) {
   return { source: value.source, brief: b, checks: value.checks };
 }
 export function publicCadJob(job) {
-  const keys = ['id', 'state', 'stage', 'attempt', 'cardId', 'modelId', 'revisionId', 'baseRevisionId', 'brief', 'question', 'error', 'manifest', 'createdAt', 'updatedAt', 'limitations', 'awaitingAccept', 'hidden', 'exportState', 'exportError'];
+  const keys = ['id', 'state', 'stage', 'attempt', 'cardId', 'modelId', 'revisionId', 'baseRevisionId', 'brief', 'question', 'error', 'manifest', 'createdAt', 'updatedAt', 'limitations', 'awaitingAccept', 'hidden', 'exportState', 'exportError', 'failureCode', 'failureStage', 'failurePhase', 'failureAttempt'];
   const result=Object.fromEntries(keys.filter(k => job[k] !== undefined).map(k => [k, job[k]]));
   // Reference provenance is retained privately with the job. A shared card's
   // status must not disclose private drawings, paths, or source URLs.
