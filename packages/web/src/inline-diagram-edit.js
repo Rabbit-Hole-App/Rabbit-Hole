@@ -13,7 +13,31 @@ const failure = (message,dependencies=[]) => ({ok:false,changes:[],additions:[],
 // Pure proposal only. The caller binds this to an authorized frozen request and
 // runs it again at Accept. New node positions come from the existing layout code.
 export function previewDiagramEdit(input,{board,frozen,requestId,readOnly=false}={}) {
- try { return input&&Object.hasOwn(input,'layout')?previewVerticalDiagram(input,{board,frozen,readOnly}):preview(input,{board,frozen,requestId,readOnly}); }
+ try {
+  if(!input||!Object.hasOwn(input,'layout'))return preview(input,{board,frozen,requestId,readOnly});
+  if(!['add','changes','removeIds'].some(key=>Object.hasOwn(input,key)))return previewVerticalDiagram(input,{board,frozen,readOnly});
+  const {layout,...structural}=input;
+  const edited=preview(structural,{board,frozen,requestId,readOnly});
+  if(!edited.ok)return edited;
+  // Lay out a virtual result, then fold its positions into the same transaction.
+  // Only surviving selected objects and this proposal's additions are eligible.
+  const working=structuredClone(board),removed=new Set(edited.removals.map(item=>item.id));
+  for(const change of edited.changes)working[change.list]=working[change.list].map(item=>item.id===change.id?change.after:item);
+  for(const removal of edited.removals)working[removal.list]=working[removal.list].filter(item=>item.id!==removal.id);
+  for(const addition of edited.additions)working[addition.list].push(addition.after);
+  const ids=[...input.targetIds.filter(id=>!removed.has(id)),...edited.additions.map(item=>item.id)];
+  const objects=Object.fromEntries(['shapes','links'].flatMap(list=>working[list]||[]).filter(item=>ids.includes(item.id)).map(item=>[item.id,item]));
+  const arranged=previewVerticalDiagram({targetIds:ids,layout},{board:working,frozen:{ids,objects},readOnly});
+  if(!arranged.ok)return arranged;
+  const positions=new Map(arranged.changes.map(change=>[change.id,change]));
+  const additions=edited.additions.map(addition=>({...addition,after:positions.get(addition.id)?.after||addition.after}));
+  const changes=new Map(edited.changes.map(change=>[change.id,change]));
+  for(const change of arranged.changes){
+   if(additions.some(addition=>addition.id===change.id))continue;
+   changes.set(change.id,{...change,before:frozen.objects[change.id]});
+  }
+  return{...edited,changes:[...changes.values()],additions,dependencies:[...edited.dependencies,...arranged.dependencies],limitations:arranged.limitations};
+ }
  catch { return failure('The diagram request or frozen state is malformed.'); }
 }
 function preview(input,{board,frozen,requestId,readOnly}) {
@@ -33,6 +57,7 @@ function preview(input,{board,frozen,requestId,readOnly}) {
   const item=entries.get(id);
   if(!item||!own(frozen.objects,id)||!same(item.entity,frozen.objects[id]))return failure('The selected diagram changed. Request a new preview.');
   if(item.entity.locked)return failure('A selected object is locked.');
+  if(item.entity.source||item.entity.fileRef||item.entity.sources?.length||item.entity.citations?.length)return failure('Source-backed or citation-bearing diagram objects cannot be structurally edited here.');
   if(item.list==='items'||item.list==='shapes'&&!NODE_KINDS.includes(item.entity.kind))return failure('Structural edits currently support boxed shapes and native connectors.');
  }
  if(new Set(remove).size!==remove.length||remove.some(id=>!ids.includes(id)))return failure('Removal targets must be unique selected objects.');

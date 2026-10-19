@@ -19,6 +19,15 @@ const make = (transport, extra = {}) => {
   const session = createInlineSession({ transport: scripted(transport), boardKey: 'board-a', enabled: ['note', 'diagram', 'code', 'motion'], validate: okValidate, now, flushMs: 0, onChange: state => changes.push(state), onMetrics: entry => metrics.push(entry), ...extra });
   return { session, changes, metrics };
 };
+for(const kind of ['tool_action','compute','source_compute','image_replacement'])test(`request-bound ${kind} is never replayed from the result cache`,async()=>{
+ let calls=0;
+ const {session}=make({generate:async()=>{calls++;return{result:{kind,action:'run_code',targetIds:['n23'],requestId:`fixture-${calls}`,summary:'Review input'}};}});
+ await session.submit({mode:'edit',prompt:'Run with my input',prepare:snapshot()});
+ assert.equal(session.state.preview.kind,kind);
+ session.reject();
+ assert.notEqual(await session.submit({mode:'edit',prompt:'Run with my input',prepare:snapshot()}),'reused');
+ assert.equal(calls,2);
+});
 for (const result of ['artifact', 'paid_proposal']) test(`${result} preserves extraction receipts through validation and cached reuse`, async () => {
   const extraction = { source: { blockId: 'image-1', source: { id: 'source-1', rev: 'rev-1' }, coverage: 'whole-image' }, uncertainties: [{ location: 'row 2', message: 'Digit unclear' }] };
   let calls = 0;
@@ -286,3 +295,31 @@ test('typed equation uses signed inline generation rather than the artifact tran
  const {session}=make({route:async()=>({choice:'equation',confidence:1}),generate:async input=>{generated++;assert.equal(input.route,'equation');return{result:{kind:'equation',latex:'x^2'}};},artifact:async()=>{artifacts++;throw new Error('wrong transport');}},{enabled:['note','equation'],validate:result=>({ok:true,preview:{latex:result.latex}})});
  assert.equal(await session.submit({mode:'explain',prompt:'Write the quadratic formula',prepare:snapshot()}),'preview');assert.equal(session.state.preview.kind,'equation');assert.equal(generated,1);assert.equal(artifacts,0);
 });
+
+// Execute the actual JSX caller body (plain JS) rather than reimplementing its pre-validation lock lookup.
+test('malformed compute/action targets are controlled refusals through the actual editor caller and session',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const {validateComputeResult}=await import('./inline-compute-result.js');
+ const {validateToolAction}=await import('./inline-tool-action.js');
+ const source=readFileSync(new URL('./InlineAiEditor.jsx',import.meta.url),'utf8');
+ const start=source.indexOf('  function validateResult(result, frozen) {'),end=source.indexOf('  // A1:',start);
+ assert.ok(start>=0&&end>start);
+ const live={blocks:[],items:[],shapes:[],links:[]};let lockCalls=0,applies=0;
+ const validate=new Function('validateComputeResult','validateToolAction','board','actionLive','canvas',source.slice(start,end)+';return validateResult;')(validateComputeResult,validateToolAction,()=>live,{current:{mode:'explain'}},{locked:()=>{lockCalls++;return false;}});
+ for(const kind of ['compute','tool_action'])for(const targetIds of ['table',{},42]){
+  const {session}=make({generate:async()=>({result:{kind,targetIds,requestId:'malformed',summary:'Invalid'}})},{validate:(result,_plan,request)=>validate(result,request.frozen)});
+  await session.submit({mode:'explain',prompt:'Summarize this',prepare:snapshot()});
+  assert.equal(session.state.status,'error');assert.equal(session.state.preview,null);assert.ok(session.state.error);
+  await session.accept(()=>{applies++;return{ok:true};});assert.equal(applies,0);
+ }
+ assert.equal(lockCalls,0);assert.deepEqual(live,{blocks:[],items:[],shapes:[],links:[]});
+});
+
+test('comparison cards preserve source-page receipt including malformed null for preview validation',async()=>{
+ for(const sourceReadings of [[{targetId:'pdf',sourceId:'file:source@revision',range:{page:2},coverage:'partial'}],null]){
+  let seen;const {session}=make({route:async()=>({choice:'compare',confidence:1}),artifact:async()=>({result:'artifact',block:{type:'table',columns:['a'],rows:[['b']]},sourceReadings})},{enabled:['note','compare'],validate:result=>{seen=result;return{ok:true,preview:{block:result.block,sourceReadings:result.sourceReadings}};}});
+  await session.submit({mode:'explain',prompt:'Compare these sources',prepare:snapshot()});assert.equal(Object.hasOwn(seen,'sourceReadings'),true);assert.deepEqual(seen.sourceReadings,sourceReadings);session.reject();seen=null;assert.equal(await session.submit({mode:'explain',prompt:'Compare these sources',prepare:snapshot()}),'reused');assert.equal(Object.hasOwn(seen,'sourceReadings'),true);assert.deepEqual(seen.sourceReadings,sourceReadings);
+ }
+});
+
+test('explicit source plot without pages refuses before routing or generation',async()=>{const {sourcePageRequest}=await import('./inline-source-readings.js');let calls=0;const {session}=make({route:async()=>{calls++;return{choice:'note',confidence:1}},generate:async()=>{calls++;return{result:{kind:'note',text:'wrong'}}}});await session.submit({mode:'explain',prompt:'Plot page data',prepare:()=>{sourcePageRequest([],[],{},true);return snapshot()();}});assert.equal(calls,0);assert.equal(session.state.preview,null);assert.match(session.state.error,/explicit PDF page/);});

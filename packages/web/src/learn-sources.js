@@ -14,6 +14,13 @@ export function withSource(sources, source) {
   return sources.map(entry => (entry.id === source.id ? { ...entry, ...source, attached: entry.attached } : entry));
 }
 
+// Keeping an original asset for provenance does not opt it into agent context.
+// Preserve the user's attachment choice when this source already exists.
+export function withRetainedSource(sources, source) {
+  if (sources.some(entry => entry.id === source.id)) return withSource(sources, source);
+  return [...sources, { ...source, attached: false }];
+}
+
 export function toggleSource(sources, id) {
   if (!sources.some(entry => entry.id === id)) return sources;
   return sources.map(entry => (entry.id === id ? { ...entry, attached: !entry.attached } : entry));

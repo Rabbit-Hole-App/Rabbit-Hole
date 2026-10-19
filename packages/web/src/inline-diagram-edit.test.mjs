@@ -3,6 +3,33 @@ import assert from 'node:assert/strict';
 import {previewDiagramEdit} from './inline-diagram-edit.js';
 const board=()=>({shapes:[{id:'a',kind:'rect',text:'Start',x1:0,y1:0,x2:100,y2:50,color:'#123456'},{id:'b',kind:'diamond',text:'Check',x1:180,y1:0,x2:280,y2:70}],items:[{id:'note',kind:'text',text:'Untouched',x:10,y:200}],links:[{id:'ab',from:'a',to:'b',fromSide:'right',toSide:'left',head:true}]});
 function run(input,b=board(),extra={}){const objects=Object.fromEntries([...b.shapes,...b.items,...b.links].map(x=>[x.id,structuredClone(x)]));return previewDiagramEdit(input,{board:b,frozen:{ids:input.targetIds,objects},requestId:'test-123',...extra});}
+
+test('a structural insertion and vertical layout produce one immutable coherent proposal',()=>{
+ const b=board(),before=structuredClone(b);
+ const out=run({targetIds:['a','b','ab'],add:{shapes:[{id:'v',kind:'rect',label:'Validate'}],links:[{id:'vb',from:'v',to:'b'}]},changes:[{id:'ab',patch:{to:'v'}}],layout:{flow:'down'}},b);
+ assert.equal(out.ok,true,JSON.stringify(out.errors));assert.deepEqual(b,before);
+ const added=out.additions.find(x=>x.list==='shapes'),get=id=>out.changes.find(x=>x.id===id)?.after||b.shapes.find(x=>x.id===id);
+ assert.ok(get('a').y2<=added.after.y1);assert.ok(added.after.y2<=get('b').y1);
+ assert.equal(out.changes.find(x=>x.id==='ab').after.to,added.id);
+ assert.equal(out.additions.find(x=>x.list==='links').after.from,added.id);
+ assert.equal(new Set(out.changes.map(x=>x.id)).size,out.changes.length);
+ assert.ok(!out.changes.some(x=>x.id==='note'));
+});
+
+test('combined structural layout refuses unsupported layout and readonly scope without partial edits',()=>{
+ const input={targetIds:['a','b','ab'],add:{shapes:[{id:'v',kind:'rect',label:'V'}]},layout:{flow:'down'}};
+ for(const extra of [{readOnly:true},{frozen:{ids:input.targetIds,objects:{}}}])assert.equal(run(input,board(),extra).ok,false);
+ assert.equal(run({...input,layout:{flow:'up'}}).ok,false);
+});
+
+test('removal cannot evade source restrictions before a combined layout',()=>{
+ for(const restriction of [{source:{id:'source'}},{fileRef:{source:{id:'source'}}},{sources:['paper']},{citations:[{page:1}]}]){
+  const b=board();Object.assign(b.shapes[0],restriction);
+  b.shapes.push({id:'c',kind:'rect',text:'End',x1:320,x2:420,y1:0,y2:50});
+  const input={targetIds:['a','b','c','ab'],removeIds:['a','ab'],layout:{flow:'down'}};
+  assert.equal(run(input,b).ok,false);assert.equal(b.shapes.length,3);assert.equal(b.links.length,1);
+ }
+});
 test('adds a deterministic failure branch without mutating original content or IDs',()=>{
  const b=board(),before=structuredClone(b),input={targetIds:['b'],add:{shapes:[{id:'failure',kind:'rect',label:'Failure'}],links:[{id:'fail-link',from:'b',to:'failure',label:'no'}]}};
  const out=run(input,b);assert.equal(out.ok,true);assert.deepEqual(out,run(input,b));assert.deepEqual(b,before);

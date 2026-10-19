@@ -12,7 +12,7 @@ import { activePath, ipynbPath } from './learn-notebook.js';
 const LISTS=['shapes','items','links','blocks'];
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const fail=message=>({ok:false,errors:[message],changes:[],additions:[],removals:[],dependencies:[],limitations:[]});
-const kind=(list,item)=>list==='blocks'?editableImage(item)?'image':['table','notebook'].includes(item.type)?item.type:'card':list==='links'?'connector':list==='shapes'?'shape':'text';
+const kind=(list,item)=>list==='blocks'?editableImage(item)?'image':['table','notebook'].includes(item.type)?item.type:'card':list==='links'?'connector':list==='shapes'?'shape':item.kind==='equation'?'equation':'text';
 const adapters=Object.fromEntries(['set_appearance','arrange_selection','transform_table','edit_diagram','annotate_selection','edit_notebook_cells','transform_image'].map(key=>[key,{available:true}]));
 function validNotebookScope(scope,item){return !!scope&&item?.type==='notebook'&&!item.locked&&!item.fileRef&&!item.source&&!item.sources?.length&&!item.citations?.length&&scope.id===item.id&&scope.notebookId===item.notebook_id&&scope.path===activePath(item)&&scope.path===ipynbPath(item)&&scope.revision===JSON.stringify(item.ipynb)&&Array.isArray(scope.cellIds)&&scope.cellIds.length>0&&scope.cellIds.length<=20&&new Set(scope.cellIds).size===scope.cellIds.length&&scope.cellIds.every(id=>typeof id==='string'&&item.ipynb?.cells?.some(cell=>cell.id===id));}
 
@@ -26,7 +26,7 @@ export function freezeInlineTools(board,ids,bounds={}, {mode='edit',notebook=nul
    const found=LISTS.flatMap(list=>(board[list]||[]).filter(item=>item.id===id).map(item=>({list,item})));
    if(found.length!==1)return null;
    const {list,item}=found[0];
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||mode==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||ids.length===1&&(editableImage(item)||validNotebookScope(notebook,item))))return null;
+   if(list==='items'&&!['text','sticky',...(mode==='explain'?['equation']:[])].includes(item.kind)||mode==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||ids.length===1&&(editableImage(item)||validNotebookScope(notebook,item))))return null;
    objects[id]=structuredClone(item);lists[id]=list;
    if(bounds[id]){const {x,y,w,h}=bounds[id];boxes[id]={x,y,w,h};}
    selection.push({id,kind:kind(list,item),locked:!!item.locked});
@@ -45,7 +45,7 @@ export function validInlineToolSnapshot(snapshot){
   for(const id of snapshot.ids){
    const item=snapshot.objects[id],list=snapshot.lists[id],entry=snapshot.selection.find(value=>value?.id===id);
    if(typeof id!=='string'||!id||id.length>160||!Object.hasOwn(snapshot.objects,id)||!LISTS.includes(list)||!item||item.id!==id||!entry||entry.kind!==kind(list,item)||entry.locked!==!!item.locked)return false;
-   if(list==='items'&&!['text','sticky'].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||snapshot.ids.length===1&&(editableImage(item)||validNotebookScope(snapshot.notebook,item))))return false;
+   if(list==='items'&&!['text','sticky',...((snapshot.intent||'edit')==='explain'?['equation']:[])].includes(item.kind)||(snapshot.intent||'edit')==='edit'&&list==='blocks'&&!(arrangementCardEligible(item)||snapshot.ids.length===1&&(editableImage(item)||validNotebookScope(snapshot.notebook,item))))return false;
   }
   const graph=snapshot.readOnlyGraph;
   if(!graph||!Array.isArray(graph.links)||!Array.isArray(graph.shapes)||graph.links.length>80||graph.shapes.length>80)return false;

@@ -5,6 +5,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { posix } from 'node:path';
 import { classify, select } from './affected.mjs';
 const map = JSON.parse(readFileSync(new URL('./check-map.json', import.meta.url), 'utf8'));
+test('tool handoff component stays a manual fixture and never grants automatic runtime coverage',()=>{
+ for(const file of ['packages/web/src/inline-tool-action.js','packages/web/e2e/inline-evidence-handoff-component.mjs'])assert.equal(classify(file,map),'mapped');
+ assert.equal(map.checks['inline-evidence-handoff-component.mjs'].runner,'windows-only');
+ assert.match(map.checks['inline-evidence-handoff-component.mjs'].why,/All retrieval intercepted/);
+});
 test('every tracked executable file has a class (a new file is classified in the push that adds it)', () => {
   const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).trim().split('\n');
   const unclassified = files.filter(f => classify(f, map) === 'unmapped');
@@ -111,3 +116,21 @@ test('the default set for unmapped paths is a small list of existing Linux-ready
     assert.notEqual(map.checks[c].runner, 'windows-only', `${c} does not run on Linux`);
   }
 });
+
+test('bounded compute check remains manual fixture coverage for both source helpers',()=>{
+ for(const path of ['packages/web/src/inline-compute.js','packages/web/src/inline-compute-result.js','packages/web/e2e/ctrlk-compute-check.mjs']){
+  assert.deepEqual(map.mapped[path],['ctrlk-compute-check.mjs']);
+ }
+ assert.equal(map.checks['ctrlk-compute-check.mjs'].runner,'windows-only');
+ assert.match(map.checks['ctrlk-compute-check.mjs'].why,/intercepted/);
+});
+
+test('source page and derivative browser check remains explicit manual fixture coverage',()=>{
+ for(const path of ['packages/web/src/inline-source-readings.js','packages/web/src/inline-polynomial-derivative.js','packages/web/src/inline-source-compute.js','packages/web/src/inline-source-compute-result.js','packages/web/e2e/ctrlk-source-derivative-check.mjs']) assert.deepEqual(map.mapped[path],['ctrlk-source-derivative-check.mjs']);
+ assert.equal(map.checks['ctrlk-source-derivative-check.mjs'].runner,'windows-only');
+ assert.match(map.checks['ctrlk-source-derivative-check.mjs'].why,/intercepted generation/);
+});
+
+test('native image replacement remains manual intercepted extraction coverage',()=>{assert.deepEqual(map.mapped['packages/web/src/inline-image-replacement.js'],['ctrlk-image-replacement-check.mjs']);assert.equal(map.checks['ctrlk-image-replacement-check.mjs'].runner,'windows-only');});
+
+test('clipboard fork and trash persistence remains manual browser coverage',()=>{assert.ok(map.mapped['packages/web/src/CodeBoxEditor.jsx'].includes('code-box-persistence-check.mjs'));assert.equal(map.checks['code-box-persistence-check.mjs'].runner,'windows-only');assert.deepEqual(map.mapped['packages/web/e2e/code-box-persistence-check.mjs'],['code-box-persistence-check.mjs']);});

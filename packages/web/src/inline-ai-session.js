@@ -131,7 +131,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     if (!live(mine)) return null;
     mark(id, 'firstOutput');
     // Keep the receipt intact for the preview validator; silently dropping it would present extracted content as unqualified.
-    const receipt = Object.hasOwn(answer, 'extraction') ? { extraction: answer.extraction } : {};
+    const receipt = {...(Object.hasOwn(answer,'extraction')?{extraction:answer.extraction}:{}),...(Object.hasOwn(answer,'sourceReadings')?{sourceReadings:answer.sourceReadings}:{})};
     if (answer.result === 'artifact') return { kind: 'card', route, block: answer.block, primitive: answer.primitive, ...receipt };
     if (answer.result === 'paid_proposal') return { kind: 'proposal', route, block: answer.block, message: answer.message, primitive: answer.primitive, ...receipt };
     if (answer.result === 'clarification') return { kind: 'clarify', question: answer.question };
@@ -168,7 +168,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       return;
     }
     // Action handoffs carry the signed request identity; never replay one for a new request.
-    if(result.kind!=='image_action')results.set(request.key, { result, plan });
+    if(!['image_action','tool_action','compute','source_compute','image_replacement'].includes(result.kind))results.set(request.key, { result, plan });
     mark(id, 'complete');
     set({ status: result.kind === 'proposal' ? 'proposal' : 'preview', stage: null, stream: null, preview: { ...checked.preview, requestId: id, route: plan.route, kind: result.kind, frozen: request.frozen, mode: request.mode, origin: request.revise?.prompt ?? request.prompt }, proposal: result.kind === 'proposal' ? { message: result.message, primitive: result.primitive } : null, requestId: id, route: plan.route, via: plan.via, error: null, accepted: false, stale: null });
     if (result.kind !== 'proposal') finish(id, 'previewed');

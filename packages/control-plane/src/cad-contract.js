@@ -1,4 +1,5 @@
 // CAD-specific limits and schemas. No provider calls or execution in this module.
+import { cadExpression } from './cad-expression.js';
 export const CAD_RUNTIME = Object.freeze({ cadgen: '0.7.21', skillRevision: '24573128ceaab564f497d7c12f995c41784c9539', protocol: 'cad-execute/1' });
 export const CAD_LIMITS = Object.freeze({ calls: 6, repairs: 1, usd: 0.60, elapsedMs: 900000, stageSeconds: 300, executionSeconds: 600, memoryBytes: 2147483648, workspaceBytes: 536870912, artifactBytes: 52428800, totalBytes: 104857600, sourceBytes: 128000, jobs: 100 });
 export const CAD_TERMINAL = new Set(['ready', 'failed', 'cancelled']);
@@ -40,19 +41,29 @@ export function validateCadRequest(body) {
   if (JSON.stringify(body.context ?? null).length > 32000) throw cadError('Selected context is too large', 413);
   if (body.baseRevisionId != null && (typeof body.baseRevisionId !== 'string' || body.baseRevisionId.length > 200)) throw cadError('Invalid model revision');
 }
-export function validateDesign(value) {
+export function validateDesign(value, { requireVolumeExpressions = false } = {}) {
   if (value?.question && typeof value.question === 'string' && value.question.length <= 1500) return { question: value.question };
   if (!value || typeof value.source !== 'string' || !value.source.trim() || new TextEncoder().encode(value.source).length > CAD_LIMITS.sourceBytes) throw cadError('The CAD design did not include valid model source.');
   const b = value.brief;
   if (!b || !['mm', 'cm', 'm', 'in'].includes(b.units) || typeof b.title !== 'string' || b.title.length > 150 || !Array.isArray(b.assumptions) || !Array.isArray(b.requirements)) throw cadError('The CAD design brief is incomplete.');
   if (!b.parameters || typeof b.parameters !== 'object' || Array.isArray(b.parameters) || Object.values(b.parameters).some(v => typeof v !== 'number' || !Number.isFinite(v))) throw cadError('CAD parameters must be finite numeric dimensions.');
   if (JSON.stringify(b).length > 12000 || !Array.isArray(value.checks) || value.checks.length > 40) throw cadError('The CAD design exceeds its limits.');
-  if(value.checks.some(c=>!c||typeof c!=='object'||Array.isArray(c)||typeof c.kind!=='string'||!Number.isFinite(c.value)||!Number.isFinite(c.tolerance)||c.tolerance<0||c.axis!==undefined&&!['x','y','z'].includes(c.axis)))throw cadError('CAD measurement checks are invalid.');
+  const checks = value.checks.map(check => {
+    if (!check || typeof check !== 'object' || Array.isArray(check)) throw cadError('CAD measurement checks are invalid.');
+    const { expression, ...resolved } = check;
+    if (requireVolumeExpressions && check.kind === 'volume_mm3' && expression === undefined) throw cadError('CAD volume checks require a parameter-derived expression.');
+    if (expression !== undefined) {
+      try { resolved.value = cadExpression(expression, b.parameters, { requireParameter: requireVolumeExpressions && check.kind === 'volume_mm3' }); }
+      catch { throw cadError('Invalid CAD measurement expression.'); }
+    }
+    return resolved;
+  });
+  if(checks.some(c=>typeof c.kind!=='string'||!Number.isFinite(c.value)||!Number.isFinite(c.tolerance)||c.tolerance<0||c.axis!==undefined&&!['x','y','z'].includes(c.axis)))throw cadError('CAD measurement checks are invalid.');
   // This validates the brief, never makes Python safe: only the isolated executor may run it.
-  return { source: value.source, brief: b, checks: value.checks };
+  return { source: value.source, brief: b, checks };
 }
 export function publicCadJob(job) {
-  const keys = ['id', 'state', 'stage', 'attempt', 'cardId', 'modelId', 'revisionId', 'baseRevisionId', 'brief', 'question', 'error', 'manifest', 'createdAt', 'updatedAt', 'limitations', 'awaitingAccept', 'hidden', 'exportState', 'exportError'];
+  const keys = ['id', 'state', 'stage', 'attempt', 'cardId', 'modelId', 'revisionId', 'baseRevisionId', 'brief', 'question', 'error', 'manifest', 'createdAt', 'updatedAt', 'limitations', 'awaitingAccept', 'hidden', 'exportState', 'exportError', 'failureCode', 'failureStage', 'failurePhase', 'failureAttempt'];
   const result=Object.fromEntries(keys.filter(k => job[k] !== undefined).map(k => [k, job[k]]));
   // Reference provenance is retained privately with the job. A shared card's
   // status must not disclose private drawings, paths, or source URLs.

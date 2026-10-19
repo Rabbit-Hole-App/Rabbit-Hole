@@ -14,6 +14,7 @@ import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope, fileScope, uploadSource } from './file-source-client.js';
+import {verifySourceReadings} from './inline-source-readings.js';
 import { verifyExtractionRead } from './inline-extraction.js';
 import { prepareImageRevision } from './inline-image-revision.js';
 import { fileChatRef } from './file-chat-ref.js';
@@ -46,7 +47,7 @@ import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
 import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
 import { insertCodeCard } from './code-card.js';
 import { copiedCode, languageOf } from './map-files.js';
-import { withSource, toggleSource, isAttached } from './learn-sources.js';
+import { withSource, withRetainedSource, toggleSource, isAttached } from './learn-sources.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
@@ -922,13 +923,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       }})})};
     } : null,
     repositoryEvidence: isRepository && !board && !hole && repository?.canEdit && /^[a-f0-9]{40}$/.test(repositoryContext?.commit || repository?.commit || '') ? {scope:{app:app.name,repo:app.repo,commit:repositoryContext?.commit || repository.commit},headers:wsHeaders(),onOpenSource:ref=>openCanvasFile(ref.path,ref.start,ref.end,ref)} : null,
+    verifySourceReadings: !board && !hole && canEditCanvas ? options => verifySourceReadings({...options,headers:wsHeaders()}) : null,
     verifyExtraction: !board && !hole && canEditCanvas ? options => verifyExtractionRead({...options,headers:wsHeaders()}) : null,
     imageScope: () => !board && !hole && canEditCanvas ? fileScope() : null,
     prepareImage: !board && !hole && canEditCanvas ? options => prepareImageRevision({...options,headers:wsHeaders(),upload:uploadSource}) : null,
     retainImageSources: list => {
       if(board || hole || !canEditCanvas)return false;
       let next=sourcesRef.current;
-      for(const source of list)next=withSource(next,source);
+      for(const source of list)next=withRetainedSource(next,source);
       sourcesRef.current=next;setSources(next);return true;
     },
     cad: startCad,

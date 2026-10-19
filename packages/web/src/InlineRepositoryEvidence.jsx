@@ -3,7 +3,7 @@ import { EvidencePill } from './Md.jsx';
 
 // Explicit, read-only repository inspection. It never submits the inline prompt,
 // writes a card or changes Chat/TOC context. The host owns source-view navigation.
-export default function InlineRepositoryEvidence({ scope, headers = {}, onOpenSource, contextKey = '' }) {
+export default function InlineRepositoryEvidence({ scope, headers = {}, onOpenSource, contextKey = '', suggestedQuery = null }) {
   const key = JSON.stringify([contextKey, scope?.app, scope?.repo, scope?.commit]);
   const currentKey = useRef(key); currentKey.current = key;
   const request = useRef({ id: 0, controller: null });
@@ -18,6 +18,7 @@ export default function InlineRepositoryEvidence({ scope, headers = {}, onOpenSo
     cancel(); setQuery(''); setState({ loading: false, result: null, error: null });
     return cancel;
   }, [key]);
+  useEffect(()=>{if(!suggestedQuery)return;cancel();setQuery(typeof suggestedQuery.query==='string'?suggestedQuery.query.slice(0,200):'');setState({loading:false,result:null,error:null});},[suggestedQuery?.requestId]);
   const available = typeof scope?.app === 'string' && typeof scope?.repo === 'string' && /^[a-f0-9]{40}$/.test(scope?.commit || '');
   async function search() {
     if (!available || !query.trim() || state.loading) return;

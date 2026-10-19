@@ -11,6 +11,8 @@ import { saveCadSource, putCadOutput, publishCadArtifacts, validateCadManifest, 
 import { cadModelRequest, runCadModel, cadReferenceImages } from './cad-model.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { notifyCadBudget } from './cad-budget-alert.js';
+import { recordCadFailure, archiveCadFailure, cadFailureMessage } from './cad-failure.js';
+import { diagnosticIdentity, diagnosticJob } from './cad-job-diagnostic.js';
 import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus, pauseCadProductionTransfer, reportCadProductionTransferPause, recordCadInfrastructureExtras, reserveCadLifetimeBytes } from './cad-production-budget.js';
 
 const PREFIX = '/api/learn/cad/jobs';
@@ -98,6 +100,15 @@ export class CadJobs {
   async fetch(req){
     try {
       const path=new URL(req.url).pathname;
+      if(path==='/diagnostic'){
+        if(req.method!=='GET')return cadJson({error:'GET required'},405);
+        let identity;
+        try{identity=diagnosticIdentity(new URL(req.url),'id');}catch{return cadJson({error:'Invalid job query'},400);}
+        if(this.state.id&&(!this.env.CAD_JOBS||String(this.state.id)!==String(this.env.CAD_JOBS.idFromName(identity.board))))return cadJson({error:'Not found'},404);
+        const job=await this.state.storage.get(jobKey(identity.id));
+        if(!job||job.id!==identity.id)return cadJson({error:'Not found'},404);
+        return cadJson({job:diagnosticJob(job,this.env)});
+      }
       if(path==='/production-model-reservation'){
         if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
         const input=await req.json();
@@ -187,6 +198,7 @@ export class CadJobs {
     if(action==='retry'){
       if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
       if(!['failed','cancelled'].includes(job.state))throw cadError('Only a failed or cancelled job can be retried.',409);
+      archiveCadFailure(job);
       if(job.pendingResult&&job.state==='failed'){
         job.state='checking';job.stage='publishing';job.error=null;job.deadline=Date.now()+job.limits.elapsedMs;
         await this.wake();await this.save(job);return this.response(job,202);
@@ -217,6 +229,8 @@ export class CadJobs {
   modelRecord(job){return {modelId:job.modelId,cardId:job.cardId,revisionId:job.revisionId,manifest:job.manifest,brief:job.brief,sourceText:job.sourceText};}
   async executor(path,body){return fetch(new URL(path,this.env.CAD_EXECUTOR_URL),{method:'POST',headers:{Authorization:`Bearer ${this.env.CAD_EXECUTOR_TOKEN}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});}
   async fail(job,message){
+    if(job.failureAttempt!==job.attempt)recordCadFailure(job,{},this.env);
+    if(!message.includes(`Job ${job.id},`))message+=` Job ${job.id}, attempt ${job.failureAttempt}, stage ${job.failureStage}.`;
     if(job.operation==='export'&&job.manifest){job.exportState='failed';job.exportError=message;job.operation='build';}
     else {job.state='failed';job.stage='failed';job.error=message;}
     job.modelInFlight=null;await this.save(job);
@@ -401,14 +415,15 @@ export class CadJobs {
         if(job.operation!=='export'){job.stage=body.stage;job.state=body.stage;}job.leaseUntil=Date.now()+LEASE;await this.save(job);return cadJson({lease_until:job.leaseUntil});
       }
       if(action==='fail'){
-        job.failureCode=typeof body.error==='string'&&/^[a-z_]{1,80}$/.test(body.error)?body.error:'executor_failed';
         // A delayed transport failure cannot erase a durably accepted completion.
         if(job.pendingResult){await this.save(job);await this.wake();return cadJson({publishing:true},202);}
+        if(job.completedAttempt===attempt)throw cadError('This attempt already completed',409);
+        recordCadFailure(job,{code:body.error,diagnostics:body.diagnostics,phase:body.phase},this.env);
         if(job.operation==='build'&&['execution_failed','validation_failed'].includes(body.error)&&typeof body.diagnostics==='string'&&body.diagnostics.trim()&&job.repairs<Math.min(job.limits.repairs,cadLimits(this.env).repairs)){
-          job.repairs++;job.repairReason=body.diagnostics.slice(0,8000);job.previousSource=job.sourceText;job.previousBrief=job.brief;
+          job.repairs++;job.repairReason=job.failureDiagnostics;job.previousSource=job.sourceText;job.previousBrief=job.brief;archiveCadFailure(job);
           job.attempt++;job.revisionId=`cr_${crypto.randomUUID().replaceAll('-','')}`;job.state='repairing';job.stage='repairing';job.dispatchAt=null;job.leaseUntil=null;await this.wake();await this.save(job);return cadJson({repairing:true});
         }
-        await this.fail(job,'The CAD executor could not complete this attempt. Valid saved artifacts are retained.');return cadJson({failed:true});
+        await this.fail(job,cadFailureMessage(job));return cadJson({failed:true});
       }
       throw cadError('Unknown callback',404);
     });

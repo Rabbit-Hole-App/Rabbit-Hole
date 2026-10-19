@@ -64,6 +64,11 @@ test('annotation: Dive and the owned Tutor outline do not read links at all', ()
 // Every module that reads a board's `links`, and what it does with them. A new reader fails this check until it is
 // listed here after its annotation handling is reviewed. Matches that are not a board's links say so.
 const READERS = {
+  'web/src/inline-image-replacement.js': 'refuses all incident connectors including annotations before replacement; writes only validated new links',
+  'control-plane/src/inline-image-replacement.js': 'refuses frozen incident connectors including annotations; no structural inference',
+  'web/src/inline-source-readings.js': 'stamps source-page provenance on newly derived transaction links; does not interpret board structure',
+  'web/src/inline-compute-result.js': 'stamps provenance on newly created transaction links only; never interprets board structure',
+  'web/src/inline-extraction.js': 'stamps provenance on newly derived transaction links only; never interprets board structure',
   'web/src/inline-diagram-layout.js': 'annotation links remain protected dependencies but never influence structural graph ranks',
   'control-plane/src/agents/learn-inline.js': 'tool schema describes proposed graph links; shared validator rejects annotation connectors as structural targets',
   'web/src/inline-native-plan.js': 'explicit selected appearance/layout only; no inferred graph structure',

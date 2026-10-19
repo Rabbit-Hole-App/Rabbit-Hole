@@ -1,0 +1,28 @@
+{
+  "candidate": "806c0c3b-dirty-63553a03d155636b",
+  "base": "806c0c3bbd589e3ad9ae9ec0c3c37c50b7510147",
+  "files": {
+    "packages/control-plane/src/inline-compute.js": "3c3f8b8fd68b9bf88a478e7457f89cc42e0a3cabbd9b10339eec393e19792457",
+    "packages/control-plane/src/inline-tool-action.js": "673bebe09073e77a21439dad2f05d36a0a0cd35800531da2a9ee7b89d1532cb9",
+    "packages/control-plane/src/learn-inline-route.js": "3a221a174dfcaa5ded42755e27192de11bb05c2286df5cfe4b12396483640a6c",
+    "packages/control-plane/src/learn-inline.js": "c2fad06fae9ab0014afbf84ffb08f9c0f60e2eb65e3fcf62e36f1dcfd24a18af",
+    "packages/control-plane/test/inline-compute.test.js": "1f75d17e535195b1922c09944a8c30f6023159d304566e0398a741510fd6fab4",
+    "packages/control-plane/test/inline-tool-action.test.js": "6e5affa9c725cbe1bf127baba0f1a4745b5018dd2dff553aa3246158667092c6",
+    "packages/web/e2e/ctrlk-code-run-check.mjs": "eb8d19cdaf8e0991350f7b37c4fae8c0ac6a5286dbc110670e6bb06a71d9ee22",
+    "packages/web/e2e/equation-inline-check.mjs": "4eacd946a6e8fc728a351b8d5d0f6428b02e0b6ba0d5d7be995e0f9d9a57d9b5",
+    "packages/web/src/InlineAiEditor.jsx": "df4edf77c9f59ec5f23d810400af7a8a29ee0467e17803101ba8dc6de5e5e26d",
+    "packages/web/src/InlineRepositoryEvidence.jsx": "5bd9674bf7ca32ec18248994b52a1d7b47ce61563c11c4afb2bcf5df59053ed2",
+    "packages/web/src/inline-ai-annotation.test.mjs": "9e487ff4c093f6a04e5350f257e5de368d52bdf288288a5f72536728ec71813b",
+    "packages/web/src/inline-ai-session.js": "b42a9644700778c77026474428327c391058f44d0d8d389e4f704161c788cfd8",
+    "packages/web/src/inline-ai-session.test.mjs": "0491377a1773f1cc8bb53638c798f4236b41c09fba5e7bceb65c001a21c05d3b",
+    "packages/web/src/inline-compute-result.js": "0c75cfc7a41d8950d67c0a294836cee5956701829a16b44fb418ab1e623b5eb8",
+    "packages/web/src/inline-compute-result.test.mjs": "ecacc4aa89a7b11708660aa4d036741ed3f96eb1cfdd81b4ee14bcae8d3124de",
+    "packages/web/src/inline-compute.js": "26ea4bf6d3a080834fee23402ce1c440fb5aedb0ba1f1dbb62fc4d4b4cb587cb",
+    "packages/web/src/inline-compute.test.mjs": "97d339acb2a8f4800ac215ad556ffdd022d0708610a061aaa8772355bbbc495f",
+    "packages/web/src/inline-tool-action.js": "8def4291de803cb305b5140d02e5836bfa0c40092f781a0a79af8050095a9216",
+    "packages/web/src/inline-tool-action.test.mjs": "f9ad6a45d310496125d97f5816e049c31443b170c41bb578ed046cdebcdd9fb7",
+    "scripts/ci/check-map.json": "224008fb405fb12d9134a0cd6915dd7211fa5ecffb4e921f7ef80d90dd06c344",
+    "scripts/ci/check-map.test.mjs": "f406544766fa22968182d846e5b3386e95c085dc40047ff861e235441692e39b"
+  },
+  "buildSeconds": 8.36
+}

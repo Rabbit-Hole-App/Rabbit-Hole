@@ -1,3 +1,4 @@
+import {validateToolAction} from './inline-tool-action.js';
 import {validateImageAction} from './inline-image-action.js';
 import InlineCodeRunPreview from './InlineCodeRunPreview.jsx';
 import RegionalImageEdit from './RegionalImageEdit.jsx';
@@ -6,6 +7,10 @@ import InlineRepositoryEvidence from './InlineRepositoryEvidence.jsx';
 import { MathText } from './MathText.jsx';
 import { validateEquationResult } from './inline-equation-result.js';
 import { equationTransaction } from './inline-equation-apply.js';
+import {selectedSourcePages,sourcePageRequest,validateSourceReadings,stampSourceReadings} from './inline-source-readings.js';
+import { validateComputeResult, stampComputation } from './inline-compute-result.js';
+import {validateSourceCompute} from './inline-source-compute-result.js';
+import {validateImageReplacement,imageReplacementTransaction} from './inline-image-replacement.js';
 import { validateExtraction, withExtraction } from './inline-extraction.js';
 import { editableImage } from './inline-image-plan.js';
 import { notebookEditor } from './notebook-inline-client.js';
@@ -84,6 +89,7 @@ export function CardEditPreview({ fields, proposedOnly = false }) {
   </div>;
 }
 export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
+  const board = canvas.board;
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
   const cadTarget = !target.creation && target.ids?.length === 1 && canvas.board?.().blocks?.find(block => block.id === target.ids[0] && block.type === 'cad' && block.revisionId && !block.locked && cadCanMutate(block,readOnly));
@@ -123,6 +129,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [equationLatex,setEquationLatex]=useState('');
   const [imageRevision,setImageRevision]=useState(null), [imageError,setImageError]=useState('');
   const codeTarget=!readOnly&&!target.creation&&target.ids?.length===1&&!canvas.locked?.(target.ids[0])&&canvas.board?.().items?.find(item=>item.id===target.ids[0]&&item.kind==='text'&&item.mode==='code');
+  const [evidenceScopeEnabled,setEvidenceScopeEnabled]=useState(false),[evidenceAction,setEvidenceAction]=useState(null),[toolActionError,setToolActionError]=useState('');
+  const evidenceDetails=useRef(null),codeReview=useRef(null),actionLive=useRef(null);
+  const [replacementOutput,setReplacementOutput]=useState('');
+  const replacementLive=useRef(null);replacementLive.current={output:replacementOutput,mode,readOnly};
+  const [sourcePages,setSourcePages]=useState({}),[sourcePlot,setSourcePlot]=useState(false);
+  const sourceLive=useRef(null);sourceLive.current={pages:sourcePages,sourcePlot,mode,readOnly,config};
+  const pdfTargets=(target.ids||[]).map(id=>board().blocks.find(block=>block.id===id)).filter(block=>block?.fileRef?.family==='pdf');
+  actionLive.current={mode,readOnly,repoScope:evidenceScopeEnabled?config.repositoryEvidence?.scope:null,codeAvailable:!!config.prepareCodeRun};
   const [codeRun,setCodeRun]=useState(null),[codeInput,setCodeInput]=useState('null'),[codeRunError,setCodeRunError]=useState('');
   const codeLive=useRef(null);codeLive.current={config,readOnly,codeTarget,codeInput};
   const openCodeRun=async()=>{try{
@@ -166,7 +180,6 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const box = useRef(null), field = useRef(null);
   const openMs = useRef(null);
   const rows = useRef([]);
-  const board = canvas.board;
   // One session per opened editor: its requests, their late results and their metrics end with it.
   const session = useMemo(() => createInlineSession({
     transport: config.transport, boardKey: canvas.boardKey, enabled: config.enabled, motion: config.motion,
@@ -190,6 +203,15 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // A result checked against the board as it is now (inline-ai-apply.js): the preview it becomes, or why not.
   function validateResult(result, frozen) {
+    if(result.kind==='image_replacement')return validateImageReplacement(result,frozen,board(),{mode:actionLive.current.mode,readOnly:actionLive.current.readOnly,locked:canvas.locked?.(result.targetId)});
+    if(result.kind==='source_compute')return validateSourceCompute(result,frozen,board(),{mode:actionLive.current.mode,readOnly:actionLive.current.readOnly,locked:Array.isArray(result.targetIds)&&result.targetIds.some(id=>canvas.locked?.(id))});
+    let sourceReadings;
+    if(frozen.sourceRanges?.length||Object.hasOwn(result,'sourceReadings')){
+      if(!['note','card'].includes(result.kind))return{ok:false,errors:['Selected PDF pages currently support notes and comparison cards only.']};
+      const checked=validateSourceReadings(result.sourceReadings,frozen.sourceRanges);if(!checked.ok)return{ok:false,errors:[checked.error]};sourceReadings=checked.readings;
+    }
+    if(result.kind==='compute')return validateComputeResult(result,frozen,board(),{...actionLive.current,locked:Array.isArray(result.targetIds)&&result.targetIds.some(id=>canvas.locked?.(id))});
+    if(result.kind==='tool_action')return validateToolAction(result,frozen,board(),{...actionLive.current,locked:Array.isArray(result.targetIds)&&result.targetIds.some(id=>canvas.locked?.(id))});
     if(result.kind==='image_action')return validateImageAction(result,frozen,board(),{readOnly,locked:canvas.locked?.(result.targetId)});
     let extraction;
     if(Object.hasOwn(result,'extraction')){
@@ -199,7 +221,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       extraction=checked.extraction;
     }
     if(result.kind==='equation'){const {kind,extraction:receipt,...input}=result,checked=validateEquationResult(input);return checked.ok&&checked.result.kind==='equation'?{ok:true,preview:{...checked.result,...(extraction?{extraction}:{})}}:{ok:false,errors:[checked.error||'Invalid equation.']};}
-    if (result.kind === 'note') return { ok: true, preview: { text: result.text } };
+    if (result.kind === 'note') return { ok: true, preview: { text: result.text,...(sourceReadings?{sourceReadings}:{}) } };
     if(result.kind==='annotations'){
       const checked=validateInlinePlan(result.plan,frozen.toolSnapshot,board(),canvas.layout(),{mode:'explain',requestId:frozen.requestId,readOnly});
       return checked.ok?{ok:true,preview:{summary:result.summary,changes:checked.changes.map(describeChange),additions:checked.additions,removals:checked.removals,limitations:checked.limitations,raw:result}}:checked;
@@ -210,7 +232,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     }
     // A native diagram: checked again here (a schema is a request, not a guarantee); laid out and placed once, below.
     if (result.kind === 'diagram') { const checked = validateDiagram(result.spec); return checked.ok ? { ok: true, preview: { spec: checked.spec, ...(extraction?{extraction}:{}) } } : { ok: false, errors: checked.errors.slice(0, 1) }; }
-    if (result.kind === 'card' || result.kind === 'proposal') return { ok: true, preview: { ...(extraction?{extraction}:{}), block: result.block, primitive: result.primitive, message: result.message, describe: canvas.describe(result.block) } };
+    if (result.kind === 'card' || result.kind === 'proposal') return { ok: true, preview: { ...(extraction?{extraction}:{}),...(sourceReadings?{sourceReadings}:{}), block: result.block, primitive: result.primitive, message: result.message, describe: canvas.describe(result.block) } };
     return { ok: false, errors: ['That result is not something the canvas can show.'] };
   }
 
@@ -225,6 +247,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       : buildContext(live, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     if(!target.creation&&!target.range){const native=freezeNativeTools(live,target.ids,live.boxes);if(native)context.nativeTools=native;}
     if(!target.creation&&!target.range){const tools=freezeInlineTools(live,target.ids,live.boxes,{mode:intent,notebook:notebookScope?Object.fromEntries(['id','notebookId','path','revision','cellIds'].map(key=>[key,notebookScope[key]])):null});if(tools)context.toolSnapshot=tools;}
+    if(evidenceScopeEnabled&&config.repositoryEvidence?.scope)context.repoScope=structuredClone(config.repositoryEvidence.scope);
+    else delete context.repoScope;
+    delete context.sourceRanges;delete context.sourceBoard;delete context.sourceComputation;delete context.imageReplacement;
+    if(intent==='edit'&&imageTarget&&replacementLive.current.output){context.imageReplacement={targetId:imageTarget.id,output:replacementLive.current.output};context.prints={...context.prints,context:JSON.stringify([context.prints.context,context.imageReplacement])};}
+    if(intent==='explain'&&config.verifySourceReadings){try{const ranges=sourcePageRequest(live.blocks,target.ids,sourceLive.current.pages,sourceLive.current.sourcePlot);if(ranges.length){context.sourceRanges=ranges;context.sourceBoard=config.imageScope?.()?.board;if(sourceLive.current.sourcePlot)context.sourceComputation={type:'table_plot'};context.prints={...context.prints,context:JSON.stringify([context.prints.context,context.sourceRanges,context.sourceBoard,context.sourceComputation])};}}catch(error){return{context,error:error.message,ms:0,cacheHit:false,only};}}
     return { context, ms: Math.round((performance.now() - started) * 10) / 10, cacheHit: canvas.cache.stats.misses === misses, only };
   };
   // config.prepareOnOpen false is the A3 baseline (context built only at Send), for the benchmark's comparison.
@@ -277,7 +304,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         const request = target.creation ? { kind: 'creation', anchor: { x: target.anchor.x, y: target.anchor.y }, region: regionSummary(made.context), context: made.context }
           : target.range ? { kind: 'selection', textRange: { id: target.range.id, from: target.range.from, to: target.range.to }, context: made.context }
           : { kind: 'selection', targetIds: target.ids, context: made.context };
-        return { error: how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):imageTarget?(!made.context.toolSnapshot?'Image tools are unavailable for this selection.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null, request, context: made.context, frozen: { ...target, ...(how==='edit'&&target.ids?.length===1&&board().items?.find(item=>item.id===target.ids[0]&&item.kind==='equation')?{equationItem:structuredClone(board().items.find(item=>item.id===target.ids[0]))}:{}), extractionImage:how==='explain'&&made.context.image?.id?structuredClone(board().blocks.find(block=>block.id===made.context.image.id)):null, extractionScope:how==='explain'?structuredClone(config.imageScope?.()||null):null, nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
+        return { error: made.error || (how === 'edit' ? (notebookTarget?(!made.context.toolSnapshot?'The selected notebook exceeds the complete-cell context budget.':null):imageTarget?(!made.context.toolSnapshot?'Image tools are unavailable for this selection.':null):cardEditSelectionReason(target.ids || [], board())) || (clippedOf(made.context).length && !target.range ? 'The selection exceeds the complete-content edit budget. Select less content before editing.' : null) : null), request, context: made.context, frozen: { ...target, actionMode:how,imageReplacement:structuredClone(made.context.imageReplacement||null),replacementBounds:made.context.imageReplacement?structuredClone(canvas.boxOf(target.ids[0])):null,sourceComputation:structuredClone(made.context.sourceComputation||null),sourceRanges:structuredClone(made.context.sourceRanges||[]),sourceScope:structuredClone(config.imageScope?.()||null),sourceBlocks:Object.fromEntries((made.context.sourceRanges||[]).map(entry=>[entry.targetId,structuredClone(board().blocks.find(block=>block.id===entry.targetId))])),repoScope:structuredClone(made.context.repoScope||null), ...(how==='edit'&&target.ids?.length===1&&board().items?.find(item=>item.id===target.ids[0]&&item.kind==='equation')?{equationItem:structuredClone(board().items.find(item=>item.id===target.ids[0]))}:{}), extractionImage:(how==='explain'||made.context.imageReplacement)&&made.context.image?.id?structuredClone(board().blocks.find(block=>block.id===made.context.image.id)):null, extractionScope:(how==='explain'||made.context.imageReplacement)?structuredClone(config.imageScope?.()||null):null, nativeTools:made.context.nativeTools, toolSnapshot:made.context.toolSnapshot, prints: made.context.prints, clipped: clippedOf(made.context), words: text }, summary: selectionSummary(made.context), prints: made.context.prints, selectionOnly, shape: contextShape(made.context), prepMs: prepared?.ms ?? made.ms, cacheHit: made.cacheHit };
       };
         if(notebookTarget)return notebookEditor(target.ids[0]).capture().then(scope=>{if(JSON.stringify(scope.cellIds)!==JSON.stringify(target.notebook.cellIds))throw new Error('The selected cells changed. Close this preview and select the cells again.');canvas.syncNotebook(scope);return build(scope);});
         return build(null);
@@ -391,7 +418,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // A7 card ghost: drawn once invisibly at the end of the column to learn its real size (waiting until its size holds
   // for two frames, up to a second), then placed once beside the selection and shown pale there.
-  const isCard = preview => preview && (preview.kind === 'card' || preview.kind === 'proposal');
+  const isCard = preview => preview && (['card','proposal','compute','source_compute'].includes(preview.kind));
   const ghostBlock = preview => ({ ...preview.block, id: cardId(preview.requestId) });
   useEffect(() => {
     const preview = state.preview;
@@ -436,6 +463,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return false;
   };
   const accept = async () => {
+    if(state.preview?.kind==='tool_action'){
+      const preview=state.preview,checked=validateToolAction(preview.raw,preview.frozen,board(),{...actionLive.current,locked:preview.targetIds?.some(id=>canvas.locked?.(id))});
+      if(!checked.ok){setToolActionError(checked.errors[0]);return;}
+      setToolActionError('');
+      if(preview.action==='run_code'){codeReview.current?.scrollIntoView({block:'nearest'});codeReview.current?.querySelector('textarea')?.focus();}
+      else{setEvidenceAction({requestId:preview.requestId,query:preview.query||''});if(evidenceDetails.current)evidenceDetails.current.open=true;}
+      return;
+    }
     if(state.preview?.kind==='image_action'){
       const preview=state.preview,checked=validateImageAction(preview.raw,preview.frozen,board(),{readOnly:imageAccess.current.readOnly,locked:canvas.locked?.(preview.targetId)});
       if(!checked.ok){setRemovalError(checked.errors[0]);return;}
@@ -444,11 +479,20 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if(!state.preview?.extraction&&refreshBlockedPlacement(state.preview))return;
     setMoved(null);
     const out = await session.accept(async preview => {
-      let verifiedExtraction=null;
+      let verifiedExtraction=null,verifiedPages=null;
+      if(preview.sourceReadings){
+        if(!config.verifySourceReadings)return{error:'Selected PDF pages are unavailable in this canvas.'};
+        if(preview.kind==='source_compute'&&!sourceLive.current.sourcePlot)throw Error('The selected page output changed.');
+        const current=()=>({blocks:board().blocks,ranges:selectedSourcePages(board().blocks,preview.frozen.ids,sourceLive.current.pages),scope:sourceLive.current.config.imageScope?.(),mode:sourceLive.current.mode,readOnly:sourceLive.current.readOnly||(preview.kind==='source_compute'&&!sourceLive.current.sourcePlot),locked:preview.frozen.ids.some(id=>canvas.locked?.(id))});
+        verifiedPages=await config.verifySourceReadings({readings:preview.sourceReadings,frozen:preview.frozen,current});
+        if(!cadLive.current)return{stale:{gone:true,text:'This editor closed.'}};
+        if(refreshBlockedPlacement(preview))return{error:'The result moved to a free place. Check its preview, then Accept again.'};
+      }
+
       if(preview.extraction){
         if(!config.verifyExtraction)return{error:'Image interpretation is unavailable in this canvas.'};
         const frozen=preview.frozen,image=frozen.extractionImage;
-        const current=()=>({block:board().blocks.find(block=>block.id===image.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly,locked:canvas.locked?.(image.id)});
+        const current=()=>({block:board().blocks.find(block=>block.id===image.id),scope:imageAccess.current.config.imageScope?.(),readOnly:imageAccess.current.readOnly||(preview.kind==='image_replacement'&&(replacementLive.current.mode!=='edit'||replacementLive.current.output!==preview.output)),locked:canvas.locked?.(image.id)});
         verifiedExtraction=await config.verifyExtraction({extraction:preview.extraction,before:image,ids:frozen.ids,scope:frozen.extractionScope,current});
         if(!cadLive.current)return{stale:{gone:true,text:'This editor closed.'}};
         // Source reads finish before measuring/placing native output. No asynchronous
@@ -474,7 +518,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         if (fresh.prints.context !== frozen.prints?.context) return { stale: { content: true, text: 'What is around it changed while this was being made.' } };
       }
       let tx;
-      if (preview.kind === 'note') {
+      if(preview.kind==='image_replacement'){
+        if(JSON.stringify(canvas.boxOf(preview.original.id))!==JSON.stringify(frozen.replacementBounds))return{error:'The image placement changed. Request a new preview.'};
+        const made=imageReplacementTransaction(preview,{requestId:preview.requestId,board:now,bounds:frozen.replacementBounds,retainedSource:verifiedExtraction?.retainedSource,provenance:inlineProvenance({requestId:preview.requestId,mode:'edit',route:preview.route,frozen}),mode:replacementLive.current.mode,readOnly:replacementLive.current.readOnly,locked:canvas.locked?.(preview.original.id)});
+        if(!made.ok)return{error:made.error};tx=made.tx;
+      }else if (preview.kind === 'note') {
         const spot = placements[preview.requestId];
         if (!spot?.size) return { error: 'There is no place on the canvas beside the selection for this note.' };
         tx = explainTx({ requestId: preview.requestId, text: preview.text, frozen, board: now, boxes: { target: spot.target }, size: spot.size, place: spot, route: preview.route });
@@ -500,13 +548,17 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         }
         if(notebook){const step=preview.raw.plan.steps[0];appliedNotebook=await notebookEditor(notebook.id).apply({path:notebook.path,expectedRevision:notebook.revision,cellIds:notebook.cellIds,edits:step.input.edits,splits:step.input.splits,requestId:preview.requestId});}
       } else {
-        const block = preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
+        const computed=preview.kind==='source_compute'?validateSourceCompute(preview.raw,frozen,now,{...actionLive.current,locked:preview.raw.targetIds.some(id=>canvas.locked?.(id))}):preview.kind==='compute'?validateComputeResult(preview.raw,frozen,now,{...actionLive.current,locked:preview.raw.targetIds.some(id=>canvas.locked?.(id))}):null;
+        if(computed&&!computed.ok)return{stale:{content:true,text:computed.errors[0]}};
+        const block = computed?computed.preview.block:preview.kind === 'proposal' ? { ...preview.block, confirmedStart: true } : preview.block;
         // The ghost's spot, from the slot the card will take at the end of the column (where its ghost is drawn now).
         const spot = placements[preview.requestId], drawn = spot?.size && canvas.cardGhost?.measure();
         const place = drawn ? { side: spot.side, dx: spot.x - (drawn.x - spot.dx), dy: spot.y - (drawn.y - spot.dy) } : null;
         tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route, place });
+        if(computed)tx=stampComputation(tx,computed.preview,frozen);
       }
-      if(verifiedExtraction)tx=withExtraction(tx,{...verifiedExtraction,provenance:inlineProvenance({requestId:preview.requestId,mode:'explain',route:preview.route,frozen})});
+      if(verifiedExtraction&&preview.kind!=='image_replacement')tx=withExtraction(tx,{...verifiedExtraction,provenance:inlineProvenance({requestId:preview.requestId,mode:'explain',route:preview.route,frozen})});
+      if(verifiedPages)tx=stampSourceReadings(tx,verifiedPages);
       const stillCurrent=!notebook||validateEdit(preview.raw,frozen,{...board(),boxes:canvas.layout()}).ok;
       const applied=cadLive.current&&stillCurrent&&canvas.apply(tx, preview.requestId, id => session.persisted(id));
       if(!applied&&appliedNotebook)await notebookEditor(notebook.id).restore({path:notebook.path,expectedRevision:appliedNotebook.revision,ipynb:JSON.parse(notebook.revision)});
@@ -653,15 +705,17 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         })()}
         {(() => {
           // A diagram's ghost: its shapes and connectors, pale, exactly where Accept puts them, above everything.
-          const g = preview?.kind === 'diagram' && placements[preview.requestId];
+          const replacement=preview?.kind==='image_replacement'&&preview.output==='diagram',spec=replacement?preview.content.spec:preview?.spec;
+          const replacementLayout=replacement?layoutDiagram(spec):null;
+          const g=replacement?{...preview.frozen.replacementBounds,layout:replacementLayout,size:replacementLayout.bounds}:preview?.kind === 'diagram' && placements[preview.requestId];
           if (!g?.layout || status !== 'preview') return null;
           const at = id => { const node = g.layout.nodes.find(entry => entry.id === id); return node && { x: (g.x + node.x) * z + view.x, y: (g.y + node.y) * z + view.y, w: node.w * z, h: node.h * z }; };
-          const label = new Map(preview.spec.shapes.map(shape => [shape.id, shape.label]));
+          const label = new Map(spec.shapes.map(shape => [shape.id, shape.label]));
           return (
             <div data-inline-ghost data-ghost-kind="diagram" onPointerDown={event => event.stopPropagation()} className="pointer-events-auto absolute opacity-60"
               style={{ left: g.x * z + view.x, top: g.y * z + view.y, width: g.size.w * z, height: g.size.h * z }}>
               <svg className="absolute overflow-visible" style={{ left: -(g.x * z + view.x), top: -(g.y * z + view.y), width: 1, height: 1 }}>
-                {preview.spec.connectors.map((link, i) => { const a = at(link.from), b = at(link.to); return a && b && <line key={i} x1={a.x + a.w / 2} y1={a.y + a.h / 2} x2={b.x + b.w / 2} y2={b.y + b.h / 2} stroke="#6b7280" strokeWidth={1.5 * z} strokeDasharray="6 4" />; })}
+                {spec.connectors.map((link, i) => { const a = at(link.from), b = at(link.to); return a && b && <line key={i} x1={a.x + a.w / 2} y1={a.y + a.h / 2} x2={b.x + b.w / 2} y2={b.y + b.h / 2} stroke="#6b7280" strokeWidth={1.5 * z} strokeDasharray="6 4" />; })}
               </svg>
               {g.layout.nodes.map(node => { const box = at(node.id); return box && (
                 <div key={node.id} className="absolute flex items-center justify-center rounded-md border-2 border-dashed border-[#6b7280] bg-white/90 px-1 text-center text-ink dark:bg-[#202020]/90"
@@ -748,8 +802,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <p className="font-medium">Image interpretation</p>
           <p>Check this result against the original image. Recognition is not verified, even when no uncertainty is reported.</p>
           {preview.extraction.uncertainties.map((item,index)=><p key={index} className="mt-1"><strong>{item.location}:</strong> {item.message}</p>)}
-          <p className="mt-1 text-ink-3">Uses the selected image revision. Acceptance adds a separate result and retains the original.</p>
+          <p className="mt-1 text-ink-3">Uses the selected image revision. {preview.kind==='image_replacement'?'Acceptance replaces the selected image and retains its original asset.':'Acceptance adds a separate result and retains the original.'}</p>
         </div>}
+        {preview?.kind==='tool_action'&&<p data-inline-tool-action className="mt-2 text-xs">{preview.summary} Review {preview.action==='run_code'?'the input and execution confirmation':'the repository query'}, then choose {preview.action==='run_code'?'Review execution':'Search'} explicitly. Nothing has run.</p>}
+        {toolActionError&&<p role="alert" className="text-xs">{toolActionError}</p>}
+        {preview?.kind==='image_replacement'&&<div data-inline-image-replacement className="mt-2 max-h-56 overflow-auto rounded border border-line p-2 text-xs"><p>Replace this image with editable {preview.output}. Original asset retained; one Undo restores the image.</p>{preview.output==='equation'?<MathText expression={preview.content.latex} display/>:preview.output==='diagram'?<p>{preview.content.spec.shapes.length} shapes; resulting bounds {Math.ceil(layoutDiagram(preview.content.spec).bounds.w)} ? {Math.ceil(layoutDiagram(preview.content.spec).bounds.h)} canvas units. This may exceed the original image bounds; review the canvas preview.</p>:preview.output==='code'?<Code lang="text" lines={preview.content.block.code.split('\n')}/>:<table><thead><tr>{preview.content.block.columns.map((value,i)=><th key={i}>{value}</th>)}</tr></thead><tbody>{preview.content.block.rows.map((row,i)=><tr key={i}>{row.map((value,j)=><td key={j} className="px-2">{value}</td>)}</tr>)}</tbody></table>}</div>}
         {preview?.kind==='image_action'&&<p data-inline-image-action className="mt-2 text-xs">{preview.summary} Continue to {preview.action==='edit_image'?'select a region and review its cost':'review cost and confirmation'}. No image job has started.</p>}
         {preview?.kind==='equation'&&<div data-inline-preview="equation" className="mt-2 space-y-2 rounded-lg border border-line p-2">
           {preview.label&&<p className="text-xs font-medium">{preview.label}</p>}
@@ -794,10 +851,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             <p className="mt-1 text-[11px] text-ink-3">{placements[preview.requestId]?.offscreen ? 'Shown where it lands; ' : ''}Adds editable shapes and arrows to the canvas when you accept.</p>
           </div>
         )}
-        {(preview?.kind === 'card' || preview?.kind === 'proposal') && !busy(status) && (
+        {(['card','proposal','compute','source_compute'].includes(preview?.kind)) && !busy(status) && (
           <div data-inline-preview={preview.kind} data-card-type={preview.block?.type} className="mt-2 rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
-            <p className="font-medium text-ink">{preview.route ? routeLabel(preview.route) : 'Card'}: {short(preview.block?.title || preview.describe?.title || '', 60)}</p>
+            <p className="font-medium text-ink">{preview.kind==='source_compute'?'Plot from recognized page values':preview.kind==='compute'?(preview.operation.type==='polynomial_derivative'?'Exact polynomial check':'Computed from selected cells'):preview.route ? routeLabel(preview.route) : 'Card'}: {short(preview.block?.title || preview.describe?.title || '', 60)}</p>
             {(() => { const b = preview.block || {}; const words = [b.brief, b.caption, b.body, b.goal, b.operation?.request, typeof b.code === 'string' ? b.code : null].find(value => typeof value === 'string' && value.trim()) || preview.describe?.text; return words ? <p className="mt-0.5 line-clamp-3 text-ink-2">{short(words, 220)}</p> : null; })()}
+            {['compute','source_compute'].includes(preview.kind)&&<ul data-compute-limitations className="mt-1 list-disc pl-4 text-[11px] text-ink-3">{preview.limitations.map((text,i)=><li key={i}>{text}</li>)}</ul>}
             <p className="mt-1 text-[11px] text-ink-3">Adds this card ({short(preview.block?.type, 20)}) to the canvas when you {preview.kind === "proposal" ? "generate" : "accept"}.</p>
           </div>
         )}
@@ -837,12 +895,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <div className="mt-2 flex items-center justify-end gap-1.5">
             <button type="button" data-inline-reject onClick={reject} className="h-6 rounded-md border border-line bg-white px-2 text-xs text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ai">Reject</button>
             <button type="button" data-inline-accept onClick={accept} disabled={!acceptable || readOnly} title={busy(status) ? 'Waiting for the new version' : 'Accept (Ctrl Enter)'}
-              className="flex h-6 items-center gap-1 rounded-md bg-ink px-2 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40"><Check size={12} />{preview.kind==='image_action'?'Review image action':'Accept'}</button>
+              className="flex h-6 items-center gap-1 rounded-md bg-ink px-2 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40"><Check size={12} />{preview.kind==='tool_action'?'Review action':preview.kind==='image_action'?'Review image action':'Accept'}</button>
           </div>
         )}
         {/* The count, only near the supported limit or past it: nothing is cut, Send waits and says what to do. */}
         {outgoing.length >= NEAR && <p data-inline-count className={`mt-1 text-right text-[11px] ${outgoing.length > PROMPT_MAX ? 'text-[#b42318]' : 'text-ink-3'}`}>{outgoing.length} / {PROMPT_MAX}{outgoing.length > PROMPT_MAX ? ' - shorten it to send' : ''}</p>}
-        {codeTarget&&config.prepareCodeRun&&<div className="mt-2 rounded-lg border border-line p-2 text-xs">
+        {codeTarget&&config.prepareCodeRun&&<div ref={codeReview} className="mt-2 rounded-lg border border-line p-2 text-xs">
           {codeRun?<InlineCodeRunPreview key={codeRun.key} {...codeRun} onClose={()=>setCodeRun(null)}/>:<>
             <p>Run this entire Code box as a JavaScript async function body. Use an explicit return; Python and other languages are unavailable. Results never modify the canvas.</p>
             <label>JSON input<textarea data-inline-code-input onKeyDown={e=>e.stopPropagation()} value={codeInput} onChange={e=>setCodeInput(e.target.value)} className="w-full rounded border border-line p-1"/></label>
@@ -858,9 +916,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </>}
           {removalError&&<p role="alert">{removalError}</p>}
         </div>}
-        {config.repositoryEvidence&&<details data-inline-repository-evidence className="mt-2 rounded-lg border border-line p-2 text-xs">
+        {imageTarget&&config.verifyExtraction&&<label className="mt-2 block text-xs">Replace image with native content <select data-image-replacement-output aria-label="Image replacement output" value={replacementOutput} disabled={mode!=='edit'||busy(status)} onChange={e=>setReplacementOutput(e.target.value)} className="ml-2 rounded border border-line"><option value="">No replacement</option>{['table','equation','code','diagram'].map(value=><option key={value} value={value}>{value}</option>)}</select></label>}
+        {!!pdfTargets.length&&config.verifySourceReadings&&<fieldset data-inline-source-pages className="mt-2 rounded-lg border border-line p-2 text-xs"><legend>Read selected PDF pages</legend><p className="text-ink-3">Choose pages explicitly in Explain. Only available extracted text is read; partial coverage is disclosed.</p>{pdfTargets.map(block=><div key={block.id} className="mt-1 flex items-center gap-2"><label><input type="checkbox" disabled={mode!=='explain'||busy(status)} checked={Object.hasOwn(sourcePages,block.id)} onChange={e=>setSourcePages(previous=>{const next={...previous};if(e.target.checked)next[block.id]='';else delete next[block.id];return next;})}/> {short(block.fileRef.meta?.name||block.title||'PDF',45)}</label>{Object.hasOwn(sourcePages,block.id)&&<input type="number" min="1" step="1" aria-label={`Page for ${block.fileRef.meta?.name||block.title||block.id}`} value={sourcePages[block.id]} disabled={mode!=='explain'||busy(status)} onChange={e=>setSourcePages(previous=>({...previous,[block.id]:e.target.value}))} className="w-20 rounded border border-line px-1"/>}</div>)}<label className="mt-2 block"><input type="checkbox" data-source-plot checked={sourcePlot} disabled={mode!=='explain'||busy(status)} onChange={e=>setSourcePlot(e.target.checked)}/> Recognize numeric values and preview a plot</label></fieldset>}
+        {preview?.kind==='source_compute'&&<div data-recognized-source-values className="mt-2 max-h-48 overflow-auto text-xs"><p>Review recognized values before accepting. Recognition is not independently verified.</p><table><thead><tr>{preview.table.columns.map((value,i)=><th key={i}>{value}</th>)}</tr></thead><tbody>{preview.table.rows.map((row,i)=><tr key={i}>{row.map((value,j)=><td key={j} className="px-2">{value}</td>)}</tr>)}</tbody></table><ul>{preview.uncertainties.map((value,i)=><li key={i}>{value.location}: {value.message}</li>)}</ul></div>}
+        {preview?.sourceReadings&&<ul data-source-readings className="mt-2 text-xs text-ink-2">{preview.sourceReadings.map((entry,i)=><li key={i}>Page {entry.range.page}: {entry.coverage==='partial'?'Partial extracted text - not the whole page':'Extracted text only - images and layout not verified'}.</li>)}</ul>}
+        {config.repositoryEvidence&&<details ref={evidenceDetails} data-inline-repository-evidence className="mt-2 rounded-lg border border-line p-2 text-xs">
           <summary className="cursor-pointer text-ink-2">Search this repository</summary>
-          <div className="mt-2 max-h-64 overflow-auto" data-scroll><InlineRepositoryEvidence {...config.repositoryEvidence} contextKey={canvas.boardKey}/></div>
+          <label className="mt-2 block"><input type="checkbox" checked={evidenceScopeEnabled} onChange={event=>setEvidenceScopeEnabled(event.target.checked)}/> Allow this inline request to propose a search of this repository</label>
+          <div className="mt-2 max-h-64 overflow-auto" data-scroll><InlineRepositoryEvidence {...config.repositoryEvidence} contextKey={canvas.boardKey} suggestedQuery={evidenceAction}/></div>
         </details>}
         <div className="mt-2 flex items-center gap-2">
           <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"

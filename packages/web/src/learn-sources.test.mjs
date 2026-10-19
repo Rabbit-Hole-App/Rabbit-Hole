@@ -1,9 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { withSource, toggleSource, isAttached, attachedKinds } from './learn-sources.js';
+import { withSource, withRetainedSource, toggleSource, isAttached, attachedKinds } from './learn-sources.js';
 
 const repo = { id: 'repo:karpathy/nanoGPT', kind: 'repository', label: 'karpathy/nanoGPT' };
 const paper = { id: 'paper:2501.1234', kind: 'paper', label: 'arXiv 2501.1234' };
+
+test('retaining provenance never implicitly attaches a new asset and preserves explicit prior choices', () => {
+  const source={id:'file:original@revision',kind:'file',attached:true,fileRef:{source:{id:'original',rev:'revision'}}};
+  const kept=withRetainedSource([],source);
+  assert.equal(kept[0].attached,false);
+  assert.equal(isAttached(kept,source.id),false);
+  assert.deepEqual(kept[0].fileRef,source.fileRef);
+  for(const attached of [true,false]){
+    const existing=[{...source,attached}];
+    assert.equal(withRetainedSource(existing,{...source,label:'Original'})[0].attached,attached);
+    assert.equal(existing[0].label,undefined);
+  }
+});
 
 test('a new source arrives attached - it was just brought in on purpose', () => {
   const sources = withSource([], repo);

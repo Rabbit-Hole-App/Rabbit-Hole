@@ -1,8 +1,12 @@
-// The inline request check (docs/features/inline-ai-validation.md; owner briefs 2026-10-13, validation and creation §5):
+import { sourceComputeAvailable, SOURCE_COMPUTE_SYSTEM } from './inline-source-compute.js';
+import { imageReplacement } from './inline-image-replacement.js';
+import { computeAvailable, COMPUTE_SYSTEM, derivativeAvailable, DERIVATIVE_SYSTEM } from './inline-compute.js';
+// The inline request check (docs/features/inline-ai-validation.md; owner briefs 2026-10-13, validation and creation ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§5):
 // the free local checks, then ONE route+validate call, then a signed proceed bound to this exact request. The
 // generation endpoint (learn-inline.js) refuses anything without that proceed: nothing a browser says authorizes
 // generation by itself, and a timeout or a malformed answer is a retryable error that never falls through.
 // The decision words and routes are shared with the editor (web/src/inline-ai-decide.js).
+import { reviewActions, REVIEW_ACTION_SYSTEM } from './inline-tool-action.js';
 import { askJev, JEV_TRANSPORTS } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
 import { hmacHex, sha256, sign, verify } from './token.js';
@@ -24,7 +28,7 @@ const hasTools = request => request?.mode === 'edit' && validInlineToolSnapshot(
 const hasAnnotations = request => request?.mode==='explain' && request.context?.toolSnapshot?.intent==='explain' && validInlineToolSnapshot(request.context.toolSnapshot);
 const TOOL_SCOPE = 'Selected-object appearance and measured alignment; complete editable native table sort, exact deduplication and explicitly specified scaling; selected boxed diagram nodes/connectors may be relabelled, added, removed or rewired with dependency checks. Explicitly selected notebook cells may have source edited or partitioned into bounded exact-source fragments only when notebook scope is supplied, without execution; existing cell identities and unselected source are preserved. Related graph objects remain read-only. No grouping, external source edits, image edits or execution.';
 const IMAGE_SCOPE = 'One selected editable image supports precise crop, quarter-turn rotation, resize or padding through transform_image. Crop uses explicit original-image pixel coordinates and dimensions; resize/padding require explicit dimensions, otherwise clarify. A request to remove the background or edit/recolor an image region may proceed to an image action confirmation, not execution: regional editing requires the learner to select a mask, and both actions require availability checks and separate spending consent. Ask a focused clarification when the intended subject is ambiguous. Preserve original bytes and card placement. No extraction or code execution in this Edit path. Metadata alone does not establish visual inspection.';
-const toolScope = request => hasTools(request) && request.context.toolSnapshot.selection.length === 1 && request.context.toolSnapshot.selection[0].kind === 'image' ? IMAGE_SCOPE : TOOL_SCOPE;
+const toolScope = request => imageReplacement(request) ? 'The learner explicitly opted into replacing this one saved image with the chosen native table, code, equation or diagram. Proceed for a clear recognition request; clarify essential ambiguity. Generation reads authorized pixels and returns a replacement preview with uncertainty; only explicit Accept replaces the canvas object while retaining the immutable original. No code execution or mode change.' : hasTools(request) && request.context.toolSnapshot.selection.length === 1 && request.context.toolSnapshot.selection[0].kind === 'image' ? IMAGE_SCOPE : TOOL_SCOPE;
 
 // What a validator reads: the mode, whether anything is selected, the learner's words, the output a command already
 // fixed, and the compact material (inline-ai-decide.js summaryOf) - never the context package or the canvas.
@@ -33,6 +37,11 @@ function view(request, fixed) {
   const equationEdit=request.mode==='edit' && !request.textRange && request.targetIds?.length===1 && objects?.length===1 && objects[0].id===request.targetIds[0] && objects[0].type==='equation' && typeof objects[0].text==='string';
   return {
     mode: request.mode, selected: request.kind === 'selection',
+    ...(sourceComputeAvailable(request) ? { sourceComputation: SOURCE_COMPUTE_SYSTEM } : {}),
+    ...(request.context?.sourceRanges ? { explicitPageReading: 'Only the explicitly selected immutable PDF pages have accessible extracted text. Explain notes and comparisons read those bounded excerpts using route note only, including natural-language compare requests. Other artifact outputs are unavailable with explicit page scope; no whole-PDF or visual-layout access.' } : {}),
+    ...(derivativeAvailable(request) ? { availableDerivative: 'Exact rational univariate polynomial derivative check using ONLY the original LaTeX of the two frozen selected equations. Separate derived result; original and claim IDs plus one variable, never model rewritten formulas. Unsupported notation refuses.' } : {}),
+    ...(computeAvailable(request) ? { availableComputation: 'table_summary or table_plot from exact supplied native table cells, explicit columns and units; separate derived preview only, source unchanged' } : {}),
+    ...(reviewActions(request).length ? { availableReviewActions: reviewActions(request), reviewOnly: REVIEW_ACTION_SYSTEM } : {}),
     request: (request.slash ? `/${request.slash} ${request.prompt}` : request.prompt).slice(0, 1000),
     ...(fixed?.capability ? { output: fixed.capability === 'edit' ? 'an edit of the selection' : (CAPABILITIES[fixed.capability] || EXPLICIT_ROUTES[fixed.capability]).label } : {}),
     material: summaryOf({...request,context:inlineProviderContext(request.context)}),
@@ -41,7 +50,7 @@ function view(request, fixed) {
     ...(hasAnnotations(request) ? {availableAnnotations:'Explicitly requested anchored explanatory callouts or bounded highlights, added separately without changing selected objects. Ordinary Explain remains a note.'} : {}),
   };
 }
-const outputs = () => Object.fromEntries(Object.entries(CAPABILITIES).map(([id, entry]) => [id, entry.criterion]));
+const outputs = request => Object.fromEntries(Object.entries(CAPABILITIES).map(([id, entry]) => [id, entry.criterion + (id === 'note' && derivativeAvailable(request) ? ' Also an explicit exact polynomial derivative check between the two selected native equations; unsupported syntax is refused, not approximated.' : '') + (id === 'note' && computeAvailable(request) ? ' Also explicit numerical summary or scatter plot of selected native table cells using supplied units; derived preview without changing the table. No symbolic solving or arbitrary computation.' : '') + (id === 'note' && reviewActions(request).length ? ` Also a review-only handoff for ${reviewActions(request).join(' or ')} when explicitly requested; no execution or retrieval yet.` : '')]));
 
 // ---- JEV: three Choice questions in one request (decision, route unless fixed, what is missing) ----
 export function jevDecideRequest(request, fixed, model) {
@@ -49,6 +58,11 @@ export function jevDecideRequest(request, fixed, model) {
   return {
     model,
     state: {
+      ...(seen.sourceComputation ? { sourceComputation: seen.sourceComputation } : {}),
+      ...(seen.explicitPageReading ? { explicitPageReading: seen.explicitPageReading } : {}),
+      ...(seen.availableDerivative ? { availableDerivative: seen.availableDerivative } : {}),
+      ...(seen.availableComputation ? { availableComputation: seen.availableComputation } : {}),
+      ...(seen.availableReviewActions ? { availableReviewActions: seen.availableReviewActions, reviewOnly: seen.reviewOnly } : {}),
       mode: seen.mode === 'edit' ? seen.equationEdit ? seen.equationEdit : hasTools(request) ? 'edit: changes the selected content using legacy text edits or the explicitly supplied validated selection tools' : 'edit: changes selected words/text style and, when nativeTools is supplied, native appearance and supported alignment only' : 'explain: adds new material to the canvas',
       ...(request.context?.nativeTools ? {nativeTools:'set_appearance on selected native objects; arrange_selection on selected boxed shapes/text/notes, computed from measured bounds'} : {}),
       ...(hasTools(request) ? {toolSnapshot:toolScope(request)} : {}),
@@ -57,8 +71,8 @@ export function jevDecideRequest(request, fixed, model) {
       ...(seen.output ? { output: `${seen.output} (${request.revising ? 'the result shown, which the learner is refining: "it" and "this" mean that result' : 'chosen by the command the learner typed'})` } : {}), material: seen.material,
     },
     questions: {
-      decision: { type: 'choice', instructions: `May the inline editor act on this request? ${GUARD} When the meaning is uncertain, clarify.`, criteria: hasTools(request) ? {...DECISION_CRITERIA,unsupported:`Meaningful but outside the available outputs or these selected-object tools: ${toolScope(request)}`} : DECISION_CRITERIA },
-      ...(fixed?.capability ? {} : { route: { type: 'choice', instructions: `Which output does the request ask for? ${GUARD} Negations count: "explain it, but don't make a video" does not ask for a video.`, criteria: { ...outputs(), ...META } } }),
+      decision: { type: 'choice', instructions: `May the inline editor act on this request? ${GUARD} When the meaning is uncertain, clarify.`, criteria: sourceComputeAvailable(request) ? { ...DECISION_CRITERIA, proceed: 'A clear request to recognize a bounded table from explicitly selected extracted PDF pages and produce a deterministic plot preview with recognition uncertainties and known units. No source changes or numerical model answers.', unsupported: 'Outside one bounded selected-PDF-page table recognition and numeric plot preview. No whole-document extraction, arbitrary calculation, execution or inferred data.' } : derivativeAvailable(request) ? {...DECISION_CRITERIA, unsupported: 'Outside the available outputs and bounded exact univariate polynomial derivative check of the two selected equations. General CAS, transcendental functions and multivariable calculations are not available.', proceed: DECISION_CRITERIA.proceed + ' Explicit supported polynomial derivative checks produce a separate result, preserving both equations.'} : computeAvailable(request) ? {...DECISION_CRITERIA, unsupported: `Outside the available outputs, anchored annotations, supported review handoffs ${reviewActions(request).join(', ')} and bounded native-table summary/plot from explicit columns and units. Arbitrary expressions, symbolic solving, execution and unit inference are not supported.`, proceed: DECISION_CRITERIA.proceed + ' Explicit table summary/plot creates a separate derived preview without changing source cells.'} : reviewActions(request).length ? {...DECISION_CRITERIA, unsupported: `Outside available outputs or selected-object tools; explicit review-only ${reviewActions(request).join(', ')} handoffs are supported. Automatic execution/retrieval is not.`, proceed: DECISION_CRITERIA.proceed + ' Review-only handoffs do not need JSON execution inputs yet: those are supplied in the separate review flow.'} : hasTools(request) ? {...DECISION_CRITERIA,unsupported:`Meaningful but outside the available outputs or these selected-object tools: ${toolScope(request)}`} : DECISION_CRITERIA },
+      ...(fixed?.capability ? {} : { route: { type: 'choice', instructions: `Which output does the request ask for? ${GUARD} Negations count: "explain it, but don't make a video" does not ask for a video.`, criteria: { ...outputs(request), ...META } } }),
       missing: { type: 'choice', instructions: `If one essential piece of information is missing, which? ${GUARD}`, criteria: { ...MISSING_CRITERIA, nothing: 'Nothing essential is missing.' } },
     },
   };
@@ -82,8 +96,8 @@ export function readJevVerdict(body, fixed) {
 // ponytail: kept only to rerun the evaluation (docs/features/inline-ai-validation.md: JEV won); delete it if JEV stays.
 export function modelDecideRequest(request, fixed) {
   return {
-    max_tokens: 400, system: INLINE_DECIDE_SYSTEM + (hasTools(request) ? `\nFor this edit request, the explicitly available selection tools also support: ${toolScope(request)} These operations are supported when the selection supplies their inputs; never reinterpret Explain as Edit.` : ''), tools: [INLINE_DECIDE_TOOL], tool_choice: { type: 'tool', name: INLINE_DECIDE_TOOL.name, disable_parallel_tool_use: true },
-    messages: [{ role: 'user', content: JSON.stringify({ ...view(request, fixed), outputs: outputs() }) }],
+    max_tokens: 400, system: INLINE_DECIDE_SYSTEM + (sourceComputeAvailable(request) ? `\n${SOURCE_COMPUTE_SYSTEM} Use note route.` : '') + (request.context?.sourceRanges && !sourceComputeAvailable(request) ? '\nExplicit PDF page selections support note only for explanation or comparison; never route them to an artifact. Other requested outputs are unsupported here.' : '') + (derivativeAvailable(request) ? `\n${DERIVATIVE_SYSTEM} Route derivative checks to note in Explain.` : '') + (computeAvailable(request) ? `\n${COMPUTE_SYSTEM} Route supported derived table computation to note in Explain.` : '') + (reviewActions(request).length ? `\n${REVIEW_ACTION_SYSTEM} Available: ${reviewActions(request).join(', ')}; route these to note in Explain or edit in Edit.` : '') + (hasTools(request) ? `\nFor this edit request, the explicitly available selection tools also support: ${toolScope(request)} These operations are supported when the selection supplies their inputs; never reinterpret Explain as Edit.` : ''), tools: [INLINE_DECIDE_TOOL], tool_choice: { type: 'tool', name: INLINE_DECIDE_TOOL.name, disable_parallel_tool_use: true },
+    messages: [{ role: 'user', content: JSON.stringify({ ...view(request, fixed), outputs: outputs(request) }) }],
   };
 }
 export function readModelVerdict(message) {
@@ -125,11 +139,17 @@ export async function decide(env, { app, requestId, request, enabled }, { valida
     const snapshot = request.context.toolSnapshot;
     if (!validInlineToolSnapshot(snapshot) || (snapshot.intent||'edit')!==request.mode || !Array.isArray(request.targetIds) || snapshot.ids.length !== request.targetIds.length || new Set(request.targetIds).size !== request.targetIds.length || request.targetIds.some(id => !snapshot.ids.includes(id)) || request.textRange) return {status:400,body:{error:'Invalid frozen tool selection.'},called:false};
   }
+  if (Object.hasOwn(request?.context || {}, 'imageReplacement') && !imageReplacement(request)) return { status: 400, body: { error: 'Invalid explicit image replacement. Use one unlinked editable saved image.' }, called: false };
+  if (Object.hasOwn(request?.context || {}, 'sourceComputation') && !sourceComputeAvailable(request)) return { status: 400, body: { error: 'Choose explicit PDF pages and plot recognition in Explain.' }, called: false };
   const local = checkRequest(request);
   if (local?.error) return { status: 400, body: { error: local.error }, called: false };
   if (local) return { body: local, called: false };
   const can = Array.isArray(enabled) ? enabled.filter(id => typeof id === 'string' && knownCapability(id)) : DEFAULT_ENABLED;
-  const fixed = fixedRoute(request, can);
+  let fixed = fixedRoute(request, can);
+  if (request.context?.sourceRanges) {
+    if (fixed?.capability && fixed.capability !== 'note') return { body: { decision: 'unsupported', message: 'Explicit PDF page reading supports Explain notes and comparisons only. Remove page scope before requesting another output.', paid: false }, called: false };
+    if (!fixed) fixed = { capability: 'note' };
+  }
   if (fixed?.decision) return { body: fixed, called: false };
   const key = await signingKey(env);
   if (!key || (validator === 'jev' && !transport)) return { status: 503, body: { error: 'The request check isn\'t configured here.', code: 'unavailable', retryable: false }, called: false };

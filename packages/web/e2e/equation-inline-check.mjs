@@ -52,6 +52,74 @@ check('a blocked spend decision cannot generate or insert an equation',async()=>
 check('a long formula remains rendered within a scrollable preview without changing the canvas',async()=>{
  const before=(await state()).items;await open(null);await submit('Write a long equation');await editor().locator('[data-inline-preview="equation"]').waitFor();const field=editor().locator('[data-inline-equation-latex]');await field.fill(Array.from({length:45},(_,i)=>`x_{${i}}`).join('+'));assert.equal(await editor().locator('.katex-error').count(),0);assert.ok(await editor().locator('.katex').count());const bounds=await editor().boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=1500&&bounds.y>=0&&bounds.y+bounds.height<=1000,'Equation editor stays in the viewport');assert.deepEqual((await state()).items,before);await page.keyboard.press('Escape');
 });
+check('focused gap: a newer native equation edit refuses stale Ctrl K Apply',async()=>{
+ const before=(await state()).items.find(item=>item.id==='eq-original');
+ await open('eq-original','edit');await submit('stale-equation-fixture');
+ await editor().locator('[data-inline-preview="equation"]').waitFor();
+ await editor().locator('[data-inline-equation-latex]').fill('x+7');
+ const count=requests.length;
+ // Use the actual native editor, not a hidden state hook or an API write that
+ // the current canvas has not observed. Clicking preview LaTeX commits blur.
+ await page.locator('[data-item-id="eq-original"]').dblclick();
+ await editor().locator('[data-inline-preview="equation"]').waitFor();
+ assert.equal(await editor().locator('[data-inline-equation-latex]').inputValue(),'x+7','Native editing must not replace or close the prepared preview');
+ await page.getByRole('tab',{name:'LaTeX',exact:true}).click();
+ await page.getByLabel('LaTeX source',{exact:true}).fill('y+9');
+ await editor().locator('[data-inline-equation-latex]').click();
+ assert.equal(await editor().locator('[data-inline-equation-latex]').inputValue(),'x+7','Blur commits the native edit while the original proposal stays alive');
+ await until(async()=>(await state()).items.find(item=>item.id==='eq-original')?.latex==='y+9','New native edit did not save');
+ const newer=(await state()).items.find(item=>item.id==='eq-original');
+ assert.deepEqual(newer,{...before,latex:'y+9'});
+ await editor().locator('[data-inline-accept]').click();
+ await editor().locator('[data-inline-stale],[data-inline-error]').waitFor();
+ assert.match(await editor().locator('[data-inline-stale],[data-inline-error]').innerText(),/changed|new preview/i);
+ assert.deepEqual((await state()).items.find(item=>item.id==='eq-original'),newer,'Stale Apply must preserve the newer equation');
+ assert.equal(requests.length,count,'Stale Apply must not regenerate');
+ await page.screenshot({path:resolve(OUT,'equation-stale-refusal.png')});
+ await page.keyboard.press('Escape');
+ await page.reload();await page.locator('[data-item-id="eq-original"]').waitFor();
+ assert.deepEqual((await state()).items.find(item=>item.id==='eq-original'),newer,'Newer equation survives reload');
+});
+check('focused gap: toolbar generated long previews remain readable at 64 and 156 percent zoom',async()=>{
+ const sizes=[];
+ for(const direction of ['Zoom out','Zoom in']){
+  await clear();await page.getByTitle('Reset zoom',{exact:true}).click();
+  await page.getByTitle(direction,{exact:true}).click();await page.getByTitle(direction,{exact:true}).click();
+  const expected=direction==='Zoom out'?'64%':'156%';
+  assert.equal(await page.getByTitle('Reset zoom',{exact:true}).innerText(),expected);
+  const before=(await state()).items,count=requests.length;
+  await page.getByRole('button',{name:'Equation',exact:true}).click();
+  await page.locator('[data-canvas-surface]').click({position:{x:500,y:500}});
+  await page.getByRole('tab',{name:'Generate',exact:true}).click();
+  const gen=page.locator('[data-equation-generator]');
+  await gen.getByLabel('Equation description').fill('zoom-equation-fixture');
+  assert.equal(requests.length,count,'Opening and typing at another zoom is local');
+  await gen.getByRole('button',{name:'Generate',exact:true}).click();
+  await gen.locator('[data-equation-proposal]').waitFor();
+  assert.equal(requests.length,count+1);
+  await gen.getByLabel('Generated LaTeX').fill(Array.from({length:45},(_,i)=>`x_{${i}}`).join('+'));
+  const rendered=gen.locator('[data-equation-rendered]');
+  assert.equal(await rendered.locator('.katex-error').count(),0);
+  const metrics=await rendered.evaluate(node=>{
+   const box=node.getBoundingClientRect(),glyph=node.querySelector('.katex-html .mord')?.getBoundingClientRect();
+   const scroller=node.querySelector('[data-chat-math="display"]');if(!scroller)throw Error("Missing shared MathText scroller");scroller.scrollLeft=scroller.scrollWidth;
+   return{left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:box.width,height:box.height,glyphHeight:glyph?.height,scrollWidth:scroller.scrollWidth,clientWidth:scroller.clientWidth,scrollLeft:scroller.scrollLeft,viewport:[innerWidth,innerHeight]};
+  });
+  assert.ok(metrics.left>=0&&metrics.right<=metrics.viewport[0]&&metrics.top>=0&&metrics.bottom<=metrics.viewport[1],'Preview must stay in viewport');
+  assert.ok(metrics.glyphHeight>=8,'Formula glyphs must not shrink to unreadable zoom scale');
+  assert.ok(metrics.scrollWidth>metrics.clientWidth&&metrics.scrollLeft>0,'Long formula must be horizontally inspectable');
+  assert.equal(await gen.getByRole('button',{name:'Insert',exact:true}).isVisible(),true);
+  assert.equal(requests.length,count+1,'Manual long-formula editing and scrolling are local');
+  assert.deepEqual((await state()).items,before,'No insertion before acceptance');
+  sizes.push(metrics);
+  await page.screenshot({path:resolve(OUT,`equation-toolbar-${expected.replace('%','')}.png`)});
+  await page.keyboard.press('Escape');await clear();
+  assert.deepEqual((await state()).items,before,'Cancelling preview leaves canvas unchanged');
+ }
+ assert.ok(Math.abs(sizes[0].width-sizes[1].width)<=3,'Counter-scaled preview should retain screen width across zoom levels');
+ await page.getByTitle('Reset zoom',{exact:true}).click();
+ assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[]);
+});
 check('a saved view-only share renders equations without generation or editing controls',async()=>{
  const before=await state(),count=requests.length;const shared=await api(`/api/learn/boards/${canvas.name}/main/share`,'POST',{shared:true,view:true,public_view:true,state:before});assert.ok(shared.sharing?.view,'Share endpoint returns a view token');await page.goto(BASE+'/b/'+shared.sharing.view);await page.getByText('View only',{exact:true}).waitFor();await page.locator('[data-item-id="eq-original"]').waitFor();const box=await page.locator('[data-item-id="eq-original"]').boundingBox();assert.ok(box);await page.mouse.dblclick(box.x+box.width/2,box.y+box.height/2);assert.equal(await page.locator('[data-equation-palette]').count(),0);assert.equal(await page.locator('[data-equation-generator]').count(),0);await page.keyboard.press('Control+k');assert.equal(await editor().count(),0);assert.equal(requests.length,count);assert.deepEqual((await state()).items,before.items);assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[]);
 });
