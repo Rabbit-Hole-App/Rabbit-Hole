@@ -4,12 +4,14 @@
 // Topology: docs/features/rabbit-hole-production.md.
 import worker from './dev-worker.js';
 import { ownControlPlane } from '../control-plane/src/dev-forwarding.js';
+import { cadJobDiagnostic } from '../control-plane/src/cad-job-diagnostic.js';
 export { RepositoryImports, LearnScenes, LearnVideos, CadJobs } from './dev-worker.js';
 
 export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),
   fetch(req, env, ctx) {
     const url = new URL(req.url);
+    if (url.pathname === '/internal/cad-job-diagnostic') return cadJobDiagnostic(req, env);
     // Fixed recipient and dedicated bearer are validated by the private control plane.
     if (url.pathname === '/internal/cad-budget-alert') return env.CONTROL_PLANE.fetch(req);
     // Auth errors, sign-out and the app's 401 handler all land on /login, the control plane's legacy page.

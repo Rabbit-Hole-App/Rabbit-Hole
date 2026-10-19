@@ -12,6 +12,7 @@ import { cadModelRequest, runCadModel, cadReferenceImages } from './cad-model.js
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { notifyCadBudget } from './cad-budget-alert.js';
 import { recordCadFailure, archiveCadFailure, cadFailureMessage } from './cad-failure.js';
+import { diagnosticIdentity, diagnosticJob } from './cad-job-diagnostic.js';
 import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus, pauseCadProductionTransfer, reportCadProductionTransferPause, recordCadInfrastructureExtras, reserveCadLifetimeBytes } from './cad-production-budget.js';
 
 const PREFIX = '/api/learn/cad/jobs';
@@ -99,6 +100,15 @@ export class CadJobs {
   async fetch(req){
     try {
       const path=new URL(req.url).pathname;
+      if(path==='/diagnostic'){
+        if(req.method!=='GET')return cadJson({error:'GET required'},405);
+        let identity;
+        try{identity=diagnosticIdentity(new URL(req.url),'id');}catch{return cadJson({error:'Invalid job query'},400);}
+        if(this.state.id&&(!this.env.CAD_JOBS||String(this.state.id)!==String(this.env.CAD_JOBS.idFromName(identity.board))))return cadJson({error:'Not found'},404);
+        const job=await this.state.storage.get(jobKey(identity.id));
+        if(!job||job.id!==identity.id)return cadJson({error:'Not found'},404);
+        return cadJson({job:diagnosticJob(job,this.env)});
+      }
       if(path==='/production-model-reservation'){
         if(req.method!=='POST'||!isCadProductionBudgetObject(this.state,this.env))return cadJson({error:'Not found'},404);
         const input=await req.json();
