@@ -133,6 +133,18 @@ export function checkExplanation(input, targetIds, context, requestId) {
 }
 export function checkEdit(input, targetIds, context = null, { requestId, mode = 'edit' } = {}) {
   if (!input || typeof input !== 'object' || !Array.isArray(input.ops)) return { error: 'The model returned no edit.' };
+  if (Object.hasOwn(input, 'action')) {
+    const snapshot = context?.toolSnapshot, action = input.action;
+    if (mode !== 'edit' || !REQUEST_ID.test(requestId || '') || !validInlineToolSnapshot(snapshot) || (snapshot.intent || 'edit') !== 'edit'
+      || snapshot.ids.length !== 1 || snapshot.selection[0].kind !== 'image' || snapshot.selection[0].locked
+      || !Array.isArray(targetIds) || targetIds.length !== 1 || targetIds[0] !== snapshot.ids[0]
+      || input.ops.length || Object.hasOwn(input, 'plan') || !action || typeof action !== 'object' || Array.isArray(action)
+      || Object.keys(action).some(key => !['tool', 'targetId'].includes(key))
+      || !['remove_background', 'edit_image'].includes(action.tool) || action.targetId !== snapshot.ids[0]) return { error: 'The image action does not match the frozen editable selection.' };
+    // A handoff only: browser must recheck its frozen target and obtain explicit
+    // execution consent. This generation response never submits an image job.
+    return { result: { kind: 'image_action', action: action.tool, targetId: action.targetId, requestId, summary: String(input.summary || '').slice(0, 200) } };
+  }
   if(input.plan){
     if(input.ops.length)return {error:'Native tool plans cannot mix legacy text operations.'};
     if (context?.toolSnapshot) {

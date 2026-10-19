@@ -24,11 +24,12 @@ test('unconfigured, legacy, and notebook clients do not advertise image transfor
   }
   assert.ok(inlineEditToolFor(true,true).input_schema.properties.plan.properties.steps.items.properties.tool.enum.includes('edit_notebook_cells'));
 });
-test('image preparation cannot advertise pixel recognition, removal or paid image editing', () => {
+test('image preparation separates precise transforms from confirmation-only image actions', () => {
   assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/explicit original-image pixels/);
   assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/cannot remove a subject background/);
   assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/Do not invent source pixels/);
   assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/no provider image generation or code execution/);
+  assert.match(INLINE_IMAGE_TRANSFORM_SYSTEM,/action/);
 });
 test('both decision transports advertise precise image transforms without contradictory blanket refusal', () => {
   const block={id:'image',type:'image',assetKey:'saved-image',dx:0,dy:0};
@@ -41,7 +42,8 @@ test('both decision transports advertise precise image transforms without contra
     const text=JSON.stringify(payload);
     assert.match(text,/transform_image/);
     assert.match(text,/quarter-turn rotation/);
-    assert.match(text,/No background removal/);
+    assert.match(text,/image action confirmation, not execution/);
+    assert.match(text,/separate spending consent/);
     assert.doesNotMatch(text,/external source edits, image edits/);
   }
 });
