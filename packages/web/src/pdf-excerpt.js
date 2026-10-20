@@ -8,6 +8,8 @@ import { fileCardFromSource } from './file-to-canvas.js';
 import { pageRef, pdfSource } from './pdf-source.js';
 import { newId, putHighlight } from './pdf-highlights.js';
 import { getCrop } from './pdf-excerpt-drafts.js';
+import { cacheAsset } from './learn-asset-cache.js';
+import { sourceKey } from './file-source-client.js';
 
 // Owner decision 4: one text card holds at most 8,000 characters; the reader offers Shorten or Split before it gets here.
 export const EXCERPT_LIMIT = 8000;
@@ -63,7 +65,7 @@ function cropCard(excerpt, stored) {
 const uploads = new Map(), highlightIds = new Map(), inflight = new Map();
 // A region's crop, stored once per excerpt id (a retry after a later step failed reuses it). { crop, stored }.
 // A canvas never saved has no board yet, and the server stores a crop only for a saved board: save it (saveBoard) and send once more.
-async function storedCrop(draft, excerpt, { app, board, saveBoard = null }, { crop = getCrop, upload = uploadCrop }) {
+async function storedCrop(draft, excerpt, { app, board, saveBoard = null }, { crop = getCrop, upload = uploadCrop, cache = cacheAsset }) {
   if (draft.crop?.source?.id) return { crop: draft.crop, stored: null };
   if (!uploads.has(draft.id)) {
     const picture = await crop(draft.id);
@@ -74,6 +76,9 @@ async function storedCrop(draft, excerpt, { app, board, saveBoard = null }, { cr
       await saveBoard();
       return send();
     });
+    // This browser keeps the stored bytes under the source's key, as an import does: the card shows them before the board save
+    // that writes its file reference (the server's read rule); a fresh browser reads them from the server after that save.
+    await Promise.resolve(cache(sourceKey(answer.source), picture.blob)).catch(() => {});
     uploads.set(draft.id, { crop: { source: { id: answer.source.id, rev: answer.source.rev }, width: answer.width ?? picture.width, height: answer.height ?? picture.height }, stored: answer.fileRef || null });
   }
   return uploads.get(draft.id);
@@ -147,9 +152,9 @@ export function excerptChatRef(blockOrDraft) {
     return ref && { ...ref, name, open: excerptSourceRef(excerpt) };
   }
   if (excerpt.kind !== 'text' || !excerpt.quote?.exact) return null;
-  // The chip already shows range.page ("p. 12"): the name is the document's. open: the reader ref a chip click opens (the
-  // server keeps only the known ref fields).
-  return { sourceId: `excerpt:${excerpt.id}`, kind: 'excerpt', name: nameOf(excerpt).slice(0, 120), open: excerptSourceRef(excerpt), version: '', range: { page: excerpt.page.index }, text: excerptText(excerpt, block?.note) };
+  // The name carries the printed page ("p. xii"); chips show no range label for an excerpt. open: the reader ref a
+  // chip click opens (the server keeps only the known ref fields).
+  return { sourceId: `excerpt:${excerpt.id}`, kind: 'excerpt', name, open: excerptSourceRef(excerpt), version: '', range: { page: excerpt.page.index }, text: excerptText(excerpt, block?.note) };
 }
 // A region draft's crop is stored before it can be attached (Add to chat needs no card): { ref, fileRef } for chat.addToChat.
 export async function draftChatRef(draft, { app, board = 'main', saveBoard = null, deps = {} }) {

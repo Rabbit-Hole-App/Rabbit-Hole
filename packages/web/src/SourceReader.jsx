@@ -152,5 +152,5 @@ function PaperReader({ app, id, home = null, src = null, title, startPage, quote
 export default function SourceReader({ sourceRef, position, onPosition }) {
   const chat = useChatWorkspace();
   if (!sourceRef) return null;
-  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)}`} sourceRef={sourceRef} position={position} onPosition={onPosition} chat={chat} />;
+  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)} ${sourceRef.opened ?? ''}`} sourceRef={sourceRef} position={position} onPosition={onPosition} chat={chat} />;
 }

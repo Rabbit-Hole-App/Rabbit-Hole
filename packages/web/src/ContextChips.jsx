@@ -42,7 +42,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
     <li key={refKey(ref)} data-code-selection data-ref-key={refKey(ref)} title={`${ref.name} · ${refWhere(ref)}. Selected in the repository viewer: it goes with the next question; Add to chat keeps it.`}
       className={`${CHIP} border-dashed border-line-strong pr-0.5`}>
       <span className="flex h-full min-w-0 items-center gap-1 pl-1.5"><RefIcon kind="code" /><span className="max-w-40 truncate">{ref.name}</span>
-        {rangeLabel(ref.range) && <span className="shrink-0 text-ink-3">{rangeLabel(ref.range)}</span>}<span className="shrink-0 text-ink-3">· selected</span></span>
+        {rangeLabel(ref.kind === 'excerpt' ? null : ref.range) && <span className="shrink-0 text-ink-3">{rangeLabel(ref.kind === 'excerpt' ? null : ref.range)}</span>}<span className="shrink-0 text-ink-3">· selected</span></span>
       <button type="button" onClick={() => code.onRemove(ref)} aria-label={`Remove ${ref.name} from the selection`} title="Remove from the selection" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
     </li>
   );
@@ -59,7 +59,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
           <Shapes size={14} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-3" /> This canvas
         </li>
         {selection && !selection.pinned && (() => {
-          const { ref } = selection, label = rangeLabel(ref.range), labelOnly = labelOnlyChip(ref, readPaper);
+          const { ref } = selection, label = rangeLabel(ref.kind === 'excerpt' ? null : ref.range), labelOnly = labelOnlyChip(ref, readPaper);
           return (
             <li data-canvas-target data-selected-card={selection.id} data-context-selection data-ref-key={refKey(ref)} data-label-only={labelOnly || undefined}
               title={`${selection.kind}: ${String(selection.title ?? '')}`} className={`${CHIP} border-dashed border-line-strong pr-0.5`}>
@@ -83,7 +83,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
           </Menu>
         </li>}
         {chips.map(item => {
-          const { ref, state } = item, label = rangeLabel(ref.range), busy = state === 'uploading' || state === 'processing', labelOnly = state === 'ready' && labelOnlyChip(ref, readPaper);
+          const { ref, state } = item, label = rangeLabel(ref.kind === 'excerpt' ? null : ref.range), busy = state === 'uploading' || state === 'processing', labelOnly = state === 'ready' && labelOnlyChip(ref, readPaper);
           const selected = (!!selection?.pinned && state === 'ready' && sameRef(selection.ref, ref)) || (state === 'ready' && codeSelected(ref));
           return (
             <li key={item.id || refKey(ref)} data-context-chip={state} data-ref-key={refKey(ref)} data-label-only={labelOnly || undefined}

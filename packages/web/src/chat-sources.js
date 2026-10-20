@@ -49,6 +49,7 @@ export const wikiRef = ({ title }) => ({ sourceId: `wiki:${title}`, kind: 'web',
 export const codeRef = ({ repo = '', commit = '', path, start = 0, end = 0 }) => ({ sourceId: `code:${repo}@${commit}:${path}`, kind: 'code', name: named(path.split('/').pop()), version: commit, range: start ? { path, start, end: Math.max(start, end || start) } : null });
 
 // Per canvas: another canvas starts with nothing open, and coming back finds its reading positions where they were.
+let opens = 0;
 export function useChatSources(canvas) {
   const [held, setHeld] = useState({ canvas, stack: [] }), stores = useRef(new Map());
   if (!stores.current.has(canvas)) stores.current.set(canvas, positionStore());
@@ -57,7 +58,8 @@ export function useChatSources(canvas) {
     const change = next => setHeld(previous => ({ canvas, stack: next(previous.canvas === canvas ? previous.stack : []) }));
     return {
       active: stack.at(-1) ?? null, canBack: stack.length > 1,
-      open: ref => { store.opened(ref); change(previous => pushSource(previous, ref)); },
+      // An excerpt's Open source lands on its anchor every time, also when that PDF is already open (SourceReader keys on `opened`).
+      open: ref => { store.opened(ref); const next = ref.range?.excerpt ? { ...ref, opened: (opens += 1) } : ref; change(previous => pushSource(previous, next)); },
       back: () => change(previous => previous.slice(0, -1)), close: () => change(() => []),
       position: sourceId => store.get(sourceId), savePosition: (sourceId, position) => store.set(sourceId, position),
     };

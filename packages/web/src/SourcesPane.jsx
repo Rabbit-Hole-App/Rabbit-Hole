@@ -118,7 +118,7 @@ export default function SourcesPane() {
                       <span data-material-name title={name} className={`min-w-0 truncate ${isActive ? 'font-medium' : ''}`}>{name}</span>
                       {docMeta(doc) && <span data-material-meta className="truncate text-[11px] text-ink-3">{docMeta(doc)}</span>}
                     </span>
-                    {rangeLabel(ref.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(ref.range)}</span>}
+                    {rangeLabel(ref.kind === 'excerpt' ? null : ref.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(ref.kind === 'excerpt' ? null : ref.range)}</span>}
                     {busy && <span className="shrink-0 text-xs text-ink-3">{item.state === 'processing' ? 'Processing' : 'Uploading'}</span>}
                   </button>
                   <div data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @[22rem]:pr-1 @[22rem]:pb-0 @[22rem]:pl-0">
