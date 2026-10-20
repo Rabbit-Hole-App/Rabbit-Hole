@@ -142,10 +142,12 @@ export function excerptChatRef(blockOrDraft) {
   const name = excerptName(excerpt).slice(0, 120);
   if (excerpt.kind === 'region') {
     const ref = block?.fileRef ? fileChatRef(block, null) : excerpt.crop?.source ? fileChatRef(cropCard(excerpt), null) : null;
-    return ref && { ...ref, name };
+    return ref && { ...ref, name, open: excerptSourceRef(excerpt) };
   }
   if (excerpt.kind !== 'text' || !excerpt.quote?.exact) return null;
-  return { sourceId: `excerpt:${excerpt.id}`, kind: 'excerpt', name, version: '', range: { page: excerpt.page.index }, text: excerptText(excerpt, block?.note) };
+  // The chip already shows range.page ("p. 12"): the name is the document's. open: the reader ref a chip click opens (the
+  // server keeps only the known ref fields).
+  return { sourceId: `excerpt:${excerpt.id}`, kind: 'excerpt', name: nameOf(excerpt).slice(0, 120), open: excerptSourceRef(excerpt), version: '', range: { page: excerpt.page.index }, text: excerptText(excerpt, block?.note) };
 }
 // A region draft's crop is stored before it can be attached (Add to chat needs no card): { ref, fileRef } for chat.addToChat.
 export async function draftChatRef(draft, { app, board = 'main', saveBoard = null, deps = {} }) {
@@ -153,7 +155,7 @@ export async function draftChatRef(draft, { app, board = 'main', saveBoard = nul
   const excerpt = excerptOf(draft, app, {});
   const { crop, stored } = await storedCrop(draft, excerpt, { app, board, saveBoard }, deps);
   const card = cropCard({ ...excerpt, crop }, stored);
-  return { ref: { ...fileChatRef(card, null), name: excerptName(excerpt).slice(0, 120) }, fileRef: card.fileRef };
+  return { ref: { ...fileChatRef(card, null), name: excerptName(excerpt).slice(0, 120), open: excerptSourceRef(excerpt) }, fileRef: card.fileRef };
 }
 
 // Open source: the companion reader's ref for the PDF at the excerpt's page (pdf-source.js pageRef shape, with its home), plus

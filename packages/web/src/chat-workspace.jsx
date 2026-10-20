@@ -43,7 +43,8 @@ export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, ch
   const chatComposer = useMemo(() => ({ ...composer, prepare }), [composer, prepare]);
   // A ref's reader opens in the Context tab; viewing never attaches (contract A5). options.reveal false: a late completion
   // loads the reader without reopening a panel the learner hid (chat-panels.js openSources).
-  const openSource = useCallback((ref, options) => { panels.openSources(options); sources.open(ref); }, [panels, sources]);
+  // A PDF excerpt chip names its reader ref in `open` (pdf-excerpt.js): the PDF at the excerpt's page, with its anchor.
+  const openSource = useCallback((ref, options) => { panels.openSources(options); sources.open(ref?.open || ref); }, [panels, sources]);
   // Add to Chat (contract A5): open Chat, Ask mode, attach, keep the draft, focus, never send.
   const addToChat = useCallback((ref, options) => { if (canvasOps?.retainFileForContext?.(ref, options?.fileRef) === false) return false; panels.openChat(); thread.setMode('ask'); context.attach(ref); composer.focus(); }, [panels, thread, context, composer, canvasOps]);
   // The Chat's AskPanel registers its send loop (A2); regenerate(messageId) re-sends that turn with regenerate: { messageId }

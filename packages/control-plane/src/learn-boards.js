@@ -584,6 +584,16 @@ export const cardName = entry => plain(entry?.title || entry?.question || entry?
 const optionalId = value => (value == null ? null : typeof value === 'string' && value.length <= ORIGIN_ID ? value : undefined);
 // The origin's identities as the browser resolved them (learn-target.js resolveTarget); the block id is checked
 // against the shared board itself. Undefined marks a malformed field.
+// A PDF excerpt card (web pdf-excerpt.js) as the hole's starting words: the verbatim quote and its source line, already visible
+// on the shared card; never the PDF, and no access to it (a region names its page only). Whitespace kept: it is a quotation.
+function excerptSeedText(entry) {
+  const x = entry?.excerpt;
+  if (!x || typeof x !== 'object' || !x.source || !x.page) return '';
+  const where = `"${plain(x.source.name || 'PDF', 200)}", page ${plain(x.page.label || x.page.index, 40)}`;
+  if (x.kind === 'text' && typeof x.quote?.exact === 'string') return `\n\nVerbatim excerpt from ${where}:\n${x.quote.exact.slice(0, 8000)}`;
+  return x.kind === 'region' ? `\n\nA picture excerpt of ${where}.` : '';
+}
+
 function originOf(origin, state) {
   if (origin == null) return { root: true };
   if (typeof origin !== 'object' || Array.isArray(origin)) return { error: 'origin must be an object or null' };
@@ -656,7 +666,7 @@ async function startRabbitHole(req, env, token, body) {
   };
   // The hole's first object: where it began, in words. Never a copy of the card.
   const anchor = { id: crypto.randomUUID(), type: 'explanation', dx: 0, dy: 0, title,
-    body: origin.root ? `Started from the shared canvas "${sharedName}".` : `Started from "${from}" on the shared canvas "${sharedName}".`, anchor: { source: 'shared' } };
+    body: origin.root ? `Started from the shared canvas "${sharedName}".` : `Started from "${from}" on the shared canvas "${sharedName}".${excerptSeedText(origin.entry)}`, anchor: { source: 'shared' } };
   const now = new Date().toISOString();
   try {
     await db.batch([

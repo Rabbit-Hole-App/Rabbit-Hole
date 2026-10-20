@@ -180,3 +180,19 @@ test('blank start: an empty private canvas titled "<source> notes", linked to th
   const anon = await blank(null, { origin: null, blank: true });
   assert.equal(anon.status, 401);
 });
+
+test('a hole from a shared PDF excerpt card starts with its verbatim quote and source line, never the PDF', async t => {
+  const { call } = setup(t);
+  const plain = (await call('POST', '/api/canvases', { as: 'ana', body: { title: 'Reading group' } })).body;
+  const quote = 'Line one of the passage.\n\nLine two.';
+  const excerpt = { v: 1, id: 'pdfx_' + 'a'.repeat(24), kind: 'text', source: { key: 'doc:ctx:' + 'b'.repeat(12), sha256: 'c'.repeat(64), name: 'Field Guide', home: null },
+    page: { index: 12, label: 'xii' }, rotate: 0, view: [0, 0, 612, 792], rects: [[1, 2, 3, 4]], quote: { exact: quote, prefix: '', suffix: '' }, highlightId: null, crop: null, part: null };
+  const state = { blocks: [{ id: 'ex1', type: 'explanation', title: 'Field Guide · p. xii', excerpt }] };
+  const token = (await call('POST', `/api/learn/boards/${plain.name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: true, state } })).body.sharing.view;
+  const made = await start(call, token, 'cara', { block_id: 'ex1' });
+  assert.equal(made.status, 201, made.text);
+  const row = (await call('GET', `/api/learn/boards/${made.body.name}/main`, { as: 'cara' })).body;
+  const anchor = row.state.blocks[0];
+  assert.match(anchor.body, /Verbatim excerpt from "Field Guide", page xii:\nLine one of the passage\.\n\nLine two\.$/);
+  assert.equal(anchor.excerpt, undefined, 'a text anchor, not a copy of the card');
+});
