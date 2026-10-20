@@ -910,6 +910,10 @@ tr.cursor-pointer:active > td {
    them, so the selection does not jump to the top of the page. */
 .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
 .textLayer.selecting .endOfContent { top: 0; }
+/* A quarter-turned page: pdf.js lays the words out unrotated and turns the layer (pdf_viewer.css data-main-rotation). */
+.textLayer[data-main-rotation="90"] { transform: rotate(90deg) translateY(-100%); }
+.textLayer[data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
+.textLayer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
 .textLayer ::selection { background: rgb(0 0 255 / 0.25); color: transparent; }
 /* The page image already shows the words - a highlight only tints them. */
 .textLayer ::highlight(wiki-highlight) { background-color: rgb(250 204 21 / 0.45); color: transparent; }

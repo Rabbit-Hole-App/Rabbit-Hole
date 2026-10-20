@@ -8,11 +8,14 @@ import { Button } from './ui.jsx';
 import { wsHeaders } from './api.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { codeSource, readerFor } from './chat-sources.js';
+import { pdfKeyOfRef } from './pdf-source.js';
 
 // Sub-lane A4b: one reader for one ContextRef (brief section 6), reusing the existing viewers: LearnPaper (arXiv and uploaded
 // papers, and PDF context docs), LearnWiki, RepositorySource (code, read at the cited commit, never run). Props: { sourceRef, position, onPosition }.
 // SourcesPane (A4a) mounts it for the expanded source only. Viewing never attaches; "Ask about this" on a selected passage or
-// code range is the only thing here that touches the conversation, through chat.addToChat (contract A5).
+// code range touches the conversation through chat.addToChat (contract A5). A PDF has its own selection toolbar and region tool
+// in LearnPaper (pdf-excerpts contract): Highlight, Add to canvas, Add to chat.
+const QUOTE_MAX = 500; // the server's limit for a quote range (chat-modes.js): a longer passage is refused, never cut
 
 // LearnPage renders the provider, so its own reader openers reach the workspace through this, mounted inside the provider.
 export function ChatWorkspaceRef({ into }) {
@@ -24,12 +27,13 @@ export function ChatWorkspaceRef({ into }) {
 const AskButton = ({ onClick }) => <Button size="sm" data-source-ask onMouseDown={event => event.preventDefault()} onClick={onClick}><MessageSquarePlus size={13} />Ask about this</Button>;
 const clock = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
-// Nothing here can show this source: say so, with the cited place, and never a promised viewer.
-function Unavailable({ sourceRef }) {
+// Nothing here can show this source: say so, with the cited place, and never a promised viewer. `refused`: the bytes route said
+// this file is not available to this learner.
+function Unavailable({ sourceRef, refused = false }) {
   const range = sourceRef.range || {};
   const where = range.page ? `Page ${range.page}` : range.startSec != null ? `At ${clock(range.startSec)}` : range.cardIds ? `${range.cardIds.length} objects on the canvas` : '';
-  return <div data-source-unavailable className="space-y-2 p-3 text-sm">
-    <p className="text-ink-2">Can't preview {sourceRef.name || 'this source'} here.</p>
+  return <div data-source-unavailable data-pdf-source-unavailable={refused ? '' : undefined} className="space-y-2 p-3 text-sm">
+    <p className="text-ink-2">{refused ? `${sourceRef.name || 'This file'} is not available to you.` : `Can't preview ${sourceRef.name || 'this source'} here.`}</p>
     {where && <p className="text-xs text-ink-3">{where}</p>}
     {range.quote && <blockquote className="border-l-2 border-line pl-3 text-ink-2">{range.quote}</blockquote>}
   </div>;
@@ -50,7 +54,7 @@ function TextView({ text, quote, position, save }) {
 
 // A canvas context document (doc:<id>), read once through GET /api/learn/context/<id> (A4a's route): a PDF opens in the paper
 // view at its page from those same bytes, a .txt or .md as text. Anything else, or a failed read, says it can't preview here.
-function DocReader({ app, sourceRef, position, save, startPage }) {
+function DocReader({ app, sourceRef, position, save, startPage, plainChat }) {
   const [doc, setDoc] = useState(null);
   const id = sourceRef.sourceId.slice('doc:'.length);
   useEffect(() => {
@@ -58,6 +62,7 @@ function DocReader({ app, sourceRef, position, save, startPage }) {
     let url = null;
     fetch(docUrl(app, id), { headers: wsHeaders(), signal: controller.signal })
       .then(async response => {
+        if (!response.ok) { if (!controller.signal.aborted) setDoc({ refused: true }); return; }
         const type = response.ok ? response.headers.get('content-type') || '' : '';
         const next = /pdf/.test(type) ? { pdf: (url = URL.createObjectURL(await response.blob())) } : /^text\//.test(type) ? { text: await response.text() } : {};
         if (!controller.signal.aborted) setDoc(next);
@@ -67,42 +72,53 @@ function DocReader({ app, sourceRef, position, save, startPage }) {
   }, [app, id]);
   const range = sourceRef.range || {};
   if (!doc) return <p role="status" className="p-3 text-sm text-ink-2">Opening {sourceRef.name}…</p>;
-  if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} startPage={startPage} quote={range.quote} quotePage={range.page || 1} save={save} />;
-  return doc.text == null ? <Unavailable sourceRef={sourceRef} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;
+  if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} startPage={startPage} quote={range.quote} quotePage={range.page || 1} save={save}
+    companion={{ key: pdfKeyOfRef(sourceRef), home: null, anchor: range.excerpt || null, plainChat }} />;
+  return doc.text == null ? <Unavailable sourceRef={sourceRef} refused={!!doc.refused} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;
 }
 
 function Reader({ sourceRef, position, onPosition, chat }) {
   const app = chat?.canvas, reader = readerFor(sourceRef), range = sourceRef.range || {};
   // Where the reader is now; every report also goes to the session position store (chat-sources.js).
   // The memoized reader below outlives renders, so it reaches the latest workspace and onPosition through refs.
-  const here = useRef({ page: range.page || 1, ...position }), report = useRef(onPosition), live = useRef(chat);
+  // An excerpt's Open source opens its own page, never the reader's last one.
+  const here = useRef({ page: range.page || 1, ...position, ...(range.excerpt?.page?.index ? { page: range.excerpt.page.index } : {}) }), report = useRef(onPosition), live = useRef(chat);
   report.current = onPosition; live.current = chat;
   const save = useCallback(next => { here.current = { ...here.current, ...next }; report.current?.(next); }, []);
   const [passage, setPassage] = useState(null);
   const box = useRef(null);
-  // A selected passage offers Ask about this. Set only on a change, so a plain click never re-renders the reader under it.
+  // A selected passage (wiki or text) offers Ask about this. Set only on a change, so a plain click never re-renders the reader
+  // under it. A PDF's selection belongs to LearnPaper's toolbar.
   const pick = () => {
+    if (box.current?.querySelector('[aria-label="Paper reader"]')) return;
     const selection = window.getSelection?.();
     const inside = selection && !selection.isCollapsed && box.current?.contains(selection.anchorNode) && box.current.contains(selection.focusNode);
-    const text = inside ? selection.toString().trim().slice(0, 500) : '';
+    const text = inside ? selection.toString().trim() : '';
     setPassage(text || null);
   };
   const ask = () => {
-    // A passage in a PDF (a paper or a PDF doc) carries its page.
-    const paged = box.current?.querySelector('[aria-label="Paper reader"]');
-    chat.addToChat({ ...sourceRef, range: paged ? { page: here.current.page, quote: passage } : { quote: passage } });
+    chat.addToChat({ ...sourceRef, range: { quote: passage } });
     window.getSelection?.()?.removeAllRanges();
     setPassage(null);
   };
+  // A PDF passage with no excerpt identity (an arXiv paper, or the identity route refused): the quote at its page, as before.
+  const plainChat = useCallback(text => {
+    if (!live.current) return 'Chat is not available here.';
+    if (text.length > QUOTE_MAX) return `Select up to ${QUOTE_MAX} characters to add a passage of this paper to chat.`;
+    live.current.addToChat({ ...sourceRef, range: { page: here.current.page, quote: text } });
+    return null;
+  }, [sourceRef]);
   const [selection, setSelection] = useState(null);
   const codeSelection = useMemo(() => ({ value: selection, set: setSelection }), [selection]);
   const body = useMemo(() => {
     if (reader === 'paper') {
       const id = sourceRef.sourceId.slice('paper:'.length);
-      return <PaperReader app={app} id={id} home={sourceRef.home} title={sourceRef.name} startPage={here.current.page} quote={range.quote} quotePage={range.page || 1} save={save} />;
+      const key = pdfKeyOfRef(sourceRef);
+      return <PaperReader app={app} id={id} home={sourceRef.home} title={sourceRef.name} startPage={here.current.page} quote={range.quote} quotePage={range.page || 1} save={save}
+        companion={{ key, home: key ? sourceRef.home || app : null, anchor: range.excerpt || null, plainChat }} />;
     }
     if (reader === 'wiki') return <LearnWiki app={app} article={{ title: sourceRef.sourceId.slice('wiki:'.length), section: position?.section || 0 }} onSection={section => save({ section })} />;
-    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} />;
+    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} plainChat={plainChat} />;
     if (reader === 'text') return <TextView text={sourceRef.text} quote={range.quote} position={position} save={save} />;
     if (reader === 'code') {
       const code = codeSource(sourceRef);
@@ -118,16 +134,17 @@ function Reader({ sourceRef, position, onPosition, chat }) {
   }, [app, sourceRef]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} data-source-reader={reader || 'none'} onMouseUp={reader === 'code' ? undefined : pick} onKeyUp={reader === 'code' ? undefined : pick} className="flex min-h-0 flex-1 flex-col">
     {reader === 'code' ? <SourceSelectionContext.Provider value={codeSelection}>{body}</SourceSelectionContext.Provider> : body}
-    {passage && chat && <div className="flex shrink-0 justify-end border-t border-line pt-2"><AskButton onClick={ask} /></div>}
+    {passage && chat && <div className="flex shrink-0 justify-end border-t border-line pt-2">{passage.length > QUOTE_MAX
+      ? <p role="status" className="text-xs text-ink-2">Select up to {QUOTE_MAX} characters to ask about a passage.</p> : <AskButton onClick={ask} />}</div>}
   </div>;
 }
 
 // A paper turns its own pages; the page is the reading position. The cited quote is painted on its page.
-function PaperReader({ app, id, home = null, src = null, title, startPage, quote, quotePage, save }) {
+function PaperReader({ app, id, home = null, src = null, title, startPage, quote, quotePage, save, companion }) {
   const [page, setPage] = useState(startPage);
   const paper = useMemo(() => ({ id, title, pdfUrl: src || id.startsWith('upload:') ? null : `https://arxiv.org/pdf/${id}`, page, ...(home ? { home } : {}) }), [id, home, src, title, page]);
   const highlights = useMemo(() => (quote ? [{ page: quotePage, exact: quote, prefix: '', suffix: '' }] : null), [quote, quotePage]);
-  return <LearnPaper app={app} paper={paper} src={src} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null}
+  return <LearnPaper app={app} paper={paper} src={src} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null} companion={companion}
     onPage={next => { setPage(next); save({ page: next }); }} />;
 }
 
