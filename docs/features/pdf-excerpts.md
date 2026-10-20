@@ -61,12 +61,20 @@ source is not available. Highlights are never shared with the canvas.
   existing separate note shape, never written into the excerpt.
 - Start Rabbit Hole on an excerpt card seeds the child canvas with a copy of the excerpt card (no PDF bytes, no new
   access). From a shared canvas, the child's first card carries the verbatim quote and its source line.
+- A chip's reader ref (`open`: the PDF page and the excerpt's anchor, without the quote the chip already carries as
+  text) is held apart from a ref's 2 KB, on its own 8 KB bound (`chat-modes.js` `validOpen`). The thread state keeps an
+  excerpt chip whole, text and reader ref, both when the state is saved unsent and when a turn records it
+  (`stateRefs`), so a reopened thread still sends the quote and note and still opens the source. Message history keeps
+  identity only. A state save that fails says why in a toast and goes again with the next change.
+- A shared canvas's questions (`learn-shared-ask.js`) read an excerpt card from the shared board itself: the verbatim
+  quote marked as the PDF's and the author's note labelled as theirs. Unselected, each part is capped at 1,500
+  characters like any board entry (marked); selected, the whole 8,000-character quote rides as the canvas target.
 - No model call happens when highlighting, cropping, inserting, opening the source or attaching to chat.
 
 ## Storage
 
-Learn migration `0024-pdf-highlights.sql`: `pdf_source_hashes` and `pdf_highlights` (additive). Applied locally and to
-`rabbit-hole-learn-dev` (2026-10-19 16:58 PT). Not applied to production. Region crops reuse `file_sources` (0023).
+Learn migration `0024-pdf-highlights.sql`: `pdf_source_hashes` and `pdf_highlights` (additive). Applied locally,
+to `rabbit-hole-learn-dev` (2026-10-19 16:58 PT) and to production (2026-10-20). Region crops reuse `file_sources` (0023).
 
 ## Known limitations
 

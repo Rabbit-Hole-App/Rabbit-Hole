@@ -1,3 +1,4 @@
+import { validOpen } from './chat-modes.js';
 import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
 import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
@@ -280,7 +281,9 @@ export function validContextRefs(refs) {
   let texts = 0, excerpts = 0;
   const valid = refs.every(ref => {
     if (!ref || typeof ref !== 'object' || Array.isArray(ref)) return false;
-    const { text, ...rest } = ref;
+    // open: an excerpt's reader ref, on its own bound (chat-modes.js validOpen), never counted in the 2 KB.
+    const { text, open, ...rest } = ref;
+    if (!validOpen(ref.kind, open)) return false;
     // A pinned PDF excerpt keeps its verbatim text on its own budget (chat-modes.js EXCERPT_TEXT, EXCERPTS_TEXT).
     if (ref.kind === 'excerpt') { if (!(/^excerpt:pdfx_[0-9a-f]{24}$/.test(String(ref.sourceId)) && (text === undefined || short(text, 12000)))) return false; excerpts += text?.length || 0; }
     else if (text !== undefined && !(['card', 'group', 'image', 'media'].includes(ref.kind) && short(text, 8000))) return false;

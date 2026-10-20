@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { canvasesFetch, canvasRoute, chatThreadState, validContextRefs } from '../src/canvases.js';
 import { threadMessages } from '../src/repositories.js';
+import { excerptChatRef, quoteOf, regionExcerptCard, textExcerptCard } from './excerpt-ref-fixture.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
 function fixture(t, { sideTables }) {
@@ -128,4 +129,29 @@ test('validContextRefs and chatThreadState hold the contract A2 limits', () => {
   assert.equal(validContextRefs(Array.from({ length: 5 }, (_, i) => ref({ sourceId: `card:${i}`, kind: 'card', range: null, text: 'x'.repeat(7000) }))), false); // 35000 chars of text
   assert.deepEqual(chatThreadState({ mode: 'tutor', draft: { text: '' } }), { mode: 'tutor', draft_json: '{"text":"","command":null}' });
   assert.throws(() => chatThreadState(null), /Send a mode/);
+});
+
+// Review 2026-10-20 (P2): an excerpt chip's reader ref carried the whole excerpt, quote included, and was counted in the 2 KB a
+// ref may take, so a saved 2,000-character excerpt was refused (and chat-threads.js dropped that error). Now the anchor rides
+// on its own bound, without the quote it would repeat; 2,000- and 8,000-character excerpts with 64 line boxes, and a region
+// excerpt, save and come back exactly as attached.
+test('unsent PDF excerpt chips save through the state PUT and restore exactly, the quote stored once', async t => {
+  const f = fixture(t, { sideTables: true });
+  const refs = [excerptChatRef(textExcerptCard(quoteOf(2000), { id: '2'.repeat(24) })), excerptChatRef(textExcerptCard(quoteOf(8000, 'z'), { id: '6'.repeat(24) })), excerptChatRef(regionExcerptCard())];
+  assert.deepEqual(refs.map(r => r.kind), ['excerpt', 'excerpt', 'file']);
+  for (const r of refs) assert.equal(r.open.range.excerpt.quote, undefined, 'the reader anchor never repeats the quote');
+  const saved = await f.send('PUT', '/api/learn/chat/threads/canvaschat-a/state', { contextRefs: refs });
+  assert.equal(saved.status, 200, await saved.clone().text());
+  const stored = f.sqlite.prepare("SELECT context_json FROM chat_thread_state WHERE thread_id='canvaschat-a'").get().context_json;
+  for (const exact of [quoteOf(2000), quoteOf(8000, 'z')]) assert.equal(stored.split(exact).length, 2, 'each quote is stored once');
+  const thread = await (await f.send('GET', '/api/ask/threads/canvaschat-a')).json();
+  assert.deepEqual(thread.contextRefs, refs, 'restored with text, note and the anchor a chip click opens');
+  assert.match(thread.contextRefs[1].text, /\n\nLearner note: Compare with the figure on page 4$/);
+  // An anchor past its own bound is refused with the reason, never stored in part.
+  const huge = { ...refs[0], open: { ...refs[0].open, range: { ...refs[0].open.range, excerpt: { ...refs[0].open.range.excerpt, pad: 'x'.repeat(9000) } } } };
+  const refused = await f.send('PUT', '/api/learn/chat/threads/canvaschat-a/state', { contextRefs: [huge] });
+  assert.equal(refused.status, 400);
+  assert.match((await refused.json()).error, /Invalid context/);
+  assert.deepEqual((await (await f.send('GET', '/api/ask/threads/canvaschat-a')).json()).contextRefs, refs, 'the refused save changed nothing');
+  assert.equal(validContextRefs([{ ...ref(), open: refs[0].open }]), false, 'only excerpt and file refs carry a reader ref');
 });

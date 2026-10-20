@@ -79,9 +79,10 @@ export function validateCanvasTarget(value, conversation) {
   const cut = (s, max) => s.length > max ? `${s.slice(0, max - 1)}…` : s;
   return { id: value.id, kind: cut(value.kind, 200), ...(value.title ? { title: cut(value.title, 300) } : {}), text: value.text };
 }
-export function appendCanvasTarget(context, target) {
+// limit: a shared PDF excerpt's target is its full 8,000-character quote plus its title and note (learn-shared-ask.js).
+export function appendCanvasTarget(context, target, limit = CANVAS_TARGET_LIMIT) {
   if (!target) return context;
-  const text = target.text.slice(0, CANVAS_TARGET_LIMIT);
+  const text = target.text.slice(0, limit);
   return `${context}
 
 ${CANVAS_TARGET_HEADER}

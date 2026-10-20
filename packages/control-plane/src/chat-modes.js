@@ -55,8 +55,9 @@ export function contextRefs(value) {
   return value.map((ref, i) => {
     const at = `context_refs[${i}]`;
     if (!isObj(ref) || !KINDS.includes(ref.kind)) throw Error(`${at}: unknown kind`);
-    const { text, ...bare } = ref;
+    const { text, open, ...bare } = ref;
     if (bytes(bare) > REF_BYTES) throw Error(`${at}: a ref is at most 2 KB`);
+    if (!validOpen(ref.kind, open)) throw Error(`${at}: open rides only on excerpt and file refs, an object of at most ${OPEN_BYTES / 1024} KB`);
     const prefix = ref.kind === 'web' ? /^(paper|wiki):./ : new RegExp(`^${ref.kind}:.`);
     if (ref.kind === 'file' && !FILE_SOURCE.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be file:<source id>@<sha256>`);
     if (ref.kind === 'excerpt' && !EXCERPT_ID.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be excerpt:pdfx_<24 hex>`);
@@ -65,7 +66,7 @@ export function contextRefs(value) {
     if (typeof ref.version !== 'string' || ref.version.length > 200) throw Error(`${at}: version must be a string`);
     let range;
     try { range = refRange(ref.kind, ref.range); } catch (error) { throw Error(`${at}: ${error.message}`); }
-    const out = { sourceId: ref.sourceId, kind: ref.kind, name: ref.name, version: ref.version, range };
+    const out = { sourceId: ref.sourceId, kind: ref.kind, name: ref.name, version: ref.version, range, ...(open !== undefined ? { open } : {}) };
     if (text !== undefined && ref.kind === 'excerpt') {
       if (typeof text !== 'string') throw Error(`${at}: text must be a string`);
       const kept = text.slice(0, Math.max(0, Math.min(EXCERPT_TEXT, EXCERPTS_TEXT - excerpts)));
@@ -81,8 +82,16 @@ export function contextRefs(value) {
     return out;
   });
 }
-// What is stored as the refs an answer used: the citation identity, never the resolved selection text.
-export const bareRefs = refs => (refs || []).map(({ text, cut, ...ref }) => ref);
+// What is stored as the refs an answer used: the citation identity, never the resolved selection text or the reader ref.
+export const bareRefs = refs => (refs || []).map(({ text, cut, open, ...ref }) => ref);
+// What the thread state keeps as its attached refs (A3), so a reopened thread sends what it sent and opens what it opened: an
+// excerpt keeps its verbatim text (the client resolved it once; nothing else can) and a ref its reader ref (open).
+// shortcut: an excerpt the server cut on the all-excerpts budget keeps only the part it kept; past 96,000 characters of excerpts.
+export const stateRefs = refs => (refs || []).map(({ text, cut, ...ref }) => (ref.kind === 'excerpt' && typeof text === 'string' ? { ...ref, text } : ref));
+// An attachment's reader ref (pdf-excerpt.js excerptSourceRef: the PDF page and the excerpt's anchor to emphasize): the
+// browser's, never read by the server or the model, so it is held apart from a ref's 2 KB on a bound of its own.
+export const OPEN_BYTES = 8192;
+export const validOpen = (kind, open) => open === undefined || ((kind === 'excerpt' || kind === 'file') && isObj(open) && bytes(open) <= OPEN_BYTES);
 
 // The A4 fields, or null for an old client that sends none of them (it then behaves exactly as before).
 export function chatFields(body) {
@@ -299,8 +308,8 @@ const upsertState = (db, threadId, fields) => {
 export async function recordUserTurn(db, threadId, userMessageId, chat, regenerated) {
   if (regenerated) return upsertState(db, threadId, { last_activity_at: now() });
   await quiet(() => db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, ?, 'user', ?)")
-    .bind(userMessageId, threadId, JSON.stringify({ mode: chat.mode, command: chat.command, contextRefs: chat.contextRefs ?? [] })).run());
-  await upsertState(db, threadId, { mode: chat.mode, context_json: JSON.stringify(bareRefs(chat.contextRefs)), last_activity_at: now() });
+    .bind(userMessageId, threadId, JSON.stringify({ mode: chat.mode, command: chat.command, contextRefs: (chat.contextRefs ?? []).map(({ open, ...ref }) => ref) })).run());
+  await upsertState(db, threadId, { mode: chat.mode, context_json: JSON.stringify(stateRefs(chat.contextRefs)), last_activity_at: now() });
 }
 
 // The stored summary, and whether the thread is now longer than the history a turn sends (then the answer refreshes it).

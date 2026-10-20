@@ -48,8 +48,9 @@ const TEXT_KINDS = new Set(['card', 'group', 'image', 'media', 'excerpt']);
 export const EXCERPT_TEXT = 12000, EXCERPTS_TEXT = 96000;
 export function refsForSend(refs = [], { text: perRef = 8000, texts: total = 32000, excerpts = EXCERPTS_TEXT, target = null } = {}) {
   const budgets = { card: total, excerpt: excerpts };
-  // open: an excerpt chip's reader ref (pdf-excerpt.js) - the browser's, never sent.
-  return refs.map(({ text, open: _open, ...ref }) => {
+  // open: an excerpt chip's reader ref (pdf-excerpt.js). The server never reads it; it keeps it in the thread's state
+  // (chat-modes.js stateRefs), so the chip of a reopened thread still opens its source.
+  return refs.map(({ text, ...ref }) => {
     if (!TEXT_KINDS.has(ref.kind) || (target && sameRef(ref, target))) return ref;
     const pool = ref.kind === 'excerpt' ? 'excerpt' : 'card', budget = budgets[pool];
     const full = String((typeof text === 'function' ? text() : text) ?? ''), cap = Math.min(pool === 'excerpt' ? EXCERPT_TEXT : perRef, budget);

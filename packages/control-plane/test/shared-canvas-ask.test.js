@@ -4,7 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boardText, selectedCard, shareSource, BOARD_CHARS } from '../src/learn-shared-ask.js';
 import { SHARED_CANVAS_SYSTEM, REPOSITORY_SYSTEM } from '../src/agents/learn-chat.js';
-import { setup, scriptModel, events, lastUserText, SHA } from './shared-canvas-fixture.js';
+import { setup, scriptModel, events, lastUserText, SHA, BOARD } from './shared-canvas-fixture.js';
+import { quoteOf, regionExcerptCard, textExcerptCard } from './excerpt-ref-fixture.js';
 
 test('signed out, asking is refused with signIn - on a public link too - and no model is called', async t => {
   const f = setup(t), sent = scriptModel(t);
@@ -166,5 +167,39 @@ test('the selected card is found on the board by id and rides as the canvas targ
   assert.doesNotMatch(lastUserText(sent[0]), /canvas target/);
   sent.length = 0;
   for (const selected of [7, '', 'x'.repeat(201), { id: 'b1' }]) assert.equal((await f.ask(token, 'ben', { message: 'ok', selected })).status, 400, String(selected).slice(0, 20));
+  assert.equal(sent.length, 0);
+});
+
+// Review 2026-10-20 (P2): a text PDF excerpt card reached a shared question as its title only. Now its verbatim quote and the
+// author's note ride, each labelled, from the shared row alone: unselected in the board text, selected as the canvas target
+// (the full 8,000 characters); a link that does not admit the viewer reads nothing.
+test('a shared PDF excerpt card sends its visible quote and its labelled note, selected or not, and nothing when refused', async t => {
+  const long = quoteOf(8000, 'z'), short = quoteOf(600);
+  const excerpt = textExcerptCard(short, { id: '2'.repeat(24), note: 'My reading: the tide wins' });
+  const whole = textExcerptCard(long, { id: '6'.repeat(24), note: 'Long one' });
+  const region = regionExcerptCard({ note: 'Look at the green block' });
+  const state = { ...BOARD, blocks: [...BOARD.blocks, excerpt, whole, region] };
+  const text = boardText(state);
+  assert.ok(text.includes(`[PDF excerpt] Attention.pdf · p. xii\nVerbatim quotation from the PDF "Attention.pdf", page xii (only this selection, not the whole PDF):\n"""\n${short}\n"""\nNote (the canvas author's own words, not from the PDF): My reading: the tide wins`), text.slice(0, 600));
+  assert.ok(text.includes(`"""\n${long.slice(0, 1500)} [truncated]\n"""\nNote (the canvas author's own words, not from the PDF): Long one`), 'unselected, a long quote is capped as every entry is, said, and its note still rides');
+  assert.ok(text.includes('[PDF excerpt] Attention.pdf · p. xii\nNote (the canvas author\'s own words, not from the PDF): Look at the green block'), 'a region is a picture: its note is the text');
+  const target = selectedCard(state, whole.id);
+  assert.equal(target.kind, 'PDF excerpt');
+  assert.ok(target.text.includes(long) && target.text.includes('Long one'), 'selected: the whole quote and the note');
+  const f = setup(t), sent = scriptModel(t);
+  const { canvas, token } = await f.shareProject({ state });
+  assert.equal((await f.ask(token, 'ben', { message: 'What does the long one say?', selected: whole.id })).status, 200);
+  const asked = lastUserText(sent[0]);
+  assert.ok(asked.includes(short) && asked.includes('My reading: the tide wins'), 'the unselected excerpt rides in the board text');
+  assert.ok(asked.includes(JSON.stringify(long).slice(1, -1)), 'the selected quote reaches the model whole');
+  assert.doesNotMatch(asked, /card text truncated/);
+  assert.equal((await f.ask(token, 'ben', { message: 'and this one?' })).status, 200);
+  assert.ok(lastUserText(sent[1]).includes(short), 'with nothing selected the quote still rides');
+  // Refused: signed out, a dead link, or sharing stopped. No model call, so nothing of the excerpt goes anywhere.
+  sent.length = 0;
+  assert.equal((await f.ask(token, null, { message: 'hi', selected: excerpt.id })).status, 401);
+  assert.equal((await f.ask('A'.repeat(32), 'ben', { message: 'hi', selected: excerpt.id })).status, 404);
+  await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: false } });
+  assert.equal((await f.ask(token, 'ben', { message: 'hi', selected: excerpt.id })).status, 404);
   assert.equal(sent.length, 0);
 });

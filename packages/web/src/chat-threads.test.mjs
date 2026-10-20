@@ -2,7 +2,7 @@
 // late-response guard, and how answer_meta, done and the end of a turn change the streamed messages.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lateEvent, restoredMode, settle, threadsUrl, withAnswerMeta, withDone } from './chat-threads.js';
+import { lateEvent, putState, restoredMode, settle, threadsUrl, withAnswerMeta, withDone } from './chat-threads.js';
 
 test('History asks for this canvas only, with a trimmed search and a limit', () => {
   assert.equal(threadsUrl('canvas-0a1b2c3d'), '/api/ask/threads?scope=learn&ref=canvas-0a1b2c3d&limit=30');
@@ -49,4 +49,27 @@ test('a restored thread shows the held mode over its saved one, and its saved mo
   assert.equal(restoredMode('tutor', 'ask'), 'tutor');
   assert.equal(restoredMode(null, 'ask'), 'ask');
   assert.equal(restoredMode(null, undefined), 'auto');
+});
+
+// Review 2026-10-20 (P2): a failed state save was dropped silently. Now it says why and stays pending under the next change.
+test('a state save that fails says why and stays pending for the next change; a large state is not sent keepalive', async () => {
+  const told = [];
+  globalThis.window = Object.assign(new EventTarget(), { dispatchEvent: event => { told.push(event.detail.message); return true; } });
+  const sent = [], ok = async (url, init) => { sent.push({ url, init }); return {}; };
+  const pending = { current: null };
+  assert.equal(await putState({ id: 'canvaschat-a', state: { mode: 'ask' } }, ok, pending), true);
+  assert.deepEqual([sent[0].url, sent[0].init.method, sent[0].init.keepalive], ['/api/learn/chat/threads/canvaschat-a/state', 'PUT', true]);
+  const big = { contextRefs: [{ sourceId: 'excerpt:pdfx_x', kind: 'excerpt', text: 'q'.repeat(70000) }] };
+  await putState({ id: 'canvaschat-a', state: big }, ok, pending);
+  assert.equal(sent[1].init.keepalive, false, 'keepalive is refused past 64 KB, so a long excerpt state goes as a plain PUT');
+  const refuse = async () => { throw Object.assign(new Error('Invalid context: at most 20 sources, each a valid reference'), { status: 400 }); };
+  pending.current = { id: 'canvaschat-a', state: { draft: { text: 'newer' } } }; // a change made while the save was in flight
+  await assert.rejects(putState({ id: 'canvaschat-a', state: { contextRefs: big.contextRefs, draft: { text: 'older' } } }, refuse, pending));
+  assert.deepEqual(pending.current, { id: 'canvaschat-a', state: { contextRefs: big.contextRefs, draft: { text: 'newer' } } }, 'kept, the newer change winning');
+  assert.equal(told.at(-1), "✗ This chat's attachments or draft were not saved: Invalid context: at most 20 sources, each a valid reference. They are saved again with your next change.");
+  pending.current = { id: 'canvaschat-b', state: { mode: 'tutor' } }; // another thread opened since: its own pending is untouched
+  await assert.rejects(putState({ id: 'canvaschat-a', state: { mode: 'ask' } }, refuse, pending));
+  assert.deepEqual(pending.current, { id: 'canvaschat-b', state: { mode: 'tutor' } });
+  assert.doesNotMatch(told.at(-1), /saved again/, 'never a promise it cannot keep');
+  delete globalThis.window;
 });

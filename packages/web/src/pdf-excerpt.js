@@ -167,10 +167,13 @@ export async function draftChatRef(draft, { app, board = 'main', saveBoard = nul
 }
 
 // Open source: the companion reader's ref for the PDF at the excerpt's page (pdf-source.js pageRef shape, with its home), plus
-// the anchor itself, which the reader brings into view and emphasizes.
+// the anchor the reader brings into view and emphasizes (LearnPaper reads its source, page and rects). Only the anchor: its
+// quote rides as the chip's text and its crop as its file ref, so a saved chip never holds them twice (chat-modes.js validOpen).
 export function excerptSourceRef(excerpt) {
   const ref = pageRef({ pdf: excerpt?.source?.key, number: excerpt?.page?.index, label: excerpt?.source?.name, home: excerpt?.source?.home });
-  return ref && { ...ref, range: { ...ref.range, excerpt } };
+  if (!ref) return ref;
+  const { quote, crop, highlightId, ...anchor } = excerpt; // eslint-disable-line no-unused-vars
+  return { ...ref, range: { ...ref.range, excerpt: anchor } };
 }
 
 // The card as canvas context (describeBlock: selection, canvas_context, Ctrl+K): the quotation marked verbatim with its source and

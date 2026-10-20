@@ -12,7 +12,9 @@ import { pathOutput } from '../src/agents/learn-journey.js';
 import { REQUEST_FIRST } from '../src/agents/learn-tutor.js';
 import { CUT_NOTE, DECLINE } from '../src/learn-research.js';
 import { WITHHELD } from '../src/canvas-conversation.js';
-import { canvasApp, canvasAskSeam, validContextRefs } from '../src/canvases.js';
+import { canvasApp, canvasAskSeam, canvasesFetch, validContextRefs } from '../src/canvases.js';
+import { refsForSend } from '../../web/src/chat-draft.js';
+import { excerptChatRef, quoteOf, regionExcerptCard, textExcerptCard } from './excerpt-ref-fixture.js';
 import { contextDocsFetch } from '../src/learn-context-docs.js';
 import { LEARN_SYSTEM } from '../src/agents/learn-chat.js';
 import { HISTORY_TURNS } from '../src/learn-models.js';
@@ -703,3 +705,37 @@ test('an excerpt ref: 8,000 verbatim characters reach the model whole, framed as
   assert.equal(validContextRefs([EXCERPT]), true);
   assert.equal(validContextRefs([{ ...EXCERPT, sourceId: 'excerpt:nope' }]), false);
 });
+
+// Review 2026-10-20 (P2): a turn stored its refs in the thread state as identity only, so a reopened thread's excerpt chip
+// had no quote to send and no source to open. Attach, send, reopen as a fresh session (the thread read back from the
+// database), then the follow-up: its model request carries the exact quote and the note.
+test('a sent PDF excerpt chip comes back with its quote, note and source, and the follow-up sends them', async t => {
+  const f = fixture(t);
+  f.env.CONTROL_PLANE = { fetch: async () => Response.json({ org: owner.org, email: owner.email, orgName: 'A', user_id: 'u-1', apps: [] }) };
+  const exact = quoteOf(2000), attached = [excerptChatRef(textExcerptCard(exact)), excerptChatRef(regionExcerptCard())];
+  const textRef = attached[0];
+  f.replies.push('First answer.\n<answer_meta>{}</answer_meta>');
+  const first = await f.ask({ message: 'explain this', mode: 'ask', context_refs: refsForSend([textRef]) });
+  assert.equal(first.res.status, 200);
+  assert.ok(lastText(f.calls.at(-1)).includes(exact), 'the first turn sends the quote');
+  const threadId = first.events.at(-1).data.threadId;
+  // Nothing of the browser survives: the thread is read back from the server.
+  const opened = await (await canvasesFetch(new Request(`https://dev.test/api/ask/threads/${threadId}`), f.env)).json();
+  assert.deepEqual(opened.contextRefs, [textRef], 'restored as attached: text (quote and note) and the reader ref');
+  assert.equal(opened.contextRefs[0].open.range.excerpt.id, textRef.open.range.excerpt.id);
+  f.replies.push('Second answer.\n<answer_meta>{}</answer_meta>');
+  assert.equal((await f.ask({ message: 'and what follows from it?', mode: 'ask', thread_id: threadId, context_refs: refsForSend(opened.contextRefs) })).res.status, 200);
+  const followUp = lastText(f.calls.at(-1));
+  assert.ok(followUp.includes(exact), 'the follow-up carries the exact quote');
+  assert.ok(followUp.includes('Learner note: Compare with the figure on page 4'), 'and the note');
+  assert.doesNotMatch(followUp, /named only: its text was not sent/);
+  // The message history keeps identity only; the reader ref never reaches the model or a message's meta.
+  for (const { meta_json } of f.rows('SELECT meta_json FROM chat_message_meta')) assert.ok(!meta_json.includes('"open"'), meta_json.slice(0, 120));
+  for (const call of f.calls) assert.ok(!JSON.stringify(call).includes('"rects"'), 'no anchor in a model request');
+  // A region chip (its crop's file ref) keeps its reader ref through a state save as well.
+  const state = await canvasesFetch(new Request(`https://dev.test/api/learn/chat/threads/${threadId}/state`, { method: 'PUT', body: JSON.stringify({ contextRefs: attached }) }), f.env);
+  assert.equal(state.status, 200);
+  assert.deepEqual((await (await canvasesFetch(new Request(`https://dev.test/api/ask/threads/${threadId}`), f.env)).json()).contextRefs, attached);
+});
+
+function lastText(call) { const last = call.messages.at(-1).content; return typeof last === 'string' ? last : last.map(block => block.text || '').join(''); }

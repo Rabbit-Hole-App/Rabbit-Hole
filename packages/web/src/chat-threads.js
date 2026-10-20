@@ -18,7 +18,21 @@ import { activeThread, rememberThread } from './chat-persist.js';
 // this browser. A new chat has no thread until its first turn (`done` for Ask and Tutor; the saved question for an Auto
 // turn, chat-persist.js). Each canvas keeps its own active thread (chat-persist.js): the one opened, adopted or restored last.
 const SAVE_DELAY = 800;
+// ui.jsx's toast, by its event (as chat-context.js does), so this module stays loadable in plain-node tests.
+const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 const blank = key => ({ key, mode: 'auto', contextRefs: [], draft: null, messages: [] });
+// One state PUT (A3). keepalive (a save as the page closes) is refused past 64 KB, so a larger state (long PDF excerpts) goes as
+// a plain PUT. A failure says why, and the state stays pending (pending: the hook's ref) under any later change of the same
+// thread, so it goes again with the next change or when the canvas is left. Resolves true when saved; rejects on failure.
+export async function putState(save, call, pending) {
+  const body = JSON.stringify(save.state);
+  try { await call(`/api/learn/chat/threads/${save.id}/state`, { method: 'PUT', body, keepalive: body.length < 60000 }); return true; } catch (error) {
+    const kept = !pending.current || pending.current.id === save.id;
+    if (kept) pending.current = { id: save.id, state: { ...save.state, ...pending.current?.state } };
+    toast(`✗ This chat's attachments or draft were not saved: ${String(error.message).replace(/\.?$/, '.')}${kept ? ' They are saved again with your next change.' : ''}`);
+    throw error;
+  }
+}
 export const threadsUrl = (canvas, q = '', limit = 30) => `/api/ask/threads?scope=learn&ref=${encodeURIComponent(canvas)}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}&limit=${limit}`;
 
 // The late-response guard (contract A5): an SSE event of a turn sent under another turnKey is dropped, never drawn here.
@@ -50,13 +64,13 @@ export function useChatThread(canvas, { slot = null } = {}) {
   useEffect(() => { keyRef.current = restore.key; return () => { keyRef.current = null; }; }, [restore.key]);
   const liveKey = useCallback(() => keyRef.current, []);
   const remember = useCallback(threadId => { rememberThread(canvas, threadId, api, slot).catch(() => {}); }, [canvas, slot]);
-  // One PUT per quiet spell, to the thread the changes were made in. Best effort: the local draft copy (chat-draft.js) and
-  // the next turn (apiAsk records mode and refs) keep what a failed save loses.
+  // One PUT per quiet spell, to the thread the changes were made in. A failed save says why and stays pending, so it goes
+  // again with the next change (a newer value of a field wins) or when the canvas is left.
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     const save = pending.current;
     pending.current = null;
-    if (save) api(`/api/learn/chat/threads/${save.id}/state`, { method: 'PUT', body: JSON.stringify(save.state), keepalive: true }).catch(() => {});
+    if (save) putState(save, api, pending).catch(() => {});
   }, []);
   const saveState = useCallback(partial => {
     const threadId = idRef.current;

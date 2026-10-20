@@ -99,6 +99,20 @@ export function boardSources(state) {
   return out;
 }
 
+// A PDF excerpt card (web/src/pdf-excerpt.js): its verbatim quotation marked as the PDF's and its note marked as the canvas
+// author's, never mixed. Each part is capped on its own (the quote at `quote` characters), so a long quote never pushes the
+// note out. A region excerpt is a picture: only its note is text (the picture rides when it is selected, learn-image-context.js).
+// Selected, the full quote rides as the canvas target: 8,000 characters plus its title, source line and note.
+export const EXCERPT_CHARS = 8000, SELECTED_EXCERPT_CHARS = 12000;
+function excerptParts(block, quote) {
+  const excerpt = block?.excerpt;
+  if (!excerpt || typeof excerpt !== 'object') return [];
+  const page = text(String(excerpt.page?.label ?? excerpt.page?.index ?? '')), where = `"${text(excerpt.source?.name) || 'PDF'}"${page ? `, page ${page}` : ''}`;
+  const exact = excerpt.kind === 'text' ? text(excerpt.quote?.exact) : '';
+  return [exact && `Verbatim quotation from the PDF ${where} (only this selection, not the whole PDF):\n"""\n${clip(exact, quote)}\n"""`,
+    text(block.note) && `Note (the canvas author's own words, not from the PDF): ${clip(text(block.note), ENTRY_CHARS)}`];
+}
+
 // The board as text: headings, cards, notes and its finished chat answers, in board order, each entry and the
 // whole capped. Drawings, images and notebook files are not text; the sources are listed separately.
 export function boardText(state) {
@@ -109,6 +123,7 @@ export function boardText(state) {
   };
   for (const block of list(state?.blocks)) {
     if (block?.type === 'heading') add(null, text(block.text) && `# ${text(block.text)}`);
+    else if (block?.excerpt) { const parts = [text(block.title || block.label), ...excerptParts(block, ENTRY_CHARS)].filter(Boolean); if (parts.length) entries.push(`[PDF excerpt] ${parts.join('\n')}`); }
     else if (block?.type === 'explanation') add('Explanation', block.title, block.body, ...list(block.more).map(section => section?.text));
     else if (!['video', 'wiki', 'paper'].includes(block?.type)) add(text(block?.type) || 'Card', block?.title, block?.question, block?.prompt, block?.text, block?.brief, block?.caption, block?.code);
   }
@@ -130,6 +145,8 @@ export function selectedCard(state, id) {
   const block = list(state?.blocks).find(entry => entry?.id === id);
   const note = !block && [...list(state?.items), ...list(state?.shapes)].find(entry => entry?.id === id);
   const exchange = !block && !note && list(state?.exchanges).find(entry => entry?.id === id);
+  // The note first: a quote cut at the target's limit (marked as cut) never takes the note with it.
+  if (block?.excerpt) return { id, kind: 'PDF excerpt', text: [text(block.title || block.label), ...excerptParts(block, EXCERPT_CHARS).reverse()].filter(Boolean).join('\n') || 'PDF excerpt' };
   const parts = block ? [block.title, block.label, block.question, block.prompt, block.text, block.body, block.brief, block.caption, block.code, ...list(block.more).map(section => section?.text)]
     : note ? [note.kind === 'equation' ? note.latex : note.text]
     : exchange ? [exchange, ...list(exchange.replies)].flatMap(turn => [text(turn?.question) && `Q: ${text(turn.question)}`, text(turn?.answer) && `A: ${text(turn.answer)}`])
@@ -243,12 +260,13 @@ export async function askShared(env, row, viewer, body, link = null) {
     try { snapshot = await repositorySnapshot(env, { id: repository.id }, repository.commit); } catch { /* fail closed: no source, never another commit */ }
   }
   // The selected card rides beside the board as Learn's canvas target does (learn-ask-context.js); one not on the board is ignored.
+  const target = body.selected ? selectedCard(state, body.selected) : null;
   const context = appendCanvasTarget(JSON.stringify({
     canvas: sharedTitle(row, canvas?.title, source),
     content: boardText(state),
     sources: boardSources(state),
     ...(repository ? { repository: { repo: repository.repo, commit: repository.commit, ...(snapshot ? {} : { note: "The repository source at this share's pinned commit is not available: answer from the canvas only, say so, and never use another version." }) } } : {}),
-  }), body.selected ? selectedCard(state, body.selected) : null) + await selectedFileText(env, row, state, body.selected);
+  }), target, target?.kind === 'PDF excerpt' ? SELECTED_EXCERPT_CHARS : undefined) + await selectedFileText(env, row, state, body.selected);
   const research = snapshot ? { papers: [], system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) } : { papers: [] };
   const meta = repository && !snapshot ? { notice: "The repository code at this share's commit could not be read, so this answer uses the canvas only." } : {};
   const selectedImage = imageCard(state, body.selected);

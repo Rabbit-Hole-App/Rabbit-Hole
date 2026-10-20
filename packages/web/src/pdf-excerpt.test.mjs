@@ -113,7 +113,8 @@ test('chat: a text excerpt is its own ref with the verbatim words and the note; 
   assert.equal(ref.name, 'Field Guide · p. xii', 'the printed page label');
   assert.equal(ref.open.range.excerpt.id, block.excerpt.id, 'a chip click opens the anchor, not an excerpt: id');
   assert.deepEqual(ref.range, { page: 12 });
-  assert.equal(refsForSend([ref])[0].open, undefined, 'the reader ref stays in the browser (the server allows 2 KB per ref)');
+  assert.deepEqual(refsForSend([ref])[0].open, ref.open, 'the reader ref rides, so the thread state keeps it for a reopened chip (chat-modes.js stateRefs)');
+  assert.equal(ref.open.range.excerpt.quote, undefined, 'the anchor never repeats the quote the ref carries as text');
   assert.equal(ref.text, 'Verbatim excerpt from "Field Guide", page xii:\nFirst paragraph.\n\nSecond one.\n\nLearner note: Compare with chapter 2');
   assert.ok(sameRef(ref, excerptChatRef(block)), 'selection and Add to chat dedupe');
   const other = { ...(await materialize(draft(), { app: 'a', deps })), id: 'card2' };
@@ -171,7 +172,8 @@ test('open source and Rabbit Hole seed: the page ref with the anchor and home; a
   assert.equal(ref.kind, 'web');
   assert.equal(ref.home, 'canvas-33333333');
   assert.equal(ref.range.page, 12);
-  assert.equal(ref.range.excerpt, paper.excerpt);
+  const { quote, crop, highlightId, ...anchor } = paper.excerpt; // eslint-disable-line no-unused-vars
+  assert.deepEqual(ref.range.excerpt, anchor, 'the anchor the reader emphasizes: source, page, rotation, view and rects');
   const doc = excerptSourceRef(draft());
   assert.equal(doc.sourceId, 'doc:ctx:0123456789ab');
   assert.equal(doc.kind, 'doc');
