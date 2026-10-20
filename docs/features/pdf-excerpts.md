@@ -76,3 +76,13 @@ Learn migration `0024-pdf-highlights.sql`: `pdf_source_hashes` and `pdf_highligh
 - Ctrl+K editing of excerpt cards is not offered (Explain only).
 - Mocked model responses prove wiring only. Whether a model understands a figure crop is not verified; no paid call
   was made.
+
+## Verification (2026-10-20, f14cf5f7)
+
+- `e2e/pdf-excerpt-check.mjs` (38 steps, brief section 15 items 1-17 plus drag, Ctrl+K, camera, note, Shorten, crop
+  failure). Local stack: 38/38. Own dev clone (`CLONE=1`, rabbit-hole-web-dev-pdf-excerpts): 37/38, the rotated-page
+  step fails to turn from page 4 to 5 on the clone (cause not found; it passes locally). No model call: every model
+  route is stubbed or aborted and counted.
+- Existing `e2e/pdf-to-canvas-check.mjs`: passes. `e2e/paper-highlight-check.mjs` fails the same way on main (stale).
+- Unit: web 3294 pass / 0 fail; control-plane 2008 pass / 0 fail.
+- Evidence on the operator's machine: C:/s/spec/pdf-excerpt-shots/RESULTS.md.
