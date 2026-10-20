@@ -94,6 +94,8 @@ async function build(draft, { app, board = 'main', saveBoard = null, deps = {} }
     highlightIds.set(draft.id, highlightId);
     const { key, home, sha256 } = excerpt.source;
     await (deps.putHighlight || putHighlight)(highlightId, { app, key, home, sha256, kind: draft.kind, page: excerpt.page, rects: excerpt.rects, rotate: excerpt.rotate, view: excerpt.view, quote: excerpt.quote });
+    // An open reader of this PDF re-reads its highlights (LearnPaper listens), so the new mark shows at once.
+    globalThis.dispatchEvent?.(new CustomEvent('small:pdf-highlights', { detail: { key } }));
   }
   excerpt = { ...excerpt, highlightId, crop: region?.crop ?? null };
   const title = excerptTitle(excerpt);

@@ -132,7 +132,9 @@ test('chat: a region excerpt is its crop\'s image file ref, named for its page, 
   const { deps } = fakes(), d = draft({ kind: 'region', quote: null });
   const block = { ...(await materialize(d, { app: 'a', deps })), id: 'r1' };
   const ref = excerptChatRef(block);
-  assert.deepEqual(ref, { sourceId: `file:${FS}@${REV}`, kind: 'file', name: 'Field Guide · p. xii', version: '', range: null });
+  const { open, ...plainRef } = ref;
+  assert.deepEqual(plainRef, { sourceId: `file:${FS}@${REV}`, kind: 'file', name: 'Field Guide · p. xii', version: '', range: null });
+  assert.equal(open.range.excerpt.id, block.excerpt.id, 'a chip click opens the anchor');
   const attached = await draftChatRef(d, { app: 'a', deps });
   assert.ok(sameRef(attached.ref, ref));
   assert.equal(attached.fileRef.family, 'image');
