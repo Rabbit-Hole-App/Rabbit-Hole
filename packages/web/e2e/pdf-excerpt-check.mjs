@@ -140,7 +140,9 @@ const router = async route => {
 const browser = await chromium.launch();
 let page = null;
 const results = [], facts = {};
+const ONLY = process.env.ONLY || ''; // debugging: run only the steps whose label contains one of these '|'-separated substrings
 const check = async (label, items, fn) => {
+  if (ONLY && !ONLY.split('|').some(part => label.includes(part))) return;
   try { await fn(); results.push({ label, items, ok: true }); console.log(`ok ${label}`); }
   catch (error) {
     const message = String(error?.message || error).split('\n')[0].slice(0, 400);
@@ -294,15 +296,20 @@ const openReader = async (sourceId, { index = null, cardId = null } = {}) => {
   await readerReady();
   if (index) await goTo(index);
 };
+const pageText = () => reader().locator('[aria-label="Paper page text"]').innerText().catch(() => '');
 const goTo = async index => {
+  let turned = false, before = await pageText();
   for (let i = 0; i < 2 * N; i += 1) {
     const now = await where();
     if (now?.index === index) break;
+    before = await pageText(); turned = true;
     await reader().getByRole('button', { name: now.index < index ? 'Next paper page' : 'Previous paper page' }).click();
     await waitFor(async () => (await where())?.index !== now.index, 8000, 'the page did not turn');
   }
   assert.equal((await where())?.index, index, `the reader is on page ${index}`);
-  await waitFor(async () => (await reader().locator('[aria-label="Paper page text"]').innerText().catch(() => '')).length > 0 || await page.locator('[data-sources-pane] [data-pdf-no-text]').count(), 15000, `page ${index} drew no text layer`);
+  // The header turns at once; the text layer is redrawn after the page renders, so wait for this page's own words (every page's
+  // text differs), or for the no-text notice.
+  await waitFor(async () => { const text = await pageText(); return (text.length > 0 && (!turned || text !== before)) || await page.locator('[data-sources-pane] [data-pdf-no-text]').count(); }, 15000, `page ${index} drew no text layer`);
 };
 const textLayerScript = `
   const layer = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"] [aria-label="Paper page text"]');
@@ -324,7 +331,10 @@ const textLayerScript = `
 // Select a passage of the open page by its first and last words (a DOM range, then the pointer-up a drag ends with); returns
 // what the browser reports as selected.
 const selectText = async (start, end) => {
-  const picked = await page.evaluate(`(() => { ${textLayerScript}
+  // The text layer is redrawn after the page renders (a reader just opened or turned): wait up to 10 s for these words.
+  let picked;
+  for (const until = Date.now() + 10000; ;) {
+    picked = await page.evaluate(`(() => { ${textLayerScript}
     const range = spot(${JSON.stringify(start)}, ${JSON.stringify(end)});
     if (!range) return { error: 'not found', sample: (layer?.textContent || '').slice(0, 160) };
     range.startContainer.parentElement.scrollIntoView({ block: 'center' });
@@ -335,6 +345,9 @@ const selectText = async (start, end) => {
     const first = rects[0];
     return { text: selection.toString(), from: { x: first.left + 1, y: first.top + first.height / 2 }, to: { x: tail.right - 1, y: tail.top + tail.height / 2 } };
   })()`);
+    if (!picked.error || Date.now() > until) break;
+    await page.waitForTimeout(200);
+  }
   if (picked.error) throw Error(`"${start}" ... "${end}" is not in the page text layer ("${picked.sample}")`);
   const toolbar = page.locator('[data-pdf-selection-toolbar]');
   if (!(await toolbar.isVisible().catch(() => false)) && !(await toolbar.waitFor({ state: 'visible', timeout: 2500 }).then(() => true, () => false))) {
@@ -367,7 +380,10 @@ const assertCovers = (c, what) => {
 const openSourceOf = async id => {
   const button = cardLocator(id).locator('[data-excerpt-source] [aria-label="Open source"]').first();
   await reveal(button);
-  await button.click();
+  // A card added later can lie over this one (the uploaded paper's PDF card is dropped mid-canvas): then the press would land on
+  // that card, so the button is pressed from the keyboard instead.
+  if (await button.evaluate(el => { const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!hit && el.contains(hit); })) await button.click();
+  else { await button.focus(); await page.keyboard.press('Enter'); }
 };
 const emphasisOn = async (index, start, end, what = 'the emphasis') => {
   const c = await waitFor(async () => (await page.locator(EMPHASIS).count()) && (await where())?.index === index && coverage(EMPHASIS, start, end), 8000,
@@ -377,7 +393,8 @@ const emphasisOn = async (index, start, end, what = 'the emphasis') => {
 };
 const addCard = async (scope, kind) => {
   const before = new Set(await blockIds());
-  await page.locator(scope).getByRole('button', { name: 'Add to canvas', exact: true }).click();
+  // The highlight menu's entries are menu items (role menuitem); the toolbars' are buttons.
+  await page.locator(scope).getByRole(scope.includes('highlight-menu') ? 'menuitem' : 'button', { name: 'Add to canvas', exact: true }).click();
   const card = await waitFor(async () => (await excerptCards()).find(c => !before.has(c.id) && c.kind === kind), 30000, `no new ${kind} excerpt card`);
   const data = await waitFor(async () => (await inkBlocks()).find(b => b.id === card.id && b.excerpt), 10000, 'the card is not in the saved ink with its excerpt');
   return { ...card, data };
@@ -656,9 +673,11 @@ await check('anchors after a panel resize: the viewer 150+ px narrower or wider,
   const handle = page.locator('[role="separator"][aria-label="Resize viewer"]');
   const before = (await page.locator('aside[data-companion]').boundingBox()).width;
   await handle.focus();
+  // The width follows the keys a frame later: read it once it has moved 150 px (or stopped at a limit).
+  const widthAfter = () => waitFor(async () => { const w = (await page.locator('aside[data-companion]').boundingBox()).width; return Math.abs(w - before) >= 150 && w; }, 2000, 'still').catch(async () => (await page.locator('aside[data-companion]').boundingBox()).width);
   for (let i = 0; i < 8; i += 1) await page.keyboard.press('ArrowLeft');
-  let after = (await page.locator('aside[data-companion]').boundingBox()).width;
-  if (Math.abs(after - before) < 150) { for (let i = 0; i < 16; i += 1) await page.keyboard.press('ArrowRight'); after = (await page.locator('aside[data-companion]').boundingBox()).width; }
+  let after = await widthAfter();
+  if (Math.abs(after - before) < 150) { for (let i = 0; i < 16; i += 1) await page.keyboard.press('ArrowRight'); after = await widthAfter(); }
   assert.ok(Math.abs(after - before) >= 150, `the viewer width changed ${before} -> ${after}`);
   facts.resize = { before, after };
   await page.waitForTimeout(500);
@@ -713,10 +732,10 @@ await check('region: Select region -> draw -> adjust a handle -> Add to canvas: 
   assert.equal(crops.at(-1).key, DOC_KEY);
   const crop = await waitFor(async () => { const c = await cropOf(card.id); return c.loaded && c; }, 30000, 'the crop <img data-excerpt-crop> did not load (naturalWidth 0)');
   facts.crop = crop;
-  assert.ok(!/^(blob|data):/.test(crop.src) && crop.src.startsWith(BASE), `the crop is served by the app, not a blob or data URL (${crop.src.slice(0, 40)})`);
-  const served = await fetch(crop.src, { headers: { cookie } });
-  assert.equal(served.status, 200, 'the crop URL serves the owner');
-  assert.match(String(served.headers.get('content-type')), /image\/png/);
+  // The card draws its stored image from an object URL of the bytes (MediaCard ImageBody), so the durable copy is asserted on the
+  // server: the owner's board save (file_source_refs) lets GET /api/learn/files/<crop id> serve it; the fresh-profile step reloads it.
+  const served = await waitFor(async () => { const reply = await fetch(`${BASE}/api/learn/files/${encodeURIComponent(x.crop.source.id)}?${query({ app: canvas.name, board: 'main' })}`, { headers: { cookie } }); return reply.status === 200 && reply; }, 30000, 'the server does not serve the crop to its owner (GET /api/learn/files/<crop id>)');
+  assert.match(String(served.headers.get('content-type')), /image\/png/, 'the stored crop is a PNG');
   assert.ok(Math.max(crop.w, crop.h) <= 4096 && crop.w >= DRAWN[2] - DRAWN[0] - 8, `readable: ${crop.w}x${crop.h} is at least 1x the 72-dpi size`);
   assert.ok(Math.abs(crop.w / crop.h - (r[2] - r[0]) / (r[3] - r[1])) < 0.03, `the crop ${crop.w}x${crop.h} keeps the rect's aspect ratio ${((r[2] - r[0]) / (r[3] - r[1])).toFixed(3)}`);
   assert.equal(crop.tainted, undefined, `the crop pixels are readable (${crop.tainted})`);
@@ -789,7 +808,7 @@ await check('Undo removes the card but keeps a highlight that existed before; Re
   H.undo = saved.id;
   await page.locator(highlightBoxes(H.undo)).first().click();
   await page.locator('[data-pdf-highlight-menu]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error('clicking the highlight opened no [data-pdf-highlight-menu]'); });
-  for (const name of ['Add to canvas', 'Add to chat', 'Delete highlight']) assert.equal(await page.locator('[data-pdf-highlight-menu]').getByRole('button', { name, exact: true }).count(), 1, `the menu offers ${name}`);
+  for (const name of ['Add to canvas', 'Add to chat', 'Delete highlight']) assert.equal(await page.locator('[data-pdf-highlight-menu]').getByRole('menuitem', { name, exact: true }).count(), 1, `the menu offers ${name}`);
   const card = await addCard('[data-pdf-highlight-menu]', 'text');
   cards.undo = card;
   assert.equal(card.data.excerpt.highlightId, H.undo, 'the card reuses the highlight it came from');
@@ -860,8 +879,11 @@ await check('deleting the reader highlight keeps the card, and Open source still
   await openSourceOf(cards.passage.id);
   await emphasisOn(3, 'Rivers carry', 'and the tides.');
   await waitFor(async () => !(await page.locator(EMPHASIS).count()), 8000, 'the emphasis did not fade');
-  await page.locator(highlightBoxes(H.passage)).first().click();
-  await page.locator('[data-pdf-highlight-menu]').getByRole('button', { name: 'Delete highlight', exact: true }).click();
+  // The drag step's card saved its own highlight of the same passage (a card's highlight outlives the card), drawn over this one,
+  // so a press would open that one's menu: this box is opened from the keyboard (it is a button).
+  await page.locator(highlightBoxes(H.passage)).first().focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-pdf-highlight-menu]').getByRole('menuitem', { name: 'Delete highlight', exact: true }).click();
   await waitFor(async () => !(await highlightIds(DOC_KEY)).includes(H.passage), 10000, 'the highlight row was not deleted');
   await waitFor(async () => !(await page.locator(highlightBoxes(H.passage)).count()), 5000, 'the highlight box stayed');
   assert.ok((await excerptCards()).some(c => c.id === cards.passage.id), 'the card stays');
