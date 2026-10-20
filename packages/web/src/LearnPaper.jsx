@@ -7,7 +7,7 @@ import { paperBytesUrl } from './pdf-source.js';
 import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights } from './learn-wiki-highlights.js';
 import { EXCERPT_LIMIT, rectsFor, regionAnchor, splitText, textAnchor, toViewport } from './pdf-anchor.js';
 import { deleteHighlight, getSource, listHighlights, newId, putHighlight } from './pdf-highlights.js';
-import { EXCERPT_DRAG, excerptDraft, put, sendExcerpt } from './pdf-excerpt-drafts.js';
+import { EXCERPT_DRAG, EXCERPT_EVENT, excerptDraft, put, sendExcerpt } from './pdf-excerpt-drafts.js';
 import { renderCrop } from './pdf-crop.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -343,7 +343,16 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
     catch (error) { setNotice({ text: error.message }); }
   };
   // Drag onto the canvas (as CodeReader does): the drag carries only the draft's id. A region's picture is drawn meanwhile.
-  const startDrag = (event, id) => { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(EXCERPT_DRAG, id); };
+  const dragged = useRef(null);
+  const startDrag = (event, id) => { dragged.current = id; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(EXCERPT_DRAG, id); };
+  // The canvas took the drop (its event names this drag's draft): the selection or the region is done, as after Add to canvas.
+  // Read from the drop, not dragend's dropEffect, so the reader never stays in region mode with nothing to show for it.
+  useEffect(() => {
+    if (!companion) return undefined;
+    const dropped = event => { if (!dragged.current || event.detail?.draftId !== dragged.current) return; dragged.current = null; setArea(null); done(); };
+    window.addEventListener(EXCERPT_EVENT, dropped);
+    return () => window.removeEventListener(EXCERPT_EVENT, dropped);
+  }, [!!companion]); // eslint-disable-line react-hooks/exhaustive-deps
   const dragText = event => {
     if (!bar || !ready) return;
     const parts = textParts(bar.anchor);
@@ -392,7 +401,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
   const regionTool = !!companion && !plain;
   const box = area?.box;
   const pageHighlights = saved.filter(h => pageOf(h).index === paper.page);
-  const dragHandle = (onDragStart, onDragEnd) => <button type="button" draggable aria-label="Drag to canvas" title="Drag onto the canvas" onDragStart={onDragStart} onDragEnd={onDragEnd}
+  const dragHandle = onDragStart => <button type="button" draggable aria-label="Drag to canvas" title="Drag onto the canvas" onDragStart={onDragStart}
     className="flex h-8 min-w-6 cursor-grab items-center justify-center rounded-lg text-ink-3 select-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35"><GripVertical size={15} /></button>;
   return <section ref={sectionEl} aria-label="Paper reader" className="relative flex min-h-0 flex-1 flex-col">
     {/* One control row: title, pages, zoom and the region picker together. */}
@@ -473,7 +482,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
         <ToolButton label="Highlight region" icon={Highlighter} onClick={() => regionAction('highlight')} />
         <ToolButton label="Add to canvas" icon={SquarePlus} onClick={() => regionAction('canvas')} />
         <ToolButton label="Add to chat" icon={MessageSquarePlus} onClick={() => regionAction('chat')} />
-        {dragHandle(dragRegion, event => { if (event.dataTransfer.dropEffect !== 'none') setArea(null); })}
+        {dragHandle(dragRegion)}
         <ToolButton label="Cancel" icon={X} onClick={() => setArea(null)} />
       </div>}
       {menu && <div ref={menuEl} data-pdf-highlight-menu role="menu" aria-label="Highlight" onKeyDown={arrows} className="absolute z-30 flex w-44 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>

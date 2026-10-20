@@ -3542,6 +3542,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     armedId.current = block.id;
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
     const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material }, ref: chatRefOf(block), pdf: !!(pdfRef(block) || fileChatRef(block)) };
+    // A region excerpt's content is its picture: its crop's file ref rides the turn (ask.jsx), as a text excerpt's quote rides in its text.
+    if (block.excerpt?.kind === 'region') card.excerptCrop = card.ref;
     // A page sends the page itself, of its own source (pdf-source.js): an uploaded paper's page as paper_context, read by
     // the model as the reader's pages are, from its home canvas when it was copied here; a context document's page as its doc
     // ref at that page. The thumbnail only shows on the chip.
@@ -5060,6 +5062,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (editor && !frame?.contains(event.target) && !event.target.closest?.('[data-keep-focus]')) editor.commit('blur');
         const active = document.activeElement;
         if (!active || active === document.body) return;
+        // A press anywhere on the canvas takes the keyboard back from the companion column, as a card press does: its keys
+        // stand down while a focus is held there, so Ctrl+Z after a drop from the reader would undo nothing.
+        if (active.closest?.('[data-companion]')) { active.blur(); return; }
         const editable = typingIn(active);
         // data-keep-focus marks controls that act ON the focused text - the
         // level pill - where a press must restyle, never blur. This runs in
@@ -5112,7 +5117,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         }}
         onDragOver={event => { if (!readOnlyRef.current && ([...(event.dataTransfer?.types || [])].includes(EXCERPT_DRAG) || (chatWorkspace?.canvasOps?.insertCard && [...(event.dataTransfer?.types || [])].includes(CODE_DRAG)))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDropHover(true); return; } if (onDropFiles && isFileDrag(event.dataTransfer)) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
-        onDrop={event => { const excerpt = !readOnlyRef.current && event.dataTransfer?.getData(EXCERPT_DRAG); if (excerpt) { event.preventDefault(); setDropHover(false); window.dispatchEvent(new CustomEvent(EXCERPT_EVENT, { detail: { action: 'canvas', draftId: excerpt, at: local(event) } })); return; } const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); const at = local(event); droppedFiles(event.dataTransfer).then(files => onDropFiles(files, at), problem => toast(problem.message)); }}
+        onDrop={event => { const excerpt = !readOnlyRef.current && event.dataTransfer?.getData(EXCERPT_DRAG); if (excerpt) { event.preventDefault(); setDropHover(false); if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); window.dispatchEvent(new CustomEvent(EXCERPT_EVENT, { detail: { action: 'canvas', draftId: excerpt, at: local(event) } })); return; } const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); const at = local(event); droppedFiles(event.dataTransfer).then(files => onDropFiles(files, at), problem => toast(problem.message)); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />

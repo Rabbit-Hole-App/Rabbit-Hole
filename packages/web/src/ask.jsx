@@ -652,7 +652,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
-        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(codeTurnRefs.refs, target?.docPage), { target: target?.ref }) } : {}),
+        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
