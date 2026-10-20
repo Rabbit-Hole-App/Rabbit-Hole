@@ -383,10 +383,15 @@ const assertCovers = (c, what) => {
 const openSourceOf = async id => {
   const button = cardLocator(id).locator('[data-excerpt-source] [aria-label="Open source"]').first();
   await reveal(button);
+  // The card opens the reader only after its access check (GET /api/learn/pdf-source), and that open remounts the reader at the
+  // anchor: wait for it (or the unavailable notice), so a previous open's emphasis never stands in for this one.
+  await page.evaluate(() => { window.__sourceOpened = false; window.addEventListener('small:excerpt-source', () => { window.__sourceOpened = true; }, { once: true }); });
   // A card added later can lie over this one (the uploaded paper's PDF card is dropped mid-canvas): then the press would land on
   // that card, so the button is pressed from the keyboard instead.
   if (await button.evaluate(el => { const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!hit && el.contains(hit); })) await button.click();
   else { await button.focus(); await page.keyboard.press('Enter'); }
+  await waitFor(() => button.evaluate(el => window.__sourceOpened || !!el.closest('[data-excerpt-source]').querySelector('[data-excerpt-source-unavailable]')), 10000,
+    'Open source neither opened the reader nor said the source is unavailable');
 };
 const emphasisOn = async (index, start, end, what = 'the emphasis') => {
   const c = await waitFor(async () => (await page.locator(EMPHASIS).count()) && (await where())?.index === index && coverage(EMPHASIS, start, end), 8000,

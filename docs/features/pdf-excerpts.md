@@ -1,8 +1,9 @@
 # PDF highlights and excerpts
 
 Owner brief, 2026-10-19 (C:/s/spec/pdf-excerpts/brief.md on the operator's machine). Lane contract:
-C:/s/spec/pdf-excerpts/contract.md. Status: implemented on `feature/pdf-excerpts`, not released. Production needs the
-owner's GO for migration 0024 and the release.
+C:/s/spec/pdf-excerpts/contract.md. Status: released to production 2026-10-20 1:15 PM PT (main 688028bd, build
+e06643fd6d92d657); learn migration 0024 is applied on learn-dev and production. Real-model figure understanding is
+unverified (fixtures only).
 
 ## What it does
 
