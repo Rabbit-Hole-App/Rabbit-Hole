@@ -14,7 +14,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 
-const total = 30; // the number of check() steps below; keep it equal (memory rule: totals must match)
+const total = 38; // the number of check() steps below; keep it equal (memory rule: totals must match)
 const BASE = process.env.BASE || 'http://127.0.0.1:8881';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8883';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pdf-excerpt-check runs against the local stack only');
@@ -93,7 +93,8 @@ const REFUSED = 'This file is not available to you.'; // the one refusal of ever
 
 // ---------------------------------------------------------------- routes: capture and canned answers
 const captured = [], refused = [], outside = [], errors = [], uploads = [], crops = [], highlightPuts = [], routeErrors = [];
-let replies = 0, fakeSha = false;
+let replies = 0, fakeSha = false, failCrops = 0, failedCrops = 0, inlineSends = 0;
+const inline = []; // Ctrl+K requests (/api/learn/inline/decide bodies), answered 'blocked' here: no generate, no model
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/handoff|dive|explore))/;
 const router = async route => {
@@ -125,7 +126,12 @@ const router = async route => {
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } }); // the canned thread ids exist nowhere
   if (method === 'POST' && ['/api/learn/paper', '/api/learn/context'].includes(path)) uploads.push(path);
-  if (method === 'PUT' && /^\/api\/learn\/pdf-excerpts\/[^/]+\/crop$/.test(path)) crops.push({ id: path.split('/')[4], key: url.searchParams.get('key'), page: url.searchParams.get('page') });
+  if (path === '/api/learn/inline/decide') { inline.push(body); return route.fulfill({ json: { decision: 'blocked', message: 'Fixture inspection only', paid: false } }); }
+  if (method === 'PUT' && /^\/api\/learn\/pdf-excerpts\/[^/]+\/crop$/.test(path)) {
+    // Item 10 partial failure: the next crop upload fails once, as a server error would.
+    if (failCrops > 0) { failCrops -= 1; failedCrops += 1; return route.fulfill({ status: 500, json: { error: 'Fixture: the crop upload failed.' } }); }
+    crops.push({ id: path.split('/')[4], key: url.searchParams.get('key'), page: url.searchParams.get('page') });
+  }
   if (method === 'PUT' && /^\/api\/learn\/pdf-highlights\/[^/]+$/.test(path)) highlightPuts.push(path.split('/').pop());
   if (MODEL.test(path)) { refused.push(`${method} ${path}`); return route.abort(); }
   return route.fallback();
@@ -439,6 +445,56 @@ const dropPdf = async () => {
   await waitFor(async () => (await dialog().locator('[data-pdf-total]').innerText()).trim() === `${N} pages`, 15000, `the dropped PDF shows no "${N} pages"`);
 };
 
+// The camera: the world layer's translate/scale (AdaptiveCanvas worldRef), read as canvas-doc-check does.
+const camera = () => page.evaluate(() => {
+  const surface = document.querySelector('[aria-label="Lesson canvas"] [data-canvas-surface]') || document.querySelector('[data-canvas-surface]');
+  const world = [...surface.children].find(el => /scale\(/.test(el.style.transform));
+  const m = world.style.transform.match(/translate\(([-\d.e]+)px, ([-\d.e]+)px\) scale\(([-\d.e]+)\)/), b = surface.getBoundingClientRect();
+  return { x: Number(m[1]), y: Number(m[2]), z: Number(m[3]), sx: b.x, sy: b.y };
+});
+// Drag from a reader toolbar onto a bare canvas point: dragstart on its drag handle, then dragenter/dragover/drop with the same
+// DataTransfer at that point (contract: type application/x-rh-pdf-excerpt, value = draftId). Returns the drop point.
+const dragOnto = async toolbar => {
+  const at = await barePoint();
+  assert.ok(at, 'a bare canvas point to drop on');
+  const types = await page.evaluate(([sel, x, y]) => {
+    const handle = document.querySelector(`${sel} [aria-label="Drag to canvas"], ${sel} [draggable="true"], ${sel}[draggable="true"]`);
+    if (!handle) return null;
+    const transfer = new DataTransfer();
+    handle.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+    const target = document.elementFromPoint(x, y), init = { bubbles: true, cancelable: true, dataTransfer: transfer, clientX: x, clientY: y };
+    for (const type of ['dragenter', 'dragover', 'drop']) target.dispatchEvent(new DragEvent(type, init));
+    handle.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: transfer }));
+    return [...transfer.types];
+  }, [toolbar, at.x, at.y]);
+  assert.ok(types, `no drag handle ([aria-label="Drag to canvas"] or [draggable]) in ${toolbar}`);
+  assert.ok(types.includes('application/x-rh-pdf-excerpt'), `the drag carries application/x-rh-pdf-excerpt (${types.join(', ')})`);
+  return at;
+};
+// Ctrl+K on one card, Explain: the inline editor's modes as offered, and the /api/learn/inline/decide request it sent.
+const inlineExplain = async id => {
+  await selectBlock(id);
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.keyboard.press('Control+k');
+  const editor = page.locator('[data-inline-ai]');
+  await editor.waitFor({ timeout: 10000 }).catch(() => { throw Error('Ctrl+K opened no [data-inline-ai] editor'); });
+  let modes = [];
+  if (await editor.locator('[data-inline-mode-toggle]').count()) {
+    await editor.locator('[data-inline-mode-toggle]').click();
+    modes = await page.locator('[data-inline-mode]').evaluateAll(els => els.map(e => ({ mode: e.dataset.inlineMode, off: e.disabled || e.getAttribute('aria-disabled') === 'true' })));
+    await page.locator('[data-inline-mode="explain"]').click();
+  }
+  const n = inline.length;
+  await editor.locator('[data-inline-prompt]').fill('Explain this excerpt.');
+  await editor.locator('[data-inline-submit]').click();
+  inlineSends += 1;
+  await waitFor(() => inline.length > n, 15000, 'Ctrl+K Explain sent no /api/learn/inline/decide request');
+  const request = inline[n].request || {};
+  await page.keyboard.press('Escape');
+  await waitFor(async () => !(await editor.count()), 5000, 'the inline editor did not close');
+  return { request, modes };
+};
+
 // ================================================================ the run
 const A = await profile('A');
 page = A.page;
@@ -570,6 +626,20 @@ await check('Open source opens page index 3 (not page 1, not the page the reader
   await shot('06-open-source-emphasis');
 });
 
+await check('Open source keeps the canvas camera: the world layer\'s translate and scale are the same before and after', ['section 9', 4], async () => {
+  await openReader(DOC_KEY, { index: 1 });
+  const button = cardLocator(cards.passage.id).locator('[data-excerpt-source] [aria-label="Open source"]').first();
+  await reveal(button);
+  await page.waitForTimeout(400);
+  const before = await camera();
+  await button.click();
+  await emphasisOn(3, 'Rivers carry', 'and the tides.');
+  await page.waitForTimeout(600);
+  const after = await camera();
+  facts.camera = { before, after };
+  assert.deepEqual([after.x, after.y, after.z], [before.x, before.y, before.z], 'the camera did not move');
+});
+
 await check('anchors after zoom: at reader zoom 200% the saved highlight box still covers the passage, and Open source emphasizes it', [3], async () => {
   for (let i = 0; i < 8 && (await reader().locator('[aria-label="Paper zoom"]').innerText()).trim() !== '200%'; i += 1) await reader().getByRole('button', { name: 'Zoom in paper' }).click();
   assert.equal((await reader().locator('[aria-label="Paper zoom"]').innerText()).trim(), '200%');
@@ -678,6 +748,24 @@ await check('region Cancel and Escape create nothing: no block, no highlight row
   assert.equal(crops.length, before, 'no crop upload');
 });
 
+for (const kind of ['text', 'region']) await check(`drag a ${kind} ${kind === 'text' ? 'selection' : 'region'} from the reader onto the canvas (application/x-rh-pdf-excerpt): the card lands at the drop point; one Undo removes it`, ['section 10 drag', 9], async () => {
+  await openReader(DOC_KEY, { index: kind === 'text' ? 3 : 4 });
+  if (kind === 'text') await selectText('Rivers carry', 'and the tides.'); else await drawRegion();
+  const before = new Set(await blockIds());
+  const at = await dragOnto(kind === 'text' ? '[data-pdf-selection-toolbar]' : '[data-pdf-region-toolbar]');
+  const card = await waitFor(async () => (await excerptCards()).find(c => !before.has(c.id) && c.kind === kind), 30000, `the drop made no ${kind} card`);
+  if (kind === 'region') await waitFor(async () => (await cropOf(card.id)).loaded, 30000, 'the dropped crop did not load');
+  const cam = await camera(), box = await cardLocator(card.id).boundingBox();
+  const world = q => ({ x: (q.x - cam.sx - cam.x) / cam.z, y: (q.y - cam.sy - cam.y) / cam.z });
+  const drop = world(at), top = world({ x: box.x + box.width / 2, y: box.y });
+  facts[`drop_${kind}`] = { drop, card_top_centre: top };
+  // insertExcerpts places the card centred on the drop point's x with its top at its y (world units).
+  assert.ok(Math.abs(top.x - drop.x) <= 40 && Math.abs(top.y - drop.y) <= 40, `the card's top centre ${JSON.stringify(top)} is not at the drop point ${JSON.stringify(drop)}`);
+  assert.equal((await excerptCards()).filter(c => !before.has(c.id)).length, 1, 'one card per drop');
+  await undo();
+  assert.equal((await blockIds()).includes(card.id), false, 'one Undo removes the dropped card');
+});
+
 await check('a double-click on Add to canvas makes one card and one highlight', [8], async () => {
   await goTo(4);
   const before = new Set(await blockIds());
@@ -733,6 +821,28 @@ await check('Undo then Redo of a region card makes no new crop PUT and uploads n
   cards.region2 = card;
 });
 
+await check('a failed crop upload inserts no card and offers Retry; Retry makes exactly one region card whose crop loads', ['section 10 partial failure', 8], async () => {
+  await openReader(DOC_KEY, { index: 4 });
+  const before = new Set(await blockIds()), puts = crops.length, failed = failedCrops;
+  failCrops = 1;
+  try {
+    await drawRegion();
+    await page.locator('[data-pdf-region-toolbar]').getByRole('button', { name: 'Add to canvas', exact: true }).click();
+    await waitFor(() => failedCrops > failed, 15000, 'no crop upload was attempted');
+  } finally { failCrops = 0; }
+  const retry = page.locator('button:visible', { hasText: /^\s*Retry\s*$/ }).last();
+  await retry.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { throw Error('the failed insertion shows no Retry'); });
+  await page.waitForTimeout(1500);
+  assert.deepEqual((await blockIds()).filter(id => !before.has(id)), [], 'no card points at a crop that failed to upload');
+  await shot('16-crop-failure-retry');
+  await retry.click();
+  const card = await waitFor(async () => (await excerptCards()).find(c => !before.has(c.id) && c.kind === 'region'), 30000, 'Retry made no region card');
+  await waitFor(async () => (await cropOf(card.id)).loaded, 30000, 'the retried crop did not load');
+  await page.waitForTimeout(1500);
+  assert.equal((await excerptCards()).filter(c => !before.has(c.id)).length, 1, 'exactly one card after Retry');
+  assert.equal(crops.length, puts + 1, `one stored crop after Retry (${crops.length - puts})`);
+});
+
 await check('deleting an excerpt card leaves its PDF: the context document listed as it was, its bytes still served, the same bytes', [10], async () => {
   const docs = await docsNow();
   await selectBlock(cards.undo.id);
@@ -758,6 +868,26 @@ await check('deleting the reader highlight keeps the card, and Open source still
   await goTo(1);
   await openSourceOf(cards.passage.id);
   await emphasisOn(3, 'Rivers carry', 'and the tides.', 'the emphasis after the highlight was deleted');
+});
+
+await check('a note typed on the text card is saved on the block (block.note), never inside block.excerpt, and survives a reload', ['section 8', 5], async () => {
+  const NOTE = `My note ${run}: compare with the delta chapter.`;
+  const note = cardLocator(cards.passage.id).locator('[data-excerpt-note]').first();
+  await reveal(note);
+  await note.click();
+  await note.fill(NOTE);
+  await focusCanvas(); // leaving the field saves it
+  const saved = await waitFor(async () => (await inkBlocks()).find(b => b.id === cards.passage.id && b.note === NOTE), 10000, 'the note is not on the saved block as block.note');
+  assert.ok(!JSON.stringify(saved.excerpt).includes(NOTE), 'the note is not inside block.excerpt');
+  assert.deepEqual(saved.excerpt, cards.passage.data.excerpt, 'the excerpt itself is unchanged');
+  await waitFor(async () => ((await boardOf()).state?.blocks || []).some(b => b.id === cards.passage.id && b.note === NOTE), 30000, 'the server board does not hold the note');
+  await page.reload();
+  await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+  const back = cardLocator(cards.passage.id).locator('[data-excerpt-note]').first();
+  await back.waitFor({ timeout: 30000 });
+  assert.equal(await back.inputValue().catch(async () => (await back.innerText()).trim()), NOTE, 'the note is back after the reload');
+  assert.equal(norm((await excerptCards()).find(c => c.id === cards.passage.id).quote), norm(PASSAGE), 'the quote is still the verbatim passage');
+  cards.passage.note = NOTE;
 });
 
 await check('Add to chat on a text selection: a chip "excerpts.pdf · p. 1", nothing sent; the turn carries the verbatim text as one excerpt ref', [12], async () => {
@@ -830,6 +960,7 @@ await check('Ask, Auto and Tutor each carry the selected text excerpt; a selecte
     const cap = await send('What is this passage about?');
     facts.modes[mode] = { route: cap.route, excerpt_refs: excerptRefs(cap.body).map(r => r.sourceId) };
     assert.ok(bodyHas(cap.body, PASSAGE), `${mode}: the ${cap.route} body carries the excerpt text`);
+    if (cards.passage.note) assert.ok(bodyHas(cap.body, cards.passage.note), `${mode}: the learner's note rides with it`);
   }
   await newChat();
   await setMode('ask');
@@ -847,6 +978,21 @@ await check('Ask, Auto and Tutor each carry the selected text excerpt; a selecte
   assert.equal(auto.route, 'ask', 'Auto with a file ref goes to /api/learn/ask');
   const crop = cards.region.data.excerpt.crop.source;
   assert.ok((auto.body.context_refs || []).some(r => r.kind === 'file' && r.sourceId === `file:${crop.id}@${crop.rev}`), 'the region rides as the file ref of its own crop');
+});
+
+await check('Ctrl+K Explain on a region excerpt card sends the crop itself: context.image names the card and its crop\'s fileRef source (id and rev); no model call', [12, 'section 11 Ctrl+K'], async () => {
+  const { request, modes } = await inlineExplain(cards.region.id);
+  facts.ctrlk_region = { modes, image: request.context?.image ?? null };
+  assert.equal(request.context?.image?.id, cards.region.id, 'context.image is the selected region card');
+  assert.deepEqual(request.context.image.source, cards.region.data.excerpt.crop.source, 'context.image.source is the crop (fileRef source id and rev)');
+  assert.deepEqual(request.context.image.source, cards.region.data.fileRef.source);
+});
+
+await check('Ctrl+K on a text excerpt card is Explain-only (no Edit offered for the quotation) and the request carries the verbatim quote', [12, 'section 8', 'section 11 Ctrl+K'], async () => {
+  const { request, modes } = await inlineExplain(cards.passage.id);
+  facts.ctrlk_text = { modes };
+  assert.deepEqual(modes.filter(m => m.mode === 'edit' && !m.off), [], `Edit is not offered on a quotation (modes ${JSON.stringify(modes)})`);
+  assert.ok(bodyHas(request, PASSAGE), 'the Explain request carries the verbatim passage');
 });
 
 let paperCard = null, PAPER_KEY = null;
@@ -924,6 +1070,21 @@ await check('an oversize selection (page 7, > 8,000 characters) shows [data-pdf-
   await page.waitForTimeout(800);
   assert.equal((await blockIds()).length, blocks, 'Cancel adds nothing');
   assert.equal((await highlightIds(DOC_KEY)).length, rows, 'Cancel saves no highlight');
+});
+
+await check('Shorten selection closes the limit dialog, keeps the reader selection for the learner to shorten, and inserts nothing', ['decision 4', 7], async () => {
+  const blocks = (await blockIds()).length, rows = (await highlightIds(DOC_KEY)).length;
+  const selected = await selectText('Line 001', 'Line 100 carries words for the limit check: alpha beta gamma delta epsilon zeta eta theta iota.');
+  await page.locator('[data-pdf-selection-toolbar]').getByRole('button', { name: 'Add to canvas', exact: true }).click();
+  const limit = page.locator('[data-pdf-excerpt-limit]');
+  await limit.waitFor({ state: 'visible', timeout: 10000 });
+  await limit.getByRole('button', { name: 'Shorten selection', exact: true }).click();
+  await limit.waitFor({ state: 'detached', timeout: 5000 }).catch(() => { throw Error('Shorten selection left the limit dialog open'); });
+  await page.waitForTimeout(800);
+  assert.equal(norm(await page.evaluate(() => getSelection().toString())), norm(selected), 'the selection is kept');
+  assert.equal((await blockIds()).length, blocks, 'nothing inserted');
+  assert.equal((await highlightIds(DOC_KEY)).length, rows, 'no highlight saved');
+  await page.evaluate(() => getSelection().removeAllRanges());
 });
 
 await check('Split into N cards: N cards in order, each at most 8,000 characters, every character kept; one Undo removes them all', ['decision 4', 9], async () => {
@@ -1007,6 +1168,7 @@ await check('no model call beyond the turns this check sent, no other model-capa
   facts.turns = captured.map(c => c.route);
   assert.ok(captured.length >= sends, `${captured.length} captured for ${sends} sends`);
   assert.ok(captured.length <= sends + 2, `at most the Rabbit Hole's opening turn beyond the sends (${captured.length} for ${sends})`);
+  assert.equal(inline.length, inlineSends, `${inline.length} Ctrl+K decide requests for ${inlineSends} submits (all answered here)`);
   assert.deepEqual(refused, [], `refused routes: ${refused.join(', ')}`);
   assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
 });
@@ -1015,7 +1177,7 @@ await A.context.close();
 await browser.close();
 const passed = results.filter(r => r.ok).length;
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ base: BASE, canvas: canvas.name, document: DOC.id, paper: PAPER_KEY, total, passed, failed: results.length - passed, checks: results, facts,
-  crops, highlight_puts: highlightPuts.length, uploads, model_capable_refused: refused, outside_hosts: [...new Set(outside)], page_errors: errors,
+  crops, failed_crops: failedCrops, inline_requests: inline.map(b => ({ mode: b.request?.mode ?? null, image: b.request?.context?.image ?? null })), highlight_puts: highlightPuts.length, uploads, model_capable_refused: refused, outside_hosts: [...new Set(outside)], page_errors: errors,
   note: 'request payloads only: an image file ref proves the crop rode the request, not that a model understood the figure' }, null, 2));
 if (results.length !== total) console.log(`FAIL ran ${results.length} checks, but total says ${total}`);
 console.log(`${passed}/${total} passed`);
