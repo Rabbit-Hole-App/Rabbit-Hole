@@ -1209,6 +1209,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     const fileRefs = (chat.contextRefs || []).filter(ref => ref.kind === 'file');
     const files = fileRefs.length && env.LEARN_DB ? await fileContext(req, env, fileRefs, { user, app: scopedApp?.name ?? scope.app ?? null, member: body.member_board ?? null }).catch(() => null) : null;
     context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null, files);
+    // An image file ref (a dropped image, a PDF region crop) rides as the picture itself, beside the documents (file-context.js).
+    if (files?.images?.length) extraBlocks.push(...files.images);
     system = chatSystem(system, answerMetaSystem({ repository: !!repository }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };

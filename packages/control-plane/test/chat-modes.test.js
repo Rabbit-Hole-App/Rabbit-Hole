@@ -12,7 +12,7 @@ import { pathOutput } from '../src/agents/learn-journey.js';
 import { REQUEST_FIRST } from '../src/agents/learn-tutor.js';
 import { CUT_NOTE, DECLINE } from '../src/learn-research.js';
 import { WITHHELD } from '../src/canvas-conversation.js';
-import { canvasApp, canvasAskSeam } from '../src/canvases.js';
+import { canvasApp, canvasAskSeam, validContextRefs } from '../src/canvases.js';
 import { contextDocsFetch } from '../src/learn-context-docs.js';
 import { LEARN_SYSTEM } from '../src/agents/learn-chat.js';
 import { HISTORY_TURNS } from '../src/learn-models.js';
@@ -659,4 +659,47 @@ test('file refs ride Ask, explicit Tutor and Auto turns: the excerpt and its cov
   assert.equal(seen.length, 3);
   assert.deepEqual(seen[1].refs, [FILE], 'the Tutor turn asked for the file ref');
   assert.deepEqual(seen[1].options, { user: owner, app: 'canvas-0a1b2c3d', member: 'b-1' });
+});
+
+// PDF excerpts (C:/s/spec/pdf-excerpts/contract.md "Chat"): payload tests only - they prove what reaches the model request,
+// never that a model understood a figure. An image file ref's picture rides as an image block in the user message, and a
+// text excerpt's 8,000 verbatim characters ride whole; past the cap it is cut and the model is told.
+test('a region crop file ref sends its picture as an image block on Ask, Tutor and Auto', async t => {
+  const f = fixture(t);
+  const CROP = { sourceId: `file:fs_${'c'.repeat(24)}@${'d'.repeat(64)}`, kind: 'file', name: 'Paper, page 3 excerpt.png', version: '', range: null };
+  const picture = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgo=' } };
+  const fileContext = async () => ({ coverage: new Map([[`${CROP.sourceId}|null`, 'image included']]), blocks: [], images: [{ type: 'text', text: 'Image "Paper, page 3 excerpt.png":' }, picture] });
+  for (const mode of ['ask', 'tutor', 'auto']) {
+    f.replies.push('An answer.\n<answer_meta>{}</answer_meta>');
+    assert.equal((await f.ask({ message: 'what does this figure show?', mode, context_refs: [CROP] }, build(fakeMeta, { fileContext }))).res.status, 200, mode);
+    const content = f.calls.at(-1).messages.at(-1).content;
+    assert.deepEqual(content.filter(block => block.type === 'image'), [picture], `${mode}: the image block is in the model request`);
+    assert.match(JSON.stringify(content), /image included: the image itself is attached to this turn/, `${mode}: its coverage is said`);
+  }
+});
+
+test('an excerpt ref: 8,000 verbatim characters reach the model whole, framed as only an excerpt; past the cap it says partial', async t => {
+  const f = fixture(t);
+  const exact = Array.from({ length: 1000 }, (_, i) => `w${String(i).padStart(4, '0')} ...`).join('').slice(0, 8000);
+  assert.equal(exact.length, 8000);
+  const text = `Verbatim excerpt from "Attention.pdf", page xii:\n${exact}\n\nLearner note: compare with the figure`;
+  const EXCERPT = { sourceId: `excerpt:pdfx_${'1'.repeat(24)}`, kind: 'excerpt', name: 'Attention.pdf · p. xii', version: '', range: { page: 12 }, text };
+  f.replies.push('An answer.\n<answer_meta>{}</answer_meta>');
+  assert.equal((await f.ask({ message: 'explain this', mode: 'ask', context_refs: [EXCERPT] })).res.status, 200);
+  const last = f.calls.at(-1).messages.at(-1).content, sent = typeof last === 'string' ? last : last.map(block => block.text || '').join('');
+  assert.ok(sent.includes(text), 'the whole excerpt text, untruncated');
+  assert.match(sent, /- \[excerpt\] "Attention\.pdf · p\. xii" sourceId "excerpt:pdfx_1{24}" range \{"page":12\} - excerpt: only this excerpt of the document is included below/);
+  assert.doesNotMatch(sent, /truncated/);
+  // Over the per-excerpt cap: cut, and both the attachment line and the content say so.
+  const [cut] = contextRefs([{ ...EXCERPT, text: 'y'.repeat(chatModes.EXCERPT_TEXT + 5) }]);
+  assert.deepEqual(cut.cut, { kept: chatModes.EXCERPT_TEXT, of: chatModes.EXCERPT_TEXT + 5 });
+  const told = chatContext('', [cut], null, 100000);
+  assert.match(told, /partially included: only the first 12000 of its 12005 characters are included below/);
+  assert.match(told, /\[excerpt truncated\]$/);
+  assert.deepEqual(chatModes.bareRefs([cut]), [{ sourceId: EXCERPT.sourceId, kind: 'excerpt', name: EXCERPT.name, version: '', range: { page: 12 } }], 'stored refs carry identity only');
+  // Validation: the id shape and the page range; a pinned excerpt saves with its text.
+  assert.throws(() => contextRefs([{ ...EXCERPT, sourceId: 'excerpt:x' }]), /excerpt:pdfx_<24 hex>/);
+  assert.throws(() => contextRefs([{ ...EXCERPT, range: { page: 0 } }]), /malformed excerpt range/);
+  assert.equal(validContextRefs([EXCERPT]), true);
+  assert.equal(validContextRefs([{ ...EXCERPT, sourceId: 'excerpt:nope' }]), false);
 });
