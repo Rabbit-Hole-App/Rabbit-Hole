@@ -129,7 +129,8 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
       // Never the last page's words under this page's number; and pdf.js refuses a second render on one canvas, so the
       // cancelled one must settle first (a quick page turn otherwise failed and left the old text layer up).
       text.current?.replaceChildren();
-      await lastRender.current?.catch(() => {});
+      // Bounded: a render of a destroyed document may never settle.
+      if (lastRender.current) await Promise.race([lastRender.current.catch(() => {}), new Promise(done => setTimeout(done, 1000))]);
       const page = await document.getPage(paper.page);
       if (!active || !canvas.current) return;
       // The page's own /Rotate, plus the companion's Rotate page.
