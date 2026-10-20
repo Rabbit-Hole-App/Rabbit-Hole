@@ -17,7 +17,10 @@ import assert from 'node:assert/strict';
 const total = 38; // the number of check() steps below; keep it equal (memory rule: totals must match)
 const BASE = process.env.BASE || 'http://127.0.0.1:8881';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8883';
-for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pdf-excerpt-check runs against the local stack only');
+// CLONE=1: this branch's own dev clone with the dev control plane only (docs/features/parallel-dev-deploys.md), never
+// the shared preview or production. Model routes stay stubbed or aborted in the browser either way.
+const CLONE = process.env.CLONE === '1' && BASE === 'https://rabbit-hole-web-dev-pdf-excerpts.tryrabbithole.workers.dev' && CP === 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
+for (const url of [BASE, CP]) if (!CLONE && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pdf-excerpt-check runs against the local stack (or CLONE=1 on its own dev clone) only');
 const OUT = process.env.OUT || new URL('./shots/pdf-excerpt', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(OUT, { recursive: true });
 const vars = process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url);

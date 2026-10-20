@@ -66,7 +66,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
   const text = useRef(null);
   // Companion reader state: the drawn page and viewport, the server identity and the author's highlights, the selection
   // toolbar, the region tool, a highlight's menu, the oversize dialog and one notice line.
-  const pdfPage = useRef(null), scroller = useRef(null), pageBox = useRef(null), sectionEl = useRef(null);
+  const pdfPage = useRef(null), lastRender = useRef(null), scroller = useRef(null), pageBox = useRef(null), sectionEl = useRef(null);
   const barEl = useRef(null), regionEl = useRef(null), regionBarEl = useRef(null), menuEl = useRef(null), emphasisEl = useRef(null);
   const [view, setView] = useState(null);
   const [rotation, setRotation] = useState(0);
@@ -126,6 +126,10 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
     let active = true, render, words, resize;
     setError('');
     (async () => {
+      // Never the last page's words under this page's number; and pdf.js refuses a second render on one canvas, so the
+      // cancelled one must settle first (a quick page turn otherwise failed and left the old text layer up).
+      text.current?.replaceChildren();
+      await lastRender.current?.catch(() => {});
       const page = await document.getPage(paper.page);
       if (!active || !canvas.current) return;
       // The page's own /Rotate, plus the companion's Rotate page.
@@ -133,6 +137,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
       pdfPage.current = page;
       canvas.current.width = viewport.width; canvas.current.height = viewport.height;
       render = page.render({ canvasContext: canvas.current.getContext('2d'), viewport });
+      lastRender.current = render.promise;
       await render.promise;
       report('content');
       // Selectable words over the image. Positions are percentages of the
@@ -158,7 +163,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
       await words.render();
       const end = window.document.createElement('div'); end.className = 'endOfContent'; layer.append(end);
       if (active) { setView(viewport); setNoText(!layer.textContent.trim()); setTextDrawn(count => count + 1); report('interactive'); }
-    })().catch(error => { if (active) setError(error.message); });
+    })().catch(error => { if (active && error?.name !== 'RenderingCancelledException') setError(error.message); });
     return () => { active = false; render?.cancel(); words?.cancel(); resize?.disconnect(); };
   }, [document, paper.page, zoom, rotation]);
 
