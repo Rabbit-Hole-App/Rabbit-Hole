@@ -2,7 +2,7 @@
 // server step fails, split parts kept whole, chat identity and canvas context kept apart from the learner's note.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EXCERPT_LIMIT, describeExcerpt, draftChatRef, excerptChatRef, excerptSeed, excerptSourceRef, materialize, placeExcerpts } from './pdf-excerpt.js';
+import { EXCERPT_CARD, EXCERPT_LIMIT, describeExcerpt, draftChatRef, excerptChatRef, excerptSeed, excerptSourceRef, materialize, placeExcerpts } from './pdf-excerpt.js';
 import { sameRef } from './chat-context.js';
 import { refsForSend } from './chat-draft.js';
 import { fileEditLocked } from './file-chat-ref.js';
@@ -85,6 +85,7 @@ test('a region draft becomes an image file card of its stored crop, at its aspec
   assert.deepEqual(block.fileRef.source, { id: FS, rev: REV });
   assert.equal(block.fileRef.family, 'image');
   assert.equal(block.fileRef.meta.name, 'Field Guide, page 12 excerpt.png', 'the crop route own fileRef');
+  assert.equal(block.w, EXCERPT_CARD.w, 'a region card is as wide as a text card, not the full column (it fits beside the open panel)');
   assert.deepEqual([block.fileRef.meta.width, block.fileRef.meta.height], [800, 400]);
   assert.deepEqual(block.excerpt.crop, { source: { id: FS, rev: REV }, width: 800, height: 400 });
   assert.equal(block.excerpt.quote, null);

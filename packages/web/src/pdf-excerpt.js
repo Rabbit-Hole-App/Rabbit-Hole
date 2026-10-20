@@ -105,7 +105,8 @@ async function build(draft, { app, board = 'main', saveBoard = null, deps = {} }
   excerpt = { ...excerpt, highlightId, crop: region?.crop ?? null };
   const title = excerptTitle(excerpt);
   if (draft.kind === 'text') return { type: 'explanation', title, excerpt, note: '', w: EXCERPT_CARD.w, h: EXCERPT_CARD.h };
-  return { ...cropCard(excerpt, region.stored), label: title, excerpt, note: '' };
+  // The text card's width, not the full column: a column-wide card spilled past the visible canvas beside the open panel.
+  return { ...cropCard(excerpt, region.stored), label: title, excerpt, note: '', w: EXCERPT_CARD.w };
 }
 
 // The draft as a block, or throws with a reason to show. Every server step (crop, highlight) has finished before it resolves,
