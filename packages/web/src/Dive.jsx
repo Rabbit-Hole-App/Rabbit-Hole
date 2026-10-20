@@ -4,6 +4,7 @@
 // agent's [Go down a Rabbit Hole] / [Keep it on this canvas], not wired to any model yet).
 // The rules themselves are pure, in dive.js.
 import { createContext, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { excerptSeed } from './pdf-excerpt.js';
 import { GripHorizontal, Trash2 } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ConfirmDialog, Tip, toast } from './ui.jsx';
@@ -91,6 +92,8 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     const current = treeRef.current, name = newHoleName(), draft = composer()?.value || '';
     keepPending(sessionStorage, {
       name, title, parent: here, origin_block_id: card.id, base: baseFor(name),
+      // A PDF excerpt card's hole opens on a copy of it (pdf-excerpt.js excerptSeed): its words or crop and source anchor, never the PDF.
+      ...(excerptSeed(block, here.app) ? { seed: excerptSeed(block, here.app) } : {}),
       dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length, journey: journeyContext(block) }),
     });
     // ponytail: the canvas saves 400ms after a change and an unmount drops the timer, so a new

@@ -222,7 +222,7 @@ function ImageBody({ block, original }) {
   const url = useObjectUrl(original.blob);
   const [size, setSize] = useState(meta.width && meta.height ? [meta.width, meta.height] : null);
   return url
-    ? <img src={url} alt={block.label || meta.name || 'Image'} draggable={false} data-image-preview onLoad={event => !size && setSize([event.currentTarget.naturalWidth, event.currentTarget.naturalHeight])}
+    ? <img src={url} alt={block.label || meta.name || 'Image'} draggable={false} data-image-preview data-excerpt-crop={block.excerpt ? '' : undefined} onLoad={event => !size && setSize([event.currentTarget.naturalWidth, event.currentTarget.naturalHeight])}
       style={size ? { aspectRatio: `${size[0]} / ${size[1]}` } : undefined} className="w-full rounded-lg border border-line bg-white object-contain" />
     : <div style={size ? { aspectRatio: `${size[0]} / ${size[1]}` } : undefined} className="w-full rounded-lg border border-line bg-white" />;
 }

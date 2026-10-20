@@ -104,6 +104,8 @@ import { boardPending, boardText, serial, sharingOf, withPendingWork } from './c
 import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
 import { codeRef, paperRef, wikiRef } from './chat-sources.js';
+import { draftChatRef, materialize, placeExcerpts } from './pdf-excerpt.js';
+import { EXCERPT_EVENT, get as excerptDraft } from './pdf-excerpt-drafts.js';
 
 const LearnNotes = lazyFeature(() => import('./LearnNotes.jsx'), 'Notes');
 // Follow-up R3 item 3: this browser's copy of a board cannot be read (blocked storage, a value that is not a board), so a save
@@ -882,6 +884,44 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // and a newer server copy replaces this browser's on open. This browser keeps the instant copy, the offline queue and
   // the cache. Review boards (?board=, dev tooling) are saved there only while shared (canvas-sharing.md).
   const boardName = board || 'main';
+  // PDF excerpts from the reader (pdf-excerpts contract, 'small:pdf-excerpt'; the canvas drop sends the same event with `at`).
+  // canvas: the card - crop stored and highlight saved first, so a failure leaves none (Retry offers the same intent again) - one
+  // insertion and one Undo step for the whole intent (draftIds: a split's parts). chat: attached to the conversation, nothing sent.
+  useEffect(() => {
+    const take = async ({ action, draftId, draftIds, at = null }) => {
+      const ids = draftIds?.length ? draftIds : draftId ? [draftId] : [];
+      const surface = canvasApi.current, options = { app: app.name, board: boardName, saveBoard: () => canvasApi.current?.persist?.() };
+      if (!ids.length) return;
+      try {
+        if (action === 'chat') {
+          const drafts = ids.map(excerptDraft);
+          if (drafts.some(entry => !entry)) throw new Error('This selection is no longer available. Select it again.');
+          for (const entry of drafts) { const { ref, fileRef } = await draftChatRef(entry, options); if (ref) chatWorkspace.current?.addToChat(ref, fileRef ? { fileRef } : undefined); }
+          return;
+        }
+        if (action !== 'canvas' || !surface?.insertExcerpts) return;
+        await placeExcerpts(ids, {
+          draft: excerptDraft, build: entry => materialize(entry, options),
+          find: id => canvasApi.current?.blocks?.().find(block => block.excerpt?.id === id)?.id || null,
+          insert: blocks => canvasApi.current?.insertExcerpts(blocks, at), focus: id => canvasApi.current?.focusBlock(id),
+        });
+      } catch (problem) {
+        toast(`${action === 'chat' ? 'Not added to chat' : 'Not added to the canvas'}: ${problem.message}`, { tone: 'error', action: { label: 'Retry', run: () => take({ action, draftIds: ids, at }) } });
+      }
+    };
+    const onExcerpt = event => take(event.detail || {});
+    // Open source from an excerpt card's footer (ExcerptCard.jsx, after its access check): the companion reader at the excerpt's
+    // page and anchor; the canvas and its camera stay as they are.
+    const onSource = event => {
+      const ref = event.detail?.ref;
+      if (!ref) return;
+      if (chatWorkspace.current) chatWorkspace.current.openSource(ref);
+      else if (ref.kind === 'web') openPaper({ id: ref.sourceId.slice('paper:'.length), title: ref.name, pdfUrl: null, page: ref.range.page, ...(ref.home ? { home: ref.home } : {}) });
+    };
+    window.addEventListener(EXCERPT_EVENT, onExcerpt);
+    window.addEventListener('small:excerpt-source', onSource);
+    return () => { window.removeEventListener(EXCERPT_EVENT, onExcerpt); window.removeEventListener('small:excerpt-source', onSource); };
+  }, [app.name, boardName]); // eslint-disable-line react-hooks/exhaustive-deps
   // The inline AI editor (docs/features/inline-ai-editor.md): this canvas's routes - the registry's commands available
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
   const cadRequests = useRef(new Map());
@@ -998,6 +1038,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const voiceOn = !!voice && voice.state !== 'off';
   const boardStorageKey = board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`;
   const boardPath = `/api/learn/boards/${encodeURIComponent(app.name)}/${encodeURIComponent(boardName)}`;
+  // A Rabbit Hole from a PDF excerpt card opens on a copy of that card (Dive.jsx seed), placed once the hole's board has loaded.
+  useEffect(() => {
+    const seed = hole?.seed, surface = canvasApi.current;
+    if (!seed?.excerpt || restoredBoard !== boardPath || !surface?.insertBlock) return;
+    if (!(surface.blocks?.() || []).some(block => block.excerpt?.id === seed.excerpt.id)) surface.insertBlock(seed);
+  }, [restoredBoard, boardPath]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sharing, setSharing] = useState(null);
   // Comments (docs/features/canvas-comments.md): keyed by the main board's id, which the owner's board reads return.
   const [commentBoard, setCommentBoard] = useState(null);
