@@ -1,5 +1,6 @@
 export function editableImage(block) {
-  return !!block && (block.type === 'image' || block.type === 'file' && block.kind === 'image') && !block.locked && !block.sources?.length && !block.citations?.length && !block.references?.length && !!(block.assetKey || block.fileRef?.source?.id && block.fileRef?.source?.rev);
+  // A PDF excerpt's crop is the page's own picture (pdf-excerpts brief section 8): never replaced by an image edit.
+  return !!block && !block.excerpt && (block.type === 'image' || block.type === 'file' && block.kind === 'image') && !block.locked && !block.sources?.length && !block.citations?.length && !block.references?.length && !!(block.assetKey || block.fileRef?.source?.id && block.fileRef?.source?.rev);
 }
 // Shape validation only. Source dimensions and permissions are checked while preparing bytes.
 export function imageOperation(input) {

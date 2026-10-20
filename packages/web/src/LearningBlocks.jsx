@@ -35,6 +35,8 @@ import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
 import { lazyFeature } from './lazy-feature.jsx';
+import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
+import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
 // capture, readOnly }. Null wherever a card renders outside a canvas, so no sketch is offered there.
@@ -1588,6 +1590,23 @@ function ExplanationBody({ block, onFile }) {
   );
 }
 
+// A text excerpt from a PDF (pdf-excerpt.js): the PDF's own words as a quotation - verbatim paragraphs, never Markdown, never an
+// editable field - then the learner's note, then the source. Its title is the document and page, never generated.
+function ExcerptBody({ block, onChange, appName, readOnly }) {
+  const paragraphs = String(block.excerpt.quote?.exact || '').split(/\n{2,}/);
+  return (
+    <div data-scroll data-excerpt-card data-excerpt-kind="text" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <Kicker author="PDF">Excerpt</Kicker>
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <blockquote data-excerpt-quote className="mt-1.5 border-l-2 border-line-strong pl-3 text-sm text-ink">
+        {paragraphs.map((text, index) => <p key={index} className={`whitespace-pre-line ${index ? 'mt-2' : ''}`}>{text}</p>)}
+      </blockquote>
+      <ExcerptNote block={block} onChange={onChange} readOnly={readOnly} />
+      <ExcerptSource excerpt={block.excerpt} app={appName} />
+    </div>
+  );
+}
+
 function GraphBody({ block, appName, onChange }) {
   const report = usePerf();
   const host = useRef(null);
@@ -1755,6 +1774,8 @@ const NEWLINE = String.fromCharCode(10);
 
 // Serialize a block for the tutor prompt when the learner asks about it.
 export function describeBlock(block) {
+  // A PDF excerpt (text or region card) is its quotation and source, the learner's note kept apart (pdf-excerpt.js).
+  if (isExcerpt(block)) return describeExcerpt(block);
   if (block.type === 'cad') return cadContext(block);
   if (block.type === 'notebook') return describeNotebook(block);
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
@@ -1792,6 +1813,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
   if (block.type === 'code') return <CodeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'snippet') return <SnippetBody block={block} onFile={onFile} />;
+  if (block.type === 'explanation' && isExcerpt(block)) return <ExcerptBody block={block} onChange={onChange} appName={appName} readOnly={readOnly} />;
   if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} />;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} onExplain={onCadExplain} />;

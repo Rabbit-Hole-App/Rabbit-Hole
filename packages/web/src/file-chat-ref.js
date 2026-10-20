@@ -85,7 +85,8 @@ const SAYS = {
 // so a request can never rewrite or replace it as if its content were text. ids: the target's; board: the live lists.
 export function fileEditLocked(ids = [], board = null) {
   const blocks = new Map((board?.blocks || []).map(block => [block.id, block]));
-  return ids.some(id => { const fileRef = blocks.get(id)?.fileRef; return !!fileRef && !family(fileRef.family)?.can?.edit; });
+  // A PDF excerpt card (pdf-excerpt.js) is the PDF's own words or picture: Explain only, so nothing rewrites the quotation.
+  return ids.some(id => { const block = blocks.get(id), fileRef = block?.fileRef; return !!block?.excerpt || (!!fileRef && !family(fileRef.family)?.can?.edit); });
 }
 export const FILE_EDIT_LOCKED = 'This file has no editing path yet: Edit would replace it, not change its content. Explain works.';
 

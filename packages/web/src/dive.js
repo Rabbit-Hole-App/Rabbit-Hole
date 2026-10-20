@@ -134,6 +134,8 @@ export function diveRecord({ name, title, via, parent, target, block = null, vie
       practice_open: !!block?.practiceActive, pending_question: question || null, viewport: view ? { x: view.x, y: view.y, zoom: view.z } : null,
     },
     ...(journey ? { journey } : {}),
+    // A hole from a PDF excerpt (pdf-excerpt.js) names that excerpt's source anchor; its words or crop ride on the hole's seed card.
+    ...(block?.excerpt ? { origin_excerpt: { id: block.excerpt.id, kind: block.excerpt.kind, source: { key: block.excerpt.source.key, name: block.excerpt.source.name, home: block.excerpt.source.home ?? null }, page: block.excerpt.page } } : {}),
   };
 }
 

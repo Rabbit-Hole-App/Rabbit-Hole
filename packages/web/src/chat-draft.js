@@ -41,13 +41,21 @@ export function draftSlot(draft, action) {
 // the way ask.jsx targetText is), cut to the contract's limits; other kinds never carry text.
 // target: the selected object's own ref (pdf-materials-refinement.md section 6). Attached as well, it rides once: canvas_target
 // carries its text (the deictic grounding reads it there), so the attached copy goes as its name and identity only.
-const TEXT_KINDS = new Set(['card', 'group', 'image', 'media']);
-export function refsForSend(refs = [], { text: perRef = 8000, texts: total = 32000, target = null } = {}) {
-  let budget = total;
+// A PDF excerpt (pdf-excerpt.js) is client text too, on the server's own excerpt caps (chat-modes.js: 12,000 per ref - the full
+// 8,000-character quote, its source line and the note - and 96,000 in all, apart from the cards'); a cap that still cuts one
+// says so in the text itself, so the model is told it has part of the excerpt.
+const TEXT_KINDS = new Set(['card', 'group', 'image', 'media', 'excerpt']);
+export const EXCERPT_TEXT = 12000, EXCERPTS_TEXT = 96000;
+export function refsForSend(refs = [], { text: perRef = 8000, texts: total = 32000, excerpts = EXCERPTS_TEXT, target = null } = {}) {
+  const budgets = { card: total, excerpt: excerpts };
   return refs.map(({ text, ...ref }) => {
     if (!TEXT_KINDS.has(ref.kind) || (target && sameRef(ref, target))) return ref;
-    const value = String((typeof text === 'function' ? text() : text) ?? '').slice(0, Math.min(perRef, budget));
-    budget -= value.length;
+    const pool = ref.kind === 'excerpt' ? 'excerpt' : 'card', budget = budgets[pool];
+    const full = String((typeof text === 'function' ? text() : text) ?? ''), cap = Math.min(pool === 'excerpt' ? EXCERPT_TEXT : perRef, budget);
+    const said = kept => ` [cut: only the first ${kept} of ${full.length} characters of this excerpt were sent]`;
+    const kept = Math.max(0, cap - said(full.length).length);
+    const value = ref.kind === 'excerpt' && full.length > cap ? `${full.slice(0, kept)}${said(kept)}` : full.slice(0, cap);
+    budgets[pool] -= value.length;
     return value ? { ...ref, text: value } : ref;
   });
 }

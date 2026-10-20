@@ -76,6 +76,9 @@ import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
 import { createSearchSnapshotStore, createEquationSearchDrafts, searchCamera, searchRange, revealSearchRange, temporarySearchHighlight } from './canvas-search-navigation.js';
 import './canvas-search-navigation.css';
+import { EXCERPT_CARD, excerptChatRef } from './pdf-excerpt.js';
+import { EXCERPT_DRAG, EXCERPT_EVENT } from './pdf-excerpt-drafts.js';
+import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -599,7 +602,8 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
 // applies and a reload keeps the card.
 
 // A dropped image shows the selection actions (Add to chat, Quick Edit) above its top right while it is the one selected object.
-function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
+function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap, appName = null }) {
+  const editing = useContext(CanvasEdit);
   const [url, setUrl] = useState(null);
   const [missing, setMissing] = useState(false);
   // A stored-source card (fileRef: an SVG or audio import, or Context Add to canvas for any media) reads through MediaBody too.
@@ -639,12 +643,16 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && block.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{media || 'Image'}<span className="min-w-0 flex-1 truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{block.excerpt ? 'Excerpt' : media || 'Image'}<span className="min-w-0 flex-1 truncate normal-case tracking-normal text-ink-3">{block.label}</span>
         {!media && url && <a href={url} download={block.label || 'image'} data-download-original aria-label="Download original" title="Download original" onPointerDown={event => event.stopPropagation()}
           className="flex shrink-0 items-center rounded-md p-1 text-ink-2 normal-case hover:bg-hover hover:text-ink"><Download size={12} /></a>}
       </div>
       <div data-pointer-body className="min-h-0 px-3 pb-3" onPointerDown={event => { if ((clip || block.kind === 'audio') && selected) event.stopPropagation(); }}>
-        {media
+        {/* A region excerpt (pdf-excerpt.js): the stored crop of the PDF page, the learner's note, the source footer. */}
+        {block.excerpt
+          ? <div data-excerpt-card data-excerpt-kind="region"><Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening…</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
+            <ExcerptNote block={block} onChange={onChange} readOnly={editing.readOnly || editing.locked.has(block.id)} /><ExcerptSource excerpt={block.excerpt} app={appName} /></div>
+          : media
           ? <Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening…</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
           : url
             ? <img src={url} alt={block.label || 'Dropped image'} style={block.meta?.width && block.meta?.height ? { aspectRatio: `${block.meta.width} / ${block.meta.height}` } : undefined} className="w-full rounded-lg border border-line bg-white object-contain" />
@@ -840,7 +848,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // An imported 3D model, point cloud, splat or CAD model (ModelCard.jsx): the header strip moves it, the viewer is explicit.
   if (block.type === 'file' && block.kind === 'model') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || 560} height={block.h || 460} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the 3D viewer…</p>}><ModelCard block={block} selected={selected} onChange={onChange} onSelect={onSelect} /></Suspense></CanvasNode>;
-  if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} appName={appName} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -2231,6 +2239,31 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...REF_CARD });
         return added.id;
       },
+      // PDF excerpt cards (pdf-excerpt.js placeExcerpts): one insertion, one Undo step, nothing else moved. Without `at` they land
+      // in free space in the usable view (refCardSpot: right panel, zoom and chrome accounted for, as insertRefCard); with `at`
+      // (a drop's world point) there. A split's parts stack in order. The cards join the end of the column and are drawn at their
+      // spot by their offset; their ids enter blocksRef now, so a repeated request finds them before the next render.
+      insertExcerpts: (list, at = null) => {
+        if (readOnlyRef.current || !alive.current || !list?.length) return [];
+        // A region card is a FileCard (COLUMN wide, its height the crop's aspect plus its header, note and footer).
+        const gap = 20, widths = list.map(block => block.w || (block.type === 'file' ? COLUMN : EXCERPT_CARD.w)), w = Math.max(...widths);
+        const heights = list.map((block, index) => block.h || (block.excerpt?.crop ? Math.round((widths[index] - 24) * block.excerpt.crop.height / block.excerpt.crop.width) + 130 : EXCERPT_CARD.h));
+        const box = { w, h: heights.reduce((sum, h) => sum + h, 0) + gap * (list.length - 1) };
+        const spot = at ? { x: at.x - w / 2, y: at.y } : refCardSpot(viewCenter(), inlineCanvas.obstacles(), inlineCanvas.visibleWorld(), box);
+        const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
+        let y = spot.y, flow = flowY;
+        const added = list.map((block, index) => {
+          const card = { ...block, id: crypto.randomUUID(), dx: Math.round(spot.x - (COLUMN - widths[index]) / 2), dy: Math.round(y - flow) };
+          y += heights[index] + gap; flow += heights[index] + 20;
+          return card;
+        });
+        snapshot();
+        blocksRef.current = [...blocksRef.current, ...added];
+        setBlocks(previous => [...previous, ...added]);
+        setSelection(added.map(block => block.id));
+        if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...box });
+        return added.map(block => block.id);
+      },
       // Several cards at once (Add code card on a graph selection; repo-canvas-graph.md "Multiple nodes and placement"): one
       // compact grid as wide as the view allows, in the free space in view nearest its top-left (refCardSpot with the grid as one box; the corner it keeps clear is the view's own),
       // one undo step, the new cards selected, and panned to only when the grid is off-screen. Each joins the end of the
@@ -3502,7 +3535,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const askedId = useRef(null);
   // The selected object's chat-context identity (pdf-materials-refinement.md section 6): a PDF card or page is its document and
   // page (pdfRef), anything else the ref Add to chat gives it. The composer shows a selection and an attachment of one ref once.
-  const chatRefOf = object => pdfRef(object) || fileChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
+  const chatRefOf = object => excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
   const armTarget = block => {
     const described = describeObject(block);
     if (!described) return false;
@@ -3579,7 +3612,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // chip a question about it sends; a whole PDF card is its document's ref (pdfRef), never a second card chip of one PDF.
       // Its selection chip steps aside, as a card's does below, so the page is one chip.
       // An imported file card is its file ref (file-chat-ref.js: source revision + scope), the selection chip's own identity.
-      const sourceRef = pdfRef(object) || fileChatRef(object);
+      // A PDF excerpt is its own ref (pdf-excerpt.js): the verbatim text, or its crop's image file - the selection chip's identity.
+      const sourceRef = excerptChatRef(object) || pdfRef(object) || fileChatRef(object);
       if (sourceRef) {
         if (chatWorkspace.addToChat(sourceRef, { fileRef: object.fileRef }) === false) return false;
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
@@ -5076,9 +5110,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const root = surface.current.getBoundingClientRect();
           setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top, id, group });
         }}
-        onDragOver={event => { if (!readOnlyRef.current && chatWorkspace?.canvasOps?.insertCard && [...(event.dataTransfer?.types || [])].includes(CODE_DRAG)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDropHover(true); return; } if (onDropFiles && isFileDrag(event.dataTransfer)) { event.preventDefault(); setDropHover(true); } }}
+        onDragOver={event => { if (!readOnlyRef.current && ([...(event.dataTransfer?.types || [])].includes(EXCERPT_DRAG) || (chatWorkspace?.canvasOps?.insertCard && [...(event.dataTransfer?.types || [])].includes(CODE_DRAG)))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDropHover(true); return; } if (onDropFiles && isFileDrag(event.dataTransfer)) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
-        onDrop={event => { const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); const at = local(event); droppedFiles(event.dataTransfer).then(files => onDropFiles(files, at), problem => toast(problem.message)); }}
+        onDrop={event => { const excerpt = !readOnlyRef.current && event.dataTransfer?.getData(EXCERPT_DRAG); if (excerpt) { event.preventDefault(); setDropHover(false); window.dispatchEvent(new CustomEvent(EXCERPT_EVENT, { detail: { action: 'canvas', draftId: excerpt, at: local(event) } })); return; } const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); const at = local(event); droppedFiles(event.dataTransfer).then(files => onDropFiles(files, at), problem => toast(problem.message)); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />

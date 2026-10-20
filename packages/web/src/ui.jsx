@@ -232,8 +232,8 @@ export function Toasts() {
   useEffect(() => {
     const on = (e) => {
       const id = Math.random();
-      const { message, tone } = typeof e.detail === 'string' ? { message: e.detail } : e.detail;
-      setItems((t) => [...t, { id, msg: message, tone }]);
+      const { message, tone, action = null } = typeof e.detail === 'string' ? { message: e.detail } : e.detail;
+      setItems((t) => [...t, { id, msg: message, tone, action }]);
       if (tone !== 'error') setTimeout(() => setItems((t) => t.filter((x) => x.id !== id)), 3000);
     };
     window.addEventListener('small:toast', on);
@@ -251,6 +251,9 @@ export function Toasts() {
         <div key={t.id} data-toast-error className="flex items-start gap-2 rounded-lg border border-red-600/30 bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
           <TriangleAlert size={15} className="mt-0.5 shrink-0 text-red-400" />
           <span className="min-w-0 flex-1 break-words">{t.msg}</span>
+          {/* An action that can fix it (e.g. Retry: { label, run }), which closes the message. */}
+          {t.action && <button type="button" data-toast-action onClick={() => { drop(t.id); t.action.run(); }}
+            className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-white hover:bg-white/10">{t.action.label}</button>}
           <button type="button" data-toast-copy title="Copy this message" aria-label="Copy this message"
             onClick={() => { navigator.clipboard.writeText(t.msg); toast('Copied'); }}
             className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><CopyIcon size={14} /></button>
