@@ -259,6 +259,7 @@
     "packages/web/src/cad-details.jsx": ["cad-controls-check.mjs"],
     "packages/web/src/cad-dimensions-overlay.jsx": ["cad-controls-check.mjs"],
     "packages/web/src/cad-draft-store.js": ["cad-controls-check.mjs"],
+    "packages/web/e2e/cad-controls-facts.json": ["cad-controls-check.mjs"],
     "packages/web/src/cad-dimensions.js": ["cad-controls-check.mjs"],
     "packages/web/src/cad-quick-edit-model.js": ["cad-controls-check.mjs"],
     "packages/web/src/CadReview.jsx": ["cad-controls-check.mjs"],
