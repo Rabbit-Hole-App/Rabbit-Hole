@@ -11,7 +11,8 @@ import { guardedCaptions, enqueueForIndex, warmMoments, semanticWindowScorer, ho
 import { topPassages } from './learn-moment-retrieve.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { recordMedia } from './learn-usage.js';
-import { exaCost, EXA_SEARCH_ESTIMATE } from './learn-usage-estimates.js';
+import { exaCost, exaSearchBound, EXA_SEARCH_ESTIMATE } from './learn-usage-estimates.js';
+import { admitTool } from './learn-paid-transport.js';
 import { VIDEO_SYSTEM as VIDEO_TOOLS_SYSTEM, VIDEO_SHOWN_NOTE } from './agents/learn-chat.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -90,6 +91,8 @@ export const videoSearchAvailable = env => !!(env?.EXA_API_KEY || (env?.AI && en
 export async function searchYouTube(query, env, fetcher = fetch) {
   if (typeof query !== 'string' || !query.trim() || query.length > 200) throw new Error('Invalid video search');
   if (!env?.EXA_API_KEY) throw new Error('YouTube search is not connected on this deployment.');
+  // Admitted before the call (learn-paid-transport.js admitTool): a refusal throws, and nothing is sent.
+  const metered = await admitTool(env, { category: 'exa_search', reservedMicros: exaSearchBound(10), provider: 'exa', model: 'search' });
   let response, data = null, ok = false;
   try {
     try {
@@ -106,9 +109,10 @@ export async function searchYouTube(query, env, fetcher = fetch) {
     data = await response.json();
     ok = true;
   } finally {
-    // Usage accounting (ledger bypass), once per dispatched search whatever its outcome: Exa's reported cost when it gives
-    // one, else the documented per-search estimate; a failed one (timeout, refusal, 429, unreadable 200) is unknown, never 0.
-    await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data), estimateMicros: EXA_SEARCH_ESTIMATE });
+    // Once per dispatched search whatever its outcome: Exa's reported cost settles it, else its hold stays as unknown cost
+    // (never 0). Where spend is not enforced (test), the Phase 1 record.
+    if (metered) await metered.settle({ ok, costMicros: exaCost(data) });
+    else await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data), estimateMicros: EXA_SEARCH_ESTIMATE });
   }
   return parseExaResults(data);
 }

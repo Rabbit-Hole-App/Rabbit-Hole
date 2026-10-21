@@ -1,6 +1,7 @@
 import { inlineCodeRoute } from '../control-plane/src/inline-code-route.js';
 import { inlineImageJobsRoute } from '../control-plane/src/inline-image-jobs.js';
 import { paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
+import { allowanceFirst, boundaryReply } from '../control-plane/src/learn-spend-ledger.js';
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
 import { profileFetch, profileRoute } from '../control-plane/src/profile.js';
@@ -80,18 +81,23 @@ export default {
   },
   async fetch(req, env, ctx) {
     env = guardControlPlane(env);
-    // Usage accounting (credits Phase 1, learn-usage.js): a route that makes provider calls gets its own per-request
-    // context, so its attempts share one action whose payer is this request's session user. Accounting only: it never
-    // refuses, and a stream passes through byte for byte.
+    // Usage (learn-usage.js): a route that makes provider calls gets its own per-request context, so its attempts share one
+    // action whose payer is this request's session user. Admission (learn-spend-ledger.js admitSpend) enforces that user's
+    // monthly allowance and the platform guard; a stream passes through byte for byte.
     const feature = usageFeature(req.method, new URL(req.url).pathname);
     if (!feature) return routes.fetch(req, env, ctx);
     const usageEnv = withUsage(env, { feature, req, resolveUser: () => devIdentity(req, env) });
+    // A streaming route answers an allowance with nothing available before it starts streaming (owner L12 2026-10-20).
+    if (STREAMING.has(feature)) { const refused = await allowanceFirst(usageEnv); if (refused) return refused; }
     let response;
-    try { response = await routes.fetch(req, usageEnv, ctx); }
+    try { response = boundaryReply(usageEnv, await routes.fetch(req, usageEnv, ctx)); }
     catch (error) { await finishAction(usageEnv, { status: 'failed', result: 'none' }); throw error; }
     return finishWithResponse(usageEnv, response);
   },
 };
+
+// The paid routes that answer in a stream (event stream or NDJSON), so a refusal inside would come after a 200.
+const STREAMING = new Set(['ask', 'board', 'inline_generate', 'shared_ask', 'tutor']);
 
 // The worker's routes; fetch above is the only caller.
 const routes = {

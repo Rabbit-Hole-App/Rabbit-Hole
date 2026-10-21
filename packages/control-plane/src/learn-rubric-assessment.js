@@ -188,7 +188,7 @@ export async function callEvaluator(env, actor, task, request, reason, deps = {}
     ]);
     if (!response.ok) {
       const body = await response.clone().json().catch(() => null);
-      if (response.status === 429 && body?.code === 'spend_limited') return stop('refused', 'unavailable', 'allowance_refused');
+      if ((response.status === 429 || response.status === 503) && ['spend_limited', 'allowance_limited'].includes(body?.code)) return stop('refused', 'unavailable', 'allowance_refused');
       if (response.status === 503 && body?.error?.type === 'not_configured') return stop('refused', 'unavailable', 'evaluator_unconfigured');
       return stop('error', 'failed', 'evaluator_error');
     }

@@ -33,5 +33,5 @@ test('the Settings default model says the pick applies to chat answers only; Lea
   const pill = readFileSync(new URL('./CommandPill.jsx', import.meta.url), 'utf8');
   assert.match(pill, /data-command-pill=\{name\}/);
   assert.match(pill, /aria-label=\{`Remove \$\{label\}`\} title=\{`Remove \$\{label\}`\} onMouseDown=\{event => event\.preventDefault\(\)\} onClick=\{onRemove\}/);
-  assert.match(ask, /const line = `\/\$\{command\} \$\{raw\.trim\(\)\}`\.trim\(\);/);
+  assert.match(ask, /const line = !regenerate && slash \? commandLine\(raw, \{ command, prompted \}\) : null;/); // learn-slash.js commandLine: \"/command text\"
 });

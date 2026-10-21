@@ -3,6 +3,7 @@
 // system: a card still comes from the shared command path (learn-slash.js generateCommand), only without its insert.
 import { imageSearchBlock } from './learn-slash.js';
 import { checkDecision } from './inline-ai-decide.js';
+import { handleAiRefusal } from './ai-refusal.js';
 
 // Server-sent events from a fetch body: { event, data } per message, data parsed as JSON. Chunks arrive split anywhere.
 export async function readSse(body, onMessage) {
@@ -41,6 +42,7 @@ export async function readGeneration(response, onEvent) {
     else if (event === 'done') done = data;
     else if (event === 'error') failure = data;
   });
+  if (failure) handleAiRefusal(failure);
   if (failure) throw Object.assign(new Error(failure.error || 'Generation failed.'), { code: failure.code || 'error' });
   if (!done?.result) throw Object.assign(new Error('The answer ended before it was complete.'), { code: 'incomplete' });
   return { result: done.result, usage: done.usage || null };

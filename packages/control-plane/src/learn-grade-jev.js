@@ -1,5 +1,5 @@
 import { admitSpend, settleSpend, operationId, spendEnforced, platformCaps } from './learn-spend-ledger.js';
-import { beginAttempt, settleAttempt, toMicros } from './learn-usage.js';
+import { settleAttempt, toMicros } from './learn-usage.js';
 
 // Jev side-by-side grading for Learn challenges (docs/features/jev-grading.md).
 // The grader protocol - everything that turns an answer into Jev
@@ -146,12 +146,15 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
   if (enforced && request?.model !== JEV_TRANSPORTS[transport]?.model) throw Object.assign(new JevError('spend_bound_unavailable', 'Jev request has no verified spend bound.'), { called: false });
   for (let attempt = 0; ; attempt += 1) {
     const opId = enforced ? operationId('jev') : null;
+    // One admission per POST (learn-spend-ledger.js): the 429/529 retry is admitted again, its own 'retry' attempt, so a
+    // retry can never spend past the platform guard or the payer's allowance.
+    let begun = null;
     if (enforced) {
-      const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'jev', reservedUsd });
-      if (gate.refused) throw Object.assign(new JevError(gate.reason, 'Jev refused by the daily spend guard.'), { called: attempt > 0 });
+      const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'jev', reservedUsd,
+        kind: attempt > 0 ? 'retry' : undefined, provider: `jev:${transport}`, model: request.model });
+      if (gate.refused) throw Object.assign(new JevError(gate.reason, 'Jev refused by the spend guard.'), { called: attempt > 0 });
+      begun = gate.attemptId;
     }
-    // Usage accounting (learn-usage.js, Phase 1): one attempt per admitted POST, the 429/529 retry its own 'retry' attempt.
-    const begun = enforced ? beginAttempt(env, { attemptId: opId, kind: attempt > 0 ? 'retry' : undefined, provider: `jev:${transport}`, model: request.model, reservedMicros: toMicros(reservedUsd) }) : null;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let response;
@@ -167,7 +170,7 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
       body = await response.json().catch(() => null);
     } catch (error) {
       if (enforced) await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: `jev:${transport}`, model: request.model, error: controller.signal.aborted ? 'timeout' : 'network' });
-      if (enforced) await settleAttempt(env, await begun, { status: 'failed' });
+      if (enforced) await settleAttempt(env, begun, { status: 'failed' });
       if (controller.signal.aborted) throw new JevError('timeout', `Jev timed out after ${timeoutMs} ms`);
       throw new JevError('network', `Jev unreachable: ${error.message}`);
     } finally {
@@ -182,7 +185,7 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
       await settleSpend(env.LEARN_DB, opId, { calls: 1, status: response.ok ? 'settled' : 'failed',
         costUsd: response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null,
         provider: `jev:${transport}`, model: body?.model || request.model, error: response.ok ? null : `http_${response.status}` });
-      await settleAttempt(env, await begun, { status: response.ok ? 'settled' : 'failed', costMicros: toMicros(response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null),
+      await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: toMicros(response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null),
         model: body?.model || request.model, inputTokens: tokens });
     }
     if ((response.status === 429 || response.status === 529) && attempt === 0) {

@@ -135,8 +135,14 @@ async function download(req, env, id) {
     if (!row) return json({ error: 'Not available' }, 404);
     through = { row };
   }
-  const access = await authorizeFileSource(req, env, id, through);
+  let access = await authorizeFileSource(req, env, id, through);
   if (access instanceof Response) return access;
+  // Saved CAD Python is owner-only (CAD decision 9): a share, member, board or fork reference reaches its geometry
+  // derivatives, never the source itself. Same 404 as any refusal.
+  if (access.source.family === 'cad' && access.via !== 'owner') {
+    access = await authorizeFileSource(req, env, id);
+    if (access instanceof Response) return access.status === 401 ? access : json({ error: 'Not available' }, 404);
+  }
   const { source } = access, bucket = learnMedia(env);
   let range = null;
   if (req.headers.get('range')) {

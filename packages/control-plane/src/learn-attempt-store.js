@@ -187,8 +187,13 @@ export async function readAttempt(env, actor, attemptId, { now = () => Date.now(
   return { attempt: attemptOf(row), assessment: assessments.at(-1), assessments };
 }
 
-/** A deliberate reassessment: a new operation that supersedes the last completed one. The same requestKey replays it. */
-export async function requestReassessment(env, actor, attemptId, requestKey, { now = () => new Date().toISOString() } = {}) {
+/**
+ * A deliberate reassessment: a new operation that supersedes the last completed one. The same requestKey replays it.
+ * dispute (Task 10, "Question this feedback"): the learner questions that completed judgment. Its observations keep every
+ * finding and are labelled 'disputed' (Progress: Needs review) in the same batch as the new operation, and only with it; the
+ * review's completed result then supersedes them, and an unavailable or failed review leaves them disputed.
+ */
+export async function requestReassessment(env, actor, attemptId, requestKey, { now = () => new Date().toISOString(), dispute = false } = {}) {
   if (typeof requestKey !== 'string' || !KEY.test(requestKey)) throw invalid('invalid_request_key');
   const { attempt, assessments } = await readAttempt(env, actor, attemptId);
   const key = `reassess:${requestKey}`;
@@ -199,10 +204,14 @@ export async function requestReassessment(env, actor, attemptId, requestKey, { n
   const supersedes = assessments.findLast(a => a.status === 'completed')?.assessmentId ?? null;
   const id = `as_${crypto.randomUUID()}`, at = now();
   // Never two pending operations on one attempt: a concurrent reassessment under another key inserts nothing.
-  await env.LEARN_DB.prepare(`INSERT INTO learn_assessments (id, attempt_id, org, owner_user_id, request_key, status, supersedes_assessment_id, created_at, updated_at)
-    SELECT ?, ?, ?, ?, ?, 'pending', ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM learn_assessments WHERE attempt_id = ? AND status = 'pending')
-    ON CONFLICT (attempt_id, request_key) DO NOTHING`)
-    .bind(id, attempt.attemptId, actor.org, actor.userId, key, supersedes, at, at, attempt.attemptId).run();
+  await env.LEARN_DB.batch([
+    env.LEARN_DB.prepare(`INSERT INTO learn_assessments (id, attempt_id, org, owner_user_id, request_key, status, supersedes_assessment_id, created_at, updated_at)
+      SELECT ?, ?, ?, ?, ?, 'pending', ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM learn_assessments WHERE attempt_id = ? AND status = 'pending')
+      ON CONFLICT (attempt_id, request_key) DO NOTHING`)
+      .bind(id, attempt.attemptId, actor.org, actor.userId, key, supersedes, at, at, attempt.attemptId),
+    ...(dispute && supersedes ? [env.LEARN_DB.prepare(`UPDATE learn_observations SET validity = 'disputed'
+      WHERE assessment_id = ? AND validity = 'valid' AND EXISTS (SELECT 1 FROM learn_assessments WHERE id = ?)`).bind(supersedes, id)] : []),
+  ]);
   const op = await find();
   if (!op) throw new AttemptError('assessment_in_progress', 409);
   return handle({ id: attempt.attemptId }, op, op.id !== id);
