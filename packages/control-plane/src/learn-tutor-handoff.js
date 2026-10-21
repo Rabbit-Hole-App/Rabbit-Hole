@@ -21,6 +21,7 @@ import { costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { NO_CAP, admitUsage, boardRevision, limitsFrom } from './learn-shared-ask.js';
 import { repositorySnapshot } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
+import { repositoryRelevance, snapshotIndex } from '../../web/src/learn-codebase-goals.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const HANDOFF_PATH = '/api/learn/tutor/handoff';
@@ -77,7 +78,10 @@ async function readRepository(env, access, { app, request, selection, card }, ca
     snapshot = revision && await repositorySnapshot(env, { id: revision.id }, commit);
   } catch (error) { throw failure(error?.message === NOT_INDEXED ? 'no_repository_context' : 'retrieval_error'); }
   if (!snapshot || (selection && selection.repository !== snapshot.repo)) throw failure('no_repository_context');
-  const read = (name, input) => { try { return repositoryTool(snapshot, name, input); } catch { return null; } };
+  // Task 12: an attached repository is optional context. A request that names nothing in its index and no code (the water
+  // cycle on a task-list app) reads no source and reaches no model here (learn-codebase-goals.js repositoryRelevance).
+  if (!selection && !repositoryRelevance(snapshotIndex(snapshot), request).relevant) throw failure('not_about_repository');
+  const read =(name, input) => { try { return repositoryTool(snapshot, name, input); } catch { return null; } };
   const selected = selection?.symbol ? read('get_relationships', { nodeId: selection.symbol }) : null;
   const range = selection?.line_range;
   const selectedCode = range ? read('read_source', { path: selection.file, start: range.start, end: range.end }) : null;

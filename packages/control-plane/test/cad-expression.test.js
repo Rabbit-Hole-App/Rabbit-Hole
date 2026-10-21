@@ -79,3 +79,23 @@ test('fresh provider response uses strict volume policy without retries or real 
     assert.equal(calls, 2);
   } finally { globalThis.fetch = previous; }
 });
+
+test('brief-first through the real transport: nested checks are lifted and keep their expressions for the single validation', async () => {
+  // Real claude-sonnet-5-5 brief (C2 local run, 2026-10-21) put "checks" inside "brief". The transport used to return resolved
+  // checks (expressions dropped), so the alarm's own validation refused the volume check and checkSpecs lost the expressions
+  // that rebuilds re-derive from. CAD_TEST_MODEL returns raw output, so the injected-model tests never took this path.
+  const { readFileSync } = await import('node:fs');
+  const fixture = JSON.parse(readFileSync(new URL('../../cad-execute/fixtures/cylinder/design.json', import.meta.url), 'utf8'));
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({content:[{type:'text',text:JSON.stringify({brief:{...fixture.brief,checks:fixture.checks}})}]});
+  const env = {SMALL_ENV:'test', CAD_MODEL_ENABLED:'true', CAD_MODEL_API_KEY:'fixture-only', CAD_MODEL_WORKSPACE_ID:'fixture-only'};
+  const job = {calls:1,reservedUsd:0.05,limits:{calls:6,usd:0.6},operationKey:'brief-fixture',modelPhase:'brief',owner:{org:'brief-fixture',email:'fixture@example.test'},prompt:'A cylinder'};
+  try {
+    const result = await runCadModel(env, job, cadModelRequest(job));
+    assert.deepEqual(result.checks, fixture.checks, 'check specs come back with their expressions');
+    assert.equal(result.brief.checks, undefined, 'checks are not left inside the brief');
+    const design = validateDesign(result, {requireVolumeExpressions:true, briefOnly:true}); // what the alarm does next
+    const radius = fixture.brief.controls.parameters.find(p => p.id === 'radius').value, height = fixture.brief.controls.parameters.find(p => p.id === 'height').value;
+    assert.ok(Math.abs(design.checks.find(c => c.id === 'volume').value - Math.PI * radius * radius * height) < 1e-6);
+  } finally { globalThis.fetch = previous; }
+});

@@ -78,6 +78,12 @@ const select = async id => {
 await page.goto(`${BASE}/apps/${root.name}?board=${TUTOR_BOARD}&voice=fake`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
 await page.waitForTimeout(1500);
+// Owner decision 3a and integrator ruling Q5 (2026-10-20, Tutor workflow): the Tutor's own teaching moves (the quiz question
+// it asks, a hole suggestion) run only in selected, enabled Tutor. The board starts in Auto, the default, so the session picks
+// Tutor (On) before Voice Mode, which has no composer toolbar.
+await page.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click();
+await page.getByRole('menuitemradio', { name: /^Tutor/ }).click();
+await page.waitForTimeout(500);
 
 // 1. Text Mode: the neutral mic sits at the end of the dock composer.
 const mic = page.getByRole('button', { name: 'Voice mode', exact: true });

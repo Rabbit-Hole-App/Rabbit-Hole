@@ -100,23 +100,34 @@ const setMode = async mode => {
   await page.locator(`[data-chat-mode-option="${mode}"]`).click();
   await waitFor(async () => await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === mode);
 };
+// Owner decision 1a (2026-10-20, Tutor workflow): syllabus building moved from Chat's Tutor mode (now the teaching Tutor) to the
+// Table of contents conversation, so a 'tutor' turn here is the TOC conversation's (its held Tutor, /api/learn/ask mode tutor)
+// and an 'ask' turn is Chat's. A syllabus there that fits applies at once (no Apply card); one that cannot is refused on its card.
+const tocBox = () => contents().locator('[data-toc-conversation], [data-toc-ask]');
 async function turn(text, plan = {}, mode = 'tutor') {
-  await tab('Chat').click();
-  await setMode(mode);
+  const where = mode === 'tutor' ? tocBox : pane;
+  if (mode === 'tutor') {
+    await tab('Table of contents').click();
+    await contents().locator('[data-toc-start] button, [data-toc-composer]').first().waitFor({ timeout: 10000 });
+    if (await contents().locator('[data-toc-start] button').count()) await contents().locator('[data-toc-start] button').click();
+  } else {
+    await tab('Chat').click();
+    await setMode(mode);
+  }
   next.push(plan);
   const n = captured.length;
-  await pane().locator('[data-chat-composer] textarea').first().fill(text);
-  await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
+  const composer = mode === 'tutor' ? '[data-toc-composer]' : '[data-chat-composer]';
+  await where().locator(`${composer} textarea`).first().fill(text);
+  await where().locator(`${composer} button[aria-label="Send"]`).click();
   await waitFor(() => captured.length > n, 20000);
-  await pane().getByText(`Canned reply ${captured[n].reply}.`, { exact: true }).first().waitFor({ timeout: 15000 });
-  await pane().locator('[data-chat-composer] button[aria-label="Send"]').waitFor({ timeout: 10000 });
+  await where().getByText(`Canned reply ${captured[n].reply}.`, { exact: true }).first().waitFor({ timeout: 15000 });
+  await where().locator(`${composer} button[aria-label="Send"]`).waitFor({ timeout: 10000 });
   return captured[n].body;
 }
-// Plans `plan` as a Tutor syllabus in Chat and presses its Use as table of contents; answers the card's status line.
+// Plans `plan` as a Tutor syllabus in the TOC conversation and presses its Use as table of contents; answers the card's status line.
 async function useAsContents(text, plan) {
   await turn(text, { syllabus: plan });
-  await tab('Chat').click();
-  const card = pane().locator('[data-syllabus]').last();
+  const card = tocBox().locator('[data-syllabus]').last();
   await card.locator('[data-syllabus-contents]').click();
   return card.locator('[data-syllabus-contents-status]').innerText();
 }
@@ -127,10 +138,8 @@ const sentWhole = (body, list) => {
 };
 
 let after84 = [];
-await check('1 the largest syllabus (84 headings) adopts into empty contents in one Apply; the next chat turn sends all 84', async () => {
+await check('1 the largest syllabus (84 headings) adopts into empty contents at once from the TOC conversation; the next chat turn sends all 84', async () => {
   assert.match(await useAsContents('plan a long course', syllabus('Unit', 12, 6)), /Proposed in Table of contents/);
-  await tab('Table of contents').click();
-  await apply().click();
   after84 = await waitFor(async () => { const h = await headings(); return h.length === 84 && h; }, 15000);
   sentWhole(await turn('how do the last two units connect?', {}, 'ask'), after84);
 });
@@ -138,7 +147,7 @@ await check('1 the largest syllabus (84 headings) adopts into empty contents in 
 await check('2 adopting another 84 is refused whole on the card with how many more fit (36); nothing proposed or applied', async () => {
   const status = await useAsContents('plan a second long course', syllabus('Extra', 12, 6));
   assert.equal(status, 'This proposal cannot be applied: it adds 84 headings to 84, and the contents hold at most 120: 36 more fit. Nothing was changed.');
-  await pane().locator('[data-syllabus]').last().screenshot({ path: `${OUT}/2-refused.png` });
+  await tocBox().locator('[data-syllabus]').last().screenshot({ path: `${OUT}/2-refused.png` });
   await tab('Table of contents').click();
   assert.equal(await apply().count(), 0, 'no proposal waits in the panel');
   assert.deepEqual(await headings(), after84, 'the existing contents are untouched');
@@ -147,8 +156,6 @@ await check('2 adopting another 84 is refused whole on the card with how many mo
 let after120 = [];
 await check('3 a syllabus that fits the room left (36 headings) adopts into the existing contents; a chat turn sends all 120', async () => {
   assert.match(await useAsContents('plan the last six units', syllabus('Last', 6, 5)), /Proposed in Table of contents/);
-  await tab('Table of contents').click();
-  await apply().click();
   after120 = await waitFor(async () => { const h = await headings(); return h.length === 120 && h; }, 15000);
   assert.deepEqual(after120.slice(0, 84), after84, 'existing headings kept, in order, with their ids');
   sentWhole(await turn('what is left to study?', {}, 'ask'), after120);
@@ -168,6 +175,7 @@ await check('4 a 121st heading added by hand lands; the next chat turn sends out
     assert.equal('outline' in body, false, `${mode}: no outline`);
     assert.equal('outlineRevision' in body, false, `${mode}: no outlineRevision`);
   }
+  await tab('Chat').click();
   await pane().screenshot({ path: `${OUT}/4-chat-at-121.png` });
 });
 
@@ -180,9 +188,9 @@ await check('5 at 121 headings the panel still navigates: a section pressed is f
 });
 
 await check('6 no model route was reached and the page raised no error', async () => {
-  assert.deepEqual(refused, []);
-  assert.deepEqual(outside, []);
-  assert.deepEqual(errors, []);
+  assert.deepEqual(refused, [], refused.join(', '));
+  assert.deepEqual(outside, [], outside.join(', '));
+  assert.deepEqual(errors, [], errors.join(' | '));
 });
 
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ results, asks: captured.length }, null, 2));

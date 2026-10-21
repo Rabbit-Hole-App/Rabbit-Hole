@@ -124,7 +124,9 @@ test('mid-session: with an active journey and a nearly exhausted ledger, a later
   const lines = dry.lines.filter(line => line.provider === 'anthropic');
   const k = lines.findIndex(line => line.model_role === 'tutor' && line.decision_id?.endsWith(':d2')); // decision 2's planner
   assert.ok(k > 0, 'decision 1 sent requests before decision 2\'s planner');
-  const before = i => lines.slice(0, i).reduce((sum, line) => sum + line.cost_usd, 0);
+  // A failed request (no usage) holds its reservation as spend, as the ledger counts it (createLedger settled()). Owner decision
+  // 7a made one routine here: the stub's contested JEV answer escalates to the larger evaluator, which the stub never answers.
+  const before = i => lines.slice(0, i).reduce((sum, line) => sum + (line.cost_usd ?? line.held_usd ?? 0), 0);
   const need = i => before(i) + lines[i].reserved_usd; // settled spend plus this request's reservation, when it is reserved
   const room = Math.max(...lines.slice(0, k).map((_, i) => need(i)));
   assert.ok(room < need(k), 'everything before decision 2\'s planner fits a room that it does not');
@@ -233,8 +235,12 @@ test('the reviewer\'s worst case is held from the session\'s start: a session st
   // request's worst-case bound (learn-spend.js requestSpendBound, prompt bytes alone: Sonnet $0.032426 -> $0.033582, an Opus
   // escalation $0.114852 -> $0.117164), so decision 15 no longer fits under $1.30 beside the reviewer's holdback: 14 decisions,
   // stopped by the ceiling, and the review still ok inside the limit.
+  // Owner decision 7a (2026-10-20, tutor/assess 171e539f): a confidently contradicted idea is never settled by JEV alone, so
+  // the stub's contested answer escalates every typed turn to the larger evaluator. The stub answers no larger evaluator
+  // (larger_evaluator_answer is not exercised), so each escalation fails with no usage and holds its whole worst case
+  // (about $0.058, Opus): 6 decisions, stopped by the ceiling, and the review still ok inside the limit.
   const low = await reviewed('stub');
-  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [14, 'cost_ceiling', 'ok']);
+  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [6, 'cost_ceiling', 'ok']);
   assert.ok(low.ledger.spent() <= 1.3 && low.ledger.reserved() === 0);
   assert.equal(aggregate([low.bundle], loadTaxonomy()).review_scores.mean.pacing, 3);
   // A limit below the holdback: the session never starts, so nothing is sent and there is nothing to review.

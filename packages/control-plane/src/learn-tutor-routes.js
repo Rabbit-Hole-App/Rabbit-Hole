@@ -39,7 +39,7 @@ const CONTEXT_LIMIT = 60000; // characters of planner context (about 12k tokens,
 const text = (value, max) => typeof value === 'string' && value.length <= max;
 
 // Each request/retry reserves independently. The private transport token prevents double admission.
-function spendCallModel(env, access, category, callModel) {
+export function spendCallModel(env, access, category, callModel) {
   return (callEnv, body, model, org, ...rest) => spendTransport(callEnv, body, model, org || access.org,
     admittedEnv => callModel(admittedEnv, body, model, org, ...rest),
     { userId: access.user_id || access.email, category });
@@ -114,10 +114,12 @@ const NOT_CALLED = { called: false, ms: null, outcome: null, reason: null, reque
 // already in the card's attemptLog), so this route starts at JEV. The larger evaluator runs only
 // when the explicit escalation policy says so (v2 Stage C, agents/learn-tutor-escalation.js); an
 // uncertain JEV answer it does not escalate is returned as is, its events unsettled.
+// Owner decision 7a (2026-10-20): every JEV result but an error reaches that decision before it is returned or stored, so a
+// fully confident contradiction escalates too; refused or failed, its contested events stay unsettled (needs review).
 export async function evaluateFreeText(env, spec, message, deps = {}) {
   const { telemetry: jevTelemetry, ...jev } = await jevRung(env, spec, message, deps);
-  if (jev.status !== 'uncertain') return { ...jev, telemetry: { jev: jevTelemetry, larger: NOT_CALLED } };
-  if (!jev.escalation.escalate) return { ...jev, telemetry: { jev: jevTelemetry, larger: { ...NOT_CALLED, reason: jev.escalation.reason } } };
+  if (jev.status === 'error') return { ...jev, telemetry: { jev: jevTelemetry, larger: NOT_CALLED } };
+  if (!jev.escalation.escalate) return { ...jev, telemetry: { jev: jevTelemetry, larger: jev.status === 'settled' ? NOT_CALLED : { ...NOT_CALLED, reason: jev.escalation.reason } } };
   const { telemetry: largerTelemetry, ...larger } = await largerRung(withAttemptKind(env, 'escalation'), spec, message, deps);
   const telemetry = { jev: jevTelemetry, larger: { ...largerTelemetry, reason: jev.escalation.reason } };
   // An errored larger rung keeps JEV's unsettled events (§3.3: stored unsettled, no state change).
@@ -131,7 +133,7 @@ const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
 // The free-text spec rebuilt from the journey registry, as the browser's evaluationSpec (web/src/learn-tutor.js) builds
 // it: claim content, a gap check per prerequisite concept, and the named misconceptions each claim already has a settled
 // event for. Only the claim ids, answering and question come from the body; any claim content it carries is ignored.
-function journeySpec(journey, body) {
+export function journeySpec(journey, body) {
   const registry = journey.registry.claims;
   if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > 4000) return { error: 'message must be 1-4000 characters' };
   if (!Array.isArray(body.claims) || !body.claims.length || body.claims.length > 6) return { error: 'claims must be 1-6 claim ids' };
@@ -177,7 +179,7 @@ const TURN_ID = /^[\w-]{1,80}$/;
 // A multiple-choice or prediction answer, graded from the probe's server-only key (§9.4), never by a model: the right
 // option is a pass on each of the probe's claims (demonstrated_in_transfer on a transfer probe), a keyed wrong option a
 // misconception on the claim that names it (a fail on the others), any other option a fail.
-function probeEvaluation(registry, probe, option) {
+export function probeEvaluation(registry, probe, option) {
   const pass = option === probe.key.correct, named = probe.key.misconceptions?.[option];
   const events = probe.claims.map(claim => {
     const own = !pass && !!named && registry.claims[claim].misconceptions.some(wrong => wrong.id === named);

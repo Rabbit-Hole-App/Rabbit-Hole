@@ -43,12 +43,16 @@ import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-
 import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
 import { tutorEvalRoute } from '../control-plane/src/tutor-eval-routes.js';
 import { journeyRoute } from '../control-plane/src/learn-journey.js';
+import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
+import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
+import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { filesFetch } from '../control-plane/src/learn-files.js';
 import { fileTextFetch } from '../control-plane/src/learn-file-text.js';
 import { provenanceRoute } from '../control-plane/src/learn-provenance.js';
+import { progressRoute } from '../control-plane/src/learn-progress.js';
 import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
@@ -280,9 +284,17 @@ const routes = {
     // The owner's private Tutor evaluation archive (learn-migrations/0017): 404 to anyone but TUTOR_EVAL_OWNER_USER_ID.
     if (path.startsWith('/api/learn/tutor-eval/')) return tutorEvalRoute(path, req, env);
     if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
+    // Submitted attempts and their assessments (learn-migrations/0026): the signed-in learner's own records only.
+    if (path.startsWith('/api/learn/tutor/attempts')) { const attempted = await attemptRoute(path, req, env); if (attempted) return attempted; }
     if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
+    // Personal Tutor controls and goals (learn-migrations/0025): the signed-in learner's own state only.
+    if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
+    // The Tutor's codebase goals and source drift (learn-codebase-source-map.js): the learner's own canvas, no model, no execution.
+    if (path === '/api/learn/codebase') return codebaseRoute(path, req, env);
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
+    // A learner's derived Progress for one goal (learn-progress.js): their own records only, no model call.
+    if (path === '/api/learn/progress') return progressRoute(path, req, env);
     // Jev side-by-side grading (docs/features/jev-grading.md).
     if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
     // Canvas comments (docs/features/canvas-comments.md): the member family and a publication's public family.

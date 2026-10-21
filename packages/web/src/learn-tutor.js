@@ -17,7 +17,7 @@ import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { NANOGPT, cardModule, claimsOfConceptIn, holeConcept, partLabels } from './learn-tutor-claims.js';
 import { appendEvents, claimCoverage, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
-import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
+import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, explicitRequest, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
 import { AVATAR_ACTION, HANDOFF_ACTION, MODE_SLASHES, NEXT_SECTION_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { decisionEvent, handoffUsage, safely, turnTrace } from './learn-tutor-trace.js';
 import { validSources } from './card-sources.js';
@@ -195,8 +195,12 @@ function progressedProbes(probes = {}, before, after, transitions, claims) {
   const covered = (events, id) => { const c = claimCoverage(events, id, claims); return `${c.settled_ideas.join(',')}|${c.transfer}`; };
   return Object.fromEntries(Object.entries(probes || {}).filter(([id]) => claims[id] && !transitions.some(change => change.claim === id) && covered(before, id) === covered(after, id)));
 }
-export function route({ turn, claims, states, evaluation, store, avatar = null, domain = NANOGPT }) {
+// held (Q5, heldActions): the proactive types the current Tutor controls hold back this turn. With ask_question held the move
+// explains (never a Socratic question) and respond_text is allowed on every row; the types stay allowed, because a plan that
+// answers the learner's explicit request may still use them, and the plan's other uses are dropped after it (runTurn).
+export function route({ turn, claims, states, evaluation, store, avatar = null, domain = NANOGPT, held = NONE }) {
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
+  const explains = noQuiz || held.has('ask_question');
   const inHole = !!turn.canvas.dive;
   const finish = (row, strategy, allowed, claim = null) => {
     let list = noQuiz ? allowed.filter(type => type !== 'ask_question') : allowed;
@@ -220,7 +224,10 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
     return { row, strategy, allowed: list, claim };
   };
   if (turn.slash === 'deeper' || turn.slash === 'simplify') return finish('slash', 'none', ['respond_text', 'show_authored_card', 'focus_part'], claims[0] || null);
-  if (turn.returned_from) return finish('returned', noQuiz ? 'feynman' : 'socrates', ['ask_question'], turn.returned_from.claim || claims[0] || null);
+  // Q5: with questions held, the two question-only rows may answer in words too (asked is the plan's own question, kept only
+  // on the learner's explicit request).
+  const asked = explains ? ['respond_text', 'ask_question'] : ['ask_question'];
+  if (turn.returned_from) return finish('returned', explains ? 'feynman' : 'socrates', asked, turn.returned_from.claim || claims[0] || null);
   if (!claims.length) return finish('off_slice', 'none', ['respond_text']);
   const pick = test => claims.find(id => test(states[id]));
   const gap = pick(state => state.state === 'prerequisite_gap');
@@ -231,7 +238,7 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
   }
   const wrong = pick(state => state.state === 'misconception');
   if (wrong) {
-    if ((store.socratic[wrong] || 0) < 2 && !noQuiz) return finish('misconception', 'socrates', ['ask_question', 'focus_part'], wrong);
+    if ((store.socratic[wrong] || 0) < 2 && !explains) return finish('misconception', 'socrates', ['ask_question', 'focus_part'], wrong);
     return finish('misconception_explain', 'feynman', ['respond_text', 'ask_question', 'focus_part'], wrong);
   }
   const unsure = pick(state => state.state === 'uncertain');
@@ -246,13 +253,29 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
   const teach = UNCERTAIN_MOVES.filter(type => type !== 'ask_question');
   if ((unsure || unclear) && evaluation?.status === 'uncertain') {
     const claim = unsure || claims[0];
-    return probed(claim) ? finish('uncertain', 'feynman', teach, claim) : finish('uncertain_unsettled', 'feynman', ['ask_question'], claim);
+    return probed(claim) ? finish('uncertain', 'feynman', teach, claim) : finish('uncertain_unsettled', 'feynman', asked, claim);
   }
   if (unsure) return finish('uncertain', 'feynman', probed(unsure) ? teach : UNCERTAIN_MOVES, unsure);
   const unseen = pick(state => state.state === 'not_yet_observed');
   if (unseen) return finish('not_yet_observed', 'feynman', ['respond_text', 'ask_question', 'show_authored_card', 'suggest_depth'], unseen);
   return finish('understood', 'none', ['respond_text', 'suggest_depth', 'ask_question'], claims[0]);
 }
+
+// ---------- Proactive gating (integrator ruling Q5, decisions.md; owner decision 3a) ----------
+
+// What the Tutor starts on its own runs only in selected, enabled, unpaused Tutor (learn-coaching-contract.js mayRun); what the
+// learner asks for runs in every mode. The gated action types, each with the contract kind it is checked as. suggest_journey
+// and suggest_research are not gated: the planner offers them only in answer to a learning request or a question it cannot
+// ground (fix B1; owner nineteenth message), and their chip starts nothing until it is clicked.
+export const GATED_ACTIONS = { ask_question: 'unrequested_question', suggest_practice: 'suggest_practice', create_material: 'unrequested_material', suggest_depth: 'next_step_offer', suggest_dive: 'next_step_offer' };
+const NONE = new Set();
+// Whether the learner asked for something this turn. Product code never reads it from their words (owner fourteenth message,
+// pinned by learn-tutor-auto.test.mjs J): a hook click, a guided opening they pressed or their own typed slash says so by
+// structure; otherwise only the plan's explicit_request, accepted as the learner's own words (learn-tutor-validate.js).
+export const askedFor = (turn, response = null) => !!(turn.next_step || turn.opening || turn.mode || turn.slash) || (!!response && explicitRequest(response, turn));
+// The gated types the controls hold back now. may(kind) reads the learner's current controls (the page passes mayRun over
+// them); without one (a bench or a node harness outside the page) nothing is held. response: the plan, once it is in.
+export const heldActions = (turn, may, response = null) => (!may || askedFor(turn, response) ? NONE : new Set(Object.keys(GATED_ACTIONS).filter(type => !may(GATED_ACTIONS[type]))));
 
 // ---------- Compact Teaching State (§9, v2 Stage E) ----------
 
@@ -414,7 +437,9 @@ export const enforce = validateActions;
 // says the source context could not be retrieved, and bench.handoff / bench.ms.handoff / bench.ms.to_answer time it.
 // canvasContext: the turn's whole-canvas package (chat-canvas-context.js), sent as the plan request's top-level canvas_context
 // beside context, never inside it; null sends none.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false, trace = false, image = null, page = null, canvasContext = null }) {
+// may(kind) (Q5, heldActions): the learner's Tutor controls, read before the plan (the router offers no held type) and again
+// once the plan and any pending evaluation are in, where an action the controls now hold back is dropped (stage 'controls').
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false, trace = false, image = null, page = null, canvasContext = null, may = null }) {
   if (nextStep) raw = '';
   const t = [now()];
   // The hook click's time for the event (selected_at): the page's click time when it passes one, else this turn's start.
@@ -440,10 +465,15 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, nextSectionOffer, repository }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
+  const held = heldActions(turn, may);
   onTurn?.(turn);
   // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
   // (a slash, a hole's opening) keeps the turn's claims.
   const claims = selection ? selection.selected : built.claims;
+  // Task 04's journey exit is JEV's, never a word rule (integrator ruling 2026-10-21): typed words on a live journey that name
+  // none of its claims fall back to the current section's (the selector's locked rule), and JEV's attempt and engagement checks
+  // decide whether they answered it - an on-topic answer in the learner's own words is evidence; an aside about another
+  // subject (KNN on a logistic regression path) engages no claim and adds nothing. The planner answers it either way.
   // 2. JEV, then the larger evaluator when the escalation policy says so - free text on slice claims
   // only. Stage C: off the critical path (criticalPath) it runs beside the planner.
   let evaluation = null, evidence = null, transitions = [], critical = null, pending = null;
@@ -463,7 +493,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current, domain);
-    critical = criticalPath(learnerIntent(turn), spec, route({ turn, claims, states, evaluation: null, store: current }).row);
+    critical = criticalPath(learnerIntent(turn), spec, route({ turn, claims, states, evaluation: null, store: current, held }).row);
     const sent = now();
     // A journey turn sends ids only: the worker rebuilds the spec from the journey registry and ignores claim content.
     // The board is the canvas's (access is { app }); turn_id ties the stored evidence to this turn's trace. A plan:false
@@ -490,7 +520,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   // 3. Router, planner, enforcement. Evidence that progressed this turn lifts QUESTION_LIMIT before routing.
   current = { ...current, probes: progressedProbes(current.probes, store.events, current.events, transitions, domain.claims) };
-  const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);
+  const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current, held }), out => out.row);
   const context = plannerContext({ turn, routed, block, states, claims, store: current, domain });
   const planned = now();
   let response;
@@ -501,6 +531,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     // A turn back from a hole routes on returned_from alone (route ignores evidence), so its re-check
     // question does not wait for this turn's evaluation.
     if (spoken != null || !speakable(sentence, routed, { pending: !!pending && !evidence && routed.row !== 'returned', turn, intent })) return;
+    if (sentence?.action === 'ask_question' && heldActions(turn, may, sentence).has('ask_question')) return; // Q5: read again before it is spoken
     spoken = sentence.text.trim();
     spokenAction = sentence.action;
     tracer.mark('first_sentence');
@@ -537,7 +568,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   let miss = null;
   if (pending) {
     settle(await pending);
-    const after = route({ turn, claims, states, evaluation, store: current }).row;
+    const after = route({ turn, claims, states, evaluation, store: current, held }).row;
     if (after !== routed.row) {
       miss = { planned: routed.row, after };
       for (const action of actions.filter(entry => EVIDENCE_ACTIONS.includes(entry.type))) {
@@ -547,6 +578,17 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       actions = actions.filter(entry => !EVIDENCE_ACTIONS.includes(entry.type));
       if (!actions.length) actions = [{ type: 'no_action' }];
     }
+  }
+  // Q5: the controls are read again now that the plan is in (Off, Not now or another mode may have come meanwhile); what they
+  // hold back now is dropped before anything is applied or remembered (no open question, no chip, no material).
+  const late = heldActions(turn, may, response);
+  for (const action of actions.filter(entry => late.has(entry.type))) {
+    decisions.push({ type: action.type, accepted: false, stage: 'controls', reason: 'proactive Tutor suggestions are off' });
+    log.push(`dropped ${action.type}: proactive Tutor suggestions are off`);
+  }
+  if (actions.some(entry => late.has(entry.type))) {
+    actions = actions.filter(entry => !late.has(entry.type));
+    if (!actions.length) actions = [{ type: 'no_action' }];
   }
   const released = now();
   // Fix round 1 (A-I1, B-I4): a handoff the turn offered and the plan proposed, but the validator dropped, is a failed handoff
@@ -577,7 +619,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const probedClaim = asked && (asked.claim || routed.claim);
   if (probedClaim) probes[probedClaim] = (probes[probedClaim] || 0) + 1;
   const words = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
-  const text = handed ? [words, handed.answer ?? HANDOFF_FAILED].filter(Boolean).join('\n\n') : words;
+  // A request the handoff found unrelated to the repository (not_about_repository) read no code: the words answer it alone.
+  const text = handed ? [words, handed.answer ?? (handed.record?.failure === 'not_about_repository' && words ? null : HANDOFF_FAILED)].filter(Boolean).join('\n\n') : words;
   const dive = actions.find(action => action.type === 'suggest_dive');
   const contracts = actions.filter(action => action.type !== 'no_action').map(action => actionContract(action, { domain, materials, claims }));
   // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it

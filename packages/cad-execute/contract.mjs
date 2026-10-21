@@ -1,6 +1,8 @@
 // Executor contract: provider credentials and durable ownership stay in the control plane.
 export const SCHEMA = 'cad-execute/1';
 export const RESULT_SCHEMA = 'cad-execute-result/1';
+// What this executor supports beyond cad-execute/1, listed on /health; the control plane refuses a parameter rebuild without it.
+export const CAPABILITIES = Object.freeze(['parameters']);
 export const LIMITS = Object.freeze({ source_bytes: 4 * 1024 ** 2, artifact_bytes: 50 * 1024 ** 2, total_artifact_bytes: 100 * 1024 ** 2, total_seconds: 600, stage_seconds: 300, memory_bytes: 2 * 1024 ** 3, workspace_bytes: 512 * 1024 ** 2 });
 export const RUNTIME = Object.freeze({ cadgen: '0.7.21', build123d: '0.11.1', ocp: '7.9.3.1.1', playwright: '1.63.0', upstream: '24573128ceaab564f497d7c12f995c41784c9539', executor: 'cad-execute/1' });
 const id = /^[A-Za-z0-9_.-]{1,650}$/;
@@ -23,8 +25,15 @@ export function validateJob(j, origins = []) {
   if (!Array.isArray(j.requirements?.checks) || j.requirements.checks.length > 100) errors.push('Invalid checks');
   if (!Array.isArray(j.formats) || j.formats.some(f => !['step','glb','stl','3mf','thumbnail'].includes(f))) errors.push('Invalid formats');
   if (j.operation === 'build' && !['step','glb','thumbnail'].every(f => j.formats.includes(f))) errors.push('Build requires STEP, GLB and thumbnail');
+  if (j.parameters !== undefined && !validParameters(j.parameters, j.operation)) errors.push('Invalid parameters');
   for (const [key, value] of Object.entries(j.limits || {})) if (!(key in LIMITS) || !Number.isSafeInteger(value) || value < 1 || value > LIMITS[key]) errors.push(`Invalid limit ${key}`);
   for (const key of ['memory_bytes', 'workspace_bytes']) if (j.limits?.[key] !== undefined && j.limits[key] !== LIMITS[key]) errors.push(`Unsupported kernel limit ${key}`);
   return errors;
 }
 export function effectiveLimits(job) { return { ...LIMITS, ...job.limits }; }
+// Validated values from the control plane (cad-params/1). The executor re-checks shape only: ids, scalar types, size.
+export function validParameters(p, operation) {
+  if (operation !== 'build' || !p || typeof p !== 'object' || p.schema !== 'cad-param-values/1' || !p.values || typeof p.values !== 'object' || Array.isArray(p.values)) return false;
+  const entries = Object.entries(p.values);
+  return entries.length <= 40 && entries.every(([k, v]) => /^[a-z][a-z0-9_]{0,47}$/.test(k) && (typeof v === 'boolean' || typeof v === 'number' && Number.isFinite(v) || typeof v === 'string' && v.length <= 60));
+}

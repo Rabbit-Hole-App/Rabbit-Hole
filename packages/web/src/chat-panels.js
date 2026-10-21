@@ -8,11 +8,14 @@ import { useMemo, useState } from 'react';
 // it on that view; close() shuts the column and leaves Chat open; toggle() is the header control's press (owner brief
 // 2026-10-16 item 4): it opens the column on its last view, or closes it. Its labelled tabs move between the views (no Back).
 // Derived, for the rest of the workspace: chatOpen, sourcesOpen; openChat(), closeChat(), openSources(), closeSources().
+// progress (Tutor Task 09, draft "Progress UI and access"): Progress is one more view of this column, opened from the Chat
+// header's icon (progress.toggle). It takes the column's slot and leaves the viewer it covered as it was: the header control
+// (toggle) reopens the last viewer, never Progress.
 const wide = () => globalThis.matchMedia?.('(min-width: 64rem)').matches ?? true;
 export function useChatPanels() {
   // Brief section 2: the canvas and Chat show from the start.
   const [open, setOpen] = useState(true), [tab, setTab] = useState('chat');
-  const [companionOpen, setCompanionOpen] = useState(false), [view, setView] = useState('context');
+  const [companionOpen, setCompanionOpen] = useState(false), [view, setView] = useState('context'), [viewer, setViewer] = useState('context');
   return useMemo(() => {
     // reveal false: a late completion (an upload placed after the learner hid the panel) never reopens it; it switches the
     // viewer only while the right side is open, and leaves what a hidden right side reopens on as it was.
@@ -20,17 +23,20 @@ export function useChatPanels() {
       if (reveal) setOpen(true);
       if (!reveal && !open) return;
       setView(next); setCompanionOpen(true);
+      if (next !== 'progress') setViewer(next);
     };
     const close = () => setCompanionOpen(false);
-    const toggle = () => (open && companionOpen ? close() : show(view));
+    const toggle = () => (open && companionOpen && view !== 'progress' ? close() : show(viewer));
+    const progressOpen = open && companionOpen && view === 'progress';
     return {
       open, setOpen, tab, setTab, chatOpen: open && tab === 'chat', sourcesOpen: open && companionOpen && view === 'context',
       companion: { open: companionOpen, view, show, close, toggle },
+      progress: { open: progressOpen, toggle: () => (progressOpen ? close() : show('progress')) },
       // Below lg one column shows at a time, so asking for Chat there puts the viewer away (its state is kept).
       openChat: () => { setOpen(true); setTab('chat'); if (!wide()) close(); }, closeChat: () => setOpen(false),
       openSources: options => show('context', options),
       // Closing Sources closes the companion; Chat stays, and the right side never hides (that is Hide right panel's job).
       closeSources: close,
     };
-  }, [open, tab, companionOpen, view]);
+  }, [open, tab, companionOpen, view, viewer]);
 }

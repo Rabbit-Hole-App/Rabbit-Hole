@@ -25,7 +25,7 @@ import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { activeSection, presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
-import { outlineFrom, applyOutlineProposal, moveSection } from './learn-outline-model.js';
+import { outlineFrom, applyOutlineAction, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
@@ -2347,15 +2347,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
       // rather than one heading at a time. R4 contract C7: { ok: true, applied, skipped } or { ok: false, reason:
       // 'stale' | 'invalid', message }; a proposal passes its `base` revision and `source` (C7b: 'syllabus' allows 96 ops),
-      // the panel's own edits pass neither.
-      applyOutline: (ops, { base, source } = {}) => {
-        const result = applyOutlineProposal(blocksRef.current, ops, { base, source });
+      // the panel's own edits pass neither. Tutor Task 11 (learn-outline-model.js applyOutlineAction): a proposal also passes
+      // planBase, the accepted plan it was made on, and plan, the plan now; a view-only board ('read_only') and any moved base
+      // ('stale') change nothing.
+      applyOutline: (ops, { base, source, planBase, plan = null } = {}) => {
+        const result = applyOutlineAction(blocksRef.current, { baseOutlineRevision: base, basePlanRevision: planBase, changes: ops }, { canEdit: !readOnlyRef.current, planRevision: plan, source });
         if (!result.ok) return result;
         if (result.applied) { snapshot(); setBlocks(result.blocks); }
         return { ok: true, applied: result.applied, skipped: result.skipped };
       },
-      moveSection: (id, beforeId) => { snapshot(); setBlocks(previous => moveSection(previous, id, beforeId)); },
-      toggleSectionDone: id => { snapshot(); setBlocks(previous => previous.map(block => block.id === id ? { ...block, done: !block.done } : block)); },
+      moveSection: (id, beforeId) => { if (readOnlyRef.current) return; snapshot(); setBlocks(previous => moveSection(previous, id, beforeId)); },
+      toggleSectionDone: id => { if (readOnlyRef.current) return; snapshot(); setBlocks(previous => previous.map(block => block.id === id ? { ...block, done: !block.done } : block)); },
       // Frame the section rather than scroll to it: a section is a heading plus
       // what follows, and the camera already knows how to land on one.
       showSection: id => {

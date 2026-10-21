@@ -400,10 +400,11 @@ test('route boundary features: every paid /api/learn route is one feature from t
     '/api/learn/inline/route': 'inline_route', '/api/learn/inline/decide': 'inline_decide', '/api/learn/inline/generate': 'inline_generate',
     '/api/learn/assess': 'assess', '/api/learn/grade': 'grade', '/api/learn/grade/bench': 'grade', '/api/apps/repo-1a2b-x/learn-course': 'course',
     '/api/learn/image': 'image', '/api/learn/transcribe': 'transcribe', '/api/learn/tts': 'tts', '/api/learn/voice/tts': 'voice_tts',
-    '/api/learn/voice/scribe-token': 'voice_scribe', '/api/learn/video': 'video', '/api/learn/scene': 'scene' };
+    '/api/learn/voice/scribe-token': 'voice_scribe', '/api/learn/video': 'video', '/api/learn/scene': 'scene',
+    '/api/learn/tutor/attempts': 'tutor_evaluate', '/api/learn/tutor/attempts/at_1/reassess': 'tutor_evaluate' };
   for (const [path, feature] of Object.entries(cases)) { assert.equal(usageFeature('POST', path), feature, path); assert.ok(FEATURES.includes(feature)); }
   assert.equal(usageFeature('GET', '/api/learn/search'), 'search');
-  for (const [method, path] of [['GET', '/api/learn/usage'], ['GET', '/api/learn/ask'], ['POST', '/api/learn/inline/telemetry'], ['POST', '/api/learn/boards/x/share'], ['GET', '/api/learn/video']])
+  for (const [method, path] of [['GET', '/api/learn/usage'], ['GET', '/api/learn/ask'], ['POST', '/api/learn/inline/telemetry'], ['POST', '/api/learn/boards/x/share'], ['GET', '/api/learn/video'], ['GET', '/api/learn/tutor/attempts/at_1']])
     assert.equal(usageFeature(method, path), null, `${method} ${path}`);
   assert.equal(usageContext({}), null);
 });
