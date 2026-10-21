@@ -84,20 +84,7 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
     if (calls.length !== 1) throw new Error('The model returned no artifact.');
     return { result, call: calls[0] };
   };
-  // The verifier pass (owner, 2026-10-21): a scene that passed the gates is read back setting by setting by a second call,
-  // through the same spend admission; a statement it reports goes to the one repair, and a scene still reported is no card.
-  // LEARN_SCENE_VERIFIER=off turns it off.
-  const verify = async block => {
-    const response = await callModel(withAttemptKind(env, 'evaluation'), { max_tokens: VERIFY_MAX_TOKENS, system: VERIFY_SYSTEM, tools: [VERIFY_TOOL],
-      tool_choice: { type: 'any', disable_parallel_tool_use: true },
-      messages: [{ role: 'user', content: verifyMessage({ request: input.args, title: block.title, calculation: block.calculation, card: cardAtSettings(block.scene) }) }] }, LEARN_TASKS.artifact.model, null);
-    const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
-    if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error, { cause: VERIFIER });
-    if (!response.ok) throw new Error(`The interactive explanation could not be checked (model HTTP ${response.status}), so nothing was added. Try again.`, { cause: VERIFIER });
-    const problems = (await response.json()).content?.find(part => part.type === 'tool_use' && part.name === VERIFY_TOOL.name)?.input?.problems;
-    if (!Array.isArray(problems)) throw new Error('The interactive explanation could not be checked (the check gave no verdict), so nothing was added. Try again.', { cause: VERIFIER });
-    return problems.length ? `A check of the card found statements that are false: ${problems.map((problem, i) => `${i + 1}) ${problem.setting ? `with ${problem.setting}, ` : ''}"${problem.object}" says "${problem.says}": ${problem.wrong}`).join(' ')}` : null;
-  };
+  const verify = block => sceneVerdict(env, callModel, input.args, block);
   let { result, call } = await ask(messages);
   // At most one repair: the first failure goes back to the model once.
   for (let attempt = 0; ; attempt++) {
@@ -130,6 +117,21 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
   }
+}
+
+// The verifier pass (owner, 2026-10-21): a scene that passed the gates is read back setting by setting by a second call,
+// through the same spend admission; a statement it reports goes to the one repair, and a scene still reported is no card.
+// LEARN_SCENE_VERIFIER=off turns it off.
+export async function sceneVerdict(env, callModel, request, block) {
+  const response = await callModel(withAttemptKind(env, 'evaluation'), { max_tokens: VERIFY_MAX_TOKENS, system: VERIFY_SYSTEM, tools: [VERIFY_TOOL],
+    tool_choice: { type: 'any', disable_parallel_tool_use: true },
+    messages: [{ role: 'user', content: verifyMessage({ request, title: block.title, calculation: block.calculation, card: cardAtSettings(block.scene) }) }] }, LEARN_TASKS.artifact.model, null);
+  const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
+  if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error, { cause: VERIFIER });
+  if (!response.ok) throw new Error(`The interactive explanation could not be checked (model HTTP ${response.status}), so nothing was added. Try again.`, { cause: VERIFIER });
+  const problems = (await response.json()).content?.find(part => part.type === 'tool_use' && part.name === VERIFY_TOOL.name)?.input?.problems;
+  if (!Array.isArray(problems)) throw new Error('The interactive explanation could not be checked (the check gave no verdict), so nothing was added. Try again.', { cause: VERIFIER });
+  return problems.length ? `A check of the card found statements that are false: ${problems.map((problem, i) => `${i + 1}) ${problem.setting ? `with ${problem.setting}, ` : ''}"${problem.object}" says "${problem.says}": ${problem.wrong}`).join(' ')}` : null;
 }
 
 // POST /api/learn/artifact {app, command, args, selection, context}. Any
