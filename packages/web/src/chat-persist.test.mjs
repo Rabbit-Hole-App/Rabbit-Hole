@@ -55,6 +55,15 @@ test('an Auto turn saves its question, then its reply, each under its own client
   assert.ok(route.calls.every(c => c.method === 'POST' && c.path === '/api/learn/chat/threads/canvaschat-t1/messages'));
 });
 
+test('a / command line is saved as the user message with its command; its retry keeps the command and one copy (UI changes brief 1)', async () => {
+  const route = messagesRoute({ lose: ['turn9-u'] });
+  const save = turnSaver({ app: 'canvas-0000000a', threadId: 'canvaschat-t9', turnId: 'turn9', title: '/cad a plate', call: route.call, waits: NO_WAIT });
+  const saved = await save.user('/cad a plate', { command: 'cad' });
+  assert.equal(saved.duplicate, true, 'the lost answer is found saved on the retry');
+  assert.deepEqual(route.rows.map(({ client_id, role, content, command, title }) => ({ client_id, role, content, command, title })), [{ client_id: 'turn9-u', role: 'user', content: '/cad a plate', command: 'cad', title: '/cad a plate' }]);
+  assert.ok(route.calls.every(c => c.body.command === 'cad'), 'every attempt sends the same body');
+});
+
 test('a failed save is sent again with the same client id and the server keeps one copy; a duplicate answer is a success', async () => {
   // The question's first write lands but its answer is lost; the reply's first two calls fail before writing.
   const route = messagesRoute({ lose: ['turn2-u'], down: (n, body) => (body.client_id === 'turn2-a' && n <= 4 ? 502 : null) });
@@ -303,7 +312,7 @@ test('ask.jsx binds an Auto turn to its canvas and thread at send, saves the que
   const ask = read('ask.jsx');
   assert.match(ask, /const sentKey = chatThread\?\.liveKey\(\), late = \(\) => !!chatThread && lateEvent\(sentKey, chatThread\.liveKey\(\)\);/);
   assert.match(ask, /turnSaver\(\{ app: chat\.canvas, threadId: chatThread\.id \|\| newThreadId\(\), turnId: replyId,/);
-  assert.match(ask, /if \(viaTutor && autoSave\) \{ if \(!late\(\)\) chatThread\.adopt\(autoSave\.threadId, askedTitle, \{ remember: false \}\); autoSave\.user\(message\); \}\n\s+if \(late\(\)\) return;/);
+  assert.match(ask, /if \(viaTutor && autoSave\) \{ if \(!late\(\)\) chatThread\.adopt\(autoSave\.threadId, askedTitle, \{ remember: false \}\); savedId\(replyId, autoSave\.user\(message\)\)[^\n]*\}\n\s+if \(late\(\)\) return;/); // the saved id keys the turn's outputs (UI changes brief 5)
   assert.match(ask, /autoSave\?\.assistant\(reply, stopped \? 'interrupted' : 'done'\)[^\n]*\n\s+if \(late\(\)\) return;\n\s+mirror\(reply\);/);
   assert.match(ask, /chatThread\?\.claim\(\);/);
 });

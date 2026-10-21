@@ -24,6 +24,7 @@ import { moveOnChip, nextSectionOf, outcomeLine } from './learn-journey.js';
 import { MODE_SLASHES, NEXT_SECTION_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
+import { withCardSink } from './chat-output-refs.js';
 
 // A Tutor request that never answers ends as an error reply, not an endless spinner; Stop ends it too.
 const TURN_TIMEOUT_MS = 60000;
@@ -162,7 +163,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // journey resolver, no learner words (so no evaluate), and a waiting /deeper stays for the next typed turn. selectedAt: the
   // click's time, for the decision trace.
   // history, selection, attachments, inspected (ask.jsx): the chat's side of the turn's canvas_context; a voice or hook turn has none.
-  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null, image = null, page = null, history = [], selection = [], attachments = [], inspected = [] }) => {
+  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null, image = null, page = null, history = [], selection = [], attachments = [], inspected = [], onCard = null }) => {
     const canvas = canvasApi.current;
     // Task 14 C-M1: the hooks on screen as the turn is sent, read before any await (the journey resolver's), so a busy re-render
     // that clears them meanwhile never empties the trace.
@@ -237,8 +238,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     save(result.store);
     if (result.evaluation?.journey && journeyAtStart && journeyRef.current?.journey?.id === journeyAtStart) journeyRef.current.adoptEvidence?.(result.evaluation.journey);
     if (result.log.length) console.info('[tutor]', result.routed.row, result.log.join('; '));
+    // onCard (ask.jsx): each card this turn inserts is reported, so the Chat keeps it under the learner's prompt (chat-output-refs.js).
     put({ chips: executeActions(result.actions, {
-      canvas: canvasApi.current || {},
+      canvas: withCardSink(canvasApi.current || {}, onCard),
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
       slot, domain, openResearch,
@@ -259,12 +261,13 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     runMaterials(result.actions, {
       // The cards keep the learner's words (card-prompt.js), never the model's command line; a hook click typed none.
       promptUsed: nextStep ? null : raw,
-      app: app.name, openSearch: () => {}, offer, target: block ? { id: block.id, ...(describe?.(block) || { title: block.title, text: cardContext(block) }) } : null,
+      // A paid card's confirmation shows the learner's words it came from (UI changes brief 1); a hook click typed none.
+      app: app.name, openSearch: () => {}, offer: proposal => offer({ ...proposal, prompt: nextStep ? null : raw }), target: block ? { id: block.id, ...(describe?.(block) || { title: block.title, text: cardContext(block) }) } : null,
       // What could not be made says so (an error, a clarification, an unsupported command); a made card is its own notice.
       // ponytail: a slow command's notice can land after the next turn began, under that reply (informative, accepted for
       // v1); tag notices with their turn id and drop stale ones if that ever confuses.
       onNotice: notice => { if (notice.tone !== 'done') put({ notices: [...desk.notices, notice] }); },
-      canvas: { insertNotebook: () => canvasApi.current?.insertNotebook(), insertBlock: (b, o) => canvasApi.current?.insertBlock(b, o), reserve: s => canvasApi.current?.reserve(s), release: id => canvasApi.current?.release(id) },
+      canvas: withCardSink({ insertNotebook: () => canvasApi.current?.insertNotebook(), insertBlock: (b, o) => canvasApi.current?.insertBlock(b, o), reserve: s => canvasApi.current?.reserve(s), release: id => canvasApi.current?.release(id) }, onCard),
       post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),
     }).catch(error => console.info('[tutor] create_material', error.message));
     result.mark('canvas_action_complete');
@@ -344,7 +347,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     {desk.notices.length > 0 && <div data-tutor-notices role="status" className="flex flex-col gap-1 text-xs">
       {desk.notices.map((notice, i) => <p key={i} className={notice.tone === 'error' ? 'text-red-700' : 'text-ink-2'}>{notice.text}</p>)}
     </div>}
-    {desk.proposal && <PaidConfirm message={desk.proposal.message} onGenerate={() => decide(true)} onCancel={() => decide(false)} />}
+    {desk.proposal && <PaidConfirm message={desk.proposal.message} prompt={desk.proposal.prompt} onGenerate={() => decide(true)} onCancel={() => decide(false)} />}
   </>;
   const hasMade = () => !!finished() || !!desk.proposal || desk.notices.length > 0;
   // The turn's suggestion chips (Back up the Rabbit Hole among them), read when drawn; a pressed chip runs and goes.
@@ -365,7 +368,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     ...steps,
     // begin (ask.jsx): draws the turn's chat bubbles and exchange, once the turn is the Tutor's. A turn the journey took
     // resolves to { handled: true, failed } and draws nothing.
-    ask: ({ raw, targetId, image = null, page = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null, resolved = false, history, selection, attachments, inspected }) => answer({ resolved, raw, targetId, image, page, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin, history, selection, attachments, inspected }),
+    ask: ({ raw, targetId, image = null, page = null, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null, resolved = false, history, selection, attachments, inspected, onCard = null }) => answer({ resolved, raw, targetId, image, page, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin, history, selection, attachments, inspected, onCard }),
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry. A turn the journey took
     // says nothing: the tray shows where the journey is.
