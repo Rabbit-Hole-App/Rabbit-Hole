@@ -314,7 +314,8 @@ test('probe keys map only wrong options that match a registered misconception id
 });
 
 // Tutor T11 real-model run, 2026-10-21: a fast start (empty registry) had the path planner add claims "c-tide-pattern" and
-// "c-gravity-distance", twice in a row; validateRegistry refused both drafts. The planners that add concepts and claims
+// "c-gravity-distance", twice in a row, then (with the id formats stated) gave claims prerequisites that were not concept ids;
+// validateRegistry refused every draft. The planners that add concepts and claims
 // (concepts_added) now state the id formats validateRegistry enforces, as the diagnostic prompt already did.
 test('path and adapt prompts state the concept and claim id formats validateRegistry enforces', () => {
   for (const role of ['journey_path', 'journey_adapt']) {
