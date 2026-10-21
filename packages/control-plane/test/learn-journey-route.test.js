@@ -296,6 +296,9 @@ test('path edits, cancel as skip, and the materialized heading', async t => {
   const foreign = await post('section_materialized', { journey_id: 'lj_archived', section_id: 's1', heading_block_id: 'h-old' });
   assert.deepEqual([foreign.status, foreign.body.error, foreign.body.journey.id], [409, 'journey_changed', live.id]);
   assert.equal((await post('section_materialized', { section_id: 's1', heading_block_id: 'h-old' })).status, 409, 'a post naming no journey is refused too');
+  // Tutor T1 report limit 5: any action naming another (parked or replaced) journey is refused before the revision check.
+  const parked = await post('cancel', { journey_id: 'lj_parked', revision: live.revision });
+  assert.deepEqual([parked.status, parked.body.error, parked.body.journey.id], [409, 'journey_changed', live.id]);
   assert.deepEqual(rows()[0], before, 'the row is untouched');
   r = await post('section_materialized', { journey_id: live.id, section_id: 's1', heading_block_id: 'h-s1' });
   assert.equal(r.status, 200);

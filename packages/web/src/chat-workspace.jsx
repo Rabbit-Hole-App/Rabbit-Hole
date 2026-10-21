@@ -4,6 +4,8 @@ import { useChatThread } from './chat-threads.js';
 import { useChatDraft } from './chat-draft.js';
 import { useChatContext } from './chat-context.js';
 import { useChatSources } from './chat-sources.js';
+import { useLearnCoaching } from './use-learn-coaching.jsx';
+import { threadWithControls } from './learn-coaching-client.js';
 
 // The right-side Chat workspace on a Learn canvas (owner brief 2026-10-13; contract:
 // agent-coordination/tasks/chat-workspace-CONTRACT.md, Part A). One provider per canvas composes five hooks, one per
@@ -20,14 +22,18 @@ export const useChatWorkspace = () => useContext(ChatWorkspace);
 // canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), insertCard(block, { same }), hasBlock(id), locate(id),
 // canvasContext(options) - a turn's canvas_context built now (chat-canvas-context.js) - selection() },
 // for Lane B's footer and actions (contract B3, B5). null until the canvas mounts; callers check before use.
-export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, children }) {
+// coaching (Tutor Task 03, owner 1a): the learner's own controls for this canvas and board (use-learn-coaching.jsx). On a
+// canvas they are the Chat's mode: a thread restored with an older saved mode never changes them (threadWithControls).
+export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initialOps = null, children }) {
   // The canvas API lives below the provider, so the page sets canvasOps once its canvas mounts (setCanvasOps).
   const [canvasOps, setCanvasOps] = useState(initialOps);
   const panels = useChatPanels(canvas);
-  const thread = useChatThread(canvas);
+  const coaching = useLearnCoaching({ app: canvas, board });
+  const ownThread = useChatThread(canvas);
+  const thread = useMemo(() => threadWithControls(ownThread, coaching), [ownThread, coaching]);
   // thread.restore = { key, mode, contextRefs, draft }: a new key (open, New chat, canvas change) resets both hooks below.
-  const composer = useChatDraft(canvas, thread);
-  const context = useChatContext(canvas, thread);
+  const composer = useChatDraft(canvas, ownThread);
+  const context = useChatContext(canvas, ownThread);
   const sources = useChatSources(canvas);
   // The Table of contents' own conversation (owner brief 2026-10-16 item 7): its own thread (slot 'toc', always Tutor), draft
   // and attachments, so TOC and Chat never share messages, drafts or New chat. TocWorkspace hands them to the TOC's AskPanel.
@@ -54,7 +60,7 @@ export function ChatWorkspaceProvider({ canvas, canvasOps: initialOps = null, ch
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
-  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, canvasCoverage, toc, tocThread.id]);
+  const value = useMemo(() => ({ canvas, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching }), [canvas, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, canvasCoverage, toc, tocThread.id, coaching]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
 

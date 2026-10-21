@@ -243,6 +243,9 @@ async function act(env, scope, body, callModel, now) {
   // archived and replaced, perhaps in another tab, between the board save and the post or its replay) is refused before
   // the revision check, so no replay of it can record a stale heading on a new journey's section.
   if (body.action === 'section_materialized' && body.journey_id !== j.id) return reply(env, j, 409, { error: 'journey_changed' });
+  // Tutor T1 report limit 5 (decision 5a): a paused goal's journey is parked, not archived, and parking bumps revisions, so a
+  // revision alone cannot tell a parked journey from the current one. Any action naming another journey is refused here.
+  if (body.journey_id != null && body.journey_id !== j.id) return reply(env, j, 409, { error: 'journey_changed' });
   if (body.revision != null && body.revision !== j.revision) return reply(env, j, 409, { error: 'revision' });
   const refuse = step => reply(env, j, 409, { error: step.error });
   // The learner starts another topic on this board (§6.1 continue-or-start): the live journey is archived, read-only for

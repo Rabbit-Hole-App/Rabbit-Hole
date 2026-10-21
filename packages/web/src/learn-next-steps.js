@@ -7,6 +7,7 @@ import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
 import { enterHole, markOpened, openingQuestion, sameCanvas } from './learn-tutor.js';
 import { safely } from './learn-tutor-trace.js';
+import { takeGuidedEntry } from './learn-opening.js';
 import { TUTOR_DOMAINS } from './learn-tutor-domains.js';
 
 const SETUP = ['intake', 'diagnostic', 'path_review'];
@@ -398,9 +399,32 @@ export function holeOpening({ storage, load, record, title = null, hookTurns, se
   const none = { store: null, opening: null };
   if (!hookTurns || !settled || !record?.dive_id) return none;
   const carried = takeCarriedStep(storage, record.dive_id);
-  if (carried) return { store: markOpened(load(), record), opening: { key: `${record.dive_id}:${mint()}`, next_step: carried } };
+  // A carried hook is itself the learner's explicit entry; entry: the controls it was made under, when marked.
+  if (carried) return { store: markOpened(load(), record), opening: { key: `${record.dive_id}:${mint()}`, next_step: carried, entry: takeGuidedEntry(storage, record.dive_id)?.controls ?? null } };
   if (!active) return none;
   const store = enterHole(load(), record, domain());
   const question = openingQuestion(store, record, title);
-  return { store: question ? markOpened(store, record) : store, opening: question ? { key: `${record.dive_id}:${mint()}`, question } : null };
+  // Owner 4a: only an explicit guided entry opens with a turn. Without its mark (a URL restore, a refresh in another tab,
+  // Back, a reopened hole) the hole is restored as saved and is never opened again.
+  const guided = question ? takeGuidedEntry(storage, record.dive_id) : null;
+  if (!guided) return { store: question ? markOpened(store, record) : store, opening: null };
+  return { store: markOpened(store, record), opening: { key: `${record.dive_id}:${mint()}`, question, entry: guided.controls ?? null } };
+}
+
+// Professor Next Steps under the Tutor controls (owner 3a; conflicts.md Q5 "hooks"). Hooks are proactive: only while
+// `allowed` (Tutor selected, On, unpaused, the saved controls read). Opening, restoring, selecting Tutor or switching it On
+// asks nothing: the trigger at that moment is the baseline, and only a meaningful learner change after it asks - a finished
+// Tutor turn, journey evidence or a path or section move, a graded practice attempt (hooksTrigger). A title change, saved
+// content loading, moved cards and Tutor-made cards are not triggers, and they never re-ask an existing set: the basis the
+// controller keys on is the full basis taken when the trigger last changed. `visible` false (Chat closed) holds them back
+// without forgetting the baseline. memory is the caller's own object, one per mount.
+export const hooksTrigger = ({ lastTurn = null, journey = null, canvasState = null, graded = 0 }) => JSON.stringify([lastTurn?.turn_id ?? null,
+  journey?.journey?.evidence?.seq ?? null, journey?.path?.version ?? null, journey?.journey?.active_section_id ?? null, canvasState?.attempts ?? 0, graded]);
+export function gateHooks(memory, state, { allowed, visible = true, trigger }) {
+  if (!allowed) { memory.baseline = memory.trigger = memory.basis = null; return { basis: null, stop: 'off' }; }
+  if (state.basis == null) return state;
+  if (memory.baseline == null) memory.baseline = trigger;
+  if (memory.basis == null && trigger === memory.baseline) return { basis: null, stop: 'at_rest' };
+  if (trigger !== memory.trigger) { memory.trigger = trigger; memory.basis = state.basis; }
+  return { ...state, basis: memory.basis, ...(visible ? {} : { stop: state.stop || 'hidden' }) };
 }
