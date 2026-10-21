@@ -18,6 +18,9 @@ export function useLearnCoaching({ app, board = 'main' }) {
   const sync = useMemo(() => {
     let channel = null;
     try { channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null; } catch { channel = null; }
+    // shortcut: the channel opens during render, so a server render (renderToStaticMarkup, chat-context.test.mjs) never
+    // closes it and Node's open channel kept the process alive; unref (Node only) lets it exit. Open it in the effect instead.
+    channel?.unref?.();
     return Object.assign(createCoachingSync({ scope: { app, board }, call: api, channel }), { channel });
   }, [app, board]);
   useEffect(() => {

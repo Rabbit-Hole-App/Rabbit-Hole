@@ -17,9 +17,14 @@ const day = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ?
 
 // scope { app, board }; coaching: the workspace's controls (use-learn-coaching.jsx); composer: the Chat draft (prepare and
 // focus never send); onClose: closes the column (focus goes back to the Progress icon).
+// The viewed goal and open skill outlive the pane, per canvas: below lg a closed column unmounts (ResizableSidePanel), and
+// Close or Ask tutor about this must reopen on the same selection (draft "Progress UI and access"; Task 10 step 2).
+const kept = new Map();
 export default function LearnProgress({ scope, coaching, composer, onClose }) {
-  const [viewedGoalId, setViewedGoalId] = useState(null);
-  const [expanded, setExpanded] = useState(null);
+  const keep = `${scope.app}\n${scope.board}`;
+  const [viewedGoalId, setViewedGoalId] = useState(() => kept.get(keep)?.viewedGoalId ?? null);
+  const [expanded, setExpanded] = useState(() => kept.get(keep)?.expanded ?? null);
+  useEffect(() => { kept.set(keep, { viewedGoalId, expanded }); }, [keep, viewedGoalId, expanded]);
   const [load, setLoad] = useState({ status: 'idle', view: null });
   const [resuming, setResuming] = useState(false);
   const heading = useRef(null);
