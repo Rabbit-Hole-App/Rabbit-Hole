@@ -4,6 +4,10 @@ import { createSearchContentRegistry } from './canvas-search-content.js';
 import { readSearchComments } from './canvas-search-comments.js';
 import { commentsApi } from './comments/comments-api.js';
 import { cachedAsset } from './learn-asset-cache.js';
+import { loadAsset } from './learn-board-assets.js';
+import { apiFetch } from './api.js';
+import { cadReadUrl } from './CadCard.jsx';
+import { ownThumbnail } from './card-thumbnail.js';
 
 const EMPTY = { revision: 0, board: {} };
 const EMPTY_COMMENTS = [];
@@ -118,11 +122,19 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
     setNotice(!outcome?.found && result.kind !== 'comment' ? { scopeKey, message: outcome?.reason === 'missing-target' ? 'This result is no longer on the canvas.' : 'The matching content is not currently visible in this object.' } : null);
   };
   const goBack = () => { activation.current.generation++; if (current.back) canvasApi.current?.restoreNavigation?.(current.back); patch({ back: null }); setNotice(null); };
+  // A picture result's thumbnail (UI-12, canvas-search-index.js searchPreviewOf): the picture its card already shows (an
+  // image's own src or asset, a video's YouTube still), a CAD card's stored thumbnail read as the card reads it, a linked
+  // canvas's own card thumbnail (the server serves only its owner), or a cached poster. Never a renderer, a model or
+  // private source bytes; anything that fails leaves the row's compact fallback.
   const getPreview = useCallback(async result => {
     const entry = index.entries.get(result.id);
     if (!entry || entry.availability?.status === 'unavailable') return null;
-    // Cached posters only. Never mount a renderer or fetch private source bytes for a tile.
-    return cachedAsset(`poster:${result.objectId}`);
+    const preview = entry.preview || {};
+    if (preview.src) return preview.src;
+    if (preview.asset) return loadAsset(preview.asset);
+    if (preview.path) { const response = await apiFetch(cadReadUrl(preview.path)); return response.ok ? response.blob() : null; }
+    if (preview.canvas) return ownThumbnail(preview.canvas);
+    return result.objectId ? cachedAsset(`poster:${preview.poster || result.objectId}`) : null;
   }, [index]);
   const status = commentCurrent.state === 'loading' || links?.status === 'loading' ? { state: 'loading', message: 'Searching available content. Comments or references are still loading.' }
     : commentCurrent.state === 'error' ? { state: 'error', error: commentCurrent.error }

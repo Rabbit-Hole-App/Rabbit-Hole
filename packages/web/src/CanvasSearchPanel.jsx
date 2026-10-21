@@ -1,31 +1,61 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp, Code, ExternalLink, FileText, Link2, MessageCircle, Search, Shapes } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Box, ChevronDown, ChevronUp, Code, ExternalLink, FileText, Film, Image, Link2, MessageCircle, Search, Shapes } from 'lucide-react';
 import { openInNewTab, plainClick } from './LinksPanel.jsx';
-import { SEARCH_FILTERS, searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation } from './canvas-search-panel.js';
+import { highlightCode } from './code-lang.js';
+import { SEARCH_FILTERS, searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns } from './canvas-search-panel.js';
 
 const button = 'rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
 const labelOf = value => value.title || value.name || value.path || value.label || value.kind || 'Source';
 const iconOf = result => result.kind === 'link' ? Link2 : result.kind === 'comment' ? MessageCircle : result.categories?.includes('code') ? Code : result.kind === 'shape' ? Shapes : FileText;
+const PICTURE_ICONS = { Image, Video: Film, '3D model': Box, Canvas: Shapes };
+// The match mark keeps dark text on its light violet in both themes (the theme's ink would be light on it in dark mode).
+const markClass = 'rounded-sm bg-[#ddd6fe] text-[#37352f]';
+// Only a picture the board already has: the card's own (blob, data, its https image), a stored same-origin thumbnail.
+const SAFE_SRC = /^(blob:|data:image\/|https:\/\/|\/api\/learn\/)/;
 
-// Only a provider's already-cached image is displayed. Never load a source, render a live card,
-// or own/revoke provider URLs. Each mounted virtual cell owns only its own Blob URL.
-function Preview({ result, getPreview, canvasKey }) {
-  const [preview, setPreview] = useState(null);
+// A picture result's thumbnail slot (UI-12): what getPreview resolves from the result's preview - never a source read, a
+// renderer or a model - or the kind's icon and name when none is available or it fails to load. Each mounted virtual
+// cell owns only its own Blob URL.
+function Thumb({ result, getPreview, canvasKey }) {
+  const [src, setSrc] = useState(null);
+  const key = JSON.stringify(result.preview);
   useEffect(() => {
     let cancelled = false, owned;
-    setPreview(null);
-    if (getPreview && result.previewKey) Promise.resolve().then(() => getPreview(result)).then(value => {
+    setSrc(null);
+    if (getPreview) Promise.resolve().then(() => getPreview(result)).then(value => {
       if (cancelled || !value) return;
-      const src = value instanceof Blob ? (owned = URL.createObjectURL(value)) : typeof value === 'string' ? value : value.src;
-      // Prevent accidental network fetches from result metadata. Cached previews are local only.
-      if (typeof src === 'string' && /^(blob:|data:image\/)/.test(src)) setPreview({ src, alt: value.alt || '' });
+      const next = value instanceof Blob ? (owned = URL.createObjectURL(value)) : typeof value === 'string' ? value : value.src;
+      if (typeof next === 'string' && SAFE_SRC.test(next)) setSrc(next);
     }).catch(() => {});
     return () => { cancelled = true; if (owned) URL.revokeObjectURL(owned); };
-  }, [canvasKey, result.previewKey, getPreview]);
-  const Icon = iconOf(result);
-  return <div className="flex aspect-square w-full max-w-40 self-center shrink-0 items-center justify-center overflow-hidden rounded-md bg-hover p-2" aria-hidden>
-    {preview ? <img src={preview.src} alt="" className="h-full w-full object-contain" /> : <div className="flex min-w-0 flex-col items-center gap-2 text-ink-3"><Icon size={24} strokeWidth={1.4} /><span className="line-clamp-3 break-words text-center text-xs">{result.snippet?.hit || result.snippet?.after || result.title}</span></div>}
-  </div>;
+  }, [canvasKey, result.id, key, getPreview]); // eslint-disable-line react-hooks/exhaustive-deps
+  const label = result.preview?.label || 'Preview', Icon = PICTURE_ICONS[label] || FileText;
+  return <span aria-hidden data-search-preview={src ? 'picture' : 'fallback'} className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-hover">
+    {src ? <img src={src} alt="" draggable={false} onError={() => setSrc(null)} className="h-full w-full object-cover" />
+      : <span className="flex flex-col items-center gap-0.5 text-ink-3"><Icon size={18} strokeWidth={1.5} /><span className="text-[9px] leading-3">{label}</span></span>}
+  </span>;
+}
+
+// A code result's excerpt (UI-12): its matched lines (or first, browsing) with their stored numbers, in the code card's
+// shiki colours - dark mode through the shared data-code-colors rule (index.css) - and the match marked.
+function CodeExcerpt({ preview, hit }) {
+  const lines = preview.lines, text = lines.map(line => line.text).join('\n');
+  const [runs, setRuns] = useState(null);
+  useEffect(() => {
+    let live = true;
+    setRuns(null);
+    highlightCode(text, preview.language || 'text').then(next => { if (live) setRuns(lineRuns(next)); });
+    return () => { live = false; };
+  }, [text, preview.language]);
+  return <pre data-search-code data-code-colors className="mt-1 shrink-0 overflow-hidden rounded-md border border-line py-1 font-mono text-[11px] leading-4 text-ink">
+    {lines.map((line, i) => <span key={line.n} data-search-code-line={line.n} className="flex">
+      <span aria-hidden className="w-9 shrink-0 pr-2 text-right text-ink-3 select-none">{line.n}</span>
+      <span className="min-w-0 flex-1 truncate whitespace-pre">{markRuns(runs?.[i] || [{ t: line.text }], hit).map((run, j) => {
+        const style = run.color ? { color: run.color, '--shiki-dark': run.dark || run.color } : undefined;
+        return run.hit ? <mark key={j} className={markClass}>{run.t}</mark> : <span key={j} style={style}>{run.t}</span>;
+      })}</span>
+    </span>)}
+  </pre>;
 }
 
 // A link result's own controls (the former Links tab): Open in a new tab for its canvas; its cards - on this canvas, Show
@@ -53,8 +83,8 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
   const scroller = useRef(null), fallbackPositions = useRef(new Map()), pendingFocus = useRef(null);
   const positions = scrollPositions || fallbackPositions.current;
   const [viewport, setViewport] = useState({ width: 320, height: 400, scrollTop: 0 });
-  const rows = filter === 'comments' || filter === 'text' || filter === 'links';
-  const layout = searchWindow({ count: results.length, ...viewport, rows });
+  const heights = useMemo(() => results.map(searchRowHeight), [results]);
+  const layout = searchWindow({ heights, ...viewport });
   const current = results.findIndex(result => result.id === activeId);
   const state = status.state || status.status || 'ready';
   const session = `${canvasKey}\u0000${filter}\u0000${query}\u0000${includeResolved}`;
@@ -75,9 +105,9 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
   const reveal = (index, focus = false) => {
     const element = scroller.current;
     if (!element) return;
-    const top = Math.floor(index / layout.columns) * layout.rowHeight;
+    const top = layout.offsets[index], height = heights[index];
     if (top < element.scrollTop) element.scrollTop = top;
-    else if (top + layout.rowHeight > element.scrollTop + element.clientHeight) element.scrollTop = top + layout.rowHeight - element.clientHeight;
+    else if (top + height > element.scrollTop + element.clientHeight) element.scrollTop = top + height - element.clientHeight;
     if (focus) pendingFocus.current = index;
     setViewport(previous => ({ ...previous, scrollTop: element.scrollTop }));
   };
@@ -106,19 +136,23 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
       <ol aria-label="Search results" className="relative m-0 list-none p-0" style={{ height: layout.totalHeight }}>
         {results.slice(layout.start, layout.end).map((result, offset) => {
           const index = layout.start + offset, selected = result.id === activeId, snippet = result.snippet || {}, location = searchLocation(result.location);
-          const refs = result.references || [], children = result.rabbitHoles || [], link = result.link;
-          return <li key={result.id} aria-posinset={index + 1} aria-setsize={results.length} data-search-result={result.id} data-links-direction={link?.direction} data-unavailable={link?.unavailable || undefined} className="absolute overflow-hidden pb-2" style={{ top: Math.floor(index / layout.columns) * layout.rowHeight, left: `calc(${index % layout.columns} * (100% + 8px) / ${layout.columns})`, width: `calc((100% - ${(layout.columns - 1) * 8}px) / ${layout.columns})`, height: layout.rowHeight }}>
+          const refs = result.references || [], children = result.rabbitHoles || [], link = result.link, preview = result.preview || {};
+          const lines = preview.kind === 'code' ? preview.lines || [] : [], Icon = iconOf(result);
+          return <li key={result.id} aria-posinset={index + 1} aria-setsize={results.length} data-search-result={result.id} data-links-direction={link?.direction} data-unavailable={link?.unavailable || undefined} data-search-layout={lines.length ? 'code' : preview.kind === 'picture' ? 'picture' : 'text'} className="absolute inset-x-0 overflow-hidden pb-2" style={{ top: layout.offsets[index], height: heights[index] }}>
             <div className={`flex h-full flex-col rounded-lg border p-2 ${selected ? 'border-ink-3 bg-hover' : 'border-line'}`}>
-              <button type="button" data-find-match={result.objectId} data-search-index={index} aria-current={selected ? 'true' : undefined} className={`${button} flex min-h-0 flex-1 flex-col items-stretch justify-start text-left`} onClick={() => activate(index)} onKeyDown={event => {
-                const next = searchKeyIndex(event.key, index, results.length, layout.columns);
+              <button type="button" data-find-match={result.objectId} data-search-index={index} aria-current={selected ? 'true' : undefined} className={`${button} flex min-h-0 flex-1 items-start gap-2 text-left`} onClick={() => activate(index)} onKeyDown={event => {
+                const next = searchKeyIndex(event.key, index, results.length);
                 if (next !== null) { event.preventDefault(); event.stopPropagation(); if (next >= 0) { onActiveIdChange?.(results[next].id); reveal(next, true); } }
                 if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
               }}>
-                {!rows && <Preview key={`${canvasKey}:${result.previewKey || result.id}`} result={result} getPreview={getPreview} canvasKey={canvasKey} />}
-                <span className="mt-1 block shrink-0 truncate text-sm font-medium text-ink" title={result.title}>{result.title || 'Untitled object'}</span>
-                <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3">{result.match?.kind === 'source' ? 'Source text ? ' : ''}{location || result.kind}{refs.length ? ` · ${refs.length} ${[...new Set(refs.map(ref => ref.kind || 'source'))].join('/')} reference${refs.length === 1 ? '' : 's'}` : ''}{link ? ` · ${link.cards.length} reference${link.cards.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
-                <span className="line-clamp-2 shrink-0 break-words text-xs text-ink-2">{snippet.before}{snippet.hit && <mark className="rounded-sm bg-[#ddd6fe] text-ink">{snippet.hit}</mark>}{snippet.after}</span>
+                {preview.kind === 'picture' && <Thumb key={`${canvasKey}:${result.id}`} result={result} getPreview={getPreview} canvasKey={canvasKey} />}
+                <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flex h-5 min-w-0 shrink-0 items-center gap-1 text-sm font-medium text-ink" title={result.title}>{preview.kind !== 'picture' && <Icon size={13} className="shrink-0 text-ink-3" aria-hidden />}<span className="truncate">{result.title || 'Untitled object'}</span></span>
+                <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3">{result.match?.kind === 'source' ? 'Source text ? ' : ''}{location || preview.relation || (lines.length ? `${preview.path ? `${preview.path} · ` : ''}Line${lines.length > 1 ? `s ${lines[0].n}–${lines.at(-1).n}` : ` ${lines[0].n}`}` : result.kind)}{refs.length ? ` · ${refs.length} ${[...new Set(refs.map(ref => ref.kind || 'source'))].join('/')} reference${refs.length === 1 ? '' : 's'}` : ''}{link ? ` · ${link.cards.length} reference${link.cards.length === 1 ? '' : 's'}` : ''}{result.occurrenceCount > 1 ? ` · ${result.occurrenceCount} matches` : ''}</span>
+                {lines.length ? <CodeExcerpt preview={preview} hit={snippet.hit} />
+                  : <span data-search-excerpt className="mt-0.5 line-clamp-2 h-8 shrink-0 break-words text-xs text-ink-2">{snippet.before}{snippet.hit && <mark className={markClass}>{snippet.hit}</mark>}{snippet.after}</span>}
                 {result.availability?.status !== 'ready' && result.availability?.message && <span className="block shrink-0 truncate text-[10px] leading-3 text-ink-3" title={result.availability.message}>{result.availability.message}</span>}
+                </span>
               </button>
               {(refs.length > 0 || children.length > 0 || link) && <div className="mt-1 flex max-h-10 shrink-0 gap-1 overflow-x-auto border-t border-line pt-1">
                 {link && <LinkActions result={result} onOpenAction={onOpenAction} />}

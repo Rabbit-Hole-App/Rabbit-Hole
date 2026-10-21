@@ -134,7 +134,7 @@ test('large live board reuses unchanged entries while one edited object updates'
 
 test('accessible card results expose stable cached-poster keys without fetching previews', () => {
   const value = index({ blocks: [{ id: 'visible', type: 'text', text: 'shown' }, { id: 'hidden', type: 'repo-code', redacted: true, title: 'private' }] });
-  assert.equal(query(value).results[0].previewKey, 'visible');
+  assert.deepEqual(query(value).results[0].preview, { kind: 'text' }, 'UI-12: a text card has no picture slot to fill');
   assert.equal(query(value).results.length, 1);
 });
 
@@ -170,4 +170,46 @@ test('uploaded code preserves original filename after renaming without duplicate
   assert.equal(query({ blocks: [{ ...block, redacted: true }] }).results.length, 0);
   const denied = index({ blocks: [block] }, { loadedContent: new Map([[block.id, { status: 'unavailable' }]]) });
   assert.equal(querySearchIndex(denied, { query: 'original-analysis.py' }).results.length, 0);
+});
+
+// UI-12 (owner brief 2026-10-21 message 21 item 1): each result carries what its compact preview may show - only data the
+// board already holds, never a source read, renderer or model.
+test('previews choose a code excerpt, an existing picture, a linked canvas thumbnail or a compact fallback', () => {
+  const value = index({ blocks: [
+    { id: 'snip', type: 'snippet', title: 'Training step', language: 'python', code: 'model.train()\nloss = f(x)\nloss.backward()\noptimizer.step()\nprint(loss)' },
+    { id: 'img', type: 'image', title: 'Cell', src: 'https://example.invalid/cell.png' },
+    { id: 'gen', type: 'image', title: 'Generated', variants: [{ cacheKey: 'image:a' }, { cacheKey: 'image:b' }], variant: 0 },
+    { id: 'yt', type: 'video', title: 'Lecture', videoId: 'dQw4w9WgXcQ' },
+    { id: 'drop', type: 'file', kind: 'image', label: 'photo', assetKey: 'asset:1' },
+    { id: 'model', type: 'file', kind: 'model', label: 'mesh' },
+    { id: 'cad', type: 'cad', title: 'Bracket', thumbnailUrl: '/api/learn/cad/jobs/j1/artifacts/thumb.png' },
+    { id: 'paper', type: 'file', kind: 'pdf', label: 'paper.pdf' },
+    { id: 'link', type: 'canvas-ref', refs: [{ id: 'r', target: 'board-t' }] },
+    { id: 'plain', type: 'explanation', title: 'Plain', body: 'words' }],
+  items: [{ id: 'box', kind: 'text', mode: 'code', lang: 'python', text: 'x = 1' }] },
+  { references: { link: [{ id: 'r', target: 'board-t', kind: 'canvas', title: 'Graphs', href: '/apps/graphs-1' }] },
+    links: { from: [{ target: 'board-t', title: 'Graphs', href: '/apps/graphs-1', refs: [] }, { target: 'gone', unavailable: true, refs: [] }] } });
+  const preview = (id, text = '') => query(value, text).results.find(result => result.id === id)?.preview;
+  assert.deepEqual(preview('object:snip', 'BACKWARD'), { kind: 'code', language: 'python', path: '', text: undefined, lines: [{ n: 3, text: 'loss.backward()' }, { n: 4, text: 'optimizer.step()' }, { n: 5, text: 'print(loss)' }] });
+  assert.deepEqual(preview('object:snip').lines.map(line => line.n), [1, 2, 3], 'browsing shows the first lines');
+  assert.deepEqual(preview('object:box').lines, [{ n: 1, text: 'x = 1' }]);
+  assert.equal(preview('object:img').src, 'https://example.invalid/cell.png');
+  assert.equal(preview('object:gen').asset, 'image:a', 'the variant the card shows');
+  assert.equal(preview('object:yt').src, 'https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg');
+  assert.equal(preview('object:drop').asset, 'asset:1');
+  assert.equal(preview('object:model').poster, 'model');
+  assert.equal(preview('object:cad').path, '/api/learn/cad/jobs/j1/artifacts/thumb.png');
+  assert.deepEqual(preview('object:paper'), { kind: 'picture', label: 'PDF' }, 'a PDF has no stored picture: compact fallback only');
+  assert.deepEqual(preview('object:link'), { kind: 'picture', label: 'Canvas', canvas: 'graphs-1', relation: 'Link card on this canvas' });
+  assert.equal(preview('link:from:board-t').canvas, 'graphs-1');
+  assert.equal(preview('link:from:gone').canvas, null, 'an unavailable canvas exposes no name');
+  assert.deepEqual(preview('object:plain'), { kind: 'text' });
+});
+test('a code card read from its source shows the matched stored lines; unread code keeps the text row', () => {
+  const board = { blocks: [{ id: 'repo', type: 'repo-code', title: 'train.py', language: 'python', source: { kind: 'repository', path: 'src/train.py' } }] };
+  const loaded = new Map([['repo', { status: 'ready', units: ['import torch', 'def step():', '    optimizer.step()', '    return 1'].map((text, i) => ({ text, loc: { start: 40 + i, end: 40 + i } })) }]]);
+  const read = index(board, { loadedContent: loaded });
+  assert.deepEqual(query(read, 'optimizer').results[0].preview.lines, [{ n: 42, text: '    optimizer.step()' }, { n: 43, text: '    return 1' }]);
+  assert.equal(query(read, 'optimizer').results[0].preview.path, 'src/train.py');
+  assert.deepEqual(query(index(board), 'train').results[0].preview.lines, [], 'nothing read, nothing shown');
 });
