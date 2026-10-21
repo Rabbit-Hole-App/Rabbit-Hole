@@ -66,7 +66,10 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
     if (body.hold) await new Promise(r => { model.held = r; });
     return Response.json({ model: MODEL, usage: { input_tokens: 0, output_tokens: body.out } });
   };
-  const service = { health: async () => (health instanceof Error ? Promise.reject(health) : health), submit: async () => { renders.push(1); return Response.json({ render_id: 'r' }); } };
+  const reported = new Map();
+  const service = { health: async () => (health instanceof Error ? Promise.reject(health) : health),
+    submit: async () => { renders.push(1); return Response.json({ render_id: `r${renders.length}` }, { status: 202 }); },
+    status: async id => ({ render_id: id, status: reported.get(id) || 'ready' }) };
   // The stub pipeline: the stages' calls (each {max_tokens, out}), then renders, then a final.mp4. A refused call (the
   // hold) fails the stage, as the real stages do; Stop ends it as cancelled.
   const pipeline = steps => async ({ call: guarded, service: svc, dir, signal, onStage }) => {
@@ -74,7 +77,8 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
       for (const step of steps) {
         onStage(step.stage || 'authoring');
         if (signal.aborted) throw Object.assign(new Error('stopped'), { name: 'MotionCancelled' });
-        if (step.render) { await svc.submit({}); continue; }
+        // A render the renderer reports finished (or the status the step names), as render-job polls it.
+        if (step.render) { const { render_id } = await (await svc.submit({})).json(); reported.set(render_id, step.renderStatus || 'ready'); await svc.status(render_id); continue; }
         if (step.fail) return { status: 'failed', failure_reason: `${step.stage}: ${step.fail}` };
         const r = await guarded({}, { max_tokens: step.max_tokens, messages: [{ role: 'user', content: step.stage || 'x' }], out: step.out, hold: step.hold }, MODEL);
         if (!r.ok) return { status: 'failed', failure_reason: `${step.stage}: model_error` };
@@ -130,6 +134,7 @@ test('the first end-to-end stub run: hold admitted before any call, the job runs
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
   await actor.fetch(ask());
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'reserved', null, 'running']], 'the $2 hold is reserved before the job starts');
+  assert.deepEqual((await actor.list()).videos[0].hold, { usd: 2, state: 'reserved' }, 'the card shows the reservation while it runs');
   assert.equal((await balance(LEARN_DB)).reserved, 2_000_000);
   await settle(actor, async () => (await video(actor)).status === 'ready');
   const v = await video(actor);
@@ -140,6 +145,15 @@ test('the first end-to-end stub run: hold admitted before any call, the job runs
   assert.deepEqual([w.model.calls.length, w.renders.length], [3, 2]);
   assert.deepEqual(renderRows(sqlite), [['u-alice', 'free'], ['u-alice', 'free']], 'each render is platform-funded, attributed, never in the allowance');
   assert.deepEqual(actions(sqlite), [['video', 'completed', 'full', true], ['render', 'completed', 'full', true], ['render', 'completed', 'full', true]], 'the job and its renders are closed exactly once');
+  const list = await actor.list();
+  assert.equal(list.motionHoldUsd, 2, 'the amount the server reserves, for the confirmation');
+  assert.deepEqual(list.videos[0].hold, { usd: 2, state: 'released' });
+  // Duplicate completion events: another alarm and a second settlement of the same view close nothing twice.
+  const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+  await actor.alarm();
+  await actor.settleMotion(job, { status: 'ready', spend: { cost_usd: 0.8, bound_usd: 0.8, calls: 3, in_flight: 0 }, renders: 2, render_states: ['ready', 'ready'] });
+  assert.deepEqual(actions(sqlite).length, 3, 'no second action');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']], 'settled once');
   await actor.fetch(ask({ page: 'other' }));
   await actor.alarm();
   assert.equal(w.orchestrator.posts, 1, 'a ready video is reused: no second job, admission or render');
@@ -212,7 +226,7 @@ test('Stop: the call in flight is abandoned, its real cost is settled once it la
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 700_000, 'failed']], 'both calls, $0.10 + $0.60, are what the learner pays');
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [700_000, 0]);
   assert.equal(w.renders.length, 0);
-  assert.deepEqual(actions(sqlite), [['video', 'failed', 'none', true]], 'a stopped job closes its action once its cost is settled');
+  assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]], 'a stopped job is cancelled, closed once its cost is settled');
   assert.equal(env.LEARN_MEDIA.objects.size, 0);
 });
 
@@ -228,6 +242,8 @@ test('an orchestrator restart mid-job: the job fails clearly, its hold is kept a
   const v = await video(actor);
   assert.match(v.error, /The Motion service restarted while this video was being made/);
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'unknown', null, 'failed']], 'a call was in flight: its cost is unknown, so the hold stays');
+  assert.deepEqual(actions(sqlite), [['video', 'interrupted', null, true]], 'cost unknown: interrupted, never completed because the hold settled');
+  assert.deepEqual(v.hold, { usd: 2, state: 'pending' }, 'the card says reconciliation is pending');
   // Retry: the whole $2 ceiling counts as used by the interrupted attempt, so nothing more can start for this video.
   const retried = (await (await actor.fetch(ask({ retry: true }))).json()).videos[0];
   assert.match(retried.error, /used its \$2\.00 AI spending limit across its attempts/);
@@ -309,7 +325,8 @@ test('four topics, with and without a selected card, and the nanoGPT course canv
     storyboarder: async ({ call }) => { const r = await call({}, { max_tokens: 16000, messages: [{ role: 'user', content: 'storyboard' }], out: 5000 }, MODEL); await r.text(); return { status: 'storyboard', storyboard: { beats: [] }, calls: [] }; },
     author: async ({ call }) => { const r = await call({}, { max_tokens: 64000, messages: [{ role: 'user', content: 'author' }], out: 30000 }, MODEL); await r.text(); return { status: 'composition', output: { source: 'generated' }, calls: [] }; },
     job: async ({ service, dir }) => {
-      await service.submit({});
+      const { render_id } = await (await service.submit({})).json();
+      await service.status(render_id);
       mkdirSync(join(dir, 'final'), { recursive: true });
       writeFileSync(join(dir, 'final', 'final.mp4'), Buffer.from([0, 0, 0, 24, 102, 116, 121, 112]));
       return { job: { id: 'job', status: 'ready', repairs: { storyboard: 0, author: 0 }, transport_retries: [], repair_count: 0 }, render: { render_id: 'a'.repeat(32) }, calls: [], passes: [] };
@@ -319,7 +336,7 @@ test('four topics, with and without a selected card, and the nanoGPT course canv
   w.orchestrator.o.close();
   // The same orchestrator, its run the real pipeline with the stage doubles.
   const outDir = mkdtempSync(join(tmpdir(), 'motion-topics-'));
-  const service = { health: async () => ({ ok: true, busy: false, sandbox: 'linux' }), submit: async () => { w.renders.push(1); return Response.json({}); } };
+  const service = { health: async () => ({ ok: true, busy: false, sandbox: 'linux' }), submit: async () => { w.renders.push(1); return Response.json({ render_id: `t${w.renders.length}` }, { status: 202 }); }, status: async id => ({ render_id: id, status: 'ready' }) };
   const call = async (env, body) => { w.model.calls.push(body.max_tokens); return Response.json({ model: MODEL, usage: { input_tokens: 0, output_tokens: body.out } }); };
   const o = motionOrchestrator({ token: TOKEN, service, call, outDir, run: args => runMotionRequest({ ...args, stages }) });
   const server = createServer(o.handle);
@@ -365,4 +382,16 @@ test('four topics, with and without a selected card, and the nanoGPT course canv
   assert.deepEqual(motionAttempts(sqlite), Array(9).fill([2_000_000, 'settled', 800_000, 'settled']));
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [7_200_000, 0]);
   assert.deepEqual([w.model.calls.length, w.renders.length, renderRows(sqlite).length], [27, 9, 9]);
+});
+
+// A render the renderer never reported finished (still rendering when the job ended) is interrupted, never completed; a failed one
+// is failed. Only a render the renderer reported ready is written completed (owner message 25).
+test('render actions follow what the renderer reported: ready completed, failed failed, unreported interrupted', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script([{ stage: 'directing', max_tokens: 16000, out: 5000 }, { render: true }, { render: true, renderStatus: 'failed' }, { render: true, renderStatus: 'rendering' }, { stage: 'storyboarding', fail: 'storyboard_invalid' }]);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  await actor.fetch(ask());
+  await settle(actor, async () => (await video(actor)).status === 'failed');
+  assert.deepEqual(actions(sqlite), [['video', 'failed', 'none', true], ['render', 'completed', 'full', true], ['render', 'failed', 'none', true], ['render', 'interrupted', null, true]]);
 });

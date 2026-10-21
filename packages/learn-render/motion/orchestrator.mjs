@@ -158,7 +158,9 @@ const realMicros = job => (sent(job).some(c => c.cost_micros == null) ? null : s
 export const jobView = j => ({
   job_id: j.id, status: j.status, stage: j.stage, created_at: j.created_at, finished_at: j.finished_at ?? null,
   spend: { hold_usd: usd(j.grant_micros), cost_usd: j.status === 'running' ? null : (m => (m == null ? null : usd(m)))(realMicros(j)), bound_usd: usd(committedMicros(j)), calls: sent(j).length, in_flight: sent(j).filter(c => c.state === 'running').length, refused: j.refusal },
-  renders: j.renders,
+  // Each render as the renderer last reported it: ready, failed (failed or invalid), or unknown (never reported finished).
+  renders: j.renders.length,
+  render_states: j.renders.map(r => (r.status === 'ready' ? 'ready' : ['failed', 'invalid'].includes(r.status) ? 'failed' : 'unknown')),
   ...(j.result ? {
     failure_reason: j.result.failure_reason ?? null, clarification: j.result.clarification ?? null,
     title: j.result.brief?.title ?? null, motion: j.result.block?.motion ?? null, render_id: j.result.render?.render_id ?? null,
@@ -219,7 +221,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   function start(body, preflight = '') {
     const id = randomBytes(16).toString('hex');
     const controller = new AbortController();
-    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: 0, grant_micros: body.grant.micros, refusal: null, kinds: {}, digests: new Set() };
+    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, refusal: null, kinds: {}, digests: new Set() };
     jobs.set(id, job); keys.set(job.key, id);
     active = job;
     const timer = setTimeout(() => { job.timedOut = true; controller.abort(); }, jobTimeoutMs); timer.unref?.();
@@ -257,7 +259,23 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       return Promise.race([sending, new Promise((_, fail) => controller.signal.addEventListener('abort', () => fail(new MotionCancelled()), { once: true }))]);
     };
     // Each render the service is asked for is platform-funded compute the worker records apart (feature render).
-    const counted = { ...service, submit: request => { job.renders++; return service.submit(request); } };
+    const counted = {
+      ...service,
+      submit: async request => {
+        const render = { id: null, status: 'submitted' };
+        job.renders.push(render);
+        const response = await service.submit(request);
+        try { render.id = (await response.clone().json()).render_id ?? null; } catch { /* unreadable: stays unknown */ }
+        if (response.status !== 202) render.status = 'failed'; // refused before anything ran
+        return response;
+      },
+      status: async id => {
+        const record = await service.status(id);
+        const render = job.renders.find(r => r.id === id);
+        if (render && record?.status) render.status = record.status;
+        return record;
+      },
+    };
     log(`job ${id}: started${preflight ? `; preflight ${preflight}` : ''}`);
     // The canvas's repository (the worker's records): grounded on where this process holds its source (the pinned nanoGPT);
     // otherwise, with no selected card to ground on, refused before any paid call rather than explained as if from its code.
@@ -277,7 +295,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         cleanup(job);
         sweep();
         const { spend } = jobView(job);
-        log(`job ${id}: ${job.status} (calls ${spend.calls}, cost ${spend.cost_usd ?? 'unknown'}, bound ${spend.bound_usd}, renders ${job.renders})`);
+        log(`job ${id}: ${job.status} (calls ${spend.calls}, cost ${spend.cost_usd ?? 'unknown'}, bound ${spend.bound_usd}, renders ${job.renders.length})`);
       });
     return job;
   }

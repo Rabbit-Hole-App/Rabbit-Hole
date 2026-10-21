@@ -19,6 +19,17 @@ const dollars = micros => `$${(micros / 1e6).toFixed(2)}`;
 // A Motion job's model spending (owner items 1 and 6, 2026-10-21): one hold per attempt, admitted against the learner's
 // allowance before anything starts, sized to what is left of the job's ceiling (MOTION_JOB_RESERVATION_USD) across its
 // attempts, and settled once with the orchestrator's real cost. Stopped jobs keep polling until their cost is known.
+// How a Motion job's action ends, by the job's actual terminal state (owner message 25): completed with its video; cancelled when
+// it was stopped or never started; failed when it ended without a video at a known cost; interrupted (outcome unknown) when its
+// cost could not be confirmed, as after an orchestrator restart. Never completed because its hold settled.
+const motionOutcome = (job, view, known) => (known == null ? { status: 'interrupted', result: null }
+  : view?.status === 'ready' ? { status: 'completed', result: 'full' }
+    : job.stopped || view?.status === 'cancelled' || view?.status === 'refused' ? { status: 'cancelled', result: 'none' }
+      : { status: 'failed', result: 'none' });
+// A Motion job's reservation as the card shows it: reserved while it runs; pending while its final cost is not confirmed (a
+// stopped job settling, or a cost that could not be read: reconciliation pending); released once settled at a known cost.
+const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
+  state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
 const needsSettling = job => job.provider === 'motion_request' && job.spend?.admitted && !job.spend.settled;
 // What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
 const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
@@ -197,9 +208,12 @@ export class LearnVideos {
   async list() {
     const placements = await this.state.storage.list({ prefix: 'placement:' });
     const jobs = await this.state.storage.list({ prefix: 'job:' });
-    return { videos: [...placements.values()].map(p => {
+    // motionHoldUsd: the per-job reservation the server admits (MOTION_JOB_RESERVATION_USD), only where Motion can start, so the
+    // confirmation states the amount the server will hold (owner message 25), never a figure of the browser's own.
+    const holdMicros = !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
+    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
-      return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}) };
+      return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}) };
     }) };
   }
   // Admission, then submission. A refusal or a definite orchestrator refusal starts nothing and releases the hold; an
@@ -248,18 +262,19 @@ export class LearnVideos {
     if (spendEnforced(this.env)) {
       await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
       await settleAttempt(this.env, spend.attemptId, { costMicros: known, status });
-      // The job's action ends with its hold: completed with the video, else failed (or cancelled when nothing started).
-      await finishActionOf(this.env, spend.attemptId, status === 'settled' ? { status: 'completed', result: 'full' } : { status, result: 'none' });
+      await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, known));
     }
     job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
     Object.assign(spend, { settled: true, costMicros: known });
     await this.state.storage.put(`job:${job.key}`, job);
-    const renders = Math.min(Number(view?.renders) || 0, 8);
-    for (let i = 0; i < renders; i++) {
+    // Each render as the renderer reported it (orchestrator.mjs render_states): a finished one completed, a failed one failed,
+    // one never reported finished interrupted (outcome unknown), never completed. Written once, with the settlement guard above.
+    const states = (Array.isArray(view?.render_states) ? view.render_states : Array(Math.min(Number(view?.renders) || 0, 8)).fill('unknown')).slice(0, 8);
+    for (const state of states) {
       const scoped = withUsage(this.env, { feature: 'render' });
       noteUsageIdentity(scoped, job.payer);
-      await finishAction(scoped, { status: 'completed', result: 'full' }); // a finished render: its action is written closed
-      await recordMedia(scoped, { provider: 'motion_renderer' });
+      await finishAction(scoped, state === 'ready' ? { status: 'completed', result: 'full' } : state === 'failed' ? { status: 'failed', result: 'none' } : { status: 'interrupted', result: null });
+      await recordMedia(scoped, { provider: 'motion_renderer', ok: state === 'ready' });
     }
   }
 
