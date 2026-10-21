@@ -74,6 +74,9 @@ export class LearnScenes {
           // Platform-funded rendering (owner 5A decision C, 2026-10-21): one attempt per queued render on the Fly scene worker,
           // cost unknown, recorded apart from the learner's allowance. Its limits are the job's own (one active job here,
           // the worker's single slot and 90 s compile, WAIT_MS, explicit retry only); the paid authoring call was admitted upstream.
+          // Compute ceiling: the renderer's fixed Fly pool. Production rabbit-hole-lesson-renderer-prod is 1 machine,
+          // shared-cpu-1x 2 GB, autostop/autostart, min 0 (integrator, 2026-10-21); autostart never creates machines, so the
+          // worst case is that one machine running all month.
           await recordMedia(usageFromForwarded(this.env, req, 'render'), { provider: 'fly_scene_worker', model: version });
         }
         const id = await sceneCacheKey({ ...input, scene: { lessonId: body.lessonId, page: body.page, id: input.id } }, key);

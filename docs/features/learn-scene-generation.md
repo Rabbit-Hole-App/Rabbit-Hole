@@ -26,9 +26,10 @@ Cost (owner 5A decision C, 2026-10-21): the platform pays for rendering on our o
 
 - runtime: 90-second compile, 15-minute queue wait;
 - concurrency: one active job per learner per canvas, one compile per worker machine (busy answers 429), and a fixed Fly machine pool;
-- retries: deterministic keys, and an explicit retry only.
+- retries: deterministic keys, and an explicit retry only;
+- compute budget: the fixed renderer pool. Production `rabbit-hole-lesson-renderer-prod` is one shared-cpu-1x 2 GB machine with autostop and autostart, min 0 (verified 2026-10-21). Autostart never creates machines, so the worst case is that one machine running all month.
 
-There is no app-level render budget (see `learn-allowance.test.js`, "platform-funded").
+There is no app-level per-learner or daily render budget (see `learn-allowance.test.js`, "platform-funded").
 
 States are queued, rendering, ready and failed. A busy worker leaves the job queued. A restarted worker can repeat deterministic transient work using its existing job key. Definitive failures require an explicit retry; retries receive a new attempt key. End-to-end queue wait is capped at 15 minutes.
 
