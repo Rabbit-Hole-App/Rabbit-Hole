@@ -163,10 +163,11 @@ test('the orchestrator Docker context boots the hostable entry: every file it im
   const bare = spawnSync(process.execPath, ['motion/orchestrator-main.mjs'], { cwd, encoding: 'utf8', env: base });
   assert.equal(bare.status, 2, bare.stderr);
   assert.match(bare.stderr, /MOTION_ORCHESTRATOR_TOKEN: at least 32 characters/);
-  // With it (a placeholder key: nothing is called), it serves /health from the image tree as the image's CMD starts it.
+  // With its tokens and no model key yet (production before the dedicated workspace's secret is set), it serves /health from
+  // the image tree as the image's CMD starts it, and says it is not ready.
   const port = 20000 + Math.floor(Math.random() * 20000);
   const proc = spawn(process.execPath, ['motion/orchestrator-main.mjs'], { cwd, env: { ...base, HOST: '127.0.0.1', PORT: String(port), MOTION_WORK_DIR: join(ctx, 'jobs'),
-    MOTION_ORCHESTRATOR_TOKEN: 'o'.repeat(40), ANTHROPIC_API_KEY: 'placeholder-not-a-key', MOTION_RENDERER_URL: 'http://127.0.0.1:9', MOTION_RENDERER_TOKEN: 'r'.repeat(40) }, stdio: ['ignore', 'pipe', 'pipe'] });
+    MOTION_ORCHESTRATOR_TOKEN: 'o'.repeat(40), MOTION_RENDERER_URL: 'http://127.0.0.1:9', MOTION_RENDERER_TOKEN: 'r'.repeat(40) }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stderr = '';
   proc.stderr.on('data', d => { stderr += d; });
   const exited = new Promise(r => proc.on('exit', code => r(code)));
@@ -177,6 +178,6 @@ test('the orchestrator Docker context boots the hostable entry: every file it im
       health = await fetch(`http://127.0.0.1:${port}/health`).then(r => r.json(), () => null);
     }
   } finally { proc.kill(); await exited; }
-  assert.deepEqual(health, { ok: true, active: false }, `the orchestrator did not boot from the image tree: ${stderr.split('\n').find(l => /Error/.test(l)) || stderr.slice(0, 300)}`);
+  assert.deepEqual(health, { ok: true, active: false, ready: false, missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'] }, `the orchestrator did not boot from the image tree: ${stderr.split('\n').find(l => /Error/.test(l)) || stderr.slice(0, 300)}`);
   relativeImports(join(cwd, 'motion', 'orchestrator-main.mjs'));
 });

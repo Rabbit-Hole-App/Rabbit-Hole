@@ -170,7 +170,9 @@ export const jobView = j => ({
 // waits to be fetched; recordTtlMs how long a finished job still answers polls. now() is injectable for tests.
 // policy: PRODUCTION_POLICY for the entries; null (tests of other behaviour) checks only the hold and the call cap.
 // rendererHashes: the entries pass rendererCodeHashes(); a renderer whose /health version carries another starts no job.
-export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, policy = null, rendererHashes = null, log = () => {}, renderer, plans = {},
+// missing: the settings this process still lacks (the model key before its secret is set): /health says not ready and every
+// job is refused before anything starts, never failed halfway.
+export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, policy = null, rendererHashes = null, missing = [], log = () => {}, renderer, plans = {},
   jobTimeoutMs = 55 * 60 * 1000, resultTtlMs = 60 * 60 * 1000, recordTtlMs = 6 * 60 * 60 * 1000, now = () => Date.now() }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   if (!service || typeof service.health !== 'function') throw new Error('motionOrchestrator: a render service client is required (there is no in-process renderer)');
@@ -283,13 +285,14 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   async function handle(req, res) {
     try {
       const path = req.url.split('?')[0];
-      if (path === '/health' && req.method === 'GET') return send(res, 200, { ok: true, active: !!active });
+      if (path === '/health' && req.method === 'GET') return send(res, 200, { ok: true, active: !!active, ...(missing.length ? { ready: false, missing } : {}) });
       if (!authorized(req)) return send(res, 401, { error: 'unauthorized' });
       if (path === '/jobs') {
         if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
         const body = await readJson(req);
         const errors = validateJobRequest(body);
         if (errors.length) return send(res, 400, { error: 'invalid_request', errors });
+        if (missing.length) return send(res, 503, { error: 'not_configured', detail: `the Motion service is not configured yet (${missing.join(', ')}); nothing was started` });
         // A forged grant is refused first; then the same key is the same job (a resent submission never starts a second
         // one or spends twice); only then do the amount, restart and age checks refuse a new job.
         if (!signedGrant(body)) return send(res, 403, { error: 'grant_refused', detail: 'the grant signature does not match; nothing was started' });

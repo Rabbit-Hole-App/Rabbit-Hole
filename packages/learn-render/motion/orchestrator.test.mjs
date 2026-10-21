@@ -402,3 +402,15 @@ test('preflight: a matching renderer version admits a no-source job; the real re
   await until(async () => (await view(job_id)).status !== 'running', 'the job');
   assert.deepEqual(handed, [{ status: 'no_source_supplied' }]);
 });
+
+// Production before its model secret exists (owner message 22: the dedicated Anthropic workspace comes separately): the service
+// runs, says it is not ready, and refuses every job before anything starts.
+test('without its model credentials the orchestrator is not ready: /health says so and every job is refused, nothing started', async t => {
+  let runs = 0;
+  const { req } = await start(t, { missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'], run: async () => { runs++; return { status: 'ready' }; } });
+  assert.deepEqual(await (await req('/health', { token: '' })).json(), { ok: true, active: false, ready: false, missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'] });
+  const r = await req('/jobs', { method: 'POST', body: job() });
+  assert.equal(r.status, 503);
+  assert.deepEqual(await r.json(), { error: 'not_configured', detail: 'the Motion service is not configured yet (ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID); nothing was started' });
+  assert.equal(runs, 0);
+});

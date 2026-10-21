@@ -3,7 +3,8 @@
 // token, model key and the sandboxed render service. Prepared for rabbit-hole-motion-orchestrator (fly.orchestrator.toml);
 // nothing deploys it.
 //   MOTION_ORCHESTRATOR_TOKEN  (>= 32 chars; also signs and verifies the worker's per-job grant)
-//   ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (optional)
+//   ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the dedicated workspace). Without the key the service starts not ready:
+//   /health says {ready: false, missing}, and every job is refused before anything starts.
 //   MOTION_RENDERER_URL, MOTION_RENDERER_TOKEN
 //   HOST (0.0.0.0), PORT (8080), MOTION_WORK_DIR (/tmp/motion-jobs), MOTION_MAX_CALLS (9), MOTION_JOB_TIMEOUT_S (3300)
 // Every job runs under PRODUCTION_POLICY (orchestrator.mjs): its worst case is the per-job hold the worker admits.
@@ -34,7 +35,6 @@ export function orchestratorConfig(e = process.env) {
   const errors = [];
   const int = (name, fallback, min, max) => { const v = e[name] == null || e[name] === '' ? fallback : Number(e[name]); if (!Number.isInteger(v) || v < min || v > max) errors.push(`${name}: an integer from ${min} to ${max}`); return v; };
   if (!e.MOTION_ORCHESTRATOR_TOKEN || e.MOTION_ORCHESTRATOR_TOKEN.length < 32) errors.push('MOTION_ORCHESTRATOR_TOKEN: at least 32 characters');
-  if (!e.ANTHROPIC_API_KEY) errors.push('ANTHROPIC_API_KEY: required');
   let renderer = null;
   try { renderer = new URL(e.MOTION_RENDERER_URL); } catch { errors.push('MOTION_RENDERER_URL: the sandboxed render service URL'); }
   if (!e.MOTION_RENDERER_TOKEN) errors.push('MOTION_RENDERER_TOKEN: required');
@@ -43,6 +43,7 @@ export function orchestratorConfig(e = process.env) {
     maxCalls: int('MOTION_MAX_CALLS', 9, 1, 32), jobTimeoutMs: int('MOTION_JOB_TIMEOUT_S', 3300, 60, 3500) * 1000,
     renderer: renderer && { url: renderer.href.replace(/\/$/, ''), token: e.MOTION_RENDERER_TOKEN }, token: e.MOTION_ORCHESTRATOR_TOKEN,
     env: Object.fromEntries(['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', ...ROLES].filter(k => e[k]).map(k => [k, e[k]])),
+    missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'].filter(k => !e[k]),
   };
   return errors.length ? { errors } : { config };
 }
@@ -52,9 +53,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (errors) { for (const line of errors) console.error(`✗ ${line}`); process.exit(2); }
   const orchestrator = motionOrchestrator({
     token: config.token, service: serviceClient(config.renderer), call: apiCall, env: config.env, outDir: config.workDir,
-    maxCalls: config.maxCalls, policy: PRODUCTION_POLICY, rendererHashes: rendererCodeHashes(), jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
+    maxCalls: config.maxCalls, policy: PRODUCTION_POLICY, missing: config.missing, rendererHashes: rendererCodeHashes(), jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
   });
-  const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job, the production policy; hold per job from the worker's grant)`));
+  const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job, the production policy; hold per job from the worker's grant)${config.missing.length ? `; NOT READY: missing ${config.missing.join(', ')}, every job is refused` : ''}`));
   // A stop (deploy, scale) ends running jobs; the worker keeps their holds as unknown cost and refuses their grants here.
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { orchestrator.close(); server.close(); process.exit(0); });
 }
