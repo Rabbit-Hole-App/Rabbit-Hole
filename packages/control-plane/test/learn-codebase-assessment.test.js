@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { COMMITS, SECRET_VALUE, taskboard } from './learn-codebase-fixtures.js';
-import { dataOf, replying } from './learn-rich-fixtures.js';
+import { SIGMOID, WRITING, WRITING_CASES, WRITING_PROMPT, dataOf, replying } from './learn-rich-fixtures.js';
 import { act, never } from './learn-attempt-fixture.js';
 import { codebaseRoute } from '../src/learn-codebase-source-map.js';
 import { attemptRoute } from '../src/learn-attempt-routes.js';
@@ -19,7 +19,8 @@ import { CODEBASE_GOALS, goalOf } from '../../web/src/learn-codebase-goals.js';
 
 const CANVAS = 'canvas-0000aaaa';
 const ACTOR = { org: 'ws', userId: 'u-ana', app: CANVAS, board: 'main' };
-const ON = { TUTOR_RUBRIC_ASSESSMENT_ENABLED: 'true' };
+// The production switch (owner GO 2026-10-21): codebase assessment alone; the general rubric and visual switches stay off.
+const ON = { TUTOR_CODEBASE_ASSESSMENT_ENABLED: 'true' };
 const FOCUS = { understand_feature: 'the completion indicator', debug_behavior: 'Why does progress show 0% after completing one task?', make_change: 'round the percentage to one decimal', prepare_contribute: '', learn_concept: 'derived state in the completion percentage' };
 // A learner's answer per goal, and the words of it that meet each criterion (what a stubbed evaluator quotes back).
 const ANSWERS = {
@@ -225,4 +226,33 @@ test('5B: a crafted repository source is still read only under authorization: a 
     assert.deepEqual([r.body.assessment.status, r.body.assessment.reason, stub.calls.length], ['unavailable', 'source_unavailable', 0], crafted.id);
     assert.equal(JSON.stringify(r.body).includes(SECRET_VALUE), false);
   }
+});
+
+test('flag split: TUTOR_CODEBASE_ASSESSMENT_ENABLED assesses codebase answers only; other rubric goals, drawings and codebase-labelled goals without cited code stay unassessed with no call', async t => {
+  const f = setup(t, ON);
+  const activity = await f.start('understand_feature');
+  const answer = ANSWERS.understand_feature;
+  const code = replying(reply(activity, answer.quotes));
+  const r = await f.submit(activity, answer.text, { ...never, callModel: code.callModel });
+  assert.deepEqual([r.body.assessment.status, r.body.assessment.provenance.route, code.calls.length], ['completed', 'rubric', 1], 'codebase on');
+
+  // Every other answer must make no call: a stub that throws proves it.
+  const make = async (label, criteria, responseKind, sourceRefs = []) => {
+    await act(f.env, ACTOR, 'create_goal', { label, criteria });
+    const goalId = (await readCoachingState(f.env, ACTOR)).activeGoalId;
+    const state = (await act(f.env, ACTOR, 'activate_activity', { activity: { goalId, objective: label, prompt: WRITING_PROMPT, responseKind, criterionRefs: criteria.map(c => ({ criterionId: c.criterionId, version: 1 })), sourceRefs } })).state;
+    return state.activities.find(a => a.activityId === state.activeActivityId);
+  };
+  const writing = await make('Library hours paragraph', WRITING, 'text');
+  const w = await f.submit(writing, WRITING_CASES.proposalA.text, never);
+  assert.deepEqual([w.body.assessment.status, w.body.assessment.reason], ['unavailable', 'no_registered_claims'], 'another rubric goal: off');
+  const drawing = await make('Sketch', SIGMOID, 'drawing');
+  const d = await attemptRoute('/api/learn/tutor/attempts', new Request('https://dev.test/api/learn/tutor/attempts', { method: 'POST', body: JSON.stringify({ app: CANVAS, board: 'main', activityId: drawing.activityId, activityRevision: drawing.revision, submissionKey: 'sub-split-drawing', submittedContent: { image: { id: 'm-1' } }, sourceRefs: [], assistanceRefs: [] }) }), f.env, { authorize: async () => ({ ...canvasApp(f.sqlite.prepare('SELECT * FROM canvases WHERE name = ?').get(CANVAS), { email: 'ana@test', org: 'ws' }), user_id: 'u-ana' }), ...never });
+  const dv = await d.json();
+  assert.deepEqual([dv.assessment.status, dv.assessment.reason], ['unavailable', 'visual_not_supported'], 'visual: off');
+  // A goal that claims the codebase rubric but cites no repository file is not a codebase answer.
+  const labelled = await make('Claims the codebase rubric', goalOf('understand_feature').criteria.slice(0, 1), 'text');
+  const l = await f.submit(labelled, answer.text, never);
+  assert.deepEqual([l.body.assessment.status, l.body.assessment.reason], ['unavailable', 'no_registered_claims']);
+  assert.equal(code.calls.length, 1, 'no further call');
 });
