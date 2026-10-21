@@ -7,16 +7,18 @@ Look for statements that are false:
 - a sentence, label or number that the card's own numbers at that setting contradict: a count, range, total, difference, equality, crossing, maximum or step result it states that the values drawn at that setting do not show;
 - a statement that is wrong about the subject itself: a wrong formula, law, definition, algorithm step or fact, or numbers that cannot come from the rule the card says produced them.
 Numbers the card calls illustrative or example values may be invented; what the card says about them must still hold. Do not report wording, style, layout, simplifications or what the card leaves out. A number shown at the card's display precision is correct: 1102.50 shown as 1103 is not a contradiction.
-Check every setting, then call report_check once. List each statement you examined that might be wrong, with status "false" when it is false and "correct" when it holds; only false ones count. For each, copy into says the card's own statement exactly as the card shows it, and into against the card's own value or statement it contradicts, also copied exactly (for example [60.00, 80.00]); an item whose quotes are not on the card is ignored. For a wrong number, also give shown (the number as the card prints it) and expected (its true value). When nothing might be wrong, problems is an empty list.`;
+Check every setting, then call report_check once. List each statement you examined that might be wrong. For each, copy into says the card's own statement exactly as the card shows it, and into against the card's own value or statement it is checked against, also copied exactly (for example [60.00, 80.00]); an item whose quotes are not on the card is ignored. Then write finding: what the card's numbers or the subject show about the statement. Only after the finding, set status: "false" when the finding shows the statement is false, "correct" when it holds; only false ones count. For a wrong number, also give shown (the number as the card prints it) and expected (its true value). When nothing might be wrong, problems is an empty list.`;
 
+// Field order is the order the model fills them in: the finding before the status, so a statement is judged after it is checked.
 export const VERIFY_TOOL = {
   name: 'report_check',
-  description: 'The statements examined, each marked false or correct, with exact quotes from the card (an empty list when none might be wrong).',
+  description: 'The statements examined, each checked and then marked false or correct, with exact quotes from the card (an empty list when none might be wrong).',
   input_schema: { type: 'object', additionalProperties: false, required: ['problems'], properties: { problems: { type: 'array', maxItems: 12, items: {
-    type: 'object', additionalProperties: false, required: ['status', 'object', 'says', 'against', 'wrong'], properties: {
-      status: { type: 'string', enum: ['false', 'correct'] }, setting: { type: 'string', maxLength: 200 }, object: { type: 'string', maxLength: 64 },
-      says: { type: 'string', maxLength: 300 }, against: { type: 'string', maxLength: 300 }, shown: { type: 'string', maxLength: 40 }, expected: { type: 'number' },
-      wrong: { type: 'string', maxLength: 400 },
+    type: 'object', additionalProperties: false, required: ['object', 'says', 'against', 'finding', 'status'], properties: {
+      setting: { type: 'string', maxLength: 200 }, object: { type: 'string', maxLength: 64 },
+      says: { type: 'string', maxLength: 300 }, against: { type: 'string', maxLength: 300 },
+      finding: { type: 'string', maxLength: 400 }, status: { type: 'string', enum: ['false', 'correct'] },
+      shown: { type: 'string', maxLength: 40 }, expected: { type: 'number' },
     } } } } },
 };
 

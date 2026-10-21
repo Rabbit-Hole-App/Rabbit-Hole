@@ -191,7 +191,7 @@ test('the supply-demand rerun (a false equilibrium no gate reads) is refused by 
   // The deterministic gates pass it: the false statement is about the subject, in words.
   assert.equal(calculationProblem(stored, calculation), null);
   assert.equal(sceneProblem(stored), null);
-  const verdict = [{ status: 'false', setting: 'price = $5', object: 'note', says: '$5 is the equilibrium price: the market clears, no shortage.', against: '[60.00, 80.00]', wrong:'at $5 the card draws 60 demanded and 80 supplied, so the market does not clear there; its own lines cross at $4.50 and 70 units' }];
+  const verdict = [{ status: 'false', setting: 'price = $5', object: 'note', says: '$5 is the equilibrium price: the market clears, no shortage.', against: '[60.00, 80.00]', finding: 'at $5 the card draws 60 demanded and 80 supplied, so the market does not clear there; its own lines cross at $4.50 and 70 units' }];
   const answer = ['make_animation', { title, calculation, scene: stored }];
   const stuck = scripted(answer, answer);
   stuck.verdicts.push(verdict, verdict);
@@ -239,16 +239,16 @@ test('the server keeps only verifier items marked false, quoted from the card, a
   const { title, calculation, scene: stored } = record.response.block;
   const says = '$5 is the equilibrium price: the market clears, no shortage.';
   const ignored = [
-    { status: 'correct', object: 'note', says, against: '[60.00, 80.00]', wrong: 'checked: it holds' },
-    { status: 'false', object: 'note', says: 'Equilibrium is at $5 with 80 units', against: '[60.00, 80.00]', wrong: 'a quote the card does not show' },
-    { status: 'false', object: 'note', says, against: 'demand 60 and supply 80', wrong: 'a value the card does not show in those words' },
-    { status: 'false', object: 'gapsent', says: '80 wanted - 60 offered = 20 units of shortage', against: '[80.00, 60.00]', shown: '20', expected: 20.4, wrong: 'rounding only' },
+    { status: 'correct', object: 'note', says, against: '[60.00, 80.00]', finding: 'checked: it holds' },
+    { status: 'false', object: 'note', says: 'Equilibrium is at $5 with 80 units', against: '[60.00, 80.00]', finding: 'a quote the card does not show' },
+    { status: 'false', object: 'note', says, against: 'demand 60 and supply 80', finding: 'a value the card does not show in those words' },
+    { status: 'false', object: 'gapsent', says: '80 wanted - 60 offered = 20 units of shortage', against: '[80.00, 60.00]', shown: '20', expected: 20.4, finding: 'rounding only' },
   ];
   const run = scripted(['make_animation', { title, calculation, scene: stored }]);
   run.verdicts.push(ignored);
   assert.equal((await generateArtifact({}, { command: 'explain', args: record.args }, run)).result, 'artifact', 'nothing kept: the card stands');
   const kept = scripted(['make_animation', { title, calculation, scene: stored }], ['make_animation', { title, calculation, scene: stored }]);
-  kept.verdicts.push([...ignored, { status: 'false', object: 'note', says: `  “${says.toUpperCase()}” `, against: '60.00, 80.00', shown: '80', expected: 60, wrong: 'kept' }]);
+  kept.verdicts.push([...ignored, { status: 'false', object: 'note', says: `  “${says.toUpperCase()}” `, against: '60.00, 80.00', shown: '80', expected: 60, finding: 'kept' }]);
   await generateArtifact({}, { command: 'explain', args: record.args }, kept);
   assert.equal(kept.seen.length, 2, 'the kept item (matched despite case, spacing and curly quotes) goes to the repair');
   assert.doesNotMatch(kept.seen[1].messages.at(-1).content[0].content, /checked: it holds|a quote the card does not show|rounding only/);

@@ -27,7 +27,7 @@ const PINS = {
   chatOutline: '8e4510902ef9b033',
   repository: 'dd59f312d45aad50',
   artifact: '20dc07a7bfe8bca7', // 2026-10-21 L10: when to make an interactive scene (make_animation)
-  sceneVerify: '9e939cc8815446db', // 2026-10-21 L10 (owner): the verifier pass over a generated scene (learn-scene-author.test.js sends it)
+  sceneVerify: '95072982913f0bc1', // 2026-10-21 L10 (owner): the verifier pass over a generated scene (learn-scene-author.test.js sends it)
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',
   gradingMessage: '1b9c8ceb43a290f2', // the challengePrompt fixture below
