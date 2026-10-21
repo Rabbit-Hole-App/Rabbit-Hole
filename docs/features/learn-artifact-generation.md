@@ -327,9 +327,13 @@ help the idea, and a text explanation otherwise. The Tutor reaches the same capa
 - **Contract.** `agents/learn-scene-author.js` `SCENE_AUTHORING`, appended to the `make_animation` tool description
   (server-only). It tells the model the frozen vocabulary (object types, inputs, derive ops, timeline) with one example
   that `test/learn-scene-author.test.js` runs through the gates.
-- **Gates.** `learn-scene-gates.js` runs the existing validators: `evaluateScene` at the defaults and with each control
-  moved through its values, then `checkSceneConsistency`, `checkLayoutLint`, the cell and type legibility floors, and no
-  images. The first problem goes to the model as the one existing repair. A scene that still fails is a
+- **Gates.** `learn-scene-gates.js` runs the existing validators: `evaluateScene` at every setting a learner can reach
+  (`inputStates`: every combination of every visible control's values, each toggle both ways, each choice option, each
+  index position, interior slider positions included), then `checkSceneConsistency`, `checkLayoutLint`, the cell and type
+  legibility floors, and no images. Nothing is sampled (EXP-04, owner review 2026-10-21): a scene whose controls make more
+  than 64 settings in combination (`MAX_SETTINGS`), or that declares a control whose settings cannot all be listed
+  (`indices`, `vec2`), is refused with that reason, which goes to the one repair. A hidden input has no control and is
+  checked at its default only. The time axis is not a setting: each setting is checked at the scene's end state. The first problem goes to the model as the one existing repair. A scene that still fails is a
   `validation_error`, never a card.
 - **What the card says about its own numbers** (after two of ten real scenes had wrong stored content, 2026-10-21). At
   every checked setting, a written calculation in shown text (`70 - 80 = 0`, `31 < 37`) must hold, and a sentence whose
@@ -341,7 +345,8 @@ help the idea, and a text explanation otherwise. The Tutor reaches the same capa
   words ("equilibrium at $5"), is left to the verifier pass.
 - **Verifier pass** (owner, 2026-10-21). A scene that passes the gates is read back by a second call
   (`agents/learn-scene-verify.js`; the same model, through spend admission, recorded as an `evaluation` attempt) with the
-  card as the learner meets it at every checked setting (`learn-scene-gates.js` `cardAtSettings`). It lists each
+  card as the learner meets it at every checked setting (`learn-scene-gates.js` `cardAtSettings`: the same `inputStates`
+  list the gates check, so a statement shown only in a combination of controls is on the page it reads). It lists each
   statement it examined with exact quotes from the card (`says`, `against`), its finding, then a status (`false` or
   `correct`). The server (`falseItems`) keeps only items marked false whose quotes are on the card, and drops a wrong
   number whose true value printed at the shown number's places is the shown number (display precision). A kept item goes

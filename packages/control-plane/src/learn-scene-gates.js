@@ -12,24 +12,39 @@ import { formatCell } from '../../web/src/scene-format.js';
 // nothing. Fixed words, placed by the server under the scene's content, never written by the model.
 export const SAMPLES_NOTE = 'Precomputed samples: each setting shows a stored result, not a live calculation.';
 const MAX_SCENE_CHARS = 60000;
-// An index input with more positions than this is checked at its first, middle and last; fewer, at every one.
-const EVERY_POSITION = 8;
 
-// The input values a scene is checked at: the defaults, then each control moved alone through its values.
+// The interaction space the gates and the verifier see (EXP-04, owner review 2026-10-21): every setting a learner can reach,
+// that is every combination of every visible control's values (each toggle both ways, each choice option, each index
+// position). Nothing is sampled: a scene with more settings than MAX_SETTINGS, or a control whose values cannot all be
+// listed (indices, vec2), is refused with that reason, so what is checked is always all of it. A hidden input has no
+// control (scene-evaluate.js applyInputToBlock refuses it), so it stays at its default.
+export const MAX_SETTINGS = 64;
+const LISTED = new Set(['bool', 'choice', 'index']);
+const controlValues = scene => (scene.inputs || []).filter(input => !input?.hidden).map(input => {
+  const values = input?.type === 'bool' ? [true, false] : input?.type === 'choice' ? (input.options || []).map(option => option?.id)
+    : input?.type === 'index' ? [...Array((scene.exampleData?.[input.of] || []).length).keys()] : [];
+  return [input, [input?.default, ...values.filter(value => value !== input?.default)]];
+});
+export function spaceProblem(scene) {
+  const controls = controlValues(scene);
+  const unlisted = controls.find(([input]) => !LISTED.has(input?.type));
+  if (unlisted) return `Input "${unlisted[0]?.name}": a generated scene's controls are bool, choice or index inputs, whose settings can all be checked, not ${JSON.stringify(unlisted[0]?.type)}`;
+  const count = controls.reduce((product, [, values]) => product * values.length, 1);
+  if (count > MAX_SETTINGS) return `The controls offer ${count} settings in combination (${controls.map(([input, values]) => `${input.name}: ${values.length}`).join(' x ')}); every setting is checked, and at most ${MAX_SETTINGS} are supported: use fewer controls, options or positions`;
+  return null;
+}
+
+// Every setting the gates check, as the inputs moved off their defaults: the defaults ({}) first, then each control alone,
+// then combinations, so the simplest setting with a problem is the one reported.
 export function inputStates(scene) {
-  const states = [{}];
-  for (const input of scene.inputs || []) {
-    if (input.hidden) continue;
-    let values = [];
-    if (input.type === 'bool') values = [true, false];
-    else if (input.type === 'choice') values = (input.options || []).map(option => option.id);
-    else if (input.type === 'index') {
-      const length = (scene.exampleData?.[input.of] || []).length;
-      values = length <= EVERY_POSITION ? [...Array(length).keys()] : [0, Math.floor(length / 2), length - 1];
-    }
-    for (const value of values) if (value !== input.default) states.push({ [input.name]: value });
-  }
-  return states;
+  const problem = spaceProblem(scene);
+  if (problem) throw new Error(problem);
+  const controls = controlValues(scene);
+  let picks = [[]]; // per state, the position of each control's value in its list (0 = its default)
+  for (const [, values] of controls) picks = picks.flatMap(pick => values.map((_, i) => [...pick, i]));
+  const rank = pick => pick.map(i => i || Infinity), moved = pick => pick.filter(Boolean).length;
+  picks.sort((a, b) => { const [x, y] = [rank(a), rank(b)], i = x.findIndex((v, j) => v !== y[j]); return moved(a) - moved(b) || (i < 0 ? 0 : x[i] - y[i]); });
+  return picks.map(pick => Object.fromEntries(controls.map(([input, values], i) => [input.name, values[pick[i]]]).filter((_, i) => pick[i])));
 }
 
 // What to do about a validator refusal real runs kept repeating (L10 runs, 2026-10-21): appended to the validator's own words.
@@ -88,31 +103,32 @@ const numbersIn = text => (text.match(/-?\d[\d,]*(?:\.\d+)?/g) || []).map(number
 const RANGE = /(?<![\d.])(\d+)(?:\s*\.\.\s*|[–—-]|\s+to\s+)(\d+)(?![\d])/g;
 const rangesIn = text => [...text.matchAll(RANGE)].map(match => [Number(match[1]), Number(match[2])]).filter(([a, b]) => a <= b);
 // A sentence that changes with one control, set against a drawn data object whose non-zero entries change with it (a range
-// still searched, cells kept), at every setting checked:
+// still searched, cells kept), along each line of settings where only that control moves (the others held at each of their
+// combinations):
 // - a number that is that object's count of non-zero entries at most settings (two different counts at least) must be it at all;
 // - an index range it states must be the span of those entries or a block of zeros (cells dropped), once at some setting a range
 //   it states was that span exactly.
 function drawnEntriesProblem(name, series) {
-  const at = (inputs, text, data, words) => `With input ${name} = ${JSON.stringify(inputs[name])}: "${text}" says "${words}", but "${data}" draws `;
+  const at = (snap, text, data, words) => `${where({ [name]: snap.inputs[name], ...snap.state })}"${text}" says "${words}", but "${data}" draws `;
   for (const data of series[0].objects.values()) {
     if (!Array.isArray(data.values)) continue;
     for (const text of series[0].objects.values()) {
       if (!text.label) continue;
       const pairs = series.filter(snap => snap.objects.get(data.id) && snap.objects.get(text.id)?.label).map(snap => {
         const on = snap.objects.get(data.id).values.map(value => value != null && Number(value) !== 0);
-        return { inputs: snap.inputs, on, count: on.filter(Boolean).length, first: on.indexOf(true), last: on.lastIndexOf(true), label: snap.objects.get(text.id).label };
+        return { snap, on, count: on.filter(Boolean).length, first: on.indexOf(true), last: on.lastIndexOf(true), label: snap.objects.get(text.id).label };
       });
       if (pairs.length < 3 || new Set(pairs.map(pair => `${pair.first}..${pair.last}:${pair.count}`)).size < 2 || new Set(pairs.map(pair => pair.label)).size < 2) continue;
       const hits = pairs.filter(pair => numbersIn(pair.label).includes(pair.count));
       const miss = pairs.find(pair => !hits.includes(pair));
       if (miss && hits.length * 2 > pairs.length && new Set(hits.map(pair => pair.count)).size >= 2) {
-        return `${at(miss.inputs, text.id, data.id, miss.label)}${miss.count} non-zero entries there, and at most other settings it states that count`;
+        return `${at(miss.snap, text.id, data.id, miss.label)}${miss.count} non-zero entries there, and at most other settings it states that count`;
       }
       const span = (pair, [a, b]) => a === pair.first && b === pair.last;
       if (!pairs.some(pair => rangesIn(pair.label).some(range => span(pair, range)))) continue;
       for (const pair of pairs) {
         const wrong = rangesIn(pair.label).find(([a, b]) => b < pair.on.length && !span(pair, [a, b]) && pair.on.slice(a, b + 1).some(Boolean));
-        if (wrong) return `${at(pair.inputs, text.id, data.id, pair.label)}its non-zero entries at ${pair.first}..${pair.last} there, not ${wrong[0]}..${wrong[1]}, and at another setting the range it states is that span`;
+        if (wrong) return `${at(pair.snap, text.id, data.id, pair.label)}its non-zero entries at ${pair.first}..${pair.last} there, not ${wrong[0]}..${wrong[1]}, and at another setting the range it states is that span`;
       }
     }
   }
@@ -121,8 +137,8 @@ function drawnEntriesProblem(name, series) {
 const hinted = message => { const hint = HINTS.find(([pattern]) => pattern.test(message)); return hint ? `${message}. Fix: ${hint[1]}` : message; };
 
 const where = inputs => {
-  const [entry] = Object.entries(inputs);
-  return entry ? `With input ${entry[0]} = ${JSON.stringify(entry[1])}: ` : '';
+  const entries = Object.entries(inputs);
+  return entries.length ? `With input${entries.length > 1 ? 's' : ''} ${entries.map(([name, value]) => `${name} = ${JSON.stringify(value)}`).join(', ')}: ` : '';
 };
 
 // The first problem a learner would meet, in words the model can act on for its one repair; null when every gate passes.
@@ -138,8 +154,10 @@ function firstProblem(scene) {
     const bad = spec.args.find(arg => typeof arg !== 'string' && !Number.isFinite(arg));
     if (bad !== undefined) return `derived.${name} (${spec.op}): every arg is a name, a dotted path or a number, not ${JSON.stringify(bad).slice(0, 60)} - put lists in exampleData and name them`;
   }
+  const space = spaceProblem(scene);
+  if (space) return space;
   const legibility = (() => { try { return legibilityIssues(scene); } catch { return []; } })();
-  const series = new Map(); // each control's settings, the defaults first: what drawnEntriesProblem compares
+  const series = new Map(); // each line of settings along one control, its first setting first: what drawnEntriesProblem compares
   for (const inputs of inputStates(scene)) {
     let result;
     try { result = evaluateScene(structuredClone(scene), scene.duration, inputs); }
@@ -158,12 +176,14 @@ function firstProblem(scene) {
       const wrong = object.label && falseCalculation(object.label);
       if (wrong) return `${where(inputs)}"${object.id}" ${wrong}`;
     }
-    const moved = Object.keys(inputs)[0], snap = { inputs: result.inputs, objects: new Map(shown.map(object => [object.id, object])) };
+    const snap = { state: inputs, inputs: result.inputs, objects: new Map(shown.map(object => [object.id, object])) };
     for (const input of result.declarations || []) {
-      if (!input.hidden && input.presentation !== 'pager' && (moved === undefined || moved === input.name)) series.set(input.name, [...(series.get(input.name) || []), snap]);
+      if (input.hidden || input.presentation === 'pager') continue;
+      const line = JSON.stringify([input.name, Object.entries(inputs).filter(([name]) => name !== input.name)]);
+      series.set(line, { name: input.name, snaps: [...(series.get(line)?.snaps || []), snap] });
     }
   }
-  for (const [name, snaps] of series) {
+  for (const { name, snaps } of series.values()) {
     const count = snaps.length >= 3 && drawnEntriesProblem(name, snaps);
     if (count) return count;
   }
@@ -209,7 +229,7 @@ export function withSamplesNote(scene, calculation) {
 }
 
 // The card as a learner meets it, for the verifier pass (agents/learn-scene-verify.js): every shown object at the defaults,
-// then, for each other setting inputStates checks, what changes. Numbers as the renderer prints them (formatCell).
+// then, for every other setting the gates check (inputStates: all combinations), what changes. Numbers as the renderer prints them (formatCell).
 export function cardAtSettings(scene) {
   const declared = (scene.inputs || []).filter(input => !input.hidden);
   const named = (input, value) => {

@@ -1,0 +1,145 @@
+{
+  "id": "interior-slider",
+  "origin": "hand-made",
+  "args": "interactive: how much of a radioactive sample remains after each half-life",
+  "wrong": "with k = 3 half-lives (an interior slider position): \"1/6 of the sample remains\" (it is 1/8; the card shows 10 g of 80 g)",
+  "response": {
+    "result": "artifact",
+    "primitive": "animation",
+    "block": {
+      "type": "animation",
+      "title": "How much of a sample remains after each half-life",
+      "scene": {
+        "id": "half-life-slider",
+        "title": "How much of a sample remains after each half-life",
+        "width": 760,
+        "height": 360,
+        "duration": 1,
+        "inputs": [
+          {
+            "name": "k",
+            "type": "index",
+            "label": "Half-lives passed",
+            "default": 0,
+            "of": "names",
+            "presentation": "slider"
+          }
+        ],
+        "exampleData": {
+          "names": [
+            "0 half-lives",
+            "1 half-life",
+            "2 half-lives",
+            "3 half-lives",
+            "4 half-lives",
+            "5 half-lives",
+            "6 half-lives",
+            "7 half-lives",
+            "8 half-lives",
+            "9 half-lives",
+            "10 half-lives",
+            "11 half-lives"
+          ],
+          "grams": [
+            80,
+            40,
+            20,
+            10,
+            5,
+            2.5,
+            1.25,
+            0.625,
+            0.3125,
+            0.15625,
+            0.078125,
+            0.0390625
+          ],
+          "lines": [
+            "All 80 g of the sample remains.",
+            "After 1 half-life, 1/2 of the sample remains.",
+            "After 2 half-lives, 1/4 of the sample remains.",
+            "After 3 half-lives, 1/6 of the sample remains.",
+            "After 4 half-lives, 1/16 of the sample remains.",
+            "After 5 half-lives, 1/32 of the sample remains.",
+            "After 6 half-lives, 1/64 of the sample remains.",
+            "After 7 half-lives, 1/128 of the sample remains.",
+            "After 8 half-lives, 1/256 of the sample remains.",
+            "After 9 half-lives, 1/512 of the sample remains.",
+            "After 10 half-lives, 1/1024 of the sample remains.",
+            "After 11 half-lives, 1/2048 of the sample remains."
+          ]
+        },
+        "derived": {
+          "name": {
+            "op": "pick",
+            "args": [
+              "names",
+              "k"
+            ]
+          },
+          "left": {
+            "op": "pick",
+            "args": [
+              "grams",
+              "k"
+            ]
+          },
+          "line": {
+            "op": "pick",
+            "args": [
+              "lines",
+              "k"
+            ]
+          }
+        },
+        "objects": [
+          {
+            "id": "question",
+            "type": "text",
+            "initialState": {
+              "text": "How fast does a radioactive sample run down?",
+              "x": 40,
+              "y": 40,
+              "typography": "heading"
+            }
+          },
+          {
+            "id": "setting",
+            "type": "text",
+            "initialState": {
+              "text": "Now: {{name}}",
+              "x": 40,
+              "y": 110,
+              "typography": "body"
+            }
+          },
+          {
+            "id": "grams",
+            "type": "text",
+            "initialState": {
+              "text": "Remaining: {{left}} g of 80 g",
+              "x": 40,
+              "y": 170,
+              "typography": "body"
+            }
+          },
+          {
+            "id": "line",
+            "type": "text",
+            "initialState": {
+              "text": "{{line}}",
+              "x": 40,
+              "y": 230,
+              "typography": "body"
+            }
+          }
+        ],
+        "timeline": []
+      },
+      "time": 1,
+      "selectedObject": null,
+      "marked": null,
+      "calculation": "precomputed"
+    }
+  }
+}

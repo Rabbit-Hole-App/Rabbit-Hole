@@ -4,7 +4,8 @@
 // is aborted and counted, so this check never calls a model.
 //   1. the selected-command pill reads "Add explanation", with no /;
 //   2. an interactive /explain answer becomes an Animation card drawn by the scene renderer, with its controls;
-//   3. every control setting: the card's values and texts are the ones the scene evaluator computes for it (scene-evaluate.js);
+//   3. every control setting, every combination of the controls included (inputStates, as the gates and the verifier see them):
+//      the card's values and texts are the ones the scene evaluator computes for it (scene-evaluate.js);
 //   4. a moved control is saved with the board, and a fresh browser shows the card in that state;
 //   5. a refused scene (validation_error: the verifier pass's words) adds no card and saves nothing, keeps the line, says what
 //      failed, makes no further request until the learner clicks, and its plain-explanation offer makes a text card;
@@ -164,18 +165,15 @@ for (const entry of scenes) {
   await step(`${entry.id}: every control setting shows the values the scene evaluator computes`, async () => {
     const card = page.locator(`[data-block-id="${id}"]`);
     let checked = 0, states = 0;
+    // Every setting the gates and the verifier check (inputStates: every combination of the controls), each set as a learner would.
     for (const inputs of inputStates(scene)) {
-      const [[name, value] = []] = Object.entries(inputs);
-      // Back to defaults, then this one control moved, as inputStates() samples them.
-      for (const declaration of declarations) {
-        const want = name === declaration.name ? value : declaration.default;
-        await setInput(card, declaration, want);
-      }
+      const full = Object.fromEntries(declarations.map(declaration => [declaration.name, declaration.name in inputs ? inputs[declaration.name] : declaration.default]));
+      for (const declaration of declarations) await setInput(card, declaration, full[declaration.name]);
       await page.waitForTimeout(250);
-      const full = Object.fromEntries(declarations.map(declaration => [declaration.name, name === declaration.name ? value : declaration.default]));
       checked += await compare(card, scene, full);
       states += 1;
-      if (name) await card.screenshot({ path: `${OUT}/${THEME}-${entry.id}-${states}-${name}-${String(value).replace(/[^\w-]/g, '')}.png` });
+      const moved = Object.entries(inputs).map(([name, value]) => `${name}-${String(value).replace(/[^\w-]/g, '')}`).join('-');
+      if (moved) await card.screenshot({ path: `${OUT}/${THEME}-${entry.id}-${states}-${moved}.png` });
     }
     console.log(`   ${states} settings, ${checked} values and texts matched`);
     if (!declarations.length) return;

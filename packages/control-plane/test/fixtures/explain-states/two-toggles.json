@@ -1,0 +1,104 @@
+{
+  "id": "two-toggles",
+  "origin": "hand-made",
+  "args": "interactive: does a lid change the temperature water boils at",
+  "wrong": "with heat = on, lid = on: \"the water now boils at 60 °C\" (a lid does not lower the boiling point; the card says 100 °C)",
+  "response": {
+    "result": "artifact",
+    "primitive": "animation",
+    "block": {
+      "type": "animation",
+      "title": "What a lid changes when you heat water",
+      "scene": {
+        "id": "lid-and-heat",
+        "title": "What a lid changes when you heat water",
+        "width": 760,
+        "height": 320,
+        "duration": 1,
+        "inputs": [
+          {
+            "name": "heat",
+            "type": "bool",
+            "label": "Heat the pot",
+            "default": false
+          },
+          {
+            "name": "lid",
+            "type": "bool",
+            "label": "Put the lid on",
+            "default": false
+          }
+        ],
+        "exampleData": {
+          "cold": "No heat: the water stays at 20 °C.",
+          "lidCold": "Lid on, no heat: the water still stays at 20 °C.",
+          "open": "Heat, no lid: the water reaches 100 °C and boils.",
+          "both": "Heat with the lid on: the water now boils at 60 °C."
+        },
+        "derived": {
+          "unheated": {
+            "op": "choose",
+            "args": [
+              "lid",
+              "lidCold",
+              "cold"
+            ]
+          },
+          "heated": {
+            "op": "choose",
+            "args": [
+              "lid",
+              "both",
+              "open"
+            ]
+          },
+          "line": {
+            "op": "choose",
+            "args": [
+              "heat",
+              "heated",
+              "unheated"
+            ]
+          }
+        },
+        "objects": [
+          {
+            "id": "question",
+            "type": "text",
+            "initialState": {
+              "text": "Does a lid change the temperature water boils at?",
+              "x": 40,
+              "y": 40,
+              "typography": "heading"
+            }
+          },
+          {
+            "id": "fact",
+            "type": "text",
+            "initialState": {
+              "text": "At sea level, pure water boils at 100 °C.",
+              "x": 40,
+              "y": 110,
+              "typography": "body"
+            }
+          },
+          {
+            "id": "line",
+            "type": "text",
+            "initialState": {
+              "text": "{{line}}",
+              "x": 40,
+              "y": 170,
+              "typography": "body"
+            }
+          }
+        ],
+        "timeline": []
+      },
+      "time": 1,
+      "selectedObject": null,
+      "marked": null,
+      "calculation": "precomputed"
+    }
+  }
+}
