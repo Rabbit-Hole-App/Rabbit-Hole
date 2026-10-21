@@ -22,3 +22,9 @@ export const EXA_SEARCH_ESTIMATE = 7000;
 
 // Exa's own reported cost of a call (costDollars.total in its response), in micros; null when it reports none.
 export const exaCost = data => { const total = data?.costDollars?.total; return typeof total === 'number' ? toMicros(total) : null; };
+
+// The most one Exa /search call can bill, for admission (owner L12 2026-10-20: a defensible maximum before the call):
+// "$7 / 1k requests" for type auto with up to 10 results, "$1 / 1k results" for each result above 10 and "$1 / 1k pages,
+// per content type" (https://exa.ai/pricing, read 2026-10-21). Integer micros: 7000 + 1000 a result past 10 + 1000 a page per
+// content type.
+export const exaSearchBound = (results, contentTypes = 0) => 7000 + Math.max(0, results - 10) * 1000 + results * contentTypes * 1000;

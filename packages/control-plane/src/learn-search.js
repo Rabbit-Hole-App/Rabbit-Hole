@@ -10,7 +10,8 @@ import { arxivId, readArxivPaper } from './arxiv.js';
 import { wikiTitle, searchWikipediaTitles } from './learn-wiki.js';
 import { videoIdFrom } from './learn-youtube.js';
 import { recordMedia } from './learn-usage.js';
-import { exaCost } from './learn-usage-estimates.js';
+import { exaCost, exaSearchBound } from './learn-usage-estimates.js';
+import { admitTool } from './learn-paid-transport.js';
 
 export const SEARCH_SOURCES = {
   youtube: { domain: 'youtube.com', noun: 'YouTube videos' },
@@ -144,6 +145,8 @@ export async function searchCanvasSource(source, query, env, { fetcher = fetch, 
   const cache = globalThis.caches?.default;
   const cacheKey = `https://search-cache.small.internal/${source}?q=${encodeURIComponent(query.trim().toLowerCase())}`;
   try { const hit = await cache?.match(cacheKey); if (hit) return await hit.json(); } catch { /* search live */ }
+  // Admitted before the call (learn-paid-transport.js admitTool): a refusal throws, and nothing is sent.
+  const metered = await admitTool(env, { category: 'exa_search', reservedMicros: exaSearchBound(FETCH_LIMIT, 1), provider: 'exa', model: 'search' });
   let response, data = null, ok = false;
   try {
     try {
@@ -165,9 +168,10 @@ export async function searchCanvasSource(source, query, env, { fetcher = fetch, 
     data = await response.json();
     ok = true;
   } finally {
-    // Usage accounting (ledger bypass), once per dispatched search whatever its outcome: Exa's reported cost, else unknown
-    // (its per-result summaries are not priced here); a failed one (timeout, refusal, 429, unreadable 200) is unknown, never 0.
-    await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data) });
+    // Once per dispatched search whatever its outcome: Exa's reported cost settles it, else its hold stays as unknown cost
+    // (never 0). Where spend is not enforced (test), the Phase 1 record.
+    if (metered) await metered.settle({ ok, costMicros: exaCost(data) });
+    else await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data) });
   }
   let results = resultsFromExa(source, data);
   if (source === 'arxiv') results = await enrichPapers(results, fetcher);

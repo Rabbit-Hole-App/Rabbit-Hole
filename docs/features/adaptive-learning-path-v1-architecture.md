@@ -8,6 +8,17 @@ document.**
 - Branch `feature/adaptive-learning-path-v1`, rebased on `origin/main` 68f02092.
 - Owner: Learning Path / Curriculum agent. Parallel integrates. Not merged.
 
+> **Superseded in part (owner, 2026-10-20; Tutor workflow decisions).**
+> - D1: the teaching Tutor is the composer's Tutor mode with an On/Off switch. Auto stays the default and explicit
+>   questions work in every mode; proactive teaching only in selected, enabled, unpaused Tutor (1a, 2a).
+> - D1b, §5 and §13: the session-only evidence and conversational stores are superseded by durable learner state. A
+>   submitted attempt is saved before evaluation and its assessments are stored as records; journey `evidence_json` stays
+>   as history and is never rewritten into assessments (5a).
+> - §6.6 and §10.1: a board may hold several goals for a learner. Changing goals pauses the old goal and never archives
+>   it; how this is kept compatible with `learning_journeys_live` is in `tutor-progress-implementation.md`.
+> - §7.1 and R1 rule 3: Not now pauses suggestions until explicit resumption and survives reload (3a).
+> - §7.1 resume tray: restoring makes no model call; only an explicit guided entry may open with one turn (3a, 4a).
+
 Out of scope for this agent: `/motion`, the HeyGen Avatar Teacher, Shared Canvas, skeleton cards, the CLI,
 infrastructure, and canonical main integration.
 

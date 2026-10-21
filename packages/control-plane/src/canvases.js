@@ -1,11 +1,13 @@
 import { validOpen } from './chat-modes.js';
 import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
+import { progressScope } from '../../web/src/learn-progress-question.js';
 import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
+import { purgeTutorRows } from './learn-coaching-store.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -261,7 +263,8 @@ async function activeChat(req, env, user, url) {
 // A Chat thread's saved state (chat-workspace-CONTRACT.md A3): its mode, attached ContextRefs (A2) and draft, upserted into
 // chat_thread_state by PUT /api/learn/chat/threads/<id>/state. last_activity_at is the turn's (apiAsk), never touched here.
 const CHAT_STATE = /^\/api\/learn\/chat\/threads\/((?:canvaschat|repochat)-[a-f0-9-]+)\/(state)$/;
-const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'], file: ['file'], excerpt: ['excerpt'] };
+const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'], file: ['file'], excerpt: ['excerpt'], progress: ['progress'] };
+const validProgressRange = range => { try { progressScope(range); return true; } catch { return false; } };
 const short = (value, limit) => typeof value === 'string' && value.length <= limit;
 // null, or exactly one of the A2 range shapes.
 function validRange(range) {
@@ -293,7 +296,7 @@ export function validContextRefs(refs) {
     else texts += text?.length || 0;
     if (ref.kind === 'file' && !(FILE_SOURCE.test(String(ref.sourceId)) && validFileRange(ref.range))) return false;
     return Object.hasOwn(REF_PREFIXES, ref.kind) && short(ref.sourceId, 1000) && REF_PREFIXES[ref.kind].includes(ref.sourceId.split(':')[0]) && ref.sourceId.indexOf(':') < ref.sourceId.length - 1
-      && short(ref.name, 120) && ref.name.length > 0 && short(ref.version, 200) && validRange(ref.range) && JSON.stringify(rest).length <= 2048;
+      && short(ref.name, 120) && ref.name.length > 0 && short(ref.version, 200) && (ref.kind === 'progress' ? validProgressRange(ref.range) : validRange(ref.range)) && JSON.stringify(rest).length <= 2048;
   });
   return valid && texts <= 32000 && excerpts <= 96000;
 }
@@ -457,6 +460,7 @@ export async function canvasesFetch(req, env) {
           dropRefs(db, user.org, user.email, name),
           dropFileRefs(db, user.org, user.email, name),
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
+          ...purgeTutorRows(db, user.org, name), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
         ]);
       }
       return meta.changes ? json({ ok: true }) : json({ error: 'This canvas has been used. Archive it instead.' }, 405);

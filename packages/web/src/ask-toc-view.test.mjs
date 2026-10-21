@@ -49,7 +49,8 @@ test('a TOC-view ask carries no selection, no Chat attachment and none of Chat e
   assert.match(panel, /const questionOutline = boardContext\?\.outline\?\.\(\);/);
   assert.match(panel, /\.\.\.\(repository && repositoryContext \? \{ repository_context: /);
   assert.match(panel, /thread_id: threadId\.current,/);
-  assert.match(panel, /\.\.\.\(chat \? \{ mode: chat\.thread\.mode, /);
+  // Owner 1a: only the TOC sends tutor (the syllabus) to /api/learn/ask; Chat's teaching Tutor sends auto there (askMode).
+  assert.match(panel, /\.\.\.\(chat \? \{ mode: askMode\(chat\.thread\.mode, tocView\), /);
 });
 
 test('tocAskProps runs before any read of the props it clears', () => {

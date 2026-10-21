@@ -85,9 +85,11 @@ test('a pending hole lives in the tab; leaving it empty discards its record and 
   assert.deepEqual(Object.keys(pendingHoles(session)), ['canvas-22222222', 'canvas-33333333']);
   const base = 'small.adaptive-canvas:gmail-com:me@test:canvas-22222222';
   store.setItem(`${base}:ink`, '{}'); store.setItem(`${base}:chat`, '[]'); store.setItem('small.adaptive-canvas:gmail-com:me@test:canvas-222222229:ink', 'keep');
+  // Its Chat and TOC drafts (chat-draft.js draftKey) go too; another canvas's draft, even one whose name starts the same, stays.
+  store.setItem('rh.chat.draft.canvas-22222222.canvaschat-1', '{}'); store.setItem('rh.chat.draft.canvas-22222222.toc.new', '{}'); store.setItem('rh.chat.draft.canvas-222222229.new', 'keep');
   discardHole({ session, local: store, base, name: 'canvas-22222222' });
   assert.equal(pendingHole(session, 'canvas-22222222'), null);
-  assert.deepEqual([...store.map.keys()], ['small.adaptive-canvas:gmail-com:me@test:canvas-222222229:ink']);
+  assert.deepEqual([...store.map.keys()], ['small.adaptive-canvas:gmail-com:me@test:canvas-222222229:ink', 'rh.chat.draft.canvas-222222229.new']);
   dropPending(session, 'canvas-33333333');
   assert.equal(session.getItem('small.dive.pending'), null);
 });

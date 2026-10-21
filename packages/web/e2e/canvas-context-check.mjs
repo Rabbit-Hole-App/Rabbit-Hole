@@ -452,9 +452,10 @@ for (const mode of ['auto', 'ask', 'tutor']) {
       const cap = await turn(selected ? WHOLE : ABOUT_OLD, { mode, pick: selected ? SEL : null });
       packs[key] = cap;
       const pkg = cap.pkg, body = cap.body;
-      // The route: Auto goes to the Tutor planner (beside its context), Ask and Tutor to /api/learn/ask with their mode.
-      if (mode === 'auto') {
-        assert.equal(cap.route, 'plan', 'Auto posts to /api/learn/tutor/plan');
+      // The route: Auto and Tutor go to the Tutor planner (beside its context), Ask to /api/learn/ask with its mode. Owner decision
+      // 1a (2026-10-20): Chat's Tutor is the teaching Tutor; the syllabus moved to the Table of contents conversation.
+      if (mode === 'auto' || mode === 'tutor') {
+        assert.equal(cap.route, 'plan', `${mode} posts to /api/learn/tutor/plan`);
         assert.ok(body.context && typeof body.context === 'object', 'the plan keeps its context');
         assert.ok(!body.context.canvas_context?.cards, 'the six-block cards slice is gone from the plan context');
       } else {
@@ -701,7 +702,8 @@ await check('overflow: 423 objects; listed < objects_total, the overflow is reco
 // On a project canvas the page posts the same /api/learn/ask; the dev worker (web/dev-worker.js) forwards a scope.app of repo-*
 // to /api/repositories/<app>/ask, i.e. control-plane repositoryAsk. Answered here, so no model is called.
 await openBoard(boards.R);
-for (const mode of ['ask', 'tutor']) {
+// Owner decision 1a (2026-10-20): Chat's Tutor takes the Tutor planner (board A above), so Ask is the repositoryAsk path here.
+for (const mode of ['ask']) {
   await check(`repo-* canvas, ${NAME[mode]}: /api/learn/ask (repositoryAsk) carries canvas_context, valid, with the whole inventory and the chip agreeing`, async () => {
     const cap = await turn(mode === 'ask' ? ABOUT_OLD : WHOLE, { mode });
     assert.equal(cap.route, 'ask', 'posts to /api/learn/ask');

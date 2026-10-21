@@ -49,7 +49,12 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     try { out = await run(raw, target, turn); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }
     setBusy(false);
-    if (out.prompt) { setNotice(null); onPrompt(out.prompt); return; }
+    // A prompt the chat refuses (onPrompt answers false) is never lost: the line comes back with an error.
+    if (out.prompt) {
+      setNotice(null);
+      Promise.resolve(onPrompt(out.prompt)).then(sent => { if (sent === false) { setInput(raw); setNotice({ tone: 'error', text: `/${name} was not sent while the chat was busy. Press Enter to send it.` }); } });
+      return;
+    }
     if (out.finder) onFinder?.(out.finder);
     if (out.keep) setInput(out.keep);
     setNotice(out.notice || null);

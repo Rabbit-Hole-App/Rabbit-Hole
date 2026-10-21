@@ -4,6 +4,11 @@ Status: on branch `ui/repo-page-declutter`, not deployed. It replaces the first 
 Tutor on a separate `?experience=tutor` canvas from a Tutor button. The owner rejected that on 2026-10-04: "the main
 composer chat is the tutor", with no separate Tutor canvas and no Tutor or Practice button.
 
+> **Superseded in part (owner, 2026-10-20, decisions 1a and 2a).**
+> - The composer has the modes Auto (the default), Ask and Tutor. Tutor is the teaching Tutor, with an On/Off switch beside
+>   it. Explicit questions are answered in every mode; proactive teaching only in Tutor On.
+> - The switch and the chat header's Progress icon are not a separate Tutor canvas or entry button.
+
 ## The problem it fixes
 
 Tutor v2 and Voice shipped to https://digrabbithole.com, but nobody could reach them:

@@ -15,7 +15,9 @@ import { canvasApp } from '../src/canvases.js';
 import { costUsd, promptVersion } from '../src/learn-models.js';
 
 const SHA = 'a'.repeat(40), OLD = 'b'.repeat(40);
-const SNAPSHOT = { repo: 'karpathy/nanoGPT', commit: SHA, version: 'graphify', skipped: [], files: { 'model.py': 'class CausalSelfAttention:\n    def forward(self, x):\n        return x' }, graph: { nodes: [{ id: 'attn', label: 'CausalSelfAttention', path: 'model.py', line: 1 }], edges: [] } };
+// The method node is the indexer's own (index_repository.py, as in e2e/nanogpt-repository-fixture.mjs): Task 12's relevance gate
+// reads the index, so a question about forward() is about this repository.
+const SNAPSHOT = { repo: 'karpathy/nanoGPT', commit: SHA, version: 'graphify', skipped: [], files: { 'model.py': 'class CausalSelfAttention:\n    def forward(self, x):\n        return x' }, graph: { nodes: [{ id: 'attn', label: 'CausalSelfAttention', path: 'model.py', line: 1 }, { id: 'attn_forward', label: '.forward()', path: 'model.py', line: 2 }], edges: [{ source: 'attn', target: 'attn_forward', relation: 'method', confidence: 'EXTRACTED' }] } };
 const PINNED = { ...SNAPSHOT, commit: OLD, files: { 'model.py': 'class CausalSelfAttention:\n    def forward(self, x):\n        return self.c_proj(x)' } };
 const REPO = 'repo-0a1b2c3d-nanogpt', PROJECT_CANVAS = 'canvas-0000aaaa', PLAIN_CANVAS = 'canvas-0000bbbb';
 const SECRET = 'UPSTREAM-SECRET';
