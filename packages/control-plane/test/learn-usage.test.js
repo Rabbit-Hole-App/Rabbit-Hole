@@ -9,7 +9,7 @@ import { spendTransport, requestSpendBound } from '../src/learn-spend.js';
 import { askJev, JEV_TRANSPORTS } from '../src/learn-grade-jev.js';
 import { fishSpendTransport } from '../src/learn-paid-transport.js';
 import { devIdentity } from '../src/dev-forwarding.js';
-import { withUsage, noteUsageIdentity, beginAttempt, settleAttempt, finishAction, finishWithResponse, usageTotals, usageFeature, toMicros,
+import { withUsage, noteUsageIdentity, beginAttempt, settleAttempt, finishAction, finishWithResponse, usageTotals, usageByFeature, usageFeature, toMicros,
   periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES, recordMedia, forwardUsagePayer, usageFromForwarded } from '../src/learn-usage.js';
 import { imageEstimate, EXA_SEARCH_ESTIMATE, TRANSCRIBE_ESTIMATE } from '../src/learn-usage-estimates.js';
 import { searchYouTube } from '../src/learn-youtube.js';
@@ -304,6 +304,32 @@ test('AI_MONTHLY_ALLOWANCE_USD: one reader; missing, zero, negative, text or hug
   assert.equal(monthlyAllowanceMicros({}), null);
 });
 
+test('by feature: the same would_charge sums split per feature, largest first, adding up to the totals; free, platform and other users apart', async t => {
+  const { LEARN_DB } = database(t);
+  const now = Date.UTC(2026, 9, 16) / 1000;
+  const settle = async (feature, costMicros, userId = 'u-alice') => {
+    const scoped = signedIn({ LEARN_DB }, feature, userId, { now });
+    const id = await beginAttempt(scoped, { reservedMicros: costMicros * 2 || 5000, now });
+    if (costMicros) await settleAttempt(scoped, id, { costMicros, now });
+  };
+  await settle('ask', 1200);
+  await settle('ask', 300);
+  await settle('tutor', 4000);
+  await settle('image', 0); // still running: reserved only
+  await settle('assess', 900); // free: never in the split, as in the totals
+  await settle('ask', 700, 'u-bob');
+  const split = await usageByFeature(LEARN_DB, 'u-alice', '2026-10');
+  assert.deepEqual(split, [
+    { feature: 'tutor', usedMicros: 4000, reservedMicros: 0, unknownAttempts: 0 },
+    { feature: 'ask', usedMicros: 1500, reservedMicros: 0, unknownAttempts: 0 },
+    { feature: 'image', usedMicros: 0, reservedMicros: 5000, unknownAttempts: 0 },
+  ]);
+  const totals = await usageTotals(LEARN_DB, 'u-alice', '2026-10');
+  assert.equal(split.reduce((sum, row) => sum + row.usedMicros, 0), totals.used);
+  assert.equal(split.reduce((sum, row) => sum + row.reservedMicros, 0), totals.reserved);
+  assert.deepEqual(await usageByFeature(LEARN_DB, 'u-alice', '2026-11'), []);
+});
+
 test('GET /api/learn/usage: signed-in only, the session user\'s month, config and accounting failures are explicit', async t => {
   const { LEARN_DB } = database(t);
   const now = Date.UTC(2026, 9, 16, 12) / 1000;
@@ -321,7 +347,8 @@ test('GET /api/learn/usage: signed-in only, the session user\'s month, config an
   const reply = await usageFetch(req, env, as('u-alice'));
   assert.equal(reply.headers.get('cache-control'), 'no-store');
   assert.deepEqual(await reply.json(), { enforced: false, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', allowanceMicros: 50_000_000,
-    usedMicros: 3000, reservedMicros: 10000, estimatedMicros: 20000, remainingMicros: 50_000_000 - 13000, unknownAttempts: 2, unknownReservedMicros: 4000 });
+    usedMicros: 3000, reservedMicros: 10000, estimatedMicros: 20000, remainingMicros: 50_000_000 - 13000, unknownAttempts: 2, unknownReservedMicros: 4000,
+    byFeature: [{ feature: 'ask', usedMicros: 3000, reservedMicros: 10000, unknownAttempts: 2 }] });
   assert.equal((await (await usageFetch(req, env, as('u-bob'))).json()).usedMicros, 0, 'the query parameter is not read');
   assert.equal((await usageFetch(req, env, as(null))).status, 401);
   assert.equal((await usageFetch(new Request(req, { method: 'POST' }), env, as('u-alice'))).status, 405);

@@ -273,6 +273,21 @@ export async function recordAdjustment(db, { actionId = null, userId = null, mic
 
 // GET /api/learn/usage's sums for one user and period, over that user's would_charge actions only. Settled cost is used;
 // reservations (running) and unknown attempts are reserved, never used; estimates are reported apart. Throws on a read failure.
+// The same sums split by feature (Settings > AI usage, "This month by feature"), largest first; the parts add up to usageTotals.
+// Only features with a settled, reserved or unknown amount are listed. Throws on a read failure.
+export async function usageByFeature(db, userId, period) {
+  const { results } = await db.prepare(`SELECT a.feature,
+      COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros END), 0) AS used,
+      COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'unknown') THEN t.reserved_micros END), 0) AS reserved,
+      COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts
+    FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
+    WHERE a.user_id = ? AND a.period = ? AND a.charge_class = 'would_charge'
+    GROUP BY a.feature`).bind(userId, period).all();
+  return (results || []).map(row => ({ feature: row.feature, usedMicros: Number(row.used || 0), reservedMicros: Number(row.reserved || 0), unknownAttempts: Number(row.unknown_attempts || 0) }))
+    .filter(row => row.usedMicros || row.reservedMicros || row.unknownAttempts)
+    .sort((a, b) => b.usedMicros - a.usedMicros || b.reservedMicros - a.reservedMicros || a.feature.localeCompare(b.feature));
+}
+
 export async function usageTotals(db, userId, period) {
   const row = await db.prepare(`SELECT
       COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros END), 0) AS used,

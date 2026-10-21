@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Gauge } from 'lucide-react';
-import { barParts, formatMicros, formatRemaining, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
+import { barParts, featureRows, formatMicros, formatRemaining, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
 import { SettingsRow } from './ui.jsx';
 
 // The monthly AI allowance on screen (owner D4 sections 1-3): the canvas top bar's gauge and its popover, and Settings > AI usage.
@@ -143,6 +143,17 @@ export function UsageSettings({ Heading, store = usageStore }) {
           <SettingsRow title="Next reset" desc="At the start of each calendar month, 00:00 UTC. Unused allowance does not carry over.">
             <Amount>{formatReset(usage.resetsAt)}</Amount>
           </SettingsRow>
+          {/* Recorded per feature by the same accounting (GET /api/learn/usage byFeature); absent from an older server. */}
+          {usage.byFeature?.length > 0 && <>
+            <Heading>This month by feature</Heading>
+            <div data-usage-by-feature>
+              {featureRows(usage.byFeature).map(row => (
+                <SettingsRow key={row.label} title={row.label} desc={[row.reserved > 0 && `${formatMicros(row.reserved)} reserved`, unknownLine(row.unknownAttempts)].filter(Boolean).join(' · ') || null}>
+                  <Amount>{formatMicros(row.used)}</Amount>
+                </SettingsRow>
+              ))}
+            </div>
+          </>}
         </>
       ) : <p role="status" className="py-3 text-sm text-ink-2">{view.label}</p>}
     </div>

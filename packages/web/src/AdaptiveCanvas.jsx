@@ -5172,7 +5172,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             </> : <p>Loading the document…</p>}
           </div>
         )}
-        <div ref={worldRef} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
+        <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
         {/* The document (docs/features/blocknote-canvas.md): a writing surface in world units BELOW every canvas object
             (blocknote-layers-minimap.md): the first child of the world layer with no z-index of its own, so cards, notes, shapes,
             connectors and their handles - all later in this layer - paint and take the pointer above it, whatever their own
