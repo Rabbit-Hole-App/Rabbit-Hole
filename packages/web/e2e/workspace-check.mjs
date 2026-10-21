@@ -120,11 +120,12 @@ await check('dock §1 §11: the dock spans the workspace from the sidebar edge t
   const half = Math.max(m.inner / 2, Math.min(m.inner, 448));
   assert.ok(Math.abs(m.w - half) <= 2 && Math.abs((form.left - b.left) - (b.right - form.right)) <= 2, `input is ${m.w}px at ${form.left - b.left} / ${b.right - form.right}, not half the dock's ${m.inner}px content (${half}px) centred`);
 });
-await check('dock §2 §19: the dock is chrome - a top divider, an opaque surface, no gradient, a hairline input shadow; Auto stays neutral (§5)', async () => {
-  const s = await bar.evaluate((n) => { const c = getComputedStyle(n), f = getComputedStyle(n.querySelector('[data-chat-composer]')), auto = [...n.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Auto'); const a = getComputedStyle(auto); return { border: c.borderTopWidth, bg: c.backgroundColor, image: c.backgroundImage, shadow: f.boxShadow, autoColor: a.color, autoBg: a.backgroundColor }; });
+// Owner, 2026-10-20: the dock has no slash commands left, so no Auto button (its mode picker) either.
+await check('dock §2 §19: the dock is chrome - a top divider, an opaque surface, no gradient, a hairline input shadow; no Auto button', async () => {
+  const s = await bar.evaluate((n) => { const c = getComputedStyle(n), f = getComputedStyle(n.querySelector('[data-chat-composer]')); return { border: c.borderTopWidth, bg: c.backgroundColor, image: c.backgroundImage, shadow: f.boxShadow, auto: [...n.querySelectorAll('button')].some((x) => x.textContent.trim() === 'Auto') }; });
   assert.equal(s.border, '1px'); assert.equal(s.bg, 'rgb(255, 255, 255)'); assert.equal(s.image, 'none');
   assert.doesNotMatch(s.shadow, /24px/, 'the popover shadow is gone'); assert.match(s.shadow, /0px 1px 2px/);
-  assert.notEqual(s.autoColor, 'rgb(35, 131, 226)'); assert.ok(['rgba(0, 0, 0, 0)', 'rgb(255, 255, 255)'].includes(s.autoBg), s.autoBg);
+  assert.equal(s.auto, false, 'the dock still shows Auto');
 });
 await check('dock §12: the input grows upward to five lines, then scrolls', async () => {
   const one = await box(input), top0 = (await box(bar)).top;

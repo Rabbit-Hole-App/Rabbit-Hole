@@ -365,7 +365,8 @@ for (const name of ['simplify', 'example', 'deeper']) {
 }
 
 // ---- A6: direct slash commands through the dock composer (the existing runLearnCommand path, real handler) ----
-const DIRECT = [['notebook', ''], ['whiteboard', 'tree sketch'], ['paper', '1706.03762'], ['image', 'a tree'], ['more', ''], ['source', ''], ['dive', ''], ['explain', 'why a leaf has no children'], ['code', 'list the leaves of a tree'], ['diagram', 'a sign-in flow'], ['graph', 'nodes per level of a binary tree'], ['walkthrough', 'finding a leaf'], ['compare', 'a leaf and an inner node'], ['flashcards', 'tree vocabulary'], ['quiz', 'tree leaves'], ['practice', 'explain it back: what makes a leaf'], ['animate', 'a tree growing'], ['video', 'a tree growing'], ['3d', 'a tree of spheres']];
+// /paper, /more, /source, /walkthrough and /compare are removed commands (owner, 2026-10-20): not run here.
+const DIRECT = [['notebook', ''], ['whiteboard', 'tree sketch'], ['image', 'a tree'], ['dive', ''], ['explain', 'why a leaf has no children'], ['code', 'list the leaves of a tree'], ['diagram', 'a sign-in flow'], ['graph', 'nodes per level of a binary tree'], ['flashcards', 'tree vocabulary'], ['quiz', 'tree leaves'], ['practice', 'explain it back: what makes a leaf'], ['animate', 'a tree growing'], ['video', 'a tree growing'], ['3d', 'a tree of spheres']];
 for (const [name, args] of DIRECT) {
   await step(`direct-${name}`, () => paid(`${RUN}-direct-${name}`, `direct-${name}`, 0.62, async () => {
     fixture = `direct-${name}`;

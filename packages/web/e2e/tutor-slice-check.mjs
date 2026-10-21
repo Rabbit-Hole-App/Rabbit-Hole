@@ -125,12 +125,12 @@ if (LIVE) {
   const deep = await liveTurn('L3 explicit request', "Don't simplify this. Show me the implementation.");
   await shot('live-03-implementation');
   assert.ok(deep.actions.some(action => ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'].includes(action.type)), 'the planner produced an authored-card, practice or depth action');
-  // /deeper and /simplify go through the Tutor as the turn's slash.
+  // /deeper and /simplify are removed commands (owner, 2026-10-20): the same asks in plain words are ordinary Tutor turns.
   await select('depth-attention-guided');
-  await liveTurn('L4 /deeper', '/deeper into the scaling');
+  await liveTurn('L4 go deeper', 'Go one level deeper into the scaling');
   await shot('live-04-deeper');
   await select('depth-attention-guided');
-  await liveTurn('L5 /simplify', '/simplify the masking step');
+  await liveTurn('L5 simpler', 'Explain the masking step more simply');
   await shot('live-05-simplify');
   }
   // A prerequisite gap: the dive suggestion, the hole, its opening turn, and back to the parent.
