@@ -9,6 +9,7 @@ import { Toggle } from './ui.jsx';
 import { controlsNote, createCoachingSync, effectiveControls, guidedOpening } from './learn-coaching-client.js';
 import { checkpointOf, entryAction, entryCopy, resolveTutorEntry } from './learn-coaching-entry.js';
 import { shownActivity } from './TutorActivity.jsx';
+import { useTutorCodebase } from './TutorCodebase.jsx';
 
 const CHANNEL = 'rh.learn-coaching';
 
@@ -75,6 +76,8 @@ export function TutorCoaching({ chat, send, sendOpening, waitingOpening = null, 
   const entry = resolveTutorEntry({ loadState, controls, checkpoint, workspace: { content: workspace.content, history: messages > 0 || (coaching.state?.goals?.length || 0) > 0 },
     interaction: { typing: !!composer.text?.trim(), uploading: chat.context?.items?.some(item => item.state === 'uploading'), busy } });
   const note = controlsNote({ ...coaching, controls });
+  // Task 12: on a project canvas the codebase menu stands in for the general welcome; a codebase activity lists its sources.
+  const codebase = useTutorCodebase({ chat, entry, typing: !!composer.text?.trim() });
   const pick = action => {
     const run = entryAction(action, checkpoint);
     setEngaged(chat.canvas);
@@ -88,7 +91,7 @@ export function TutorCoaching({ chat, send, sendOpening, waitingOpening = null, 
       composer.focus();
     }
   };
-  const offer = ['welcome', 'existing_work', 'resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas;
+  const offer = ['welcome', 'existing_work', 'resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas && !codebase.menu;
   return <>
     {note && <p role={note.tone === 'error' ? 'alert' : 'status'} data-tutor-status={note.action || note.tone} className={`mb-1.5 flex flex-wrap items-center gap-x-2 text-xs ${note.tone === 'error' ? 'text-fail' : 'text-ink-2'}`}>
       {note.text}
@@ -100,6 +103,7 @@ export function TutorCoaching({ chat, send, sendOpening, waitingOpening = null, 
       <span className="min-w-0 flex-1">{waitingOpening.next_step ? `Continue with: ${waitingOpening.next_step.hook}` : `Start with: “${waitingOpening.question}”`}</span>
       <button type="button" disabled={busy} onClick={() => sendOpening(waitingOpening)} className={CHOICE}>{waitingOpening.next_step ? 'Continue' : 'Ask this'}</button>
     </div>}
+    {codebase.view}
     {/* The activity card (TutorActivity.jsx) wins: Continue's saved prompt shows only where that card does not. */}
     {shown && engaged === chat.canvas && !shownActivity(coaching.state) && <p data-tutor-activity className="mb-2 rounded-xl border border-line bg-white p-2.5 text-sm text-ink">{shown}</p>}
     {offer && <section data-tutor-entry={entry.kind} aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
