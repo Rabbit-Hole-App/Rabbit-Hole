@@ -46,6 +46,11 @@ export const LEARN_TASKS = Object.freeze({
   tutor: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the tutor_response tool; no tool call is an invalid turn)', maxTokens: 2000 }),
   // The Tutor's larger evaluator (/api/learn/tutor/evaluate after an uncertain JEV): pinned to Opus 5.5, no fallback.
   tutor_evaluator: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
+  // Rich-rubric and visual assessment of a saved attempt (tutor workflow Tasks 13 and 14; learn-rubric-assessment.js,
+  // learn-visual-assessment.js): Opus 5.5 as the draft's model table names it, no fallback, one JSON reply. Opus 5.5 thinks
+  // inside maxTokens, so the budget leaves room for the reply after its thinking.
+  tutor_rubric: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 4000 }),
+  tutor_visual: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 4000 }),
   // Home answers (/api/learn/home-ask, learn-home-ask.js): pinned to Sonnet 5.5 at effort low, grounded in the user's library.
   home_ask: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 900 }),
   // The Avatar Director (role AVATAR_DIRECTOR_MODEL) and its fresh blind script reviewer

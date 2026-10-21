@@ -9,3 +9,17 @@ export async function prepareTutorImage({ canvas, targetId, image }) {
   } catch { /* The text question can still be answered without claiming to see the image. */ }
   return { image: null, notice: 'The image could not be saved, so this question was sent without it. Retry after the canvas saves.' };
 }
+
+// A drawing submitted as an answer (Tutor Task 14): the exact version, frozen only after the canvas saved it. An image card
+// names its stored revision (fileRef.source {id, rev}); a capture keeps its media id. Strokes alone, an unsaved card or a
+// card without a stored revision are no submission, so autosaved work is never sent for assessment.
+export async function submittedDrawing({ canvas, targetId, image }) {
+  const selected = targetId && canvas?.block?.(targetId);
+  if (!(selected?.type === 'file' && selected.kind === 'image')) return image?.id ? { image: { id: image.id } } : { image: null };
+  try {
+    const saved = await canvas.persist?.();
+    const source = saved?.ok && saved.remote === 'ok' ? canvas.block(targetId)?.fileRef?.source : null;
+    if (source?.id && /^[0-9a-f]{64}$/.test(source.rev || '')) return { image: { block_id: targetId, source: { id: source.id, rev: source.rev } } };
+  } catch { /* the notice below */ }
+  return { image: null, notice: 'This drawing could not be saved as a stored image yet, so it was not submitted. Retry after the canvas saves.' };
+}

@@ -10,8 +10,17 @@
 //          provider call. A keyed answer establishes no reasoning.
 //   jev    Short text, checked against those claims: one JEV batch. The escalation policy may then ask for one admitted
 //          call to LEARN_TASKS.tutor_evaluator, on consequential uncertainty or on a contradiction, confident or not (7a).
-//   none   A drawing is unavailable: visual_not_supported (Task 14). Code and numeric answers are unavailable:
-//          rubric_not_supported (Task 13). Text with no registered claim is unavailable: no_registered_claims.
+//   rubric Text or code whose criteria carry a rubric (rubricVersion 'rubric-…'): one admitted call to LEARN_TASKS.tutor_rubric
+//          (learn-rubric-assessment.js, Task 13). A coaching goal without a journey is assessable this way.
+//   visual A drawing whose criteria carry a rubric: its authorized image bytes go to one admitted call to
+//          LEARN_TASKS.tutor_visual (learn-visual-assessment.js, Task 14).
+//   none   Otherwise a drawing is unavailable: visual_not_supported. Code and numeric answers are unavailable:
+//          rubric_not_supported. Text with no registered claim is unavailable: no_registered_claims.
+//
+// The capability gate (richRoute): the rubric and visual routes run only where the deployment enables them
+// (TUTOR_RUBRIC_ASSESSMENT_ENABLED / TUTOR_VISUAL_ASSESSMENT_ENABLED = 'true'; off until their real-model quality check
+// passes, draft Task 15) and only for criteria that carry a rubric. Anything else stays visibly unassessed (owner 7a).
+// Criteria of such an attempt that carry no rubric are listed unassessed (no_rubric).
 //
 // Spend. Every provider request passes the existing spend admission: askJev admits itself, and the larger evaluator goes
 // through spendTransport (spendCallModel).
@@ -33,6 +42,8 @@ import { TUTOR_PROTOCOL_VERSION } from './agents/learn-tutor.js';
 import { evaluateFreeText, journeySpec, probeEvaluation, spendCallModel } from './learn-tutor-routes.js';
 import { loadJourneyById } from './learn-journey-store.js';
 import { claimAssessment, commitAssessment, ownActivity, pendingOperation, readAttempt } from './learn-attempt-store.js';
+import { assessRubricAttempt, carriesRubric, rubricSources } from './learn-rubric-assessment.js';
+import { assessVisualAttempt, resolveDrawing } from './learn-visual-assessment.js';
 
 export const KEYED_VERSION = 'journey-probe-key-v1';
 // askJev's spend-guard refusals (learn-grade-jev.js): no call was made, so nothing is unknown about them.
@@ -75,9 +86,30 @@ export function observationsFrom({ events, criteria, claims, assistance, keyed }
 
 // The criterion rows the attempt froze, at their exact versions.
 async function criteriaOf(env, attempt) {
-  const rows = (await env.LEARN_DB.prepare('SELECT criterion_id, version, requires_reasoning, rubric_version, skill_key FROM learn_goal_criteria WHERE goal_id = ?').bind(attempt.goalId).all()).results;
+  const rows = (await env.LEARN_DB.prepare('SELECT criterion_id, version, label, requirement, requires_reasoning, rubric_version, skill_key FROM learn_goal_criteria WHERE goal_id = ?').bind(attempt.goalId).all()).results;
   return attempt.criterionRefs.map(ref => rows.find(r => r.criterion_id === ref.criterionId && r.version === ref.version)).filter(Boolean)
-    .map(r => ({ criterionId: r.criterion_id, version: r.version, requiresReasoning: r.requires_reasoning === 1, rubricVersion: r.rubric_version, skillKey: r.skill_key }));
+    .map(r => ({ criterionId: r.criterion_id, version: r.version, label: r.label, requirement: r.requirement, requiresReasoning: r.requires_reasoning === 1, rubricVersion: r.rubric_version, skillKey: r.skill_key }));
+}
+
+// The capability gate for Tasks 13 and 14: the rich route this attempt may take, or null.
+export function richRoute(env, kind, criteria) {
+  if (!criteria.some(carriesRubric)) return null;
+  if (kind === 'drawing') return env.TUTOR_VISUAL_ASSESSMENT_ENABLED === 'true' ? 'visual' : null;
+  if (kind === 'text' || kind === 'code') return env.TUTOR_RUBRIC_ASSESSMENT_ENABLED === 'true' ? 'rubric' : null;
+  return null;
+}
+
+// A rich assessment. The evaluators get only what is authorized now: the learner's own sources or image, read under the
+// route's access (deps.access), and the task prompt only while it is the version the learner answered.
+async function assessRich(env, actor, attempt, criteria, route, deps) {
+  const rubric = criteria.filter(carriesRubric);
+  const unassessed = criteria.filter(c => !carriesRubric(c)).map(c => ({ criterionId: c.criterionId, version: c.version, reason: 'no_rubric' }));
+  const activity = await ownActivity(env, actor, attempt.activityId);
+  const context = { actor, criteria: rubric, unassessed, activity: activity?.revision === attempt.activityRevision ? { prompt: activity.prompt } : null };
+  const result = route === 'visual'
+    ? await assessVisualAttempt(env, attempt, { ...context, image: await resolveDrawing(env, deps.access, actor, attempt.submittedContent) }, deps)
+    : await assessRubricAttempt(env, attempt, { ...context, ...await rubricSources(env, deps.access, actor, attempt.sourceRefs) }, deps);
+  return { rubricVersion: [...new Set(rubric.map(c => c.rubricVersion))].join(',').slice(0, 200), ...result };
 }
 
 // The keyed probe a choice activity answers. Its source ref is {kind: 'journey_probe', id, version, locator?: {sectionId}}.
@@ -96,8 +128,11 @@ async function assess(env, actor, attempt, deps) {
   const none = (status, reason, extra = {}) => ({ status, reason, rubricVersion, provenance: { route: null, calls: [], ...extra } });
   if (!criteria.length) return none('unavailable', 'no_criteria');
   const kind = attempt.responseKind;
-  if (kind === 'drawing') return none('unavailable', 'visual_not_supported');
-  if (kind !== 'text' && kind !== 'choice') return none('unavailable', 'rubric_not_supported');
+  const rich = richRoute(env, kind, criteria);
+  if (rich) return assessRich(env, actor, attempt, criteria, rich, deps);
+  const gate = { gate: criteria.some(carriesRubric) ? 'disabled' : 'no_rubric' };
+  if (kind === 'drawing') return none('unavailable', 'visual_not_supported', gate);
+  if (kind !== 'text' && kind !== 'choice') return none('unavailable', 'rubric_not_supported', gate);
   const activity = await ownActivity(env, actor, attempt.activityId);
   const journey = activity?.journey_id ? await loadJourneyById(env, activity.journey_id, { org: actor.org, owner_user_id: actor.userId }) : null;
   const claims = journey?.registry?.claims || {};

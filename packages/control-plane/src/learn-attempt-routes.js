@@ -73,7 +73,8 @@ export async function attemptRoute(path, req, env, deps = {}) {
     return json({ error: 'attempts_unavailable' }, 503);
   }
   // Saved. From here on, every answer reports the saved attempt.
-  try { await assessAttempt(env, actor, handle.attemptId, deps); } catch (error) { log('learn_assessment_dispatch_error', error); }
+  // access lets the rubric and visual routes read the learner's own sources and image under this request's identity.
+  try { await assessAttempt(env, actor, handle.attemptId, { ...deps, access }); } catch (error) { log('learn_assessment_dispatch_error', error); }
   const view = await readAttempt(env, actor, handle.attemptId).catch(() => null);
   if (view) return json({ ...view, replayed: handle.replayed });
   return json({ attempt: { attemptId: handle.attemptId }, assessment: { assessmentId: handle.assessmentId, status: handle.status }, replayed: handle.replayed, saved: true }, 202);
