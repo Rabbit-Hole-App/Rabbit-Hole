@@ -37,10 +37,12 @@ CREATE TABLE IF NOT EXISTS learn_goals (
 CREATE INDEX IF NOT EXISTS learn_goals_scope ON learn_goals (org, owner_user_id, app, board);
 
 -- A goal's milestone criteria, one set per scope version, never rewritten: a scope change adds the next version's rows.
+-- requires_transfer: demonstrated only with a transfer observation (integrator ruling Q1, 2026-10-20).
 CREATE TABLE IF NOT EXISTS learn_goal_criteria (
   goal_id TEXT NOT NULL, scope_version INTEGER NOT NULL, criterion_id TEXT NOT NULL, version INTEGER NOT NULL,
   position INTEGER NOT NULL, label TEXT NOT NULL, requirement TEXT NOT NULL,
-  requires_reasoning INTEGER NOT NULL CHECK (requires_reasoning IN (0, 1)), rubric_version TEXT NOT NULL, skill_key TEXT,
+  requires_reasoning INTEGER NOT NULL CHECK (requires_reasoning IN (0, 1)),
+  requires_transfer INTEGER NOT NULL DEFAULT 0 CHECK (requires_transfer IN (0, 1)), rubric_version TEXT NOT NULL, skill_key TEXT,
   created_at TEXT NOT NULL,
   PRIMARY KEY (goal_id, scope_version, criterion_id)
 );
