@@ -392,6 +392,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },
     opening,
+    // ponytail: no UI caller since 2026-10-20 (owner removed /deeper, /simplify, /ask and /teach; LearnPage no longer calls it, and
+    // ask.jsx only clears it). The planner's slash row stays, with its tests, for the Tutor owners to remove.
     // /deeper and /simplify go to the Tutor as the turn's slash (§5): its prompt is sent through
     // the composer as usual, and the Tutor reads the typed command in its place. slash(null): the composer refused that
     // prompt (busy), so no stale command waits for the next turn. Task 11b: /ask and /teach too, as explicit intent overrides

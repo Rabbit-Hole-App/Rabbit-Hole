@@ -10,15 +10,19 @@ export const SOMETHING_ELSE = 'Learn something else';
 
 // question: what the first activity asks about, always named in its wording - the current code, the current code and the
 // intended behaviour asked separately, a proposed change, or a concept shown in this code.
-// roles: the file roles its source map starts from. criteria: the goal's completion criterion, as agreed criteria.
+// roles: the file roles its source map starts from. criteria: the goal's completion criterion, as agreed criteria. Each carries
+// the codebase rubric (owner finding 5B), so an answer is judged by the rubric route against these criteria and the cited
+// source at its commit (control-plane learn-rubric-assessment.js), behind TUTOR_CODEBASE_ASSESSMENT_ENABLED (or the general
+// TUTOR_RUBRIC_ASSESSMENT_ENABLED).
+export const CODEBASE_RUBRIC = 'rubric-codebase-1';
 export const CODEBASE_GOALS = [
   {
     id: 'understand_feature', label: 'Understand a feature', clarify: 'Which feature or behaviour should we trace first?',
     first: 'trace_and_predict', roles: ['source', 'test'], question: 'current_code',
     completion: 'Explain the relevant data flow and what the current code actually computes, tied to the source. A code change is optional.',
     criteria: [
-      { criterionId: 'trace_path', label: 'Trace the path from entry point to output', requirement: 'Name the calls and data changes the current code makes, citing the source', requiresReasoning: true },
-      { criterionId: 'explain_current', label: 'Explain what the current code computes', requirement: 'Predict the current output for an input and explain the order of operations', requiresReasoning: true },
+      { criterionId: 'trace_path', label: 'Trace the path from entry point to output', requirement: 'Name the calls and data changes the current code makes, citing the source', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
+      { criterionId: 'explain_current', label: 'Explain what the current code computes', requirement: 'Predict the current output for an input and explain the order of operations', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
     ],
   },
   {
@@ -26,8 +30,8 @@ export const CODEBASE_GOALS = [
     first: 'reproduce_and_isolate', roles: ['test', 'source'], question: 'current_vs_intended',
     completion: 'A cause supported by the source, a focused correction if you want one, and a suitable check. Without a confirmed reproduction the diagnosis stays tentative.',
     criteria: [
-      { criterionId: 'supported_hypothesis', label: 'Form a hypothesis supported by the source', requirement: 'Separate actual from expected behaviour and tie the cause to cited lines', requiresReasoning: true },
-      { criterionId: 'verify_cause', label: 'Choose a check that confirms the cause', requirement: 'Name an input or test that tells the hypothesis from its alternatives', requiresReasoning: true },
+      { criterionId: 'supported_hypothesis', label: 'Form a hypothesis supported by the source', requirement: 'Separate actual from expected behaviour and tie the cause to cited lines', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
+      { criterionId: 'verify_cause', label: 'Choose a check that confirms the cause', requirement: 'Name an input or test that tells the hypothesis from its alternatives', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
     ],
   },
   {
@@ -35,8 +39,8 @@ export const CODEBASE_GOALS = [
     first: 'plan_bounded_edit', roles: ['source', 'test', 'config'], question: 'proposed_change',
     completion: 'The requested behaviour, compatibility with the edge cases you agree, and an explanation of the change. It does not need a bug first.',
     criteria: [
-      { criterionId: 'focused_change', label: 'Make a focused change without unrelated edits', requirement: 'State the desired outputs and the smallest area to edit', requiresReasoning: true },
-      { criterionId: 'verify_change', label: 'Choose and interpret verification', requirement: 'Name the tests or cases that show the change works and stays compatible', requiresReasoning: true },
+      { criterionId: 'focused_change', label: 'Make a focused change without unrelated edits', requirement: 'State the desired outputs and the smallest area to edit', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
+      { criterionId: 'verify_change', label: 'Choose and interpret verification', requirement: 'Name the tests or cases that show the change works and stays compatible', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
     ],
   },
   {
@@ -44,8 +48,8 @@ export const CODEBASE_GOALS = [
     first: 'locate_and_verify', roles: ['docs', 'config', 'test'], question: 'current_code',
     completion: 'Locate where a small change belongs, explain the test workflow, and prepare a reviewable contribution. Publishing or merging is separate.',
     criteria: [
-      { criterionId: 'navigate_conventions', label: 'Find where a small change belongs', requirement: 'Locate the files and conventions a small contribution follows', requiresReasoning: true },
-      { criterionId: 'verification_path', label: 'Explain the verification path', requirement: 'Name the command or checks that verify a change, and what they cover', requiresReasoning: true },
+      { criterionId: 'navigate_conventions', label: 'Find where a small change belongs', requirement: 'Locate the files and conventions a small contribution follows', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
+      { criterionId: 'verification_path', label: 'Explain the verification path', requirement: 'Name the command or checks that verify a change, and what they cover', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
     ],
   },
   {
@@ -53,8 +57,8 @@ export const CODEBASE_GOALS = [
     first: 'explain_then_apply', roles: ['source'], question: 'concept',
     completion: 'Explain the concept in this code, then apply it to a different example. Knowing the filename alone is not enough.',
     criteria: [
-      { criterionId: 'explain_here', label: 'Explain the concept in this code', requirement: 'Explain how the cited code shows the concept, beyond naming the file', requiresReasoning: true },
-      { criterionId: 'apply_elsewhere', label: 'Apply the concept to a different example', requirement: 'Use the same idea on an example outside this code', requiresReasoning: true, requiresTransfer: true },
+      { criterionId: 'explain_here', label: 'Explain the concept in this code', requirement: 'Explain how the cited code shows the concept, beyond naming the file', requiresReasoning: true, rubricVersion: CODEBASE_RUBRIC },
+      { criterionId: 'apply_elsewhere', label: 'Apply the concept to a different example', requirement: 'Use the same idea on an example outside this code', requiresReasoning: true, requiresTransfer: true, rubricVersion: CODEBASE_RUBRIC },
     ],
   },
 ];

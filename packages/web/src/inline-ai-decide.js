@@ -7,9 +7,9 @@
 //   { kind: 'selection', mode: 'edit'|'explain', targetIds: [id...] | textRange: { id, from, to }, prompt, slash?, context }
 //   { kind: 'creation', mode: 'explain', anchor: { x, y } (world), region: '<compact subject+style summary>', prompt, slash?, context }
 // Response: { decision, message?, route?: { capability, outcome }, missing?: [...], paid, token? }
-import { SLASH, primitive } from './agent/slash.js';
+import { SLASH, primitive, toolOf, unavailableCommand } from './agent/slash.js';
 import { INLINE_TOOLS } from './inline-tool-capabilities.js';
-import { EXPLICIT_ROUTES, NOTE_COMMANDS, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
+import { EXPLICIT_ROUTES, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
 
 export const DECISIONS = Object.freeze(['proceed', 'clarify', 'invalid', 'unsupported', 'blocked']);
 export const MISSING = Object.freeze(['subject', 'target', 'format', 'data']);
@@ -39,7 +39,7 @@ export const DEFAULT_ENABLED = Object.freeze(['note', 'shapes', 'equation']);
 export const outcomeOf = capability => (capability === 'edit' ? 'edit' : capability === 'equation' ? 'equation' : capability === 'note' ? 'text' : capability === 'shapes' ? 'diagram' : ['image', 'video', '3d', 'motion'].includes(capability) ? 'media' : 'card');
 // Whether the capability can start paid generation: Motion, or a command whose family holds a paid primitive. The router
 // only says so; the handler's proposal, cost disclosure and Generate step stay where they are.
-export const paidOf = capability => capability === 'motion' || (SLASH.find(entry => entry.name === capability)?.family || []).some(id => primitive(id).paid);
+export const paidOf = capability => capability === 'motion' || (toolOf(capability)?.family || []).some(id => primitive(id).paid);
 
 // The decision words, shared by every validator so each is judged on the same definitions.
 export const DECISION_CRITERIA = Object.freeze({
@@ -104,7 +104,9 @@ export function fixedRoute(request, enabled = DEFAULT_ENABLED) {
   if (request.revising && request.mode === 'explain' && !command) return enabled.includes(request.revising) || request.revising === 'note' ? { capability: request.revising, revising: true } : stop('unsupported', unavailableText(request.revising).text);
   if (request.mode === 'edit') return command ? stop('unsupported', `/${command.name} adds something new. Switch to Explain to use it, or describe the change you want.`) : { capability: 'edit' };
   if (command) {
-    if (NOTE_COMMANDS[command.name]) return { capability: 'note' };
+    // A removed command runs nothing, even where plain words still reach its route (owner, 2026-10-20).
+    const removed = unavailableCommand(command.name);
+    if (removed) return stop('unsupported', removed);
     const capability = INLINE_SLASH[command.name] || command.name;
     if (!knownCapability(capability) || capability === 'note') {
       const known = SLASH.some(entry => entry.name === command.name && entry.places.includes('learn'));
@@ -124,12 +126,10 @@ export function fixedRoute(request, enabled = DEFAULT_ENABLED) {
 // Never the context package itself.
 export const summaryOf = request => (request.kind === 'creation' ? String(request.region || '') : request.context?.target?.objects ? selectionSummary(request.context) : '').slice(0, REGION_MAX);
 
-// The words generation gets for a decided request: /simplify, /example and /deeper put their instruction first; any other
-// command's words are its own; otherwise the prompt as typed.
+// The words generation gets for a decided request: a command's words are its own; otherwise the prompt as typed.
 export function generationPrompt(request) {
   const command = commandOf(request);
-  if (!command) return request.prompt.trim();
-  return NOTE_COMMANDS[command.name] ? [NOTE_COMMANDS[command.name], command.args].filter(Boolean).join(' ') : command.args;
+  return command ? command.args : request.prompt.trim();
 }
 
 // The validator's verdict ({ decision, capability?, missing?, message? }) with the fixed route, to the response (before

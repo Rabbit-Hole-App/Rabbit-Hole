@@ -32,7 +32,7 @@ import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
-import { available, isLearnCommand, motionProposal, parseSlash, runLearnCommand } from './learn-slash.js';
+import { available, isLearnCommand, motionProposal, runLearnCommand } from './learn-slash.js';
 import { commandsFor, labelOf } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
@@ -857,10 +857,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // under the command's saved message (chat-output-refs.js withCardSink).
     run: (text, _target, turn = null) => {
       const sink = turn?.onCard || null;
-      // Tutor v1: /deeper and /simplify are the turn's slash (tutor-v1-locked-decisions.md §5); /ask and /teach too, as the
-      // explicit Canvas overrides (Professor Next Steps contract §4.3). /research and /do are not Canvas commands.
-      const parsed = tutor.active && parseSlash(text);
-      if (parsed && ['deeper', 'simplify', 'ask', 'teach'].includes(parsed.name)) tutor.slash(parsed.name, text.trim());
+      // /deeper, /simplify, /ask and /teach no longer reach the Tutor as a turn's slash (owner, 2026-10-20): they are removed
+      // commands, and runLearnCommand says so; the same words without the slash are an ordinary Tutor turn.
       return runLearnCommand(text, {
         app: app.name,
         target: askTarget,
@@ -872,16 +870,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           reserve: slot => canvasApi.current?.reserve(slot),
           release: id => canvasApi.current?.release(id),
-          insertPaper: ({ id }) => addPaper({ id }),
           dive: args => dive.run(args),
-          // /source: the selected card's Sources & evidence, opened where the card sits.
-          openSources: id => {
-            const evidence = id && document.querySelector(`[data-block-id="${CSS.escape(id)}"] details[data-sources]`);
-            if (!evidence) return { notice: { tone: 'info', text: id ? 'This card lists no sources.' : 'Select a card, then /source opens its sources.' } };
-            evidence.open = true;
-            canvasApi.current?.revealBlock(id);
-            return {};
-          },
         }, sink),
         // A Chat source command's finder (the shared opener): settles { added } when it closes, so the composer keeps its
         // draft until then; focus goes back to the composer.
@@ -1020,7 +1009,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return result;
     },
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
-    enabled: ['note', 'equation', ...commandsFor('learn').filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
+    // internal: Ctrl+K's automatic routing still makes comparisons and walkthroughs from plain words (owner, 2026-10-20), though
+    // /compare and /walkthrough are no longer typed commands (its / list is the registry's user commands, inline-ai-command.js).
+    enabled: ['note', 'equation', ...commandsFor('learn', { internal: true }).filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
     motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
     // Current Chat's live transcript and deliberately attached source metadata support the selected edit.
     // The existing context builder budgets these separately from the complete editable target. A listed reference
@@ -2184,7 +2175,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             </span>
           )}
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
-          {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
+          {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)}
+            onUseExample={draft => { setSlashHelpOpen(false); chat.composer.prepare(draft); }} /></Suspense>}
           {finder && <SearchBar key={`${finder.source}:${finder.query}`} app={app.name} initialSource={finder.source} initialQuery={finder.query} onClose={closeFinder}
             onPick={(source, item) => { const blockId = pickResult(source, item, finder.origin?.into ?? null); finder.done({ added: !!blockId, blockId }); return blockId; }} />}
           <div className="flex items-center gap-0.5">

@@ -9,9 +9,14 @@ const answer = (choice, confidence, probabilities) => ({ answers: { route: { typ
 
 test('every registered Learn command has exactly one inline status (A6), and navigation is never inline', () => {
   for (const command of commandsFor('learn', { motionDev: true })) assert.notEqual(inlineStatus(command.name), 'unknown', command.name);
-  for (const name of ['dive', 'source', 'more', 'paper', 'notebook', 'whiteboard']) {
+  for (const name of ['dive', 'notebook', 'whiteboard']) {
     assert.equal(inlineStatus(name), 'n/a', name);
     assert.ok(planRoute({ mode: 'explain', prompt: `/${name} x`, enabled: all }).clarify, `/${name} is refused inline`);
+  }
+  // Owner, 2026-10-20: a removed command is unavailable inline, even /compare and /walkthrough, whose routes plain words still reach.
+  for (const name of ['simplify', 'example', 'deeper', 'source', 'more', 'paper', 'ask', 'teach', 'compare', 'walkthrough']) {
+    assert.equal(inlineStatus(name), ['compare', 'walkthrough'].includes(name) ? 'route' : 'unknown', name);
+    assert.deepEqual(planRoute({ mode: 'explain', prompt: `/${name} x`, enabled: all }), { clarify: { question: `/${name} is no longer available. Type / to see the commands, or ask in your own words.`, options: [] } }, name);
   }
   // /animate, /video and /motion are three routes, never one.
   assert.deepEqual(['animate', 'video', 'motion'].map(inlineStatus), ['route', 'route', 'route']);
@@ -23,7 +28,7 @@ test('explicit commands come from the learner\'s prompt only, at its start; quot
   assert.equal(explicitCommand('explain why "/motion" failed'), null);
   assert.equal(explicitCommand('please /diagram this'), null);
   assert.deepEqual(planRoute({ mode: 'explain', prompt: '/diagram', enabled: all }), { route: 'diagram', via: 'command', args: '' });
-  assert.deepEqual(planRoute({ mode: 'explain', prompt: '/simplify', enabled: all }).route, 'note');
+  assert.equal(planRoute({ mode: 'explain', prompt: '/simplify', enabled: all }).route, undefined); // removed (owner, 2026-10-20)
   assert.deepEqual(planRoute({ mode: 'explain', prompt: 'explain why "/motion" failed', enabled: all }), { classify: true });
 });
 

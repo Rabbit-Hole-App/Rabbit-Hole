@@ -17,19 +17,25 @@ const connect = (repo) => ({ type: 'command', name: 'connect_repository', args: 
 const OPEN_NANOGPT = { type: 'command', name: 'open_resource', args: { slug: 'repo-1a2b3c4d-nanogpt', kind: 'repository', title: 'karpathy/nanoGPT' } };
 const ABOUT_NANOGPT = { slug: 'repo-1a2b3c4d-nanogpt', kind: 'repository', title: 'karpathy/nanoGPT' };
 
-test('rule 1: a slash mode at position 0 comes before every other rule', () => {
-  assert.deepEqual(at('/teach https://github.com/karpathy/nanoGPT'), { type: 'mode', mode: 'teach', text: 'https://github.com/karpathy/nanoGPT' });
-  assert.deepEqual(at('/do'), { type: 'mode', mode: 'do', text: '' });
+// Owner, 2026-10-20: /ask, /teach, /research and /do are removed. Typed, each is a command the bar does not offer (AgentBar.jsx
+// says it is unavailable), before every other rule, so none still runs its old action.
+test('rule 1: a removed slash mode at position 0 runs nothing: it is an unknown command, before every other rule', () => {
+  for (const name of ['ask', 'teach', 'research', 'do']) {
+    assert.deepEqual(at(`/${name} https://github.com/karpathy/nanoGPT`), { type: 'unknown_command', name }, name);
+    assert.deepEqual(at(`/${name}`), { type: 'unknown_command', name }, name);
+  }
   assert.deepEqual(at('/asking about masks'), { type: 'unknown_command', name: 'asking' }); // WP5: an unknown /word says so
+  // The same words without the slash still reach their capabilities: a learning request teaches, a link connects.
+  assert.deepEqual(at('teach me causal masking'), { type: 'mode', mode: 'teach', text: 'teach me causal masking' });
+  assert.deepEqual(at('https://github.com/karpathy/nanoGPT'), OPEN_NANOGPT);
 });
 
-test('a mode pill wins over the rules; Auto is no pill; /do still runs the rules', () => {
+// The bar's internal modes (a plain-words learning request routes as teach, AgentBar.jsx submit) win over the rules; Auto is none.
+test('an internal mode wins over the rules; Auto is no mode', () => {
   assert.deepEqual(at('https://github.com/karpathy/nanoGPT', { mode: 'ask' }), { type: 'ask', mode: 'ask', text: 'https://github.com/karpathy/nanoGPT' });
   assert.deepEqual(at('open counter', { mode: 'teach' }), { type: 'ask', mode: 'teach', text: 'open counter' });
-  assert.deepEqual(at('open counter', { mode: 'research' }), { type: 'ask', mode: 'research', text: 'open counter' });
   assert.deepEqual(at('https://github.com/karpathy/nanoGPT', { mode: 'auto' }), OPEN_NANOGPT);
-  assert.deepEqual(at('share counter with y@example.com', { mode: 'do' }), { type: 'ask', mode: 'ask', text: 'share counter with y@example.com' }); // solo v1: no share rule
-  assert.deepEqual(at('explain the training loop', { mode: 'do' }), { type: 'ask', mode: 'ask', text: 'explain the training loop' });
+  assert.deepEqual(at('share counter with y@example.com'), { type: 'ask', mode: 'ask', text: 'share counter with y@example.com' }); // solo v1: no share rule
 });
 
 // A URL appearing is not a request to create a project (user decision, 2026-09-24): only a bare link
@@ -222,24 +228,18 @@ test('owner/repo on its own, or after creation words, is a repository reference;
   assert.deepEqual(at('what does karpathy/minGPT do?'), { type: 'ask', mode: 'ask', text: 'what does karpathy/minGPT do?' });
 });
 
-test('slash shortcuts are the same requests as their sentences: /find /open /connect /run', () => {
+// Owner, 2026-10-20: /find, /open, /new, /connect and /run are removed; typed, they run nothing. Their sentences still work.
+test('removed shortcuts run nothing; the same sentences without the slash still find, open, connect, start and run', () => {
   for (const [slash, words] of [['/find nanoGPT', 'find nanoGPT'], ['/find canvases about attention', 'find canvases about attention'], ['/open counter', 'open counter'],
-    ['/open last project', 'open last project'], ['/connect karpathy/minGPT', 'connect karpathy/minGPT'], ['/connect google slides', 'connect google slides'], ['/run s3-log', 'run s3-log']]) {
-    assert.deepEqual(at(slash), at(words), slash);
+    ['/open last project', 'open last project'], ['/connect karpathy/minGPT', 'connect karpathy/minGPT'], ['/connect google slides', 'connect google slides'], ['/run s3-log', 'run s3-log'],
+    ['/new canvas', 'new canvas']]) {
+    assert.deepEqual(at(slash), { type: 'unknown_command', name: slash.slice(1).split(' ')[0] }, slash);
+    assert.notEqual(at(words).type, 'unknown_command', words);
   }
 });
 
-test('a bare shortcut goes somewhere useful; /new opens Start on its path without creating anything', () => {
-  const start = (path) => ({ type: 'command', name: 'open_start', args: { path } });
-  assert.deepEqual(at('/find'), { type: 'command', name: 'filter_library', args: {} });
-  assert.deepEqual(at('/open'), { type: 'command', name: 'filter_library', args: {} });
-  assert.deepEqual(at('/run'), { type: 'command', name: 'filter_library', args: { type: 'apps' } });
-  assert.deepEqual(at('/new'), start('repository'));
-  assert.deepEqual(at('/new canvas'), start('blank'));
-  assert.deepEqual(at('/new question'), start('question'));
-  assert.deepEqual(at('/new sources'), start('sources'));
-  assert.deepEqual(at('/new repository'), start('repository'));
-  assert.deepEqual(at('/connect'), start('repository'));
+test('a bare removed shortcut runs nothing either', () => {
+  for (const name of ['find', 'open', 'run', 'new', 'connect']) assert.deepEqual(at(`/${name}`), { type: 'unknown_command', name }, name);
 });
 
 test('/share is no shortcut in solo v1: it is an unknown command wherever it is typed', () => {
@@ -264,7 +264,7 @@ test('questions about Rabbit Hole itself get a built-in answer; help lists what 
 test('an unknown slash command says so instead of going to Ask', () => {
   assert.deepEqual(at('/foobar'), { type: 'unknown_command', name: 'foobar' });
   assert.deepEqual(at('/foobar with words'), { type: 'unknown_command', name: 'foobar' });
-  assert.equal(at('/find nanoGPT').name, 'search_resources');
+  assert.equal(at('find nanoGPT').name, 'search_resources');
 });
 
 // Owner, 2026-10-07 (repository-browser.md, router option A): in a project with a selection, a "show …" that names no
