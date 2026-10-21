@@ -58,7 +58,11 @@ const drag = async (id, point, during) => {
   const box = await source.boundingBox();
   await page.mouse.move(box.x + 30, box.y + 12); await page.mouse.down();
   await page.mouse.move(box.x + 60, box.y + 20, { steps: 4 }); await page.mouse.move(point.x, point.y, { steps: 16 });
-  const outline = page.locator('[data-search-drop]'); await until(() => outline.isVisible(), 'no drop outline while dragging');
+  // Chromium's emulated dragover reports the previous pointer step; repeating the final point settles it there.
+  await page.mouse.move(point.x + 1, point.y); await page.mouse.move(point.x, point.y); await page.mouse.move(point.x, point.y);
+  // The outline follows dragover events, which trail the pointer: wait until it is shown and holds still at the final point.
+  const outline = page.locator('[data-search-drop]'); let last = null;
+  await until(async () => { if (!(await outline.isVisible())) return false; const now = JSON.stringify(await outline.boundingBox()); const still = now === last; last = now; return still; }, 'no settled drop outline while dragging');
   const seen = { state: await outline.getAttribute('data-search-drop'), text: await outline.innerText(), box: await outline.boundingBox() };
   await during?.(seen);
   await page.mouse.up();
@@ -118,10 +122,10 @@ check('narrow panel keeps one compact column without horizontal overflow', async
 for (const zoom of [1, 0.64, 1.5625]) check(`drag repositions the same card at ${Math.round(zoom * 100)}% with an outline at the drop point`, async () => {
   await zoomTo(zoom); await search('mover card');
   const view = await camera(), size = await worldBox('mover');
-  const point = await freePoint(0.12, 0.35), at = toWorld(view, point);
-  const seen = await drag('object:mover', point);
+  const point = await freePoint(0.35, 0.35), at = toWorld(view, point);
+  const seen = await drag('object:mover', point, () => shot(`drag-outline-${Math.round(zoom * 100)}`));
   assert.equal(seen.state, 'move'); assert.match(seen.text, /Move here/);
-  near(seen.box.x, point.x - size.w * view.z / 2, 3, 'outline left'); near(seen.box.y, point.y, 3, 'outline top');
+  near(seen.box.x, point.x - size.w * view.z / 2, 3, `outline left ${JSON.stringify({ seen, point, size, view })}`); near(seen.box.y, point.y, 3, 'outline top');
   await until(async () => { const box = await worldBox('mover'); return Math.abs(box.x - (at.x - size.w / 2)) < 2 && Math.abs(box.y - at.y) < 2; }, 'card did not land at the drop point');
   assert.equal(await page.locator('[data-block-id="mover"]').count(), 1, 'moved, not copied');
   facts[`drop${Math.round(zoom * 100)}`] = { at, box: await worldBox('mover') };
@@ -129,7 +133,7 @@ for (const zoom of [1, 0.64, 1.5625]) check(`drag repositions the same card at $
 });
 check('Undo and Redo step the drop back and forth', async () => {
   await zoomTo(1); const before = await worldBox('mover');
-  const point = await freePoint(0.12, 0.6); await drag('object:mover', point);
+  const point = await freePoint(0.35, 0.6); await drag('object:mover', point);
   await until(async () => (await worldBox('mover')).y > before.y + 5 || (await worldBox('mover')).y < before.y - 5, 'drop did not move the card');
   const after = await worldBox('mover');
   { const spot = await freePoint(0.95, 0.5); await page.mouse.click(spot.x, spot.y); }
@@ -140,13 +144,13 @@ check('Undo and Redo step the drop back and forth', async () => {
 });
 check('a linked canvas drops as one link card; dropping it again moves that card instead of duplicating it', async () => {
   await search('', 'links');
-  const point = await freePoint(0.12, 0.25), view = await camera(), at = toWorld(view, point);
-  const seen = await drag(`link:from:${targets.b.board}`, point);
+  const point = await freePoint(0.35, 0.25), view = await camera(), at = toWorld(view, point);
+  const seen = await drag(`link:from:${targets.b.board}`, point, () => shot('link-outline'));
   assert.equal(seen.state, 'link'); assert.match(seen.text, /Add link card here/);
   await until(async () => (await refCards(targets.b.board)).length === 1, 'link card not saved');
   const [made] = await refCards(targets.b.board);
   await until(async () => { const box = await worldBox(made.id); return Math.abs(box.x - (at.x - box.w / 2)) < 2 && Math.abs(box.y - at.y) < 2; }, 'link card not at the drop point');
-  const again = await drag(`link:from:${targets.b.board}`, await freePoint(0.12, 0.75));
+  const again = await drag(`link:from:${targets.b.board}`, await freePoint(0.35, 0.75));
   assert.equal(again.state, 'move'); assert.match(again.text, /existing link card/);
   await until(async () => /already on this canvas/.test(await status()), 'no note that the existing card moved');
   await new Promise(done => setTimeout(done, 2500)); // let any second save land before counting (nothing may be added)
@@ -169,7 +173,7 @@ check('keyboard Add to canvas adds a link card once and shows the existing one a
 check('a locked card refuses the drop with its reason and stays put', async () => {
   await search('Locked card');
   const before = await worldBox('locked');
-  const seen = await drag('object:locked', await freePoint(0.3, 0.3));
+  const seen = await drag('object:locked', await freePoint(0.3, 0.3), () => shot('locked-outline'));
   assert.equal(seen.state, 'refuse'); assert.match(seen.text, /locked/);
   await until(async () => /locked/.test(await status()), 'no locked reason in the panel');
   const after = await worldBox('locked'); near(after.x, before.x, 1, 'locked x'); near(after.y, before.y, 1, 'locked y');
@@ -210,7 +214,7 @@ check('a view-only shared canvas refuses a drag with a visible reason', async ()
     await search('mover card');
     assert.equal(await row('object:mover').locator('[data-search-add]').count(), 0);
     const before = await worldBox('mover');
-    const seen = await drag('object:mover', await freePoint(0.3, 0.3));
+    const seen = await drag('object:mover', await freePoint(0.3, 0.3), () => shot('view-only-outline'));
     assert.equal(seen.state, 'refuse'); assert.match(seen.text, /view-only/);
     await until(async () => /view-only/.test(await status()), 'no view-only reason in the panel');
     const after = await worldBox('mover'); near(after.x, before.x, 1, 'view-only x'); near(after.y, before.y, 1, 'view-only y');

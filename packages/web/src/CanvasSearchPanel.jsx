@@ -19,11 +19,11 @@ const SAFE_SRC = /^(blob:|data:image\/|https:\/\/|\/api\/learn\/)/;
 // renderer or a model - or the kind's icon and name when none is available or it fails to load. Each mounted virtual
 // cell owns only its own Blob URL.
 function Thumb({ result, getPreview, canvasKey }) {
-  const [src, setSrc] = useState(null);
+  const [src, setSrc] = useState(null), [loaded, setLoaded] = useState(false);
   const key = JSON.stringify(result.preview);
   useEffect(() => {
     let cancelled = false, owned;
-    setSrc(null);
+    setSrc(null); setLoaded(false);
     if (getPreview) Promise.resolve().then(() => getPreview(result)).then(value => {
       if (cancelled || !value) return;
       const next = value instanceof Blob ? (owned = URL.createObjectURL(value)) : typeof value === 'string' ? value : value.src;
@@ -32,9 +32,10 @@ function Thumb({ result, getPreview, canvasKey }) {
     return () => { cancelled = true; if (owned) URL.revokeObjectURL(owned); };
   }, [canvasKey, result.id, key, getPreview]); // eslint-disable-line react-hooks/exhaustive-deps
   const label = result.preview?.label || 'Preview', Icon = PICTURE_ICONS[label] || FileText;
-  return <span aria-hidden data-search-preview={src ? 'picture' : 'fallback'} className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-hover">
-    {src ? <img src={src} alt="" draggable={false} onError={() => setSrc(null)} className="h-full w-full object-cover" />
-      : <span className="flex flex-col items-center gap-0.5 text-ink-3"><Icon size={18} strokeWidth={1.5} /><span className="text-[9px] leading-3">{label}</span></span>}
+  // The fallback stays until the picture has loaded, so a slow or empty answer (204: no thumbnail) never shows a blank box.
+  return <span aria-hidden data-search-preview={src && loaded ? 'picture' : 'fallback'} className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-hover">
+    {src && <img src={src} alt="" draggable={false} onLoad={() => setLoaded(true)} onError={() => setSrc(null)} className={loaded ? 'h-full w-full object-cover' : 'hidden'} />}
+    {!(src && loaded) && <span className="flex flex-col items-center gap-0.5 text-ink-3"><Icon size={18} strokeWidth={1.5} /><span className="text-[9px] leading-3">{label}</span></span>}
   </span>;
 }
 
