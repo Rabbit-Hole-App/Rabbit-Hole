@@ -9,6 +9,7 @@ import { wsHeaders } from './api.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { codeSource, readerFor } from './chat-sources.js';
 import { pdfKeyOfRef } from './pdf-source.js';
+import { CiteActions } from './TutorCitations.jsx';
 
 // Sub-lane A4b: one reader for one ContextRef (brief section 6), reusing the existing viewers: LearnPaper (arXiv and uploaded
 // papers, and PDF context docs), LearnWiki, RepositorySource (code, read at the cited commit, never run). Props: { sourceRef, position, onPosition }.
@@ -121,12 +122,13 @@ function Reader({ sourceRef, position, onPosition, chat }) {
     if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} plainChat={plainChat} />;
     if (reader === 'text') return <TextView text={sourceRef.text} quote={range.quote} position={position} save={save} />;
     if (reader === 'code') {
-      const code = codeSource(sourceRef);
+      const code = codeSource(sourceRef), owned = /^[\w.-]+\/[\w.-]+$/.test(code.repo);
       // A host link only for an owner/name repo; the file itself is read from this canvas at the cited commit.
       return <RepositorySource appName={app} path={code.path} line={code.start} lineEnd={code.end || undefined} commit={code.commit || undefined}
-        repo={/^[\w.-]+\/[\w.-]+$/.test(code.repo) ? code.repo : undefined} initialPosition={position} onPosition={save}
+        repo={owned ? code.repo : undefined} byRepository={owned && !!code.commit} initialPosition={position} onPosition={save}
         actions={chat ? selected => <div data-range-actions role="toolbar" aria-label={`Selected lines ${selected.start}-${selected.end}`} onPointerDown={event => event.preventDefault()}
           className="absolute top-full left-12 z-10 mt-1 flex items-center rounded-md bg-white p-1 font-sans whitespace-nowrap shadow-pop select-none">
+          <CiteActions range={{ repo: code.repo, commit: selected.commit, path: code.path, start: selected.start, end: selected.end }} text={selected.text} />
           <AskButton onClick={() => live.current.addToChat({ ...sourceRef, range: { path: code.path, start: selected.start, end: selected.end } })} />
         </div> : undefined} />;
     }
