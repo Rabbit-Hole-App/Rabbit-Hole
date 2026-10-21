@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { EXAMPLES, mayConfirmPaid, parseSlash, pickerSections, searchSections } from './learn-slash.js';
-import { CHAT_EXAMPLES, ILLUSTRATIONS, MEDIA, SAMPLES, demoOf, effectOf, illustrationFor, sheetCards } from './slash-sheet.js';
+import { CHAT_EXAMPLES, ILLUSTRATIONS, MEDIA, MOTION_CLIP, SAMPLES, SAMPLE_NOTES, demoOf, effectOf, illustrationFor, sheetCards } from './slash-sheet.js';
 import { inspectGlb } from './three-d-asset.js';
 import { buildSlash3dGlb } from '../scripts/make-slash-3d-glb.mjs';
 import { Box3 } from 'three';
@@ -11,7 +12,7 @@ import { filterSections } from './command-search.js';
 import { REMOVED_COMMANDS, SLASH, toolOf } from './agent/slash.js';
 
 const commands = pickerSections('/').flatMap(section => section.items);
-// A development build (VITE_MOTION_DEV) also offers /motion.
+// A development or review build also offers /motion (agent/slash.js MOTION_DEV).
 const devCommands = pickerSections('/', { motionDev: true }).flatMap(section => section.items);
 const names = sections => sections.flatMap(section => section.items.map(item => item.name));
 const asset = path => existsSync(new URL(`../public${path}`, import.meta.url));
@@ -19,7 +20,7 @@ const read = file => readFileSync(new URL(file, import.meta.url), 'utf8');
 
 // Owner, 2026-10-20: the window lists every retained command, says what each does, and keeps every one discoverable without /more.
 test('every command in the sheet has a demo, an example, what it does and what it needs selected', () => {
-  assert.equal(commands.length, 18);
+  assert.equal(commands.length, 17);
   assert.equal(demoOf('cad'), 'cad', 'CAD describes its workflow without fabricated artifacts');
   assert.deepEqual(devCommands.map(({ name }) => name).filter(name => !commands.some(command => command.name === name)), ['motion']);
   for (const { name } of devCommands) {
@@ -47,7 +48,7 @@ test('every command in the sheet has a demo, an example, what it does and what i
 
 // Owner, 2026-10-20: separate media search from generation; sourced media and AI-generated media say which they are.
 test('media: /image and /youtube search (sourced), /video and /generate-image generate (AI-generated)', () => {
-  assert.deepEqual(MEDIA, { image: 'Sourced', youtube: 'Sourced', video: 'AI-generated', 'generate-image': 'AI-generated' });
+  assert.deepEqual(MEDIA, { image: 'Sourced', youtube: 'Sourced', video: 'AI-generated', 'generate-image': 'AI-generated', motion: 'AI-generated' });
   assert.equal(EXAMPLES.image, '/image Mount Fuji');
   assert.equal(EXAMPLES['generate-image'], '/generate-image a watercolor mountain landscape');
   assert.equal(EXAMPLES.youtube, '/youtube binary search tutorial');
@@ -62,10 +63,16 @@ test('media: /image and /youtube search (sourced), /video and /generate-image ge
 
 test('paid media always shows a finished example: a committed clip or a labelled picture, never a Generate card', () => {
   const paid = devCommands.filter(({ name }) => mayConfirmPaid(name)).map(({ name }) => name);
-  assert.deepEqual(paid, ['animate', 'video', '3d', 'motion']);
-  // /motion's clip is the landing page's /motion explainer: its e.g. line asks for its 25 s.
-  assert.match(EXAMPLES.motion, /25s explain softmax/);
-  assert.equal(SAMPLES.motion.videoGenerate.motion.duration_seconds, 25);
+  assert.deepEqual(paid, ['motion', 'video', '3d']);
+  // /motion plays a real Motion video (owner, 2026-10-20): the committed final.mp4 of the verified job 8a2015a4, byte for byte,
+  // with that job's own request, title, duration, renderer and sources. Committed, so it never expires and nothing generates it.
+  const clip = SAMPLES.motion.videoGenerate;
+  assert.equal(clip.src, MOTION_CLIP);
+  assert.equal(createHash('sha256').update(readFileSync(new URL(`../public${MOTION_CLIP}`, import.meta.url))).digest('hex'), '6af0b4b2cdf6ef0b97d6d0ffb11ba53a03ecb7b898ae2771f74725615b437c46');
+  assert.equal(EXAMPLES.motion, '/motion 15s explain me softmax func');
+  assert.deepEqual([clip.operation.request, clip.title, clip.motion.duration_seconds, clip.motion.renderer], [EXAMPLES.motion, 'Softmax: Turning Attention Scores into Weights', 15, 'remotion']);
+  assert.deepEqual(clip.motion.source_refs.map(ref => `${ref.path}:${ref.start_line}-${ref.end_line}`), ['model.py:44-45', 'model.py:48-50', 'model.py:62-64', 'model.py:65-71']);
+  assert.match(SAMPLE_NOTES.motion, /^A real Motion video, made from this example./);
   // A picture stands in only where the sample has no clip or model of its own: /motion plays its clip on the video card /video
   // pictures, and /3d shows its model (illustrationFor).
   assert.match(read('./SlashCommandsSheet.jsx'), /const picture = illustrationFor\(type, block\);/);
@@ -118,9 +125,9 @@ test('/3d shows its scene card ready on a committed, verified model, never the p
 test('the examples cover different topics, never one thread; a card beside one is labelled a sample', () => {
   const lines = Object.values(EXAMPLES);
   assert.equal(new Set(lines).size, lines.length);
-  // /animate and /motion show the committed softmax clip, so their lines ask for it; nothing else repeats that thread.
-  assert.deepEqual(Object.entries(EXAMPLES).filter(([, line]) => /softmax|sigmoid|nanoGPT|token/i.test(line)).map(([name]) => name).sort(), ['animate', 'motion']);
-  assert.match(read('./SlashCommandsSheet.jsx'), /data-slash-sample[^>]*>A sample card\. Yours is made from what you type\.</);
+  // /motion shows its real softmax video, so its line is the request that made it; nothing else repeats that thread.
+  assert.deepEqual(Object.entries(EXAMPLES).filter(([, line]) => /softmax|sigmoid|nanoGPT|token/i.test(line)).map(([name]) => name).sort(), ['motion']);
+  assert.match(read('./SlashCommandsSheet.jsx'), /data-slash-sample[^>]*>\{SAMPLE_NOTES\[name\] \|\| 'A sample card\. Yours is made from what you type\.'\}</);
   // Menu labels share one form: a short phrase in sentence case, no full stop.
   for (const { name, desc } of commands) assert.match(desc, /^[A-Z][a-z]+(?: [^ ]+){0,5}$/, `/${name}: ${desc}`);
 });

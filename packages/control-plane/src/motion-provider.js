@@ -95,7 +95,8 @@ export class MotionRequestProvider {
     this.version = 'motion-orchestrator';
   }
   async request(path, { method = 'GET', body } = {}) {
-    if (!this.url || !this.token) throw definite('Motion is not configured here (development only)');
+    // A dev clone, preview or production has no orchestrator (only the local Motion stack sets one): nothing starts or is charged.
+    if (!this.url || !this.token) throw definite('Motion is not available in this environment yet. Nothing was started.');
     const base = new URL(this.url);
     if (base.protocol !== 'https:') throw definite('The Motion orchestrator requires HTTPS');
     const transport = this.transport;

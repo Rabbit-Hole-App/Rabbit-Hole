@@ -32,6 +32,9 @@ test('the pill is the command\'s label in its tint, with a remove button named b
   // A saved draft or message naming a removed command still renders as words, never a /name and never a crash.
   assert.match(html({ name: 'simplify' }), /font-medium">Simplify<\/span>.*aria-label="Remove Simplify"/);
   assert.match(html({ name: 'cad' }), /font-medium">CAD<\/span>/);
+  // /motion's pill says Motion, never /motion (owner, 2026-10-20).
+  assert.match(html({ name: 'motion' }), /data-command-pill="motion"[^>]*>.*font-medium">Motion<\/span>.*aria-label="Remove Motion"/);
+  assert.doesNotMatch(html({ name: 'motion', onOpen: () => {} }), />\/motion</);
   assert.match(html({ name: 'video' }), /aria-label="Remove Generate video"/);
   assert.match(html({ name: 'youtube' }), /aria-label="Remove Search YouTube"/);
   // Without onOpen the name is text, not a button: only the x acts.
@@ -53,7 +56,7 @@ test('every registered command (Chat, Ctrl+K and Insert) has a pill label with n
       assert.ok(pill.includes(`aria-label="Remove ${text}"`), `/${command.name}: Remove ${text}`);
     }
   }
-  assert.ok(SLASH.length >= 20, `${SLASH.length} commands`);
+  assert.ok(SLASH.length >= 19, `${SLASH.length} commands`);
   // The Home, Library and Project bar has no slash commands since 2026-10-20 (owner), so it draws no command pill at all.
   const bar = readFileSync(new URL('./agent/AgentBar.jsx', import.meta.url), 'utf8');
   assert.doesNotMatch(bar, /data-command-pill|commandLabel/);

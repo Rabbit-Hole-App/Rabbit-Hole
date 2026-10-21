@@ -11,7 +11,9 @@ const run = (meta, opts = {}) => validateAnswerMeta(typeof meta === 'string' ? m
 
 test('the prompt asks for the one trailer, names the distinct visual capabilities, and stays compact', () => {
   assert.match(ANSWER_META_SYSTEM, /<answer_meta>\{"actions":\[/);
-  for (const c of ['diagram', 'graph', 'image', 'animate', 'video', 'notebook']) assert.match(ANSWER_META_SYSTEM, new RegExp(`- ${c}:|; ${c}:`), c);
+  for (const c of ['diagram', 'graph', 'image', 'video', 'notebook']) assert.match(ANSWER_META_SYSTEM, new RegExp(`- ${c}:|; ${c}:`), c);
+  // /animate is no longer a command (owner, 2026-10-20): a new answer never suggests it.
+  assert.doesNotMatch(ANSWER_META_SYSTEM, /animate/);
   assert.match(ANSWER_META_SYSTEM, /canvas title alone/);
   assert.ok(ANSWER_META_SYSTEM.length < 2000, `billed on every answer: ${ANSWER_META_SYSTEM.length} chars`);
 });
@@ -68,7 +70,8 @@ test('actions: duplicates dropped, more than 3 trimmed', () => {
 
 test('actions: paid and generationRequired come from the registry, never the model', () => {
   const { actions } = run({ actions: [act('video', { paid: false, generationRequired: false }), act('graph', { paid: true }), act('animate')] });
-  assert.deepEqual(actions.map(a => [a.capabilityId, a.paid, a.generationRequired]), [['video', true, true], ['graph', false, true], ['animate', true, true]]);
+  // animate is dropped: /motion replaced it as the animation command (owner, 2026-10-20).
+  assert.deepEqual(actions.map(a => [a.capabilityId, a.paid, a.generationRequired]), [['video', true, true], ['graph', false, true]]);
 });
 
 test('actions: notebook with the answer s Python code needs no generation; without code, or non-Python, it generates', () => {
