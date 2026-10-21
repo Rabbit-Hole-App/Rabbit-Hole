@@ -112,11 +112,12 @@ export function createCoachingSync({ scope, call, channel = null, newId = () => 
 
   // A goal or activity action (create_goal, activate_goal, ...): one request on the confirmed revision, after any queued
   // control events. Resolves to the new state; a refusal rejects with the server's reason and adopts its state.
-  async function act(action, payload) {
+  // meta.actionId (Task 07 applyTutorAction): the caller's own action id, so a retried write is the server's replay.
+  async function act(action, payload, meta = {}) {
     if (local() || !server) throw Object.assign(new Error('Your Tutor settings are not saved on this page.'), { code: 'local' });
     while (flying || queue.length) { if (save === 'error') throw Object.assign(new Error('Your Tutor settings are not saved yet.'), { code: 'unsaved' }); await new Promise(resolve => setTimeout(resolve, 50)); }
     try {
-      const out = await call('/api/learn/coaching', { method: 'POST', body: JSON.stringify({ app: scope.app, board: scope.board, actionId: newId(), expectedRevision: server.revision, action, payload }) });
+      const out = await call('/api/learn/coaching', { method: 'POST', body: JSON.stringify({ app: scope.app, board: scope.board, actionId: meta.actionId || newId(), expectedRevision: server.revision, action, payload }) });
       adopt(out.state); notify();
       channel?.postMessage({ app: scope.app, board: scope.board, state: out.state });
       return out.state;

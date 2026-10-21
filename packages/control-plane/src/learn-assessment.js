@@ -35,12 +35,14 @@
 //
 // Provenance records each call's role, requested and served model, reason, latency, usage and known cost. Unknown usage
 // and cost are null, never 0.
+//
+// Journeys. A completed assessment of a journey activity also becomes that journey's evidence, once (feedJourney).
 import { askJev, JEV_TRANSPORTS } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
 import { costUsd, loggedModel } from './learn-models.js';
 import { TUTOR_PROTOCOL_VERSION } from './agents/learn-tutor.js';
 import { evaluateFreeText, journeySpec, probeEvaluation, spendCallModel } from './learn-tutor-routes.js';
-import { loadJourneyById } from './learn-journey-store.js';
+import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimAssessment, commitAssessment, ownActivity, pendingOperation, readAttempt } from './learn-attempt-store.js';
 import { assessRubricAttempt, carriesRubric, rubricSources } from './learn-rubric-assessment.js';
 import { assessVisualAttempt, resolveDrawing } from './learn-visual-assessment.js';
@@ -113,11 +115,13 @@ async function assessRich(env, actor, attempt, criteria, route, deps) {
 }
 
 // The keyed probe a choice activity answers. Its source ref is {kind: 'journey_probe', id, version, locator?: {sectionId}}.
-// With a sectionId, the probe is a check of that section's plan; without one, the journey's state decides, as in
+// With a sectionId, the probe is a check of that section's plan; with diagnostic: true, a diagnostic probe reused as a
+// practice check after the diagnostic (Task 07: existing material); without either, the journey's state decides, as in
 // learn-tutor-routes.js openProbe. The key never leaves the server.
 function probeOf(journey, ref) {
   const plan = journey.section_plan, section = ref.locator?.sectionId;
-  const list = section != null ? (plan?.section_id === section ? plan.checks : null) : journey.state === 'diagnostic' ? journey.diagnostic?.probes : plan?.checks;
+  const list = section != null ? (plan?.section_id === section ? plan.checks : null)
+    : ref.locator?.diagnostic === true || journey.state === 'diagnostic' ? journey.diagnostic?.probes : plan?.checks;
   const probe = list?.find(p => p.id === ref.id);
   return probe?.key ? probe : null;
 }
@@ -152,8 +156,10 @@ async function assess(env, actor, attempt, deps) {
     const graded = assessable.filter(c => probe.claims.includes(c.skillKey));
     const skipped = [...unassessed, ...assessable.filter(c => !graded.includes(c)).map(c => ({ criterionId: c.criterionId, version: c.version, reason: 'not_in_probe' }))];
     if (!graded.length) return none('unavailable', 'no_registered_claims', { unassessed: skipped });
-    const { events } = probeEvaluation(journey.registry, probe, option);
+    const evaluation = probeEvaluation(journey.registry, probe, option), { events } = evaluation;
+    const tag = { probe_id: probe.id, ...(ref.locator?.sectionId != null ? { section_id: ref.locator.sectionId } : {}) };
     return {
+      journey: { journeyId: journey.id, evaluation, tag },
       status: 'completed', route: 'keyed', rubricVersion, evaluatorVersion: KEYED_VERSION,
       observations: observationsFrom({ events, criteria: graded, claims, assistance: attempt.assistance, keyed: true }),
       provenance: { route: 'keyed', checker: 'journey_probe_key', calls: [], unassessed: skipped },
@@ -217,6 +223,7 @@ async function assess(env, actor, attempt, deps) {
   const esc = result.escalation;
   const outcome = !esc?.escalate ? 'not_needed' : seen.refused ? 'refused' : result.larger_error ? (largerT.outcome === 'timeout' ? 'unknown' : 'failed') : 'completed';
   return {
+    journey: { journeyId: journey.id, evaluation: { status: result.status, evaluator: result.evaluator, events: result.events } },
     ...base, status: 'completed', route: result.evaluator === 'larger' ? 'larger' : 'jev',
     reason: esc?.escalate && outcome !== 'completed' ? `escalation_${outcome}` : null,
     observations: observationsFrom({ events: result.events, criteria: assessable, claims, assistance: attempt.assistance, keyed: false }),
@@ -242,7 +249,35 @@ export async function assessAttempt(env, actor, attemptId, deps = {}) {
       console.error(JSON.stringify({ event: 'learn_assessment_error', assessment: op.id, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
       result = { status: 'failed', reason: 'assessment_error', provenance: { route: null, calls: [] } };
     }
-    await commitAssessment(env, actor, { assessmentId: op.id, token, attemptId, goalId: attempt.goalId, ...result });
+    const { journey, ...outcome } = result;
+    const saved = await commitAssessment(env, actor, { assessmentId: op.id, token, attemptId, goalId: attempt.goalId, ...outcome });
+    const record = saved && journey ? (await readAttempt(env, actor, attemptId)).assessments.find(a => a.assessmentId === op.id) : null;
+    if (record?.status === 'completed') {
+      await feedJourney(env, actor, attempt, record, journey)
+        .catch(error => console.error(JSON.stringify({ event: 'learn_assessment_journey_error', assessment: op.id, error: error?.name || 'Error' })));
+    }
   }
   return (await readAttempt(env, actor, attemptId)).assessment;
+}
+
+/**
+ * Slice A gap b (T3-report §7.6): a completed assessment of a journey activity is that journey's evidence too, so the
+ * walker's probe reading (probeResult), section completion and the planners see it. Once per attempt: when the journey
+ * already holds evidence for this attempt, one of its observations or, for a keyed check, that probe (a reassessment, a
+ * retried request, an answer through the journey's own evaluate route), nothing is added, so nothing counts twice. The ref
+ * carries ids only, never learner text. A journey moved by another tab meanwhile is reloaded once, as journeyEvaluate does.
+ * @returns {Promise<boolean>} whether evidence was added
+ */
+export async function feedJourney(env, actor, attempt, record, { journeyId, evaluation, tag = null }) {
+  const ids = record.observations.map(o => o.observationId);
+  const ref = { attempt_id: attempt.attemptId, assessment_id: record.assessmentId, observation_ids: ids, ...tag, canvas: { app: actor.app, board: actor.board } };
+  const held = j => j.evidence.events.some(e => e.ref?.attempt_id === attempt.attemptId || e.ref?.observation_ids?.some(id => ids.includes(id))
+    || (tag && e.ref?.probe_id === tag.probe_id && (e.ref.section_id ?? null) === (tag.section_id ?? null)));
+  for (let tries = 0; tries < 2; tries += 1) {
+    const journey = await loadJourneyById(env, journeyId, { org: actor.org, owner_user_id: actor.userId });
+    if (!journey || held(journey)) return false;
+    try { return (await appendJourneyEvidence(env, journey, evaluation, ref)).events !== journey.evidence.events; }
+    catch (error) { if (!(error instanceof JourneyConflict) || error.code !== 'revision') throw error; }
+  }
+  return false;
 }

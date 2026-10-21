@@ -16,7 +16,7 @@ import { api, apiFetch } from './api.js';
 import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { diveJourney } from './learn-journey-domain.js';
-import { SLASHES, arriveAt, cardContext, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
+import { SLASHES, arriveAt, cardContext, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, sameCanvas, showableCards, wantsCard } from './learn-tutor.js';
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
 import { inJourneySetup, startRequest } from './LearnJourney.jsx';
@@ -109,6 +109,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const context = tutorContext({ ...where, journey }), capabilities = context?.capabilities;
   const active = capabilities?.tutor === true, hookTurns = active || capabilities?.hook_turns === true;
   const here = { app: app.name, board };
+  const hereRef = useRef(here);
+  hereRef.current = here;
   const reads = repository ?? canvasRepository(app);
   const journeyId = journey?.journey?.id ?? null;
   const key = tutorStoreKey(app, journeyId, record, context?.source === 'canvas' ? `${app.name}|${board || 'main'}` : null);
@@ -258,6 +260,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // generator, in the plan's order; a paid card waits for Generate / Not now (offer), one proposal at a time across turns.
     // The reply does not wait for the cards. Task 14 B-I1: the turn's selected card is the target, as a typed command's armed
     // card is (its selection, and its text as context); a hook click has none (block null).
+    const origin = { ...here }, stillHere = () => sameCanvas(hereRef.current, origin);
     runMaterials(result.actions, {
       // The cards keep the learner's words (card-prompt.js), never the model's command line; a hook click typed none.
       promptUsed: nextStep ? null : raw,
@@ -267,7 +270,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       // ponytail: a slow command's notice can land after the next turn began, under that reply (informative, accepted for
       // v1); tag notices with their turn id and drop stale ones if that ever confuses.
       onNotice: notice => { if (notice.tone !== 'done') put({ notices: [...desk.notices, notice] }); },
-      canvas: withCardSink({ insertNotebook: () => canvasApi.current?.insertNotebook(), insertBlock: (b, o) => canvasApi.current?.insertBlock(b, o), reserve: s => canvasApi.current?.reserve(s), release: id => canvasApi.current?.release(id) }, onCard),
+      // Task 07: a card arriving after the learner moved to another canvas or board is not inserted anywhere else; the turn's
+      // reply stays with its origin. A requested card still goes in after Tutor Off (Q5).
+      canvas: withCardSink({ insertNotebook: () => (stillHere() ? canvasApi.current?.insertNotebook() : null), insertBlock: (b, o) => (stillHere() ? canvasApi.current?.insertBlock(b, o) : null), reserve: s => (stillHere() ? canvasApi.current?.reserve(s) : null), release: id => canvasApi.current?.release(id) }, onCard),
       post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),
     }).catch(error => console.info('[tutor] create_material', error.message));
     result.mark('canvas_action_complete');

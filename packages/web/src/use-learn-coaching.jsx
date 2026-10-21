@@ -38,7 +38,8 @@ export function useLearnCoaching({ app, board = 'main' }) {
     };
   }, [sync]);
   const view = useSyncExternalStore(sync.subscribe, sync.view, sync.view);
-  return useMemo(() => ({ ...view, dispatch: sync.dispatch, act: sync.act, retry: sync.retry, canCoach: sync.canCoach }), [view, sync]);
+  // reload: read the saved state again (an answer was submitted and the server moved the activity on: Task 07).
+  return useMemo(() => ({ ...view, dispatch: sync.dispatch, act: sync.act, retry: sync.retry, canCoach: sync.canCoach, reload: sync.load }), [view, sync]);
 }
 
 // The switch immediately beside the selected Tutor mode (draft "Tutor controls and dismissal"); ModeSelector hides it in
