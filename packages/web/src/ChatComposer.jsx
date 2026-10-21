@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import { ArrowUp, ChevronDown, Loader2, Square } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
+import { chatSendKey } from './ui-prefs.js';
 
 // Every agent uses the same input, focus treatment, send control and sizing.
 // Optional controls belong in slots; they must not replace the composer itself.
@@ -41,7 +42,7 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
   // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
   // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
   const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
-  const keys = event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } };
+  const keys = event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send') { event.preventDefault(); submit(); } };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
   const field = stacked
     ? <textarea ref={inputRef} autoFocus={autoFocus} rows={2} value={value} onChange={event => onChange(event.target.value)} onKeyDown={keys} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className="max-h-48 min-h-12 w-full resize-none bg-transparent px-1 text-[15px] leading-6 outline-none [field-sizing:content] placeholder:text-ink-3 max-md:text-sm" />
