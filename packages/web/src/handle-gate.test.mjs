@@ -29,8 +29,8 @@ test('the step sits in front of every Rabbit Hole page, in place, and resumes th
 });
 
 test('Settings > Profile can change the handle; the server is the authority', () => {
-  const sidebar = read('./Sidebar.jsx');
-  const row = sidebar.slice(sidebar.indexOf('function HandleRow('), sidebar.indexOf('function SectionHead('));
+  const sidebar = read('./RabbitHoleSettings.jsx'); // Rabbit Hole's Settings (owner L11; it moved out of Sidebar.jsx)
+  const row = sidebar.slice(sidebar.indexOf('function HandleRow('), sidebar.indexOf('function DescriptionRow('));
   assert.match(sidebar, /<HandleRow profile=\{profile\} \/>/);
   assert.match(row, /await saveProfile\(\{ handle: value \}\)/);
   assert.match(row, /\{error && <p data-handle-error role="alert"/, 'a taken or invalid handle says why, beside the field');
@@ -51,7 +51,7 @@ test('a handle field never shows @@: a typed or pasted leading @ leaves the valu
   assert.deepEqual(['@Viewer_Mux9hucx', '@@Viewer_Mux9hucx', 'Viewer_Mux9hucx', 'a@b'].map(fieldHandle), ['Viewer_Mux9hucx', 'Viewer_Mux9hucx', 'Viewer_Mux9hucx', 'a@b']);
   assert.deepEqual(normalizeHandle(fieldHandle('@Viewer_Mux9hucx')), { handle: 'viewer_mux9hucx' });
   assert.deepEqual(normalizeHandle('@Viewer_Mux9hucx'), { handle: 'viewer_mux9hucx' }, 'the server still accepts one leading @');
-  const gate = read('./HandleGate.jsx'), sidebar = read('./Sidebar.jsx');
+  const gate = read('./HandleGate.jsx'), sidebar = read('./RabbitHoleSettings.jsx');
   assert.ok(gate.includes('onChange={event => { setValue(fieldHandle(event.target.value));'), 'the setup field');
   assert.ok(sidebar.includes('onChange={(e) => { setDraft(fieldHandle(e.target.value));'), 'the Settings field');
 });

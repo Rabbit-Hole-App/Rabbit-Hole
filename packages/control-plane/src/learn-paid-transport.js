@@ -24,7 +24,8 @@ export async function paidSubmissionRefusal(env) {
 
 export async function requirePaidSubmission(env) {
   const refused = await paidSubmissionRefusal(env);
-  if (refused) { const { code, error } = await refused.json(); throw Object.assign(new Error(error), { code }); }
+  // definite: refused before the provider, so nothing started (a video job stays retryable, not "could not be confirmed").
+  if (refused) { const { code, error } = await refused.json(); throw Object.assign(new Error(error), { code, definite: true }); }
 }
 
 // Fish S1 charges $15/M UTF-8 input bytes, not Unicode character count:
