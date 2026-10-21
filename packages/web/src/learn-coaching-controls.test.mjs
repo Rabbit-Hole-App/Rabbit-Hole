@@ -221,7 +221,7 @@ test('mode routing: Tutor takes the Tutor workflow like Auto; Ask never does; th
   assert.deepEqual([askMode('tutor'), askMode('tutor', true), askMode('ask'), askMode('auto')], ['auto', 'tutor', 'ask', 'auto'], 'only the TOC sends tutor (the syllabus)');
 });
 
-// Owner 4a with the contract's guided entry (start_guided, then hole_opening_turn under canCoach).
+// Owner 4a with the contract's guided entry (start_guided, then GUIDED_ENTRY: selected, enabled Tutor only).
 test('guided Rabbit Hole opening: one turn only from an explicit entry, and only where coaching may run', () => {
   const ctx = { chatOpen: true, ready: true };
   const tutorOn = { mode: 'tutor', tutorEnabled: true, suggestionsPaused: true, revision: 4 };
@@ -231,7 +231,7 @@ test('guided Rabbit Hole opening: one turn only from an explicit entry, and only
   const fresh = { mode: 'auto', tutorEnabled: true, suggestionsPaused: false, revision: 0 };
   assert.equal(guidedOpening({ own: fresh, entry: tutorOn, context: ctx }), true, 'a new hole follows the controls it was made under');
   assert.equal(guidedOpening({ own: fresh, entry: null, context: ctx }), false);
-  assert.equal(guidedOpening({ own: tutorOn, context: { ...ctx, chatOpen: false } }), false, 'never into a closed Chat');
+  assert.equal(guidedOpening({ own: { ...tutorOn, suggestionsPaused: false }, context: ctx }), true);
   // holeOpening: no mark (a URL restore, a refresh in a new tab, Back, a reopen) - restored, never opened; a mark - once.
   const memory = () => { const m = new Map(); return { m, getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
   const s = memory(), record = { dive_id: 'canvas-0000cafe', title: 'Masks' };

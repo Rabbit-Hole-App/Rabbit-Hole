@@ -5,12 +5,11 @@ import { CRITERION_STATUS, validateCoachingRecord } from './learn-coaching-contr
 
 export const progressUrl = ({ app, board, goalId }) => `/api/learn/progress?app=${encodeURIComponent(app)}&board=${encodeURIComponent(board)}${goalId ? `&goalId=${encodeURIComponent(goalId)}` : ''}`;
 
-// GET /api/learn/progress (Task 08, lane T4) -> ProgressView (learn-coaching-contract.js SHAPES.ProgressView), bare or as
-// { view }. A reply that is not a ProgressView is an error, never an empty history.
-// shortcut: the reply's envelope is read both ways until tutor/progress lands its route; settle on one then.
+// GET /api/learn/progress (Task 08, control-plane learn-progress.js progressRoute) -> { progress: ProgressView }. A reply that
+// is not a ProgressView is an error, never an empty history.
 export async function fetchProgress(call, scope, goalId) {
   const out = await call(progressUrl({ ...scope, goalId }));
-  const view = out && typeof out === 'object' && 'view' in out ? out.view : out;
+  const view = out?.progress;
   if (!validateCoachingRecord('ProgressView', view).ok) throw Object.assign(new Error('Progress could not be read.'), { code: 'invalid' });
   return view;
 }
@@ -28,6 +27,7 @@ export const REASON_TEXT = {
   assisted_support: 'Your answer met this with help. Try a fresh example on your own to show it independently.',
   help_not_recorded: 'Your answer met this, but whether you had help was not recorded, so it is not counted yet.',
   incomplete_support: 'Your answers so far are partly there.',
+  transfer_not_shown: 'You met this on the example you practised; it counts once you apply it to a new case.',
   disputed: 'You questioned this feedback; it stays as it was until it is reviewed.',
   unresolved_conflict: 'Your answers point different ways, so this needs a review.',
   later_contradiction: 'A later answer did not hold up, so this needs a review.',
@@ -57,13 +57,15 @@ export function progressModel({ goals = [], activeGoalId = null, viewedGoalId = 
     status: CRITERION_STATUS.includes(row.status) ? row.status : 'not_checked',
     reason: REASON_TEXT[row.reason] || '',
     evidence: Array.isArray(row.evidenceIds) ? row.evidenceIds.length : 0,
+    // Dated history (learn-progress.js), newest first, for More about this skill; superseded results stay, labelled.
+    history: (Array.isArray(row.evidence) ? row.evidence : []).slice().reverse(),
     application: row.application?.status === 'applied',
     retention: row.retention?.status === 'recalled',
   }));
   return {
     ...base, state: 'ready', rows,
     count: rows.filter(row => row.status === 'demonstrated_independently').length, total: rows.length,
-    pending: view.pendingAssessments.length, savedAt: view.savedAt || null, nextAction: view.nextAction || null,
+    pending: view.pendingAssessments.length, unavailable: Array.isArray(view.unavailableAssessments) ? view.unavailableAssessments.length : 0, savedAt: view.savedAt || null, nextAction: view.nextAction || null,
     stale: load.status === 'loading' || load.status === 'error', failed: load.status === 'error', offline: !!load.offline,
   };
 }

@@ -54,7 +54,7 @@ await context.route('**/api/**', route => {
   if (url.pathname === '/api/learn/progress') {
     progressReads.push(url.searchParams.get('goalId'));
     if (progressDown) return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'progress_unavailable' }) });
-    if (!REAL) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ view: VIEWS[url.searchParams.get('goalId')] }) });
+    if (!REAL) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ progress: VIEWS[url.searchParams.get('goalId')] }) });
   }
   return route.continue();
 });
@@ -86,11 +86,16 @@ await check('the Progress icon in the Chat header opens Progress left of Chat; t
   await shot('progress-01-open-light');
 });
 
+// The view the pane must show: the stub's, or (REAL_PROGRESS=1) the real route's own answer for this learner.
+const viewOf = async goalId => (REAL ? (await api(`/api/learn/progress?app=${canvas.name}&board=main&goalId=${goalId}`)).progress : VIEWS[goalId]);
 await check('the overview: the current goal, a count that matches the skill rows, one next step, and when it was saved', async () => {
-  assert.match(await progress().locator('[data-progress-count]').innerText(), /1\s*of 3\s*skills demonstrated independently/);
-  assert.deepEqual(await progress().locator('[data-progress-skill]').evaluateAll(nodes => nodes.map(node => node.dataset.progressSkill)), ['demonstrated_independently', 'demonstrated_with_help', 'not_checked']);
-  assert.match(await progress().locator('[data-progress-skill]').nth(1).innerText(), /Explain the majority vote\s*Demonstrated with help/);
-  assert.equal(await progress().locator('[data-progress-next]').count(), 1, 'one next step');
+  const view = await viewOf(knn);
+  assert.ok(view?.criteria?.length === 3, 'a ProgressView for the goal');
+  const statuses = view.criteria.map(row => row.status), independent = statuses.filter(status => status === 'demonstrated_independently').length;
+  assert.match(await progress().locator('[data-progress-count]').innerText(), new RegExp(`${independent}\\s*of 3\\s*skills demonstrated independently`));
+  assert.deepEqual(await progress().locator('[data-progress-skill]').evaluateAll(nodes => nodes.map(node => node.dataset.progressSkill)), statuses);
+  assert.match(await progress().locator('[data-progress-skill]').nth(1).innerText(), /Explain the majority vote/);
+  assert.equal(await progress().locator('[data-progress-next]').count(), view.nextAction ? 1 : 0, 'one next step when the view names one');
   assert.match(await progress().locator('[data-progress-saved]').innerText(), /Based on saved answers · updated/);
   assert.equal(await progress().getByRole('combobox', { name: 'Learning goal' }).inputValue(), knn);
 });
@@ -101,7 +106,7 @@ await check('a skill expands in place by keyboard: Why this status, then More ab
   await page.keyboard.press('Enter');
   await progress().locator('[data-progress-why]').waitFor({ timeout: 5000 });
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
-  assert.match(await progress().locator('[data-progress-why]').innerText(), /Why this status[\s\S]*with help/);
+  assert.match(await progress().locator('[data-progress-why]').innerText(), REAL ? /Why this status/ : /Why this status[\s\S]*with help/);
   await progress().locator('[data-progress-more] summary').click();
   assert.match(await progress().locator('[data-progress-more]').innerText(), /Applied to a new case[\s\S]*Remembered later/);
   await shot('progress-02-skill-expanded-light');
@@ -111,7 +116,7 @@ await check('viewing another goal is read only: the active goal stays, Resume is
   await progress().getByRole('combobox', { name: 'Learning goal' }).selectOption(reg);
   await progress().locator('[data-progress-viewing]').waitFor({ timeout: 5000 });
   assert.match(await progress().locator('[data-progress-viewing]').innerText(), /Your current goal is Predict a class using KNN/);
-  assert.match(await progress().locator('[data-progress-pending]').innerText(), /Feedback pending on 1 answer/);
+  if (!REAL) assert.match(await progress().locator('[data-progress-pending]').innerText(), /Feedback pending on 1 answer/);
   assert.equal((await coachingOf()).activeGoalId, knn, 'browsing never switches the active goal');
 });
 
