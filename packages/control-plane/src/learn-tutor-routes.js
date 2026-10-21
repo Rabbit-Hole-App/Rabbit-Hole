@@ -38,7 +38,7 @@ const CONTEXT_LIMIT = 60000; // characters of planner context (about 12k tokens,
 const text = (value, max) => typeof value === 'string' && value.length <= max;
 
 // Each request/retry reserves independently. The private transport token prevents double admission.
-function spendCallModel(env, access, category, callModel) {
+export function spendCallModel(env, access, category, callModel) {
   return (callEnv, body, model, org, ...rest) => spendTransport(callEnv, body, model, org || access.org,
     admittedEnv => callModel(admittedEnv, body, model, org, ...rest),
     { userId: access.user_id || access.email, category });
@@ -132,7 +132,7 @@ const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
 // The free-text spec rebuilt from the journey registry, as the browser's evaluationSpec (web/src/learn-tutor.js) builds
 // it: claim content, a gap check per prerequisite concept, and the named misconceptions each claim already has a settled
 // event for. Only the claim ids, answering and question come from the body; any claim content it carries is ignored.
-function journeySpec(journey, body) {
+export function journeySpec(journey, body) {
   const registry = journey.registry.claims;
   if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > 4000) return { error: 'message must be 1-4000 characters' };
   if (!Array.isArray(body.claims) || !body.claims.length || body.claims.length > 6) return { error: 'claims must be 1-6 claim ids' };
@@ -178,7 +178,7 @@ const TURN_ID = /^[\w-]{1,80}$/;
 // A multiple-choice or prediction answer, graded from the probe's server-only key (§9.4), never by a model: the right
 // option is a pass on each of the probe's claims (demonstrated_in_transfer on a transfer probe), a keyed wrong option a
 // misconception on the claim that names it (a fail on the others), any other option a fail.
-function probeEvaluation(registry, probe, option) {
+export function probeEvaluation(registry, probe, option) {
   const pass = option === probe.key.correct, named = probe.key.misconceptions?.[option];
   const events = probe.claims.map(claim => {
     const own = !pass && !!named && registry.claims[claim].misconceptions.some(wrong => wrong.id === named);
