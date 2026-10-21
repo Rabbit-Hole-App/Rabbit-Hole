@@ -82,8 +82,8 @@ Design: `C:/s/spec/cad-controls/design.md` (owner brief and decisions 2026-10-20
   `generated`/`ai_edit`/`parameters`, and a rebuild's parameter changes; at most 20, no words) and the board block gets a
   copy. A parameter-only Accept keeps the last accepted prompt (`modelRecord`), so `acceptedResponse` still answers it.
 - **Executor capability**: `/health` lists `capabilities: ['parameters']` (`cad-execute/contract.mjs`). The control plane
-  refuses a rebuild with 409 `executor_unsupported` before creating a job when the executor does not list it, and fails a
-  retried rebuild before dispatch. Executors deployed before this change are refused; the field is additive, so the
+  refuses a rebuild with 409 `executor_unsupported` before creating a job when the executor does not list it (503
+  `executor_unavailable` when `/health` does not answer), and fails a retried rebuild before dispatch. Executors deployed before this change are refused; the field is additive, so the
   current control plane keeps working with a new executor. Size check results now carry their `axis` (`validate.py`).
 - **Review design** (`CadReview.jsx`, above the Chat composer; `canvasOps.cadReviews/cadRead/cadAction` in LearnPage):
   shown for the owner's cards in `awaiting_approval`. Original request exactly, interpreted object, parameters with

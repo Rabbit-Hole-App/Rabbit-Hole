@@ -276,6 +276,12 @@ test('CAD rebuild is refused before dispatch when the executor lacks parameter s
   assert.equal(refused.status, 409); const body = await refused.json();
   assert.equal(body.code, 'executor_unsupported'); assert.match(body.error, /cannot rebuild from parameter values.*Edit with AI/);
   assert.equal((await (await s.f.request('/api/learn/cad/jobs?app=cad-a&board=main')).json()).jobs.length, 1, 'no job was created');
+  // No answer from /health is not evidence of an old executor: a retryable 503, still before any job.
+  s.actor().instance.executorSupports = async () => null;
+  const silent = await s.post(`${s.api(base.id)}/rebuild`, { requestId: 'rb-n', expectedRevisionId: base.revisionId, values: { hole_diameter: 9 } });
+  assert.equal(silent.status, 503); assert.equal((await silent.json()).code, 'executor_unavailable');
+  assert.equal((await (await s.f.request('/api/learn/cad/jobs?app=cad-a&board=main')).json()).jobs.length, 1);
+  s.actor().instance.executorSupports = async c => s.executorCaps.includes(c);
   // A rebuild accepted by a supporting executor, then retried after the executor was replaced by an older one.
   s.executorCaps.push('parameters');
   const started = await (await s.post(`${s.api(base.id)}/rebuild`, { requestId: 'rb-s', expectedRevisionId: base.revisionId, values: { hole_diameter: 9 } })).json();

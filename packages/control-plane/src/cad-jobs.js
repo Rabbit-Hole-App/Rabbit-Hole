@@ -22,6 +22,7 @@ const secretEnv = env => ({FILE_JOB_SECRET:env.CAD_JOB_SECRET});
 const configured = env => env.CAD_JOBS && env.LEARN_DB && learnMedia(env) && (env.CAD_JOB_SECRET || '').length >= 32 &&
   (/^https:\/\//.test(env.CAD_EXECUTOR_URL || '') || env.SMALL_ENV === 'test' && /^http:\/\/(127\.0\.0\.1|localhost):/.test(env.CAD_EXECUTOR_URL || '')) && env.CAD_EXECUTOR_TOKEN;
 const CAD_REVISIONS = 20;
+const UNREACHABLE_EXECUTOR = 'The CAD executor did not answer, so nothing was sent. Try again in a moment.';
 const UNSUPPORTED_EXECUTOR = 'The CAD executor running now cannot rebuild from parameter values, so nothing was sent. Use Edit with AI (Ctrl+K) instead.';
 const discarded = job => job.rebuild && job.state === 'cancelled';
 // One accepted revision: parent, kind, and for a parameter rebuild each input that changed (label, unit, from, to).
@@ -281,9 +282,10 @@ export class CadJobs {
     return [...(await this.state.storage.list({prefix:'job:'})).values()].find(j=>j.cardId===job.cardId&&j.revisionId===model.revisionId&&!discarded(j))||job;
   }
   // Executors before cad-controls ignore `parameters` and would rebuild the old values; /health names what this one supports.
+  // true or false from its answer; null when it did not answer (a timeout or an error is not evidence of an old executor).
   async executorSupports(capability){
-    try{const response=await fetch(new URL('/health',this.env.CAD_EXECUTOR_URL),{redirect:'manual',signal:AbortSignal.timeout(20000)});const health=response.ok?await response.json():null;return Array.isArray(health?.capabilities)&&health.capabilities.includes(capability);}
-    catch{return false;}
+    try{const response=await fetch(new URL('/health',this.env.CAD_EXECUTOR_URL),{redirect:'manual',signal:AbortSignal.timeout(20000)});if(!response.ok)return null;const health=await response.json();return Array.isArray(health?.capabilities)&&health.capabilities.includes(capability);}
+    catch{return null;}
   }
   // Only Accept returns a revision's words, as the card's prompt (docs/features/card-prompt.md): read from the accepted model,
   // never from a pending job, and only on this owner-only route. Status, list and reject answers never carry them.
@@ -302,7 +304,9 @@ export class CadJobs {
     if(!model||payload.expectedRevisionId!==model.revisionId)throw cadError('The accepted model changed. Reload before editing its parameters.',409);
     const controls=model.brief?.controls,bound=model.manifest?.controls?.bindings||[];
     if(!controls||!bound.length||!model.sourceText)throw notDeterministic('This model has no parameters bound to its source, so it cannot be rebuilt deterministically. Use Edit with AI instead.');
-    if(!await this.executorSupports('parameters'))throw Object.assign(cadError(UNSUPPORTED_EXECUTOR,409),{code:'executor_unsupported'});
+    const supported=await this.executorSupports('parameters');
+    if(supported===null)throw Object.assign(cadError(UNREACHABLE_EXECUTOR,503),{code:'executor_unavailable'});
+    if(!supported)throw Object.assign(cadError(UNSUPPORTED_EXECUTOR,409),{code:'executor_unsupported'});
     const jobs=await this.state.storage.list({prefix:'job:'});
     if(jobs.size>=CAD_LIMITS.jobs)throw cadError('This canvas has reached its CAD job limit.',429);
     if([...jobs.values()].some(j=>j.cardId===job.cardId&&!j.hidden&&(!CAD_TERMINAL.has(j.state)||j.awaitingAccept)))throw cadError('This card already has a change in progress. Accept or discard it first.',409);
@@ -416,7 +420,7 @@ export class CadJobs {
       job.state='building';job.stage='building';await this.save(job);return;
     }
     if(job.dispatchAt){if(job.leaseUntil<Date.now())return this.fail(job,'The CAD executor stopped responding. Saved artifacts are retained; retry explicitly.');return;}
-    if(job.rebuild&&job.operation!=='export'&&!await this.executorSupports('parameters'))return this.fail(job,`${UNSUPPORTED_EXECUTOR} The accepted model is unchanged.`);
+    if(job.rebuild&&job.operation!=='export'){const supported=await this.executorSupports('parameters');if(supported!==true)return this.fail(job,`${supported===null?UNREACHABLE_EXECUTOR:UNSUPPORTED_EXECUTOR} The accepted model is unchanged.`);}
     const exportStep=job.operation==='export'?job.manifest.artifacts.find(a=>a.kind==='step'):null;
     const base=`${job.origin}${PREFIX}/${encodeURIComponent(job.id)}/attempts/${job.attempt}`;
     const callback=await callbackToken(secretEnv(this.env),job.id,job.attempt);
