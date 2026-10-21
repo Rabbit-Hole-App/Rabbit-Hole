@@ -926,16 +926,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // The inline AI editor (docs/features/inline-ai-editor.md): this canvas's routes - the registry's commands available
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
   const cadRequests = useRef(new Map());
-  // promptUsed: the typed line the card keeps (card-prompt.js); the inline editor's words are the prompt itself. An edit's
-  // words replace the card's prompt only when its revision is accepted (cadAction), so a rejected edit leaves the old one.
-  const cadEditWords = useRef(new Map());
+  // promptUsed: the typed line the card keeps (card-prompt.js); the inline editor's words are the prompt itself. An edit keeps
+  // none here: the server's Accept answer carries the accepted revision's words (cad-jobs.js acceptedResponse), on the card's
+  // Accept, the inline editor's and after a reload alike; a rejected edit leaves the old prompt.
   const startCad = async (prompt, { context = null, cardId = null, baseRevisionId = null, promptUsed = prompt } = {}) => {
     if (!prompt.trim()) throw new Error('What would you like to create? Include dimensions or explain its purpose.');
     const destination = canvasApi.current;
     const payload={prompt,cardId,context:context || destination?.cadContext(prompt,askTarget?.id) || null,...(baseRevisionId?{baseRevisionId}:{})};
     const key=JSON.stringify({app:app.name,board:boardName,...payload});
     const result=await submitCadOnce(cadRequests.current,key,cadClient(api,app.name,boardName).start,payload);
-    if (cardId && result.job?.id) cadEditWords.current.set(result.job.id, promptUsed);
     destination?.reconcileCad(cardId ? result.block : withPrompt(result.block, promptUsed));
     return result;
   };
@@ -983,9 +982,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     cadAction: async (id,action,body) => {
       const destination=canvasApi.current;
       const result=await cadClient(api,app.name,boardName).action(id,action,body);
-      const words=action==='accept'?cadEditWords.current.get(id):null;
-      if(action==='accept')cadEditWords.current.delete(id);
-      destination?.reconcileCad(words?withPrompt(result.block,words):result.block);
+      destination?.reconcileCad(result.block);
       return result;
     },
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),

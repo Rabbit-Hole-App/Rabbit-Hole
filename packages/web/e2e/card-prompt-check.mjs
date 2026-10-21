@@ -7,10 +7,12 @@
 //   4. the chat icon puts the line in the Chat box and sends nothing;
 //   5. /cad (Generate) makes a CAD card whose row holds its typed line, kept while the job is polled;
 //   6. a CAD edit that is rejected leaves the line; an accepted edit's words replace it;
-//   7. a corner resize keeps the height the card had at release (the rows under the body are not added twice);
-//   8. the server's board holds both prompts; a card made before this (no prompt) has no row; a chat card's row is its question;
-//   9. a fresh browser shows both rows again, closed;
-//  10. a share-link viewer sees the row with Copy and no chat icon.
+//   7. the same through the CAD card's own Accept and Reject, and an Accept after a reload: the words come from the server's
+//      Accept answer (as the real service: status and list never carry them), and the board never holds a pending edit's;
+//   8. a corner resize keeps the height the card had at release (the rows under the body are not added twice);
+//   9. the server's board holds both prompts; a card made before this (no prompt) has no row; a chat card's row is its question;
+//  10. a fresh browser shows both rows again, closed;
+//  11. a share-link viewer sees the row with Copy and no chat icon, and only the accepted CAD prompt while an edit waits.
 // Before this change step 1 fails: no card has a Prompt row.
 // Usage: BASE=http://127.0.0.1:9121 SMALL_CP=http://127.0.0.1:9123 VARS=<cp .dev.vars> node e2e/card-prompt-check.mjs [shotsDir]
 //   or CLONE=1 BASE=https://rabbit-hole-web-dev-card-prompt.tryrabbithole.workers.dev SMALL_CP=https://rabbit-hole-cp-dev.tryrabbithole.workers.dev VARS=<file with the dev TEST_BYPASS_SECRET>
@@ -50,10 +52,12 @@ const EXPLAIN_LINE = '/explain why a token id is only an index';
 const CAD_LINE = '/cad a 40 mm mounting bracket with two holes';
 const EXPLAIN = { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a learned vector.' };
 const EDIT_WORDS = 'Make the holes 6 mm', REJECTED_WORDS = 'Make it out of glass';
+const CARD_WORDS = 'Round the outer corners', RELOAD_WORDS = 'Add a 2 mm chamfer', CARD_REJECT = 'Make it twice as tall', PENDING_WORDS = 'Engrave a logo';
 const manifest = revisionId => ({ schema: 'cad-model/1', revisionId, title: 'Mounting bracket', units: 'mm', parameters: { length: 40 }, assumptions: ['Fixture.'], validation: { baselinePassed: true, checks: [], unchecked: [] }, artifacts: [] });
 let cadBlock = { type: 'cad', id: 'cad-prompt', jobId: 'cad-job', modelId: 'cad-model', revisionId: null, status: 'queued', title: 'Mounting bracket', units: 'mm', briefSummary: 'Fixture.' };
 const cadJobs = { 'cad-job': { id: 'cad-job', cardId: 'cad-prompt', modelId: 'cad-model', state: 'queued', stage: 'queued', attempt: 1, createdAt: Date.now(), updatedAt: Date.now() } };
 let edits = 0;
+const jobWords = {}, accepts = [];
 // The CAD service, scripted: a first job, then edit jobs that wait for Accept; Reject (cancel) and Accept settle them.
 const cadReply = (request, url) => {
   const body = request.method() === 'POST' ? request.postDataJSON() || {} : null;
@@ -61,12 +65,19 @@ const cadReply = (request, url) => {
   if (request.method() === 'POST' && url.pathname === '/api/learn/cad/jobs' && body.cardId) {
     const id = `cad-edit-${++edits}`, revisionId = `revision-${edits + 1}`;
     cadJobs[id] = { id, cardId: cadBlock.id, modelId: 'cad-model', state: 'ready', stage: 'ready', attempt: 1, baseRevisionId: cadBlock.revisionId, revisionId, awaitingAccept: true, manifest: manifest(revisionId), createdAt: Date.now(), updatedAt: Date.now() };
+    jobWords[id] = body.prompt; // private to the job, as the service keeps it: never in a job or block answer
     cadBlock = { ...cadBlock, jobId: id, proposedRevisionId: revisionId };
     return { job: cadJobs[id], block: cadBlock };
   }
   const [, id, action] = url.pathname.match(/^\/api\/learn\/cad\/jobs\/([^/]+)(?:\/(\w+))?$/) || [];
   if (action === 'cancel') { cadJobs[id] = { ...cadJobs[id], state: 'cancelled', awaitingAccept: false }; const { proposedRevisionId, ...rest } = cadBlock; cadBlock = rest; }
-  if (action === 'accept') { const job = cadJobs[id]; cadJobs[id] = { ...job, awaitingAccept: false }; const { proposedRevisionId, ...rest } = cadBlock; cadBlock = { ...rest, revisionId: job.revisionId, manifest: job.manifest, acceptedManifest: job.manifest }; }
+  if (action === 'accept') {
+    const job = cadJobs[id];
+    if (job.awaitingAccept) { cadJobs[id] = { ...job, awaitingAccept: false }; const { proposedRevisionId, ...rest } = cadBlock; cadBlock = { ...rest, revisionId: job.revisionId, manifest: job.manifest, acceptedManifest: job.manifest }; }
+    // As cad-jobs.js acceptedResponse: only Accept answers the accepted revision's words, and a repeat answers the same.
+    accepts.push(id);
+    return { job: cadJobs[id], block: { ...cadBlock, promptUsed: jobWords[id] } };
+  }
   if (id) return { job: cadJobs[id], block: cadBlock };
   return request.method() === 'GET' ? { jobs: Object.values(cadJobs), blocks: [cadBlock] } : { job: cadJobs['cad-job'], block: cadBlock };
 };
@@ -84,7 +95,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 10;
+const total = 11;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); }
@@ -183,6 +194,35 @@ await step('a rejected CAD edit leaves the typed line; an accepted edit replaces
   assert.deepEqual(cadStarts.filter(c => c.path === '/api/learn/cad/jobs').map(c => c.prompt), ['a 40 mm mounting bracket with two holes', REJECTED_WORDS, EDIT_WORDS]);
 });
 
+const cadAction = name => page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-action="${name}"]`);
+const closeEditor = async () => { await page.locator('[data-inline-ai] [data-inline-close]').click(); await until(async () => (await page.locator('[data-inline-ai]').count()) === 0, 'the editor stayed open'); };
+const awaiting = () => until(async () => !!cadBlock.proposedRevisionId && (await cadAction('accept').isVisible()), 'the card never offered Accept');
+await step('the card Accept, an Accept after a reload and the card Reject: the accepted revision words, from the server', async () => {
+  await editCad(CARD_WORDS);
+  await closeEditor();
+  await awaiting();
+  await cadAction('accept').click();
+  await until(async () => (await cadText()) === CARD_WORDS, 'the card Accept did not take the accepted words');
+  await editCad(RELOAD_WORDS);
+  await closeEditor();
+  await page.waitForTimeout(2500); // the board saves; it must not hold a pending edit's words
+  assert.ok(!JSON.stringify(await board()).includes(RELOAD_WORDS), 'the board holds no pending edit words');
+  await page.reload();
+  await rowOf(page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  assert.equal(await cadText(), CARD_WORDS, 'after a reload the card still shows the accepted prompt');
+  await awaiting();
+  await cadAction('accept').click();
+  await until(async () => (await cadText()) === RELOAD_WORDS, 'an Accept after a reload did not take the accepted words');
+  await editCad(CARD_REJECT);
+  await closeEditor();
+  await awaiting();
+  await page.locator(`[data-block-id="${cadBlock.id}"]`).getByRole('button', { name: 'Reject', exact: true }).click();
+  await until(async () => !cadBlock.proposedRevisionId, 'the card Reject did not reject');
+  await page.waitForTimeout(3000);
+  assert.equal(await cadText(), RELOAD_WORDS, 'a card Reject keeps the accepted prompt');
+  assert.ok(accepts.length >= 3, `three accepts reached the service (${accepts.length})`);
+});
+
 await step('a corner resize keeps the height the card had at release', async () => {
   const card = page.locator(`[data-block-id="${explainId}"]`);
   await card.hover();
@@ -199,7 +239,7 @@ await step('a corner resize keeps the height the card had at release', async () 
 });
 
 await step('the server board holds both prompts; the older card has no row; the chat card row is its question', async () => {
-  await until(async () => { const state = await board(); return state.blocks.find(b => b.id === explainId)?.promptUsed === EXPLAIN_LINE && state.blocks.find(b => b.id === cadBlock.id)?.promptUsed === EDIT_WORDS; }, 'the saved board lacks the prompts', 20000);
+  await until(async () => { const state = await board(); return state.blocks.find(b => b.id === explainId)?.promptUsed === EXPLAIN_LINE && state.blocks.find(b => b.id === cadBlock.id)?.promptUsed === RELOAD_WORDS; }, 'the saved board lacks the prompts', 20000);
   assert.ok(!Object.hasOwn((await board()).blocks.find(b => b.id === OLD.id), 'promptUsed'));
   assert.equal(await rowOf(page, OLD.id).count(), 0);
   const chatRow = page.locator(`[data-block-id="${CHAT.id}"] [data-card-prompt]`);
@@ -218,20 +258,30 @@ await step('a fresh browser shows both rows again, closed', async () => {
   await rowOf(second.page, explainId).locator('[data-card-prompt-toggle]').click();
   assert.equal(await rowOf(second.page, explainId).locator('[data-card-prompt-text]').innerText(), EXPLAIN_LINE);
   await rowOf(second.page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
-  assert.equal(await rowOf(second.page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), EDIT_WORDS);
+  assert.equal(await rowOf(second.page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), RELOAD_WORDS);
+  // An edit left waiting for Accept while the canvas is shared next.
+  page = second.page;
+  await editCad(PENDING_WORDS);
+  await closeEditor();
+  await awaiting();
+  await page.waitForTimeout(2500);
 });
-await second.context.close();
 
 const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: await board() }) });
 const viewer = await open({ signedIn: false, path: `/b/${shared.sharing.view}` });
-await step('a share-link viewer sees the row with Copy and no chat icon', async () => {
+await step('a share-link viewer sees the row with Copy and no chat icon, and only the accepted CAD prompt', async () => {
   await rowOf(viewer.page, explainId).waitFor({ timeout: 60000 });
   assert.equal(await rowOf(viewer.page, explainId).locator('[data-card-prompt-copy]').count(), 1);
   assert.equal(await rowOf(viewer.page, explainId).locator('[data-card-prompt-chat]').count(), 0);
   await rowOf(viewer.page, explainId).locator('[data-card-prompt-toggle]').click();
   assert.equal(await rowOf(viewer.page, explainId).locator('[data-card-prompt-text]').innerText(), EXPLAIN_LINE);
+  await rowOf(viewer.page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  assert.equal(await rowOf(viewer.page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), RELOAD_WORDS, 'the viewer sees the accepted CAD prompt');
+  const seen = JSON.stringify(await board()) + await viewer.page.content();
+  for (const words of [PENDING_WORDS, CARD_REJECT, REJECTED_WORDS]) assert.ok(!seen.includes(words), `"${words}" (never accepted) reaches neither the board nor the viewer`);
   await viewer.page.screenshot({ path: `${OUT}/8-shared.png` });
 });
+await second.context.close();
 await browser.close();
 
 const passed = results.filter(Boolean).length;

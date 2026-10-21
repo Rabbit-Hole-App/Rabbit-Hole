@@ -187,8 +187,11 @@ export class CadJobs {
     }
     if(action==='accept'){
       const current=await this.accepted(job);
+      // A second Accept of the revision already accepted (the card and the inline editor, or a retried request) answers the
+      // same result instead of a conflict, and changes nothing.
+      if(!job.awaitingAccept && job.state==='ready' && current?.revisionId===job.revisionId && [job.baseRevisionId,job.revisionId].includes(payload.expectedRevisionId))return this.acceptedResponse(job,current);
       if(!job.awaitingAccept || job.state!=='ready' || !current || payload.expectedRevisionId!==current.revisionId || job.baseRevisionId!==current.revisionId)throw cadError('The accepted model changed. This preview cannot replace it.',409);
-      await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));job.awaitingAccept=false;await this.save(job);return this.response(job);
+      await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));job.awaitingAccept=false;await this.save(job);return this.acceptedResponse(job,await this.accepted(job));
     }
     if(action==='clarify'){
       if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
@@ -226,7 +229,15 @@ export class CadJobs {
     }
     throw cadError('Unknown CAD action',404);
   }
-  modelRecord(job){return {modelId:job.modelId,cardId:job.cardId,revisionId:job.revisionId,manifest:job.manifest,brief:job.brief,sourceText:job.sourceText};}
+  // The accepted model keeps the words of the job that made its revision (prompt), private to the owner's job storage.
+  modelRecord(job){return {modelId:job.modelId,cardId:job.cardId,revisionId:job.revisionId,manifest:job.manifest,brief:job.brief,sourceText:job.sourceText,prompt:job.prompt};}
+  // Only Accept returns a revision's words, as the card's prompt (docs/features/card-prompt.md): read from the accepted model,
+  // never from a pending job, and only on this owner-only route. Status, list and reject answers never carry them.
+  acceptedResponse(job,model){
+    const body=reply(job,model);
+    const words=typeof model?.prompt==='string'?model.prompt.trim().slice(0,8000):'';
+    return cadJson(words?{...body,block:{...body.block,promptUsed:words}}:body);
+  }
   async executor(path,body){return fetch(new URL(path,this.env.CAD_EXECUTOR_URL),{method:'POST',headers:{Authorization:`Bearer ${this.env.CAD_EXECUTOR_TOKEN}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});}
   async fail(job,message){
     if(job.failureAttempt!==job.attempt)recordCadFailure(job,{},this.env);

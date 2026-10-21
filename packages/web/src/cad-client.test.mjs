@@ -43,3 +43,14 @@ test('a lost response retries the same identity; concurrent sends share one subm
 });
 
 test("pending CAD cards have no artifacts before their manifest exists", () => { assert.equal(cadArtifact(null, "glb"), null); assert.equal(cadArtifact(undefined, "thumbnail"), null); });
+// docs/features/card-prompt.md: the card keeps its prompt through status polls (they carry none), and the server's Accept
+// answer (promptUsed: the accepted revision's words) replaces it, whichever button accepted.
+test('a polled status keeps the card prompt; the Accept answer replaces it with the accepted words', () => {
+ const card={type:'cad',id:'card',revisionId:'r1',promptUsed:'/cad make a 20 mm plate'};
+ const polled=mergeCadBlock(card,{type:'cad',id:'card',jobId:'edit',baseRevisionId:'r1',revisionId:'r2',awaitingAccept:true,status:'ready'});
+ assert.equal(polled.promptUsed,'/cad make a 20 mm plate');
+ const accepted=mergeCadBlock(polled,{type:'cad',id:'card',jobId:'edit',revisionId:'r2',status:'ready',promptUsed:'add two mounting holes'});
+ assert.equal(accepted.promptUsed,'add two mounting holes');
+ const rejected=mergeCadBlock(polled,{type:'cad',id:'card',jobId:'edit',revisionId:'r1',status:'cancelled'});
+ assert.equal(rejected.promptUsed,'/cad make a 20 mm plate');
+});

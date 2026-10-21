@@ -38,7 +38,7 @@ image cards), and shared asks and Rabbit Hole titles read them, so this field ha
 | How the card is made | Prompt kept | Code |
 |---|---|---|
 | A / command in the Chat box or dock (`/explain …`, `/quiz …`, paid proposals after Generate, `/motion`) | The typed line, command included | `learn-slash.js` `runLearnCommand` |
-| `/cad` from Chat, and CAD from Ctrl+K | The typed line (Chat) or the editor's words (Ctrl+K). A CAD edit's words replace it only when its revision is accepted. A rejected edit leaves the old prompt | `LearnPage.jsx` `startCad`, `cadAction` |
+| `/cad` from Chat, and CAD from Ctrl+K | The typed line (Chat) or the editor's words (Ctrl+K). A CAD edit's words replace it only when its revision is accepted, on any Accept (the card's, the inline editor's, after a reload): the server's Accept answer carries the accepted model's words (`cad-jobs.js` `acceptedResponse`, owner-only). Status, list and reject answers never carry them, a repeated Accept answers the same, and a rejected edit leaves the old prompt | `LearnPage.jsx` `startCad`, `cad-jobs.js` |
 | Tutor `create_material` | The learner's message for that turn, not the model-written command line. A Next Steps hook click typed nothing, so its cards keep none | `LearnTutor.jsx`, `runMaterials` |
 | Ctrl+K card result | The words typed into the editor (`frozen.words`) | `inline-ai-apply.js` `cardTx` |
 | Journey section steps, including a paid step after Generate | The words that started the journey (`journey.request.raw_user_message`). The section heading keeps none | `learn-journey-materialize.js` |
@@ -54,8 +54,8 @@ A copied, duplicated or Alt-dragged card keeps its prompt. A fork keeps it.
   outline headings, the notebook from an answer's code, and imports, drops, pastes, menus and Rabbit Hole seed copies.
 - **Separate renderers:** cards drawn by their own card component get no row (video moments, wiki, file, PDF, notebook,
   code, graph, canvas reference, heading, divider, slide).
-- **CAD recovery:** a CAD card rebuilt from the job list (the card was missing from the board) has no prompt, because the
-  server's CAD block does not carry the job's prompt.
+- **CAD recovery:** a CAD card rebuilt from the job list (the card was missing from the board) has no prompt. Only an
+  Accept answer carries one.
 
 ## Verification (2026-10-20)
 

@@ -213,6 +213,42 @@ test('CAD: synthetic artifacts publish once and accepted edit rejects a stale se
   assert.equal(stale.status,409);
 });
 
+// docs/features/card-prompt.md: the card's Prompt row shows the words of the accepted revision. Only Accept answers them
+// (to the owner), read from the accepted model; status, list and reject answers never carry a pending edit's words, so a
+// card Accept, an inline Accept and an Accept after a reload all get them from the server, and a repeated Accept changes nothing.
+test('CAD: Accept returns the accepted revision words as the card prompt; status, list and reject never carry an edit words', async t => {
+  const f=await setup(t,{CAD_TEST_MODEL:fakeModel}),initial=await (await submit(f)).json();
+  const original=await finishWithSyntheticArtifacts(f,initial.job.id);
+  const HOLES='add two mounting holes',GLASS='make it out of glass';
+  const read=async path=>JSON.stringify(await (await f.request(path)).json());
+  const unleaked=async (edit,words)=>{
+    for(const text of [JSON.stringify(edit),await read(`/api/learn/cad/jobs/${edit.job.id}`),await read('/api/learn/cad/jobs?app=cad-a&board=main')])
+      assert.ok(!text.includes(words)&&!text.includes('promptUsed'),'a pending edit\'s words never leave the job');
+  };
+  // One active job per card: the rejected edit first, then the one accepted.
+  const glass=await (await submit(f,request({requestId:'edit-glass',baseRevisionId:original.block.revisionId,prompt:GLASS}))).json();
+  await finishWithSyntheticArtifacts(f,glass.job.id);await unleaked(glass,GLASS);
+  const rejected=await (await f.request(`/api/learn/cad/jobs/${glass.job.id}/cancel`,{method:'POST'})).json();
+  assert.ok(!JSON.stringify(rejected).includes(GLASS)&&!('promptUsed' in rejected.block),'a rejected edit gives the card no prompt');
+  const holes=await (await submit(f,request({requestId:'edit-holes',baseRevisionId:original.block.revisionId,prompt:HOLES}))).json();
+  await finishWithSyntheticArtifacts(f,holes.job.id);await unleaked(holes,HOLES);
+  const accept=body=>f.request(`/api/learn/cad/jobs/${holes.job.id}/accept`,{method:'POST',body});
+  const accepted=await accept({expectedRevisionId:original.block.revisionId});
+  assert.equal(accepted.status,200);
+  const first=await accepted.json();
+  assert.equal(first.block.promptUsed,HOLES);
+  assert.ok(!('prompt' in first.job),'the job status still holds no prompt');
+  for(const expectedRevisionId of [original.block.revisionId,first.block.revisionId]){
+    const again=await accept({expectedRevisionId});
+    assert.equal(again.status,200,'a repeated Accept (the other button, a retry) is the same answer, not a conflict');
+    const body=await again.json();
+    assert.equal(body.block.promptUsed,HOLES);assert.equal(body.block.revisionId,first.block.revisionId);
+  }
+  assert.ok(!(await read(`/api/learn/cad/jobs/${holes.job.id}`)).includes(HOLES),'status after Accept still carries no words');
+  const glassLate=await f.request(`/api/learn/cad/jobs/${glass.job.id}/accept`,{method:'POST',body:{expectedRevisionId:original.block.revisionId}});
+  assert.equal(glassLate.status,409,'a rejected edit cannot be accepted');
+});
+
 test('CAD: rejecting a ready edit clears the proposal and keeps the accepted revision usable', async t => {
   const f=await setup(t,{CAD_TEST_MODEL:fakeModel}),initial=await (await submit(f)).json();
   const original=await finishWithSyntheticArtifacts(f,initial.job.id);
