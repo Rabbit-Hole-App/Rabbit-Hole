@@ -1269,7 +1269,8 @@ function SceneBody({ block, appName, onChange }) {
     setError(''); setConfirming(false);
     onChange({ ...current, status: 'queued' });
     try {
-      const { placementId } = await startScene(appName, current.operation, { confirmed: true });
+      // Retry scene: the server renders a failed scene again only on an explicit retry.
+      const { placementId } = await startScene(appName, current.operation, { confirmed: true, retry: current.status === 'failed' });
       follow(placementId);
     } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
