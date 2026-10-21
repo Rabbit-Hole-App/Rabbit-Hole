@@ -8,17 +8,21 @@ import subprocess
 import sys
 import tempfile
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import time
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RUNNER = os.path.join(HERE, "..", "..", "..", "..", "packages", "runtime", "runner.py")
-PORT = 18081
 
+# Stays alive until the test server has a periodic batch (the runner flushes each second), however loaded the machine is:
+# a fixed sleep let the job end before the first flush on a busy one. The 15 s cap only bounds a runner that never flushes.
 JOB = """
-import sys, time
+import os, sys, time
 print("line one")
 print("line two")
-time.sleep(1.2)
+deadline = time.time() + 15
+while not os.path.exists(os.environ["BATCH_SEEN"]) and time.time() < deadline:
+    time.sleep(0.05)
 print("boom", file=sys.stderr)
 sys.exit(3)
 """
@@ -29,7 +33,10 @@ posts = []
 class H(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
-        posts.append((self.path, self.headers.get("Authorization"), json.loads(self.rfile.read(n))))
+        batch = json.loads(self.rfile.read(n))
+        posts.append((self.path, self.headers.get("Authorization"), batch))
+        if "exitCode" not in batch:
+            open(self.seen, "w").close()  # a periodic batch has arrived: the job may finish
         body = b'{"ok": true}'
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))
@@ -41,17 +48,23 @@ class H(BaseHTTPRequestHandler):
 
 
 def main():
-    server = HTTPServer(("127.0.0.1", PORT), H)
+    # Port 0: the OS picks a free port. A fixed one is not refused when another process (a second session's test run) holds
+    # it - on Windows HTTPServer's SO_REUSEADDR lets both bind and the first one gets the runner's batches.
+    server = HTTPServer(("127.0.0.1", 0), H)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     job_path = os.path.join(HERE, "_job.py")
+    H.seen = job_path + ".seen"
+    if os.path.exists(H.seen):
+        os.remove(H.seen)
     with open(job_path, "w") as f:
         f.write(JOB)
     env = dict(
         os.environ,
-        SMALL_API=f"http://127.0.0.1:{PORT}",
+        SMALL_API=f"http://127.0.0.1:{server.server_address[1]}",
         SMALL_RUN_ID="r-test01",
         SMALL_RUN_TOKEN="tok123",
         PYTHONUNBUFFERED="1",
+        BATCH_SEEN=H.seen,
     )
     try:
         r = subprocess.run([sys.executable, RUNNER, sys.executable, job_path], env=env, timeout=30)
@@ -70,7 +83,10 @@ def main():
         assert len(posts) >= 2, f"expected batched streaming, got a single post: {posts}"
     finally:
         server.shutdown()
+        server.server_close()
         os.remove(job_path)
+        if os.path.exists(H.seen):
+            os.remove(H.seen)
     print("runner: all checks pass")
 
 
@@ -78,7 +94,62 @@ def test_runner():
     main()
 
 
-IO_PORT = 18381
+# A batch still in flight when the job exits (slow network or control plane) must land before the exit-code batch, never
+# after it and never cut off by the runner exiting: a run log read back out of order, or missing its first lines.
+def main_slow_first_post():
+    got = []
+    seen = os.path.join(HERE, "_slow_job.py.seen")
+
+    class Slow(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+            if "exitCode" not in body:
+                open(seen, "w").close()  # the job exits now,
+                time.sleep(1.5)  # while this periodic batch is still being answered
+            got.append(body)  # recorded on completion: the order the control plane applies them in
+            reply = b'{"ok": true}'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(reply)))
+            self.end_headers()
+            self.wfile.write(reply)
+
+        def log_message(self, *a):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Slow)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    job_path = os.path.join(HERE, "_slow_job.py")
+    if os.path.exists(seen):
+        os.remove(seen)
+    with open(job_path, "w") as f:
+        f.write(JOB)
+    env = dict(
+        os.environ,
+        SMALL_API=f"http://127.0.0.1:{server.server_address[1]}",
+        SMALL_RUN_ID="r-slow1",
+        SMALL_RUN_TOKEN="tok-slow",
+        PYTHONUNBUFFERED="1",
+        BATCH_SEEN=seen,
+    )
+    try:
+        r = subprocess.run([sys.executable, RUNNER, sys.executable, job_path], env=env, timeout=30)
+        assert r.returncode == 3, f"runner exit: want 3 got {r.returncode}"
+        lines = [l for body in got for l in body.get("lines", [])]
+        job_lines = [l for l in lines if not l.startswith("runner:")]
+        assert job_lines == ["line one", "line two", "boom"], f"lines wrong/misordered/missing: {lines}"
+        assert got[-1].get("exitCode") == 3, f"exit-code batch was not last: {got}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        os.remove(job_path)
+        if os.path.exists(seen):
+            os.remove(seen)
+    print("runner slow first post: all checks pass")
+
+
+def test_runner_slow_first_post_keeps_order():
+    main_slow_first_post()
+
 
 IO_JOB = """
 import json, os, sys
@@ -126,7 +197,7 @@ def main_io():
         def log_message(self, *a):
             pass
 
-    server = HTTPServer(("127.0.0.1", IO_PORT), IO)
+    server = HTTPServer(("127.0.0.1", 0), IO)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     job_path = os.path.join(HERE, "_io_job.py")
     with open(job_path, "w") as f:
@@ -134,7 +205,7 @@ def main_io():
     with tempfile.TemporaryDirectory() as tmp:
         env = dict(
             os.environ,
-            SMALL_API=f"http://127.0.0.1:{IO_PORT}",
+            SMALL_API=f"http://127.0.0.1:{server.server_address[1]}",
             SMALL_RUN_ID="r-io1",
             SMALL_RUN_TOKEN="tok-io",
             SMALL_INPUTS=os.path.join(tmp, "in"),
@@ -154,6 +225,7 @@ def main_io():
             assert written["image"].endswith("image.jpg") and os.path.exists(written["image"]), written
         finally:
             server.shutdown()
+            server.server_close()
             os.remove(job_path)
 
     names = {e[1] for e in events if e[0] == "output"}
@@ -173,4 +245,5 @@ def test_runner_inputs_outputs():
 
 if __name__ == "__main__":
     main()
+    main_slow_first_post()
     main_io()

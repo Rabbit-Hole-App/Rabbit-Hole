@@ -26,6 +26,9 @@ OUTPUTS_DIR = os.environ.get("SMALL_OUTPUTS") or os.path.join(tempfile.gettempdi
 
 _buf = []
 _lock = threading.Lock()
+# One flush at a time, pop through POST: the exit-code flush waits for a periodic flush still in flight (or retrying) instead
+# of overtaking it and ending the process under it, so lines arrive in order and none are lost at exit.
+_flush_lock = threading.Lock()
 
 
 def _post(payload):
@@ -54,13 +57,14 @@ def _post(payload):
 
 
 def _flush(exit_code=None):
-    with _lock:
-        lines, _buf[:] = _buf[:], []
-    if lines or exit_code is not None:
-        payload = {"lines": lines}
-        if exit_code is not None:
-            payload["exitCode"] = exit_code
-        _post(payload)
+    with _flush_lock:
+        with _lock:
+            lines, _buf[:] = _buf[:], []
+        if lines or exit_code is not None:
+            payload = {"lines": lines}
+            if exit_code is not None:
+                payload["exitCode"] = exit_code
+            _post(payload)
 
 
 def _reader(stream):
