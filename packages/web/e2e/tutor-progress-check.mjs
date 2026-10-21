@@ -77,7 +77,14 @@ await check('the Progress icon in the Chat header opens Progress left of Chat; t
   assert.equal(await icon().getAttribute('title'), 'Progress');
   await icon().click();
   await progress().locator('[data-progress-count]').waitFor({ timeout: 10000 });
-  const pane = await box(progress()), chat = await box(chatPane()), card = await box(page.locator(`[data-block-id="${CARD.id}"]`).first());
+  // The companion column slides in: read the layout once it has settled, bounded (measured mid-slide under load it overlapped
+  // Chat by 42 px, then settled at x 820 within 1.5 s; int-fix-report.md).
+  let pane, chat, card;
+  for (let i = 0; i < 20; i++) {
+    [pane, chat, card] = [await box(progress()), await box(chatPane()), await box(page.locator(`[data-block-id="${CARD.id}"]`).first())];
+    if (pane.x + pane.width <= chat.x + 2) break;
+    await settle(250);
+  }
   assert.ok(pane.width > 200 && chat.width > 200, 'both panes visible');
   assert.ok(card.x < pane.x && pane.x + pane.width <= chat.x + 2, 'Canvas, then Progress, then Chat');
   assert.equal(await field().inputValue(), 'my own words, unsent', 'the draft is kept');
