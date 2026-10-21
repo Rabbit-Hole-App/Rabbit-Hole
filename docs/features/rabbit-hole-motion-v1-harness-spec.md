@@ -1,6 +1,7 @@
 # Rabbit Hole `/motion` V1 — Motion Explainer Harness Specification
 
 **Audience:** Parallel / Rabbit Hole engineering agents  
+**`/motion` status (owner correction, 2026-10-21): development milestones complete; production activation in progress (activation commit: /motion on in the production build, orchestrator configured).** Production `/motion` generation does not work yet and must not be described as available. What still stands between today and a usable production `/motion` is the activation work and its owner gates: audit `C:/s/spec/day-1021/motion-prod-audit.md`, activation lane `feature/motion-activation` (§26 M9).  
 **Status:** AUTHORIZED FOR DEVELOPMENT HARNESS ONLY (owner decision, 2026-10-03). See §0.1 for exactly what is and is not authorized.  
 **Primary goal:** Turn a short learner request such as `/motion explain me softmax func` into a source-grounded, deterministic, 5–30 second technical motion explainer that is actually useful for learning.
 
@@ -394,6 +395,24 @@ After the target is resolved, build the smallest evidence pack that grounds the 
 - Tutor claim/evidence registry only when useful and privacy-safe
 
 Do not dump an entire repository or canvas into any prompt.
+
+**What reaches the resolver, and requests with no source (owner, 2026-10-21, messages 7 item 4 and 11 item 5).** A
+`/motion` request carries the learner's selected card as `motion_request.context.selection` = `{ cardId, kind, title?,
+text, sourceRefs? }` (`packages/control-plane/src/motion-context.js`; text at most 4,000 characters of plain card text).
+No repository is assumed: the pinned nanoGPT source is used only when the canvas supplies it (the harness `source`, or a
+selected repository card, kind `repo-code`, whose `sourceRefs` point at the pinned commit).
+- A selected card grounds the request on its own text when the request points at it ("explain this", a bare `/motion
+  15s`) or names something the card mentions.
+- A selected repository card grounds only on its own lines (no other branch side, definition or condition outside them).
+  If those lines cannot be read here, or do not show the named target, the request is **refused** with one question: it
+  is never answered as if it came from that code, and the rest of the repository is never searched.
+- Otherwise the request is resolved from its words alone and is **ungrounded**: `resolved_target.resolution` is
+  `ungrounded`, and the brief carries the explicit state `grounding: { status: no_source_supplied }`, or `not_in_source`
+  with what was searched (a supplied card or repository that does not mention the target). An ungrounded brief cites
+  nothing (no source refs, no evidence, claims with empty `source_ref_ids`), names no code identifier, and its video card
+  says "Not grounded in a source" (or "Not grounded in <what was searched>").
+- Repository refs that do not come from a repository card's own `sourceRefs` are refused at every validator (Worker,
+  orchestrator, resolver).
 
 **Implementation conditions are first-class evidence.** When the source has branches that decide which code actually runs, the resolver/grounding step must find them, and the MotionBrief must record them in `implementation_conditions`. Claims that depend on a branch reference that condition.
 
@@ -1851,16 +1870,15 @@ cheap planning (brief + storyboard)
 → expensive final render
 ```
 
-**Current reality.** The only paid-generation primitives that exist are the confirmation gate and the proposal:
+**Current reality (updated 2026-10-21, Motion activation, `feature/motion-activation`).** The earlier text here said reserve and settle did not exist and that Motion waited for Usage & Credits. That is outdated: the shared spend system exists and enforces each learner's monthly AI allowance (`admitSpend` / `settleSpend` in `packages/control-plane/src/learn-spend-ledger.js`, owner L12 2026-10-20, in production). Motion uses it; it has no ledger of its own.
 
-- `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) answers HTTP 428 `needsConfirm` unless the request carries `confirmed: true`, set only by an explicit Generate press. LearnVideos already runs it before every submission.
-- a paid `/` command returns a `paid_proposal` (currently with `estimatedCost: null`) that the composer confirms.
-
-Quote → reserve → settle is **not implemented**. It belongs to the future Usage & Credits work (paused).
-
-**Motion V1 development harness:** no production billing is required. Development runs still go through the existing confirmation gate, so nothing paid starts because a learner typed a question.
-
-**Paid production rendering is deferred** until Usage & Credits exists. Then the production flow is: quote → explicit user confirmation → reserve → render → settle. M9 depends on it.
+- **Confirmation.** `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) answers HTTP 428 `needsConfirm` unless the request carries `confirmed: true`, set only by an explicit Generate press. No price quote is shown (house rule: never show a guessed amount).
+- **Model spending is a hold, never a flat charge** (owner items 1 and 6, 2026-10-21). Before anything starts, LearnVideos admits one hold per attempt against the learner's allowance and the platform daily cap, in one D1 transaction (`admitSpend`, category `motion`, feature `video`). The hold is `MOTION_JOB_RESERVATION_USD` (configurable; $2 in the mocked tests) minus what earlier attempts of the same video used, so repairs and explicit retries share one ceiling. A refusal (exhausted, insufficient or reserved allowance; no hold configured; no orchestrator) starts nothing: zero orchestrator, model and renderer calls.
+- **Every paid step fits the hold before it starts.** The worker sends the hold to the orchestrator as a grant signed with the orchestrator token, keyed by the admission's id (the idempotency key). The orchestrator checks each model call's worst case (`requestSpendBound`: the request's bytes plus its `max_tokens` at the model's price) against what is left: finished calls at their real cost (or their bound when unreadable), calls in flight at their bound. A call that does not fit, a repair included, is never sent; the job stops with that reason.
+- **The production execution policy** (owner message 16, `orchestrator.mjs PRODUCTION_POLICY`): per job, one Director brief, two storyboard calls (the first pass and its one revision), two Author calls (the first pass and its one repair) and four reviews (two reviewers, two passes): 9 calls, each with a `max_tokens`, request-size and image cap. No schema re-ask and no identical resend: a malformed answer or a broken stream fails the job with its reason, and the learner may retry inside the same ceiling. Anything outside the policy is refused before it is sent. The policy's enforced worst case, every allowed call at its caps, is **$8.9586** (`policyHoldMicros`), so a hold of $8.96 never refuses a call the policy allows; `orchestrator.test.mjs` proves it, and that one micro-dollar less refuses the last call. The $2 used in mocked tests is a TEST reservation.
+- **Settle actual, release the rest.** When the job ends and no call is in flight, the worker settles the attempt once with the orchestrator's real total; the unused part of the hold is released. When any call's cost is unknown (an orchestrator restart mid-call), the hold stays as unknown cost, as the spend system does for every provider, and counts against the video's ceiling.
+- **Rendering is platform-funded** (owner decision C, 2026-10-21): each render the orchestrator requests is recorded once under feature `render` (charge class free, attributed to the learner, cost unknown) and never touches the allowance. Its limits are the render service's (420 s per render, one render per machine, the cgroup limits), the orchestrator's (one job at a time, the per-job runtime bound) and the fixed machine pool.
+- **Development runs** go through the same path on the local Motion stack.
 
 ---
 
@@ -1880,7 +1898,7 @@ Do not attempt everything in one commit.
 | **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Checkpoint (2026-10-05; see "M7A result"): the pipeline, card, Stop, failure, Voice and reload are proven; no automatic run has produced a ready video yet |
 | **M7B** | HyperFrames adapter (§9.5) under the same sandbox, resource limits and determinism contract, through the same pipeline | Authorized (development) |
 | **M8** | Remotion vs HyperFrames benchmark (§9.6) on the same briefs and storyboards; §27 demos pass human review; choose the default routing; keep both adapters; required report (§36) | Authorized |
-| **M9** | Production `/motion` integration | **DEFERRED** pending explicit approval and the Usage & Credits payment architecture. Do not start M9 from this specification alone. |
+| **M9** | Production `/motion` integration | **Activation code in progress (2026-10-21, owner message 7, `feature/motion-activation`); production activation not complete.** The Usage & Credits dependency is met (allowance enforcement, §25). Still required: the owner's priced approval of the production renderer and orchestrator infrastructure, the per-job hold and paid verification (`C:/s/spec/day-1021/motion-deploy-plan.md`), then deployment and a production verification run. |
 
 ## M1 — Remotion render path audit + deterministic Linux render harness
 
@@ -2772,7 +2790,7 @@ Before any production work, with a separate explicit GO, review:
 - sandbox isolation
 - model/provider cost
 - storage, media serving, cleanup and retention
-- paid confirmation through Usage & Credits (quote → confirm → reserve → render → settle)
+- paid confirmation: confirm → admit the per-job hold → run → settle actual (implemented 2026-10-21, §25; no quote is shown)
 - privacy
 - observability
 - abuse/resource caps
@@ -2956,6 +2974,8 @@ Do not log:
 - generated private narration/source
 - secrets
 
+Activation (2026-10-21): the orchestrator logs a job's id, status, call count, cost, bound and render count, never the request text; its local telemetry file no longer records the request either (`orchestrator.test.mjs` checks the log).
+
 ---
 
 # 31. Storage / cleanup
@@ -2968,6 +2988,8 @@ scratch job directory
 ```
 
 Production storage (M9) should separate source package / manifest, preview media, final media, poster/contact sheet and QA/provenance, with retention rules so failed preview artifacts do not accumulate forever.
+
+Activation (2026-10-21): the orchestrator deletes each job's directory on every exit path (ready, failed, stopped, clarification, timeout, crash of the pipeline). A ready job keeps only `final.mp4` until the worker fetches it, at most one hour; a finished job's record answers polls for six hours; a restart deletes whatever the previous process left. The in-memory job map is pruned with them. A job is stopped after 55 minutes.
 
 V1 development uses the existing `LEARN_MEDIA` binding and LearnVideos key scheme (§18). Do not decide new production bucket names in this harness work.
 
@@ -3023,6 +3045,10 @@ Get the Remotion baseline and one workflow reliable first, then HyperFrames; not
 These are owner/legal review items. None of them blocks the M0–M8 development harness:
 
 - **Remotion licence: HARD RELEASE GATE** (owner decision 2026-10-04). M9 / public production `/motion` MUST NOT launch until Remotion's commercial licensing requirements have been reviewed and satisfied. Today Remotion is free for individuals, non-profits and for-profit organizations with up to 3 employees; larger for-profit organizations need a company licence. Licensing is not solved in code.
+  - **Determination (owner, 2026-10-21, about 10:20 AM PT): SATISFIED under the Remotion Free License, on the condition below.** Rabbit Hole uses Remotion under the Free License; a paid licence is unnecessary while it qualifies. Revisit eligibility when the team grows.
+  - Official reference: https://www.remotion.dev/docs/license/faq (read 2026-10-21). Eligibility: "an organization or team of individuals with up to 3 people" (also individuals, non-profits and evaluation); headcount is the company's total headcount, with no revenue threshold. Automation: "If you are eligible for the Free License, you can also run an automation." AI-generated code: "Yes, it is allowed to build a service that generates Remotion code using artificial intelligence and renders it." Procedure: "You don't have to contact us to use Remotion under the Free License."
+  - **Condition:** "it is not allowed to let users bring or upload their own Remotion code". Rabbit Hole renders only compositions its own pipeline generated from a learner's request, never learner-supplied Remotion code. The learner-facing contracts carry no source: `motion_request` is a `/motion` line, an optional canvas concept and an optional selected-card context; `motion_render` is a 32-hex render id. Both validators refuse any other field (`packages/control-plane/src/motion-provider.js`, `packages/learn-render/motion/orchestrator.mjs` `validateJobRequest`), and the render service accepts source only with the orchestrator's renderer token. Keep it that way.
+  - When eligibility ends (total headcount above 3) a Company License is required. For automated pipelines the FAQ describes "Remotion for Automators" at $0.01 per render with a $100/month minimum, and says server-side telemetry becomes mandatory for Automators customers in Remotion 5.0. The pinned version is 4.0.521.
 - **GSAP licence.** Free under GSAP's standard "no charge" licence, which prohibits use in tools that let users build animations without code in competition with Webflow's visual animation features. Not used in V1 (§9.2); review before any Motion use.
 - **HyperFrames licence.** Apache-2.0; review the exact release used at M7B, including any bundled animation library (Anime.js is MIT, but it still needs licence and technical review before use).
 - **Fish Audio** terms for generated narration in distributed videos, when narration ships.

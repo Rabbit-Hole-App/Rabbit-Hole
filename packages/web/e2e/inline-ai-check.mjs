@@ -961,7 +961,9 @@ await run('command input: bare /image, /diagram and /motion use the selection; a
   await page.locator('[data-paid-generate]').click();
   await page.waitForFunction(key => JSON.parse(localStorage.getItem(key) || '{}').blocks?.some(block => block.type === 'video'), 'harness:command-input');
   const video = (await saved()).blocks.find(block => block.type === 'video');
-  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', video?.operation?.request === '/motion explain the selected canvas material (about the selected canvas material: shape:ellipse "23")' && video.operation.location.concept === '23', JSON.stringify(video?.operation));
+  // The selection rides as context.selection, no longer on the line (owner brief 2026-10-21 message 7 item 4).
+  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', video?.operation?.request === '/motion explain the selected canvas material' && video.operation.location.concept === '23'
+    && video.operation.context?.selection?.cardId === 'n23' && video.operation.context.selection.text === '23', JSON.stringify(video?.operation));
   await context.close();
   const blank = await open('command-input-blank', { shapes: [{ id: 'blank1', kind: 'rect', x1: 600, y1: 300, x2: 760, y2: 380, color: '#2383e2', width: 2, dash: 'solid', fill: null, opacity: 1, round: true, text: '' }] });
   for (const [command, asks] of [['/image', /What should the photo show\?/], ['/diagram', /What should the diagram show\?/], ['/motion', /What should the video explain\?/]]) {

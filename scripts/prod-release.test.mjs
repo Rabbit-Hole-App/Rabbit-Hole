@@ -193,8 +193,10 @@ test('the build hash ignores what wrangler writes differently on every dry run: 
 test('the production build env is the Rabbit Hole build, never the dev tools', () => {
   assert.equal(BUILD_ENV.VITE_RABBIT_HOLE, 'true');
   assert.ok(!('VITE_COACHING_DEV' in BUILD_ENV) && !('VITE_BYOC_DEV' in BUILD_ENV));
-  // A dev flag in the releaser's shell never reaches the production build: either one would offer /motion there.
+  // A dev flag in the releaser's shell never reaches the production build; production offers /motion by its own flag (owner
+  // activation GO, 2026-10-21).
   for (const name of ['VITE_COACHING_DEV', 'VITE_BYOC_DEV', 'VITE_MOTION_DEV']) assert.ok(DEV_ONLY_ENV.includes(name) && !(name in BUILD_ENV), name);
+  assert.equal(BUILD_ENV.VITE_MOTION, 'true');
   assert.throws(() => parseArgs(['release', '--sha']), /bad argument/);
 });
 

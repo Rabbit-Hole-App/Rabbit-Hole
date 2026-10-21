@@ -45,6 +45,19 @@ export const abortableSleep = signal => ms => new Promise((done, fail) => {
 
 const harness = (round, category, description, extra = {}) => ({ reviewer: 'harness', round, category, ...extra, description });
 
+// A render that failed for a reason no composition change can fix (owner message 19, 2026-10-21): the service unreachable or
+// refusing before it ran (busy, degraded, unauthorized, too large, an HTTP error), a timeout, or a job it refused for anything
+// but the composition (a brief or storyboard contract, as when an older renderer rejected an ungrounded brief: mact paid run 1).
+// The job stops with that reason; the Author's repair, a model call, is never spent on it. null: the composition's own fault.
+export function renderInfraFailure(p) {
+  if (!p?.submitted || p.result?.status !== 'render_failed') return null;
+  const { category, detail = '', errors = [] } = p.result.failure || {};
+  const compositionOnly = category === 'invalid_job' && errors.length > 0 && errors.every(e => /^request\.composition\b/.test(e));
+  if (compositionOnly) return null;
+  if (category === 'invalid_job' || category === 'timeout' || p.result.render_id === null) return `${category}: ${detail || errors.slice(0, 3).join('; ')}`;
+  return null;
+}
+
 // The harness's findings on one preview.
 export function harnessFindings(preview, round) {
   if (!preview.submitted) return [harness(round, 'renderer_failure', `The render gate refused the composition: ${preview.reason}${preview.errors?.length ? `: ${preview.errors.slice(0, 5).join('; ')}` : ''}`)];
@@ -116,6 +129,8 @@ export async function runMotionJob({
         set('rendering_preview');
         const p = await preview({ brief, storyboard: current.storyboard, author: a, service, dir: roundDir, origin, renderer, ...polling });
         pass.preview = p.submitted ? p.result : { submitted: false, reason: p.reason, errors: p.errors };
+        const infra = renderInfraFailure(p);
+        if (infra) return fail(`the renderer failed, not the composition (${infra}); the Author repair was not used`);
         findings = harnessFindings(p, round);
         if (p.submitted && p.result.status === 'ready') {
           job.preview_refs = { video: `round-${round}/preview.mp4`, contact_sheet: `round-${round}/contact-sheet.png`, keyframes: p.result.frames.map(f => `round-${round}/${f.file}`) };
