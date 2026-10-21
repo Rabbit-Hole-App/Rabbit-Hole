@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +20,7 @@ import { journeyDomain } from './learn-journey-domain.js';
 import { TIDES, AQUEDUCTS } from './__fixtures__/journey-synthetic-domains.mjs';
 import { fixtureFor } from '../../control-plane/src/learn-journey-fixtures.js';
 import { journeySpec } from '../../control-plane/src/learn-tutor-routes.js';
-import { evaluationFrom, tutorQuestions } from '../../control-plane/src/agents/learn-tutor.js';
+import { evaluationFrom, tutorJevRequest } from '../../control-plane/src/agents/learn-tutor.js';
 import { escalation } from '../../control-plane/src/agents/learn-tutor-escalation.js';
 import { THRESHOLDS } from '../../control-plane/src/learn-grade-jev.js';
 
@@ -179,69 +180,48 @@ test('journey exit: the journey still evaluates what is tied to it - an answer i
   assert.deepEqual(probe.routes, ['/api/learn/tutor/evaluate'], 'a diagnostic probe answer (plan: false)');
 });
 
-// ---------- The journey exit on real JEV answers (lane jev, 2026-10-21: C:/s/spec/day-1021/jev-report.md) ----------
+// ---------- The journey exit on recorded JEV answers (lane jev, 2026-10-21: C:/s/spec/day-1021/jev-report.md) ----------
 // The tests above stub evaluate with "no events". Here evaluate answers as journeyEvaluate does: the route's own journeySpec,
-// tutorQuestions, evaluationFrom and escalation, on the JEV probabilities recorded on the real path (local jev stack, main
-// 3134c69a, gateway JEV; evidence C:/s/spec/day-1021/jev/evidence/jev-journey-r{1,2}.json and jev-replay-variants.jsonl).
-// A case that would escalate keeps JEV's events, as the route does when the larger evaluator is unavailable.
-const RECORDED = {
-  // r1 "Let's leave tides for now. I want to learn about volcanoes instead.": non_attempt 0.95 with the Tutor's question open
-  // (3 of 3 calls); attempt 0.03 when sent with no question open (replay variant).
-  switchAway: { non_attempt: 0.95, attempt: 0.03, idea: 0.02, contra: 0.04, mis: 0.06, transfer: 0.03, gap: 0.05 },
-  // r2 the aqueduct statement and question on a section whose claim has a prerequisite: g0 0.76 and 0.77, settled by JEV alone.
-  asideStatement: { attempt: 0.97, idea: 0.01, contra: 0.04, mis: 0.02, transfer: 0.26, gap: 0.76 },
-  asideQuestion: { attempt: 0.07, idea: 0.01, contra: 0.04, mis: 0.03, transfer: 0.06, gap: 0.77 },
-  // r2 the on-topic answer to the Tutor's open question: both ideas stated, no gap.
-  onTopic: { non_attempt: 0.16, attempt: 0.98, idea: 0.98, contra: 0.02, mis: 0.03, transfer: 0.09, gap: 0.11 },
-};
-const recordedKey = key => (/^c\d+_idea\d+$/.test(key) ? 'idea' : /^c\d+_contra\d+$/.test(key) ? 'contra' : /^c\d+_mis\d+$/.test(key) ? 'mis' : /^c\d+_transfer$/.test(key) ? 'transfer' : /^g\d+$/.test(key) ? 'gap' : key);
-function recordedTurn(fixture, { raw, ids, jev, store = emptyStore() }) {
-  const registry = fixture.registry;
-  const journey = { id: 'lj_x', state: 'active', registry, evidence: { seq: 0, events: [] }, active_section_id: 's1', request: { topic: fixture.topic }, intake: { slots: {} } };
-  const path = { version: 1, goal: fixture.topic, sections: [{ id: 's1', title: 'First', purpose: 'p', status: 'current', expected_evidence: ids.map(claim => ({ claim, kind: 'explain' })) }] };
-  const sent = [];
+// tutorJevRequest, evaluationFrom and escalation, with the answers JEV gave on the real path to that exact request (state and
+// questions; __fixtures__/jev-recorded-tides.json, the real tides path's claims). A request with no recording is reported, so
+// a changed question set needs a new real-path recording. A result that would escalate keeps JEV's events, as the route does
+// when the larger evaluator is unavailable.
+const CASSETTE = JSON.parse(readFileSync(new URL('./__fixtures__/jev-recorded-tides.json', import.meta.url), 'utf8'));
+const jevKey = request => createHash('sha256').update(JSON.stringify({ state: request.state, questions: request.questions })).digest('hex').slice(0, 16);
+async function recordedTurn(name, { section, open = false }) {
+  const { message, claims, question } = CASSETTE.turns[name], registry = CASSETTE.registry;
+  const journey = { id: 'lj_x', state: 'active', registry, evidence: { seq: 0, events: [] }, active_section_id: 's1', request: { topic: CASSETTE.topic }, intake: { slots: {} } };
+  const path = { version: 1, goal: CASSETTE.topic, sections: [{ id: 's1', title: 'First', purpose: 'p', status: 'current', expected_evidence: section.map(claim => ({ claim, kind: 'explain' })) }] };
+  const store = open ? { ...emptyStore(), open: { action_id: 'q1', claim: claims[0], text: question, canvas: { app: 'canvas-bbbb2222', board: 'main' } } } : emptyStore();
+  const unrecorded = [];
   const post = async (route, body) => {
-    sent.push({ route, body });
     if (route === '/api/learn/tutor/plan') return { strategy: 'none', constraints_add: [], actions: [say('A short answer.')] };
-    const spec = journeySpec(journey, body).value;
-    const answers = Object.fromEntries(Object.keys(tutorQuestions(spec)).map(key => [key, jev[recordedKey(key)]]));
-    const evaluation = { ...evaluationFrom(spec, answers, THRESHOLDS, 'jev'), evaluator: 'jev', escalation: escalation(spec, answers, THRESHOLDS) };
+    const spec = journeySpec(journey, body).value, request = tutorJevRequest(spec, body.message, 'typesafe-ai/jev');
+    const recorded = CASSETTE.recordings.find(r => r.key === jevKey(request));
+    if (!recorded) { unrecorded.push(jevKey(request)); throw Error('no recorded JEV answer for this request'); }
+    const evaluation = { ...evaluationFrom(spec, recorded.answers, THRESHOLDS, 'jev'), evaluator: 'jev', escalation: escalation(spec, recorded.answers, THRESHOLDS) };
     const events = evaluation.events.map((event, i) => ({ ...event, seq: i + 1, ref: { turn_id: body.turn_id } }));
     return { ...evaluation, journey: { events, seq: events.length, revision: 2 } };
   };
-  return runTurn({ raw, canvas: { app: 'canvas-bbbb2222', board: 'main' }, access: { app: 'canvas-bbbb2222' }, block: null, store, post, domain: journeyDomain({ journey, path, blocks: [] }), journeyOffer: true })
-    .then(result => ({ ...result, sent }));
+  const r = await runTurn({ raw: message, canvas: { app: 'canvas-bbbb2222', board: 'main' }, access: { app: 'canvas-bbbb2222' }, block: null, store, post, domain: journeyDomain({ journey, path, blocks: [] }), journeyOffer: true });
+  assert.deepEqual(unrecorded, [], `${name}: JEV's answer to this exact request was recorded on the real path`);
+  return { stored: r.store.events.map(e => `${e.claim} ${e.result}${e.idea != null ? `:${e.idea}` : ''}${e.prerequisite ? ` ${e.prerequisite}` : ''}${e.settled ? '' : ' (unsettled)'}`), transitions: r.transitions.map(t => `${t.claim}: ${t.from} -> ${t.to}`) };
 }
+const S1 = ['gravity-distance/pull-weakens-with-distance'], S2 = ['tidal-force/differential-pull'];
 
-test('journey exit, real JEV answers: an explicit topic switch typed while the Tutor\'s question is open adds no evidence to the journey', async () => {
-  // Real path: the switch went out as the open question's answer (answering: true), JEV's non_attempt check said 0.95, and a
-  // settled non_attempt event landed on the section's claim: not_yet_observed -> uncertain, journey revision +1.
-  const ids = Object.keys(tides.registry.claims).slice(0, 2);
-  const open = { ...emptyStore(), open: { action_id: 'q1', claim: ids[0], text: 'If the Moon were twice as far away, would its pull get stronger or weaker?', canvas: { app: 'canvas-bbbb2222', board: 'main' } } };
-  // The same words with no question open already add nothing.
-  const closed = await recordedTurn(tides, { raw: "Let's leave tides for now. I want to learn about volcanoes instead.", ids, jev: RECORDED.switchAway });
-  assert.deepEqual(closed.store.events, []);
-  const r = await recordedTurn(tides, { raw: "Let's leave tides for now. I want to learn about volcanoes instead.", ids, jev: RECORDED.switchAway, store: open });
-  assert.equal(r.sent.filter(s => s.route === '/api/learn/tutor/evaluate').length, 1, 'JEV reads it once');
-  assert.deepEqual([r.transitions, r.store.events.map(e => `${e.claim} ${e.result}`)], [[], []], 'another subject adds nothing, question open or not');
+test("journey exit, recorded JEV: an explicit topic switch typed while the Tutor's question is open adds no evidence to the journey", async () => {
+  // Real path on 3134c69a: the switch went out as the open question's answer, JEV's non_attempt check said 0.95, and a settled
+  // non_attempt landed on the section's claim (not_yet_observed -> uncertain). An on-topic answer on the same section still lands.
+  assert.deepEqual((await recordedTurn('onTopicS1', { section: S1 })).stored, [`${S1[0]} pass:0`, `${S1[0]} pass:1`], 'control: an on-topic answer');
+  assert.deepEqual(await recordedTurn('switch', { section: S1, open: true }), { stored: [], transitions: [] }, 'another subject adds nothing, question open or not');
 });
 
-test('journey exit, real JEV answers: an unrelated aside on a section whose claim has a prerequisite records no prerequisite gap', async () => {
-  // Real path: both aqueduct asides on the tides path's section 2 stored a settled gap (g0 0.76, 0.77) on its claim. Here the
-  // prerequisite is not understood, so that event makes the claim prerequisite_gap: route()'s gap row, a Rabbit Hole offer
-  // (suggest_dive) into the prerequisite on the next turn about this claim.
-  const ids = ['barrage-turbine/head-difference'];
-  assert.deepEqual(tides.registry.claims[ids[0]].prerequisites, ['tide-range'], 'the fixture claim rests on a prerequisite');
-  // Control: an on-topic answer on the same section lands its pass (recorded probabilities of a real on-topic answer).
-  const own = await recordedTurn(tides, { raw: 'The turbines run on the height difference of the water across the barrage.', ids, jev: RECORDED.onTopic });
-  assert.deepEqual(own.store.events.map(e => [e.claim, e.result, e.settled]), [[ids[0], 'pass', true]]);
-  for (const [raw, jev] of [
-    ['Roman aqueducts carried water by gravity alone, with a very gentle, steady downhill slope over many kilometres, and bridges or siphons where the ground dipped.', RECORDED.asideStatement],
-    ['How did Roman aqueducts carry water over long distances?', RECORDED.asideQuestion],
-  ]) {
-    const r = await recordedTurn(tides, { raw, ids, jev });
-    assert.deepEqual([r.transitions.map(t => `${t.claim}: ${t.from} -> ${t.to}`), r.store.events.map(e => `${e.claim} ${e.result}${e.prerequisite ? ` ${e.prerequisite}` : ''}`)], [[], []], `${raw}: an aside adds nothing`);
-  }
+test('journey exit, recorded JEV: an unrelated aside on a section whose claim has a prerequisite records no prerequisite gap', async () => {
+  // Real path on 3134c69a: both aqueduct asides on section 2 stored a settled gap (g0 0.76, 0.77) on its claim. With the
+  // prerequisite not yet understood that makes the claim prerequisite_gap: route()'s gap row, a Rabbit Hole offer (suggest_dive).
+  assert.deepEqual(CASSETTE.registry.claims[S2[0]].prerequisites, ['gravity-distance'], 'the claim rests on a prerequisite');
+  assert.deepEqual((await recordedTurn('onTopicS2', { section: S2, open: true })).stored, [`${S2[0]} pass:0`, `${S2[0]} pass:1`], 'control: an on-topic answer');
+  for (const name of ['asideStatement', 'asideQuestion']) assert.deepEqual(await recordedTurn(name, { section: S2 }), { stored: [], transitions: [] }, `${name}: an aside adds nothing`);
 });
 
 // ---------- useTutor: material that arrives after Off is not inserted ----------
