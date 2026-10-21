@@ -338,3 +338,28 @@ test('through the real dev worker: an exhausted Ask is refused before streaming,
   const usage = await (await worker.fetch(new Request('https://dev.example/api/learn/usage', { headers: { cookie: 'small_session=s' } }), env, { waitUntil() {} })).json();
   assert.deepEqual([usage.enforced, usage.remainingMicros], [true, 0]);
 });
+
+test('the control plane charges its signed-in POSTs to the session user, and with no allowance configured refuses them', async t => {
+  const { productionWorker } = await import('./worker-import.js');
+  const { sign } = await import('../src/token.js');
+  const production = (await productionWorker()).default;
+  const DB = { prepare: () => ({ bind: () => ({ first: async () => ({ session_epoch: 0 }), all: async () => ({ results: [] }), run: async () => ({ meta: { changes: 0 } }) }) }) };
+  const MASTER_KEY = 'test-master-key';
+  const session = await sign({ t: 'sess', uid: 'u-cp', email: 'owner@team.test', ep: 0, exp: Math.floor(Date.now() / 1000) + 60 }, MASTER_KEY);
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return Response.json({ model: MODEL, usage: { input_tokens: 10, output_tokens: 5 }, content: [{ type: 'text', text: '{"apps":[]}' }] }); };
+  t.after(() => { globalThis.fetch = original; });
+  // The Ctrl+K app finder: one model call on the control plane (index.js apiAppFind -> askOnce -> anthropic).
+  const find = env => production.fetch(new Request('https://cp.test/api/apps/find', { method: 'POST', headers: { 'X-Small-Session': session, 'content-type': 'application/json' }, body: JSON.stringify({ q: 'which app plots tides' }) }), env, { waitUntil() {} });
+  const { sqlite, LEARN_DB } = d1(t);
+  const env = { MASTER_KEY, DB, LEARN_DB, ANTHROPIC_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10' };
+  await find(env).catch(() => null); // rabbit-hole-cp today: no AI_MONTHLY_ALLOWANCE_USD, so the call is refused
+  assert.equal(calls, 0, 'no allowance configured: no provider call (before L12 this went through as platform-funded)');
+  await find({ ...env, AI_MONTHLY_ALLOWANCE_USD: '50' });
+  assert.equal(calls, 1);
+  assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.payer_reason, a.charge_class, a.feature]), [['u-cp', 'signed_in', 'would_charge', 'legacy']]);
+  spent(sqlite, 'u-cp', 50_000_000);
+  await find({ ...env, AI_MONTHLY_ALLOWANCE_USD: '50' }).catch(() => null);
+  assert.equal(calls, 1, 'an exhausted user gets no provider call here either');
+});

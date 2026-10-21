@@ -191,10 +191,11 @@ export async function admissionPayer(env, db) {
   await resolveIdentity(ctx);
   const payer = payerOf(ctx);
   if (payer.payerReason === 'system' && !ctx.system) return { refused: true, reason: 'payer_unavailable' };
-  const actionId = await actionOf(env, db);
-  if (payer.chargeClass !== 'would_charge') return { chargeable: false, actionId };
+  if (payer.chargeClass !== 'would_charge') return { chargeable: false, actionId: await actionOf(env, db) };
   const period = periodOf(ctx.startedAt ?? nowSeconds()), allowance = monthlyAllowanceMicros(env);
-  if (allowance == null || !actionId) return { refused: true, reason: 'allowance_unavailable', period };
+  if (allowance == null) return { refused: true, reason: 'allowance_unavailable', period }; // never unlimited, nothing written
+  const actionId = await actionOf(env, db);
+  if (!actionId) return { refused: true, reason: 'allowance_unavailable', period };
   return { chargeable: true, actionId, userId: payer.userId, period, allowance };
 }
 
