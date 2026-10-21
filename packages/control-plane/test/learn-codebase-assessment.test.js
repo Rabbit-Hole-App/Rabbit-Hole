@@ -15,7 +15,7 @@ import { readProgress, sourceReader } from '../src/learn-progress.js';
 import { readCoachingState } from '../src/learn-coaching-store.js';
 import { canvasApp } from '../src/canvases.js';
 import { sha256Hex } from '../src/learn-grade-jev.js';
-import { CODEBASE_GOALS, goalOf } from '../../web/src/learn-codebase-goals.js';
+import { CODEBASE_GOALS, goalOf, isRepositorySource, startSource } from '../../web/src/learn-codebase-goals.js';
 
 const CANVAS = 'canvas-0000aaaa';
 const ACTOR = { org: 'ws', userId: 'u-ana', app: CANVAS, board: 'main' };
@@ -38,11 +38,19 @@ const ANSWERS = {
 const FLAWED_LINE = 'return Math.round(completed / tasks.length) * 100;';
 const FIXED_LINE = 'return Math.round((completed / tasks.length) * 100);';
 
-// The rubric reply a stubbed evaluator gives: each criterion of the activity met (or the given fit), quoting the answer.
-const reply = (activity, quotes, fit = {}) => ({
+// The learner's citation the browser sends by default (owner brief 2026-10-21 "Selecting evidence"): the whole cited range of
+// the question's Start here source, and the ref the server stores for it (built from the activity's own ref).
+const startRef = activity => startSource(activity.sourceRefs.filter(isRepositorySource), activity.checkpoint?.codebase?.goal);
+const wire = (ref, start = ref.locator.start, end = ref.locator.end) => ({ kind: ref.kind, id: ref.id, version: ref.version, hash: ref.hash, locator: { path: ref.locator.path, start, end } });
+const cite = activity => (startRef(activity) ? [wire(startRef(activity))] : []);
+const stored = (ref, start = ref.locator.start, end = ref.locator.end) => ({ ...wire(ref, start, end), locator: { path: ref.locator.path, start, end, role: ref.locator.role, citation: true } });
+
+// The rubric reply a stubbed evaluator gives: each criterion of the activity met (or the given fit), quoting the answer, and
+// each citation's verdict (C1 supports unless given).
+const reply = (activity, quotes, fit = {}, citations = [{ citationId: 'C1', verdict: 'supports', explanation: 'Stub verdict.' }]) => ({
   criteria: activity.criterionRefs.map(({ criterionId, version }) => ({ criterionId, version, fit: fit[criterionId] ?? 'met', reasoning: fit[criterionId] === 'not_met' ? 'missing' : 'supported',
     evidence: fit[criterionId] === 'not_met' ? [] : [quotes[criterionId]], alternative: false, uncertain: false, explanation: 'Stub judgement.' })),
-  factualClaims: [], notes: [],
+  factualClaims: [], notes: [], citations,
 });
 
 // A learner's project canvas on a TaskBoard import, the snapshots in a stub store, and the codebase and attempt routes as the
@@ -76,11 +84,16 @@ function setup(t, extra = {}) {
     return out.body.state.activities.find(a => a.activityId === out.body.state.activeActivityId);
   };
   const attempts = (path, body, deps) => attemptRoute(path, new Request(`https://dev.test${path}`, { method: 'POST', body: JSON.stringify({ app: CANVAS, board: 'main', ...body }) }), env, { authorize, ...deps }).then(json);
-  // What the browser sends (TutorActivity.jsx): the answer and no source refs.
-  const submit = (activity, text, deps) => attempts('/api/learn/tutor/attempts', { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: `sub-${++seq}-codebase`, submittedContent: { text }, sourceRefs: [], assistanceRefs: [] }, deps);
+  // What the browser sends (TutorActivity.jsx): the answer and the learner's citations, by default the Start here source's lines.
+  const submit = (activity, text, deps, sourceRefs = cite(activity)) => attempts('/api/learn/tutor/attempts', { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: `sub-${++seq}-codebase`, submittedContent: { text }, sourceRefs, assistanceRefs: [] }, deps);
   const reassess = (attemptId, deps) => attempts(`/api/learn/tutor/attempts/${attemptId}/reassess`, { requestKey: `review-${++seq}-codebase` }, deps);
   const progress = goalId => readProgress(env, ACTOR, { goalId }, { canReadSource: sourceReader(new Request('https://dev.test/api/learn/progress'), env, access, ACTOR) });
-  return { env, sqlite, publish, start, refresh, submit, reassess, progress };
+  const another = async activityId => {
+    const { revision } = await readCoachingState(env, ACTOR);
+    return json(await codebaseRoute('/api/learn/codebase', new Request('https://dev.test/api/learn/codebase', { method: 'POST', body: JSON.stringify({ app: CANVAS, board: 'main', action: 'another', activityId, actionId: `another-${++seq}`, expectedRevision: revision }) }), env, { authorize }));
+  };
+  const read = attemptId => attemptRoute(`/api/learn/tutor/attempts/${attemptId}`, new Request(`https://dev.test/api/learn/tutor/attempts/${attemptId}?app=${CANVAS}&board=main`), env, { authorize }).then(json);
+  return { env, sqlite, publish, start, refresh, submit, reassess, progress, another, read };
 }
 const statusOf = view => Object.fromEntries(view.criteria.map(c => [c.criterionId, c.status]));
 
@@ -95,8 +108,8 @@ test('5B: each of the five codebase goals is assessed against its own agreed cri
     const a = r.body.assessment;
     assert.deepEqual([a.status, a.route, a.provenance.route, a.rubricVersion], ['completed', 'larger', 'rubric', 'rubric-codebase-1'], `${goal.id}: ${a.reason}`);
     assert.equal(stub.calls.length, 1, `${goal.id}: one rubric call`);
-    // The attempt is bound to the activity's cited sources at their commit, although the browser named none.
-    assert.deepEqual(r.body.attempt.sourceRefs, activity.sourceRefs, `${goal.id}: sourceRefs recorded on the attempt`);
+    // The attempt is bound to the activity's cited sources at their commit, and carries the learner's citation as the server built it.
+    assert.deepEqual(r.body.attempt.sourceRefs, [...activity.sourceRefs, stored(startRef(activity))], `${goal.id}: sourceRefs recorded on the attempt`);
     assert.ok(r.body.attempt.sourceRefs.length > 0 && r.body.attempt.sourceRefs.every(ref => ref.version === COMMITS.v1));
     // The evaluator gets the goal's agreed criteria and the cited lines read at that commit, never another version.
     const data = dataOf(stub.calls[0].body);
@@ -111,6 +124,10 @@ test('5B: each of the five codebase goals is assessed against its own agreed cri
       assert.deepEqual(a.provenance.sources[i].ref, { kind: 'repository_file', id: ref.id, version: COMMITS.v1 });
     }
     assert.equal(JSON.stringify(stub.calls[0].body).includes(SECRET_VALUE), false, 'no secret reaches the prompt');
+    // The citation's lines, read by the server at the commit, with the evaluator's verdict on them.
+    const s = startRef(activity).locator;
+    assert.deepEqual(data.citations, [{ id: 'C1', label: `${s.path}:${s.start}-${s.end} at ${COMMITS.v1.slice(0, 7)}`, text: snapshot.files[s.path].split('\n').slice(s.start - 1, s.end).join('\n').slice(0, 3000) }]);
+    assert.deepEqual(a.provenance.citations.map(c => [c.id, c.verdict, c.ref.locator]), [['C1', 'supports', { path: s.path, start: s.start, end: s.end }]]);
     // Progress: each assessed criterion is demonstrated, from this attempt.
     const view = await f.progress(activity.goalId);
     assert.deepEqual(statusOf(view), Object.fromEntries(goal.criteria.map(c => [c.criterionId, c.requiresTransfer ? 'not_checked' : 'demonstrated_independently'])), goal.id);
@@ -141,7 +158,7 @@ test('5B: an incorrect answer is not met and stays practising; with the rubric f
   const offActivity = await off.start('understand_feature');
   const saved = await off.submit(offActivity, ANSWERS.understand_feature.text, never);
   assert.deepEqual([saved.body.assessment.status, saved.body.assessment.reason], ['unavailable', 'no_registered_claims']);
-  assert.deepEqual(saved.body.attempt.sourceRefs, offActivity.sourceRefs);
+  assert.deepEqual(saved.body.attempt.sourceRefs, [...offActivity.sourceRefs, stored(startRef(offActivity))]);
 });
 
 test('5B: revision preservation: a later repository revision never rewrites an earlier assessment; a review reads the submitted revision; Update assesses the new one', async t => {
@@ -255,4 +272,96 @@ test('flag split: TUTOR_CODEBASE_ASSESSMENT_ENABLED assesses codebase answers on
   const l = await f.submit(labelled, answer.text, never);
   assert.deepEqual([l.body.assessment.status, l.body.assessment.reason], ['unavailable', 'no_registered_claims']);
   assert.equal(code.calls.length, 1, 'no further call');
+});
+
+// Owner brief 2026-10-21 "Selecting evidence" (validation 5-7): a learner subrange of a cited file is stored as the server builds
+// it; a forged repository, revision, path, hash or range is refused before anything is saved; the evaluator gets only the
+// server's own read of the cited lines and reports which citations support or contradict the answer; a criterion needing source
+// evidence is not met without a supporting citation. The evaluator is a stub: wiring only.
+test('citations: a learner subrange is stored server-side, sent to the evaluator as the server read it, and read back with its verdict', async t => {
+  const f = setup(t, ON);
+  const activity = await f.start('understand_feature');
+  const bound = startRef(activity), { path, start, end } = bound.locator;
+  const answer = ANSWERS.understand_feature;
+  // The client adds text and a wider role of its own: none of it is kept or sent.
+  const claimed = { ...wire(bound, start + 1, start + 2), locator: { path, start: start + 1, end: start + 2, text: 'return 42; // forged', role: 'docs' }, text: 'forged excerpt' };
+  const stub = replying(reply(activity, answer.quotes));
+  const r = await f.submit(activity, answer.text, { ...never, callModel: stub.callModel }, [claimed]);
+  assert.equal(r.status, 200, JSON.stringify(r.body).slice(0, 300));
+  assert.deepEqual(r.body.attempt.sourceRefs.at(-1), stored(bound, start + 1, start + 2));
+  const lines = taskboard('v1').files[path].split('\n').slice(start, start + 2).join('\n');
+  const sent = dataOf(stub.calls[0].body);
+  assert.deepEqual(sent.citations, [{ id: 'C1', label: `${path}:${start + 1}-${start + 2} at ${COMMITS.v1.slice(0, 7)}`, text: lines }]);
+  assert.equal(JSON.stringify(stub.calls[0].body).includes('forged'), false, 'nothing the client wrote reaches the evaluator');
+  assert.match(stub.calls[0].body.system, /"citations":\[\{"citationId"/);
+  // Reload: the saved attempt carries the citation and the verdict.
+  const back = await f.read(r.body.attempt.attemptId);
+  assert.deepEqual(back.body.attempt.sourceRefs.filter(ref => ref.locator.citation), [stored(bound, start + 1, start + 2)]);
+  assert.deepEqual(back.body.assessment.provenance.citations.map(c => [c.verdict, c.ref.locator]), [['supports', { path, start: start + 1, end: start + 2 }]]);
+  assert.ok(start + 2 <= end);
+});
+
+test('citations: a forged repository, revision, path, hash or out-of-range citation is refused and nothing is saved or sent', async t => {
+  const f = setup(t, ON);
+  const activity = await f.start('understand_feature');
+  const bound = startRef(activity), { path, start, end } = bound.locator, ok = wire(bound);
+  const other = activity.sourceRefs.find(ref => ref.id !== bound.id);
+  const cases = {
+    repository: [{ ...ok, id: `other/repo:${path}` }, 'unknown_source'],
+    revision: [{ ...ok, version: COMMITS.v2 }, 'unknown_source'],
+    path: [{ ...ok, locator: { ...ok.locator, path: other.locator.path } }, 'invalid_citation'],
+    'uncited file': [{ ...ok, id: `${bound.id.split(':')[0]}:src/api.js`, locator: { ...ok.locator, path: 'src/api.js' } }, 'unknown_source'],
+    hash: [{ ...ok, hash: 'b'.repeat(64) }, 'invalid_citation'],
+    'before the range': [wire(bound, start - 1 || 0, end), 'invalid_citation'],
+    'past the range': [wire(bound, start, end + 1), 'invalid_citation'],
+    'reversed': [wire(bound, end, start), start === end ? null : 'invalid_citation'],
+    overlapping: [[wire(bound, start, start + 1), wire(bound, start + 1, start + 2)], 'overlapping_citations'],
+    'too many': [Array.from({ length: 6 }, (_, i) => wire(bound, start + i, start + i)), 'too_many_citations'],
+  };
+  for (const [label, [refs, code]] of Object.entries(cases)) {
+    if (!code) continue;
+    const stub = replying(reply(activity, ANSWERS.understand_feature.quotes));
+    const r = await f.submit(activity, ANSWERS.understand_feature.text, { ...never, callModel: stub.callModel }, Array.isArray(refs) ? refs : [refs]);
+    assert.deepEqual([r.status, r.body.error], [400, code], label);
+    assert.equal(stub.calls.length, 0, `${label}: no evaluator call`);
+  }
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM learn_attempts').get().n, 0, 'no attempt saved');
+});
+
+test('citations: a criterion needing source evidence is not met without a citation that supports the answer; an answer without citations is still accepted', async t => {
+  const f = setup(t, ON);
+  const activity = await f.start('understand_feature');
+  const answer = ANSWERS.understand_feature;
+  const plain = replying(reply(activity, answer.quotes, {}, []));
+  const none = await f.submit(activity, answer.text, { ...never, callModel: plain.callModel }, []);
+  assert.equal(none.status, 200, 'submitted without citations');
+  const fits = out => Object.fromEntries(out.body.assessment.observations.map(o => [o.criterionId, [o.fit, o.reason]]));
+  assert.deepEqual(fits(none), { trace_path: ['partial', 'citation_required'], explain_current: ['met', 'rubric_met'] });
+  assert.deepEqual(statusOf(await f.progress(activity.goalId)), { trace_path: 'practising', explain_current: 'demonstrated_independently' });
+  assert.deepEqual(['citations' in dataOf(plain.calls[0].body), plain.calls[0].body.system.includes('"citations":[')], [false, false], 'no citation: the request carries none');
+  // A citation the evaluator reports as contradicting the answer is valid evidence, but not support.
+  const stub = replying(reply(activity, answer.quotes, {}, [{ citationId: 'C1', verdict: 'contradicts', explanation: 'The lines round first.' }]));
+  const against = await f.submit(activity, `${answer.text} Again.`, { ...never, callModel: stub.callModel });
+  assert.deepEqual(fits(against).trace_path, ['partial', 'citation_required']);
+  assert.deepEqual(against.body.assessment.provenance.citations.map(c => [c.id, c.verdict, c.explanation]), [['C1', 'contradicts', 'The lines round first.']]);
+  // A reply that judges no citation leaves it not_judged, never supporting.
+  const silent = await f.submit(activity, `${answer.text} Once more.`, { ...never, callModel: replying({ ...reply(activity, answer.quotes), citations: [{ citationId: 'C9', verdict: 'supports' }] }).callModel });
+  assert.deepEqual([fits(silent).trace_path[0], silent.body.assessment.provenance.citations[0].verdict], ['partial', 'not_judged']);
+});
+
+test('Try another question: the next question on the same sources at the same commit, with no commit or path in it', async t => {
+  const f = setup(t, ON);
+  const first = await f.start('understand_feature');
+  const out = await f.another(first.activityId);
+  assert.equal(out.status, 200, JSON.stringify(out.body).slice(0, 200));
+  const next = out.body.state.activities.find(a => a.activityId === out.body.activityId);
+  assert.notEqual(next.activityId, first.activityId);
+  assert.notEqual(next.prompt, first.prompt);
+  assert.deepEqual(next.sourceRefs, first.sourceRefs, 'the same sources, at the same commit');
+  assert.deepEqual([next.checkpoint.codebase.questionIndex, next.checkpoint.codebase.commit], [1, COMMITS.v1]);
+  for (const text of [next.objective, next.prompt]) {
+    assert.doesNotMatch(text, /\b[0-9a-f]{7,40}\b/, 'no commit hash');
+    assert.doesNotMatch(text, /[\w./-]+:\d+-\d+/, 'no path:start-end');
+  }
+  assert.deepEqual([(await f.another('no-such-activity')).status], [404]);
 });

@@ -5,9 +5,10 @@
 // Setup: a canvas and five context documents built here (each page says "<TAG> PAGE n"): alpha.pdf (5 pages), beta.pdf (4),
 // two different documents both named same-name.pdf (2 and 3 pages), remove-me.pdf (3), and one with a very long name (2).
 // The row contract (sections 1-2): [data-material-row][data-source-id="doc:ctx:<id>"], its name [data-material-name] (title =
-// the full name), and, in order, [data-material-action] context (canvas context, aria-pressed), canvas (Add to canvas), chat
-// (Attach to this chat, aria-pressed), remove (Remove from Materials, confirmed in [data-material-remove-confirm]); the
-// actions sit in [data-material-actions]; Upload is [data-materials-upload]; the old header [data-source-add-canvas] is gone.
+// the full name), and, in order (owner review UI-10, 2026-10-21), [data-material-action] chat (the one Use in this chat toggle,
+// aria-pressed), canvas (Add to canvas, the inverse Button), more (the row menu holding context: the canvas default for new
+// chats, a menuitemcheckbox with aria-checked), remove (Remove from Materials, red, confirmed in [data-material-remove-confirm]);
+// the actions sit in [data-material-actions]; Upload is [data-materials-upload]; the old header [data-source-add-canvas] is gone.
 // Covered (section 8): 1 every row action affects only its own PDF; 2 the reader shows A while B's Add to canvas opens B's
 // dialog and a double-clicked confirm inserts once; 3 identical filenames stay distinct by id; 4 canvas context and chat
 // attachment are independent; 10 Remove from Materials (Cancel, a failed DELETE keeps the row, then remove, reload, the chip
@@ -146,9 +147,18 @@ const sourcesPane = () => page.locator('[data-sources-pane]');
 // Sources is the right panel's Context tab (docs/features/hide-right-panel.md): its tabpanel spans the panel's width.
 const sourcesPanel = () => page.locator('[data-context-panel]');
 const row = doc => page.locator(`[data-material-row][data-source-id="doc:${doc.id}"]`);
-const action = (doc, name) => row(doc).locator(`[data-material-action="${name}"]`);
+// The canvas default (context) lives in the row's More menu (owner review UI-10); every other action is on the row.
+const action = (doc, name) => (name === 'context' ? page.locator('[data-material-menu] [data-material-action="context"]') : row(doc).locator(`[data-material-action="${name}"]`));
+const openMenu = async doc => { if (!(await page.locator('[data-material-menu]').count())) await row(doc).locator('[data-material-action="more"]').click(); await action(doc, 'context').waitFor({ timeout: 5000 }); };
+const closeMenu = async () => { if (await page.locator('[data-material-menu]').count()) { await page.keyboard.press('Escape'); await waitFor(async () => !(await page.locator('[data-material-menu]').count()), 3000, 'the row menu stayed open'); } };
 const expander = doc => row(doc).locator('button[aria-expanded]').first();
-const pressed = async (doc, name) => (await action(doc, name).getAttribute('aria-pressed')) === 'true';
+const pressed = async (doc, name) => {
+  if (name !== 'context') return (await action(doc, name).getAttribute('aria-pressed')) === 'true';
+  await openMenu(doc);
+  const on = (await action(doc, 'context').getAttribute('aria-checked')) === 'true';
+  await closeMenu();
+  return on;
+};
 // A new chat may start with the canvas's switched-on documents attached, so a chat-attach scenario starts from its own state.
 const clearChat = async (...docs) => {
   for (const doc of docs) if (await pressed(doc, 'chat')) {
@@ -176,6 +186,7 @@ const press = async (doc, name) => {
   // A row action lives in the Context tab; a step on Chat (send, select) left Chat showing.
   if (!(await sourcesOpen())) await page.locator('[data-panel-companion]').click({ timeout: 5000 });
   const expanded = await expander(doc).getAttribute('aria-expanded'), reader = await readerTitle();
+  if (name === 'context') await openMenu(doc);
   await action(doc, name).click();
   await page.waitForTimeout(300);
   assert.equal(await expander(doc).getAttribute('aria-expanded'), expanded, `${name} on ${doc.name} changed its row's expansion`);
@@ -268,7 +279,7 @@ await check('Materials lists every document as its own row with the four actions
   for (const doc of [A, B, C1, C2, R, L]) {
     assert.equal(await row(doc).count(), 1, `one row for ${doc.name} (${doc.id})`);
     const order = await row(doc).locator('[data-material-action]').evaluateAll(els => els.map(el => el.dataset.materialAction));
-    assert.deepEqual(order, ['context', 'canvas', 'chat', 'remove'], `${doc.name}: the actions in order`);
+    assert.deepEqual(order, ['chat', 'canvas', 'more', 'remove'], `${doc.name}: the actions in order`);
   }
   assert.equal(await page.locator('[data-materials-upload]').count(), 1, 'one Upload button');
   assert.match((await page.locator('[data-materials-upload]').innerText()).trim(), /^Upload$/, 'Upload is labelled');
@@ -281,15 +292,28 @@ await check('Materials lists every document as its own row with the four actions
   assert.match(meta, /^PDF · /, `the row says its kind: ${meta}`);
   assert.equal(await page.locator('[data-source-add-canvas]').count(), 0, 'no document action is left in the header');
   // Names: tooltips and accessible names say the document and the scope.
-  const labels = async doc => Object.fromEntries(await Promise.all(['context', 'canvas', 'chat', 'remove'].map(async name => [name, [await action(doc, name).getAttribute('title'), await action(doc, name).getAttribute('aria-label')]])));
+  // Owner review UI-10 (2026-10-21): one Use in this chat toggle, the inverse Add to canvas, the canvas default (new chats) in
+  // the row's More menu with its scope said, and a red Remove from Materials.
+  await openMenu(A);
+  const labels = async doc => Object.fromEntries(await Promise.all(['context', 'canvas', 'chat', 'more', 'remove'].map(async name => [name, [await action(doc, name).getAttribute('title'), await action(doc, name).getAttribute('aria-label')]])));
   const a = await labels(A);
-  assert.match(a.context[0], /^(Attach|Detach) alpha\.pdf (to|from) canvas context$/, `context title: ${a.context[0]}`);
+  assert.equal(a.context[0], 'Include alpha.pdf in new chats on this canvas');
+  assert.match(await page.locator('[data-material-menu-note]').innerText(), /^New chats on this canvas start with it\. This chat is unchanged\.$/);
+  assert.ok(['true', 'false'].includes(await action(A, 'context').getAttribute('aria-checked')), 'the canvas default exposes its state');
+  assert.equal(await action(A, 'context').evaluate(el => el === document.activeElement), true, 'the menu takes the focus');
+  await closeMenu();
+  assert.equal(await action(A, 'more').evaluate(el => el === document.activeElement), true, 'Escape hands the focus back to More');
   assert.equal(a.canvas[0], 'Add alpha.pdf to canvas');
-  assert.match(a.chat[0], /^(Attach alpha\.pdf to|Remove alpha\.pdf from) this chat$/, `chat title: ${a.chat[0]}`);
+  assert.equal(a.chat[0], 'Use alpha.pdf in this chat');
+  assert.equal(a.more[0], 'More actions for alpha.pdf');
   assert.equal(a.remove[0], 'Remove alpha.pdf from Materials');
   for (const [name, [title, label]] of Object.entries(a)) assert.ok(label && label === title, `${name}: aria-label matches its tooltip (${label})`);
-  assert.ok(['true', 'false'].includes(await action(A, 'context').getAttribute('aria-pressed')), 'canvas context exposes its state');
   assert.ok(['true', 'false'].includes(await action(A, 'chat').getAttribute('aria-pressed')), 'chat attachment exposes its state');
+  assert.match(await action(A, 'chat').innerText(), /^Use in this chat$/, 'the toggle is labelled');
+  assert.match(await action(A, 'canvas').innerText(), /^Add to canvas$/, 'Add to canvas is labelled');
+  const colors = await page.evaluate(() => { const ink = document.createElement('span'); ink.className = 'bg-ink text-danger'; document.body.append(ink); const s = getComputedStyle(ink), out = [s.backgroundColor, s.color]; ink.remove(); return out; });
+  assert.equal(await action(A, 'canvas').evaluate(el => getComputedStyle(el).backgroundColor), colors[0], 'Add to canvas is the inverse (ink) Button');
+  assert.equal(await action(A, 'remove').evaluate(el => getComputedStyle(el).color), colors[1], 'the removal icon is red');
   await shot('01-materials-rows');
 });
 
@@ -314,7 +338,9 @@ await check('two PDFs: canvas context and chat attachment on one row change only
   assert.equal(await pressed(A, 'chat'), false, 'A is not attached to this chat');
   assert.equal(await chipsOf(B).count(), 1, 'one chip for B');
   assert.equal(await chipsOf(A).count(), 0, 'no chip for A');
-  assert.equal(await action(B, 'chat').getAttribute('title'), 'Remove beta.pdf from this chat', 'the pressed chat action says what it does next');
+  // Owner review UI-10: one labelled toggle whose name stays Use beta.pdf in this chat; aria-pressed says it is on.
+  assert.equal(await action(B, 'chat').getAttribute('title'), 'Use beta.pdf in this chat', 'the toggle keeps its name');
+  assert.equal(await action(B, 'chat').getAttribute('aria-pressed'), 'true', 'and is pressed');
   const cap = await send('What do the attached documents say?');
   const refs = refsOf(cap);
   facts.scenario1 = { refs };
@@ -509,7 +535,7 @@ for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
       assert.equal(await name.getAttribute('title'), LONG_NAME, 'the long name keeps its full name as its title');
       assert.ok(await name.evaluate(el => el.scrollWidth > el.clientWidth), 'the long name truncates');
       const nameBox = await name.boundingBox();
-      for (const kind of ['context', 'canvas', 'chat', 'remove']) {
+      for (const kind of ['chat', 'canvas', 'more', 'remove']) {
         const b = await action(L, kind).boundingBox();
         assert.ok(b && b.width >= 20 && b.height >= 20, `${kind} has a usable target (${b && `${b.width}x${b.height}`})`);
         assert.ok(b.x >= panel.x - 0.5 && b.x + b.width <= panel.x + panel.width + 0.5, `${kind} sits inside the pane`);
@@ -525,8 +551,8 @@ for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
       await page.waitForTimeout(300);
       await sourcesPanel().screenshot({ path: `${OUT}/11-rows-rest-${theme}-${width}.png` });
       // Keyboard: Tab walks the four actions in order, each with a visible focus style.
-      await action(L, 'context').focus();
-      for (const kind of ['canvas', 'chat', 'remove']) {
+      await action(L, 'chat').focus();
+      for (const kind of ['canvas', 'more', 'remove']) {
         await page.keyboard.press('Tab');
         const focused = await page.evaluate(() => document.activeElement?.dataset?.materialAction || null);
         assert.equal(focused, kind, `Tab moves to ${kind} (got ${focused})`);
@@ -534,6 +560,12 @@ for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
         assert.ok(style.visible && (style.outline || style.shadow), `${kind} shows a visible focus style (${JSON.stringify(style)})`);
       }
       await sourcesPanel().screenshot({ path: `${OUT}/11-rows-focus-${theme}-${width}.png` });
+      // The canvas default from the keyboard: Enter on More opens its menu with the focus inside; Escape hands it back.
+      await action(L, 'more').focus();
+      await page.keyboard.press('Enter');
+      await waitFor(async () => action(L, 'context').evaluate(el => el === document.activeElement).catch(() => false), 3000, 'Enter on More did not focus the canvas default');
+      await page.keyboard.press('Escape');
+      await waitFor(async () => action(L, 'more').evaluate(el => el === document.activeElement), 3000, 'Escape did not hand the focus back to More');
     } finally { await Q.context.close(); }
   });
 }

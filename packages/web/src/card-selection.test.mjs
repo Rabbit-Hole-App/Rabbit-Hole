@@ -154,7 +154,8 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   assert.doesNotMatch(add, /askDraft\([A-Za-z'\`]/, 'no ready question is written');
   const collection = canvas.slice(canvas.indexOf('const armCollection = (ids, ref = null) => {'), canvas.indexOf('const addToChat = () => {'));
   assert.match(collection, /get text\(\) \{ return groupTargetText\(ids\.map\(askEntryOf\)\.filter\(Boolean\)\); \}/, 'content is resolved when it is read at send');
-  assert.match(collection, /const label = group \? `Group: \$\{group\.label \|\| `\$\{ids\.length\} items`\}` :/, 'one chip: Group: <name>, or the count');
+  // Owner brief UI-09 (2026-10-21): the chip is named from the objects, a group by its name, never "1 item" (selection-ref.test.mjs).
+  assert.match(collection, /const label = selectionName\(ids\.map\(nameOf\), group\);/, 'one chip: the group name, or the objects names');
   // The pin slot reserves the actions' segment for an object (a block, an item): PILL.ask (comments.test.mjs).
   // A Code exercise's and a Code sample's row also hold the Open in notebook icon (canvas-notebook.md).
   assert.match(canvas, /if \(block\) return PILL\.ask \+ \(block\.type === 'whiteboard' \|\| block\.type === 'paper' \? PILL\.gap \+ PILL\.select : 0\) \+ \(block\.type === 'code' \|\| block\.type === 'snippet' \? PILL\.gap \+ PILL\.notebook : 0\);\n\s+if \(exchanges\.some\(entry => entry\.id === id\)\) return PILL\.explain \+ PILL\.gap \+ PILL\.ask \+ PILL\.gap \+ PILL\.more;\n\s+return PILL\.ask;/);

@@ -19,7 +19,7 @@
 //     only an explicit reassessment makes another call.
 //   * An attempt row is never updated.
 import { validateCoachingRecord } from '../../web/src/learn-coaching-contract.js';
-import { isRepositorySource } from '../../web/src/learn-codebase-goals.js';
+import { CITATION_MAX, REPOSITORY_SOURCE, citationRef, citationsOverlap, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 import { sha256Hex } from './learn-grade-jev.js';
 
 export class AttemptError extends Error {
@@ -119,7 +119,18 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
   // A codebase answer is about the repository files its activity cites, at that commit (owner finding 5B). Those refs are the
   // server's own record, frozen on the attempt whatever the client names, so assessment and Progress read that revision.
   const bound = activityRefs.filter(isRepositorySource);
-  const frozen = [...bound, ...sourceRefs.filter(r => !bound.some(b => sourceKey(b) === sourceKey(r)))];
+  // A repository ref the client names is a learner citation (owner brief 2026-10-21 "Selecting evidence"): it must be a file the
+  // activity cites, with the same commit, path and whole-file hash, and lines inside the cited ones. The stored ref is built here
+  // from the activity's own ref with the learner's narrower lines; nothing else the client sent is kept.
+  const cited = [];
+  for (const ref of sourceRefs.filter(r => r.kind === REPOSITORY_SOURCE)) {
+    const made = citationRef(bound, ref);
+    if (!made) throw invalid('invalid_citation');
+    if (cited.some(c => citationsOverlap(c, made))) throw invalid('overlapping_citations');
+    cited.push(made);
+  }
+  if (cited.length > CITATION_MAX) throw invalid('too_many_citations', [`at most ${CITATION_MAX} citations`]);
+  const frozen = [...bound, ...cited, ...sourceRefs.filter(r => r.kind !== REPOSITORY_SOURCE)];
   // Known help is the help the learner reports plus the help the activity's checkpoint records. The checkpoint is the
   // server's own record, so it cannot be dropped by the client. Any help makes the attempt assisted.
   const checkpoint = activity.checkpoint_json ? JSON.parse(activity.checkpoint_json) : null;

@@ -13,6 +13,21 @@ export function objectKind(object) {
   return 'card';
 }
 
+// A chip's name for one canvas object (owner brief UI-09): its described title, else its own title, label, question, text,
+// LaTeX or the first line of its body, else what it is (the described kind, a shape, its card type) - never a count.
+const firstLine = value => String(value ?? '').trim().split('\n')[0].trim();
+const TYPE_NAMES = { 'repo-code': 'Code', 'repo-graph': 'Graph', snippet: 'Code sample', heading: 'Section', pdf: 'PDF' };
+export function objectName(object, described = null) {
+  return firstLine(described?.title) || firstLine(object?.title || object?.label || object?.question || object?.text || object?.latex || object?.body)
+    || firstLine(described?.kind) || (object && 'x1' in object ? 'Shape' : TYPE_NAMES[object?.type] || (object?.type ? object.type[0].toUpperCase() + object.type.slice(1) : 'Card'));
+}
+// Several objects (UI-09): a group is its name ("Group" when unnamed), any other selection its first two names and an ellipsis for
+// the rest. The chip shows how many beside it (chat-context.js rangeLabel: N cards), so the name never carries a count.
+export function selectionName(names, group = null) {
+  if (group) return firstLine(group.label) || 'Group';
+  return names.length > 2 ? `${names.slice(0, 2).join(', ')}, …` : names.join(', ');
+}
+
 // ids: the selected objects; kind: objectKind of the one object (ignored for several); name: the chip's label; content: the text
 // the version fingerprints; quote: text selected inside the one card; text(): the content, resolved at Send.
 export function selectionRef({ ids, kind = 'card', name = '', content = '', quote = '', text = () => content }) {

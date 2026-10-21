@@ -178,8 +178,12 @@ await check('the row has its own trash icon, labelled and titled "Remove remove-
   assert.equal(await trash().count(), 1);
   assert.equal(await trash().getAttribute('aria-label'), `Remove ${DOC_NAME} from Materials`);
   assert.equal(await trash().getAttribute('title'), `Remove ${DOC_NAME} from Materials`);
-  assert.equal(await row().getByRole('button', { name: `Remove ${DOC_NAME} from this chat` }).getAttribute('aria-pressed'), 'true', 'the chat attachment stays beside it, pressed');
-  assert.equal(await row().getByRole('button', { name: `Detach ${DOC_NAME} from canvas context` }).getAttribute('aria-pressed'), 'true', 'and the canvas context switch, on');
+  // Owner review UI-10 (2026-10-21): one Use in this chat toggle on the row; the canvas default (new chats) in the row's More menu.
+  assert.equal(await row().getByRole('button', { name: `Use ${DOC_NAME} in this chat` }).getAttribute('aria-pressed'), 'true', 'the chat attachment stays beside it, pressed');
+  await row().locator('[data-material-action="more"]').click();
+  assert.equal(await page.locator('[data-material-menu]').getByRole('menuitemcheckbox', { name: `Include ${DOC_NAME} in new chats on this canvas` }).getAttribute('aria-checked'), 'true', 'and the canvas default, on');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('[data-material-menu]').count(), 0, 'Escape closes the menu');
 });
 
 // The normal, non-hovered rows (owner hand-off): light and dark, at the default and the narrowest Sources width.
@@ -198,13 +202,14 @@ await check('the rows at rest: light and dark, default and narrow width, actions
     assert.ok(name.clipped, `${theme} ${width}: the long name truncates`);
     const actions = await long.locator('[data-material-action]').evaluateAll(els => els.map(el => { const b = el.getBoundingClientRect(); return { action: el.dataset.materialAction, x: b.x, y: b.y, right: b.right, w: b.width }; }));
     const pane = await sourcesPane().evaluate(el => el.getBoundingClientRect().right);
-    assert.deepEqual(actions.map(a => a.action), ['context', 'canvas', 'chat', 'remove'], `${theme} ${width}: the four actions in order`);
+    assert.deepEqual(actions.map(a => a.action), ['chat', 'canvas', 'more', 'remove'], `${theme} ${width}: the four actions in order`);
     assert.ok(actions.every(a => a.w >= 27 && a.right <= pane), `${theme} ${width}: every action whole and inside the pane`);
     assert.ok(actions.every(a => a.y === actions[0].y), `${theme} ${width}: the actions share one line`);
     assert.ok(actions.every(a => a.x >= name.right - 1 || a.y >= name.bottom - 1), `${theme} ${width}: no action over the name`);
     (facts.rows ||= {})[`${theme}-${width}`] = { second_line: actions[0].y >= name.bottom - 1 };
   }
-  assert.deepEqual([facts.rows['light-400'].second_line, facts.rows['light-320'].second_line], [false, true], 'one line at 400 px; a second action line at 320 px');
+  // Owner review UI-10: the labelled Use in this chat and Add to canvas take their own line under the name below 34rem (544 px).
+  assert.deepEqual([facts.rows['light-400'].second_line, facts.rows['light-320'].second_line], [true, true], 'a second action line at 400 and 320 px');
   await page.evaluate(() => { localStorage.setItem('small.theme', 'light'); localStorage.setItem('rh.companion.width', '400'); });
   await openCanvas();
   await openSources();
