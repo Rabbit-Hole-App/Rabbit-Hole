@@ -313,10 +313,15 @@ await step('at most three viewers render at once; the rest show the saved previe
   for (const block of extra) jobs[block.jobId] = { id: block.jobId, cardId: block.id, modelId: 'm', state: 'ready', stage: 'ready', attempt: 1, revisionId: 'revision-1', manifest: block.manifest, createdAt: Date.now(), updatedAt: Date.now() };
   await page.reload();
   await page.keyboard.press('Shift+Digit1'); // fit everything in view
-  await page.waitForTimeout(4000);
   const ids = [MAIN, ...extra.map(block => block.id)];
-  const live = [], posters = [];
-  for (const id of ids) { if ((await viewerOf(page, id).getAttribute('data-viewer-live')) === 'true') live.push(id); else if (await viewerOf(page, id).locator('[data-cad-poster]').count()) posters.push(id); }
+  // What each viewer shows now. Waited for, not slept for: under load the first model takes longer than any fixed pause.
+  const shown = async () => {
+    const live = [], posters = [];
+    for (const id of ids) { if ((await viewerOf(page, id).getAttribute('data-viewer-live')) === 'true') live.push(id); else if (await viewerOf(page, id).locator('[data-cad-poster]').count()) posters.push(id); }
+    return { live, posters };
+  };
+  await until(async () => { const now = await shown(); return now.live.length >= 1 && now.live.length + now.posters.length === ids.length; }, 'a viewer going live while the rest show their saved preview', 30000);
+  const { live, posters } = await shown();
   assert.ok(live.length <= 3 && live.length >= 1, `live: ${live.join(',')}`);
   assert.equal(live.length + posters.length, ids.length, `every model shows something: live ${live} posters ${posters}`);
   assert.equal(await page.locator('[data-cad-viewer-fallback]').count(), 0);

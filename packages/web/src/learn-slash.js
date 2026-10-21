@@ -51,7 +51,7 @@ export const EXAMPLES = {
   diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel',
   notebook: '/notebook', whiteboard: '/whiteboard the water cycle',
   image: '/image Mount Fuji', 'generate-image': '/generate-image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
-  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d a model of the solar system',
+  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   youtube: '/youtube binary search tutorial', arxiv: '/arxiv graph neural networks', wikipedia: '/wikipedia Photosynthesis',
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',

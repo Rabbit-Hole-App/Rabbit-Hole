@@ -44,6 +44,10 @@ export const SAMPLES = {
       operation: { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } },
       motion: { duration_seconds: 15, renderer: 'remotion', source_refs: [ref('S1', 44, 45), ref('S2', 48, 50), ref('S3', 62, 64), ref('S4', 65, 71)] } },
   },
+  // A finished /3d request: the scene card's own sample (Perspective projection) in its ready state. Its model is that
+  // sample's scene built offline (scripts/make-slash-3d-glb.mjs), committed and served by this origin: no job, no model. Its
+  // brief says what that model shows (the sample's operation caption), as the e.g. line (learn-slash.js) asks for it.
+  '3d': { scene: { status: 'ready', modelUrl: '/lesson-assets/slash-3d-frustum.glb', brief: 'A camera frustum, a cube inside it, and a ray sweeping across.' } },
 };
 // The line above a sample card: every card is a sample, and /motion's is a real Motion video of its example.
 export const SAMPLE_NOTES = { motion: 'A real Motion video, made from this example. Yours is made from what you type.' };
@@ -52,6 +56,7 @@ export const SAMPLE_NOTES = { motion: 'A real Motion video, made from this examp
 export const ILLUSTRATIONS = {
   videoGenerate: { kicker: 'Video', src: '/lesson-assets/slash-video-prism.svg', alt: 'A white beam enters a glass prism and fans out into a spectrum',
     note: 'Illustration. On the canvas, Generate (paid) makes the real clip.' },
-  scene: { kicker: '3D model', src: '/lesson-assets/slash-3d-frustum.svg', alt: 'A camera frustum with a cube inside it and a ray from the camera to the cube',
-    note: 'Illustration. On the canvas, Generate (paid) builds the real scene for the 3D viewer.' },
 };
+// The picture stands in only for a sample with no finished media of its own: a clip (src) or a model (modelUrl) is shown by
+// the card itself, and a viewer that fails says so in the card rather than fall back to a picture.
+export const illustrationFor = (type, block) => (ILLUSTRATIONS[type] && !block.src && !block.modelUrl ? ILLUSTRATIONS[type] : null);

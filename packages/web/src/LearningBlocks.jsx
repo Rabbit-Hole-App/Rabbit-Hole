@@ -1,5 +1,6 @@
 import CadCard from './CadCard.jsx';
 import { cadContext } from './cad-client.js';
+import { dropView, publishView } from './cad-viewer-store.js';
 import { createContext, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -1246,7 +1247,7 @@ function KnowledgeBody({ block, onChange, onFile }) {
 
 // A Blender-generated scene: post the validated spec, poll the durable job,
 // then hand the exported GLB to the same three.js viewer.
-function SceneBody({ block, appName, onChange }) {
+function SceneBody({ block, appName, onChange, viewKey = null }) {
   const [error, setError] = useState('');
   const elapsed = useElapsed(block.status === 'queued' || block.status === 'rendering');
   const polling = useRef(null);
@@ -1274,7 +1275,7 @@ function SceneBody({ block, appName, onChange }) {
     } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
   useConfirmedStart(block, onChange, generate);
-  if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} />;
+  if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} viewKey={viewKey} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       <Kicker>Blender scene</Kicker>
@@ -1295,29 +1296,56 @@ function SceneBody({ block, appName, onChange }) {
   );
 }
 
-// Interactive glTF on the canvas, sharing the lesson three.js renderer.
-function ThreeDBody({ block, onChange }) {
+// Interactive glTF on the canvas, sharing the lesson three.js renderer. With a `viewKey` (the Slash commands window's /3d
+// preview) the model shows at once but orbit and zoom wait for Interact in the toolbar outside the card (CadViewerTools,
+// cad-viewer-store.js), so the wheel scrolls around it until then; Esc, Done or a press outside ends it, and Fit view frames
+// the model again. Without one (the canvas) the node owns focus and orbit is always live, as before.
+function ThreeDBody({ block, onChange, viewKey = null }) {
   const report = usePerf();
   const host = useRef(null);
+  const frame = useRef(null);
   const engine = useRef(null);
   const [clips, setClips] = useState([]);
   const [error, setError] = useState('');
+  const [ready, setReady] = useState(false);
+  const [interacting, setInteracting] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const latest = useRef(block);
   latest.current = block;
   useEffect(() => {
     let disposed = false, instance;
-    setError('');
+    setError(''); setReady(false); setInteracting(false);
     import('./three-d-renderer.js').then(({ createThreeDRenderer }) => {
       if (disposed) return;
       const current = latest.current;
       const props = { w: 0, h: 0, modelUrl: current.modelUrl, camera: current.camera || {}, animation: current.animation || { autoplay: false }, animationTime: current.animationTime || 0, autoRotate: !!current.autoRotate };
-      instance = createThreeDRenderer(host.current, props, patch => onChange({ ...latest.current, ...patch }), found => { setClips(found); report('content'); report('interactive'); }, setError);
+      instance = createThreeDRenderer(host.current, props, patch => onChange({ ...latest.current, ...patch }), found => { if (disposed) return; setClips(found); setReady(true); report('content'); report('interactive'); }, setError);
       engine.current = instance;
-      instance.interact(true); // the canvas node owns focus, so orbit is always live
+      instance.interact(!viewKey); // the canvas node owns focus, so orbit is always live there
     }).catch(problem => { if (!disposed) setError(problem.message); });
     return () => { disposed = true; instance?.destroy(); engine.current = null; };
   }, [block.id, block.modelUrl, attempt]);
+  const live = ready && !error;
+  const tools = useRef({});
+  tools.current = {
+    enter: () => { if (!engine.current) return; engine.current.interact(true); setInteracting(true); },
+    exit: () => { engine.current?.interact(false); setInteracting(false); },
+    // Fit view saves its framing on the block, so the next block update does not restore the earlier camera.
+    fit: () => { engine.current?.fit(); const camera = engine.current?.camera(); if (camera) onChange({ ...latest.current, camera }); },
+  };
+  const handle = useRef(null);
+  handle.current ||= { enter: () => tools.current.enter(), exit: () => tools.current.exit(), fit: () => tools.current.fit() };
+  useEffect(() => { if (viewKey) publishView(viewKey, { live, interacting, api: handle.current }); }, [viewKey, live, interacting]);
+  useEffect(() => () => { if (viewKey) dropView(viewKey); }, [viewKey]);
+  useEffect(() => {
+    if (!interacting) return;
+    // Esc hands the pointer back and goes no further (the window around it stays open); so does a press outside the viewer and
+    // its toolbar.
+    const escape = event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); tools.current.exit(); } };
+    const outside = event => { if (!frame.current?.contains(event.target) && !event.target.closest?.('[data-cad-tools]')) tools.current.exit(); };
+    window.addEventListener('keydown', escape, true); document.addEventListener('pointerdown', outside, true);
+    return () => { window.removeEventListener('keydown', escape, true); document.removeEventListener('pointerdown', outside, true); };
+  }, [interacting]);
   // Play/pause, clip choice and auto-rotate live in block state: push every
   // change into the renderer, the way the tldraw viewer does.
   useEffect(() => {
@@ -1329,9 +1357,12 @@ function ThreeDBody({ block, onChange }) {
       <Kicker>3D model</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.brief && <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} /></div>}
-      <div className="relative mt-2 min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-[#f4f5f7]" onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
+      <div ref={frame} data-three-d-viewer data-viewer-live={live || undefined} data-viewer-active={interacting || undefined} onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}
+        className={`relative mt-2 min-h-0 flex-1 overflow-hidden rounded-lg border bg-[#f4f5f7] ${interacting ? 'border-ink' : 'border-line'}`}>
         <div ref={host} className="h-full w-full" />
-        {error && <div className="absolute inset-0 grid place-content-center bg-white p-4 text-center text-xs text-ink-2">{error}
+        {!ready && !error && <p role="status" data-three-d-loading className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">Loading the 3D model…</p>}
+        {interacting && <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">Drag to orbit · Scroll to zoom · Right-drag to pan · Esc to finish</p>}
+        {error && <div role="alert" data-three-d-error className="absolute inset-0 grid place-content-center bg-white p-4 text-center text-xs text-ink-2">{error}
           <button type="button" onClick={() => setAttempt(value => value + 1)} className="mt-2 rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-hover">Retry model</button></div>}
       </div>
       {!!clips.length && <div className="mt-2 flex items-center gap-2 text-xs" onPointerDown={event => event.stopPropagation()}>
@@ -1814,7 +1845,8 @@ export function describeBlock(block) {
   return null;
 }
 
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true, readOnly = false, onCadEdit, cadAccount = '' }) {
+// `viewKey`: a 3D scene's viewer is driven by a toolbar outside the card under that name (ThreeDBody); the canvas passes none.
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true, readOnly = false, onCadEdit, cadAccount = '', viewKey = null }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1832,7 +1864,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
   if (block.type === 'knowledge') return <KnowledgeBody block={block} onChange={onChange} onFile={onFile} />;
-  if (block.type === 'scene') return <SceneBody block={block} appName={appName} onChange={onChange} />;
+  if (block.type === 'scene') return <SceneBody block={block} appName={appName} onChange={onChange} viewKey={viewKey} />;
   if (block.type === 'image') return <ImageBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
   if (block.type === 'video') return <VideoBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
   if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} onAskRegion={onAskRegion} selected={selected} />;

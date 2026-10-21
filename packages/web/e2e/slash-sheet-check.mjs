@@ -5,7 +5,7 @@ import { DEV_CP } from './dev-cp.mjs';
 // View > Slash commands on the parallel clone, then the Agent Bar's sheet on the Library: the search is focused on open and
 // filters by name and description; choosing a command shows the real card it
 // makes (the canvas's own card component) at its canvas size and working; paid
-// media shows a committed finished clip or a labelled picture, never Generate;
+// media shows a committed finished clip or model, or a labelled picture, never Generate;
 // /dive says what it opens. Every retained command shows a demo, what it does and an example; Use example prepares an
 // editable draft and sends nothing; the 17 removed commands appear nowhere, and the Agent Bar has no commands left (owner,
 // 2026-10-20). No model calls, nothing generated.
@@ -111,14 +111,20 @@ await sheet.locator('[data-slash-help="quiz"]').click();
 await sheet.locator('[data-slash-card="quiz"]').getByRole('button').first().click();
 ok('the quiz card works: choosing an option answers it', await sheet.locator('[data-slash-card="quiz"]').innerText().then(text => /differentiate|σ|sigma/i.test(text)));
 // Paid media always shows a finished example from committed files, on any stack: /motion plays a real Motion video (the
-// committed final.mp4 of job 8a2015a4, L8, played from a blob URL so it seeks); /3d and /video show a labelled picture of the finished
-// card. No Generate card.
+// committed final.mp4 of job 8a2015a4, L8, played from a blob URL so it seeks); /3d shows its scene card ready in the canvas's 3D
+// viewer on the committed model (slash-3d-check.mjs covers it in full); /video shows a labelled picture of the finished card.
+// No Generate card.
 await sheet.locator('[data-slash-help="motion"]').click();
 const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
 const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
 ok('/motion plays its real Motion video, not a Generate card', Math.round(plays) === 15 && (await clip.getAttribute('src')).startsWith('blob:') && await sheet.locator('[data-slash-card]').getByText('Softmax: Turning Attention Scores into Weights').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
 await sheet.screenshot({ path: `${SHOTS}/sheet-motion.png` });
-for (const [command, type] of [['3d', 'scene'], ['video', 'videoGenerate']]) {
+await sheet.locator('[data-slash-help="3d"]').click();
+const model = sheet.locator('[data-slash-card="scene"] [data-three-d-viewer]');
+const shown = await model.waitFor({ timeout: 15000 }).then(() => sheet.locator('[data-slash-card="scene"] [data-three-d-viewer][data-viewer-live] canvas').waitFor({ timeout: 20000 })).then(() => true, () => false);
+ok('/3d shows its scene card live on the committed model, not a picture or a Generate card', shown && await sheet.locator('img[data-slash-illustration]').count() === 0 && await sheet.locator('[data-slash-card] [data-generate-scene]').count() === 0);
+await sheet.screenshot({ path: `${SHOTS}/sheet-3d.png` });
+for (const [command, type] of [['video', 'videoGenerate']]) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   // decode(), not naturalWidth: an SVG with only a viewBox loads with naturalWidth 0; decode() rejects only a broken image.
   const picture = sheet.locator(`[data-slash-card="${type}"] img[data-slash-illustration]`);
