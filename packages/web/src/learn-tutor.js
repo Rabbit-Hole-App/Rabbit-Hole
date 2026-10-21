@@ -146,10 +146,7 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     candidates: withPrerequisites(claims, domain), fallback: claims,
     forced: [turn.answering ? store.open?.claim : null, turn.returned_from?.claim].filter(Boolean),
   }, domain) : null;
-  // anchored: the turn is tied to its claims by structure (an open question it answers, a stamped or authored target card, a
-  // hook, a return from a hole), not only by the domain's default (a journey's current section).
-  const anchored = turnClaims(turn, store, { ...domain, defaultClaims: () => [] }).length > 0;
-  return { turn, claims, selection, anchored };
+  return { turn, claims, selection };
 }
 
 // What /api/learn/tutor/evaluate checks: the turn's claims, and gap checks for their prerequisites.
@@ -473,12 +470,10 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
   // (a slash, a hole's opening) keeps the turn's claims.
   const claims = selection ? selection.selected : built.claims;
-  // Task 04 (the journey exit; draft "Context and model boundaries"; owner 3a): on a live journey, words that name none of its
-  // claims in a turn nothing ties to the journey (no open question or probe answered, no stamped card, no hook, no return)
-  // are never evaluated against it - a question about another subject (KNN on a logistic regression path) is answered as an
-  // aside by the planner, and its evidence cannot land on the journey. A claim cue in the words, or any of those ties, still
-  // evaluates as before. Decided by structure and the claim selector only, never by intent words.
-  const aside = plan && domain.evidence.mode === 'journey' && !built.anchored && !!selection?.fallback;
+  // Task 04's journey exit is JEV's, never a word rule (integrator ruling 2026-10-21): typed words on a live journey that name
+  // none of its claims fall back to the current section's (the selector's locked rule), and JEV's attempt and engagement checks
+  // decide whether they answered it - an on-topic answer in the learner's own words is evidence; an aside about another
+  // subject (KNN on a logistic regression path) engages no claim and adds nothing. The planner answers it either way.
   // 2. JEV, then the larger evaluator when the escalation policy says so - free text on slice claims
   // only. Stage C: off the critical path (criticalPath) it runs beside the planner.
   let evaluation = null, evidence = null, transitions = [], critical = null, pending = null;
@@ -496,7 +491,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', reconciled, out => `${out.added} observations, ${out.transitions.length} state changes`));
     turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, nextSectionOffer, repository }).turn.evidence;
   };
-  if (raw.trim() && !turn.slash && !opening && claims.length && !aside) {
+  if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current, domain);
     critical = criticalPath(learnerIntent(turn), spec, route({ turn, claims, states, evaluation: null, store: current, held }).row);
     const sent = now();

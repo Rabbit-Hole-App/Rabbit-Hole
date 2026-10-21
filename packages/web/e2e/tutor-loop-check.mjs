@@ -7,9 +7,11 @@
 //   reload -> Progress and the activity's feedback again -> a second signed-in browser context reads the same Progress.
 // Tutor T8 adds, on the same canvas: a submit lost on the network keeps the answer and its retry reuses the submission key;
 // a reply that still reads pending is followed to the final feedback (GET, no model); and two Tutor turns whose plans are
-// answered in the page (no model): "Teach me KNN instead" on this logistic regression path in Auto is answered as an aside,
-// never evaluated against the path, the plan's unrequested follow-up question dropped (ruling Q5) and its learning-path offer
-// kept; the same plan in Tutor On keeps the question.
+// answered in the page (no model): "Teach me KNN instead" on this logistic regression path in Auto is answered as an aside
+// and leaves the path untouched, the plan's unrequested follow-up question dropped (ruling Q5) and its learning-path offer
+// kept; the same plan in Tutor On keeps the question. Evalfix (integrator ruling 2026-10-21): the journey exit is JEV's
+// attempt and engagement checks, not a word rule, so the turn's words go to /api/learn/tutor/evaluate against the current
+// section; that request reaches this keyless stack, where JEV is not configured, so it calls nothing and stores nothing.
 // Every other model-capable request is aborted and counted, and none may happen; the attempts route makes no model call for
 // a keyed answer. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:9291 SMALL_CP=http://127.0.0.1:9293 VARS=<stack .dev.vars> node e2e/tutor-loop-check.mjs [shotsDir]
@@ -54,7 +56,7 @@ assert.equal(goalId, `lg_${j.journey.id}`, 'the journey is the learner\'s active
 const probe = fixtureFor('journey_diagnostic', { topic: 'logistic regression' }).probes.find(p => p.id === 'p1');
 
 const browser = await chromium.launch();
-const errors = [], model = [], attempts = [], keys = [], reads = [], plans = [], hooks = [];
+const errors = [], model = [], attempts = [], keys = [], reads = [], plans = [], hooks = [], evaluations = [];
 // net: what the next requests meet (T8): failSubmit aborts the next attempts POST at the network; pendingSubmit lets it save
 // and makes its reply read pending; plan answers the Tutor's plan request in the page (a canned plan, not a model).
 const net = { failSubmit: false, pendingSubmit: false, plan: null };
@@ -67,6 +69,7 @@ async function learner(label) {
     const request = route.request(), url = new URL(request.url());
     if (url.pathname === '/api/learn/tutor/plan' && net.plan) { plans.push(request.postDataJSON()); return route.fulfill({ json: net.plan }); }
     if (url.pathname === '/api/learn/tutor/next-steps') { hooks.push(label); return route.abort(); } // hooks after a Tutor On turn: gated, counted apart
+    if (url.pathname === '/api/learn/tutor/evaluate') { evaluations.push(request.postDataJSON()); return route.continue(); } // keyless stack: JEV not configured
     if (MODEL(url.pathname, request.method())) { model.push(`${label} ${request.method()} ${url.pathname}`); return route.abort(); }
     if (url.pathname.startsWith('/api/learn/tutor/attempts/') && request.method() === 'GET') reads.push(label);
     if (url.pathname === '/api/learn/tutor/attempts' && request.method() === 'POST') {
@@ -216,17 +219,18 @@ net.plan = { strategy: 'socrates', constraints_add: [], actions: [{ type: 'respo
 const journeyNow = async () => (await api(`/api/learn/journey?app=${canvas.name}&board=main`)).journey;
 const composer = page => chatPane(page).locator('[data-chat-composer] textarea').first();
 const say = async (page, text) => { await composer(page).fill(text); await composer(page).press('Enter'); };
-await check('journey exit and Q5 in Auto: a new subject is answered, never evaluated against the path; the unrequested question is dropped, the path offer kept', async () => {
-  const before = await journeyNow(), sent = plans.length;
+await check('journey exit and Q5 in Auto: a new subject is answered and leaves the path untouched; the unrequested question is dropped, the path offer kept', async () => {
+  const before = await journeyNow(), sent = plans.length, judged = evaluations.length;
   assert.equal((await coachingOf()).controls.mode, 'auto', 'Auto, the default');
   await say(a.page, 'Teach me KNN instead');
   await a.page.getByText(ANSWER).first().waitFor({ timeout: 30000 });
   await a.page.waitForTimeout(1500);
   assert.equal(plans.length, sent + 1, 'one plan request');
+  assert.deepEqual(evaluations.slice(judged).map(body => [body.journey_id, body.message]), [[before.id, 'Teach me KNN instead']], 'JEV, not a word rule, reads it against the current section');
   assert.equal(await a.page.getByText(QUESTION).count(), 0, 'no unrequested follow-up question in Auto');
   assert.equal(await a.page.getByRole('button', { name: 'Start a learning path' }).count(), 1, 'the learning-path offer answers the request');
   const after = await journeyNow();
-  assert.deepEqual([after.id, after.state, after.active_section_id, after.evidence.events.length], [before.id, before.state, before.active_section_id, before.evidence.events.length], 'the path is untouched: nothing was graded against it');
+  assert.deepEqual([after.id, after.state, after.active_section_id, after.evidence.events.length], [before.id, before.state, before.active_section_id, before.evidence.events.length], 'the path is untouched: no evidence landed on it');
   assert.equal(hooks.length, 0, 'no hooks in Auto');
   await shot(a.page, 'loop-07-exit-auto');
 });
@@ -244,6 +248,6 @@ await check('Q5 in Tutor On: the same plan keeps its follow-up question', async 
 
 assert.deepEqual(model, [], `no model request: ${model.join()}`);
 assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
-console.log(`attempts submitted: ${attempts.length}; submit keys sent: ${keys.length}; attempt reads: ${reads.length}; plans answered in the page: ${plans.length}; hook requests (Tutor On, aborted): ${hooks.length}`);
+console.log(`attempts submitted: ${attempts.length}; submit keys sent: ${keys.length}; attempt reads: ${reads.length}; plans answered in the page: ${plans.length}; evaluate requests (keyless stack): ${evaluations.length}; hook requests (Tutor On, aborted): ${hooks.length}`);
 console.log(`PASS ${results.length}/8 checks`);
 await browser.close();

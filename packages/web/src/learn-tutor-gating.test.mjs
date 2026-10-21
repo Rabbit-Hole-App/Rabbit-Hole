@@ -119,7 +119,8 @@ test('q5: the router explains instead of asking when questions are held - miscon
 
 // ---------- The journey exit (draft Task 04 bullet 4; "Context and model boundaries") ----------
 
-// A live journey, its current section's claims as expected evidence; evaluate answers with the server's journey shape.
+// A live journey, its current section's claims as expected evidence; evaluate answers with the server's journey shape, as
+// JEV answers words that engage none of the claims: no events.
 function journeyTurn(fixture, { raw, store = emptyStore(), plan = true, may = null }) {
   const registry = fixture.registry, ids = Object.keys(registry.claims).slice(0, 2);
   const journey = { id: 'lj_x', state: 'active', registry, evidence: { seq: 0, events: [] }, active_section_id: 's1', request: { topic: fixture.topic }, intake: { slots: {} } };
@@ -136,15 +137,20 @@ function journeyTurn(fixture, { raw, store = emptyStore(), plan = true, may = nu
 const LR = { topic: 'logistic regression', registry: fixtureFor('journey_diagnostic', { topic: 'logistic regression' }).registry };
 const tides = { topic: TIDES.topic, registry: TIDES.diagnostic.registry }, aqueduct = { topic: AQUEDUCTS.topic, registry: AQUEDUCTS.diagnostic.registry };
 
-test('journey exit: a request about another subject is answered, never evaluated against the journey (KNN on logistic regression; volcanoes on tides and on aqueducts)', async () => {
+// Integrator ruling 2026-10-21 (evalfix): the exit is JEV's attempt and engagement checks, not a word rule. Untied words that
+// name none of the journey's claims are read against the current section, so an on-topic answer in the learner's own words
+// is still evidence (next test); words about another subject engage no claim, so nothing lands on the journey.
+test('journey exit: a request about another subject is answered, never refused, and adds no evidence to the journey (KNN on logistic regression; volcanoes on tides and on aqueducts)', async () => {
   for (const [fixture, raw] of [
     [LR, 'Teach me KNN instead'], [LR, 'Help me understand how KNN chooses a class.'],
     [tides, 'How do volcanoes erupt?'], [tides, 'Magma rises because it is less dense than the rock around it.'],
     [aqueduct, 'Why do clouds form?'],
   ]) {
     const r = await journeyTurn(fixture, { raw });
-    assert.deepEqual(r.routes, ['/api/learn/tutor/plan'], `${raw}: one plan, no /evaluate`);
-    assert.equal(r.evaluation, null, raw);
+    const evaluate = r.sent.filter(s => s.route === '/api/learn/tutor/evaluate');
+    assert.deepEqual(evaluate.map(s => [s.body.journey_id, s.body.claims]), [['lj_x', r.ids]], `${raw}: JEV reads it once, against the current section`);
+    assert.equal(r.routes.filter(route => route === '/api/learn/tutor/plan').length, 1, `${raw}: one plan`);
+    assert.deepEqual([r.transitions, r.store.events], [[], []], `${raw}: no claim engaged, so nothing lands on the journey`);
     assert.equal(r.text, 'A short answer.', `${raw}: answered, not refused`);
     assert.ok(r.actions.some(a => a.type === 'suggest_journey'), `${raw}: a new guided goal is offered (Start a learning path)`);
   }
@@ -153,7 +159,11 @@ test('journey exit: a request about another subject is answered, never evaluated
   assert.ok(auto.actions.some(a => a.type === 'suggest_journey'));
 });
 
-test('journey exit: the journey still evaluates what is tied to it - a cue in the words, an answer to its open question, a probe answer', async () => {
+test('journey exit: the journey still evaluates what is tied to it - an answer in words that name none of its cues, a cue in the words, an answer to its open question, a probe answer', async () => {
+  // The regression the ruling names: an untied answer about the current section in the learner's own words, with no cue.
+  const own = await journeyTurn(LR, { raw: 'It squashes the score into a probability.' });
+  assert.equal(own.bench.selection.fallback, true, 'no cue matched');
+  assert.deepEqual(own.sent.filter(s => s.route === '/api/learn/tutor/evaluate').map(s => s.body.claims), [own.ids], 'evaluated against the current section');
   const cue = await journeyTurn(tides, { raw: TIDES.cueMessage });
   assert.ok(cue.routes.includes('/api/learn/tutor/evaluate'), 'a claim cue');
   assert.equal(cue.sent.find(s => s.route === '/api/learn/tutor/evaluate').body.journey_id, 'lj_x');
