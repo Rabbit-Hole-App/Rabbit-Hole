@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AVAILABILITY, CONNECTIONS, connectionsFor, findConnection, openedNotice, previewConnections } from './connections.js';
+import { CONNECTIONS, connectionsFor, findConnection, openedNotice } from './connections.js';
 
 test('the catalog lists the six T02 §11 providers in order', () => {
   assert.deepEqual(CONNECTIONS.map((c) => c.id), ['github', 'slack', 'aws', 'google-slides', 'google-drive', 'notion']);
@@ -17,7 +17,6 @@ test('future providers are Planned and claim no account status', () => {
     assert.equal(findConnection(id).availability, 'planned');
     assert.equal(findConnection(id).account, undefined);
   }
-  assert.equal(AVAILABILITY.planned, 'Planned');
 });
 
 test('availability is separate from account status, shown only where code can read it', () => {
@@ -37,16 +36,14 @@ test('provider names typed in the bar resolve to rows', () => {
   assert.equal(findConnection(''), null);
 });
 
+// Owner L11 (2026-10-20): Connections is hidden while Rabbit Hole has no connected accounts, and Preferences became
+// Appearance & input; the notice names where Settings really opened.
 test('the notice says where Settings opened, and that a planned provider was not connected', () => {
-  assert.equal(openedNotice('connections', 'google-slides'), 'Opened Settings → Connections. Google Slides is planned; nothing was connected.');
-  assert.equal(openedNotice('connections', 'slack'), 'Opened Settings → Connections.');
-  assert.equal(openedNotice('connections'), 'Opened Settings → Connections.');
-  assert.equal(openedNotice('preferences'), 'Opened Settings → Preferences.');
+  assert.equal(openedNotice('connections', 'google-slides'), 'Opened Settings. Google Slides is planned; nothing was connected.');
+  assert.equal(openedNotice('connections', 'slack'), 'Opened Settings.');
+  assert.equal(openedNotice('connections'), 'Opened Settings.');
+  assert.equal(openedNotice('preferences'), 'Opened Settings → Appearance & input.');
+  assert.equal(openedNotice('usage'), 'Opened Settings → AI usage.');
   assert.equal(openedNotice(), 'Opened Settings.');
-});
-
-test('Rabbit Hole Settings lists only working providers: no planned rows, no live-only Slack', () => {
-  assert.deepEqual(previewConnections({ aws: false }).map((c) => c.id), ['github']);
-  assert.deepEqual(previewConnections({ aws: true }).map((c) => c.id), ['github', 'aws']);
   assert.equal(CONNECTIONS.some((c) => /Planned/.test(c.account || '')), false);
 });
