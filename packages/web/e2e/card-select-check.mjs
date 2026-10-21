@@ -149,8 +149,9 @@ await check('8 x on the strip removes the context and the card selection togethe
   assert.ok(!(await isSelected('k-exp')), 'never a ring with no strip');
 });
 
-await check('10 /ask with nothing selected asks about the canvas: no card target', async () => {
-  await slash('/ask what is ice made of?');
+// /ask is a removed command (owner, 2026-10-20): a question is asked in plain words.
+await check('10 a question with nothing selected asks about the canvas: no card target', async () => {
+  await slash('what is ice made of?');
   const ask = asks.at(-1);
   assert.equal(ask?.message, 'what is ice made of?');
   assert.equal(ask.canvas_target, undefined);
@@ -158,23 +159,23 @@ await check('10 /ask with nothing selected asks about the canvas: no card target
 
 // Through the Tutor (#46) the selected card rides as the turn's target: its title and text (learn-tutor.js target).
 const aboutCard = target => /^Why salt melts ice/.test(target?.description || '') && /lowers its freezing point/.test(target.description);
-await check('9 /ask with a card selected carries that card: its title, and its text as material', async () => {
+await check('9 a question with a card selected carries that card: its title, and its text as material', async () => {
   await press('k-exp');
   await composer().click();
-  await composer().fill('/ask why does this happen?');
+  await composer().fill('why does this happen?');
   await shot('D-ask-typed-with-card-selected');
   await composer().press('Enter');
   await page.waitForTimeout(900);
   const ask = asks.at(-1);
   assert.equal(ask?.message, 'why does this happen?');
-  assert.equal(ask.slash, 'ask');
+  assert.equal(ask.slash, undefined, 'no slash override: /ask is removed');
   assert.ok(aboutCard(ask.canvas_target), JSON.stringify(ask.canvas_target));
 });
 
 await check('11 after the send the card stays selected; the follow-up asks about it again', async () => {
   assert.ok(await isSelected('k-exp'));
   assert.equal(await strip().getAttribute('data-selected-card'), 'k-exp');
-  await slash('/ask show another example');
+  await slash('show another example');
   assert.ok(aboutCard(asks.at(-1)?.canvas_target), JSON.stringify(asks.at(-1)?.canvas_target));
   assert.ok(await isSelected('k-exp'));
 });

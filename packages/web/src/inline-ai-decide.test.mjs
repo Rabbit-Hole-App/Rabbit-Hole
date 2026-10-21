@@ -55,7 +55,9 @@ test('fixed routes: Edit, slash commands and plain Explain know their route but 
   assert.deepEqual(fixedRoute(pick('make the title shorter', { mode: 'edit' })), { capability: 'edit' });
   assert.deepEqual(fixedRoute(pick('/diagram how the stages connect')), { capability: 'shapes' });
   assert.deepEqual(fixedRoute(pick('how the stages connect', { slash: 'diagram' })), { capability: 'shapes' });
-  assert.deepEqual(fixedRoute(pick('/simplify')), { capability: 'note' });
+  // Owner, 2026-10-20: a removed command runs nothing inline, even one whose route plain words still reach.
+  assert.deepEqual(fixedRoute(pick('/simplify')), { decision: 'unsupported', message: '/simplify is no longer available. Type / to see the commands, or ask in your own words.', paid: false });
+  assert.equal(fixedRoute(pick('/compare with mitosis'), ['note', 'compare']).decision, 'unsupported');
   assert.deepEqual(fixedRoute(pick('explain this')), { capability: 'note' });
   assert.deepEqual(fixedRoute(pick('/code'), ['note', 'shapes', 'code']), { capability: 'code' }, 'a bare command takes the selection as its subject');
   // Natural language: the validator picks the route as well.
@@ -117,7 +119,7 @@ test('the response schema: proceed needs a route and a token; other decisions ne
 test('what the validator reads is compact, and what generation gets comes from the decided request', () => {
   assert.equal(summaryOf(pick('x')), 'shape:rect "Photosynthesis"');
   assert.equal(summaryOf(create('x')), 'near: a flowchart of an order checkout');
-  assert.equal(generationPrompt(pick('/simplify for a child')), 'Explain it more simply. Keep the original. for a child');
+  assert.equal(generationPrompt(pick('/code for a child')), 'for a child');
   assert.equal(generationPrompt(pick('the light reactions', { slash: 'diagram' })), 'the light reactions');
   assert.equal(generationPrompt(pick('  why does this happen? ')), 'why does this happen?');
 });

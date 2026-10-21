@@ -18,7 +18,8 @@ const hue = hex => {
   const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return (h * 60 + 360) % 360;
 };
-const FAMILIES = { ask: [170, 200], teach: [250, 285], research: [25, 55], do: [120, 160], motion: [280, 310] };
+// /ask, /teach, /research and /do were removed (owner, 2026-10-20); /motion keeps its magenta family.
+const FAMILIES = { motion: [280, 310] };
 
 test('each command family has its own tint, text and border, readable in both themes', () => {
   for (const theme of ['light', 'dark']) {
@@ -30,7 +31,7 @@ test('each command family has its own tint, text and border, readable in both th
   }
 });
 
-test('the families are the owner\'s: cyan, violet, amber, green, magenta - never the primary blue, never red', () => {
+test('the families are the owner\'s: /motion magenta - never the primary blue, never red', () => {
   const accent = token('light', '--color-accent');
   for (const [name, [low, high]] of Object.entries(FAMILIES)) {
     for (const theme of ['light', 'dark']) {
@@ -50,11 +51,11 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   assert.doesNotMatch(source, /COMMAND_ICONS|CommandIcon|lucide-react|<Icon/);
   assert.match(source, /return <span data-command-tone=\{name\} className=\{`inline-flex shrink-0 items-center rounded-md border px-1\.5 font-medium \$\{className\}`\}>\/\{name\}<\/span>;/);
   assert.match(source, /export const COMMAND_TONES = SLASH\.map\(\(command\) => command\.name\);/, 'every command in the registry is toned');
-  if (commandTone) { assert.equal(commandTone('ask'), 'ask'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); }
+  if (commandTone) { assert.equal(commandTone('explain'), 'explain'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); assert.equal(commandTone('simplify'), null); }
   assert.match(read('./LearnSlash.jsx'), /<CommandMark name=\{item\.name\} className="text-ink" \/>/);
-  // Both Slash commands sheets list commands through CommandList.jsx (the canvas's and the Agent Bar's).
+  // The Slash commands sheet lists commands through CommandList.jsx (the Agent Bar has none since 2026-10-20).
   assert.match(read('./CommandList.jsx'), /<CommandMark name=\{item\.name\} \/>/);
-  for (const sheet of ['./SlashCommandsSheet.jsx', './agent/BarCommandsSheet.jsx']) assert.match(read(sheet), /<CommandList sections=\{sections\} current=\{name\}/, sheet);
+  assert.match(read('./SlashCommandsSheet.jsx'), /<CommandList sections=\{sections\} current=\{name\}/);
   const ask = read('./ask.jsx');
   // The composer pill is the shared CommandPill (Release B: the Chat composer's and Ctrl+K's).
   assert.match(ask, /<CommandPill name=\{command\} /);
@@ -78,7 +79,7 @@ test('the same command looks the same everywhere: the / picker, the composer pil
 test('every command in the registry has its own colour in both themes; no two share one', async () => {
   const { SLASH } = await import('./agent/slash.js');
   const names = SLASH.map((command) => command.name);
-  assert.ok(names.length >= 30, `${names.length} commands`);
+  assert.ok(names.length >= 20, `${names.length} commands`);
   const accent = token('light', '--color-accent');
   for (const theme of ['light', 'dark']) {
     const seen = new Map();
@@ -93,10 +94,7 @@ test('every command in the registry has its own colour in both themes; no two sh
     }
   }
   for (const name of names) assert.ok(css.includes(`[data-command-tone="${name}"] { --cmd-bg: var(--cmd-${name}-bg); --cmd-fg: var(--cmd-${name}-fg); --cmd-line: var(--cmd-${name}-line); }`), `/${name} rule`);
-  // The bar's picker rows and pills wear the same mark as the canvas's.
-  const bar = read('./agent/AgentBar.jsx');
-  assert.match(bar, /\{can\.ok \? <CommandMark name=\{m\} \/> : <span className="font-medium text-ink-3">\/\{m\}<\/span>\}/);
-  assert.match(bar, /data-command-pill data-command-tone=\{commandTone\(mode\) \|\| undefined\}/);
-  assert.match(bar, /data-command-pill data-command-tone=\{commandTone\(shortcut\) \|\| undefined\}/);
-  assert.match(bar, /className=\{COMPOSER_PILL\}>Auto<\/button>/, 'Auto stays neutral');
+  // A removed command keeps no colour; the bar draws no command mark or pill (it has no slash commands since 2026-10-20).
+  for (const name of ['ask', 'teach', 'research', 'do', 'find', 'more', 'simplify', 'compare', 'walkthrough', 'source', 'paper']) assert.ok(!css.includes(`--cmd-${name}-`), name);
+  assert.doesNotMatch(read('./agent/AgentBar.jsx'), /CommandMark|data-command-pill/);
 });

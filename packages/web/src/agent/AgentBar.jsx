@@ -1,16 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ChevronRight, FolderGit2, Loader2, MessageSquare, Plus, Shapes, SquareSlash, X } from 'lucide-react';
-import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD } from '../ChatComposer.jsx';
-import { CommandMark, commandTone } from '../CommandTone.jsx';
-import { CommandSearch } from '../CommandList.jsx';
-import { filterSections } from '../command-search.js';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ChevronRight, FolderGit2, Loader2, MessageSquare, Plus, Shapes, X } from 'lucide-react';
+import ChatComposer, { COMPOSER_ADD, DOCK_PAD } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
 import { START_PATHS, slugOf } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
 import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
 import {
-  aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, modeAvailability, modeQuery, modesFor, shortcutsFor,
+  aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, modeAvailability,
   nodeKey, offerFor, panelHosts, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, subscribeTurns, threadIds, updateTurn, widen,
 } from './bar.js';
 import { kindLabel, titleOf } from './catalog.js';
@@ -18,8 +15,7 @@ import { COMMANDS, ctxOf, executeCommand, prepareCommand } from './commands.js';
 import { learnAction } from './learn-hook.js';
 import { journeyMessage, journeyStarted, NEEDS_TOPIC, teachPlan } from './teach-plan.js';
 import ResultSheet from './ResultSheet.jsx';
-import BarCommandsSheet from './BarCommandsSheet.jsx';
-import { commandLabel, placeOf } from './slash.js';
+import { unavailableCommand } from './slash.js';
 import { route } from './router.js';
 import { chipsFor, contextWithout, crumbsShown, endpointFor, scopeKey, scopeOf } from './scope.js';
 import { clearPick, getSurface, pickedKey, useSurface } from './surface.js';
@@ -40,7 +36,7 @@ const chooseLabel = (slug) => {
 // T02 §6: one Agent Bar over every page, mounted once in Root (dev only), so a
 // draft and an in-flight answer survive Shell remounts and navigation. Where it
 // shows comes from surface.barHidden (routes.js baseSurfaceFor, then the page).
-export default function AgentBar({ page }) {
+export default function AgentBar() {
   const surface = useSurface();
   const hidden = surface.barHidden;
   // Home, Library and Explore (a creator profile is Explore) have no [+] (owner, 2026-10-08: "hide it"): each page's own
@@ -92,49 +88,6 @@ export default function AgentBar({ page }) {
   const here = useSyncExternalStore(subscribeTurns, () => getTurns(resultsKey(target)));
   const line = here[here.length - 1] || latest;
 
-  // §6.2 mode: Auto unless picked; '/' at position 0 opens the picker.
-  const [mode, setMode] = useState('auto');
-  // A mode is transient (user, WP7): a new page or resource starts in Auto. Project tabs and a node pick keep the page
-  // key (routes.js pageFor), so they keep the mode; drafts and held drafts are untouched.
-  const [shortcut, setShortcut] = useState(null); // a picked /find, /open... shown as a pill, like a mode
-  useEffect(() => { setMode('auto'); setShortcut(null); }, [page]);
-  const [picker, setPicker] = useState(false);
-  const [commandsOpen, setCommandsOpen] = useState(false); // the / commands modal, from the picker's / icon
-  const [hi, setHi] = useState(0);
-  // Auto opens the picker on its own search field (owner, 2026-10-08): its text, or null when / was typed in the draft,
-  // which is the search then. It matches name and description as the Slash commands sheets do (command-search.js).
-  const [query, setQuery] = useState(null);
-  const searching = query !== null;
-  const all = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))];
-  const entries = searching ? filterSections([{ items: all }], query)[0]?.items || [] : all.filter((e) => e.name.startsWith(modeQuery(draft) || ''));
-  const pickerOpen = picker && (entries.length > 0 || searching);
-  useEffect(() => { if (!picker) setQuery(null); }, [picker]);
-  // The list keeps the height it opened with while the search narrows it, so the field above it never moves.
-  const list = useRef(null);
-  const [listHeight, setListHeight] = useState(null);
-  useLayoutEffect(() => { setListHeight(searching ? list.current?.offsetHeight ?? null : null); }, [searching]);
-  // A click outside the composer closes the mode picker, as Escape does (onKeyDown).
-  const dock = useRef(null);
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const away = (e) => { if (!dock.current?.contains(e.target)) setPicker(false); };
-    document.addEventListener('pointerdown', away, true); // capture: the canvas stops its own pointer events
-    return () => document.removeEventListener('pointerdown', away, true);
-  }, [pickerOpen]);
-  const hiIndex = Math.min(hi, entries.length - 1);
-  // A mode or a shortcut becomes the pill (name and ×, as in the canvas composer); the draft holds the rest.
-  const pick = ({ name, shortcut: isShortcut }) => {
-    if (isShortcut) {
-      setShortcut(name); setPicker(false); setHi(0);
-      if (modeQuery(draft) !== null) setDrafts((d) => new Map(d).set(targetKey, ''));
-      inputRef.current?.focus();
-      return;
-    }
-    if (!modeAvailability(name, target.kind).ok) return;
-    setMode(name); setShortcut(null); setPicker(false); setHi(0);
-    if (modeQuery(draft) !== null) setDrafts((d) => new Map(d).set(targetKey, ''));
-    inputRef.current?.focus();
-  };
   const [adding, setAdding] = useState(false); // the [+] Add menu
   // The activity row (workspace-dock §14): background work the learner can keep typing through - this bar's own answer and
   // what the page publishes (surface.activity, e.g. a repository being read). × hides a line until its text changes.
@@ -183,17 +136,17 @@ export default function AgentBar({ page }) {
     if (!panelHosts(page, scope)) setSheet(scope);
   };
 
-  // §6.6: mode pill, then rules, then /ask. Scope is frozen here, before any await,
+  // §6.6: rules, then /ask (a learning request in plain words runs as teach). Scope is frozen here, before any await,
   // and every command gets the one ctx with that scope: ctxOf(surface, { scope }).
-  async function submit(raw, pill = mode, text = raw, scope = target) {
+  async function submit(raw, pill = 'auto', text = raw, scope = target) {
     const can = modeAvailability(pill, scope.kind);
     if (!can.ok) return refuse(scope, can);
     const r = route(text, { mode: pill, catalog: getSurface().catalog || [], scope });
     if (r.type === 'mode') return submit(raw, r.mode, r.text, scope);
     if (r.type === 'note') { add(scope, { kind: 'note', text: r.text }); return showResults(scope); }
+    // The bar offers no slash commands (owner, 2026-10-20): a removed one says so, and runs nothing.
     if (r.type === 'unknown_command') {
-      const known = [...modesFor(scope), ...shortcutsFor(scope, getSurface().catalog)].map(([n]) => `/${n}`).join(', ');
-      add(scope, { kind: 'note', text: `Unknown command /${r.name}. Try ${known}.`, error: true });
+      add(scope, { kind: 'note', text: unavailableCommand(r.name, { listed: false }) || `Unknown command /${r.name}. Type what you want in your own words.`, error: true });
       return showResults(scope);
     }
     if (r.type === 'command') return runCommand(r.name, r.args, raw, scope);
@@ -241,7 +194,7 @@ export default function AgentBar({ page }) {
   // Every send ends visibly (user, 2026-09-28): an answer, an action result, a clarification,
   // a confirmation or an explanation. A refused ask explains itself and says what does work.
   function refuse(scope, can) {
-    add(scope, { kind: 'note', text: scope.kind === 'workspace' ? `${can.reason} Try /find, /open or /new, or open a project to ask about its code.` : can.reason, error: true });
+    add(scope, { kind: 'note', text: scope.kind === 'workspace' ? `${can.reason} Type what you want, for example find nanoGPT, or open a project to ask about its code.` : can.reason, error: true });
     return showResults(scope);
   }
 
@@ -452,21 +405,13 @@ export default function AgentBar({ page }) {
     }
   }
 
-  // Esc closes the picker, then the sheet (§6.2). Stopped here, so Esc in the bar
-  // never also closes a SlidePanel or the search modal (window listeners). Enter on
-  // the picker is handled in onSubmit: the textarea sends before this handler runs.
+  // Esc closes the Add menu, then the sheet (§6.2). Stopped here, so Esc in the bar never also closes a SlidePanel or the
+  // search modal (window listeners).
   const onKeyDown = (e) => {
-    if (pickerOpen && entries.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setHi((hiIndex + (e.key === 'ArrowDown' ? 1 : entries.length - 1)) % entries.length); return; }
-    if (e.key === 'Escape' && (adding || pickerOpen || sheet)) { e.stopPropagation(); if (adding) setAdding(false); else if (pickerOpen) setPicker(false); else setSheet(null); return; }
-    if (e.key === 'Backspace' && e.target === inputRef.current && !draft && shortcut) setShortcut(null);
-    else if (e.key === 'Backspace' && e.target === inputRef.current && !draft && mode !== 'auto') setMode('auto');
+    if (e.key === 'Escape' && (adding || sheet)) { e.stopPropagation(); if (adding) setAdding(false); else setSheet(null); }
   };
 
   if (hidden) return null;
-  // Every command with an example, one click from the picker (owner, 2026-10-04), as on the canvas.
-  const help = <button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-bar-slash-help
-    onMouseDown={(e) => e.preventDefault()} onClick={() => { setPicker(false); setCommandsOpen(true); }}
-    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button>;
   const chips = crumbsShown(target, live) ? chipsFor(target) : [];
   // The picked card's pill (owner, 2026-10-09): the canvas composer's selected-card pill, its type icon and title, x clears.
   const pill = surface.picked && surface.resource && scopeKey(target) === scopeKey(live) ? surface.resource : null;
@@ -493,40 +438,7 @@ export default function AgentBar({ page }) {
           the page and its inspector, which end at its top edge (index.css pads main by --agent-bar-h). No float, no gradient. */}
       {sheet && !panelHosts(surface, sheet) && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
       {/* The composer itself: half the dock's width, centered (owner, 2026-10-08), never under 28rem; full width on phones. */}
-      <div ref={dock} className="relative mx-auto w-full md:w-1/2 md:min-w-[min(100%,28rem)]">
-        {pickerOpen && (
-          <div className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
-            {/* Its keys stay in the field: up/down reach the bar's own handler, Enter picks, Esc clears a typed search first. */}
-            {searching && <div className="flex items-center gap-1 pb-1">
-              <CommandSearch className="flex-1" value={query} onChange={(e) => { setQuery(e.target.value); setHi(0); }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.preventDefault(); if (entries.length) pick(entries[hiIndex]); }
-                  if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery(''); } else if (e.key === 'Escape') inputRef.current?.focus(); // the bar's Esc closes the picker
-                }} />
-              {help}
-            </div>}
-            <div ref={list} role="listbox" aria-label="Modes" style={{ minHeight: listHeight ?? undefined }}>
-            {!searching && <div className="sticky top-0 z-10 -mb-7 flex justify-end">{help}</div>}
-            {entries.map((entry, i) => {
-              const { name: m, desc } = entry;
-              const can = entry.shortcut ? { ok: true } : modeAvailability(m, target.kind);
-              return (
-                <div key={m} className="contents">
-                {entry.shortcut && !entries[i - 1]?.shortcut && i > 0 && <div role="separator" className="my-1 border-t border-line" />}
-                <div role="option" aria-selected={i === hiIndex} aria-disabled={!can.ok} onMouseDown={(e) => { e.preventDefault(); pick(entry); }}
-                  className={cn('flex items-center gap-3 rounded-sm px-2 py-1.5 text-sm', can.ok ? 'cursor-pointer' : 'cursor-default', i === hiIndex && 'bg-hover')}>
-                  {/* Each command's own colour, as on the canvas (slash-command-tones.md); a mode not offered here stays grey. */}
-                  <span data-picker-name className="w-24 shrink-0">{can.ok ? <CommandMark name={m} /> : <span className="font-medium text-ink-3">/{m}</span>}</span>
-                  <span title={can.ok ? undefined : can.reason} className={cn('min-w-0 flex-1 truncate', can.ok ? 'text-ink-2' : 'text-ink-3')}>{can.ok ? desc : can.short || can.reason}</span>
-                </div>
-                </div>
-              );
-            })}
-            {!entries.length && <p data-slash-none className="px-2 py-1.5 text-xs text-ink-3">No commands match</p>}
-            </div>
-          </div>
-        )}
-        {commandsOpen && <BarCommandsSheet modes={modesFor(target)} shortcuts={shortcutsFor(target, surface.catalog)} place={placeOf(target) === 'project' ? 'project' : 'home'} onClose={() => { setCommandsOpen(false); inputRef.current?.focus(); }} />}
+      <div className="relative mx-auto w-full md:w-1/2 md:min-w-[min(100%,28rem)]">
         {work.map((a) => (
           <div key={a.id} role="status" data-activity={a.id} className="flex h-6 items-center gap-2 text-xs text-ink-2">
             <Loader2 size={13} className="shrink-0 animate-spin text-ink-3" />
@@ -565,8 +477,8 @@ export default function AgentBar({ page }) {
           <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={clearPick} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
         </div>}
         <ChatComposer multiline dock flat value={draft} onStop={() => abort.current?.abort()}
-          onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
-          onSubmit={(raw) => { if (pickerOpen) return pick(entries[hiIndex]); if (!shortcut) return submit(raw); setShortcut(null); return submit(`/${shortcut} ${raw}`.trim()); }} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
+          onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); }}
+          onSubmit={(raw) => submit(raw)} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={<>
             {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start, on a project's Map and an app's page;
                 none on Home, Library or Explore (plus, above). ponytail: no Attach entry (owner, 2026-10-04: no dead "not
@@ -583,11 +495,6 @@ export default function AgentBar({ page }) {
             {/* A closed or minimized conversation window reopens from this icon, the composer's first control (owner, 2026-10-04). */}
             {!sheet && line && !panelHosts(surface, line.scope) && <button type="button" data-result-open aria-label="Open the conversation" title={lineOf(line)}
               onMouseDown={(e) => e.preventDefault()} onClick={() => setSheet(line.scope)} className={COMPOSER_ADD}><MessageSquare size={16} /></button>}
-            {shortcut
-            ? <span data-command-pill data-command-tone={commandTone(shortcut) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">{commandLabel(shortcut)}<button type="button" aria-label={`Remove ${commandLabel(shortcut)}`} onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
-            : mode === 'auto'
-            ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); if (pickerOpen) { setPicker(false); inputRef.current?.focus(); } else { setPicker(true); setQuery(''); } }} className={COMPOSER_PILL}>Auto</button>
-            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">{commandLabel(mode)}<button type="button" aria-label={`Remove ${commandLabel(mode)}`} onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>
     </div>

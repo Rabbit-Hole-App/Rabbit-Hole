@@ -21,7 +21,7 @@ import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } fr
 // The same model, auth, ownership and spend admission as a slash-command card: LEARN_TASKS.artifact's model through
 // planModel, authorizedBoardApp, subscriptionOwnerRefusal, and spendTransport inside anthropic().
 import { askJev, JEV_TRANSPORTS, JevError } from './learn-grade-jev.js';
-import { EARLIER_MAX, PROMPT_MAX, PROMPT_ROOM, promptTooLong, readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
+import { EARLIER_MAX, PROMPT_MAX, promptTooLong, readRoute, routeRequest, ROUTE_PROTOCOL_VERSION, ROUTE_TIMEOUT_MS } from '../../web/src/inline-ai-route.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
@@ -250,9 +250,9 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   const gate = await proceedGate(env, body);
   if (!gate) return json({ error: 'This request wasn\'t checked first. Send it again.', code: 'not_validated' }, 403);
   const decided = gate.request, route = gate.capability, mode = decided.mode, creation = decided.kind === 'creation';
-  // The learner's words plus, for /simplify, /example and /deeper, their instruction in front of them.
+  // The learner's words, or a command's words.
   const prompt = generationPrompt(decided), context = decided.context;
-  if (prompt.length > PROMPT_MAX + PROMPT_ROOM) return json({ error: promptTooLong(), code: 'too_long' }, 400);
+  if (prompt.length > PROMPT_MAX) return json({ error: promptTooLong(), code: 'too_long' }, 400);
   // A refine (ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§10) carries the candidate it revises and the original request.
   const revise = body.revise ?? null;
   if (revise !== null && (typeof revise !== 'object' || typeof revise.result !== 'string' || !revise.result || revise.result.length > EARLIER_MAX || typeof revise.prompt !== 'string' || revise.prompt.length > PROMPT_MAX)) return json({ error: 'Invalid inline request' }, 400);

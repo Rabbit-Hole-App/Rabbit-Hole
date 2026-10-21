@@ -188,8 +188,8 @@ test('refine: the instruction, the previous output and the original request go t
   // A second refine revises the newest candidate, with the original request still as context.
   await session.submit({ mode: 'explain', prompt: 'say it is a leaf', prepare: snapshot() });
   assert.deepEqual(seen[2].revise, { prompt: 'Explain this node', result: 'Child of 4.' });
-  // A / command or the other pill while a preview shows is a new request, not a revision.
-  await session.submit({ mode: 'explain', prompt: '/simplify', prepare: snapshot() });
+  // A / command or the other pill while a preview shows is a new request, not a revision (/simplify is removed: /diagram).
+  await session.submit({ mode: 'explain', prompt: '/diagram', prepare: snapshot() });
   assert.equal(seen[3].revise, undefined);
 });
 

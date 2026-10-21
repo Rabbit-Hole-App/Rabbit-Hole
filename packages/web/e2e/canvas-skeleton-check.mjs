@@ -261,11 +261,12 @@ for (const [command, block, fixed] of [
 }
 
 // ---- C. A clarification and a failure end the wait with no skeleton left ----
-artifactNext = () => later(900, { json: { result: 'clarification', question: 'Compare which two functions?' } });
-await send('/compare them');
+// /compare is a removed command (owner, 2026-10-20): /diagram stands in for the clarification.
+artifactNext = () => later(900, { json: { result: 'clarification', question: 'Diagram which two functions?' } });
+await send('/diagram them');
 await slots().first().waitFor({ timeout: 2000 });
 await noSlot();
-check('C1 a clarification removes the skeleton and asks', await page.locator('[data-slash-result]').innerText().then(text => text.includes('Compare which two functions?')));
+check('C1 a clarification removes the skeleton and asks', await page.locator('[data-slash-result]').innerText().then(text => text.includes('Diagram which two functions?')));
 const blocksBefore = (await column()).length;
 artifactNext = () => later(900, { status: 502, json: { error: 'Artifact generation unavailable (model HTTP 529). Try again.' } });
 await send('/quiz embeddings');

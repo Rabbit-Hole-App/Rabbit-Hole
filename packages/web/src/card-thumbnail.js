@@ -73,6 +73,24 @@ async function lightFrame() {
   return frame;
 }
 
+// A <canvas> copies blank, so its pixels come over by hand, as a picture of its laid-out size. html-to-image would make that
+// picture itself and decode() it in an onload with no catch (createImage): Chrome rejecting the decode of a paper card's
+// 918 x 1188 PDF page was an unhandled rejection and a capture that never settled (slash-cleanup-check, 2026-10-21). An <img>
+// holding a data URL is only cloned there. An empty canvas, or one whose pixels cannot be read (cross-origin), stays blank.
+export function canvasPictures(copy, node, doc = document) {
+  const live = node.querySelectorAll('canvas');
+  copy.querySelectorAll('canvas').forEach((c, i) => {
+    let src;
+    try { src = live[i].toDataURL(); } catch { return; }
+    if (src === 'data:,') return;
+    const img = doc.createElement('img');
+    for (const { name, value } of c.attributes) img.setAttribute(name, value);
+    img.src = src;
+    Object.assign(img.style, { width: `${live[i].offsetWidth}px`, height: `${live[i].offsetHeight}px`, maxWidth: 'none' });
+    c.replaceWith(img);
+  });
+}
+
 // The canvas's content drawn into 800 x 400 from a copy of its DOM (html-to-image, already the canvas's area and sketch
 // capture): the camera layer, without CHROME, restyled onto the region in the light frame; the app font skipped (the
 // system font reads the same at this size, and embedding it is the slow part). The chrome is removed from the copy
@@ -81,9 +99,7 @@ export async function drawThumbnail(node, region) {
   if (!node || !region) return null;
   const { width, height } = THUMBNAIL, scale = width / region.w;
   const copy = node.cloneNode(true);
-  // A <canvas> copies blank: its pixels come over by hand.
-  const live = node.querySelectorAll('canvas');
-  copy.querySelectorAll('canvas').forEach((c, i) => { try { c.getContext('2d').drawImage(live[i], 0, 0); } catch { /* left blank */ } });
+  canvasPictures(copy, node);
   for (const el of copy.querySelectorAll(CHROME)) el.remove();
   redactRepositoryCards(copy);
   const frame = await lightFrame();

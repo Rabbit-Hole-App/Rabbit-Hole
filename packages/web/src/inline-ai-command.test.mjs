@@ -6,7 +6,8 @@ import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission
 import { EXPLICIT_ROUTES, ROUTES, routeRequest } from './inline-ai-route.js';
 import { CAPABILITIES, fixedRoute, settle } from './inline-ai-decide.js';
 
-const CTRLK = ['cad', 'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia'];
+// Owner, 2026-10-20: /walkthrough is no longer a command (Ctrl+K still routes plain words to a walkthrough).
+const CTRLK = ['cad', 'explain', 'flashcards', 'code', 'graph', 'diagram', 'animate', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia'];
 const entry = name => SLASH.find(command => command.name === name);
 
 test('the picker lists the registry\'s Ctrl+K commands only (owner 1A), filtered by what this canvas can run', () => {

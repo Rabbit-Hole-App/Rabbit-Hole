@@ -5,7 +5,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { citedSources } from './source-references.js';
-import { exampleFor } from './agent/bar.js';
 import { SLASH } from './agent/slash.js';
 import { OVERVIEW_TAB } from './inspector.js';
 
@@ -121,16 +120,13 @@ test('an answer lists every cited file once, in order, including line lists writ
   assert.match(renderer, /<details key="cited" data-cited-sources[^>]*><summary[^>]*>Sources \(\{cited\.length\}\)<\/summary>/);
 });
 
-test('the main composer: the Auto picker opens a / commands sheet with an example for every command it offers', () => {
-  assert.match(bar, /data-bar-slash-help[\s\S]*?onClick=\{\(\) => \{ setPicker\(false\); setCommandsOpen\(true\); \}\}/);
-  assert.match(bar, /\{commandsOpen && <BarCommandsSheet modes=\{modesFor\(target\)\} shortcuts=\{shortcutsFor\(target, surface\.catalog\)\}/);
-  // The bar's places only: 'learn', 'ctrlk' and 'insert' are canvas surfaces with their own help (Release B).
+// Owner, 2026-10-20: the main composer (Home, Library, Project) has no slash commands left, so it has no Auto picker, no mode
+// pill and no / commands sheet; a typed /word says it is unavailable (AgentBar.jsx submit).
+test('the main composer offers no slash command: no picker, no pill, no / commands sheet', () => {
+  assert.doesNotMatch(bar, /BarCommandsSheet|data-bar-slash-help|aria-haspopup="listbox"/);
+  assert.match(bar, /unavailableCommand\(r\.name, \{ listed: false \}\)/);
   const BAR = ['home', 'project'];
-  for (const command of SLASH.filter(c => c.places.some(place => BAR.includes(place))))
-    for (const place of command.places.filter(p => BAR.includes(p))) {
-      const example = exampleFor(command.name, place);
-      assert.ok(example.startsWith(`/${command.name} `), `${command.name} in ${place}: ${example}`);
-    }
+  assert.deepEqual(SLASH.filter(c => c.places.some(place => BAR.includes(place))), []);
 });
 
 test('the Files selection carried into Learn ("Asking about") has an x, as the Map chip did', () => {

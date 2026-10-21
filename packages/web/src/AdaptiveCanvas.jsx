@@ -748,6 +748,8 @@ function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove
                 read as a fact about the video. */}
             <span>{geometry.known ? clock(block.duration) : ''}</span>
           </div>
+          {/* Found, not made (owner, 2026-10-20): a YouTube moment says where it comes from. */}
+          <p data-media-provenance="sourced" className="mt-0.5 truncate text-[11px] text-ink-2">Sourced · YouTube{block.channel ? ` · ${block.channel}` : ''}</p>
           {/* A tutor-shown moment asks for a verdict. This is what turns the
               moment log into a gold set - and, later, the hot path. Latest
               press wins; the row updates server-side, the card remembers. */}

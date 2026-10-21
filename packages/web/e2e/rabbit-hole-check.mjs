@@ -792,7 +792,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
       // First send in a fresh page: a one-line result is a compact card, not an empty chat window.
       await say('/foobar');
-      await sheet.getByText('Unknown command /foobar. Try /ask, /teach, /research, /do, /find', { exact: false }).waitFor({ timeout: 10000 });
+      await sheet.getByText('Unknown command /foobar. Type what you want in your own words.', { exact: false }).waitFor({ timeout: 10000 });
       const short = (await sheet.boundingBox()).height;
       must(short < 200, `a one-line result fills a ${short}px sheet`);
       await say('What is a Project?');
@@ -803,7 +803,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must((await sheet.boundingBox()).height <= page.viewportSize().height * 0.5, 'the sheet grew past half the screen');
       if (!(await import('../src/flags.js')).askLiveOnPreview) {
         await say('Book me a flight to Lisbon');
-        await sheet.getByText('Try /find, /open or /new, or open a project to ask about its code.', { exact: false }).waitFor({ timeout: 10000 });
+        // The bar names no commands (owner, 2026-10-20: /find, /open and /new are removed); it suggests plain words.
+        await sheet.getByText('Type what you want, for example find nanoGPT, or open a project to ask about its code.', { exact: false }).waitFor({ timeout: 10000 });
       }
     } finally {
       for (const c of made) await shDrop(page, c.name);
@@ -1485,61 +1486,26 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar-cmd: "/" opens the modes this place can run then the shortcuts, none dimmed and no /research, Esc closes only the picker; /teach pill; Backspace returns to Auto; Auto opens it on a search field', async () => {
+  // Owner, 2026-10-20: the bar has no slash commands left (/ask, /teach, /research, /do, /find, /open, /new, /connect and /run are
+  // removed): no picker, no Auto button, no mode pill; a typed removed command says it is unavailable and runs nothing.
+  await check('bar-cmd: "/" opens no picker and there is no Auto button; a typed /teach says it is unavailable', async () => {
     const page = await barOpen();
     const bar = barOf(page);
     await barInput(page).fill('/');
-    const options = bar.getByRole('option');
-    await options.first().waitFor({ timeout: 5000 });
-    // The modes this place can run, then its shortcuts (WP5): /run only with a job in the catalog. A mode refused here is not
-    // offered (r28 audit): /research is refused everywhere and unwired, so it is never a row. Solo v1: no /share.
-    const expected = ['/ask', '/teach', '/do', '/find', '/open', '/new', '/connect', ...(apps.some((a) => a.kind === 'job') ? ['/run'] : [])];
-    must(JSON.stringify(await options.locator('[data-picker-name]').allTextContents()) === JSON.stringify(expected), `picker: ${await options.locator('[data-picker-name]').allTextContents()}`);
-    // Every command in its own colour (owner, 2026-10-08): a toned mark per offered row, no two alike.
-    const tones = await options.locator('[data-command-tone]').evaluateAll((all) => all.map((n) => getComputedStyle(n).color));
-    must(tones.length === expected.length && new Set(tones).size === tones.length, `picker tones: ${tones}`);
-    must(await bar.getByRole('listbox').getByRole('separator').count() === 1, 'no divider between modes and shortcuts');
-    must(await bar.locator('[role="option"][aria-disabled="true"]').count() === 0, 'a dimmed row is offered');
-    await barInput(page).press('Escape');
-    must(await options.count() === 0, 'the picker is still open');
-    must(await barInput(page).inputValue() === '/', 'Esc changed the draft');
-    await barInput(page).fill('/te');
+    await page.waitForTimeout(300);
+    must(await bar.getByRole('option').count() === 0 && await bar.getByRole('listbox').count() === 0, 'a picker opened');
+    must(await bar.getByRole('button', { name: 'Auto', exact: true }).count() === 0, 'the bar still shows Auto');
+    must(await bar.locator('[data-command-pill]').count() === 0, 'a command pill shows');
+    await barInput(page).fill('/teach attention');
     await barInput(page).press('Enter');
-    await bar.getByRole('button', { name: 'Remove Teach', exact: true }).waitFor({ timeout: 3000 });
-    // A selected command reads as its label, never /name (owner, 2026-10-20).
-    must((await bar.locator('[data-command-pill]').innerText()).trim() === 'Teach', `pill: ${await bar.locator('[data-command-pill]').innerText()}`);
-    must(await barInput(page).inputValue() === '', 'the slash text stayed');
-    must(await page.locator('[data-result-sheet]').count() === 0, 'Enter on the picker also sent the text');
-    await barInput(page).press('Backspace');
-    await bar.getByRole('button', { name: 'Auto' }).waitFor({ timeout: 3000 });
-    // Clicking Auto opens the picker on a search field (owner, 2026-10-08): focused, name and description, the draft untouched;
-    // the list keeps its height; Esc clears a typed search first, then closes; Enter picks the highlighted match.
-    await bar.getByRole('button', { name: 'Auto', exact: true }).click();
-    const search = bar.locator('[data-slash-search]');
-    must(await search.evaluate((n) => n === document.activeElement), 'Auto did not focus the picker search');
-    const fieldTop = (await search.boundingBox()).y;
-    await search.pressSequentially('zzz');
-    await bar.getByText('No commands match').waitFor({ timeout: 3000 });
-    must((await search.boundingBox()).y === fieldTop, 'the search field moved while the list filtered');
-    must(await barInput(page).inputValue() === '', 'typing in the search reached the draft');
-    await search.press('Escape');
-    must(await search.inputValue() === '' && await options.count() === expected.length, 'Esc did not clear the search first');
-    await search.pressSequentially('/conn');
-    must(JSON.stringify(await options.locator('[data-picker-name]').allTextContents()) === '["/connect"]', `search: ${await options.locator('[data-picker-name]').allTextContents()}`);
-    await search.press('Enter');
-    await bar.getByRole('button', { name: 'Remove Connect', exact: true }).waitFor({ timeout: 3000 });
-    must((await bar.locator('[data-command-pill]').innerText()).trim() === 'Connect', `pill: ${await bar.locator('[data-command-pill]').innerText()}`);
-    must(await barInput(page).evaluate((n) => n === document.activeElement), 'picking from the search did not focus the draft');
-    await bar.getByRole('button', { name: 'Remove Connect', exact: true }).click();
-    await bar.getByRole('button', { name: 'Auto', exact: true }).click();
-    await search.press('Escape');
-    must(await options.count() === 0, 'Esc on an empty search left the picker open');
+    await page.locator('[data-result-sheet]').getByText('/teach is no longer available.', { exact: false }).first().waitFor({ timeout: 10000 });
+    must(new URL(page.url()).pathname === '/library', 'a removed command navigated');
     await page.context().close();
   });
   // ── WP5 batch 1: the composer chrome and the Home/Library shortcuts ──
   // Owner, 2026-10-08 ("when in Home/library/Explore, the main chat composer has a + icon. hide it"): no + there; the page's own
   // Start a rabbit hole and /new still open Start. The + and its Start paths on a project's Map: workspace-check dock §13.
-  await check('bar-wp5: Home, Library and Explore show no + in the composer; /new still opens Start there', async () => {
+  await check('bar-wp5: Home, Library and Explore show no + in the composer; /new is removed and opens nothing', async () => {
     const page = await barOpen();
     for (const path of ['/apps', '/library', '/explore']) {
       await loaded(page, path);
@@ -1549,32 +1515,27 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
     await barInput(page).fill('/new canvas');
     await barInput(page).press('Enter');
-    await startDialog(page).waitFor({ timeout: 10000 });
+    await page.locator('[data-result-sheet]').getByText('/new is no longer available.', { exact: false }).first().waitFor({ timeout: 10000 });
+    must(await startDialog(page).count() === 0, '/new opened Start');
     await page.context().close();
   });
 
-  await check('bar-slash: /new question opens Start; /find nanoGPT finds it; /run alone opens the Apps filter; /share is an unknown command (solo v1)', async () => {
+  await check('bar-slash: /new, /find and /run are removed and run nothing; the same words still find; /share is an unknown command (solo v1)', async () => {
     const page = await barOpen();
     const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
-    // A bare shortcut opens the picker: the first Enter picks it into the draft ('/run '), the second sends.
-    const sayBare = async (text) => { await say(text); await barInput(page).press('Enter'); };
-    await say('/new question');
-    await startDialog(page).waitFor({ timeout: 10000 });
-    must(await startDialog(page).getByRole('tab', { name: 'Question', exact: true }).getAttribute('data-state') === 'active', '/new question is not on Question');
-    await page.keyboard.press('Escape');
-    await startDialog(page).waitFor({ state: 'detached', timeout: 5000 });
+    for (const [line, name] of [['/new question', 'new'], ['/find nanoGPT', 'find'], ['/run', 'run']]) {
+      await say(line);
+      await page.locator('[data-result-sheet]').getByText(`/${name} is no longer available.`, { exact: false }).first().waitFor({ timeout: 10000 });
+      await page.keyboard.press('Escape');
+    }
+    must(await startDialog(page).count() === 0 && !/[?&]type=apps/.test(page.url()), 'a removed command still ran');
     if (repo) {
-      await say('/find nanoGPT');
+      await say('find nanoGPT');
       await page.locator('[data-result-sheet]').getByRole('button', { name: `${repo.repo} · Project` }).waitFor({ timeout: 10000 });
       await page.keyboard.press('Escape');
     }
-    await say('/share'); // no picker entry matches, so the first Enter sends
+    await say('/share');
     await page.locator('[data-result-sheet]').getByText('Unknown command /share.', { exact: false }).first().waitFor({ timeout: 10000 });
-    await page.keyboard.press('Escape');
-    if (apps.some((a) => a.kind === 'job')) {
-      await sayBare('/run');
-      await page.waitForURL(/[?&]type=apps/, { timeout: 10000 });
-    }
     await page.context().close();
   });
 
@@ -1647,33 +1608,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // retired: × on the project chip widening to the workspace - a project canvas has no bar and no project chip.
   // retired: /teach opening project Learn once - a project opens on its canvas, and Learn this is checked in wp6-learn-this.
 
-  // WP7 (user, 2026-09-29): a mode is transient. A new page or resource starts in Auto; drafts keep theirs. The bar is hidden on
-  // a project canvas since Release 1, so Teach is picked where the bar lives.
-  await check('bar-mode: Teach picked on the Library is Auto on Home and an app page; a typed draft stays', async () => {
-    const page = await open();
-    await page.goto(`${base}/library`);
-    const bar = barOf(page);
-    await bar.waitFor({ timeout: 20000 });
-    const teach = async (text = '') => {
-      await spa(page, '/library');
-      await bar.waitFor({ timeout: 10000 });
-      await barInput(page).fill('/te');
-      await barInput(page).press('Enter');
-      await bar.getByRole('button', { name: 'Remove Teach', exact: true }).waitFor({ timeout: 3000 });
-      if (text) await barInput(page).fill(text);
-    };
-    for (const to of ['/apps', ...(plain ? [`/apps/${plain.name}`] : [])]) {
-      await teach();
-      await spa(page, to);
-      await bar.getByRole('button', { name: 'Auto', exact: true }).waitFor({ timeout: 5000 });
-      must(await bar.getByRole('button', { name: 'Remove Teach', exact: true }).count() === 0, `Teach carried to ${to}`);
-    }
-    await teach('keep me');
-    await spa(page, '/apps');
-    await bar.getByRole('button', { name: 'Auto', exact: true }).waitFor({ timeout: 5000 });
-    must(await barInput(page).inputValue() === 'keep me', 'the reset dropped the held draft');
-    await page.context().close();
-  });
+  // retired 2026-10-20 (owner): bar-mode (Teach picked on the Library resets to Auto elsewhere) - the bar has no modes or
+  // Auto picker since /ask, /teach, /research and /do were removed; bar-cmd above checks that.
 }
 
 {
