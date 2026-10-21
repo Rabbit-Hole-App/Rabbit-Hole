@@ -47,7 +47,8 @@ export function createImageEditJobCoordinator({ storage, admitSpend, settleSpend
     if (!admission || admission.refused !== false) {
       // The ledger turns uncertain database failures into a refusal. That does not
       // establish that INSERT failed, so never assert no reservation for that case.
-      if (!['cap_unset', 'spend_identity_unavailable', 'spend_bound_unavailable', 'daily_cap_reached'].includes(admission?.reason)) return hold(id, 'admission_outcome_unknown');
+      // An allowance refusal reserved nothing; 'allowance_unavailable' may follow an unknown database outcome, so it holds.
+      if (!['cap_unset', 'spend_identity_unavailable', 'spend_bound_unavailable', 'daily_cap_reached', 'allowance_exhausted', 'allowance_insufficient', 'allowance_reserved', 'payer_unavailable'].includes(admission?.reason)) return hold(id, 'admission_outcome_unknown');
       // A definite refusal is terminal; no duplicate INSERT or provider retry under this ID.
       return change(id, job => ({ ...job, phase: job.cancelRequested ? 'cancelled' : 'refused', reservation: 'not_admitted', reason: 'admission_refused', updatedAt: now() }));
     }

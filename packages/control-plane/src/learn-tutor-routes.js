@@ -28,7 +28,8 @@ import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
 import { spendTransport } from './learn-spend.js';
 import { journeyCallModel } from './learn-journey-planners.js';
-import { withAttemptKind } from './learn-usage.js';
+import { withAttemptKind, usageRefusal } from './learn-usage.js';
+import { refusalBody } from './learn-spend-ledger.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -505,7 +506,7 @@ export async function tutorRoute(path, req, env, deps = {}) {
     const send = event => writer.write(encoder.encode(`${JSON.stringify(event)}\n`)).catch(() => {});
     (async () => {
       try { await send({ type: 'plan', ...withNotice(await planTurn(env, body.context, { ...paidDeps, onSentence: sentence => send({ type: 'sentence', ...sentence }) }, documents)) }); }
-      catch (error) { await send({ type: 'error', error: error.message, telemetry: error.telemetry }); }
+      catch (error) { await send({ type: 'error', ...(usageRefusal(env) ? refusalBody(usageRefusal(env)) : { error: error.message }), telemetry: error.telemetry }); }
       finally { await writer.close().catch(() => {}); }
     })();
     return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store' } });
