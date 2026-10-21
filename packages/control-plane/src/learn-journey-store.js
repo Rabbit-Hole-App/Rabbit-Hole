@@ -5,7 +5,8 @@
 // archived journey is never written again ('archived'), and the partial unique index allows one live journey per
 // (org, owner_user_id, app, board), owner_user_id being users.id (§10.2), never an email: it stays on the server (toClient
 // drops it). The learner's exact words are stored once, in raw_request (request.raw_user_message);
-// request_json holds the rest of the request.
+// request_json holds the rest of the request. Since learn-migrations/0025 each journey is also a Tutor goal and the board's
+// current journey follows the learner's active-goal pointer (loadJourney).
 import { emptyStore, reconcile } from '../../web/src/learn-tutor-evidence.js';
 
 export class JourneyConflict extends Error {
@@ -44,10 +45,39 @@ function fromRow(r) {
   };
 }
 
-// A new journey starts in intake. DO NOTHING covers the live index: no row back means this scope already has one.
+// Tutor goals (learn-migrations/0025, owner decision 5a): every journey is one learner goal, 'lg_' + its id, and the
+// learner's coaching row (learn_coaching_state) points at the active goal. One journey per board stays live
+// (learning_journeys_live is unchanged); a paused journey-backed goal's journey is PARKED under board 'parked:<id>', which
+// no request can name (BOARD refuses ':'), so it leaves the board's live index without being archived and stays
+// resumable. Older code that reads a board's live journey never sees a parked one.
+export const goalIdOf = journeyId => `lg_${journeyId}`;
+// The goal row of every journey matching `where` (its binds follow board, now, now); DO NOTHING keeps an existing one.
+// No criterion or evidence is made: a legacy journey's goal has scope_version 0 until the learner accepts criteria.
+export const goalForJourneySql = where => `INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, journey_id, activity_id, revision, created_at, updated_at)
+  SELECT 'lg_' || j.id, j.org, j.owner_user_id, j.app, ?, j.topic, '', 'journey', 0, 'open', j.id, NULL, 0, ?, ? FROM learning_journeys j WHERE ${where} ON CONFLICT DO NOTHING`;
+// Point the learner's coaching row at a journey's goal (made if missing), only when that journey is live on the board.
+const pointAtJourney = (env, scope, id, now) => env.LEARN_DB.prepare(`INSERT INTO learn_coaching_state (org, owner_user_id, app, board, active_goal_id, active_activity_id, revision, created_at, updated_at)
+  SELECT ?, ?, ?, ?, 'lg_' || j.id, NULL, 0, ?, ? FROM learning_journeys j WHERE j.id = ? AND j.board = ? AND j.archived_at IS NULL
+  ON CONFLICT (org, owner_user_id, app, board) DO UPDATE SET active_goal_id = excluded.active_goal_id, active_activity_id = NULL, revision = revision + 1, updated_at = excluded.updated_at`)
+  .bind(scope.org, scope.owner_user_id, scope.app, scope.board, now, now, id, scope.board);
+// A journey made or swapped onto the board becomes the learner's active goal in the same batch.
+const registerGoal = (env, scope, id, now) => [
+  env.LEARN_DB.prepare(goalForJourneySql('j.id = ? AND j.board = ? AND j.archived_at IS NULL')).bind(scope.board, now, now, id, scope.board),
+  pointAtJourney(env, scope, id, now),
+];
+// Park every journey live on the board except keepId (null: all), and unpark one, as the coaching store's goal switch
+// does. guard is an SQL condition with its binds, so the whole switch applies only at the expected coaching revision.
+export const parkJourneySql = guard => `UPDATE learning_journeys SET board = 'parked:' || id, updated_at = ?, revision = revision + 1
+  WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL AND id IS NOT ? AND ${guard}`;
+export const unparkJourneySql = guard => `UPDATE learning_journeys SET board = ?, updated_at = ?, revision = revision + 1
+  WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = 'parked:' || id AND archived_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL) AND ${guard}`;
+
+// A new journey starts in intake. DO NOTHING covers the live index: no row made means this scope already has one.
 // replace (continue-or-start, owner 2026-10-07): the id of the live journey the learner chose to replace. It is archived in
 // the same batch (one transaction) as the insert, so a start that fails leaves it live; an id that is not this scope's live
-// journey archives nothing, and the insert then meets whatever journey is live (live_journey).
+// journey archives nothing, and the insert then meets whatever journey is live (live_journey). The new journey becomes the
+// learner's active goal in that batch too; a staged row (stagedScope) does so only when activateStaged swaps it in.
 export async function createJourney(env, scope, { request, grounding, intake }, replace = null) {
   const now = new Date().toISOString(), id = `lj_${crypto.randomUUID()}`;
   const cols = columns({
@@ -57,18 +87,12 @@ export async function createJourney(env, scope, { request, grounding, intake }, 
   });
   const keys = ['id', 'org', 'owner_user_id', 'app', 'board', ...Object.keys(cols), 'revision', 'created_at', 'updated_at'];
   const insert = env.LEARN_DB
-    .prepare(`INSERT INTO learning_journeys (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')}) ON CONFLICT DO NOTHING RETURNING *`)
+    .prepare(`INSERT INTO learning_journeys (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')}) ON CONFLICT DO NOTHING`)
     .bind(id, scope.org, scope.owner_user_id, scope.app, scope.board, ...Object.values(cols), 0, now, now);
-  let row;
-  if (!replace) row = await insert.first();
-  else {
-    const [, made] = await env.LEARN_DB.batch([
-      env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
-        .bind(now, now, replace, scope.org, scope.owner_user_id, scope.app, scope.board),
-      insert,
-    ]);
-    row = made.meta.changes ? await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(id).first() : null;
-  }
+  const archive = replace && env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
+    .bind(now, now, replace, scope.org, scope.owner_user_id, scope.app, scope.board);
+  const results = await env.LEARN_DB.batch([...(archive ? [archive] : []), insert, ...(scope.board.startsWith('staged:') ? [] : registerGoal(env, scope, id, now))]);
+  const row = results[archive ? 1 : 0].meta.changes ? await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(id).first() : null;
   if (!row) throw new JourneyConflict('live_journey');
   return fromRow(row);
 }
@@ -98,14 +122,21 @@ export async function activateStaged(env, staged, replace, scope) {
       .bind(now, now, replace, ...board),
     env.LEARN_DB.prepare(`UPDATE learning_journeys SET board = ?, updated_at = ? WHERE ${OWNED} AND archived_at IS NULL AND NOT EXISTS (SELECT 1 FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL)`)
       .bind(scope.board, now, ...owned(staged), ...board),
+    ...registerGoal(env, scope, staged.id, now),
   ]);
   if (!moved.meta.changes) return null;
   return fromRow(await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(staged.id).first());
 }
 
+// The board's current journey follows the learner's active-goal pointer (Task 02): the active goal's journey, parked or
+// not, while that goal is open; otherwise the one journey live on the board (a learner with no coaching row yet, or one
+// made by older code). A parked journey of a paused goal is never returned by the board.
 export async function loadJourney(env, scope) {
+  const pointer = `(SELECT g.journey_id FROM learn_coaching_state s JOIN learn_goals g ON g.id = s.active_goal_id
+    WHERE s.org = ?1 AND s.owner_user_id = ?2 AND s.app = ?3 AND s.board = ?4 AND g.lifecycle = 'open')`;
   const row = await env.LEARN_DB
-    .prepare('SELECT * FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
+    .prepare(`SELECT j.* FROM learning_journeys j WHERE j.org = ?1 AND j.owner_user_id = ?2 AND j.archived_at IS NULL
+      AND (j.id IS ${pointer} OR (j.app = ?3 AND j.board = ?4)) ORDER BY j.id IS ${pointer} DESC LIMIT 1`)
     .bind(scope.org, scope.owner_user_id, scope.app, scope.board)
     .first();
   return row && fromRow(row);

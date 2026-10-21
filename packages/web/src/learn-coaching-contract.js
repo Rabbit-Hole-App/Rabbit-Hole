@@ -12,7 +12,10 @@
 // @typedef {{goalId: string, label: string, outcome?: string, scopeVersion: number, lifecycle: 'open'|'completed'|'archived',
 //   status: 'active'|'paused'|'completed'|'archived', criteria: Criterion[], activityId?: string, journeyId?: string,
 //   revision: number, createdAt: string, updatedAt: string}} Goal  status is derived: an open goal is active iff the pointer names it
-// @typedef {{controls: TutorControls, goals: Goal[], activeGoalId?: string, activeActivityId?: string, revision: number}} CoachingState
+// @typedef {{activityId: string, goalId: string, revision: number, status: string, objective: string, prompt: string, responseKind: string,
+//   criterionRefs: CriterionRef[], sourceRefs: SourceRef[], checkpoint?: object, updatedAt: string}} Activity  revision is the prompt version attempts bind to
+// @typedef {{controls: TutorControls, goals: Goal[], activeGoalId?: string, activeActivityId?: string, activities?: Activity[], revision: number}} CoachingState
+//   activities: each goal's current activity (the one a return resumes)
 // @typedef {{kind: string, id: string, version: string|number, hash?: string, locator?: object}} SourceRef  hash: a real content hash when the store has no revision
 // @typedef {{activityId: string, revision: number, goalRef: GoalRef, criterionRefs: CriterionRef[], sourceRefs: SourceRef[], prompt: string, checkpoint?: object}} ActivityRef
 // @typedef {{kind: string, activityRef?: ActivityRef, messageKey?: string, sourceRefs: SourceRef[], allowedActions: string[]}} EntryDecision  never invokes a provider
@@ -85,7 +88,11 @@ export const SHAPES = {
     goalId: 'id', label: 'text', outcome: 'str?', scopeVersion: 'int', lifecycle: GOAL_LIFECYCLE, status: GOAL_STATUS,
     criteria: ['Criterion'], activityId: 'id?', journeyId: 'id?', revision: 'int', createdAt: 'id', updatedAt: 'id',
   },
-  CoachingState: { controls: 'TutorControls', goals: ['Goal'], activeGoalId: 'id?', activeActivityId: 'id?', revision: 'int' },
+  Activity: {
+    activityId: 'id', goalId: 'id', revision: 'int', status: ACTIVITY_STATUS, objective: 'text', prompt: 'text', responseKind: RESPONSE_KINDS,
+    criterionRefs: ['CriterionRef'], sourceRefs: ['SourceRef'], checkpoint: 'obj?', updatedAt: 'id',
+  },
+  CoachingState: { controls: 'TutorControls', goals: ['Goal'], activeGoalId: 'id?', activeActivityId: 'id?', activities: opt(['Activity']), revision: 'int' },
   SourceRef: { kind: 'id', id: 'id', version: 'ver', hash: 'id?', locator: 'obj?' },
   ActivityRef: { activityId: 'id', revision: 'int', goalRef: 'GoalRef', criterionRefs: ['CriterionRef'], sourceRefs: ['SourceRef'], prompt: 'text', checkpoint: 'obj?' },
   EntryDecision: { kind: ENTRY_KINDS, activityRef: opt('ActivityRef'), messageKey: 'id?', sourceRefs: ['SourceRef'], allowedActions: [ENTRY_ACTIONS] },
