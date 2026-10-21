@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { HOLD, NEVER_ON_PRODUCTION, checkPrepare, checkRelease, greenDevDeploy, schemaBlockers, servedRelease, checkCandidate, smoke, smokeOnce, SMOKE_ORIGIN, parseArgs, hashDirs, BUILD_ENV } from './prod-release.mjs';
+import { HOLD, NEVER_ON_PRODUCTION, checkPrepare, checkRelease, greenDevDeploy, schemaBlockers, servedRelease, checkCandidate, smoke, smokeOnce, SMOKE_ORIGIN, parseArgs, hashDirs, BUILD_ENV, DEV_ONLY_ENV } from './prod-release.mjs';
 import { expectedSchema, SOURCES } from './schema-check.mjs';
 
 const SHA = '42f5a4f065d4a1df1b47e2f150893b83d7befe3b';
@@ -193,6 +193,10 @@ test('the build hash ignores what wrangler writes differently on every dry run: 
 test('the production build env is the Rabbit Hole build, never the dev tools', () => {
   assert.equal(BUILD_ENV.VITE_RABBIT_HOLE, 'true');
   assert.ok(!('VITE_COACHING_DEV' in BUILD_ENV) && !('VITE_BYOC_DEV' in BUILD_ENV));
+  // A dev flag in the releaser's shell never reaches the production build; production offers /motion by its own flag (owner
+  // activation GO, 2026-10-21).
+  for (const name of ['VITE_COACHING_DEV', 'VITE_BYOC_DEV', 'VITE_MOTION_DEV']) assert.ok(DEV_ONLY_ENV.includes(name) && !(name in BUILD_ENV), name);
+  assert.equal(BUILD_ENV.VITE_MOTION, 'true');
   assert.throws(() => parseArgs(['release', '--sha']), /bad argument/);
 });
 

@@ -20,6 +20,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
+import { validateMotionContext } from '../../control-plane/src/motion-context.js';
 import { groundTarget } from '../../control-plane/src/source-grounding.js';
 import { runAuthor } from './author.js';
 import { runDirector } from './director.js';
@@ -31,8 +32,12 @@ import { motionVideoBlock } from './video-block.js';
 
 const secs = ms => +(ms / 1000).toFixed(1);
 
+// context: motion_request.context (control-plane motion-context.js), the learner's selected card.
+// source: a pinned repository the canvas really has (the harness), never a default: a request with
+// no selection and no source is ungrounded (owner, 2026-10-21). sources: the pinned repositories a
+// selected repository card's sourceRefs may be read from, by commit.
 export async function runMotionRequest({
-  message, location = {}, selection = null, repository_context = null, source = fixtureSource(),
+  message, location = {}, context = null, repository_context = null, source = null, sources = [fixtureSource()],
   call, env = {}, service, dir, effort = 'high', signal = null, onStage = () => {},
   stages = {}, now = () => Date.now(), renderer = DEFAULT_RENDERER, plan = null,
 }) {
@@ -63,14 +68,20 @@ export async function runMotionRequest({
   try {
     // Free: no model call until the target is grounded.
     const { turn, grounding } = await enter('resolving', () => {
-      const turn = resolveLearnerTurn({ message, location, selection, repository_context });
-      return { turn, grounding: groundTarget(turn, source) };
+      const card = validateMotionContext(context)?.selection;
+      const refs = card?.sourceRefs ?? null;
+      const turn = resolveLearnerTurn({
+        message, location, repository_context,
+        selection: card ? { kind: 'card', id: card.cardId, ...(card.title ? { title: card.title } : {}) } : null,
+        ...(card?.text ? { canvas_target: { id: card.cardId, kind: card.kind, ...(card.title ? { title: card.title } : {}), text: card.text } } : {}),
+      });
+      return { turn, grounding: groundTarget(turn, refs ? sources.find(s => s.commit === refs[0].commit) ?? null : source, { cardRefs: refs }) };
     });
     out.request = turn.raw_user_message;
-    out.target = grounding.status === 'grounded' ? { label: grounding.resolved_target.label, resolution: grounding.resolution, source_refs: grounding.source_refs.map(r => `${r.path}:${r.start_line}-${r.end_line}`) } : null;
-    if (grounding.status !== 'grounded') return end('needs_clarification', { clarification: grounding.clarification });
+    out.target = ['grounded', 'ungrounded'].includes(grounding.status) ? { label: grounding.resolved_target.label, resolution: grounding.resolution, source_refs: grounding.source_refs.map(r => (r.path ? `${r.path}:${r.start_line}-${r.end_line}` : `card ${r.card_id}`)), ...(grounding.grounding ? { grounding: grounding.grounding } : {}) } : null;
+    if (!out.target) return end('needs_clarification', { clarification: grounding.clarification });
 
-    if (plan) return await fromPlan();
+    if (plan) return await fromPlan(grounding);
     const d = await enter('directing', () => director({ turn, grounding, call, env, effort }));
     record(d);
     out.decision_line = d.decision_line ?? null;
@@ -103,9 +114,12 @@ export async function runMotionRequest({
   }
 
   // A reused plan: validated again as the contract, never edited; its origin travels with the job.
-  async function fromPlan() {
+  async function fromPlan(grounding) {
     const errors = [...validateBrief(plan.brief), ...validateStoryboard(plan.storyboard, plan.brief)];
     if (errors.length) return fail(`plan: ${errors.slice(0, 3).join('; ')}`);
+    // A reused brief may cite only what this request's own grounding produced.
+    const refKey = refs => JSON.stringify(refs.map(r => `${r.id} ${r.path ?? r.card_id}:${r.start_line}-${r.end_line}`));
+    if (refKey(plan.brief.source_refs) !== refKey(grounding.source_refs)) return fail('plan: its brief cites sources this request was not grounded in');
     out.plan = { from: plan.from, storyboard_origin: 'model_generated', reused: true };
     out.brief = plan.brief;
     out.storyboard = plan.storyboard;

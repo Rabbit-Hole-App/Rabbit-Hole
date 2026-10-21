@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, commandLine, holdsLine, materialCommands, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
-import { commandsFor } from './agent/slash.js';
+import { cardsFor, commandLine, holdsLine, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { commandsFor, learnRequest } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -20,13 +20,16 @@ test('/ opens the grouped picker: LEARN, CREATE, SEARCH, then every other comman
   const sections = pickerSections('/');
   assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search', 'More learning tools']);
   assert.deepEqual(sections[0].items.map(item => item.name), ['dive', 'practice', 'quiz']);
-  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook']);
+  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'flashcards', 'notebook']);
+  // /motion takes /animate's place in a development or review build (owner, 2026-10-20), with the owner's words.
+  assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Create an animated explainer video' }, { name: 'flashcards', desc: 'Add flashcards' }]);
+  assert.deepEqual(pickerSections('/anim', { motionDev: true }), [], '/animate is not offered');
   // Owner, 2026-10-20: /image searches, so it leads the searches; /arxiv is the one paper search.
   assert.deepEqual(sections[2].items, [{ name: 'image', desc: 'Search images' }, { name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
   // With /more gone, the rest stay one list away (owner, 2026-10-20).
   assert.equal(sections[3].collapsible, true);
   assert.deepEqual(sections[3].items.map(item => item.name), ['whiteboard', 'video', 'cad', '3d']);
-  for (const name of ['paper', 'more', 'walkthrough', 'compare', 'source', 'deeper', 'simplify', 'example', 'ask', 'teach']) {
+  for (const name of ['paper', 'more', 'walkthrough', 'compare', 'source', 'deeper', 'simplify', 'example', 'ask', 'teach', 'animate']) {
     assert.ok(sections.flatMap(section => section.items).every(item => item.name !== name), name);
   }
   assert.deepEqual(pickerSections('/pa'), []);
@@ -221,24 +224,25 @@ test('commands that make no card, or make one at once, reserve nothing', async (
 // once the learner confirms Generate; Cancel never shows one.
 test('a paid command holds no place until Generate; Generate holds it and the confirmed card takes it', async () => {
   const proposal = { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.' };
-  for (const command of ['/animate why the sigmoid saturates', '/video light through a prism', '/3d a camera frustum']) {
+  for (const command of ['/video light through a prism', '/3d a camera frustum']) {
     const { did, run } = slotHarness(proposal);
     const out = await run(command);
     assert.deepEqual(did.map(entry => entry[0]), ['post'], `${command}: the proposal only, no skeleton`);
     assert.equal(out.proposal.message, 'This uses paid generation.');
   }
   const { did, run } = slotHarness(proposal);
-  const out = await run('/animate why the sigmoid saturates');
+  const out = await run('/video light through a prism');
   // Cancel: the composer drops the proposal and nothing reaches the canvas.
   assert.ok(!did.some(entry => entry[0] === 'reserve' || entry[0] === 'block'));
   out.proposal.generate();
-  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /animate…', card: 'mathAnimation', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
+  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video…', card: 'videoGenerate', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
 });
 
-// M7A: /motion exists only in a development build (VITE_MOTION_DEV) and costs nothing until Generate.
-test('/motion: development builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
+// /motion exists only in a development or review build (agent/slash.js MOTION_DEV) and costs nothing until Generate.
+test('/motion: development and review builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
   const off = harness({});
-  assert.match((await off.run('/motion 15s explain me softmax func')).notice.text, /not a Learn command/);
+  // A build without Motion (production) says so and runs nothing.
+  assert.deepEqual((await off.run('/motion 15s explain me softmax func')).notice, { tone: 'error', text: MOTION_OFF });
   assert.ok(!(pickerSections('/mo') || []).flatMap(section => section.items).some(item => item.name === 'motion'), 'no /motion in the picker of a normal build');
   const did = [];
   const canvas = { insertBlock: block => { did.push(block); return 'block-1'; }, dive: () => did.push('dive') };
@@ -308,6 +312,21 @@ test('every card a material command can make: its modality is the block type run
     assert.equal(inserted.length, 1, `${m.command} ${card}`);
     assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
   }
+});
+
+// L10 + owner 2026-10-21 (message 19): interactive explanations survive through BOTH /explain and the Tutor's
+// create_material(command: explain). Only the internal animate/compare tools lost the animation primitive. This fails if explain
+// via create_material loses the interactive scene path.
+test('create_material(command: explain) still makes the interactive scene: the Tutor route keeps the animation primitive', async () => {
+  assert.ok(commandsFor('learn', { internal: true }).some(command => command.name === 'explain'), 'explain stays an internal material command');
+  assert.deepEqual(learnRequest('explain', { args: 'an interactive look at how binary search narrows the range' }).allowedPrimitives, ['animation']);
+  const inserted = [], posts = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'b1'; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push([path, body.command]); return { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } }; };
+  const [result] = await runMaterials([{ type: 'create_material', command: 'explain', request: 'an interactive look at how binary search narrows the range' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, [['/api/learn/artifact', 'explain']]);
+  assert.equal(inserted[0].type, 'animation');
+  assert.equal(result.notice.text, 'Added an interactive explanation.');
 });
 
 const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
@@ -449,4 +468,26 @@ test('CAD command selection is inert; empty submit clarifies and a detailed subm
  assert.equal((await runLearnCommand('/cad',options)).notice.tone,'question');assert.equal(starts,0);
  const result=await runLearnCommand('/cad a 40 mm plate',options);assert.equal(starts,0);
  await Promise.all([result.proposal.generate(),result.proposal.generate()]);assert.equal(starts,1);
+});
+
+// Owner brief 2026-10-21 message 7 item 4: the selected card reaches Motion's resolver as motion_request context.selection
+// (control-plane motion-context.js), read when the line runs and bounded to 4000 characters; with none, only the words go.
+test('/motion with a selected card sends it as context.selection; the line stays the learner words', async () => {
+  const did = [];
+  const canvas = { insertBlock: block => { did.push(block); return 'block-1'; } };
+  let reads = 0;
+  const target = { id: 'b-photo', kind: 'Explanation', title: 'Photosynthesis', card: true, get text() { reads += 1; return `Explanation: Photosynthesis\n${'Plants make glucose. '.repeat(400)}`; } };
+  const run = (text, extra = {}) => runLearnCommand(text, { app: 'demo', canvas, post: async () => assert.fail('no request'), openSearch: () => {}, location: { concept: 'Biology' }, motionDev: true, ...extra });
+  (await run('/motion explain this', { target })).proposal.generate();
+  const { operation } = did.at(-1);
+  assert.equal(reads, 1, 'the card text is read once, when the line runs');
+  assert.equal(operation.request, '/motion explain this');
+  assert.deepEqual(Object.keys(operation.context.selection), ['cardId', 'kind', 'title', 'text']);
+  assert.deepEqual([operation.context.selection.cardId, operation.context.selection.kind, operation.context.selection.title], ['b-photo', 'Explanation', 'Photosynthesis']);
+  assert.equal(operation.context.selection.text.length, 4000);
+  assert.ok(operation.context.selection.text.startsWith('Explanation: Photosynthesis\nPlants make glucose.'));
+  (await run('/motion explain photosynthesis')).proposal.generate();
+  assert.equal(did.at(-1).operation.context, undefined, 'no selection, no context');
+  (await run('/motion explain this', { target: { id: 'b-empty', kind: 'Whiteboard', text: '  ' } })).proposal.generate();
+  assert.equal(did.at(-1).operation.context, undefined, 'a card with no text has nothing to ground on');
 });

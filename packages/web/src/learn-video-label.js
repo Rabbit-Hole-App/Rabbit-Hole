@@ -9,6 +9,9 @@ const where = ref => (!ref.path ? ref.card_id || ref.url || ref.id
 // does not know it yet (the orchestrator decides), so its card names none until the video arrives.
 const RENDERER_LABELS = { remotion: 'Remotion', hyperframes: 'HyperFrames' };
 const renderedBy = block => RENDERER_LABELS[block.motion?.renderer] ?? null;
+// An ungrounded Motion video (learn-render contracts.js NO_SOURCE) is labelled, never shown as sourced.
+const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source' ? `Not grounded in ${block.motion.grounding.searched.join(', ')}`
+  : block.motion?.grounding ? 'Not grounded in a source' : null);
 
 export function videoLabel(block) {
   const op = block.operation;
@@ -20,7 +23,7 @@ export function videoLabel(block) {
   if (op?.op === 'motion_request') {
     const seconds = block.motion?.duration_seconds;
     return {
-      detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block)].filter(Boolean).join(' · '),
+      detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block), notGrounded(block)].filter(Boolean).join(' · '),
       button: 'Generate the explainer', progress: 'Planning, reviewing and rendering', expected: 900, stoppable: true,
       ...(block.motion ? { sources: (block.motion.source_refs || []).map(where) } : {}),
     };
@@ -28,7 +31,7 @@ export function videoLabel(block) {
   if (op?.op === 'motion_render') {
     const seconds = block.motion?.duration_seconds;
     return {
-      detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block)].filter(Boolean).join(' · '),
+      detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block), notGrounded(block)].filter(Boolean).join(' · '),
       button: 'Add the rendered video', progress: 'Fetching the render', expected: 30,
       sources: (block.motion?.source_refs || []).map(where),
     };

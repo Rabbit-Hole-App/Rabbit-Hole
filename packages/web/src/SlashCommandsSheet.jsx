@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { EXAMPLES, mayConfirmPaid, parseSlash, pickerSections } from './learn-slash.js';
 import { descFor, learnRequest, toolOf } from './agent/slash.js';
@@ -10,7 +10,7 @@ import { CommandMark } from './CommandTone.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CommandList from './CommandList.jsx';
 import { CadViewerTools } from './CadCard.jsx';
-import { CHAT_EXAMPLES, FINDER_NOTES, MEDIA, SAMPLES, TAB_LABELS, demoOf, effectOf, illustrationFor, sheetCards } from './slash-sheet.js';
+import { CHAT_EXAMPLES, FINDER_NOTES, MEDIA, SAMPLES, SAMPLE_NOTES, TAB_LABELS, demoOf, effectOf, illustrationFor, sheetCards } from './slash-sheet.js';
 import { EXPLAIN_EXAMPLES, ORIGIN_NOTES } from './explain-examples.js';
 
 // Every Learn / command, opened from View > Slash commands. Left: a search over the
@@ -84,7 +84,7 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
             {/* The card at the size it has on the canvas: the pane scrolls rather than shrink it. */}
             <div className="mt-3 flex min-h-0 flex-1 items-start justify-center overflow-auto py-1">
               {name === 'cad' ? <p data-slash-cad className="max-w-md text-sm text-ink-2">Describe the part, its purpose and any required dimensions. CAD creates a saved background job, asks about important missing dimensions, and returns an interactive model with checked downloads. Selecting CAD does not start generation.</p> : demo === 'cards'
-                ? <div className="flex flex-col items-center gap-2"><p data-slash-sample className="text-[11px] text-ink-3">A sample card. Yours is made from what you type.</p>
+                ? <div className="flex flex-col items-center gap-2"><p data-slash-sample className="text-[11px] text-ink-3">{SAMPLE_NOTES[name] || 'A sample card. Yours is made from what you type.'}</p>
                   {scenes && <SceneExamples current={scene} onChoose={setSceneIndex} />}
                   <CardPreview key={`${name}:${card.card}:${scene?.id || ''}`} type={card.card} command={name} appName={appName} sample={scene?.block} /></div>
                 : demo === 'finder'
@@ -96,6 +96,22 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
       </div>
     </div>
   );
+}
+
+// A committed sample clip (/motion's real Motion video) plays from memory. Static assets are served without byte ranges, so a
+// browser cannot seek one (its seekable range is 0 to 0); a blob URL seeks (owner, 2026-10-20: playback, pause and seeking
+// work). Fetching the file is all the window does: no generation route. null while it loads; the plain path if the fetch fails.
+function useSeekableClip(src) {
+  const committed = /^\/lesson-assets\/[\w.-]+\.mp4$/.test(src || '');
+  const [url, setUrl] = useState(committed ? null : src);
+  useEffect(() => {
+    if (!committed) return undefined;
+    let made = null, live = true;
+    fetch(src).then(response => (response.ok ? response.blob() : Promise.reject(Error(String(response.status)))))
+      .then(blob => { made = URL.createObjectURL(blob); if (live) setUrl(made); else URL.revokeObjectURL(made); }, () => { if (live) setUrl(src); });
+    return () => { live = false; if (made) URL.revokeObjectURL(made); };
+  }, [src, committed]);
+  return url;
 }
 
 // One card exactly as the canvas draws it at 100%: the canvas node's width,
@@ -113,6 +129,7 @@ function CardPreview({ type, command, appName, sample: chosen = null }) {
     if (sample.modelUrl) sample.modelUrl = new URL(sample.modelUrl, window.location.origin).href;
     return sample;
   });
+  const clip = useSeekableClip(SAMPLES[command]?.[type]?.src);
   const spec = BLOCK_TYPES[type] || {};
   const width = type === 'notebook' ? 640 : spec.sizeFor?.(block)?.width ?? spec.width ?? 380;
   const height = type === 'notebook' ? 540 : spec.sizeFor?.(block)?.height ?? spec.height;
@@ -128,10 +145,11 @@ function CardPreview({ type, command, appName, sample: chosen = null }) {
       <div aria-hidden className={`flex h-6 shrink-0 items-center justify-center rounded-t-xl ${ghost ? 'opacity-0 group-hover:opacity-100' : ''}`}><span className="h-1 w-12 rounded-full bg-line" /></div>
       {type === 'notebook'
         ? <NotebookBody block={block} onSelect={() => {}} onDocument={() => {}} onManifest={() => {}} />
-        // A sample with a finished clip or model of its own (/motion's, /3d's) shows it; otherwise the picture.
+        // A sample with a finished clip (/motion's) or model (/3d's) of its own shows it; otherwise the picture.
         : picture
           ? <Illustration block={block} {...picture} />
-          : <LearningBlockBody block={block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected viewKey={viewKey} />}
+          : clip === null ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video…</p>
+          : <LearningBlockBody block={clip && clip !== block.src ? { ...block, src: clip, variants: [{ src: clip }], variant: 0 } : block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected viewKey={viewKey} />}
       {block.sources && <SourcesDisclosure sources={block.sources} />}
     </div>
   );

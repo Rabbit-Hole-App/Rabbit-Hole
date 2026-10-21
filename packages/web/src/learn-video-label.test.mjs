@@ -41,3 +41,14 @@ test('a Motion video names the renderer that made it: Remotion or HyperFrames', 
   const ready = { operation: { op: 'motion_request', request: '/motion 15s explain me softmax func', location: {} }, motion: { duration_seconds: 15, renderer: 'hyperframes', source_refs: [] } };
   assert.equal(videoLabel(ready).detail, '15s · Motion explainer · HyperFrames');
 });
+
+// Owner brief 2026-10-21 message 11 item 5: a video made with no source says so, and one whose supplied source did not
+// mention its topic names what it is not grounded in; neither shows a Sources line.
+test('an ungrounded Motion video is labelled on its card, never shown as sourced', () => {
+  const none = { operation: { op: 'motion_render', render_id: 'c'.repeat(32) }, motion: { duration_seconds: 10, renderer: 'remotion', source_refs: [], grounding: { status: 'no_source_supplied' } } };
+  assert.deepEqual([videoLabel(none).detail, videoLabel(none).sources], ['10s · Motion explainer · Remotion · Not grounded in a source', []]);
+  const elsewhere = { operation: { op: 'motion_request', request: '/motion explain gradient descent', location: {} }, motion: { duration_seconds: 10, renderer: 'remotion', source_refs: [], grounding: { status: 'not_in_source', searched: ['karpathy/nanoGPT@3adf61e'] } } };
+  assert.equal(videoLabel(elsewhere).detail, '10s · Motion explainer · Remotion · Not grounded in karpathy/nanoGPT@3adf61e');
+  const brief = { ...JSON.parse(readFileSync(new URL('../../learn-render/motion/fixtures/demo-a/brief.json', import.meta.url), 'utf8')), source_refs: [], evidence: [], grounding: { status: 'no_source_supplied' } };
+  assert.deepEqual(motionVideoBlock({ brief, renderId: 'd'.repeat(32), jobId: 'motion-job-u' }).motion.grounding, { status: 'no_source_supplied' });
+});
