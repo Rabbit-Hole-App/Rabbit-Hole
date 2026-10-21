@@ -6,10 +6,13 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Circle, CircleAlert, CircleCheck, CircleDashed, CircleHelp, X } from 'lucide-react';
 import { api } from './api.js';
 import { STATUS_LABEL, fetchProgress, progressModel } from './learn-progress-client.js';
+import { askTutorAbout, progressRef } from './learn-progress-question.js';
 
 const ICON = { demonstrated_independently: CircleCheck, demonstrated_with_help: CircleHelp, practising: CircleDashed, needs_review: CircleAlert, not_checked: Circle };
 const TONE = { demonstrated_independently: 'text-pass', demonstrated_with_help: 'text-[#b45309] dark:text-[#f5b14c]', needs_review: 'text-fail', practising: 'text-ink-2', not_checked: 'text-ink-3' };
 const BUTTON = 'cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium';
+// The judgment "Question this feedback" names: the latest confirmed one behind the skill's status, not one already questioned.
+const judged = criterion => criterion?.evidence?.filter(e => e.validity === 'valid').at(-1) ?? null;
 const day = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 
 // scope { app, board }; coaching: the workspace's controls (use-learn-coaching.jsx); composer: the Chat draft (prepare and
@@ -31,6 +34,19 @@ export default function LearnProgress({ scope, coaching, composer, onClose }) {
   // Read on open, on another viewed goal, and when the saved state moves on (an assessment landed, a goal changed elsewhere).
   useEffect(read, [goalId, state?.revision, scope.app, scope.board]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { heading.current?.focus(); }, []);
+  // A review filed at Send (ask.jsx fileReviews) changes what this goal shows: read it again.
+  const reread = useRef(read);
+  reread.current = read;
+  useEffect(() => { const on = () => reread.current(); window.addEventListener('rh:progress-changed', on); return () => window.removeEventListener('rh:progress-changed', on); }, []);
+  // Ask tutor about this / Question this feedback (Tutor Task 10): a removable chip and an offered question in the Chat composer
+  // (learn-progress-question.js). Nothing is sent; the mode, the Tutor switch, the active goal and a written draft stay. A review
+  // is filed only when the learner sends it. Below lg, Chat takes the column back and this pane keeps its selection.
+  const askAbout = (row, review = false) => {
+    const criterion = load.view?.criteria.find(c => c.criterionId === row.criterionId);
+    if (!criterion || !model.viewed) return;
+    askTutorAbout({ composer }, progressRef({ goal: model.viewed, view: load.view, criterion, evidence: review ? judged(criterion) : null, board: scope.board }),
+      review ? 'I think this feedback missed something: ' : `Why is "${row.label}" ${STATUS_LABEL[row.status].toLowerCase()}?`);
+  };
   const resume = async () => {
     setResuming(true);
     try { await coaching.act('activate_goal', { goalId }); setViewedGoalId(null); } catch { /* the pane keeps the viewed goal; the controls line shows the save state */ } finally { setResuming(false); }
@@ -86,6 +102,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose }) {
                   <p className="font-medium text-ink">Why this status</p>
                   <p className="mt-1 text-ink-2">{row.reason || 'Nothing submitted for this yet.'}</p>
                   <p className="mt-1 text-xs text-ink-3">Based on {row.evidence} saved answer{row.evidence === 1 ? '' : 's'}.</p>
+                  <button type="button" data-progress-ask onClick={() => askAbout(row)} className="mt-2 cursor-pointer text-sm font-semibold text-ink underline-offset-2 hover:underline">Ask tutor about this</button>
                   <details data-progress-more className="mt-2 text-xs text-ink-2">
                     <summary className="cursor-pointer text-ink">More about this skill</summary>
                     <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
@@ -93,6 +110,8 @@ export default function LearnProgress({ scope, coaching, composer, onClose }) {
                       <dt>Remembered later</dt><dd className="text-ink">{row.retention ? 'Yes' : 'Not checked yet'}</dd>
                     </dl>
                   </details>
+                  {judged(load.view?.criteria.find(c => c.criterionId === row.criterionId)) && <button type="button" data-progress-question onClick={() => askAbout(row, true)}
+                    className="mt-2 block cursor-pointer text-xs font-medium text-ink-2 underline-offset-2 hover:text-ink hover:underline">Question this feedback</button>}
                 </div>}
               </li>
             ); })}
