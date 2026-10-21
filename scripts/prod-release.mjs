@@ -38,7 +38,9 @@ export const BUILD_ENV = {
   VITE_NOTEBOOK_ORIGIN: 'https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev',
   VITE_LESSON_NOTEBOOK_ORIGIN: 'https://rabbit-hole-notebook.tryrabbithole.workers.dev',
 };
-const DEV_ONLY_ENV = ['VITE_COACHING_DEV', 'VITE_BYOC_DEV'];
+// Stripped from the shell before the production build. Either Motion flag would offer /motion (agent/slash.js MOTION_DEV), which
+// production does not run.
+export const DEV_ONLY_ENV = ['VITE_COACHING_DEV', 'VITE_BYOC_DEV', 'VITE_MOTION_DEV'];
 
 const SHA = /^[0-9a-f]{40}$/;
 

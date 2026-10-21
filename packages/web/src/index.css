@@ -231,9 +231,6 @@ html {
   --cmd-diagram-bg: #eceefd;
   --cmd-diagram-fg: #1e2576;
   --cmd-diagram-line: #b1b6f1;
-  --cmd-animate-bg: #f0ecfd;
-  --cmd-animate-fg: #311e76;
-  --cmd-animate-line: #bfb1f1;
   --cmd-whiteboard-bg: #f5ecfd;
   --cmd-whiteboard-fg: #411070;
   --cmd-whiteboard-line: #d2b1f1;
@@ -275,7 +272,6 @@ html {
 [data-command-tone="code"] { --cmd-bg: var(--cmd-code-bg); --cmd-fg: var(--cmd-code-fg); --cmd-line: var(--cmd-code-line); }
 [data-command-tone="graph"] { --cmd-bg: var(--cmd-graph-bg); --cmd-fg: var(--cmd-graph-fg); --cmd-line: var(--cmd-graph-line); }
 [data-command-tone="diagram"] { --cmd-bg: var(--cmd-diagram-bg); --cmd-fg: var(--cmd-diagram-fg); --cmd-line: var(--cmd-diagram-line); }
-[data-command-tone="animate"] { --cmd-bg: var(--cmd-animate-bg); --cmd-fg: var(--cmd-animate-fg); --cmd-line: var(--cmd-animate-line); }
 [data-command-tone="whiteboard"] { --cmd-bg: var(--cmd-whiteboard-bg); --cmd-fg: var(--cmd-whiteboard-fg); --cmd-line: var(--cmd-whiteboard-line); }
 [data-command-tone="image"] { --cmd-bg: var(--cmd-image-bg); --cmd-fg: var(--cmd-image-fg); --cmd-line: var(--cmd-image-line); }
 [data-command-tone="video"] { --cmd-bg: var(--cmd-video-bg); --cmd-fg: var(--cmd-video-fg); --cmd-line: var(--cmd-video-line); }
@@ -356,9 +352,6 @@ html {
   --cmd-diagram-bg: #141634;
   --cmd-diagram-fg: #a1a8f7;
   --cmd-diagram-line: #262e82;
-  --cmd-animate-bg: #1b1434;
-  --cmd-animate-fg: #b3a1f7;
-  --cmd-animate-line: #3a2682;
   --cmd-whiteboard-bg: #241434;
   --cmd-whiteboard-fg: #d7b4f9;
   --cmd-whiteboard-line: #562682;

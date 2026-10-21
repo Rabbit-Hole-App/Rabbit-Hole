@@ -48,13 +48,13 @@ export const searchSections = query => filterSections(pickerSections('/'), query
 export const EXAMPLES = {
   dive: '/dive how cells produce ATP', practice: '/practice explain it back: why the sky is blue', quiz: '/quiz the causes of the French Revolution',
   explain: '/explain how binary search works', code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)',
-  diagram: '/diagram how a bill becomes law', animate: '/animate how softmax shares the whole by score', flashcards: '/flashcards Spanish verbs for travel',
+  diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel',
   notebook: '/notebook', whiteboard: '/whiteboard the water cycle',
   image: '/image Mount Fuji', 'generate-image': '/generate-image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
   cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d a model of the solar system',
   youtube: '/youtube binary search tutorial', arxiv: '/arxiv graph neural networks', wikipedia: '/wikipedia Photosynthesis',
-  // Development builds only (VITE_MOTION_DEV): the committed clip it shows is 25 s.
-  motion: '/motion 25s explain softmax',
+  // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
+  motion: '/motion 15s explain me softmax func',
 };
 // The canvas card each primitive becomes: its + palette sample in
 // LearningBlocks' BLOCK_TYPES (the notebook is its own card).
@@ -145,6 +145,9 @@ export function generateCommand(name, args, { app, selection = null, context = n
   return post('/api/learn/artifact', { app, command: name, args, selection, context }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
+// What a typed /motion says in a build that does not offer it (production): it runs nothing.
+export const MOTION_OFF = 'Motion (animated explainer videos) is not available here.';
+
 // Run one typed command. Returns what the composer shows next:
 //   { prompt }   send this through the existing Learn ask (Auto commands)
 //   { notice }   a one-line result or reason ({ tone, text })
@@ -158,7 +161,7 @@ export function generateCommand(name, args, { app, selection = null, context = n
 // command says it is unavailable and runs nothing (owner, 2026-10-20).
 export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false }) {
   const resolved = resolveCommand(text, 'learn', { motionDev, internal });
-  if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && unavailableCommand(resolved.unsupported)) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
+  if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && (unavailableCommand(resolved.unsupported) || (resolved.unsupported === 'motion' ? MOTION_OFF : null))) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
   const selection = target?.id ? { kind: 'card', id: target.id, title: String(target.title || '').slice(0, 200) } : null;
   const request = learnRequest(name, { args, selection });
@@ -179,7 +182,7 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
-  // /motion (M7A, development builds only): the paid proposal comes back without any model call.
+  // /motion (development and review builds): the paid proposal comes back without any model call.
   // Generate inserts the existing video card already confirmed; LearnVideos hands the request to the
   // development orchestrator (operation motion_request), which plans, reviews and renders it.
   if (request.action === 'motion') {

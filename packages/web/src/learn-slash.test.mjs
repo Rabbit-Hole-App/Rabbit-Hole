@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, holdsLine, materialCommands, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { cardsFor, holdsLine, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -19,13 +19,16 @@ test('/ opens the grouped picker: LEARN, CREATE, SEARCH, then every other comman
   const sections = pickerSections('/');
   assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search', 'More learning tools']);
   assert.deepEqual(sections[0].items.map(item => item.name), ['dive', 'practice', 'quiz']);
-  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook']);
+  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'flashcards', 'notebook']);
+  // /motion takes /animate's place in a development or review build (owner, 2026-10-20), with the owner's words.
+  assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Create an animated explainer video' }, { name: 'flashcards', desc: 'Add flashcards' }]);
+  assert.deepEqual(pickerSections('/anim', { motionDev: true }), [], '/animate is not offered');
   // Owner, 2026-10-20: /image searches, so it leads the searches; /arxiv is the one paper search.
   assert.deepEqual(sections[2].items, [{ name: 'image', desc: 'Search images' }, { name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
   // With /more gone, the rest stay one list away (owner, 2026-10-20).
   assert.equal(sections[3].collapsible, true);
   assert.deepEqual(sections[3].items.map(item => item.name), ['whiteboard', 'video', 'cad', '3d']);
-  for (const name of ['paper', 'more', 'walkthrough', 'compare', 'source', 'deeper', 'simplify', 'example', 'ask', 'teach']) {
+  for (const name of ['paper', 'more', 'walkthrough', 'compare', 'source', 'deeper', 'simplify', 'example', 'ask', 'teach', 'animate']) {
     assert.ok(sections.flatMap(section => section.items).every(item => item.name !== name), name);
   }
   assert.deepEqual(pickerSections('/pa'), []);
@@ -198,24 +201,25 @@ test('commands that make no card, or make one at once, reserve nothing', async (
 // once the learner confirms Generate; Cancel never shows one.
 test('a paid command holds no place until Generate; Generate holds it and the confirmed card takes it', async () => {
   const proposal = { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.' };
-  for (const command of ['/animate why the sigmoid saturates', '/video light through a prism', '/3d a camera frustum']) {
+  for (const command of ['/video light through a prism', '/3d a camera frustum']) {
     const { did, run } = slotHarness(proposal);
     const out = await run(command);
     assert.deepEqual(did.map(entry => entry[0]), ['post'], `${command}: the proposal only, no skeleton`);
     assert.equal(out.proposal.message, 'This uses paid generation.');
   }
   const { did, run } = slotHarness(proposal);
-  const out = await run('/animate why the sigmoid saturates');
+  const out = await run('/video light through a prism');
   // Cancel: the composer drops the proposal and nothing reaches the canvas.
   assert.ok(!did.some(entry => entry[0] === 'reserve' || entry[0] === 'block'));
   out.proposal.generate();
-  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /animate…', card: 'mathAnimation', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
+  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video…', card: 'videoGenerate', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
 });
 
-// M7A: /motion exists only in a development build (VITE_MOTION_DEV) and costs nothing until Generate.
-test('/motion: development builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
+// /motion exists only in a development or review build (agent/slash.js MOTION_DEV) and costs nothing until Generate.
+test('/motion: development and review builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
   const off = harness({});
-  assert.match((await off.run('/motion 15s explain me softmax func')).notice.text, /not a Learn command/);
+  // A build without Motion (production) says so and runs nothing.
+  assert.deepEqual((await off.run('/motion 15s explain me softmax func')).notice, { tone: 'error', text: MOTION_OFF });
   assert.ok(!(pickerSections('/mo') || []).flatMap(section => section.items).some(item => item.name === 'motion'), 'no /motion in the picker of a normal build');
   const did = [];
   const canvas = { insertBlock: block => { did.push(block); return 'block-1'; }, dive: () => did.push('dive') };

@@ -9,7 +9,7 @@ import { Md } from './ask.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CommandList from './CommandList.jsx';
-import { CHAT_EXAMPLES, FINDER_NOTES, ILLUSTRATIONS, MEDIA, SAMPLES, demoOf, effectOf, sheetCards } from './slash-sheet.js';
+import { CHAT_EXAMPLES, FINDER_NOTES, ILLUSTRATIONS, MEDIA, SAMPLES, SAMPLE_NOTES, demoOf, effectOf, sheetCards } from './slash-sheet.js';
 
 // Every Learn / command, opened from View > Slash commands. Left: a search over the
 // picker's own sections (learn-slash.js, CommandList.jsx), so the sheet and the
@@ -78,7 +78,7 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
             {/* The card at the size it has on the canvas: the pane scrolls rather than shrink it. */}
             <div className="mt-3 flex min-h-0 flex-1 items-start justify-center overflow-auto py-1">
               {name === 'cad' ? <p data-slash-cad className="max-w-md text-sm text-ink-2">Describe the part, its purpose and any required dimensions. CAD creates a saved background job, asks about important missing dimensions, and returns an interactive model with checked downloads. Selecting CAD does not start generation.</p> : demo === 'cards'
-                ? <div className="flex flex-col items-center gap-2"><p data-slash-sample className="text-[11px] text-ink-3">A sample card. Yours is made from what you type.</p><CardPreview key={`${name}:${card.card}`} type={card.card} command={name} appName={appName} /></div>
+                ? <div className="flex flex-col items-center gap-2"><p data-slash-sample className="text-[11px] text-ink-3">{SAMPLE_NOTES[name] || 'A sample card. Yours is made from what you type.'}</p><CardPreview key={`${name}:${card.card}`} type={card.card} command={name} appName={appName} /></div>
                 : demo === 'finder'
                   ? <p data-slash-finder={name} className="w-[440px] max-w-full text-xs text-ink-2">{FINDER_NOTES[name]}</p>
                   : <ChatPreview name={name} />}

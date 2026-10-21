@@ -147,7 +147,7 @@ test('the orchestrator provider: refusals are definite (nothing started), outcom
   const input = validateMotionRequest(motionOp);
   await assert.rejects(new MotionRequestProvider(orch, transport([json({ error: 'busy', detail: 'one Motion job at a time' }, 429)])).submit(input), e => e.definite === true && /one Motion job at a time/.test(e.message));
   await assert.rejects(new MotionRequestProvider(orch, async () => { throw new Error('socket hang up'); }).submit(input), e => !e.definite);
-  await assert.rejects(new MotionRequestProvider({}, transport([])).submit(input), e => e.definite === true && /not configured/.test(e.message));
+  await assert.rejects(new MotionRequestProvider({}, transport([])).submit(input), e => e.definite === true && /not available in this environment/.test(e.message));
   await assert.rejects(new MotionRequestProvider({ ...orch, MOTION_ORCHESTRATOR_URL: 'http://orchestrator.example/' }, transport([])).submit(input), /HTTPS/);
   const poll = (...responses) => new MotionRequestProvider(orch, transport(responses)).poll({ id: job });
   await assert.rejects(poll(json({ status: 'failed', failure_reason: 'still blocking after the repair round: blank_frame' })), e => e.final && /still blocking after the repair round/.test(e.message));
@@ -171,11 +171,11 @@ function orchestratorStub({ submit = () => json({ job_id: job, status: 'running'
   };
   return { calls, restore: () => { globalThis.fetch = original; } };
 }
-function requestFixture() {
+function requestFixture(env = orch) {
   const data = new Map(); let lock = Promise.resolve();
   const state = { id: 'actor-test', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {} }, blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
   const assets = new Map();
-  return { assets, data, actor: new LearnVideos(state, { ...orch, LEARN_MEDIA: { put: async (k, v) => assets.set(k, v) } }) };
+  return { assets, data, actor: new LearnVideos(state, { ...env, LEARN_MEDIA: { put: async (k, v) => assets.set(k, v) } }) };
 }
 const post = body => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify(body) });
 const motionRequest = (extra = {}) => post({ operation: motionOp, lessonId: 'adaptive-canvas', page: 'canvas', confirmed: true, ...extra });
@@ -245,6 +245,18 @@ test('a /motion failure: the reason on the card, nothing stored, retryable; a re
     const v = (await (await requestFixture().actor.fetch(motionRequest())).json()).videos[0];
     assert.deepEqual([v.status, v.retryable], ['failed', false], 'the job may have started: no one-click retry');
   } finally { lost.restore(); }
+});
+
+test('with no orchestrator (a dev clone, preview, production), Generate starts nothing: the card says Motion is not available here, retryable', async () => {
+  const o = orchestratorStub();
+  try {
+    const f = requestFixture({});
+    const v = (await (await f.actor.fetch(motionRequest())).json()).videos[0];
+    assert.deepEqual([v.status, v.retryable, v.error], ['failed', true, 'Motion is not available in this environment yet. Nothing was started.']);
+    assert.deepEqual(o.calls, [], 'no request leaves the worker');
+    await f.actor.alarm();
+    assert.equal(f.assets.size, 0);
+  } finally { o.restore(); }
 });
 
 test('Stop is refused for providers that cannot stop', async () => {

@@ -13,14 +13,14 @@ export const CHAT_EXAMPLES = {
 // 2026-10-20). Media say where their content comes from: found and credited, or made by AI.
 const SEARCHES = new Set(['image', 'youtube', 'arxiv', 'wikipedia']);
 export const effectOf = name => (name === 'dive' ? 'Opens a Rabbit Hole' : SEARCHES.has(name) ? 'Searches' : 'Creates a card');
-export const MEDIA = { image: 'Sourced', youtube: 'Sourced', video: 'AI-generated', 'generate-image': 'AI-generated' };
+export const MEDIA = { image: 'Sourced', youtube: 'Sourced', video: 'AI-generated', 'generate-image': 'AI-generated', motion: 'AI-generated' };
 
 // /youtube, /arxiv and /wikipedia open the source finder on their source with what follows them, and search at once; the
 // learner previews the results there and adds one. They make no card themselves and call no model.
 const FINDS = { youtube: 'YouTube videos', arxiv: 'arXiv papers: a topic, or an arXiv ID or link', wikipedia: 'Wikipedia articles' };
 export const FINDER_NOTES = Object.fromEntries(Object.entries(FINDS).map(([name, what]) => [name, `Opens Search on ${what}, with what you type after the command, and searches at once. Preview the results there: nothing is added until you add one to the canvas.`]));
 
-// The cards the sheet shows for a command: what it makes (learn-slash.js cardsFor). /motion (development builds only)
+// The cards the sheet shows for a command: what it makes (learn-slash.js cardsFor). /motion (development and review builds)
 // makes a video card through its own action, so it names that card here; /generate-image (listed only while image
 // generation is on) makes the Image generate card.
 const SHEET_CARDS = { motion: [{ primitive: 'motion', card: 'videoGenerate' }], 'generate-image': [{ primitive: 'image_generate', card: 'imageGenerate' }] };
@@ -29,24 +29,24 @@ export const sheetCards = name => SHEET_CARDS[name] || cardsFor(name);
 // What the right pane shows: the cards a command makes, what a source search does, or what /dive does.
 export const demoOf = name => (name === 'cad' ? 'cad' : sheetCards(name).length ? 'cards' : FINDER_NOTES[name] ? 'finder' : CHAT_EXAMPLES[name] ? 'chat' : null);
 
-// The committed finished clip /animate and /motion show (packages/web/public/landing): softmax sharing out the whole by
-// score, 25 s, the landing page's /motion explainer.
-const CLIP = '/landing/softmax-overview-v1.mp4';
+// /motion's example is a real Motion video, committed so it never expires and opening the window generates nothing: the
+// final.mp4 of the verified job 8a2015a4 (rabbit-hole-motion-v1-harness-spec.md, "M7B production-exact API smoke": ready, final
+// validation passed, sha256 6af0b4b2...437c46), made from exactly learn-slash.js EXAMPLES.motion. Its title, duration, renderer
+// and sources are that job's own.
+export const MOTION_CLIP = '/lesson-assets/motion-softmax-8a2015a4.mp4';
+const ref = (id, start, end) => ({ id, kind: 'code', repository: 'karpathy/nanoGPT', commit: '3adf61e154c3fe3fca428ad6bc3818b27a3b8291', path: 'model.py', start_line: start, end_line: end });
 
-// The sheet's own sample for a command's card, laid over the card's + palette sample (BLOCK_TYPES): /animate's and /motion's
-// finished clip. Any other card shows its + sample.
+// The sheet's own sample for a command's card, laid over the card's + palette sample (BLOCK_TYPES): /motion's finished video.
+// Any other card shows its + sample.
 export const SAMPLES = {
-  animate: {
-    mathAnimation: { title: 'Softmax shares the whole by score', caption: 'Every score gets a share of 1: the highest the biggest share, the lowest still some.',
-      status: 'ready', src: CLIP, variants: [{ src: CLIP }], variant: 0 },
-  },
-  // A finished /motion request: the brief's title and duration arrive with the video (learn-video-label.js); no renderer
-  // or sources are claimed for this clip.
   motion: {
-    videoGenerate: { title: 'Softmax shares the whole by score', caption: '', status: 'ready', src: CLIP, variants: [{ src: CLIP }], variant: 0,
-      operation: { op: 'motion_request', request: '/motion 25s explain softmax', location: { concept: 'softmax' } }, motion: { duration_seconds: 25, source_refs: [] } },
+    videoGenerate: { title: 'Softmax: Turning Attention Scores into Weights', caption: '', status: 'ready', src: MOTION_CLIP, variants: [{ src: MOTION_CLIP }], variant: 0,
+      operation: { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } },
+      motion: { duration_seconds: 15, renderer: 'remotion', source_refs: [ref('S1', 44, 45), ref('S2', 48, 50), ref('S3', 62, 64), ref('S4', 65, 71)] } },
   },
 };
+// The line above a sample card: every card is a sample, and /motion's is a real Motion video of its example.
+export const SAMPLE_NOTES = { motion: 'A real Motion video, made from this example. Yours is made from what you type.' };
 
 // Paid media with no committed finished file: a picture of the finished card, labelled as one (public/lesson-assets).
 export const ILLUSTRATIONS = {
