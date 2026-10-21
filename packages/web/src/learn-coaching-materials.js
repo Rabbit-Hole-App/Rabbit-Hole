@@ -66,12 +66,13 @@ export function scopeFromJourney(journey, path) {
 // A planned keyed check of the journey that names this criterion's claim and has not been answered: existing material, no
 // planner. journey: the browser copy (answer keys removed); the server keeps the key and grades it (learn-assessment.js).
 // A section check is found while its section is current; a diagnostic probe stays usable as a practice check.
-function journeyCheck(journey, criterion, unreadable) {
+// used: probe ids an answered activity of this goal already took (the browser's journey copy may not show that evidence yet).
+function journeyCheck(journey, criterion, unreadable, used = []) {
   if (!journey?.id || !criterion.skillKey || unreadable.includes(journey.id)) return null;
   const events = journey.evidence?.events || [];
   const plan = journey.section_plan?.section_id === journey.active_section_id ? journey.section_plan : null;
   const candidates = [...(plan?.checks || []).map(p => ({ p, sectionId: plan.section_id })), ...(journey.diagnostic?.probes || []).map(p => ({ p, sectionId: null }))];
-  const found = candidates.find(({ p, sectionId }) => ['mcq', 'prediction'].includes(p.kind) && p.options?.length && p.claims?.includes(criterion.skillKey)
+  const found = candidates.find(({ p, sectionId }) => ['mcq', 'prediction'].includes(p.kind) && p.options?.length && p.claims?.includes(criterion.skillKey) && !used.includes(p.id)
     && !events.some(e => e.ref?.probe_id === p.id && (e.ref.section_id ?? null) === sectionId));
   if (!found) return null;
   const { p, sectionId } = found;
@@ -157,7 +158,8 @@ export async function chooseNextActivity(input, { plan = null } = {}) {
   }
   const material = constraints.minutes != null && constraints.minutes < 5 && !request.format ? null : materialFor(request, constraints, capabilities, criterion.label);
   // 3. Existing material first: a planned keyed check on this claim (a simpler task is not a check).
-  const check = request.kind === 'simpler_task' || request.format ? null : journeyCheck(journey, criterion, unreadable);
+  const answered = activity && activity.goalId === goal.goalId && !ACTIVE.includes(activity.status) ? activity.sourceRefs.filter(r => r.kind === 'journey_probe').map(r => r.id) : [];
+  const check = request.kind === 'simpler_task' || request.format ? null : journeyCheck(journey, criterion, unreadable, answered);
   if (check) {
     return { source: 'journey_check', reason: 'existing_check', activity: { sourceRefs: check.sourceRefs, checkpoint: { options: check.options } },
       proposal: proposal(goal, criterion, { prompt: check.prompt, responseKind: 'choice', reason: 'existing_check', material: { format: 'check', existing: { sourceRefs: check.sourceRefs } } }) };

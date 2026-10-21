@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Circle, CircleAlert, CircleCheck, CircleDashed, CircleHelp, X } from 'lucide-react';
 import { api } from './api.js';
 import { STATUS_LABEL, fetchProgress, progressModel } from './learn-progress-client.js';
+import { NextActivity } from './TutorActivity.jsx';
 
 const ICON = { demonstrated_independently: CircleCheck, demonstrated_with_help: CircleHelp, practising: CircleDashed, needs_review: CircleAlert, not_checked: Circle };
 const TONE = { demonstrated_independently: 'text-pass', demonstrated_with_help: 'text-[#b45309] dark:text-[#f5b14c]', needs_review: 'text-fail', practising: 'text-ink-2', not_checked: 'text-ink-3' };
@@ -13,8 +14,9 @@ const BUTTON = 'cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium';
 const day = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 
 // scope { app, board }; coaching: the workspace's controls (use-learn-coaching.jsx); composer: the Chat draft (prepare and
-// focus never send); onClose: closes the column (focus goes back to the Progress icon).
-export default function LearnProgress({ scope, coaching, composer, onClose }) {
+// focus never send); onClose: closes the column (focus goes back to the Progress icon). chat and journey (Task 07): the Chat
+// workspace and useJourney's view, for the next step when the read model names none (TutorActivity.jsx NextActivity).
+export default function LearnProgress({ scope, coaching, composer, onClose, chat = null, journey = null }) {
   const [viewedGoalId, setViewedGoalId] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [load, setLoad] = useState({ status: 'idle', view: null });
@@ -97,6 +99,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose }) {
               </li>
             ); })}
           </ul>
+          {!model.nextAction && chat && model.active && !model.viewingOther && <NextActivity chat={chat} board={scope.board} goal={model.viewed} view={load.view} journey={journey} onClose={onClose} />}
           {model.nextAction && <div data-progress-next className="mt-4 rounded-xl bg-hover p-3">
             <p className="text-sm font-semibold text-ink">Next step</p>
             <p className="mt-1 text-sm text-ink">{model.nextAction.label || model.nextAction.text}</p>

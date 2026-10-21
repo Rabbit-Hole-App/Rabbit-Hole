@@ -39,6 +39,7 @@ import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode, tutorTurn } from './chat-route.js';
 import { TutorCoaching, openGuided } from './use-learn-coaching.jsx';
+import { TutorActivity } from './TutorActivity.jsx';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -1126,6 +1127,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
         {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} sendOpening={sendOpening} waitingOpening={waitingOpening} messages={msgs.length} busy={busy} />}
+        {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}

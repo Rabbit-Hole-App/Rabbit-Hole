@@ -70,5 +70,7 @@ test('fetchProgress: one GET for the goal; anything but a ProgressView is an err
   assert.deepEqual([calls, view.goalRef.goalId], [[progressUrl({ app: 'canvas-0a1b2c3d', board: 'main', goalId: 'g-knn' })], 'g-knn']);
   assert.equal(calls[0], '/api/learn/progress?app=canvas-0a1b2c3d&board=main&goalId=g-knn');
   assert.equal((await fetchProgress(async () => knnView, { app: 'a', board: 'main' }, 'g-knn')).goalRef.goalId, 'g-knn', 'a bare ProgressView too');
+  // The real route (learn-progress.js progressRoute) answers { progress }.
+  assert.equal((await fetchProgress(async () => ({ progress: knnView }), { app: 'a', board: 'main' }, 'g-knn')).goalRef.goalId, 'g-knn', 'the route envelope');
   await assert.rejects(fetchProgress(async () => ({ view: { criteria: [] } }), { app: 'a', board: 'main' }, 'g'), /could not be read/);
 });

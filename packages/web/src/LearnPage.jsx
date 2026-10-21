@@ -33,6 +33,7 @@ import FeedbackButton from './FeedbackButton.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, motionProposal, parseSlash, runLearnCommand } from './learn-slash.js';
+import { explainMaterial } from './learn-coaching-materials.js';
 import { commandsFor, labelOf } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
@@ -450,6 +451,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     restoreCard: block => (block.type === 'cad' ? canvasApi.current?.reconcileCad(block) : canvasApi.current?.insertImported(block)),
     cadPlacement: (jobId, hidden) => cadClient(api, app.name, board || 'main').action(jobId, 'placement', { hidden }),
     canEdit: () => canEditRef.current,
+    // Tutor Task 07 (learn-coaching-materials.js applyTutorAction): the live canvas, and the one seam that makes Tutor material -
+    // its own material tools on the existing Learn command path (internal; /api/learn/artifact), never a second generator.
+    tutorCanvas: () => canvasApi.current,
+    makeTutorMaterial: explainMaterial(runLearnCommand, { app: app.name, openSearch: () => {}, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }) }),
     canvasContext, selection: () => canvasApi.current?.selection?.() || [],
     // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
     // revealed, never added twice by a double-click or a retry; otherwise inserted where the learner looks, one undo step.
@@ -1049,7 +1054,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // repository: a detached repository source is honoured by the Tutor's handoff too, as by Learn chat (contract §4.7.2).
   // ponytail: no openResearch until a Home/Library Research entry can take a seeded request; until then the Tutor offers no
   // Research this (contract §4.5).
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext });
+  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext, canEdit: () => canEditRef.current });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);
@@ -2245,7 +2250,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {companionView !== 'progress' && <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} />}
       {/* Progress keeps its viewed goal and open skill while closed (mounted once shown, as Files and Graph are). */}
       {shown.current.has('progress') && <div className={`${companionView === 'progress' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
-        <LearnProgress scope={{ app: chat.canvas, board: boardName }} coaching={chat.coaching} composer={chat.composer} onClose={() => { companion.close(); requestAnimationFrame(() => document.querySelector('[data-chat-progress]')?.focus()); }} /></div>}
+        <LearnProgress scope={{ app: chat.canvas, board: boardName }} coaching={chat.coaching} composer={chat.composer} chat={chat} journey={journey} onClose={() => { companion.close(); requestAnimationFrame(() => document.querySelector('[data-chat-progress]')?.focus()); }} /></div>}
       <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane /></div>
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}

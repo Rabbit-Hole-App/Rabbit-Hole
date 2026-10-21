@@ -17,7 +17,8 @@ const CHANNEL = 'rh.learn-coaching';
 export function useLearnCoaching({ app, board = 'main' }) {
   const sync = useMemo(() => {
     let channel = null;
-    try { channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null; } catch { channel = null; }
+    // unref (Node only): a render outside the browser (react-dom/server in chat-context.test.mjs) must not hold its process open.
+    try { channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null; channel?.unref?.(); } catch { channel = null; }
     return Object.assign(createCoachingSync({ scope: { app, board }, call: api, channel }), { channel });
   }, [app, board]);
   useEffect(() => {
@@ -30,7 +31,8 @@ export function useLearnCoaching({ app, board = 'main' }) {
   }, [sync]);
   useEffect(() => () => sync.channel?.close(), [sync]);
   const view = useSyncExternalStore(sync.subscribe, sync.view, sync.view);
-  return useMemo(() => ({ ...view, dispatch: sync.dispatch, act: sync.act, retry: sync.retry, canCoach: sync.canCoach }), [view, sync]);
+  // reload: read the saved state again (an answer was submitted and the server moved the activity on: Task 07).
+  return useMemo(() => ({ ...view, dispatch: sync.dispatch, act: sync.act, retry: sync.retry, canCoach: sync.canCoach, reload: sync.load }), [view, sync]);
 }
 
 // The switch immediately beside the selected Tutor mode (draft "Tutor controls and dismissal"); ModeSelector hides it in

@@ -10,7 +10,8 @@ export const progressUrl = ({ app, board, goalId }) => `/api/learn/progress?app=
 // shortcut: the reply's envelope is read both ways until tutor/progress lands its route; settle on one then.
 export async function fetchProgress(call, scope, goalId) {
   const out = await call(progressUrl({ ...scope, goalId }));
-  const view = out && typeof out === 'object' && 'view' in out ? out.view : out;
+  // The route answers { progress } (learn-progress.js progressRoute); the stubs of tutor-progress-check answer { view }.
+  const view = out && typeof out === 'object' && 'progress' in out ? out.progress : out && typeof out === 'object' && 'view' in out ? out.view : out;
   if (!validateCoachingRecord('ProgressView', view).ok) throw Object.assign(new Error('Progress could not be read.'), { code: 'invalid' });
   return view;
 }

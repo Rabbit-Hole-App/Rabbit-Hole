@@ -71,6 +71,11 @@ test('fixtures: short time, unreadable source and an exhausted allowance each ke
   assert.deepEqual([short.proposal.objective, short.proposal.material], [C1.label, undefined]);
   const broke = await chooseNextActivity({ ...base, journey: null, request: { format: 'diagram' }, constraints: { allowance: 'exhausted' } }, { plan: p.plan });
   assert.deepEqual([broke.source, broke.reason, broke.proposal.objective, broke.proposal.material, p.calls.length], ['requirement', 'allowance_exhausted', C1.label, undefined, 1]);
+  // Once that check is answered (the saved activity has its feedback), it is not offered again, even before the journey copy
+  // in the browser shows the new evidence: a question on the same skill comes next.
+  const answered = saved({ status: 'feedback_ready', responseKind: 'choice', sourceRefs: check.activity.sourceRefs });
+  const after = await chooseNextActivity({ ...base, statuses: { mech: 'practising' }, activity: answered }, {});
+  assert.deepEqual([after.source, after.proposal.responseKind, after.proposal.criterionRefs], ['requirement', 'text', [{ criterionId: 'mech', version: 1 }]]);
   // A planner reply with no question proposes nothing of its own: the requirement question stands.
   const empty = await chooseNextActivity({ ...base, journey: null }, { plan: planner([{ type: 'respond_text', text: 'Hi' }]).plan });
   assert.equal(empty.source, 'requirement');
