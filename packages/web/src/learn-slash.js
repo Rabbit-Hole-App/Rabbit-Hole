@@ -51,7 +51,7 @@ export const EXAMPLES = {
   diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel',
   notebook: '/notebook', whiteboard: '/whiteboard the water cycle',
   image: '/image Mount Fuji', 'generate-image': '/generate-image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
-  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d a model of the solar system',
+  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   youtube: '/youtube binary search tutorial', arxiv: '/arxiv graph neural networks', wikipedia: '/wikipedia Photosynthesis',
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',
@@ -61,7 +61,7 @@ export const EXAMPLES = {
 export const CARD_OF = {
   explanation: 'explanation', table: 'table', flashcards: 'flashcards', quiz: 'quiz', challenge: 'challenge', explain_back: 'explainBack',
   code_sample: 'snippet', flow_diagram: 'flow', mermaid_diagram: 'mermaid', walkthrough: 'walkthrough', interactive_graph: 'graph', data_plot: 'plot',
-  video_generate: 'videoGenerate', maths_animation: 'mathAnimation', blender_scene: 'scene', notebook: 'notebook', whiteboard: 'whiteboard',
+  video_generate: 'videoGenerate', maths_animation: 'mathAnimation', blender_scene: 'scene', animation: 'animation', notebook: 'notebook', whiteboard: 'whiteboard',
   paper: 'paper', image: 'image', video: 'video',
 };
 // The cards a command or material tool can put on the canvas today. Chat-only commands have none.
@@ -130,7 +130,7 @@ const ARTIFACT_TIMEOUT_MS = 120000;
 // After the next paint: a slot reserved this tick is only in the canvas once it has rendered (outside a
 // browser, at once).
 const afterPaint = run => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => requestAnimationFrame(run)) : run());
-const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a challenge', explain_back: 'an explain-back', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot' };
+const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a challenge', explain_back: 'an explain-back', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot', animation: 'an interactive explanation' };
 
 // The /motion paid proposal's card (M7A): built here with no model call; the card starts the paid job only once it is
 // inserted already confirmed. The inline editor (inline-ai-session.js) stages the same card.
@@ -241,8 +241,17 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   } } };
   if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };
   if (result.result === 'unsupported') return { notice: { tone: 'info', text: result.message } };
+  // An interactive scene that failed its checks (and its one repair) is no card and never silently text: the line comes back
+  // to try again, and a plain explanation is one click away (owner, 2026-10-21). PLAIN_WORDS narrows that line to text.
+  if (result.result === 'validation_error' && result.primitive === 'animation') return { keep: `/${name} ${args}`, notice: { tone: 'error',
+    text: 'The interactive explanation could not be made: it failed its checks, so nothing was added. Send the line again to retry.',
+    detail: failedCheck(result.error), actions: [{ label: 'Make a plain explanation instead', line: `/${name} in plain text: ${args}` }] } };
   return { notice: { tone: 'error', text: result.error || 'That could not be made. Try again.' } };
 }
+
+// What failed, shown under the notice (owner, 2026-10-21): the validator's words, or the verifier's first finding without its
+// numbering (learn-artifact.js sceneVerdict lists "1) ... 2) ...").
+const failedCheck = error => (error ? String(error).replace(/^A check of the card found statements that are false: 1\) /, '').split(/ 2\) /)[0].slice(0, 400) : null);
 
 // A Tutor hook turn's create_material actions (contract §2.5), in the plan's order, each run by runLearnCommand exactly as
 // if typed: no second generator. A paid card answers with its Generate / Not now proposal; offer(proposal) shows it and
@@ -258,7 +267,7 @@ export async function runMaterials(actions, { offer, onNotice = () => {}, prompt
   let asked = Promise.resolve();
   for (const action of actions.filter(entry => entry.type === 'create_material')) {
     const result = await runLearnCommand(`/${action.command} ${action.request}`, { target: null, ...deps, promptUsed, internal: true })
-      .catch(() => ({ notice: { tone: 'error', text: `/${action.command} could not be made. Try again.` } }));
+      .catch(error => ({ notice: { tone: 'error', text: `/${action.command} could not be made${error?.message ? `: ${error.message}` : '.'} Try again.` } }));
     results.push(result);
     if (result.notice) onNotice(result.notice);
     if (result.proposal) asked = asked.then(() => offer(result.proposal));

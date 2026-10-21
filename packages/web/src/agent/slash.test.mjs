@@ -50,13 +50,24 @@ test('the review copy keeps its limits on the bar\'s internal ask and teach', ()
 // Learn tool families (user, 2026-09-28, via the Learn branch). Auto stays the default; a slash command is an
 // optional override that names the primitives the tutor may return. compare and walkthrough are the Tutor's material tools.
 const FAMILIES = {
-  explain: ['explanation', 'table', 'narration'], flashcards: ['flashcards'], code: ['code_sample', 'code_exercise'],
+  explain: ['explanation', 'table', 'animation', 'narration'], flashcards: ['flashcards'], code: ['code_sample', 'code_exercise'],
   graph: ['interactive_graph', 'data_plot', 'knowledge_graph'], diagram: ['flow_diagram', 'mermaid_diagram'], walkthrough: ['walkthrough'],
-  animate: ['animation', 'reference_attention', 'maths_animation'], whiteboard: ['whiteboard'], image: ['image'], 'generate-image': ['image_generate'],
+  animate: ['reference_attention', 'maths_animation'], whiteboard: ['whiteboard'], image: ['image'], 'generate-image': ['image_generate'],
   video: ['video_generate'], '3d': ['3d_model', 'blender_scene'], notebook: ['notebook'],
   practice: ['challenge', 'explain_back', 'quiz', 'code_exercise'], quiz: ['quiz'],
-  compare: ['table', 'interactive_graph', 'data_plot', 'flow_diagram', 'mermaid_diagram', 'animation'],
+  compare: ['table', 'interactive_graph', 'data_plot', 'flow_diagram', 'mermaid_diagram'],
 };
+
+// Owner, 2026-10-21 (L10): interactive scenes are /explain's and the Tutor's explanation material only - no other command or
+// material tool (compare, /animate) may make one. Words pick the form: plain text never gets a scene, an interactive request
+// never gets text instead; neither is a topic rule.
+test('only /explain makes an interactive scene, and the learner words can pick scene or text', () => {
+  assert.deepEqual(commandsFor('learn', { internal: true }).filter((c) => c.family?.includes('animation')).map((c) => c.name), ['explain']);
+  assert.deepEqual(learnRequest('explain', { args: 'an interactive look at how binary search narrows the range' }).allowedPrimitives, ['animation']);
+  assert.deepEqual(learnRequest('explain', { args: 'a simulation of supply and demand' }).allowedPrimitives, ['animation']);
+  assert.deepEqual(learnRequest('explain', { args: 'in plain text: an interactive projectile' }).allowedPrimitives, ['explanation']);
+  assert.deepEqual(learnRequest('explain', { args: 'how compound interest grows' }).allowedPrimitives, FAMILIES.explain);
+});
 
 test('each tool or narrowed intent names exactly its allowed primitives', () => {
   for (const [name, family] of Object.entries(FAMILIES)) {

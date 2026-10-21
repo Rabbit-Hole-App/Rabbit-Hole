@@ -1,0 +1,237 @@
+{
+  "about": "Recorded JEV answers on the real path (lane jev, 2026-10-21, C:/s/spec/day-1021/jev-report.md). Keyed by the exact JEV state + questions: a changed question set needs a new real-path recording.",
+  "topic": "tides",
+  "registry": {
+    "concepts": {
+      "gravity-distance": {
+        "label": "Gravity and distance",
+        "names": []
+      },
+      "tidal-force": {
+        "label": "Tidal force",
+        "names": []
+      }
+    },
+    "claims": {
+      "gravity-distance/pull-weakens-with-distance": {
+        "concept": "gravity-distance",
+        "statement": "The gravitational pull between two bodies gets weaker as the distance between them grows, so nearer parts of an object feel a stronger pull.",
+        "ideas": [
+          "Pull depends on distance",
+          "Nearer means stronger pull"
+        ],
+        "misconceptions": [
+          {
+            "id": "gravity-constant-everywhere",
+            "check": "Does the learner think the Moon pulls equally hard on every part of the Earth?"
+          }
+        ],
+        "drawn": "The Moon pulls harder on a person standing on the side of Earth facing it than on Earth's centre.",
+        "prerequisites": []
+      },
+      "tidal-force/differential-pull": {
+        "concept": "tidal-force",
+        "statement": "Tides come from the difference between the Moon's pull on different parts of the Earth, not from the overall strength of its pull. The difference stretches the Earth along the Earth–Moon line.",
+        "ideas": [
+          "Uneven pull stretches the Earth",
+          "What matters is the difference in pull, not its size"
+        ],
+        "misconceptions": [
+          {
+            "id": "moon-lifts-water",
+            "check": "Does the learner think the Moon simply lifts water toward itself, as if overall pull strength were the cause?"
+          }
+        ],
+        "drawn": "Compare the Moon's pull on the near-side ocean, the Earth's centre and the far-side ocean.",
+        "prerequisites": [
+          "gravity-distance"
+        ]
+      }
+    }
+  },
+  "turns": {
+    "switch": {
+      "message": "Let's leave tides for now. I want to learn about volcanoes instead.",
+      "claims": [
+        "gravity-distance/pull-weakens-with-distance"
+      ],
+      "answering": true,
+      "question": "So scale it right up: if the Moon were twice as far away, would its pull on Earth get stronger, weaker or stay the same, and why?"
+    },
+    "onTopicS1": {
+      "message": "The further apart two things are, the weaker the gravity between them, so the side of the Earth facing the Moon gets pulled harder than the side facing away.",
+      "claims": [
+        "gravity-distance/pull-weakens-with-distance"
+      ],
+      "answering": false,
+      "question": null
+    },
+    "asideStatement": {
+      "message": "Roman aqueducts carried water by gravity alone, with a very gentle, steady downhill slope over many kilometres, and bridges or siphons where the ground dipped.",
+      "claims": [
+        "tidal-force/differential-pull"
+      ],
+      "answering": false,
+      "question": null
+    },
+    "asideQuestion": {
+      "message": "How did Roman aqueducts carry water over long distances?",
+      "claims": [
+        "tidal-force/differential-pull"
+      ],
+      "answering": false,
+      "question": null
+    },
+    "onTopicS2": {
+      "message": "Because the near side is pulled more than the centre and the far side less, the Earth gets stretched along the Earth-Moon line, so tides come from that uneven pull rather than from the Moon simply lifting the water up.",
+      "claims": [
+        "tidal-force/differential-pull"
+      ],
+      "answering": true,
+      "question": "Picture two spacecraft falling toward Jupiter side by side: a small ball 1 metre across and a long rod 1 kilometre long, pointing at Jupiter. Which one feels more stretched, and why?"
+    }
+  },
+  "recordings": [
+    {
+      "turn": "switch",
+      "protocol": "tutor-jev-t1",
+      "source": "real path r1 \"s1 explicit topic switch\" (main 3134c69a, gateway typesafe-ai/jev)",
+      "key": "166b3a8c6ca6c20a",
+      "answers": {
+        "non_attempt": 0.95,
+        "c0_idea0": 0.02,
+        "c0_contra0": 0.04,
+        "c0_idea1": 0.02,
+        "c0_contra1": 0.04,
+        "c0_mis0": 0.06,
+        "c0_transfer": 0.03
+      }
+    },
+    {
+      "turn": "onTopicS1",
+      "protocol": "tutor-jev-t1",
+      "source": "real path r1 \"s1 on-topic answer\" (main 3134c69a, gateway typesafe-ai/jev)",
+      "key": "e2d64dfde5e682ec",
+      "answers": {
+        "attempt": 0.98,
+        "c0_idea0": 0.99,
+        "c0_contra0": 0.04,
+        "c0_idea1": 0.94,
+        "c0_contra1": 0.04,
+        "c0_mis0": 0.07,
+        "c0_transfer": 0.74
+      }
+    },
+    {
+      "turn": "asideStatement",
+      "protocol": "tutor-jev-t1",
+      "source": "real path r2 \"s2 unrelated aside (statement)\" (main 3134c69a, gateway typesafe-ai/jev)",
+      "key": "e53cfcbe13758c07",
+      "answers": {
+        "attempt": 0.97,
+        "c0_idea0": 0.01,
+        "c0_contra0": 0.03,
+        "c0_idea1": 0.01,
+        "c0_contra1": 0.04,
+        "c0_mis0": 0.02,
+        "c0_transfer": 0.26,
+        "g0": 0.76
+      }
+    },
+    {
+      "turn": "asideQuestion",
+      "protocol": "tutor-jev-t1",
+      "source": "real path r2 \"s2 unrelated aside (question)\" (main 3134c69a, gateway typesafe-ai/jev)",
+      "key": "7585171f14b107e2",
+      "answers": {
+        "attempt": 0.07,
+        "c0_idea0": 0.01,
+        "c0_contra0": 0.04,
+        "c0_idea1": 0.01,
+        "c0_contra1": 0.04,
+        "c0_mis0": 0.03,
+        "c0_transfer": 0.06,
+        "g0": 0.77
+      }
+    },
+    {
+      "turn": "onTopicS2",
+      "protocol": "tutor-jev-t1",
+      "source": "real path r2 \"s2 on-topic answer: answer to the open question\" (main 3134c69a, gateway typesafe-ai/jev)",
+      "key": "f5d0c782b621133e",
+      "answers": {
+        "non_attempt": 0.16,
+        "c0_idea0": 0.98,
+        "c0_contra0": 0.02,
+        "c0_idea1": 0.96,
+        "c0_contra1": 0.03,
+        "c0_mis0": 0.03,
+        "c0_transfer": 0.09,
+        "g0": 0.11
+      }
+    },
+    {
+      "turn": "switch",
+      "protocol": "tutor-jev-t2",
+      "source": "replay of r1 \"s1 explicit topic switch\" with the t2 questions (fix/jev-settle, gateway typesafe-ai/jev, 2026-10-21T16:54:44.758Z)",
+      "key": "6eb6cc2408ee99b5",
+      "answers": {
+        "non_attempt": 0.14,
+        "c0_idea0": 0.02,
+        "c0_contra0": 0.04,
+        "c0_idea1": 0.02,
+        "c0_contra1": 0.04,
+        "c0_mis0": 0.06,
+        "c0_transfer": 0.03
+      }
+    },
+    {
+      "turn": "asideStatement",
+      "protocol": "tutor-jev-t2",
+      "source": "replay of r2 \"s2 unrelated aside (statement)\" with the t2 questions (fix/jev-settle, gateway typesafe-ai/jev, 2026-10-21T16:54:45.515Z)",
+      "key": "7593b45e2df1039c",
+      "answers": {
+        "attempt": 0.97,
+        "c0_idea0": 0.01,
+        "c0_contra0": 0.03,
+        "c0_idea1": 0.01,
+        "c0_contra1": 0.04,
+        "c0_mis0": 0.02,
+        "c0_transfer": 0.29,
+        "g0": 0.21
+      }
+    },
+    {
+      "turn": "asideQuestion",
+      "protocol": "tutor-jev-t2",
+      "source": "replay of r2 \"s2 unrelated aside (question)\" with the t2 questions (fix/jev-settle, gateway typesafe-ai/jev, 2026-10-21T16:54:46.535Z)",
+      "key": "fbd517095e14dd93",
+      "answers": {
+        "attempt": 0.07,
+        "c0_idea0": 0.01,
+        "c0_contra0": 0.04,
+        "c0_idea1": 0.01,
+        "c0_contra1": 0.04,
+        "c0_mis0": 0.03,
+        "c0_transfer": 0.06,
+        "g0": 0.18
+      }
+    },
+    {
+      "turn": "onTopicS2",
+      "protocol": "tutor-jev-t2",
+      "source": "replay of r2 \"s2 on-topic answer: answer to the open question\" with the t2 questions (fix/jev-settle, gateway typesafe-ai/jev, 2026-10-21T16:54:47.298Z)",
+      "key": "b8773f6f314076df",
+      "answers": {
+        "non_attempt": 0.16,
+        "c0_idea0": 0.98,
+        "c0_contra0": 0.02,
+        "c0_idea1": 0.96,
+        "c0_contra1": 0.03,
+        "c0_mis0": 0.03,
+        "c0_transfer": 0.1,
+        "g0": 0.12
+      }
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { DEV_CP } from './dev-cp.mjs';
 // View > Slash commands on the parallel clone, then the Agent Bar's sheet on the Library: the search is focused on open and
 // filters by name and description; choosing a command shows the real card it
 // makes (the canvas's own card component) at its canvas size and working; paid
-// media shows a committed finished clip or a labelled picture, never Generate;
+// media shows a committed finished clip or model, or a labelled picture, never Generate;
 // /dive says what it opens. Every retained command shows a demo, what it does and an example; Use example prepares an
 // editable draft and sends nothing; the 17 removed commands appear nowhere, and the Agent Bar has no commands left (owner,
 // 2026-10-20). No model calls, nothing generated.
@@ -91,34 +91,41 @@ for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dat
 }
 ok('every command shows a demo', missing.length === 0, missing.join(' '));
 // The card a command makes: [data-slash-card] and a readiness hint per card type.
-const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', motion: 'video[data-lesson-video]', explain: 'p', notebook: 'iframe', code: 'pre, code' };
+// /explain opens on its interactive visual (L10): a stored real /explain scene drawn by the scene renderer.
+const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', motion: 'video[data-lesson-video]', explain: 'svg [data-animation-object]', notebook: 'iframe', code: 'pre, code' };
 for (const [command, ready] of Object.entries(expect)) {
   if (LOCAL && command === 'graph') { skip('/graph shows its real card', 'no Desmos key in a keyless build'); continue; }
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   const card = sheet.locator('[data-slash-card]');
   await card.waitFor({ timeout: 15000 });
   const drawn = await card.locator(ready).first().waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
-  // The canvas width of that card type (CanvasNode: BLOCK_TYPES width, or 380; notebook 640).
-  const widths = { graph: 560, quiz: 380, flow: 560, mathAnimation: 560, videoGenerate: 560, explanation: 440, notebook: 640, walkthrough: 420, snippet: 520 };
+  // The canvas width of that card type (CanvasNode: BLOCK_TYPES width, or 380; notebook 640); an animation is sized from its scene.
+  const widths = { graph: 560, quiz: 380, flow: 560, mathAnimation: 560, videoGenerate: 560, explanation: 440, notebook: 640, walkthrough: 420, snippet: 520, animation: null };
   const type = await card.getAttribute('data-slash-card');
   const width = Math.round((await card.boundingBox()).width);
   await page.waitForTimeout(800);
   await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
-  ok(`/${command} shows its real card (${type}) at its canvas width`, drawn && width === widths[type], `${width}px`);
+  ok(`/${command} shows its real card (${type}) at its canvas width`, drawn && (widths[type] === null ? width >= 400 : width === widths[type]), `${width}px`);
 }
 // Interactive as on the canvas: answering the quiz reveals why; paid Generate is off.
 await sheet.locator('[data-slash-help="quiz"]').click();
 await sheet.locator('[data-slash-card="quiz"]').getByRole('button').first().click();
 ok('the quiz card works: choosing an option answers it', await sheet.locator('[data-slash-card="quiz"]').innerText().then(text => /differentiate|σ|sigma/i.test(text)));
 // Paid media always shows a finished example from committed files, on any stack: /motion plays a real Motion video (the
-// committed final.mp4 of job 8a2015a4, L8, played from a blob URL so it seeks); /3d and /video show a labelled picture of the finished
-// card. No Generate card.
+// committed final.mp4 of job 8a2015a4, L8, played from a blob URL so it seeks); /3d shows its scene card ready in the canvas's 3D
+// viewer on the committed model (slash-3d-check.mjs covers it in full); /video shows a labelled picture of the finished card.
+// No Generate card.
 await sheet.locator('[data-slash-help="motion"]').click();
 const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
 const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
 ok('/motion plays its real Motion video, not a Generate card', Math.round(plays) === 15 && (await clip.getAttribute('src')).startsWith('blob:') && await sheet.locator('[data-slash-card]').getByText('Softmax: Turning Attention Scores into Weights').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
 await sheet.screenshot({ path: `${SHOTS}/sheet-motion.png` });
-for (const [command, type] of [['3d', 'scene'], ['video', 'videoGenerate']]) {
+await sheet.locator('[data-slash-help="3d"]').click();
+const model = sheet.locator('[data-slash-card="scene"] [data-three-d-viewer]');
+const shown = await model.waitFor({ timeout: 15000 }).then(() => sheet.locator('[data-slash-card="scene"] [data-three-d-viewer][data-viewer-live] canvas').waitFor({ timeout: 20000 })).then(() => true, () => false);
+ok('/3d shows its scene card live on the committed model, not a picture or a Generate card', shown && await sheet.locator('img[data-slash-illustration]').count() === 0 && await sheet.locator('[data-slash-card] [data-generate-scene]').count() === 0);
+await sheet.screenshot({ path: `${SHOTS}/sheet-3d.png` });
+for (const [command, type] of [['video', 'videoGenerate']]) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   // decode(), not naturalWidth: an SVG with only a viewBox loads with naturalWidth 0; decode() rejects only a broken image.
   const picture = sheet.locator(`[data-slash-card="${type}"] img[data-slash-illustration]`);

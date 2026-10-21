@@ -63,6 +63,9 @@
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev",
     // Monthly AI allowance per signed-in user (owner D3 2026-10-16; credits Phase 1 shows it, enforcement comes later).
     "AI_MONTHLY_ALLOWANCE_USD": "50",
+    // Codebase assessment (owner production GO 2026-10-21): the rubric route for the five codebase goals only, against the cited
+    // repository revision. The general TUTOR_RUBRIC_ASSESSMENT_ENABLED and TUTOR_VISUAL_ASSESSMENT_ENABLED stay off.
+    "TUTOR_CODEBASE_ASSESSMENT_ENABLED": "true",
     // /motion (owner activation GO, 2026-10-21): the production orchestrator (its bearer MOTION_ORCHESTRATOR_TOKEN is a secret)
     // and the per-job hold admitted against the learner's allowance before anything starts (motion-deploy-plan.md 2B).
     "MOTION_ORCHESTRATOR_URL": "https://rabbit-hole-motion-orchestrator.fly.dev",

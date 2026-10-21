@@ -177,8 +177,9 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
 }
 // Interact, Fit view and Show dimensions, outside the card (cad-controls brief, placement requirement): the selected card's
 // toolbar row (AdaptiveCanvas LessonBlockCard) and the expanded panel's toolbar. Fit view frames the model in its own
-// viewport; it never moves or zooms the canvas. A press here never deselects the card or blurs the viewer.
-export function CadViewerTools({ viewKey, account = '', cardId }) {
+// viewport; it never moves or zooms the canvas. A press here never deselects the card or blurs the viewer. `ruler` false: a
+// model with no dimensions to show (the Slash commands window's /3d scene, LearningBlocks ThreeDBody) offers no Show dimensions.
+export function CadViewerTools({ viewKey, account = '', cardId, ruler = true }) {
   const view = useCadView(viewKey), [dimensions, setDimensions] = useCadDimensions(account, cardId);
   const tool = `${iconBase} border-transparent ${iconIdle}`;
   return <div role="toolbar" aria-label="3D view" data-cad-tools={viewKey} data-thumbnail-hide onPointerDown={event=>{event.preventDefault();event.stopPropagation();}}
@@ -186,7 +187,7 @@ export function CadViewerTools({ viewKey, account = '', cardId }) {
     <Tip label={view.interacting ? 'Done (Esc)' : 'Interact'} info={view.interacting ? 'Give the pointer back to the canvas' : 'Orbit, pan and zoom the model'}><button type="button" data-cad-interact aria-pressed={view.interacting} disabled={!view.live} onClick={()=>(view.interacting ? view.api?.exit() : view.api?.enter())}
       className={`${view.interacting ? `${iconBase} border-ink bg-ink text-white` : tool} gap-1 px-2 text-xs font-medium`}><Rotate3d size={15} aria-hidden/>{view.interacting ? 'Done' : 'Interact'}</button></Tip>
     <Tip label="Fit view"><button type="button" data-cad-fit aria-label="Fit view" disabled={!view.live} onClick={()=>view.api?.fit()} className={tool}><Scan size={15} aria-hidden/></button></Tip>
-    <Tip label="Show dimensions" align="end"><button type="button" data-cad-dimensions-toggle aria-label="Show dimensions" aria-pressed={dimensions} onClick={()=>setDimensions(!dimensions)} className={dimensions ? iconOn : tool}><Ruler size={15} aria-hidden/></button></Tip>
+    {ruler && <Tip label="Show dimensions" align="end"><button type="button" data-cad-dimensions-toggle aria-label="Show dimensions" aria-pressed={dimensions} onClick={()=>setDimensions(!dimensions)} className={dimensions ? iconOn : tool}><Ruler size={15} aria-hidden/></button></Tip>}
   </div>;
 }
 function BackgroundControl({ value, onChange }) {

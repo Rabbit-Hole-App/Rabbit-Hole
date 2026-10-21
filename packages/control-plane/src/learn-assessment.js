@@ -21,7 +21,7 @@
 //
 // The capability gate (richRoute): the rubric and visual routes run only where the deployment enables them
 // (TUTOR_RUBRIC_ASSESSMENT_ENABLED / TUTOR_VISUAL_ASSESSMENT_ENABLED = 'true'; off until their real-model quality check
-// passes, draft Task 15) and only for criteria that carry a rubric. Anything else stays visibly unassessed (owner 7a).
+// passes, draft Task 15; TUTOR_CODEBASE_ASSESSMENT_ENABLED for codebase answers alone) and only for criteria that carry a rubric. Anything else stays visibly unassessed (owner 7a).
 // Criteria of such an attempt that carry no rubric are listed unassessed (no_rubric).
 //
 // Spend. Every provider request passes the existing spend admission: askJev admits itself, and the larger evaluator goes
@@ -48,7 +48,7 @@ import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn
 import { claimAssessment, commitAssessment, ownActivity, pendingOperation, readAttempt } from './learn-attempt-store.js';
 import { assessRubricAttempt, carriesRubric, rubricSources } from './learn-rubric-assessment.js';
 import { assessVisualAttempt, resolveDrawing } from './learn-visual-assessment.js';
-import { REPOSITORY_SOURCE } from '../../web/src/learn-codebase-goals.js';
+import { CODEBASE_RUBRIC, REPOSITORY_SOURCE, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 
 export const KEYED_VERSION = 'journey-probe-key-v1';
 // askJev's spend-guard refusals (learn-grade-jev.js): no call was made, so nothing is unknown about them.
@@ -97,11 +97,16 @@ async function criteriaOf(env, attempt) {
 }
 
 // The capability gate for Tasks 13 and 14: the rich route this attempt may take, or null.
-export function richRoute(env, kind, criteria) {
+// TUTOR_CODEBASE_ASSESSMENT_ENABLED (owner production GO 2026-10-21) opens the rubric route for codebase answers alone: every
+// rubric criterion is the codebase rubric and the attempt is bound to cited repository files, which the resolver still reads
+// at their commit under readableVersion. Other rubric goals and drawings keep their own switches.
+export function richRoute(env, kind, criteria, sourceRefs = []) {
   if (!criteria.some(carriesRubric)) return null;
   if (kind === 'drawing') return env.TUTOR_VISUAL_ASSESSMENT_ENABLED === 'true' ? 'visual' : null;
-  if (kind === 'text' || kind === 'code') return env.TUTOR_RUBRIC_ASSESSMENT_ENABLED === 'true' ? 'rubric' : null;
-  return null;
+  if (kind !== 'text' && kind !== 'code') return null;
+  if (env.TUTOR_RUBRIC_ASSESSMENT_ENABLED === 'true') return 'rubric';
+  const codebase = criteria.filter(carriesRubric).every(c => c.rubricVersion === CODEBASE_RUBRIC) && sourceRefs.some(isRepositorySource);
+  return codebase && env.TUTOR_CODEBASE_ASSESSMENT_ENABLED === 'true' ? 'rubric' : null;
 }
 
 // A rich assessment. The evaluators get only what is authorized now: the learner's own sources or image, read under the
@@ -140,7 +145,7 @@ async function assess(env, actor, attempt, deps) {
   const none = (status, reason, extra = {}) => ({ status, reason, rubricVersion, provenance: { route: null, calls: [], ...extra } });
   if (!criteria.length) return none('unavailable', 'no_criteria');
   const kind = attempt.responseKind;
-  const rich = richRoute(env, kind, criteria);
+  const rich = richRoute(env, kind, criteria, attempt.sourceRefs);
   if (rich) return assessRich(env, actor, attempt, criteria, rich, deps);
   const gate = { gate: criteria.some(carriesRubric) ? 'disabled' : 'no_rubric' };
   if (kind === 'drawing') return none('unavailable', 'visual_not_supported', gate);

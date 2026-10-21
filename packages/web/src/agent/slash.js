@@ -24,6 +24,10 @@ export const SELECTIONS = ['project', 'map_node', 'card', 'equation', 'notebook_
 
 // Learn's generate commands that Ctrl+K also offers (owner decision 1A, 2026-10-16).
 const CTRLK = ['learn', 'ctrlk'];
+// What a learner (or the Tutor's create_material request) says to pick /explain's form: a representation, never a topic.
+// Plain text is checked first, so "/explain in plain text: <an interactive request>" (the failed-scene offer) is text.
+export const PLAIN_WORDS = /\bplain[- ](text|words|explanation)\b|\btext[- ]only\b|\bin text\b|\bwithout (a |an )?(visual|interactive)/i;
+export const INTERACTIVE_WORDS = /\binteractive\b|\bsimulat(e|ion|or)\b|\bsliders?\b|\bvisuali[sz](e|ation)\b|\banimat(e|ed|ion)\b|\bexplorable\b/i;
 // The slash commands a learner can type or pick (owner, 2026-10-20: 17 commands removed, see REMOVED_COMMANDS). Home,
 // Library and Project offer none: their bar takes plain words (router.js).
 export const SLASH = [
@@ -35,7 +39,11 @@ export const SLASH = [
   { name: 'quiz', kind: 'prompt', group: 'learn', places: ['learn'], label: 'Quiz', desc: 'Test me', about: 'Creates a one-question quiz card on the selected card or a topic, then waits for your answer.', prompt: 'Ask me one short question on {target}, then wait for my answer.', family: ['quiz'] },
   // Create: tool overrides (user, 2026-09-28). Auto stays the default; a command names the family the tutor
   // must return a validated block from, or it asks a clarifying question. Deterministic ones run no model.
-  { name: 'explain', kind: 'generate', group: 'create', places: CTRLK, desc: 'Add explanation', about: 'Creates an explanation card on the canvas. With a card selected, it uses that card as context.', family: ['explanation', 'table', 'narration'] },
+  // /explain makes an interactive visual (animation: the authored cards' scene format) when controls, calculations or motion
+  // teach the idea, and a text explanation otherwise (owner, 2026-10-21). Asking for one in words narrows to it: a plain-text
+  // request never gets a scene, and an interactive one never gets text instead (a scene that fails says so).
+  { name: 'explain', kind: 'generate', group: 'create', places: CTRLK, desc: 'Add explanation', about: 'Creates an explanation card on the canvas. It is an interactive visual with controls when moving something helps the idea land, otherwise a text explanation; ask for "interactive" or "plain text" to choose. With a card selected, it uses that card as context.', family: ['explanation', 'table', 'animation', 'narration'],
+    narrow: [[PLAIN_WORDS, 'explanation'], [INTERACTIVE_WORDS, 'animation']] },
   { name: 'flashcards', kind: 'generate', group: 'create', places: CTRLK, label: 'Flashcards', desc: 'Add flashcards', about: 'Creates a flashcard deck card on the canvas. With a card selected, it uses that card as context.', family: ['flashcards'] },
   { name: 'code', kind: 'generate', group: 'create', places: CTRLK, label: 'Code', desc: 'Add code', about: 'Creates a code example card on the canvas. With a card selected, it uses that card as context.', family: ['code_sample', 'code_exercise'] },
   { name: 'graph', kind: 'generate', group: 'create', places: CTRLK, label: 'Graph', desc: 'Add a graph or plot', about: 'Creates an interactive graph or plot card on the canvas. With a card selected, it uses that card as context.', family: ['interactive_graph', 'data_plot', 'knowledge_graph'] },
@@ -66,11 +74,12 @@ export const SLASH = [
 // and /api/learn/artifact still make comparison tables and walkthroughs through them (commandsFor's `internal`, learnRequest).
 export const MATERIAL_TOOLS = [
   { name: 'compare', kind: 'generate', group: 'learn', places: ['learn'], desc: 'Compare ideas', prompt: 'Compare side by side, with {target} as context.',
-    family: ['table', 'interactive_graph', 'data_plot', 'flow_diagram', 'mermaid_diagram', 'animation'] },
+    // No animation: interactive scenes are /explain's and the Tutor's explanation material only (owner, 2026-10-21).
+    family: ['table', 'interactive_graph', 'data_plot', 'flow_diagram', 'mermaid_diagram'] },
   { name: 'walkthrough', kind: 'generate', group: 'create', places: ['learn'], desc: 'Add a walkthrough', family: ['walkthrough'] },
   // /animate (owner, 2026-10-20: /motion is the animation command): the Tutor and journeys still make animations with it, and
   // saved animation cards keep their renderers; no picker, window, example or chat suggestion offers it.
-  { name: 'animate', kind: 'generate', group: 'create', places: ['learn'], desc: 'Add an animation', family: ['animation', 'reference_attention', 'maths_animation'] },
+  { name: 'animate', kind: 'generate', group: 'create', places: ['learn'], desc: 'Add an animation', family: ['reference_attention', 'maths_animation'] },
 ];
 // A registry entry by name, user command or material tool: what a saved message, a validator or a generator looks up.
 export const toolOf = (name) => SLASH.find((c) => c.name === name) || MATERIAL_TOOLS.find((c) => c.name === name);

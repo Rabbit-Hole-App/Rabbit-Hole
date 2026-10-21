@@ -803,7 +803,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must((await sheet.boundingBox()).height <= page.viewportSize().height * 0.5, 'the sheet grew past half the screen');
       if (!(await import('../src/flags.js')).askLiveOnPreview) {
         await say('Book me a flight to Lisbon');
-        await sheet.getByText('Try /find, /open or /new, or open a project to ask about its code.', { exact: false }).waitFor({ timeout: 10000 });
+        // The bar names no commands (owner, 2026-10-20: /find, /open and /new are removed); it suggests plain words.
+        await sheet.getByText('Type what you want, for example find nanoGPT, or open a project to ask about its code.', { exact: false }).waitFor({ timeout: 10000 });
       }
     } finally {
       for (const c of made) await shDrop(page, c.name);

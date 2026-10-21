@@ -103,6 +103,12 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
               ? <button type="button" data-slash-open={notice.blockId} title="Go to the card" onClick={() => onFocusBlock(notice.blockId)}
                   className="inline-flex cursor-pointer items-center gap-1 text-left font-medium text-accent hover:underline">{notice.text}<ArrowUpRight size={14} className="shrink-0" /></button>
               : <p className={tone[notice.tone] || 'text-ink-2'}>{notice.text}</p>)}
+            {notice?.detail && <p data-slash-detail className="mt-1 line-clamp-3 break-words text-xs text-ink-2">What failed: {notice.detail}</p>}
+            {/* A failed result's next step (learn-slash.js: a failed interactive explanation offers a plain one): runs that line. */}
+            {!busy && notice?.actions?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {notice.actions.map(action => <button key={action.label} type="button" data-slash-action onClick={() => exec(action.line)}
+                className="rounded-lg border border-line bg-surface px-2 py-0.5 text-xs text-ink hover:bg-hover">{action.label}</button>)}
+            </div>}
             {proposal && <PaidConfirm message={proposal.message} prompt={proposal.prompt}
               onCancel={() => setProposal(null)}
               onGenerate={async () => {

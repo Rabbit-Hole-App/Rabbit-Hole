@@ -17,15 +17,31 @@ import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
+import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
+import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
+import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/learn-scene-verify.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
+const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 // A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
 // included (inline lane R, 2026-10-13: an explanation body over 2,000 characters, nothing added, $0.12).
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
 import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
+// Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
+// authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
+// the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
+const CONTRACTS = { animation: SCENE_AUTHORING };
+const GATES = {
+  animation: block => {
+    const scene = withSamplesNote(withDataSizes(block.scene), block.calculation);
+    const problem = calculationProblem(block.scene, block.calculation) || sceneProblem(scene);
+    if (problem) throw new Error(problem);
+    return { ...block, scene };
+  },
+};
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 export { ARTIFACT_SYSTEM };
 
@@ -49,20 +65,26 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
   const { request, ready } = plan;
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}`,
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}`,
     input_schema: PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null });
   // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
+  // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
+  const maxTokens = Math.max(LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
   const ask = async (history, kind) => {
-    const response = await callModel(kind ? withAttemptKind(env, kind) : env, { max_tokens: LEARN_TASKS.artifact.maxTokens, system: input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
+    const response = await callModel(kind ? withAttemptKind(env, kind) : env, { max_tokens: maxTokens, system: input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
+    // A refused spend admission says why (learn-spend.js spendMessage), never only its status.
+    const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
+    if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error);
     if (!response.ok) throw new Error((await notConfiguredMessage(response)) || `Artifact generation unavailable (model HTTP ${response.status}). Try again.`);
     const result = await response.json();
     const calls = result.content?.filter(part => part.type === 'tool_use') || [];
     if (calls.length !== 1) throw new Error('The model returned no artifact.');
     return { result, call: calls[0] };
   };
+  const verify = block => sceneVerdict(env, callModel, input.args, block);
   let { result, call } = await ask(messages);
   // At most one repair: the first failure goes back to the model once.
   for (let attempt = 0; ; attempt++) {
@@ -83,13 +105,35 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
         if (checked.result.kind === 'clarify') return { result: 'clarification', question: checked.result.question };
         ({ extraction, ...block } = checked.result);
       } else block = artifactBlock(id, call.input);
+      if (GATES[id]) block = GATES[id](block);
+      if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
       return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
     } catch (error) {
+      // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
+      console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
+      if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
       if (input.imageSource || attempt >= ARTIFACT_REPAIRS) return { result: 'validation_error', primitive: id || null, error: error.message };
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
   }
+}
+
+// The verifier pass (owner, 2026-10-21): a scene that passed the gates is read back setting by setting by a second call,
+// through the same spend admission; a statement it reports goes to the one repair, and a scene still reported is no card.
+// LEARN_SCENE_VERIFIER=off turns it off.
+export async function sceneVerdict(env, callModel, request, block) {
+  const card = cardAtSettings(block.scene);
+  const response = await callModel(withAttemptKind(env, 'evaluation'), { max_tokens: VERIFY_MAX_TOKENS, system: VERIFY_SYSTEM, tools: [VERIFY_TOOL],
+    tool_choice: { type: 'any', disable_parallel_tool_use: true },
+    messages: [{ role: 'user', content: verifyMessage({ request, title: block.title, calculation: block.calculation, card }) }] }, LEARN_TASKS.artifact.model, null);
+  const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
+  if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error, { cause: VERIFIER });
+  if (!response.ok) throw new Error(`The interactive explanation could not be checked (model HTTP ${response.status}), so nothing was added. Try again.`, { cause: VERIFIER });
+  const problems = (await response.json()).content?.find(part => part.type === 'tool_use' && part.name === VERIFY_TOOL.name)?.input?.problems;
+  if (!Array.isArray(problems)) throw new Error('The interactive explanation could not be checked (the check gave no verdict), so nothing was added. Try again.', { cause: VERIFIER });
+  const kept = falseItems(problems, card);
+  return kept.length ? `A check of the card found statements that are false: ${kept.map((problem, i) => `${i + 1}) ${problem.setting ? `with ${problem.setting}, ` : ''}"${problem.object}" says "${problem.says}", against "${problem.against}": ${problem.finding}`).join(' ')}` : null;
 }
 
 // POST /api/learn/artifact {app, command, args, selection, context}. Any

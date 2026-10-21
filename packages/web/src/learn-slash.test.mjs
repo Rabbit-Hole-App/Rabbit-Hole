@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cardsFor, commandLine, holdsLine, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
-import { commandsFor } from './agent/slash.js';
+import { commandsFor, learnRequest } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -94,6 +94,28 @@ test('a paid result waits for Generate; a question, an unsupported primitive or 
     assert.equal(out.notice.tone, tone);
     assert.ok(!did.some(entry => entry[0] === 'block'));
   }
+});
+
+// L10 (owner, 2026-10-21): a failed interactive explanation inserts nothing and never turns into text by itself; it gives the
+// line back to retry and offers a plain explanation, whose line narrows /explain to text. A made one names itself.
+test('/explain: a made interactive explanation is inserted; a failed one keeps the line and offers a plain explanation', async () => {
+  const made = harness({ result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } });
+  const out = await made.run('/explain interactive binary search');
+  assert.equal(out.notice.text, 'Added an interactive explanation.');
+  assert.equal(made.did.find(entry => entry[0] === 'block')[1].type, 'animation');
+  const failed = harness({ result: 'validation_error', primitive: 'animation', error: 'grid "g" carries values and must declare matrixKind' });
+  const notice = await failed.run('/explain interactive binary search');
+  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
+  assert.equal(notice.notice.tone, 'error');
+  assert.equal(notice.keep, '/explain interactive binary search');
+  assert.match(notice.notice.detail, /matrixKind/);
+  // A verifier refusal shows its first finding, without the numbering.
+  const checked = harness({ result: 'validation_error', primitive: 'animation', error: 'A check of the card found statements that are false: 1) "readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly. 2) "other" says "x": y' });
+  assert.equal((await checked.run('/explain interactive half-life')).notice.detail, '"readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly.');
+  assert.deepEqual(notice.notice.actions, [{ label: 'Make a plain explanation instead', line: '/explain in plain text: interactive binary search' }]);
+  const plain = harness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'B', body: 'b' } });
+  await plain.run(notice.notice.actions[0].line);
+  assert.equal(plain.did.find(entry => entry[0] === 'post')[2].args, 'in plain text: interactive binary search');
 });
 
 test('an unknown command says so', async () => {
@@ -290,6 +312,21 @@ test('every card a material command can make: its modality is the block type run
     assert.equal(inserted.length, 1, `${m.command} ${card}`);
     assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
   }
+});
+
+// L10 + owner 2026-10-21 (message 19): interactive explanations survive through BOTH /explain and the Tutor's
+// create_material(command: explain). Only the internal animate/compare tools lost the animation primitive. This fails if explain
+// via create_material loses the interactive scene path.
+test('create_material(command: explain) still makes the interactive scene: the Tutor route keeps the animation primitive', async () => {
+  assert.ok(commandsFor('learn', { internal: true }).some(command => command.name === 'explain'), 'explain stays an internal material command');
+  assert.deepEqual(learnRequest('explain', { args: 'an interactive look at how binary search narrows the range' }).allowedPrimitives, ['animation']);
+  const inserted = [], posts = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'b1'; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push([path, body.command]); return { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } }; };
+  const [result] = await runMaterials([{ type: 'create_material', command: 'explain', request: 'an interactive look at how binary search narrows the range' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, [['/api/learn/artifact', 'explain']]);
+  assert.equal(inserted[0].type, 'animation');
+  assert.equal(result.notice.text, 'Added an interactive explanation.');
 });
 
 const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };

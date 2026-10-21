@@ -3,6 +3,14 @@
 Read `CLAUDE.md` first and follow it exactly — layout, rules, and coding
 guidelines all live there. This file only adds where the history is.
 
+> **Production GO means a usable feature** (owner, 2026-10-21; full rule in
+> [CLAUDE.md](CLAUDE.md#production-go-means-a-usable-feature)). A production GO covers deployment, activation and
+> verification of the real production flow, without another routine GO. Deployed-but-disabled and
+> enabled-but-unverified are incomplete, never "finished". Reconcile stale dev-only or default-off restrictions and
+> docs; split a shared flag rather than enable unrelated experiments. Keep checks, permissions, allowance, spend
+> policy and rollback; stop only for new authority (infrastructure, migrations, extra paid tests); never bypass a
+> failing gate. Report SHA/build, activation state and evidence, and say so when signed-in access blocks verification.
+
 ## Confirm understanding before implementation
 
 Follow [Scope and autonomy](CLAUDE.md#scope-and-autonomy) in `CLAUDE.md`. When a
@@ -61,7 +69,8 @@ Complete the dev deployment before reporting the UI change as done, and provide
 the relevant dev page link. A local edit, build, commit, or push alone does not
 finish a UI request. Do not wait for a separate deployment request.
 Shared preview and live promotion keep their established rules; live still
-requires the user's explicit approval.
+requires the user's explicit approval, and once given it covers activation and
+production verification ([Production GO means a usable feature](CLAUDE.md#production-go-means-a-usable-feature)).
 
 ## What this is
 
