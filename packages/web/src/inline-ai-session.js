@@ -105,9 +105,13 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     const input = commandInput(plan, request);
     if (input.clarify) return { kind: 'clarify', question: input.clarify.question };
     if (route === 'motion') {
-      // /motion is a paid proposal with no model call before Generate (learn-slash.js motionProposal). Its /motion line
-      // carries the selection it is about; its concept is the selection's subject, never the canvas title.
-      const proposal = motion?.(input.args, { selection: request.summary || '', concept: input.concept });
+      // /motion is a paid proposal with no model call before Generate (learn-slash.js motionProposal). It carries the
+      // selection it is about (its first id, and every object's words); its concept is the selection's subject, never the
+      // canvas title.
+      const objects = request.context?.target?.objects || [];
+      const selection = { id: request.frozen?.ids?.[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title: input.concept,
+        text: objects.map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n') };
+      const proposal = motion?.(input.args, { selection, concept: input.concept });
       if (!proposal) throw Object.assign(new Error('Video explainers (Motion) are not available on this canvas.'), { code: 'unavailable' });
       return { kind: 'proposal', route, block: proposal.block, message: proposal.message, primitive: 'motion' };
     }

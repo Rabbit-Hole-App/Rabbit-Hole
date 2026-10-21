@@ -23,8 +23,9 @@ const MODE_HINTS = [
 ];
 export const requestedMode = text => MODE_HINTS.find(([, re]) => re.test(text))?.[0] ?? null;
 
-// "this", "that", "here" (alone or as "this request"): the target is what the learner selected.
-const DEICTIC = /\b(?:this|that|these|those|here)\b/gi;
+// "this", "that", "here" (alone or as "this request"): the target is what the learner selected. "the
+// selected canvas material" is the inline editor's bare /motion (inline-ai-route.js commandInput).
+const DEICTIC = /\b(?:this|that|these|those|here|the selected canvas material)\b/gi;
 const isDeictic = text => new RegExp(DEICTIC.source, 'i').test(text);
 // Request words that are not the target: verbs of asking, fillers, question words, mode words, the duration.
 const LEADING = /^(?:(?:please|can you|could you|now)\s+)*(?:explain|show|visuali[sz]e|animate|illustrate|teach|demonstrate|walk(?: me)? through|describe|make)\b\s*/i;

@@ -9,8 +9,8 @@ export const sceneList = app => api(endpoint(app));
 
 // Paid: the caller passes confirmed only from the learner's Generate press;
 // the endpoint refuses a start without it.
-export const startScene = (app, operation, { confirmed = false } = {}) =>
-  api(endpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed }) });
+export const startScene = (app, operation, { confirmed = false, retry = false } = {}) =>
+  api(endpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed, retry }) });
 
 export const sceneAssetUrl = (app, key) => new URL(`${endpoint(app)}&asset=${key}`, window.location.origin).href;
 
