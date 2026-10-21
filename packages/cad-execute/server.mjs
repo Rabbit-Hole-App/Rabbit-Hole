@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { validateJob, effectiveLimits, RESULT_SCHEMA, RUNTIME, CAPABILITIES } from './contract.mjs';
 import { detect } from './sandbox/resource-control.mjs';
+import { executionRefusal, sandboxHost, sandboxReady } from './execution-guard.mjs';
 import { inspectGlb } from '../web/src/three-d-asset.js';
 import { configuredBudget } from './pilot-budget.mjs';
 import { ProductionBudget } from './production-budget.mjs';
@@ -45,7 +46,7 @@ export function parseControls(bytes) {
 }
 const TYPES = { step: 'model/step', glb: 'model/gltf-binary', stl: 'model/stl', '3mf': 'model/3mf', png: 'image/png', json: 'application/json', py: 'text/x-python' };
 
-export function createExecutor({ token, origins, root = '/var/cad/jobs', image = 'unbuilt', fetchImpl = fetch, budget = null, admission = false } = {}) {
+export function createExecutor({ token, origins, root = '/var/cad/jobs', image = 'unbuilt', fetchImpl = fetch, budget = null, admission = false, host = sandboxHost } = {}) {
   if (!token || token.length < 32 || !origins?.length) throw fail('configuration_missing');
   const attempts = new Map(); let active = null; let idleSince = Date.now(); let degraded = false;
   const auth = req => {
@@ -107,6 +108,9 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
       if (!response.ok) throw fail('source_unavailable');
       const source = await boundedBody(response.body, limits.source_bytes > j.source.bytes ? limits.source_bytes : j.source.bytes);
       if (source.length !== j.source.bytes || hash(source) !== j.source.sha256) throw fail('source_mismatch');
+      // Re-checked where the source would run, not only at admission: generated Python never starts outside the sandbox.
+      const refusal = j.operation === 'build' && executionRefusal(source, { sandboxed: true, host });
+      if (refusal) throw Object.assign(fail('sandbox_unavailable'), { phase: 'build', diagnostics: refusal });
       record.stage = 'building';
       heartbeat = setInterval(() => callback(j, 'progress', { stage: record.stage }, signal).catch(() => record.abort.abort()), 15000);
       await callback(j, 'progress', { stage: record.stage }, signal);
@@ -160,7 +164,7 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
       if (attempts.has(key)) return send(200, { duplicate: true, stage: attempts.get(key).stage });
       if (active) return send(429, { error: 'busy' });
       if (!admission || !budget) return send(503, { error: 'admission_disabled' });
-      if (degraded || process.platform !== 'linux' || !detect().backend) return send(503, { error: 'sandbox_unavailable' });
+      if (degraded || !sandboxReady(host())) return send(503, { error: 'sandbox_unavailable' });
       try { budget.reserve(key, effectiveLimits(job).total_artifact_bytes); } catch { await budget.notifyExhausted?.(); return send(429, { error: 'budget_exhausted' }); }
       const record = { job, stage: 'building', abort: new AbortController(), timings: {} };
       attempts.set(key, record); active = record;

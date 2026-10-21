@@ -18,6 +18,7 @@ import { validateValues } from '../web/src/cad-parameters.js';
 import { quickEditModel } from '../web/src/cad-quick-edit-model.js';
 import { cadDimensions } from '../web/src/cad-dimensions.js';
 import { parseControls } from './server.mjs';
+import { executionRefusal } from './execution-guard.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const python = process.argv[2], reportPath = process.argv[3];
@@ -32,6 +33,9 @@ function fresh() { rmSync(JOB, { recursive: true, force: true }); mkdirSync(join
 function run(args, cwd) { const started = Date.now(); const r = spawnSync(args[0], args.slice(1), { cwd, env, encoding: 'utf8', timeout: 300000 }); return { status: r.status, stderr: (r.stderr || '') + (r.error ? String(r.error) : ''), ms: Date.now() - started }; }
 
 function build(source, values) {
+  // Direct host spawn, no sandbox: only a committed fixture may run here (execution-guard.mjs).
+  const refusal = executionRefusal(source);
+  if (refusal) throw Error(refusal);
   fresh();
   writeFileSync(join(JOB, 'in/model.py'), source);
   if (values) writeFileSync(join(JOB, 'in/parameters.json'), JSON.stringify({ schema: 'cad-param-values/1', values }));
