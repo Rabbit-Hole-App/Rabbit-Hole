@@ -36,7 +36,8 @@ const ROLE_ORDER = ['source', 'test', 'config', 'docs'];
 const clip = (text, max) => { const t = String(text || '').replace(/\s+/g, ' ').trim(); return t.length > max ? `${t.slice(0, max - 1)}…` : t; };
 const depth = path => path.split('/').length;
 
-export async function learningSourceMap(snapshot, { goal, question = '', selectedRefs = [] }, { tool = repositoryTool } = {}) {
+// expand: false re-cites exactly the selected files (a refreshed activity keeps its sources; nothing new is pulled in).
+export async function learningSourceMap(snapshot, { goal, question = '', selectedRefs = [], expand = true }, { tool = repositoryTool } = {}) {
   const g = typeof goal === 'string' ? goalOf(goal) : goal;
   if (!g) throw Error('unknown goal');
   const files = snapshot.files || {}, graph = snapshot.graph || { nodes: [], edges: [] }, repo = snapshot.repo, commit = snapshot.commit;
@@ -68,7 +69,7 @@ export async function learningSourceMap(snapshot, { goal, question = '', selecte
   const relevance = question ? repositoryRelevance(null, question, indexVocabulary(snapshotIndex(snapshot))) : { relevant: false, terms: [], matches: [] };
   const stems = relevance.matches.filter(token => token.length > 2);
   const found = picked.size > 0 || stems.length > 0;
-  if (stems.length) {
+  if (expand && stems.length) {
     const sub = read('query_graph', { query: stems.join(' ').slice(0, 200) });
     const byId = new Map(graph.nodes.map(n => [n.id, n]));
     const ranked = (sub?.seeds || []).map(id => byId.get(id)).filter(n => usable(n?.path));
@@ -78,7 +79,7 @@ export async function learningSourceMap(snapshot, { goal, question = '', selecte
   // One hop along the indexer's links from what was selected or matched (imports, calls), so the path can be traced; files
   // further out stay listed as not shown, to expand on request.
   const fileOf = new Map(graph.nodes.map(n => [n.id, n.path || null]));
-  for (const path of [...picked.keys()]) {
+  for (const path of expand ? [...picked.keys()] : []) {
     for (const edge of graph.edges) {
       const a = fileOf.get(edge.source), b = fileOf.get(edge.target), other = a === path ? b : b === path ? a : null;
       if (other && other !== path && usable(other) && g.roles.includes(fileRole(other))) take(other, { origin: 'related' });
@@ -87,7 +88,7 @@ export async function learningSourceMap(snapshot, { goal, question = '', selecte
   // 3. The goal's own roles: tests that name a picked symbol, the shallowest manifest and documentation.
   const symbols = [...picked.values()].map(p => p.symbol).filter(s => s && !/\.\w+$/.test(s)).map(s => s.replace(/^\.|\(\)$/g, '')).slice(0, 3);
   const byRole = role => Object.keys(files).filter(p => usable(p) && fileRole(p) === role).sort((a, b) => depth(a) - depth(b) || a.localeCompare(b));
-  for (const role of g.roles) {
+  for (const role of expand ? g.roles : []) {
     if ([...picked.values()].some(p => p.role === role)) continue;
     if (role === 'test') {
       const hits = symbols.flatMap(s => read('search_code', { query: s })?.matches || []).map(m => m.path).filter(p => usable(p) && fileRole(p) === 'test');
@@ -289,7 +290,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
         return { kind: 'code', sourceId: `code:${repo.repo}@${repo.commit}:${ref.locator.path}`, range: { path: ref.locator.path, start, end: start + (ref.locator.end - ref.locator.start) } };
       });
       const drift = await sourceDrift(old.sourceRefs, snapshot);
-      const map = await learningSourceMap(snapshot, { goal, question: was.focus, selectedRefs });
+      const map = await learningSourceMap(snapshot, { goal, question: was.focus, selectedRefs, expand: false });
       for (const path of drift.items.filter(i => i.status === 'deleted').map(i => i.path)) map.omissions.unshift({ path, reason: 'deleted', detail: `since ${was.commit.slice(0, 7)}` });
       const next = codebaseActivity(goal, map, { focus: was.focus, app: repo.app });
       const { assessment, ...kept } = old.checkpoint; // eslint-disable-line no-unused-vars

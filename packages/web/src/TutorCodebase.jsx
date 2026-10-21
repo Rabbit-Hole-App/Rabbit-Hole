@@ -27,6 +27,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
   const [info, setInfo] = useState(null);
   const [dismissed, setDismissed] = useState(null); // the canvas whose menu the learner set aside (Learn something else)
   const [kept, setKept] = useState(null); // the activity kept at its saved revision
+  const [unfolded, setUnfolded] = useState(null); // the activity whose source list is open (the one just started here)
   const [pending, setPending] = useState(null), [question, setQuestion] = useState(''), [busy, setBusy] = useState(false), [note, setNote] = useState(null);
   const [reload, setReload] = useState(0);
   useEffect(() => {
@@ -49,7 +50,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     try {
       const out = await post({ action: 'start', goal: goalId, question: text });
       if (out.route === 'not_found') { setNote(`I couldn't find that in ${repository.repo} at ${short(repository.commit)}. Try other words, or open Files and pick the code.`); return; }
-      setPending(null); setQuestion('');
+      setPending(null); setQuestion(''); setUnfolded(out.activityId);
       // The first two cited source files go on the canvas as code cards at this commit (LearnPage small:code-card); nothing is sent.
       for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
         window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: citation.text, path: citation.path, start: citation.start, end: citation.end, commit: citation.commit, repo: out.map.repository.repo } }));
@@ -88,7 +89,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     {note && <p role="alert" data-codebase-note className="text-xs text-fail">{note}</p>}
   </section>;
 
-  const cb = activity?.checkpoint?.codebase, drift = current?.activity?.activityId === activity?.activityId ? current.activity : null;
+  const cb = activity?.checkpoint?.codebase, drift = activity && current?.activity?.activityId === activity.activityId ? current.activity : null;
   const status = new Map((drift?.items || []).map(item => [item.path, item.status]));
   const stale = (drift?.stale || []).length > 0 && kept !== activity?.activityId;
   const open = ref => {
@@ -99,10 +100,13 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     if (!event.defaultPrevented) window.open(`https://github.com/${cb.repo}/blob/${ref.version}/${path.split('/').map(encodeURIComponent).join('/')}#L${from}-L${end}`, '_blank', 'noopener');
   };
   const counts = Object.entries(cb?.omissionCounts || {});
+  const cited = activity?.sourceRefs.filter(isRepositorySource) || [];
+  // One summary line keeps the Chat readable; the list opens on demand, and right after the learner started this activity.
   const sourcesView = cb && <section data-codebase-sources aria-label="Sources for this activity" className="mb-2 flex flex-col gap-1.5 rounded-xl border border-line bg-white p-3 text-xs text-ink-2">
-    <p className="font-medium text-ink" data-codebase-question-kind={cb.question}>{QUESTION_LABEL[cb.question]} · {cb.repo} at {short(cb.commit)}</p>
-    <ul className="flex flex-col gap-1">
-      {activity.sourceRefs.filter(isRepositorySource).map(ref => <li key={ref.id} data-codebase-source={ref.locator.path} data-codebase-status={status.get(ref.locator.path) || 'unknown'} className="flex flex-wrap items-center gap-x-2">
+    <details data-codebase-map open={unfolded === activity.activityId} onToggle={event => setUnfolded(event.currentTarget.open ? activity.activityId : null)} className="flex flex-col gap-1.5">
+    <summary className="cursor-pointer font-medium text-ink" data-codebase-question-kind={cb.question}>{QUESTION_LABEL[cb.question]} · {cb.repo} at {short(cb.commit)} · {cited.length} source{cited.length === 1 ? '' : 's'} · {EVIDENCE_LABEL.execution}</summary>
+    <ul className="mt-1.5 flex flex-col gap-1">
+      {cited.map(ref => <li key={ref.id} data-codebase-source={ref.locator.path} data-codebase-status={status.get(ref.locator.path) || 'unknown'} className="flex flex-wrap items-center gap-x-2">
         <button type="button" onClick={() => open(ref)} className={`${LINK} font-mono`}>{ref.locator.path}:{ref.locator.start}-{ref.locator.end}</button>
         <span>{ref.locator.role}</span>
         {['changed', 'deleted'].includes(status.get(ref.locator.path)) && <span className="text-fail">{status.get(ref.locator.path)} since {short(ref.version)}</span>}
@@ -116,7 +120,8 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
       <summary className="cursor-pointer">Not included: {counts.map(([reason, n]) => `${n} ${OMITTED[reason] || reason}`).join('; ')}</summary>
       <ul className="mt-1 flex flex-col gap-0.5">{(cb.omissions || []).map(o => <li key={`${o.path}|${o.reason}`}>{o.path}: {OMITTED[o.reason] || o.reason}{o.detail ? ` (${o.detail})` : ''}</li>)}</ul>
     </details>}
-    <p data-codebase-evidence>{EVIDENCE_LABEL.inspection} at {short(cb.commit)}. {NOT_RUN_NOTE}</p>
+    <p data-codebase-evidence className="mt-1.5">{EVIDENCE_LABEL.inspection} at {short(cb.commit)}. {NOT_RUN_NOTE}</p>
+    </details>
     {stale && <div role="status" data-codebase-drift className="flex flex-col gap-1.5 rounded-lg bg-hover p-2 text-ink">
       <p>The repository changed since this activity ({short(cb.commit)} → {short(drift.commit)}): {drift.stale.join(', ')}. Your submitted answers stay with {short(cb.commit)}.</p>
       <div className="flex flex-wrap gap-1.5">

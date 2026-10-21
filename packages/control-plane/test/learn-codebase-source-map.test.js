@@ -250,6 +250,7 @@ test('relevant_drift_marks_stale_only: a changed or deleted cited file is stale,
   const next = activityOf(refreshed.state);
   assert.notEqual(next.activityId, first.activityId);
   assert.ok(next.sourceRefs.every(ref => ref.version === COMMITS.v2));
+  assert.deepEqual(paths(next).sort(), paths(first).sort(), 'the same files, re-read at the current commit');
   assert.deepEqual([next.checkpoint.codebase.refreshedFrom, next.checkpoint.codebase.previousCommit], [first.activityId, COMMITS.v1]);
   const old = f.sqlite.prepare('SELECT status, revision, source_refs_json FROM learn_activities WHERE id = ?').get(first.activityId);
   assert.equal(old.status, 'paused', 'kept, waiting for an explicit return');
